@@ -56,10 +56,33 @@ export default function SettingsScreen() {
 
   const handleExport = async () => {
     try {
-      Linking.openURL('https://cite.app/api/me/export'); 
-      Alert.alert(t('settings.exportStarted'), t('settings.exportCheckBrowser'));
+      Alert.alert(
+        t('settings.exportData', 'Export Data'),
+        t('settings.exportMessage', 'Your data export will be sent to your email address. This may take a few minutes.'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('settings.export', 'Export'),
+            onPress: async () => {
+              try {
+                await api.get('/users/me/export');
+                Alert.alert(
+                  t('settings.exportStarted', 'Export Started'),
+                  t('settings.exportCheckEmail', 'Your data export has been started. You will receive an email when it\'s ready.')
+                );
+              } catch (error: any) {
+                console.error('Export failed', error);
+                Alert.alert(
+                  t('settings.error', 'Error'),
+                  t('settings.failedExport', 'Failed to start export. Please try again later.')
+                );
+              }
+            }
+          }
+        ]
+      );
     } catch (error) {
-      Alert.alert(t('settings.error'), t('settings.failedExport'));
+      Alert.alert(t('settings.error', 'Error'), t('settings.failedExport', 'Failed to export data'));
     }
   };
 

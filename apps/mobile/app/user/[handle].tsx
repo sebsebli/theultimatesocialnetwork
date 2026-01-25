@@ -34,8 +34,17 @@ export default function UserProfileScreen() {
       setUser(data);
       setFollowing((data as any).isFollowing || false);
       
-      // Load posts with pagination
-      const postsData = await api.get(`/users/${data.id}/posts?page=${pageNum}&limit=20&type=${activeTab}`);
+      // Load posts/replies/quotes with pagination
+      let postsData;
+      if (activeTab === 'replies') {
+        postsData = await api.get(`/users/${data.id}/replies?page=${pageNum}&limit=20`);
+      } else if (activeTab === 'quotes') {
+        postsData = await api.get(`/users/${data.id}/quotes?page=${pageNum}&limit=20`);
+      } else if (activeTab === 'collections') {
+        postsData = await api.get(`/users/${data.id}/collections?page=${pageNum}&limit=20`);
+      } else {
+        postsData = await api.get(`/users/${data.id}/posts?page=${pageNum}&limit=20&type=${activeTab}`);
+      }
       const items = Array.isArray(postsData.items || postsData) ? (postsData.items || postsData) : [];
       
       if (reset) {
@@ -46,8 +55,16 @@ export default function UserProfileScreen() {
       
       const hasMoreData = items.length === 20 && (postsData.hasMore !== false);
       setHasMore(hasMoreData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load profile', error);
+      // Show user-friendly error
+      if (reset && !user) {
+        const { Alert } = require('react-native');
+        Alert.alert(
+          t('common.error', 'Error'),
+          t('profile.loadError', 'Failed to load profile. Please try again.')
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -115,6 +132,92 @@ export default function UserProfileScreen() {
     }
   };
 
+  const handleBlock = async () => {
+    Alert.alert(
+      t('safety.blockUser', 'Block User'),
+      t('safety.blockConfirm', `Are you sure you want to block @${user.handle}? You won't see their posts or messages.`),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('safety.block', 'Block'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.post(`/safety/block/${user.id}`);
+              Alert.alert(t('safety.blocked', 'User Blocked'), t('safety.blockedMessage', 'This user has been blocked.'));
+              router.back();
+            } catch (error) {
+              console.error('Failed to block user', error);
+              Alert.alert(t('common.error', 'Error'), t('safety.failedBlock', 'Failed to block user.'));
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleMute = async () => {
+    Alert.alert(
+      t('safety.muteUser', 'Mute User'),
+      t('safety.muteConfirm', `Are you sure you want to mute @${user.handle}? You won't see their posts in your feed.`),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('safety.mute', 'Mute'),
+          onPress: async () => {
+            try {
+              await api.post(`/safety/mute/${user.id}`);
+              Alert.alert(t('safety.muted', 'User Muted'), t('safety.mutedMessage', 'This user has been muted.'));
+            } catch (error) {
+              console.error('Failed to mute user', error);
+              Alert.alert(t('common.error', 'Error'), t('safety.failedMute', 'Failed to mute user.'));
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleUserMenu = () => {
+    Alert.alert(
+      t('profile.options', 'User Options'),
+      undefined,
+      [
+        { text: t('safety.block', 'Block User'), onPress: handleBlock, style: 'destructive' },
+        { text: t('safety.mute', 'Mute User'), onPress: handleMute },
+        { text: t('safety.report', 'Report User'), onPress: () => handleReport(user.id, 'USER'), style: 'destructive' },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleReport = async (targetId: string, type: 'POST' | 'REPLY' | 'USER') => {
+    Alert.alert(
+      t('safety.reportTitle', 'Report'),
+      t('safety.reportMessage', 'Are you sure you want to report this?'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('safety.report', 'Report'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.post('/safety/report', {
+                targetId,
+                targetType: type,
+                reason: 'Reported via mobile app',
+              });
+              Alert.alert(t('common.success', 'Success'), t('safety.reportSuccess', 'Report submitted successfully'));
+            } catch (error) {
+              console.error('Failed to report', error);
+              Alert.alert(t('common.error', 'Error'), t('safety.reportError', 'Failed to submit report'));
+            }
+          }
+        }
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -150,6 +253,7 @@ export default function UserProfileScreen() {
             </Pressable>
             <Pressable 
               style={styles.iconButton}
+              onPress={() => handleUserMenu()}
               accessibilityLabel="More options"
               accessibilityRole="button"
             >

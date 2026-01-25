@@ -28,11 +28,75 @@ interface PostItemProps {
 }
 
 export function PostItem({ post, isAuthor = false }: PostItemProps) {
-  const [liked, setLiked] = useState(false);
-  const [kept, setKept] = useState(false);
+  const [liked, setLiked] = useState((post as any).isLiked || false);
+  const [kept, setKept] = useState((post as any).isKept || false);
   
   // Base URL for MinIO (should be in env, using localhost for dev)
   const STORAGE_URL = 'http://localhost:9000/cite-images';
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const previous = liked;
+    setLiked(!previous);
+    
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      
+      if (!token) {
+        setLiked(previous);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/posts/${post.id}/like`, {
+        method: previous ? 'DELETE' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle like');
+      }
+    } catch (error) {
+      console.error('Failed to toggle like', error);
+      setLiked(previous);
+    }
+  };
+
+  const handleKeep = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const previous = kept;
+    setKept(!previous);
+    
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      
+      if (!token) {
+        setKept(previous);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/posts/${post.id}/keep`, {
+        method: previous ? 'DELETE' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle keep');
+      }
+    } catch (error) {
+      console.error('Failed to toggle keep', error);
+      setKept(previous);
+    }
+  };
 
   const formatTime = (date: string) => {
     const d = new Date(date);
@@ -104,7 +168,7 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
       {/* Action Row */}
       <div className="flex items-center justify-between pt-2 pr-4 text-tertiary">
         <button 
-          onClick={() => setLiked(!liked)}
+          onClick={handleLike}
           className={`flex items-center gap-1 hover:text-primary transition-colors ${liked ? 'text-like' : ''}`}
         >
           <svg className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -128,7 +192,7 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
           )}
         </Link>
         <button 
-          onClick={() => setKept(!kept)}
+          onClick={handleKeep}
           className={`flex items-center gap-1 hover:text-primary transition-colors ${kept ? 'text-primary' : ''}`}
         >
           <svg className="w-5 h-5" fill={kept ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">

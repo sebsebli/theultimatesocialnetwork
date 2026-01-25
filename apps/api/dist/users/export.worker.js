@@ -48,6 +48,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 var ExportWorker_1;
+var _a, _b;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExportWorker = void 0;
 const common_1 = require("@nestjs/common");
@@ -140,8 +141,6 @@ exports.ExportWorker = ExportWorker;
 exports.ExportWorker = ExportWorker = ExportWorker_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(2, (0, common_1.Inject)('REDIS_CLIENT')),
-    __metadata("design:paramtypes", [users_service_1.UsersService,
-        config_1.ConfigService,
-        ioredis_1.default])
+    __metadata("design:paramtypes", [users_service_1.UsersService, typeof (_a = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _a : Object, typeof (_b = typeof ioredis_1.default !== "undefined" && ioredis_1.default) === "function" ? _b : Object])
 ], ExportWorker);
 //# sourceMappingURL=export.worker.js.map

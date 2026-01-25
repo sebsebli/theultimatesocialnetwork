@@ -144,8 +144,8 @@ export default function SignInScreen() {
               </Text>
             </Pressable>
 
-            <Pressable onPress={() => openLink('https://cite.app/waiting-list')}>
-              <Text style={styles.resendLink}>Need an invite? Join the waitlist</Text>
+            <Pressable onPress={() => router.push('/waiting-list')}>
+              <Text style={styles.resendLink}>{t('signIn.joinWaitlist', 'Need an invite? Join the waitlist')}</Text>
             </Pressable>
 
             <Text style={styles.termsText}>

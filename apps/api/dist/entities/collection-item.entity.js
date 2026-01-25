@@ -48,7 +48,7 @@ __decorate([
 ], CollectionItem.prototype, "post", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'curator_note', type: 'text', nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], CollectionItem.prototype, "curatorNote", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'added_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' }),

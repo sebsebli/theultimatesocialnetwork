@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InteractionsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -140,7 +141,6 @@ exports.InteractionsService = InteractionsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        notification_helper_service_1.NotificationHelperService,
-        ioredis_1.default])
+        notification_helper_service_1.NotificationHelperService, typeof (_a = typeof ioredis_1.default !== "undefined" && ioredis_1.default) === "function" ? _a : Object])
 ], InteractionsService);
 //# sourceMappingURL=interactions.service.js.map

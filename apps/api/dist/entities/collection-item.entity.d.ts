@@ -6,7 +6,7 @@ export declare class CollectionItem {
     collection: Collection;
     postId: string;
     post: Post;
-    curatorNote: string;
+    curatorNote: string | null;
     addedAt: Date;
     sortOrder: number;
 }

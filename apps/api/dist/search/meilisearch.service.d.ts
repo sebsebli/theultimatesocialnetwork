@@ -24,19 +24,7 @@ export declare class MeilisearchService implements OnModuleInit {
         limit?: number;
         offset?: number;
         lang?: string;
-    }): Promise<import("meilisearch").SearchResponse<Record<string, any>, {
-        limit: number;
-        offset: number;
-        filter: string | undefined;
-        sort: string[];
-    }> | {
-        hits: never[];
-        estimatedTotalHits: number;
-    }>;
-    searchUsers(query: string, limit?: number): Promise<import("meilisearch").SearchResponse<Record<string, any>, {
-        limit: number;
-    }> | {
-        hits: never[];
-    }>;
+    }): Promise<any>;
+    searchUsers(query: string, limit?: number): Promise<any>;
     deletePost(postId: string): Promise<void>;
 }

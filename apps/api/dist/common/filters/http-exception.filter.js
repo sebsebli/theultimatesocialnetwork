@@ -17,7 +17,25 @@ let AllExceptionsFilter = class AllExceptionsFilter {
             ? exception.getStatus()
             : common_1.HttpStatus.INTERNAL_SERVER_ERROR;
         const isProduction = process.env.NODE_ENV === 'production';
-        console.error(`[${request.method}] ${request.url} - Status: ${status}`, exception);
+        const logData = {
+            timestamp: new Date().toISOString(),
+            method: request.method,
+            url: request.url,
+            status,
+            userAgent: request.get('user-agent'),
+            ip: request.ip || request.connection.remoteAddress,
+            error: exception instanceof Error ? {
+                message: exception.message,
+                stack: isProduction ? undefined : exception.stack,
+                name: exception.name,
+            } : String(exception),
+        };
+        if (isProduction) {
+            console.error(JSON.stringify(logData));
+        }
+        else {
+            console.error(`[${request.method}] ${request.url} - Status: ${status}`, exception);
+        }
         let message;
         if (exception instanceof common_1.HttpException) {
             const exceptionResponse = exception.getResponse();

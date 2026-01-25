@@ -32,7 +32,7 @@ import { Platform } from 'react-native';
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-function AppContent() {
+function AppContent({ onReady }: { onReady?: () => void }) {
   const { isLoading, isAuthenticated } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -43,6 +43,21 @@ function AppContent() {
       NavigationBar.setBackgroundColorAsync(COLORS.ink);
     }
   }, []);
+
+  // Notify parent when the app is ready (auth loaded and route is ready)
+  const hasNotifiedReady = useRef(false);
+  useEffect(() => {
+    if (!isLoading && segments[0] && onReady && !hasNotifiedReady.current) {
+      // Small delay to ensure the screen is fully rendered (especially for intro modal)
+      const timer = setTimeout(() => {
+        if (!hasNotifiedReady.current) {
+          hasNotifiedReady.current = true;
+          onReady();
+        }
+      }, 500); // Longer delay to ensure intro modal check completes
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, segments, onReady]);
 
   // Fallback: If segments are empty after 1 second and user is authenticated, navigate to tabs
   // This handles the case where router isn't ready immediately
@@ -134,6 +149,7 @@ export default function RootLayout() {
 
   // Track if we've already hidden the splash screen to prevent multiple calls
   const splashScreenHidden = useRef(false);
+  const appReady = useRef(false);
 
   const hideSplashScreen = async () => {
     // Only hide once - prevent multiple calls
@@ -143,8 +159,9 @@ export default function RootLayout() {
     splashScreenHidden.current = true;
 
     try {
-      // Small delay to ensure native view controller is ready (especially on iOS)
-      await new Promise(resolve => setTimeout(resolve, Platform.OS === 'ios' ? 200 : 100));
+      // Delay to ensure native view controller is ready and screen is fully rendered
+      // Longer delay on iOS to ensure everything is ready
+      await new Promise(resolve => setTimeout(resolve, Platform.OS === 'ios' ? 400 : 200));
       await SplashScreen.hideAsync();
     } catch (error) {
       // Silently ignore splash screen errors - they're not critical
@@ -157,6 +174,17 @@ export default function RootLayout() {
     }
   };
 
+  // Callback when app is ready (auth loaded + route ready)
+  const handleAppReady = () => {
+    if (!appReady.current) {
+      appReady.current = true;
+      // Hide splash screen only when app is fully ready
+      if (loaded || error) {
+        hideSplashScreen();
+      }
+    }
+  };
+
   useEffect(() => {
     // Configure notification handler (non-blocking)
     try {
@@ -164,19 +192,16 @@ export default function RootLayout() {
     } catch (error) {
       console.warn('Failed to configure notifications:', error);
     }
+  }, []);
 
-    // Hide splash screen after fonts load or error
-    if (loaded || error) {
-      hideSplashScreen();
-    }
-  }, [loaded, error]);
-
-  // Fallback: hide splash screen after 2 seconds even if fonts haven't loaded
+  // Fallback: hide splash screen after 3 seconds even if app isn't ready
   // This prevents the app from being stuck on splash screen
   useEffect(() => {
     const timeout = setTimeout(() => {
-      hideSplashScreen();
-    }, 2000);
+      if (!splashScreenHidden.current) {
+        hideSplashScreen();
+      }
+    }, 3000);
     
     return () => clearTimeout(timeout);
   }, []);
@@ -215,7 +240,7 @@ export default function RootLayout() {
           <ThemeProvider value={MyDarkTheme}>
             <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
               <OfflineBanner />
-              <AppContent />
+              <AppContent onReady={handleAppReady} />
             </View>
           </ThemeProvider>
         </AuthProvider>

@@ -31,6 +31,77 @@ export function PostDetail({ post }: PostDetailProps) {
   const [kept, setKept] = useState(false);
 
   useEffect(() => {
+    // Load initial like/keep state if available
+    // This would come from the post data if the API returns it
+    if ((post as any).isLiked !== undefined) {
+      setLiked((post as any).isLiked);
+    }
+    if ((post as any).isKept !== undefined) {
+      setKept((post as any).isKept);
+    }
+  }, [post]);
+
+  const handleLike = async () => {
+    const previous = liked;
+    setLiked(!previous); // Optimistic update
+    
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      
+      if (!token) {
+        setLiked(previous);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/posts/${post.id}/like`, {
+        method: previous ? 'DELETE' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle like');
+      }
+    } catch (error) {
+      console.error('Failed to toggle like', error);
+      setLiked(previous); // Revert on error
+    }
+  };
+
+  const handleKeep = async () => {
+    const previous = kept;
+    setKept(!previous); // Optimistic update
+    
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      
+      if (!token) {
+        setKept(previous);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/posts/${post.id}/keep`, {
+        method: previous ? 'DELETE' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle keep');
+      }
+    } catch (error) {
+      console.error('Failed to toggle keep', error);
+      setKept(previous); // Revert on error
+    }
+  };
+
+  useEffect(() => {
     // Fire view beacon
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
     fetch(`${API_URL}/posts/${post.id}/view`, { method: 'POST' }).catch(console.error);
@@ -187,7 +258,7 @@ export function PostDetail({ post }: PostDetailProps) {
         {/* Actions */}
         <div className="flex items-center justify-between pt-4 border-t border-divider">
           <button 
-            onClick={() => setLiked(!liked)}
+            onClick={handleLike}
             className={`flex items-center gap-2 hover:text-primary transition-colors ${liked ? 'text-red-500' : 'text-tertiary'}`}
           >
             <svg className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -210,7 +281,7 @@ export function PostDetail({ post }: PostDetailProps) {
             </button>
           </Link>
           <button 
-            onClick={() => setKept(!kept)}
+            onClick={handleKeep}
             className={`flex items-center gap-2 transition-colors ${kept ? 'text-primary' : 'text-tertiary hover:text-primary'}`}
           >
             <svg className="w-5 h-5" fill={kept ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">

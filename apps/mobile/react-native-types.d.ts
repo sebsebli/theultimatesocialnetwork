@@ -21,4 +21,15 @@ declare global {
       new (props: any, deprecatedLegacyContext?: any): any;
     }
   }
+  
+  // Override React's JSX namespace to allow ReactNode as valid return type
+  namespace React {
+    namespace JSX {
+      // Allow components that return ReactNode | Promise<ReactNode>
+      type ElementType = 
+        | string
+        | React.ComponentType<any>
+        | ((props: any) => ReactNode | Promise<ReactNode> | JSX.Element | null);
+    }
+  }
 }

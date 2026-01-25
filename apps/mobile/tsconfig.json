@@ -8,7 +8,9 @@
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "typeRoots": ["./node_modules/@types", "./types"]
+    "typeRoots": ["./node_modules/@types", "./types"],
+    "baseUrl": ".",
+    "preserveSymlinks": false
   },
   "include": [
     "**/*.ts",

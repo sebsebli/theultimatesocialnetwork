@@ -22,7 +22,7 @@ export class CollectionItem {
   post: Post;
 
   @Column({ name: 'curator_note', type: 'text', nullable: true })
-  curatorNote: string;
+  curatorNote: string | null;
 
   @Column({ name: 'added_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   addedAt: Date;

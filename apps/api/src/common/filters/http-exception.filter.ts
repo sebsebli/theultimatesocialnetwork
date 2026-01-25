@@ -15,8 +15,27 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const isProduction = process.env.NODE_ENV === 'production';
     
+    // Structured logging for production
+    const logData = {
+      timestamp: new Date().toISOString(),
+      method: request.method,
+      url: request.url,
+      status,
+      userAgent: request.get('user-agent'),
+      ip: request.ip || request.connection.remoteAddress,
+      error: exception instanceof Error ? {
+        message: exception.message,
+        stack: isProduction ? undefined : exception.stack,
+        name: exception.name,
+      } : String(exception),
+    };
+    
     // Log full error details server-side
-    console.error(`[${request.method}] ${request.url} - Status: ${status}`, exception);
+    if (isProduction) {
+      console.error(JSON.stringify(logData));
+    } else {
+      console.error(`[${request.method}] ${request.url} - Status: ${status}`, exception);
+    }
 
     // Get message safely
     let message: string;

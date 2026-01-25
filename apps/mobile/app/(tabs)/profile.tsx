@@ -42,8 +42,17 @@ export default function ProfileScreen() {
         setIsFollowing(data.isFollowing);
       }
       
-      // Load posts with pagination
-      const postsData = await api.get(`/users/${data.id || 'me'}/posts?page=${pageNum}&limit=20&type=${activeTab}`);
+      // Load posts/replies/quotes with pagination
+      let postsData;
+      if (activeTab === 'replies') {
+        postsData = await api.get(`/users/${data.id || 'me'}/replies?page=${pageNum}&limit=20`);
+      } else if (activeTab === 'quotes') {
+        postsData = await api.get(`/users/${data.id || 'me'}/quotes?page=${pageNum}&limit=20`);
+      } else if (activeTab === 'collections') {
+        postsData = await api.get(`/users/${data.id || 'me'}/collections?page=${pageNum}&limit=20`);
+      } else {
+        postsData = await api.get(`/users/${data.id || 'me'}/posts?page=${pageNum}&limit=20&type=${activeTab}`);
+      }
       const items = Array.isArray(postsData.items || postsData) ? (postsData.items || postsData) : [];
       
       if (reset) {
@@ -60,6 +69,14 @@ export default function ProfileScreen() {
         return;
       }
       console.error('Failed to load profile', error);
+      // Show user-friendly error if no data exists
+      if (reset && posts.length === 0 && !loading) {
+        const { Alert } = require('react-native');
+        Alert.alert(
+          t('common.error', 'Error'),
+          t('profile.loadError', 'Failed to load profile. Please try again.')
+        );
+      }
     }
   };
 

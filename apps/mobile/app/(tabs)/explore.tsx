@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, FlatList, Pressable, TextInput, ScrollView, Ref
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
 import { DeepDiveCard, PersonCard, QuoteCard } from '../../components/ExploreCards';
@@ -17,7 +17,7 @@ export default function ExploreScreen() {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives'>('topics');
+  const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('topics');
   const [sort, setSort] = useState<'recommended' | 'newest'>('recommended');
   const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<any[]>([]);
@@ -52,9 +52,35 @@ export default function ExploreScreen() {
     setError(false);
     try {
       let endpoint = '/explore/topics';
-      if (activeTab === 'people') endpoint = '/explore/people';
+      if (activeTab === 'people') {
+        // Try suggested users first, fallback to explore/people
+        try {
+          const suggested = await api.get('/users/suggested?limit=20');
+          const suggestedItems = Array.isArray(suggested) ? suggested : [];
+          if (suggestedItems.length > 0) {
+            const items = suggestedItems.map((item: any) => ({
+              ...item,
+              id: item.id || item.handle,
+            }));
+            if (reset) {
+              setData(items);
+            } else {
+              setData(prev => [...prev, ...items]);
+            }
+            setHasMore(false); // Suggested users don't paginate
+            setLoading(false);
+            setRefreshing(false);
+            setLoadingMore(false);
+            return;
+          }
+        } catch (e) {
+          // Fall through to explore/people
+        }
+        endpoint = '/explore/people';
+      }
       if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
       if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
+      if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
 
       const res = await api.get(`${endpoint}?page=${pageNum}&limit=20`);
       const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
@@ -85,10 +111,14 @@ export default function ExploreScreen() {
       }
       console.error('Failed to load content', error);
       setError(true);
-      if (data.length > 0) {
-         // Alert needs to be imported from 'react-native'
-         // I will assume it is or add it if possible, but replace tool handles string replacement.
-         // I'll just change the render logic first.
+      // Show user-friendly error
+      if (data.length === 0) {
+        // Only show alert if no data exists
+        const { Alert } = require('react-native');
+        Alert.alert(
+          t('common.error', 'Error'),
+          t('explore.loadError', 'Failed to load content. Please try again.')
+        );
       }
     } finally {
       setLoading(false);
@@ -112,13 +142,19 @@ export default function ExploreScreen() {
 
   const renderItem = useCallback(({ item }: { item: any }) => {
     if (activeTab === 'deep-dives') {
-      return <DeepDiveCard item={item} onPress={() => {}} />;
+      return <DeepDiveCard item={item} onPress={() => router.push(`/post/${item.id}`)} />;
     } else if (activeTab === 'people') {
       return <PersonCard item={item} onPress={() => router.push(`/user/${item.handle}`)} />;
     } else if (activeTab === 'quoted') {
       return <QuoteCard item={item} onPress={() => router.push(`/post/${item.id}`)} />;
+    } else if (activeTab === 'newsroom') {
+      // Newsroom shows posts with sources
+      if (!item || !item.id) {
+        return null;
+      }
+      return <PostItem post={item} />;
     } else {
-      // Ensure item has required structure
+      // Topics tab
       if (!item || !item.id) {
         return null;
       }
@@ -163,18 +199,19 @@ export default function ExploreScreen() {
       {/* Tabs */}
       <View style={styles.tabsContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent}>
-          {(['topics', 'people', 'quoted', 'deep-dives'] as const).map((tab) => (
+          {(['topics', 'people', 'quoted', 'deep-dives', 'newsroom'] as const).map((tab) => (
             <Pressable
               key={tab}
               onPress={() => setActiveTab(tab)}
               style={[styles.tab, activeTab === tab && styles.tabActive]}
-              accessibilityLabel={tab === 'deep-dives' ? t('explore.deepDives') : tab === 'quoted' ? t('explore.quoted') : t(`explore.${tab}`)}
+              accessibilityLabel={tab === 'deep-dives' ? t('explore.deepDives') : tab === 'quoted' ? t('explore.quoted') : tab === 'newsroom' ? t('explore.newsroom') : t(`explore.${tab}`)}
               accessibilityRole="tab"
               accessibilityState={{ selected: activeTab === tab }}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
                 {tab === 'deep-dives' ? t('explore.deepDives') : 
                  tab === 'quoted' ? t('explore.quoted') : 
+                 tab === 'newsroom' ? t('explore.newsroom') :
                  t(`explore.${tab}`)}
               </Text>
             </Pressable>
@@ -224,6 +261,7 @@ export default function ExploreScreen() {
                  activeTab === 'people' ? t('explore.noPeople') :
                  activeTab === 'quoted' ? t('explore.noQuoted') :
                  activeTab === 'deep-dives' ? t('explore.noDeepDives') :
+                 activeTab === 'newsroom' ? t('explore.noNewsroom') :
                  t('common.loading')}
               </Text>
             </View>

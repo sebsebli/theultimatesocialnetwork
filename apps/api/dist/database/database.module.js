@@ -29,7 +29,7 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                         autoLoadEntities: true,
                         synchronize: !isProduction,
                         logging: !isProduction,
-                        ssl: isProduction ? { rejectUnauthorized: false } : false,
+                        ssl: configService.get('DB_SSL') === 'false' ? false : (isProduction ? { rejectUnauthorized: false } : false),
                     };
                 },
             }),

@@ -14,7 +14,7 @@ export declare class AuthService {
         message: string;
     }>;
     verifyMagicLink(email: string, token: string): Promise<{
-        accessToken: string;
+        accessToken: any;
         user: {
             id: string;
             email: string;
@@ -23,7 +23,7 @@ export declare class AuthService {
         };
     }>;
     generateTokens(user: User): Promise<{
-        accessToken: string;
+        accessToken: any;
         user: {
             id: string;
             email: string;

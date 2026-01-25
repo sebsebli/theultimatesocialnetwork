@@ -1,5 +1,29 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Note: standalone output disabled for now due to build issues
+  // output: 'standalone',
+  
+  // Environment variables
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+  },
+  
+  // Image optimization
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '9000',
+        pathname: '/cite-images/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+  },
+  
   // Security headers
   async headers() {
     return [
@@ -30,23 +54,10 @@ const nextConfig = {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin'
           },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()'
-          }
         ],
       },
     ];
   },
-  
-  // Disable source maps in production for security
-  productionBrowserSourceMaps: false,
-  
-  // Compress responses
-  compress: true,
-  
-  // PoweredBy header removal
-  poweredByHeader: false,
 };
 
 export default nextConfig;

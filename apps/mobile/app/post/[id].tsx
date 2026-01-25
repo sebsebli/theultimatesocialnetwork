@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, RefreshControl, Alert, Platform, Share } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Pressable, RefreshControl, Alert, Platform, Share, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ export default function PostDetailScreen() {
   const [post, setPost] = useState<any>(null);
   const [replies, setReplies] = useState<any[]>([]);
   const [referencedBy, setReferencedBy] = useState<any[]>([]);
+  const [sources, setSources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
@@ -38,16 +39,18 @@ export default function PostDetailScreen() {
 
   const loadPost = async () => {
     try {
-      const [postRes, repliesRes, referencedRes] = await Promise.all([
+      const [postRes, repliesRes, referencedRes, sourcesRes] = await Promise.all([
         api.get(`/posts/${id}`),
         api.get(`/posts/${id}/replies`),
         api.get(`/posts/${id}/referenced-by`),
+        api.get(`/posts/${id}/sources`).catch(() => []), // Sources may not exist
       ]);
       setPost(postRes);
       setLiked(postRes.isLiked || false);
       setKept(postRes.isKept || false);
       setReplies(Array.isArray(repliesRes) ? repliesRes : []);
       setReferencedBy(Array.isArray(referencedRes) ? referencedRes : []);
+      setSources(Array.isArray(sourcesRes) ? sourcesRes : []);
     } catch (error) {
       console.error('Failed to load post', error);
     } finally {
@@ -229,18 +232,37 @@ export default function PostDetailScreen() {
         </View>
       </View>
 
-      {post.sources && post.sources.length > 0 && (
+      {sources.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>SOURCES</Text>
-          {post.sources.map((source: any, index: number) => (
-            <Pressable key={index} style={styles.sourceItem}>
+          <Text style={styles.sectionTitle}>{t('post.sources', 'SOURCES')}</Text>
+          {sources.map((source: any, index: number) => (
+            <Pressable 
+              key={source.id || index} 
+              style={styles.sourceItem}
+              onPress={() => {
+                if (source.url) {
+                  Linking.openURL(source.url).catch((err: any) => {
+                    console.error('Failed to open URL', err);
+                    Alert.alert(t('common.error', 'Error'), t('post.failedOpenUrl', 'Failed to open URL'));
+                  });
+                }
+              }}
+              accessibilityLabel={`${t('post.source', 'Source')} ${index + 1}: ${source.title || source.url}`}
+              accessibilityRole="link"
+            >
               <Text style={styles.sourceNumber}>{index + 1}</Text>
               <View style={styles.sourceIcon}>
-                <Text style={styles.sourceIconText}>{source.domain?.charAt(0).toUpperCase() || 'S'}</Text>
+                <Text style={styles.sourceIconText}>
+                  {(source.url ? new URL(source.url).hostname : source.domain || 'S').charAt(0).toUpperCase()}
+                </Text>
               </View>
               <View style={styles.sourceContent}>
-                <Text style={styles.sourceDomain}>{source.domain || 'source.com'}</Text>
-                <Text style={styles.sourceTitle} numberOfLines={1}>{source.title || 'Source title'}</Text>
+                <Text style={styles.sourceDomain}>
+                  {source.url ? new URL(source.url).hostname : source.domain || 'source.com'}
+                </Text>
+                <Text style={styles.sourceTitle} numberOfLines={1}>
+                  {source.title || source.url || t('post.sourceTitle', 'Source title')}
+                </Text>
               </View>
               <MaterialIcons name="open-in-new" size={16} color={COLORS.tertiary} />
             </Pressable>

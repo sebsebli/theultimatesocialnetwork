@@ -6,6 +6,11 @@
   "engines": {
     "node": ">=20"
   },
+  "pnpm": {
+    "overrides": {
+      "inotify": "npm:noop-package@1.0.0"
+    }
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersController = void 0;
 const common_1 = require("@nestjs/common");
@@ -118,7 +119,6 @@ __decorate([
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __param(1, (0, common_1.Inject)('EXPORT_QUEUE')),
-    __metadata("design:paramtypes", [users_service_1.UsersService,
-        bullmq_1.Queue])
+    __metadata("design:paramtypes", [users_service_1.UsersService, typeof (_a = typeof bullmq_1.Queue !== "undefined" && bullmq_1.Queue) === "function" ? _a : Object])
 ], UsersController);
 //# sourceMappingURL=users.controller.js.map

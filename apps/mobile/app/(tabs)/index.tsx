@@ -92,6 +92,14 @@ export default function HomeScreen() {
       }
       console.error('Failed to load feed', error);
       setError(true);
+      // Show user-friendly error only if no data exists
+      if (posts.length === 0 && !loading) {
+        const { Alert } = require('react-native');
+        Alert.alert(
+          t('common.error', 'Error'),
+          t('feed.loadError', 'Failed to load feed. Please check your connection and try again.')
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

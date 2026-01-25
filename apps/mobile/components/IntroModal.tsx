@@ -80,6 +80,7 @@ function FadeInOutBackground({
   }, [delay, fadeDuration, visibleDuration, isLast]);
 
   return (
+    // @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode>
     <Animated.View
       style={[
         {
@@ -170,6 +171,7 @@ function FadeInOutText({
   };
 
   return (
+    // @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode>
     <Animated.View
       style={[
         {
@@ -221,7 +223,9 @@ function FadeInButton({ delay, duration = 1000, onPress, text, currentIndex, tot
     : text;
 
   return (
+    // @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode>
     <Animated.View style={{ opacity: fadeAnim }}>
+      {/* @ts-expect-error - React 19 compatibility: Pressable returns ReactNode */}
       <Pressable
         style={styles.beginButton}
         onPress={onPress}
@@ -263,7 +267,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
       if (current >= allItems.length - 1) return;
       const delay = current === 0 ? 12000 : 6000; // Founder takes 17s, others 6s
       const timeoutId = setTimeout(() => {
-        setCurrentIndex((prev) => {
+        setCurrentIndex((prev: number) => {
           if (prev < allItems.length - 1) {
             const next = prev + 1;
             scheduleNext(next);
@@ -340,6 +344,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
 
         {/* Skip Button - Top */}
         <View style={styles.topSection}>
+          {/* @ts-expect-error - React 19 compatibility: Pressable returns ReactNode */}
           <Pressable
             style={styles.skipButton}
             onPress={handleSkip}
@@ -414,7 +419,7 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: COLORS.ink,
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.xs,
+    paddingHorizontal: SPACING.m,
 
   },
   backgroundImage: {

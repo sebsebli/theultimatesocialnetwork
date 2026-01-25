@@ -9,7 +9,7 @@ export declare class AuthController {
         message: string;
     }>;
     verify(dto: VerifyDto): Promise<{
-        accessToken: string;
+        accessToken: any;
         user: {
             id: string;
             email: string;
