@@ -1,0 +1,75 @@
+import { Repository } from 'typeorm';
+import { User } from '../entities/user.entity';
+import { Post } from '../entities/post.entity';
+import { Reply } from '../entities/reply.entity';
+import { PostEdge } from '../entities/post-edge.entity';
+import { Like } from '../entities/like.entity';
+import { Keep } from '../entities/keep.entity';
+import { Follow } from '../entities/follow.entity';
+import { PostRead } from '../entities/post-read.entity';
+import { Notification } from '../entities/notification.entity';
+export declare class UsersService {
+    private userRepo;
+    private postRepo;
+    private replyRepo;
+    private postEdgeRepo;
+    private likeRepo;
+    private keepRepo;
+    private followRepo;
+    private readRepo;
+    private notifRepo;
+    constructor(userRepo: Repository<User>, postRepo: Repository<Post>, replyRepo: Repository<Reply>, postEdgeRepo: Repository<PostEdge>, likeRepo: Repository<Like>, keepRepo: Repository<Keep>, followRepo: Repository<Follow>, readRepo: Repository<PostRead>, notifRepo: Repository<Notification>);
+    findByHandle(handle: string): Promise<{
+        posts: Post[];
+        id: string;
+        email: string;
+        handle: string;
+        displayName: string;
+        bio: string;
+        isProtected: boolean;
+        invitesRemaining: number;
+        languages: string[];
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt: Date;
+        followerCount: number;
+        followingCount: number;
+        quoteReceivedCount: number;
+    } | null>;
+    findById(id: string): Promise<{
+        posts: Post[];
+        id: string;
+        email: string;
+        handle: string;
+        displayName: string;
+        bio: string;
+        isProtected: boolean;
+        invitesRemaining: number;
+        languages: string[];
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt: Date;
+        followerCount: number;
+        followingCount: number;
+        quoteReceivedCount: number;
+    } | null>;
+    update(id: string, updates: Partial<User>): Promise<User>;
+    getSuggested(userId?: string, limit?: number): Promise<User[]>;
+    getReplies(userId: string): Promise<Reply[]>;
+    getQuotes(userId: string): Promise<Post[]>;
+    deleteUser(userId: string): Promise<{
+        success: boolean;
+    }>;
+    exportUserData(userId: string): Promise<{
+        user: User | null;
+        posts: Post[];
+        replies: Reply[];
+        likes: Like[];
+        keeps: Keep[];
+        following: Follow[];
+        followers: Follow[];
+        readHistory: PostRead[];
+        notifications: Notification[];
+        exportedAt: Date;
+    }>;
+}

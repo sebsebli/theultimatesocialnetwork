@@ -1,0 +1,34 @@
+import { Entity, PrimaryColumn, Column } from 'typeorm';
+
+@Entity('notification_prefs')
+export class NotificationPref {
+  @PrimaryColumn({ name: 'user_id' })
+  userId: string;
+
+  @Column({ name: 'push_enabled', default: true })
+  pushEnabled: boolean;
+
+  @Column({ default: true })
+  replies: boolean;
+
+  @Column({ default: true })
+  quotes: boolean;
+
+  @Column({ default: true })
+  mentions: boolean;
+
+  @Column({ default: true })
+  dms: boolean;
+
+  @Column({ default: true })
+  follows: boolean;
+
+  @Column({ default: false })
+  saves: boolean;
+
+  @Column({ name: 'quiet_hours_start', type: 'smallint', nullable: true })
+  quietHoursStart: number;
+
+  @Column({ name: 'quiet_hours_end', type: 'smallint', nullable: true })
+  quietHoursEnd: number;
+}
