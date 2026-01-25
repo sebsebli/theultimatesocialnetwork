@@ -11,7 +11,7 @@ import {
 } from '@expo-google-fonts/ibm-plex-serif';
 import { Stack, useSegments, Redirect, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import '../i18n';
 // Note: Reanimated is installed but not actively used in this app.
@@ -109,7 +109,7 @@ function AppContent() {
     >
       <Stack.Screen name="welcome" />
       <Stack.Screen name="sign-in" />
-      <Stack.Screen name="onboarding" />
+      {/* onboarding routes are handled automatically by Expo Router file-based routing */}
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="post/[id]" />
       <Stack.Screen name="topic/[slug]" />
@@ -119,7 +119,6 @@ function AppContent() {
       <Stack.Screen name="keeps" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="search" />
-      <Stack.Screen name="+not-found" />
     </Stack>
   );
 }
@@ -133,6 +132,31 @@ export default function RootLayout() {
     IBMPlexSerif_600SemiBold,
   });
 
+  // Track if we've already hidden the splash screen to prevent multiple calls
+  const splashScreenHidden = useRef(false);
+
+  const hideSplashScreen = async () => {
+    // Only hide once - prevent multiple calls
+    if (splashScreenHidden.current) {
+      return;
+    }
+    splashScreenHidden.current = true;
+
+    try {
+      // Small delay to ensure native view controller is ready (especially on iOS)
+      await new Promise(resolve => setTimeout(resolve, Platform.OS === 'ios' ? 200 : 100));
+      await SplashScreen.hideAsync();
+    } catch (error) {
+      // Silently ignore splash screen errors - they're not critical
+      // This can happen in Expo Go or when the native view controller isn't ready
+      if (__DEV__) {
+        console.warn('Splash screen hide error (non-critical):', error);
+      }
+      // Reset the flag so we can try again if needed
+      splashScreenHidden.current = false;
+    }
+  };
+
   useEffect(() => {
     // Configure notification handler (non-blocking)
     try {
@@ -143,9 +167,7 @@ export default function RootLayout() {
 
     // Hide splash screen after fonts load or error
     if (loaded || error) {
-      SplashScreen.hideAsync().catch(() => {
-        // Ignore errors hiding splash screen
-      });
+      hideSplashScreen();
     }
   }, [loaded, error]);
 
@@ -153,9 +175,7 @@ export default function RootLayout() {
   // This prevents the app from being stuck on splash screen
   useEffect(() => {
     const timeout = setTimeout(() => {
-      SplashScreen.hideAsync().catch(() => {
-        // Ignore errors
-      });
+      hideSplashScreen();
     }, 2000);
     
     return () => clearTimeout(timeout);

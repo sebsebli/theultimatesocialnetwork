@@ -57,7 +57,7 @@ function FadeInOutBackground({
     const timer = setTimeout(() => {
       // Fade in
       Animated.timing(fadeAnim, {
-        toValue: 0.3,
+        toValue: 0.2,
         duration: fadeDuration,
         useNativeDriver: true,
       }).start(() => {
@@ -239,7 +239,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const allItems = [
-    { text: t('intro.founderMessage'), isFounder: true, hasAuthor: true },
+    { text: "I built cite to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy.\n\nThe future deserves verification over virality, context over chaos.", isFounder: true, hasAuthor: true },
     { text: t('intro.point1'), isFounder: false, hasAuthor: false },
     { text: t('intro.point2'), isFounder: false, hasAuthor: false },
     { text: t('intro.point3'), isFounder: false, hasAuthor: false },
@@ -247,8 +247,8 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
     { text: t('intro.point5'), isFounder: false, hasAuthor: false },
     { text: t('intro.point6'), isFounder: false, hasAuthor: false },
     { text: t('intro.point7'), isFounder: false, hasAuthor: false },
-    { text: t('intro.finalMessage'), isFounder: false, hasAuthor: false },
-    { text: `Welcome`, isWelcome: true, hasAuthor: false },
+    { text: t('intro.finalMessage'), isWelcome: true, isFounder: false, hasAuthor: false },
+
   ];
 
   // Auto-advance through items
@@ -261,7 +261,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
     const timeoutIds: ReturnType<typeof setTimeout>[] = [];
     const scheduleNext = (current: number) => {
       if (current >= allItems.length - 1) return;
-      const delay = current === 0 ? 12000 : 6000; // Founder takes 12s, others 6s
+      const delay = current === 0 ? 12000 : 6000; // Founder takes 17s, others 6s
       const timeoutId = setTimeout(() => {
         setCurrentIndex((prev) => {
           if (prev < allItems.length - 1) {
@@ -298,20 +298,20 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
   };
 
   // Calculate delay for each item - each fades in, stays, then fades out (except Welcome)
-  // Founder: fade in (1000ms) + visible (10000ms) + fade out (1000ms) = 12000ms
+  // Founder: fade in (1000ms) + visible (15000ms) + fade out (1000ms) = 12000ms
   // Others: fade in (1000ms) + visible (4000ms) + fade out (1000ms) = 6000ms
   const getItemDelay = (index: number) => {
     if (index === 0) {
       // Founder message takes 12 seconds
       return 0;
     }
-    // After founder (12s), each subsequent item starts 6 seconds after the previous
-    return 12000 + (index - 1) * 6000;
+    // After founder (17s), each subsequent item starts 6 seconds after the previous
+    return 17000 + (index - 1) * 6000;
   };
 
   // Button appears after welcome fades in (last item)
-  // Founder takes 12s, others take 6s each
-  const buttonDelay = 12000 + (allItems.length - 2) * 6000 + 1000 + 500; // founder (12s) + others (6s each) + fade in + small delay
+  // Founder takes 17s, others take 6s each
+  const buttonDelay = 17000 + (allItems.length - 2) * 6000 + 1000 + 500; // founder (17s) + others (6s each) + fade in + small delay
 
   return (
     <Modal
@@ -331,7 +331,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
               key={`bg-${index}`}
               imageSource={cityImages[cityIndex]}
               delay={getItemDelay(index)}
-              visibleDuration={isLast ? 999999 : (isFounder ? 10000 : 4000)} // Founder background stays 10s, others 4s
+              visibleDuration={isLast ? 999999 : (isFounder ? 15000 : 4000)} // Founder background stays 10s, others 4s
               fadeDuration={1000}
               isLast={isLast}
             />
@@ -359,7 +359,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
                 key={index}
                 text={item.text}
                 delay={getItemDelay(index)}
-                visibleDuration={isWelcome ? 999999 : (isFounder ? 10000 : 4000)} // Founder stays 10 seconds, welcome forever, others 4 seconds
+                visibleDuration={isWelcome ? 999999 : (isFounder ? 15000 : 4000)} // Founder stays 10 seconds, welcome forever, others 4 seconds
                 fadeDuration={1000}
                 isLast={isLast}
                 isFounder={isFounder}
@@ -414,7 +414,8 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: COLORS.ink,
     justifyContent: 'space-between',
-    padding: SPACING.xs,
+    paddingHorizontal: SPACING.xs,
+
   },
   backgroundImage: {
     width: '100%',
@@ -445,27 +446,27 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   textWrapper: {
-    paddingHorizontal: SPACING.xl,
+
     paddingVertical: SPACING.m,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
-    fontSize: RFValue(18),
-    lineHeight: RFValue(24),
+    fontSize: RFValue(20),
+    lineHeight: RFValue(26),
     color: COLORS.paper,
     fontFamily: 'IBMPlexSerif_400Regular',
     textAlign: 'center',
-    maxWidth: width - SPACING.xxl * 2,
+
   },
   founderText: {
-    fontSize: RFValue(18),
-    lineHeight: RFValue(24),
+    fontSize: RFValue(20),
+    lineHeight: RFValue(26),
     color: COLORS.paper,
     fontFamily: 'IBMPlexSerif_400Regular',
     textAlign: 'center',
-    maxWidth: width - SPACING.xxl * 2,
+
   },
   highlightedCite: {
     fontFamily: 'IBMPlexSerif_600SemiBold',
@@ -476,14 +477,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   founderNameAlways: {
-    fontSize: RFValue(10),
-    lineHeight: RFValue(14),
-    color: COLORS.secondary,
+    fontSize: RFValue(14),
+    lineHeight: RFValue(20),
+    color: COLORS.paper,
     fontFamily: 'IBMPlexSerif_400Regular',
     textAlign: 'center',
     marginTop: SPACING.s,
     fontStyle: 'normal',
-    opacity: 0.7,
+
   },
   finalText: {
     fontSize: RFValue(32),
@@ -504,13 +505,13 @@ const styles = StyleSheet.create({
   },
   skipButtonText: {
     fontSize: 12,
-    color: COLORS.tertiary,
+    color: COLORS.paper,
     fontFamily: 'Inter_400Regular',
     letterSpacing: 0.5,
   },
   beginButton: {
     borderRadius: SIZES.borderRadiusPill,
-    borderWidth: 1.5,
+    borderWidth: 0,
     borderColor: COLORS.primary,
     backgroundColor: 'transparent',
     paddingVertical: SPACING.m + 2,
@@ -522,7 +523,7 @@ const styles = StyleSheet.create({
   beginButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLORS.primary,
+    color: COLORS.paper,
     fontFamily: 'Inter_500Medium',
     letterSpacing: 0.5,
   },
