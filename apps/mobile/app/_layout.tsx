@@ -118,23 +118,7 @@ function AppContent({ onReady }: { onReady?: () => void }) {
   }
 
   return (
-    <Stack
-      screenOptions={{ headerShown: false }}
-      initialRouteName="welcome"
-    >
-      <Stack.Screen name="welcome" />
-      <Stack.Screen name="sign-in" />
-      {/* onboarding routes are handled automatically by Expo Router file-based routing */}
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="post/[id]" />
-      <Stack.Screen name="topic/[slug]" />
-      <Stack.Screen name="user/[handle]" />
-      <Stack.Screen name="collections" />
-      <Stack.Screen name="collections/[id]" />
-      <Stack.Screen name="keeps" />
-      <Stack.Screen name="settings" />
-      <Stack.Screen name="search" />
-    </Stack>
+    <Stack screenOptions={{ headerShown: false }} />
   );
 }
 

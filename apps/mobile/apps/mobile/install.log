@@ -1,0 +1,4 @@
+npm warn Unknown project config "node-linker". This will stop working in the next major version of npm.
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm.
+npm error Invalid Version: 
+npm error A complete log of this run can be found in: /Users/sebastianlindner/.npm/_logs/2026-01-25T19_34_05_482Z-debug-0.log
