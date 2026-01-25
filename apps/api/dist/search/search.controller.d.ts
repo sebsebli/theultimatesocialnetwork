@@ -4,6 +4,6 @@ export declare class SearchController {
     constructor(meilisearch: MeilisearchService);
     searchPosts(user: {
         id: string;
-    }, query: string, limit?: string, offset?: string, lang?: string): Promise<any>;
-    searchUsers(query: string, limit?: string): Promise<any>;
+    }, query: string, limit?: string, offset?: string, lang?: string): unknown;
+    searchUsers(query: string, limit?: string): unknown;
 }

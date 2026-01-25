@@ -20,6 +20,7 @@ const auth_controller_1 = require("./auth.controller");
 const auth_service_1 = require("./auth.service");
 const user_entity_1 = require("../entities/user.entity");
 const invites_module_1 = require("../invites/invites.module");
+const shared_module_1 = require("../shared/shared.module");
 const ioredis_1 = __importDefault(require("ioredis"));
 let AuthModule = class AuthModule {
 };
@@ -31,6 +32,7 @@ exports.AuthModule = AuthModule = __decorate([
             config_1.ConfigModule,
             typeorm_1.TypeOrmModule.forFeature([user_entity_1.User]),
             invites_module_1.InvitesModule,
+            shared_module_1.SharedModule,
             jwt_1.JwtModule.registerAsync({
                 imports: [config_1.ConfigModule],
                 inject: [config_1.ConfigService],

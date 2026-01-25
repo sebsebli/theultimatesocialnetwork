@@ -13,6 +13,7 @@ export default function SignInScreen() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [showInviteInput, setShowInviteInput] = useState(false);
   const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -40,11 +41,22 @@ export default function SignInScreen() {
     try {
       await api.post('/auth/login', { 
         email: sanitizedEmail,
-        inviteCode: inviteCode.trim() || undefined
+        inviteCode: showInviteInput ? (inviteCode.trim() || undefined) : undefined
       });
       setSent(true);
       Alert.alert(t('signIn.success'), t('signIn.checkEmail'));
     } catch (error: any) {
+      // Check for specific beta invite requirement
+      if (error?.status === 400 && error.message === 'Invite code required for registration') {
+        setShowInviteInput(true);
+        Alert.alert(
+          'Invite Code Required', 
+          'You are new here! Please enter your invite code to join the beta.'
+        );
+        setLoading(false);
+        return;
+      }
+
       // Don't log sensitive errors in production
       if (__DEV__) {
         console.error('Failed to send magic link', error);
@@ -124,15 +136,17 @@ export default function SignInScreen() {
               autoFocus
             />
 
-            <TextInput
-              style={styles.input}
-              placeholder="Invite code (Beta only)"
-              placeholderTextColor={COLORS.tertiary}
-              value={inviteCode}
-              onChangeText={(val) => setInviteCode(val.toUpperCase())}
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
+            {showInviteInput && (
+              <TextInput
+                style={styles.input}
+                placeholder="Invite code (Required for sign up)"
+                placeholderTextColor={COLORS.tertiary}
+                value={inviteCode}
+                onChangeText={(val) => setInviteCode(val.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+            )}
 
             <Pressable
               style={[styles.button, (!email.trim() || loading) && styles.buttonDisabled]}

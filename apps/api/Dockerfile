@@ -54,10 +54,9 @@ COPY pnpm-lock.yaml* ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/api/tsconfig*.json ./apps/api/
 
-# Install production dependencies
-RUN pnpm install --filter api --prod --no-optional
-
-
+# Install dependencies including dev (needed for migrations/seeding)
+# We need dev dependencies for operational tasks
+RUN pnpm install --filter api --include=dev --no-optional
 
 # Copy built application from builder
 COPY --from=builder /app/apps/api/dist ./apps/api/dist

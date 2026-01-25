@@ -19,57 +19,12 @@ export declare class UsersService {
     private readRepo;
     private notifRepo;
     constructor(userRepo: Repository<User>, postRepo: Repository<Post>, replyRepo: Repository<Reply>, postEdgeRepo: Repository<PostEdge>, likeRepo: Repository<Like>, keepRepo: Repository<Keep>, followRepo: Repository<Follow>, readRepo: Repository<PostRead>, notifRepo: Repository<Notification>);
-    findByHandle(handle: string): Promise<{
-        posts: Post[];
-        id: string;
-        email: string;
-        handle: string;
-        displayName: string;
-        bio: string;
-        isProtected: boolean;
-        invitesRemaining: number;
-        languages: string[];
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date;
-        followerCount: number;
-        followingCount: number;
-        quoteReceivedCount: number;
-    } | null>;
-    findById(id: string): Promise<{
-        posts: Post[];
-        id: string;
-        email: string;
-        handle: string;
-        displayName: string;
-        bio: string;
-        isProtected: boolean;
-        invitesRemaining: number;
-        languages: string[];
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date;
-        followerCount: number;
-        followingCount: number;
-        quoteReceivedCount: number;
-    } | null>;
+    findByHandle(handle: string): unknown;
+    findById(id: string): unknown;
     update(id: string, updates: Partial<User>): Promise<User>;
-    getSuggested(userId?: string, limit?: number): Promise<User[]>;
-    getReplies(userId: string): Promise<Reply[]>;
-    getQuotes(userId: string): Promise<Post[]>;
-    deleteUser(userId: string): Promise<{
-        success: boolean;
-    }>;
-    exportUserData(userId: string): Promise<{
-        user: User | null;
-        posts: Post[];
-        replies: Reply[];
-        likes: Like[];
-        keeps: Keep[];
-        following: Follow[];
-        followers: Follow[];
-        readHistory: PostRead[];
-        notifications: Notification[];
-        exportedAt: Date;
-    }>;
+    getSuggested(userId?: string, limit?: number): unknown;
+    getReplies(userId: string): unknown;
+    getQuotes(userId: string): unknown;
+    deleteUser(userId: string): unknown;
+    exportUserData(userId: string): unknown;
 }

@@ -4,90 +4,23 @@ export declare class ExploreController {
     private readonly exploreService;
     private readonly recommendationService;
     constructor(exploreService: ExploreService, recommendationService: RecommendationService);
-    getTopics(lang?: string, sort?: string): Promise<{
-        reasons: string[];
-        id: string;
-        slug: string;
-        title: string;
-        createdAt: Date;
-        createdBy: string;
-    }[]>;
+    getTopics(lang?: string, sort?: string): unknown;
     getPeople(user?: {
         id: string;
-    }, lang?: string, sort?: string): Promise<import("../entities/user.entity").User[]>;
+    }, lang?: string, sort?: string): unknown;
     getQuotedNow(user?: {
         id: string;
-    }, lang?: string, sort?: string): Promise<{
-        reasons: string[];
-        id: string;
-        authorId: string;
-        author: import("../entities/user.entity").User;
-        visibility: import("../entities/post.entity").PostVisibility;
-        body: string;
-        title: string | null;
-        headerImageKey: string | null;
-        headerImageBlurhash: string | null;
-        lang: string | null;
-        langConfidence: number | null;
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date;
-        replyCount: number;
-        quoteCount: number;
-        privateLikeCount: number;
-        viewCount: number;
-        readingTimeMinutes: number;
-    }[]>;
+    }, lang?: string, sort?: string): unknown;
     getDeepDives(user?: {
         id: string;
-    }, lang?: string, sort?: string): Promise<{
-        reasons: string[];
-        id: string;
-        authorId: string;
-        author: import("../entities/user.entity").User;
-        visibility: import("../entities/post.entity").PostVisibility;
-        body: string;
-        title: string | null;
-        headerImageKey: string | null;
-        headerImageBlurhash: string | null;
-        lang: string | null;
-        langConfidence: number | null;
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date;
-        replyCount: number;
-        quoteCount: number;
-        privateLikeCount: number;
-        viewCount: number;
-        readingTimeMinutes: number;
-    }[]>;
+    }, lang?: string, sort?: string): unknown;
     getNewsroom(user?: {
         id: string;
-    }, lang?: string, sort?: string): Promise<{
-        reasons: string[];
-        id: string;
-        authorId: string;
-        author: import("../entities/user.entity").User;
-        visibility: import("../entities/post.entity").PostVisibility;
-        body: string;
-        title: string | null;
-        headerImageKey: string | null;
-        headerImageBlurhash: string | null;
-        lang: string | null;
-        langConfidence: number | null;
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date;
-        replyCount: number;
-        quoteCount: number;
-        privateLikeCount: number;
-        viewCount: number;
-        readingTimeMinutes: number;
-    }[]>;
+    }, lang?: string, sort?: string): unknown;
     getForYou(user: {
         id: string;
-    }, limit?: string): Promise<import("../entities/post.entity").Post[]>;
+    }, limit?: string): unknown;
     getRecommendedPeople(user: {
         id: string;
-    }, limit?: string): Promise<import("../entities/user.entity").User[]>;
+    }, limit?: string): unknown;
 }

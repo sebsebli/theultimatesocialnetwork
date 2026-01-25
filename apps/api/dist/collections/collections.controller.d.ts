@@ -7,45 +7,18 @@ export declare class CollectionsController {
     constructor(collectionsService: CollectionsService);
     create(user: {
         id: string;
-    }, dto: CreateCollectionDto): Promise<import("../entities/collection.entity").Collection>;
+    }, dto: CreateCollectionDto): unknown;
     findAll(user: {
         id: string;
-    }): Promise<{
-        itemCount: number;
-        id: string;
-        ownerId: string;
-        owner: import("../entities/user.entity").User;
-        items: import("../entities/collection-item.entity").CollectionItem[];
-        title: string;
-        description: string;
-        isPublic: boolean;
-        shareSaves: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-    }[]>;
+    }): unknown;
     findOne(user: {
         id: string;
-    }, id: string): Promise<{
-        items: import("../entities/collection-item.entity").CollectionItem[];
-        id: string;
-        ownerId: string;
-        owner: import("../entities/user.entity").User;
-        title: string;
-        description: string;
-        isPublic: boolean;
-        shareSaves: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-    }>;
-    addItem(id: string, dto: AddItemDto): Promise<{
-        collectionId: string;
-        postId: string;
-        curatorNote: string | undefined;
-    } & import("../entities/collection-item.entity").CollectionItem>;
+    }, id: string): unknown;
+    addItem(id: string, dto: AddItemDto): unknown;
     update(user: {
         id: string;
-    }, id: string, dto: UpdateCollectionDto): Promise<import("../entities/collection.entity").Collection>;
+    }, id: string, dto: UpdateCollectionDto): unknown;
     removeItem(user: {
         id: string;
-    }, collectionId: string, itemId: string): Promise<void>;
+    }, collectionId: string, itemId: string): any;
 }

@@ -4,14 +4,8 @@ export declare class UploadController {
     constructor(uploadService: UploadService);
     uploadHeaderImage(user: {
         id: string;
-    }, file: any): Promise<{
-        key: string;
-        url: string;
-    }>;
+    }, file: any): unknown;
     uploadProfilePicture(user: {
         id: string;
-    }, file: any): Promise<{
-        key: string;
-        url: string;
-    }>;
+    }, file: any): unknown;
 }

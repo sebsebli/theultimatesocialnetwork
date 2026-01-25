@@ -11,6 +11,6 @@ export declare class ExportWorker implements OnApplicationBootstrap, OnApplicati
     constructor(usersService: UsersService, configService: ConfigService, redis: Redis);
     onApplicationBootstrap(): void;
     onApplicationShutdown(): void;
-    processExport(userId: string, userEmail: string): Promise<void>;
-    sendEmail(to: string, attachment: Buffer): Promise<void>;
+    processExport(userId: string, userEmail: string): unknown;
+    sendEmail(to: string, attachment: Buffer): any;
 }

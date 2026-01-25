@@ -35,6 +35,8 @@ COPY apps/web ./apps/web
 
 # Build
 WORKDIR /app/apps/web
+# Allow HTTP during build (Docker environment)
+ENV SKIP_HTTPS_CHECK=true
 RUN pnpm build
 
 # Production stage

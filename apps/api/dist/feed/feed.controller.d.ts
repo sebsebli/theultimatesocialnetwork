@@ -4,5 +4,5 @@ export declare class FeedController {
     constructor(feedService: FeedService);
     getHomeFeed(user: {
         id: string;
-    }, limit?: string, offset?: string, includeSavedBy?: string): Promise<import("./feed-item.entity").FeedItem[]>;
+    }, limit?: string, offset?: string, includeSavedBy?: string): unknown;
 }

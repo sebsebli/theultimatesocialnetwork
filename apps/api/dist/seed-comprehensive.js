@@ -53,6 +53,7 @@ const topic_follow_entity_1 = require("./entities/topic-follow.entity");
 const invite_entity_1 = require("./entities/invite.entity");
 const system_setting_entity_1 = require("./entities/system-setting.entity");
 const waiting_list_entity_1 = require("./entities/waiting-list.entity");
+const neo4j_service_1 = require("./database/neo4j.service");
 const uuid_1 = require("uuid");
 const crypto = __importStar(require("crypto"));
 const USER_NAMES = [
@@ -128,6 +129,38 @@ const TOPICS = [
     { slug: 'writing', title: 'Writing' },
     { slug: 'programming', title: 'Programming' },
     { slug: 'history', title: 'History' },
+];
+const CLASSIC_POSTS = [
+    "Just shipped a new feature. Feeling good! 🚀",
+    "Anyone else find debugging oddly satisfying?",
+    "The best code is code you don't have to write.",
+    "Coffee + code = productivity. Change my mind.",
+    "Spent 3 hours debugging. It was a typo. Classic.",
+    "Why do we call it 'refactoring' when we're just fixing our mistakes?",
+    "Documentation is like a good joke: if you have to explain it, it's not good.",
+    "The only thing worse than no tests is tests that don't test anything.",
+    "Code review: 'This could be simpler.' Me: 'Everything could be simpler.'",
+    "I don't always test my code, but when I do, I do it in production.",
+    "The best way to learn is to build something. Then break it. Then fix it.",
+    "Stack Overflow: where I go to feel both smart and stupid at the same time.",
+    "Git commit message: 'Fixed bug' - Future me: 'What bug?'",
+    "The three hardest things in programming: naming things, cache invalidation, and off-by-one errors.",
+    "Code is like humor. When you have to explain it, it's bad.",
+    "Just realized I've been optimizing the wrong thing for the past week.",
+    "The best error message is the one that tells you exactly what you did wrong.",
+    "I write code that works. I don't write code that's easy to understand. That's a problem.",
+    "The difference between a junior and senior developer: juniors write code that works. Seniors write code that works AND is maintainable.",
+    "Why is it called 'pair programming' when I'm the only one typing?",
+    "The best code is the code you delete.",
+    "I'm not lazy, I'm just efficient at finding the easiest solution.",
+    "The only thing more permanent than a temporary solution is a temporary solution that works.",
+    "Debugging is like being a detective in a crime movie where you're also the murderer.",
+    "I don't have a problem with procrastination. I have a problem with deadlines.",
+    "The best way to get a good answer on Stack Overflow is to post a wrong answer.",
+    "Code that works on my machine is the best kind of code.",
+    "The three stages of learning to code: 1) It doesn't work. 2) It works but I don't know why. 3) It works and I know why.",
+    "I'm not saying my code is perfect, but it's the best code I've written today.",
+    "The best time to refactor is right after you finish the feature. The second best time is never.",
 ];
 const POST_TEMPLATES = [
     {
@@ -401,6 +434,7 @@ async function bootstrap() {
     console.log('🌱 Starting comprehensive data seeding...');
     const app = await core_1.NestFactory.createApplicationContext(app_module_1.AppModule);
     const dataSource = app.get(typeorm_1.DataSource);
+    const neo4jService = app.get(neo4j_service_1.Neo4jService);
     const userRepo = dataSource.getRepository(user_entity_1.User);
     const postRepo = dataSource.getRepository(post_entity_1.Post);
     const topicRepo = dataSource.getRepository(topic_entity_1.Topic);
@@ -420,23 +454,15 @@ async function bootstrap() {
     const waitingListRepo = dataSource.getRepository(waiting_list_entity_1.WaitingList);
     try {
         console.log('🧹 Clearing existing data...');
-        await collectionItemRepo.delete({});
-        await collectionRepo.delete({});
-        await mentionRepo.delete({});
-        await externalSourceRepo.delete({});
-        await postEdgeRepo.delete({});
-        await keepRepo.delete({});
-        await likeRepo.delete({});
-        await replyRepo.delete({});
-        await postTopicRepo.delete({});
-        await topicFollowRepo.delete({});
-        await followRepo.delete({});
-        await postRepo.delete({});
-        await topicRepo.delete({});
-        await inviteRepo.delete({});
-        await waitingListRepo.delete({});
-        await settingsRepo.delete({});
-        await userRepo.delete({});
+        await dataSource.query(`
+      TRUNCATE TABLE 
+        collection_items, collections, mentions, external_sources, 
+        post_edges, keeps, likes, replies, post_topics, topic_follows, 
+        follows, posts, topics, invites, waiting_list, system_settings, 
+        users, notifications, blocks, mutes, reports, dm_messages, dm_threads,
+        post_reads, push_outbox, push_tokens, notification_prefs, follow_requests
+      RESTART IDENTITY CASCADE
+    `);
         console.log('👥 Creating users...');
         const users = [];
         for (const userData of USER_NAMES) {
@@ -450,7 +476,14 @@ async function bootstrap() {
                 isProtected: Math.random() < 0.1,
                 invitesRemaining: Math.floor(Math.random() * 5),
             });
-            users.push(await userRepo.save(user));
+            const savedUser = await userRepo.save(user);
+            users.push(savedUser);
+            try {
+                await neo4jService.run(`MERGE (u:User {id: $userId}) SET u.handle = $handle`, { userId: savedUser.id, handle: savedUser.handle });
+            }
+            catch (e) {
+                console.warn(`Failed to sync user ${savedUser.id} to Neo4j:`, e.message);
+            }
         }
         console.log(`✅ Created ${users.length} users`);
         console.log('📚 Creating topics...');
@@ -461,7 +494,14 @@ async function bootstrap() {
                 title: topicData.title,
                 createdBy: users[Math.floor(Math.random() * users.length)].id,
             });
-            topics.push(await topicRepo.save(topic));
+            const savedTopic = await topicRepo.save(topic);
+            topics.push(savedTopic);
+            try {
+                await neo4jService.run(`MERGE (t:Topic {id: $topicId}) SET t.slug = $slug, t.title = $title`, { topicId: savedTopic.id, slug: savedTopic.slug, title: savedTopic.title });
+            }
+            catch (e) {
+                console.warn(`Failed to sync topic ${savedTopic.id} to Neo4j:`, e.message);
+            }
         }
         console.log(`✅ Created ${topics.length} topics`);
         console.log('🔗 Creating follow relationships...');
@@ -483,6 +523,16 @@ async function bootstrap() {
                 });
                 await followRepo.save(follow);
                 followCount++;
+                try {
+                    await neo4jService.run(`
+            MERGE (u1:User {id: $followerId})
+            MERGE (u2:User {id: $followeeId})
+            MERGE (u1)-[:FOLLOWS]->(u2)
+            `, { followerId: user.id, followeeId: users[targetIndex].id });
+                }
+                catch (e) {
+                    console.warn(`Failed to sync follow relationship to Neo4j:`, e.message);
+                }
             }
         }
         console.log(`✅ Created ${followCount} follow relationships`);
@@ -515,10 +565,22 @@ async function bootstrap() {
         const numPosts = 200;
         for (let i = 0; i < numPosts; i++) {
             const author = users[Math.floor(Math.random() * users.length)];
-            const template = POST_TEMPLATES[Math.floor(Math.random() * POST_TEMPLATES.length)];
-            const body = template.body.replace(/\[\[privacy\]\]/g, '[[Privacy]]');
-            const titleMatch = body.match(/^#\s+(.+)$/m);
-            const title = titleMatch ? titleMatch[1].trim() : null;
+            const isClassicPost = Math.random() < 0.3;
+            let body;
+            let title = null;
+            let topicsToAdd = [];
+            if (isClassicPost) {
+                body = CLASSIC_POSTS[Math.floor(Math.random() * CLASSIC_POSTS.length)];
+                const randomTopics = ['programming', 'technology', 'web-development'];
+                topicsToAdd = [randomTopics[Math.floor(Math.random() * randomTopics.length)]];
+            }
+            else {
+                const template = POST_TEMPLATES[Math.floor(Math.random() * POST_TEMPLATES.length)];
+                body = template.body.replace(/\[\[privacy\]\]/g, '[[Privacy]]');
+                topicsToAdd = template.topics;
+                const titleMatch = body.match(/^#\s+(.+)$/m);
+                title = titleMatch ? titleMatch[1].trim() : null;
+            }
             const post = postRepo.create({
                 id: (0, uuid_1.v4)(),
                 authorId: author.id,
@@ -532,7 +594,18 @@ async function bootstrap() {
             });
             const savedPost = await postRepo.save(post);
             posts.push(savedPost);
-            for (const topicSlug of template.topics) {
+            try {
+                await neo4jService.run(`
+          MERGE (u:User {id: $userId})
+          MERGE (p:Post {id: $postId})
+          SET p.createdAt = $createdAt
+          MERGE (u)-[:AUTHORED]->(p)
+          `, { userId: author.id, postId: savedPost.id, createdAt: savedPost.createdAt.toISOString() });
+            }
+            catch (e) {
+                console.warn(`Failed to sync post ${savedPost.id} to Neo4j:`, e.message);
+            }
+            for (const topicSlug of topicsToAdd) {
                 const topic = topics.find(t => t.slug === topicSlug);
                 if (topic) {
                     const postTopic = postTopicRepo.create({
@@ -540,6 +613,16 @@ async function bootstrap() {
                         topicId: topic.id,
                     });
                     await postTopicRepo.save(postTopic);
+                    try {
+                        await neo4jService.run(`
+              MERGE (p:Post {id: $postId})
+              MERGE (t:Topic {id: $topicId})
+              MERGE (p)-[:IN_TOPIC]->(t)
+              `, { postId: savedPost.id, topicId: topic.id });
+                    }
+                    catch (e) {
+                        console.warn(`Failed to sync post-topic relationship to Neo4j:`, e.message);
+                    }
                 }
             }
             if (Math.random() < 0.3) {
@@ -578,6 +661,16 @@ async function bootstrap() {
                     });
                     await postEdgeRepo.save(edge);
                     edgeCount++;
+                    try {
+                        await neo4jService.run(`
+              MERGE (p1:Post {id: $fromId})
+              MERGE (p2:Post {id: $toId})
+              MERGE (p1)-[:LINKS_TO]->(p2)
+              `, { fromId: post.id, toId: targetPost.id });
+                    }
+                    catch (e) {
+                        console.warn(`Failed to sync link edge to Neo4j:`, e.message);
+                    }
                 }
             }
             if (Math.random() < 0.15 && posts.length > 1) {
@@ -591,6 +684,16 @@ async function bootstrap() {
                     await postEdgeRepo.save(edge);
                     edgeCount++;
                     await postRepo.increment({ id: quotedPost.id }, 'quoteCount', 1);
+                    try {
+                        await neo4jService.run(`
+              MERGE (p1:Post {id: $fromId})
+              MERGE (p2:Post {id: $toId})
+              MERGE (p1)-[:QUOTES]->(p2)
+              `, { fromId: post.id, toId: quotedPost.id });
+                    }
+                    catch (e) {
+                        console.warn(`Failed to sync quote edge to Neo4j:`, e.message);
+                    }
                 }
             }
         }

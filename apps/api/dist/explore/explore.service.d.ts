@@ -19,105 +19,22 @@ export declare class ExploreService {
     getTopics(filter?: {
         lang?: string;
         sort?: string;
-    }): Promise<{
-        reasons: string[];
-        id: string;
-        slug: string;
-        title: string;
-        createdAt: Date;
-        createdBy: string;
-    }[]>;
+    }): unknown;
     getPeople(userId?: string, filter?: {
         lang?: string;
         sort?: string;
-    }): Promise<{
-        reasons: string[];
-        id: string;
-        email: string;
-        handle: string;
-        displayName: string;
-        bio: string;
-        isProtected: boolean;
-        invitesRemaining: number;
-        languages: string[];
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date;
-        followerCount: number;
-        followingCount: number;
-        quoteReceivedCount: number;
-    }[]>;
+    }): unknown;
     getQuotedNow(userId?: string, limit?: number, filter?: {
         lang?: string;
         sort?: string;
-    }): Promise<{
-        reasons: string[];
-        id: string;
-        authorId: string;
-        author: User;
-        visibility: import("../entities/post.entity").PostVisibility;
-        body: string;
-        title: string | null;
-        headerImageKey: string | null;
-        headerImageBlurhash: string | null;
-        lang: string | null;
-        langConfidence: number | null;
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date;
-        replyCount: number;
-        quoteCount: number;
-        privateLikeCount: number;
-        viewCount: number;
-        readingTimeMinutes: number;
-    }[]>;
-    getTopicStartHere(topicId: string, limit?: number): Promise<Post[]>;
+    }): unknown;
+    getTopicStartHere(topicId: string, limit?: number): unknown;
     getDeepDives(userId?: string, limit?: number, filter?: {
         lang?: string;
         sort?: string;
-    }): Promise<{
-        reasons: string[];
-        id: string;
-        authorId: string;
-        author: User;
-        visibility: import("../entities/post.entity").PostVisibility;
-        body: string;
-        title: string | null;
-        headerImageKey: string | null;
-        headerImageBlurhash: string | null;
-        lang: string | null;
-        langConfidence: number | null;
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date;
-        replyCount: number;
-        quoteCount: number;
-        privateLikeCount: number;
-        viewCount: number;
-        readingTimeMinutes: number;
-    }[]>;
+    }): unknown;
     getNewsroom(userId?: string, limit?: number, filter?: {
         lang?: string;
         sort?: string;
-    }): Promise<{
-        reasons: string[];
-        id: string;
-        authorId: string;
-        author: User;
-        visibility: import("../entities/post.entity").PostVisibility;
-        body: string;
-        title: string | null;
-        headerImageKey: string | null;
-        headerImageBlurhash: string | null;
-        lang: string | null;
-        langConfidence: number | null;
-        createdAt: Date;
-        updatedAt: Date;
-        deletedAt: Date;
-        replyCount: number;
-        quoteCount: number;
-        privateLikeCount: number;
-        viewCount: number;
-        readingTimeMinutes: number;
-    }[]>;
+    }): unknown;
 }

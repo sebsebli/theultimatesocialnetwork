@@ -6,7 +6,7 @@ export declare class CleanupService {
     private userRepo;
     private readonly logger;
     constructor(postRepo: Repository<Post>, userRepo: Repository<User>);
-    handleCron(): Promise<void>;
+    handleCron(): any;
     private deleteOldSoftDeletedPosts;
     private deleteOldSoftDeletedUsers;
 }

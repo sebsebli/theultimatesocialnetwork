@@ -9,14 +9,6 @@ export declare class TopicsService {
     private postTopicRepo;
     private exploreService;
     constructor(topicRepo: Repository<Topic>, postRepo: Repository<Post>, postTopicRepo: Repository<PostTopic>, exploreService: ExploreService);
-    findOne(slug: string): Promise<{
-        posts: Post[];
-        startHere: Post[];
-        id: string;
-        slug: string;
-        title: string;
-        createdAt: Date;
-        createdBy: string;
-    } | null>;
-    getPosts(topicId: string): Promise<Post[]>;
+    findOne(slug: string): unknown;
+    getPosts(topicId: string): unknown;
 }

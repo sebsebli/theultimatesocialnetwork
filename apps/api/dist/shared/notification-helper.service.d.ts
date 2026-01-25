@@ -10,5 +10,5 @@ export declare class NotificationHelperService {
         postId?: string;
         replyId?: string;
         collectionId?: string;
-    }): Promise<Notification | undefined>;
+    }): unknown;
 }

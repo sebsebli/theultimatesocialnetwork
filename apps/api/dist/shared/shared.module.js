@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const language_detection_service_1 = require("./language-detection.service");
 const notification_helper_service_1 = require("./notification-helper.service");
+const email_service_1 = require("./email.service");
 const notification_entity_1 = require("../entities/notification.entity");
 const post_entity_1 = require("../entities/post.entity");
 const user_entity_1 = require("../entities/user.entity");
@@ -20,8 +21,8 @@ exports.SharedModule = SharedModule;
 exports.SharedModule = SharedModule = __decorate([
     (0, common_1.Module)({
         imports: [typeorm_1.TypeOrmModule.forFeature([notification_entity_1.Notification, post_entity_1.Post, user_entity_1.User])],
-        providers: [language_detection_service_1.LanguageDetectionService, notification_helper_service_1.NotificationHelperService],
-        exports: [language_detection_service_1.LanguageDetectionService, notification_helper_service_1.NotificationHelperService],
+        providers: [language_detection_service_1.LanguageDetectionService, notification_helper_service_1.NotificationHelperService, email_service_1.EmailService],
+        exports: [language_detection_service_1.LanguageDetectionService, notification_helper_service_1.NotificationHelperService, email_service_1.EmailService],
     })
 ], SharedModule);
 //# sourceMappingURL=shared.module.js.map

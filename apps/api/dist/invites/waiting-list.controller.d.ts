@@ -4,7 +4,5 @@ export declare class WaitingListController {
     constructor(invitesService: InvitesService);
     join(body: {
         email: string;
-    }, ip: string): Promise<{
-        message: string;
-    }>;
+    }, ip: string): unknown;
 }

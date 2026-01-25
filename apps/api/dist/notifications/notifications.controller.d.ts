@@ -4,11 +4,11 @@ export declare class NotificationsController {
     constructor(notificationsService: NotificationsService);
     findAll(user: {
         id: string;
-    }): Promise<any[]>;
+    }): unknown;
     markAsRead(user: {
         id: string;
-    }, notificationId: string): Promise<import("../entities/notification.entity").Notification | null>;
+    }, notificationId: string): unknown;
     markAllAsRead(user: {
         id: string;
-    }): Promise<void>;
+    }): any;
 }

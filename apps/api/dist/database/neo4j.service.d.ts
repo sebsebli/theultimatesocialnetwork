@@ -5,8 +5,8 @@ export declare class Neo4jService implements OnModuleInit, OnModuleDestroy {
     private configService;
     private driver;
     constructor(configService: ConfigService);
-    onModuleInit(): Promise<void>;
-    onModuleDestroy(): Promise<void>;
+    onModuleInit(): any;
+    onModuleDestroy(): any;
     getSession(): Session;
-    run(query: string, params?: Record<string, any>): Promise<import("neo4j-driver").QueryResult<import("neo4j-driver").RecordShape>>;
+    run(query: string, params?: Record<string, any>): unknown;
 }

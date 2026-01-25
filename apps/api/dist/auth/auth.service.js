@@ -14,7 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _a, _b;
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
@@ -25,16 +25,22 @@ const user_entity_1 = require("../entities/user.entity");
 const uuid_1 = require("uuid");
 const ioredis_1 = __importDefault(require("ioredis"));
 const invites_service_1 = require("../invites/invites.service");
+const email_service_1 = require("../shared/email.service");
+const config_1 = require("@nestjs/config");
 let AuthService = class AuthService {
     userRepo;
     jwtService;
     redis;
     invitesService;
-    constructor(userRepo, jwtService, redis, invitesService) {
+    emailService;
+    configService;
+    constructor(userRepo, jwtService, redis, invitesService, emailService, configService) {
         this.userRepo = userRepo;
         this.jwtService = jwtService;
         this.redis = redis;
         this.invitesService = invitesService;
+        this.emailService = emailService;
+        this.configService = configService;
     }
     async sendMagicLink(email, inviteCode) {
         const user = await this.userRepo.findOne({ where: { email } });
@@ -55,8 +61,15 @@ let AuthService = class AuthService {
         const data = JSON.stringify({ token, inviteCode });
         await this.redis.set(key, data, 'EX', 900);
         await this.redis.set(rateKey, '1', 'EX', 60);
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`MAGIC LINK for ${email}: http://localhost:3001/verify?email=${email}&token=${token}`);
+        const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3001';
+        try {
+            await this.emailService.sendMagicLink(email, token, frontendUrl);
+        }
+        catch (error) {
+            console.error('Failed to send magic link email:', error);
+            if (process.env.NODE_ENV !== 'production') {
+                console.log(`MAGIC LINK for ${email}: ${frontendUrl}/verify?email=${encodeURIComponent(email)}&token=${token}`);
+            }
         }
         return { success: true, message: 'Magic link sent' };
     }
@@ -125,6 +138,7 @@ exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __param(2, (0, common_1.Inject)('REDIS_CLIENT')),
-    __metadata("design:paramtypes", [typeorm_2.Repository, typeof (_a = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _a : Object, typeof (_b = typeof ioredis_1.default !== "undefined" && ioredis_1.default) === "function" ? _b : Object, invites_service_1.InvitesService])
+    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _b : Object, typeof (_c = typeof ioredis_1.default !== "undefined" && ioredis_1.default) === "function" ? _c : Object, invites_service_1.InvitesService,
+        email_service_1.EmailService, typeof (_d = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _d : Object])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

@@ -6,6 +6,7 @@ const publicRoutes = [
   '/',
   '/welcome',
   '/sign-in',
+  '/waiting-list',
   '/verify',
   '/privacy',
   '/terms',
@@ -46,9 +47,9 @@ export function middleware(request: NextRequest) {
   );
 
   // If accessing root and authenticated, redirect to home
-  if (pathname === '/' && token) {
-    return NextResponse.redirect(new URL('/home', request.url));
-  }
+  // if (pathname === '/' && token) {
+  //   return NextResponse.redirect(new URL('/home', request.url));
+  // }
 
   // If accessing root and not authenticated, allow (show landing page)
   if (pathname === '/' && !token) {
@@ -61,9 +62,9 @@ export function middleware(request: NextRequest) {
   }
 
   // If accessing public auth routes while authenticated, redirect to home
-  if (publicAuthRoutes.includes(pathname) && token) {
-    return NextResponse.redirect(new URL('/home', request.url));
-  }
+  // if (publicAuthRoutes.includes(pathname) && token) {
+  //   return NextResponse.redirect(new URL('/home', request.url));
+  // }
 
   return NextResponse.next();
 }

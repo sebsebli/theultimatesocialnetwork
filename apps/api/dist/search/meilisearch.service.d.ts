@@ -5,7 +5,7 @@ export declare class MeilisearchService implements OnModuleInit {
     private client;
     private readonly indexName;
     constructor(configService: ConfigService);
-    onModuleInit(): Promise<void>;
+    onModuleInit(): any;
     indexPost(post: {
         id: string;
         title?: string | null;
@@ -19,12 +19,12 @@ export declare class MeilisearchService implements OnModuleInit {
         createdAt: Date;
         quoteCount: number;
         replyCount: number;
-    }): Promise<void>;
+    }): any;
     searchPosts(query: string, options?: {
         limit?: number;
         offset?: number;
         lang?: string;
-    }): Promise<any>;
-    searchUsers(query: string, limit?: number): Promise<any>;
-    deletePost(postId: string): Promise<void>;
+    }): unknown;
+    searchUsers(query: string, limit?: number): unknown;
+    deletePost(postId: string): any;
 }

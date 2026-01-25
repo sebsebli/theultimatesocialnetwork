@@ -3,32 +3,17 @@ import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import Redis from 'ioredis';
 import { InvitesService } from '../invites/invites.service';
+import { EmailService } from '../shared/email.service';
+import { ConfigService } from '@nestjs/config';
 export declare class AuthService {
     private userRepo;
     private jwtService;
     private redis;
     private invitesService;
-    constructor(userRepo: Repository<User>, jwtService: JwtService, redis: Redis, invitesService: InvitesService);
-    sendMagicLink(email: string, inviteCode?: string): Promise<{
-        success: boolean;
-        message: string;
-    }>;
-    verifyMagicLink(email: string, token: string): Promise<{
-        accessToken: any;
-        user: {
-            id: string;
-            email: string;
-            handle: string;
-            displayName: string;
-        };
-    }>;
-    generateTokens(user: User): Promise<{
-        accessToken: any;
-        user: {
-            id: string;
-            email: string;
-            handle: string;
-            displayName: string;
-        };
-    }>;
+    private emailService;
+    private configService;
+    constructor(userRepo: Repository<User>, jwtService: JwtService, redis: Redis, invitesService: InvitesService, emailService: EmailService, configService: ConfigService);
+    sendMagicLink(email: string, inviteCode?: string): unknown;
+    verifyMagicLink(email: string, token: string): unknown;
+    generateTokens(user: User): unknown;
 }

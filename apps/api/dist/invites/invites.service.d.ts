@@ -10,13 +10,10 @@ export declare class InvitesService {
     private settingsRepo;
     constructor(inviteRepo: Repository<Invite>, userRepo: Repository<User>, waitingListRepo: Repository<WaitingList>, settingsRepo: Repository<SystemSetting>);
     isBetaMode(): Promise<boolean>;
-    setBetaMode(enabled: boolean): Promise<void>;
+    setBetaMode(enabled: boolean): any;
     generateCode(userId?: string): Promise<string>;
     validateCode(code: string): Promise<Invite>;
     consumeCode(code: string, userId: string): Promise<void>;
-    getMyInvites(userId: string): Promise<{
-        codes: Invite[];
-        remaining: number;
-    }>;
-    addToWaitingList(email: string, ipHash?: string): Promise<void>;
+    getMyInvites(userId: string): unknown;
+    addToWaitingList(email: string, ipHash?: string): any;
 }

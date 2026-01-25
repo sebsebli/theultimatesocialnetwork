@@ -9,42 +9,15 @@ export declare class CollectionsService {
     private postRepo;
     private userRepo;
     constructor(collectionRepo: Repository<Collection>, itemRepo: Repository<CollectionItem>, postRepo: Repository<Post>, userRepo: Repository<User>);
-    create(userId: string, title: string, description?: string, isPublic?: boolean, shareSaves?: boolean): Promise<Collection>;
-    findAll(userId: string): Promise<{
-        itemCount: number;
-        id: string;
-        ownerId: string;
-        owner: User;
-        items: CollectionItem[];
-        title: string;
-        description: string;
-        isPublic: boolean;
-        shareSaves: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-    }[]>;
-    findOne(id: string, userId: string): Promise<{
-        items: CollectionItem[];
-        id: string;
-        ownerId: string;
-        owner: User;
-        title: string;
-        description: string;
-        isPublic: boolean;
-        shareSaves: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-    }>;
-    addItem(collectionId: string, postId: string, note?: string): Promise<{
-        collectionId: string;
-        postId: string;
-        curatorNote: string | undefined;
-    } & CollectionItem>;
+    create(userId: string, title: string, description?: string, isPublic?: boolean, shareSaves?: boolean): unknown;
+    findAll(userId: string): unknown;
+    findOne(id: string, userId: string): unknown;
+    addItem(collectionId: string, postId: string, note?: string): unknown;
     update(id: string, userId: string, dto: {
         shareSaves?: boolean;
         title?: string;
         description?: string;
         isPublic?: boolean;
-    }): Promise<Collection>;
-    removeItem(collectionId: string, itemId: string, userId: string): Promise<void>;
+    }): unknown;
+    removeItem(collectionId: string, itemId: string, userId: string): any;
 }

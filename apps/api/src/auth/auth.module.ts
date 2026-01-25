@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { User } from '../entities/user.entity';
 import { InvitesModule } from '../invites/invites.module';
+import { SharedModule } from '../shared/shared.module';
 import Redis from 'ioredis';
 
 @Module({
@@ -16,6 +17,7 @@ import Redis from 'ioredis';
     ConfigModule,
     TypeOrmModule.forFeature([User]),
     InvitesModule,
+    SharedModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

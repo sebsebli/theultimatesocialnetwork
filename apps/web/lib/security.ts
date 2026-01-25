@@ -8,10 +8,19 @@
 export function getApiUrl(): string {
   const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
   
-  // In production, enforce HTTPS
-  if (process.env.NODE_ENV === 'production' && process.env.SKIP_HTTPS_CHECK !== 'true') {
+  // In production (but not in Docker/development), enforce HTTPS
+  // Allow HTTP for Docker/local development
+  const isDocker = process.env.DOCKER === 'true' || 
+    process.env.NEXT_PUBLIC_API_URL?.includes('localhost') || 
+    process.env.NEXT_PUBLIC_API_URL?.includes('127.0.0.1') ||
+    apiUrl.includes('localhost') ||
+    apiUrl.includes('127.0.0.1');
+  const isProduction = process.env.NODE_ENV === 'production';
+  const skipCheck = process.env.SKIP_HTTPS_CHECK === 'true';
+  
+  if (isProduction && !isDocker && !skipCheck) {
     if (!apiUrl.startsWith('https://')) {
-      throw new Error('API_URL must use HTTPS in production');
+      throw new Error('API_URL must use HTTPS in production (unless in Docker or SKIP_HTTPS_CHECK=true)');
     }
   }
   

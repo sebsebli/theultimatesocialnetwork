@@ -141,6 +141,7 @@ export default function RootLayout() {
       return;
     }
     splashScreenHidden.current = true;
+    if (__DEV__) console.log('Hiding splash screen...');
 
     try {
       // Delay to ensure native view controller is ready and screen is fully rendered
@@ -153,8 +154,8 @@ export default function RootLayout() {
       if (__DEV__) {
         console.warn('Splash screen hide error (non-critical):', error);
       }
-      // Reset the flag so we can try again if needed
-      splashScreenHidden.current = false;
+      // Do NOT reset the flag - if hiding failed, it might be because it's already hidden
+      // or unregistered. Retrying will just cause more errors.
     }
   };
 

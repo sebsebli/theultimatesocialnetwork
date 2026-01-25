@@ -24,7 +24,7 @@ export function LandingPage() {
           <div className="flex items-center gap-6 text-sm font-medium">
             <Link href="/sign-in" className="text-[#666] hover:text-white transition-colors">Log in</Link>
             <Link 
-              href="/sign-in"
+              href="/waiting-list"
               className="text-[#050505] bg-[#E0E0E0] hover:bg-white px-5 py-2 rounded-full transition-all font-semibold"
             >
               Join Beta

@@ -6,22 +6,11 @@ export declare class TopicsController {
     constructor(topicsService: TopicsService, topicFollowsService: TopicFollowsService);
     findOne(slug: string, user?: {
         id: string;
-    }): Promise<{
-        posts: import("../entities/post.entity").Post[];
-        isFollowing: boolean;
-        startHere: import("../entities/post.entity").Post[];
-        id: string;
-        slug: string;
-        title: string;
-        createdAt: Date;
-        createdBy: string;
-    }>;
+    }): unknown;
     follow(user: {
         id: string;
-    }, slug: string): Promise<import("../entities/topic-follow.entity").TopicFollow>;
+    }, slug: string): unknown;
     unfollow(user: {
         id: string;
-    }, slug: string): Promise<{
-        success: boolean;
-    }>;
+    }, slug: string): unknown;
 }

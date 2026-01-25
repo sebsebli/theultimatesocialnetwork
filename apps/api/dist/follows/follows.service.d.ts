@@ -9,10 +9,8 @@ export declare class FollowsService {
     private userRepo;
     private neo4jService;
     constructor(followRepo: Repository<Follow>, followRequestRepo: Repository<FollowRequest>, userRepo: Repository<User>, neo4jService: Neo4jService);
-    follow(followerId: string, followeeId: string): Promise<Follow | FollowRequest>;
-    unfollow(followerId: string, followeeId: string): Promise<{
-        success: boolean;
-    }>;
-    approveFollowRequest(userId: string, requestId: string): Promise<FollowRequest>;
-    rejectFollowRequest(userId: string, requestId: string): Promise<FollowRequest>;
+    follow(followerId: string, followeeId: string): unknown;
+    unfollow(followerId: string, followeeId: string): unknown;
+    approveFollowRequest(userId: string, requestId: string): unknown;
+    rejectFollowRequest(userId: string, requestId: string): unknown;
 }

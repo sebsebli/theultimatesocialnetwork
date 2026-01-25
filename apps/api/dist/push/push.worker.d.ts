@@ -17,7 +17,7 @@ export declare class PushWorker implements OnApplicationBootstrap, OnApplication
     onApplicationShutdown(): void;
     start(): void;
     stop(): void;
-    processOutbox(): Promise<void>;
+    processOutbox(): any;
     private processItem;
     private sendToToken;
 }

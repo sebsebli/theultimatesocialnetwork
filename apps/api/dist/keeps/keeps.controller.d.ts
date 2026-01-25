@@ -4,5 +4,5 @@ export declare class KeepsController {
     constructor(keepsService: KeepsService);
     getAll(user: {
         id: string;
-    }, search?: string, inCollection?: string): Promise<import("../entities/keep.entity").Keep[]>;
+    }, search?: string, inCollection?: string): unknown;
 }

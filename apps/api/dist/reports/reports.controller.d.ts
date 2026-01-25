@@ -5,10 +5,5 @@ export declare class ReportsController {
     constructor(reportsService: ReportsService);
     create(user: {
         id: string;
-    }, dto: CreateReportDto): Promise<{
-        reporterId: string;
-        targetId: string;
-        targetType: import("../entities/report.entity").ReportTargetType;
-        reason: string;
-    } & import("../entities/report.entity").Report>;
+    }, dto: CreateReportDto): unknown;
 }

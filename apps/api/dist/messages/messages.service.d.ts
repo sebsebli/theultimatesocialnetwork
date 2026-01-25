@@ -11,14 +11,8 @@ export declare class MessagesService {
     private followRepo;
     private notificationHelper;
     constructor(threadRepo: Repository<DmThread>, messageRepo: Repository<DmMessage>, userRepo: Repository<User>, followRepo: Repository<Follow>, notificationHelper: NotificationHelperService);
-    findOrCreateThread(userId: string, otherUserId: string): Promise<DmThread>;
-    sendMessage(userId: string, threadId: string, body: string): Promise<DmMessage>;
-    getThreads(userId: string): Promise<{
-        id: string;
-        otherUser: User | null;
-        lastMessage: DmMessage | null;
-        unreadCount: number;
-        createdAt: Date;
-    }[]>;
-    getMessages(userId: string, threadId: string): Promise<DmMessage[]>;
+    findOrCreateThread(userId: string, otherUserId: string): unknown;
+    sendMessage(userId: string, threadId: string, body: string): unknown;
+    getThreads(userId: string): unknown;
+    getMessages(userId: string, threadId: string): unknown;
 }
