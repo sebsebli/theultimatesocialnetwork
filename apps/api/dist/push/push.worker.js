@@ -12,7 +12,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 var PushWorker_1;
-var _a, _b;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PushWorker = void 0;
 const common_1 = require("@nestjs/common");
@@ -138,7 +137,9 @@ exports.PushWorker = PushWorker = PushWorker_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(push_outbox_entity_1.PushOutbox)),
     __param(1, (0, typeorm_1.InjectRepository)(push_token_entity_1.PushToken)),
-    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _b : Object, apns_sender_1.ApnsSender,
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        apns_sender_1.ApnsSender,
         fcm_sender_1.FcmSender])
 ], PushWorker);
 //# sourceMappingURL=push.worker.js.map

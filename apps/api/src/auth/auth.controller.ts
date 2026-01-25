@@ -12,12 +12,12 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
-    return this.authService.sendMagicLink(dto.email, dto.inviteCode);
+    return this.authService.login(dto.email, dto.inviteCode);
   }
 
   @Post('verify')
   @HttpCode(HttpStatus.OK)
   async verify(@Body() dto: VerifyDto) {
-    return this.authService.verifyMagicLink(dto.email, dto.token);
+    return this.authService.verifyToken(dto.email, dto.token);
   }
 }

@@ -24,10 +24,10 @@ let AuthController = class AuthController {
         this.authService = authService;
     }
     async login(dto) {
-        return this.authService.sendMagicLink(dto.email, dto.inviteCode);
+        return this.authService.login(dto.email, dto.inviteCode);
     }
     async verify(dto) {
-        return this.authService.verifyMagicLink(dto.email, dto.token);
+        return this.authService.verifyToken(dto.email, dto.token);
     }
 };
 exports.AuthController = AuthController;

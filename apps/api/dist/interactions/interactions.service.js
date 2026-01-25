@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InteractionsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -137,6 +136,11 @@ exports.InteractionsService = InteractionsService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(post_entity_1.Post)),
     __param(3, (0, typeorm_1.InjectRepository)(post_read_entity_1.PostRead)),
     __param(5, (0, common_1.Inject)('REDIS_CLIENT')),
-    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _b : Object, typeof (_c = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _c : Object, typeof (_d = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _d : Object, notification_helper_service_1.NotificationHelperService, typeof (_e = typeof ioredis_1.default !== "undefined" && ioredis_1.default) === "function" ? _e : Object])
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        notification_helper_service_1.NotificationHelperService,
+        ioredis_1.default])
 ], InteractionsService);
 //# sourceMappingURL=interactions.service.js.map

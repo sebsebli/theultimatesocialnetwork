@@ -52,7 +52,10 @@ export default function WelcomeScreen() {
       <View style={styles.bottomSection}>
         <Pressable
           style={styles.continueButton}
-          onPress={() => router.push('/sign-in')}
+          onPress={() => {
+            console.log('Navigating to sign-in...');
+            router.push('/sign-in');
+          }}
         >
           <Text style={styles.continueButtonText}>{t('welcome.continue')}</Text>
         </Pressable>

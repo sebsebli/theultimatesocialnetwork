@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
@@ -24,6 +23,7 @@ const typeorm_2 = require("typeorm");
 const user_entity_1 = require("../entities/user.entity");
 const uuid_1 = require("uuid");
 const ioredis_1 = __importDefault(require("ioredis"));
+const crypto_1 = require("crypto");
 const invites_service_1 = require("../invites/invites.service");
 const email_service_1 = require("../shared/email.service");
 const config_1 = require("@nestjs/config");
@@ -42,7 +42,7 @@ let AuthService = class AuthService {
         this.emailService = emailService;
         this.configService = configService;
     }
-    async sendMagicLink(email, inviteCode) {
+    async login(email, inviteCode) {
         const user = await this.userRepo.findOne({ where: { email } });
         const isBeta = await this.invitesService.isBetaMode();
         if (!user && isBeta) {
@@ -54,26 +54,17 @@ let AuthService = class AuthService {
         const rateKey = `rate:auth:${email}`;
         const limited = await this.redis.get(rateKey);
         if (limited) {
-            throw new common_1.BadRequestException('Please wait before sending another email');
+            throw new common_1.BadRequestException('Please wait before sending another code');
         }
-        const token = (0, uuid_1.v4)();
+        const token = (0, crypto_1.randomInt)(100000, 999999).toString();
         const key = `auth:${email}`;
         const data = JSON.stringify({ token, inviteCode });
         await this.redis.set(key, data, 'EX', 900);
         await this.redis.set(rateKey, '1', 'EX', 60);
-        const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:3001';
-        try {
-            await this.emailService.sendMagicLink(email, token, frontendUrl);
-        }
-        catch (error) {
-            console.error('Failed to send magic link email:', error);
-            if (process.env.NODE_ENV !== 'production') {
-                console.log(`MAGIC LINK for ${email}: ${frontendUrl}/verify?email=${encodeURIComponent(email)}&token=${token}`);
-            }
-        }
-        return { success: true, message: 'Magic link sent' };
+        await this.emailService.sendSignInToken(email, token, 'en');
+        return { success: true, message: 'Verification code sent' };
     }
-    async verifyMagicLink(email, token) {
+    async verifyToken(email, token) {
         const key = `auth:${email}`;
         const storedData = await this.redis.get(key);
         let valid = false;
@@ -91,12 +82,16 @@ let AuthService = class AuthService {
                     valid = true;
             }
         }
-        if (!valid && token === '1234')
+        if (!valid && token === '123456' && process.env.NODE_ENV !== 'production')
             valid = true;
         if (!valid) {
-            throw new common_1.UnauthorizedException('Invalid or expired token');
+            throw new common_1.UnauthorizedException('Invalid or expired code');
         }
         await this.redis.del(key);
+        const user = await this.validateOrCreateUser(email, inviteCode);
+        return this.generateTokens(user);
+    }
+    async validateOrCreateUser(email, inviteCode) {
         let user = await this.userRepo.findOne({ where: { email } });
         if (!user) {
             const isBeta = await this.invitesService.isBetaMode();
@@ -118,7 +113,7 @@ let AuthService = class AuthService {
                 await this.invitesService.consumeCode(inviteCode, user.id);
             }
         }
-        return this.generateTokens(user);
+        return user;
     }
     async generateTokens(user) {
         const payload = { sub: user.id, email: user.email };
@@ -138,7 +133,11 @@ exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __param(2, (0, common_1.Inject)('REDIS_CLIENT')),
-    __metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _b : Object, typeof (_c = typeof ioredis_1.default !== "undefined" && ioredis_1.default) === "function" ? _c : Object, invites_service_1.InvitesService,
-        email_service_1.EmailService, typeof (_d = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _d : Object])
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        jwt_1.JwtService,
+        ioredis_1.default,
+        invites_service_1.InvitesService,
+        email_service_1.EmailService,
+        config_1.ConfigService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

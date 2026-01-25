@@ -8,6 +8,7 @@ import { useAuth } from '../context/auth';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 export default function SignInScreen() {
+  console.log('SignInScreen mounting...');
   const router = useRouter();
   const { signIn } = useAuth();
   const { t } = useTranslation();
@@ -44,7 +45,7 @@ export default function SignInScreen() {
         inviteCode: showInviteInput ? (inviteCode.trim() || undefined) : undefined
       });
       setSent(true);
-      Alert.alert(t('signIn.success'), t('signIn.checkEmail'));
+      Alert.alert(t('signIn.success'), 'Verification code sent to your email');
     } catch (error: any) {
       // Check for specific beta invite requirement
       if (error?.status === 400 && error.message === 'Invite code required for registration') {
@@ -56,16 +57,21 @@ export default function SignInScreen() {
         setLoading(false);
         return;
       }
+      
+      // Check for rate limit
+      if (error?.status === 400 && error.message === 'Please wait before sending another code') {
+        Alert.alert('Too Many Requests', 'Please wait 60 seconds before requesting another code.');
+        setLoading(false);
+        return;
+      }
 
       // Don't log sensitive errors in production
       if (__DEV__) {
         console.error('Failed to send magic link', error);
       }
-      const errorMessage = error?.status === 400 
-        ? error.message || 'Invite code required'
-        : error?.status === 429
+      const errorMessage = error?.status === 429
         ? t('signIn.rateLimited') || 'Too many requests. Please try again later.'
-        : t('signIn.failedSend') || 'Failed to send magic link';
+        : t('signIn.failedSend') || 'Failed to send verification code';
       Alert.alert(t('signIn.error'), errorMessage);
     } finally {
       setLoading(false);
@@ -154,7 +160,7 @@ export default function SignInScreen() {
               disabled={!email.trim() || loading}
             >
               <Text style={styles.buttonText}>
-                {loading ? t('common.loading') : t('signIn.sendLink')}
+                {loading ? t('common.loading') : 'Send verification code'}
               </Text>
             </Pressable>
 
@@ -172,23 +178,23 @@ export default function SignInScreen() {
         ) : (
           <View style={styles.sentContainer}>
             <Text style={styles.sentText}>
-              {t('signIn.enterCode', { email })}
+              Enter the verification code sent to {email}
             </Text>
             
             <TextInput
-              style={styles.input}
-              placeholder={t('signIn.enterToken')}
+              style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }]}
+              placeholder="000000"
               placeholderTextColor={COLORS.tertiary}
               value={token}
-              onChangeText={setToken}
-              autoCapitalize="none"
-              autoCorrect={false}
+              onChangeText={(val) => setToken(val.replace(/\D/g, '').slice(0, 6))}
+              keyboardType="number-pad"
+              autoFocus
             />
 
             <Pressable
-              style={[styles.button, (!token.trim() || loading) && styles.buttonDisabled]}
+              style={[styles.button, (token.length < 6 || loading) && styles.buttonDisabled]}
               onPress={handleVerify}
-              disabled={!token.trim() || loading}
+              disabled={token.length < 6 || loading}
             >
               <Text style={styles.buttonText}>
                 {loading ? t('signIn.verifying') : t('signIn.verify')}

@@ -10,7 +10,6 @@ import {
   IBMPlexSerif_600SemiBold,
 } from '@expo-google-fonts/ibm-plex-serif';
 import { Stack, useSegments, Redirect, useRouter } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import '../i18n';
@@ -30,7 +29,6 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { Platform } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
 
 function AppContent({ onReady }: { onReady?: () => void }) {
   const { isLoading, isAuthenticated } = useAuth();
@@ -95,6 +93,7 @@ function AppContent({ onReady }: { onReady?: () => void }) {
 
   // Use Redirect components for declarative navigation
   // Only redirect if we have a segment (router is ready)
+  /*
   if (currentSegment) {
     if (!isAuthenticated && !isPublicRoute) {
       if (__DEV__) {
@@ -110,6 +109,7 @@ function AppContent({ onReady }: { onReady?: () => void }) {
       return <Redirect href="/(tabs)/" />;
     }
   }
+  */
 
   // Always render the Stack - it handles initial routing
   // Always start with welcome - redirects will handle authenticated users
@@ -132,41 +132,12 @@ export default function RootLayout() {
   });
 
   // Track if we've already hidden the splash screen to prevent multiple calls
-  const splashScreenHidden = useRef(false);
   const appReady = useRef(false);
-
-  const hideSplashScreen = async () => {
-    // Only hide once - prevent multiple calls
-    if (splashScreenHidden.current) {
-      return;
-    }
-    splashScreenHidden.current = true;
-    if (__DEV__) console.log('Hiding splash screen...');
-
-    try {
-      // Delay to ensure native view controller is ready and screen is fully rendered
-      // Longer delay on iOS to ensure everything is ready
-      await new Promise(resolve => setTimeout(resolve, Platform.OS === 'ios' ? 400 : 200));
-      await SplashScreen.hideAsync();
-    } catch (error) {
-      // Silently ignore splash screen errors - they're not critical
-      // This can happen in Expo Go or when the native view controller isn't ready
-      if (__DEV__) {
-        console.warn('Splash screen hide error (non-critical):', error);
-      }
-      // Do NOT reset the flag - if hiding failed, it might be because it's already hidden
-      // or unregistered. Retrying will just cause more errors.
-    }
-  };
 
   // Callback when app is ready (auth loaded + route ready)
   const handleAppReady = () => {
     if (!appReady.current) {
       appReady.current = true;
-      // Hide splash screen only when app is fully ready
-      if (loaded || error) {
-        hideSplashScreen();
-      }
     }
   };
 
@@ -178,24 +149,6 @@ export default function RootLayout() {
       console.warn('Failed to configure notifications:', error);
     }
   }, []);
-
-  // Fallback: hide splash screen after 3 seconds even if app isn't ready
-  // This prevents the app from being stuck on splash screen
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!splashScreenHidden.current) {
-        hideSplashScreen();
-      }
-    }, 3000);
-    
-    return () => clearTimeout(timeout);
-  }, []);
-
-  // Don't block rendering on fonts - show app with system fonts as fallback
-  // This ensures the app always renders something
-  if (__DEV__) {
-    console.log('RootLayout render:', { loaded, error });
-  }
 
   const MyDarkTheme = {
     ...DarkTheme,

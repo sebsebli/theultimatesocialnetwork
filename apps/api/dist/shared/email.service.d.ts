@@ -5,7 +5,7 @@ export declare class EmailService {
     private transporter;
     constructor(configService: ConfigService);
     private initializeTransporter;
-    sendMagicLink(email: string, token: string, baseUrl?: string): Promise<boolean>;
+    sendSignInToken(email: string, token: string, lang?: string): Promise<boolean>;
     sendEmail(to: string, subject: string, html: string, text?: string, attachments?: Array<{
         filename: string;
         content: Buffer;

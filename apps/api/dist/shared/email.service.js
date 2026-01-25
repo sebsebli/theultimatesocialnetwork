@@ -42,12 +42,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 var EmailService_1;
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmailService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const nodemailer = __importStar(require("nodemailer"));
+const email_templates_1 = require("./email-templates");
 let EmailService = EmailService_1 = class EmailService {
     configService;
     logger = new common_1.Logger(EmailService_1.name);
@@ -78,22 +78,17 @@ let EmailService = EmailService_1 = class EmailService {
         });
         this.logger.log(`Email service initialized with ${host}:${port}`);
     }
-    async sendMagicLink(email, token, baseUrl) {
+    async sendSignInToken(email, token, lang = 'en') {
+        const t = email_templates_1.signInTokenTemplates[lang] || email_templates_1.signInTokenTemplates['en'];
         if (!this.transporter) {
-            const verifyUrl = baseUrl
-                ? `${baseUrl}/verify?email=${encodeURIComponent(email)}&token=${token}`
-                : `http://localhost:3001/verify?email=${encodeURIComponent(email)}&token=${token}`;
-            this.logger.warn(`[MOCK EMAIL] Magic link for ${email}: ${verifyUrl}`);
+            this.logger.warn(`[MOCK EMAIL] Sign In Token for ${email} (${lang}): ${token}`);
             return false;
         }
-        const verifyUrl = baseUrl
-            ? `${baseUrl}/verify?email=${encodeURIComponent(email)}&token=${token}`
-            : this.configService.get('FRONTEND_URL') || `http://localhost:3001/verify?email=${encodeURIComponent(email)}&token=${token}`;
         try {
             await this.transporter.sendMail({
                 from: this.configService.get('SMTP_FROM') || '"Cite System" <noreply@cite.com>',
                 to: email,
-                subject: 'Your Magic Link - Cite System',
+                subject: t.subject,
                 html: `
           <!DOCTYPE html>
           <html>
@@ -106,37 +101,36 @@ let EmailService = EmailService_1 = class EmailService {
                 <h1 style="color: white; margin: 0; font-size: 28px;">Cite System</h1>
               </div>
               <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
-                <h2 style="color: #333; margin-top: 0;">Sign in to your account</h2>
-                <p style="color: #666; font-size: 16px;">Click the button below to sign in to your Cite System account. This link will expire in 15 minutes.</p>
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="${verifyUrl}" style="display: inline-block; background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Sign In</a>
+                <h2 style="color: #333; margin-top: 0;">${t.title}</h2>
+                <p style="color: #666; font-size: 16px;">${t.body}</p>
+                <div style="text-align: center; margin: 40px 0;">
+                  <span style="display: inline-block; background: #f4f4f5; color: #333; padding: 12px 24px; border-radius: 8px; font-family: monospace; font-size: 32px; letter-spacing: 4px; font-weight: 700; border: 1px solid #e4e4e7;">${token}</span>
                 </div>
-                <p style="color: #999; font-size: 14px; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 20px;">
-                  If the button doesn't work, copy and paste this link into your browser:<br>
-                  <a href="${verifyUrl}" style="color: #667eea; word-break: break-all;">${verifyUrl}</a>
+                <p style="color: #666; font-size: 14px; text-align: center;">
+                  ${t.tokenLabel}
                 </p>
-                <p style="color: #999; font-size: 12px; margin-top: 20px;">
-                  If you didn't request this link, you can safely ignore this email.
+                <p style="color: #999; font-size: 12px; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 20px;">
+                  ${t.ignore}
                 </p>
               </div>
             </body>
           </html>
         `,
                 text: `
-Sign in to your Cite System account
+${t.title}
 
-Click the link below to sign in. This link will expire in 15 minutes.
+${t.body}
 
-${verifyUrl}
+${token}
 
-If you didn't request this link, you can safely ignore this email.
+${t.ignore}
         `.trim(),
             });
-            this.logger.log(`Magic link email sent to ${email}`);
+            this.logger.log(`Sign in token sent to ${email}`);
             return true;
         }
         catch (error) {
-            this.logger.error(`Failed to send magic link email to ${email}:`, error);
+            this.logger.error(`Failed to send sign in token to ${email}:`, error);
             throw error;
         }
     }
@@ -166,6 +160,6 @@ If you didn't request this link, you can safely ignore this email.
 exports.EmailService = EmailService;
 exports.EmailService = EmailService = EmailService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [typeof (_a = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _a : Object])
+    __metadata("design:paramtypes", [config_1.ConfigService])
 ], EmailService);
 //# sourceMappingURL=email.service.js.map

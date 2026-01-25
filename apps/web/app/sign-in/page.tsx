@@ -2,14 +2,19 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 function SignInForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [showInviteInput, setShowInviteInput] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [token, setToken] = useState('');
+  
+  // 'email' = initial step, 'token' = verification step
+  const [step, setStep] = useState<'email' | 'token'>('email');
+  
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +26,7 @@ function SignInForm() {
     }
   }, [searchParams]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -48,10 +53,10 @@ function SignInForm() {
           throw new Error('You are new here! Please enter your invite code to join the beta.');
         }
 
-        throw new Error(data.message || 'Failed to send magic link');
+        throw new Error(data.message || 'Failed to send verification code');
       }
 
-      setSent(true);
+      setStep('token');
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -59,42 +64,83 @@ function SignInForm() {
     }
   };
 
-  if (sent) {
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, token }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Invalid code or expired.');
+      }
+
+      const data = await res.json();
+      
+      // Set cookie for middleware
+      document.cookie = `token=${data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
+      
+      // Redirect
+      window.location.href = '/home';
+    } catch (err: any) {
+      setError(err.message || 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (step === 'token') {
     return (
-      <div className="text-center space-y-6 animate-in fade-in">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/20 mb-4">
-          <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-          </svg>
+      <div className="space-y-6 animate-in fade-in">
+        <div className="text-center space-y-2">
+          <h1 className="text-2xl font-bold text-paper">Enter Code</h1>
+          <p className="text-secondary text-sm">
+            We sent a verification code to <span className="text-paper font-medium">{email}</span>
+          </p>
         </div>
-        <h1 className="text-3xl font-bold text-paper">Check your email</h1>
-        <p className="text-secondary text-base">
-          We sent a magic link to <span className="text-paper font-medium">{email}</span>
-        </p>
-        <p className="text-tertiary text-sm mt-4">
-          (Check the API console logs for the link in development)
-        </p>
+
+        <form onSubmit={handleVerify} className="space-y-6">
+          {error && (
+            <div className="p-3 text-sm text-red-400 bg-red-900/10 border border-red-900/20 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={token}
+              onChange={(e) => setToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-paper placeholder-secondary/50 text-center text-2xl tracking-[0.5em] font-mono"
+              placeholder="000000"
+              autoFocus
+              maxLength={6}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || token.length < 6}
+            className="w-full h-12 bg-primary hover:bg-[#7d8b9d] text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20 active:scale-[0.98]"
+          >
+            {loading ? 'Verifying...' : 'Verify'}
+          </button>
+        </form>
         
         <div className="space-y-3 pt-4">
           <button
             onClick={() => {
-              setSent(false);
-              setEmail('');
-              setShowInviteInput(false);
+              setStep('email');
+              setToken('');
             }}
-            className="w-full h-12 bg-primary hover:bg-[#7d8b9d] transition-all duration-200 text-white font-semibold rounded-lg active:scale-[0.98] shadow-lg shadow-primary/20"
+            className="w-full text-secondary hover:text-paper text-sm transition-colors"
           >
-            Resend
-          </button>
-          <button
-            onClick={() => {
-              setSent(false);
-              setEmail('');
-              setShowInviteInput(false);
-            }}
-            className="w-full text-primary text-center font-medium hover:text-[#7d8b9d] transition-colors"
-          >
-            Change email
+            Wrong email? Go back
           </button>
         </div>
       </div>
@@ -102,7 +148,7 @@ function SignInForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 w-full max-w-md animate-in fade-in">
+    <form onSubmit={handleLogin} className="space-y-6 w-full max-w-md animate-in fade-in">
       {error && (
         <div className="p-3 text-sm text-red-400 bg-red-900/10 border border-red-900/20 rounded-lg animate-in slide-in-from-top-2">
           {error}
@@ -156,7 +202,7 @@ function SignInForm() {
             Sending...
           </span>
         ) : (
-          'Send magic link'
+          'Send verification code'
         )}
       </button>
 
@@ -170,7 +216,7 @@ function SignInForm() {
       </div>
       
       <p className="text-center text-sm text-tertiary">
-          No password. We'll email you a link.
+          No password. We'll email you a code.
       </p>
     </form>
   );

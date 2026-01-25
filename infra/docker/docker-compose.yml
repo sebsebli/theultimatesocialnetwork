@@ -20,6 +20,33 @@ services:
       timeout: 5s
       retries: 5
 
+  backup:
+    image: postgres:15-alpine
+    container_name: cite-backup
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      BACKUP_DIR: /backups
+      KEEP_DAYS: 7
+    volumes:
+      - ./volumes/backups:/backups
+      - ./backup-db.sh:/usr/local/bin/backup-db.sh
+    command: >
+      sh -c "
+      chmod +x /usr/local/bin/backup-db.sh &&
+      while true; do
+        /usr/local/bin/backup-db.sh;
+        echo 'Sleeping for 6 hours...';
+        sleep 21600;
+      done
+      "
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   neo4j:
     image: neo4j:5.15.0-community
     container_name: cite-neo4j
@@ -147,6 +174,14 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       DB_SSL: "false"
       PORT: 3000
+      # SMTP Email Configuration
+      SMTP_HOST: ${SMTP_HOST:-smtp-relay.brevo.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-"Cite System" <noreply@cite.com>}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
     depends_on:
       db:
         condition: service_healthy
@@ -177,16 +212,20 @@ services:
       dockerfile: apps/web/Dockerfile
       target: runner
     container_name: cite-web
+    ports:
+      - "3001:3000"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
       API_URL: http://api:3000
+      SKIP_HTTPS_CHECK: "true"  # Allow HTTP in Docker
+      DOCKER: "true"
     depends_on:
       api:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
