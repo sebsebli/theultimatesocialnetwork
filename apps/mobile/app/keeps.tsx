@@ -5,11 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../utils/api';
 import { PostItem } from '../components/PostItem';
+import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 export default function KeepsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { showSuccess, showError } = useToast();
   const [keeps, setKeeps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -131,10 +133,10 @@ export default function KeepsScreen() {
       await api.post(`/collections/${collectionId}/items`, { postId: selectedPostId });
       setShowPicker(false);
       setSelectedPostId(null);
-      Alert.alert(t('keeps.success'), t('keeps.addedToCollection'));
+      showSuccess(t('keeps.addedToCollection'));
     } catch (error) {
       console.error('Failed to add to collection', error);
-      Alert.alert(t('common.error'), t('keeps.failedAddToCollection'));
+      showError(t('keeps.failedAddToCollection'));
     }
   };
 

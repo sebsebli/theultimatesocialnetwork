@@ -7,6 +7,7 @@ import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { useAuth } from '../../context/auth';
+import { useToast } from '../../context/ToastContext';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,6 +16,7 @@ export default function ProfileScreen() {
   const { handle } = useLocalSearchParams();
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
+  const { showError } = useToast();
   const insets = useSafeAreaInsets();
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -71,11 +73,7 @@ export default function ProfileScreen() {
       console.error('Failed to load profile', error);
       // Show user-friendly error if no data exists
       if (reset && posts.length === 0 && !loadingMore) {
-        const { Alert } = require('react-native');
-        Alert.alert(
-          t('common.error', 'Error'),
-          t('profile.loadError', 'Failed to load profile. Please try again.')
-        );
+        showError(t('profile.loadError', 'Failed to load profile. Please try again.'));
       }
     }
   };

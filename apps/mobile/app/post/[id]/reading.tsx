@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -8,9 +8,11 @@ import * as Sharing from 'expo-sharing';
 import { api } from '../../../utils/api';
 import { MarkdownText } from '../../../components/MarkdownText';
 import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ReadingModeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
   const postId = params.id as string;
@@ -27,6 +29,7 @@ export default function ReadingModeScreen() {
       setPost(data);
     } catch (error) {
       console.error('Failed to load post', error);
+      Alert.alert(t('common.error'), t('post.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -39,96 +42,234 @@ export default function ReadingModeScreen() {
   };
 
   const printToPdf = async () => {
-    const html = `
-      <html>
-        <head>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap');
-            body { font-family: 'Source Serif 4', 'Georgia', serif; padding: 60px; color: #1a1a1a; line-height: 1.7; max-width: 800px; margin: 0 auto; }
-            h1 { font-size: 36px; margin-bottom: 12px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
-            .meta { font-size: 15px; color: #666; margin-bottom: 40px; border-bottom: 1px solid #eee; padding-bottom: 24px; font-family: sans-serif; }
-            .content { font-size: 19px; color: #333; }
-            .content p { margin-bottom: 1.5em; }
-            .footer { margin-top: 60px; font-size: 13px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 24px; font-family: sans-serif; }
-          </style>
-        </head>
-        <body>
-          <h1>${post.title || 'Untitled Post'}</h1>
-          <div class="meta">
-            By ${post.author?.displayName || post.author?.handle} • ${new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-          </div>
-          <div class="content">
-            ${post.body.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('')}
-          </div>
-          <div class="footer">
-            Archived via CITE (https://cite.app/post/${post.id})
-          </div>
-        </body>
-      </html>
-    `;
+    if (!post) return;
+    
+    try {
+      const html = `
+        <html>
+          <head>
+            <style>
+              @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600&display=swap');
+              body { 
+                font-family: 'IBM Plex Serif', serif; 
+                padding: 40px; 
+                color: #1a1a1a; 
+                line-height: 1.6; 
+                max-width: 800px; 
+                margin: 0 auto; 
+              }
+              h1 { font-size: 32px; margin-bottom: 8px; font-weight: 600; line-height: 1.2; }
+              .meta { font-size: 14px; color: #666; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee; font-family: sans-serif; }
+              .content { font-size: 18px; color: #333; }
+              .content p { margin-bottom: 1.4em; }
+              .footer { margin-top: 50px; font-size: 12px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 20px; font-family: sans-serif; }
+            </style>
+          </head>
+          <body>
+            <h1>${post.title || 'Untitled Post'}</h1>
+            <div class="meta">
+              By ${post.author?.displayName || post.author?.handle} • ${new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
+            <div class="content">
+              ${post.body.split('\n').map((p: string) => p.trim() ? `<p>${p}</p>` : '').join('')}
+            </div>
+            <div class="footer">
+              Archived via CITE (https://cite.app/post/${post.id})
+            </div>
+          </body>
+        </html>
+      `;
 
-    const { uri } = await Print.printToFileAsync({ html });
-    await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch (error) {
+      console.error('PDF generation failed', error);
+      Alert.alert(t('common.error'), 'Failed to generate PDF');
+    }
   };
 
-  // ... inside render
-      <View style={styles.article}>
-        {post.title && <Text style={styles.title}>{post.title}</Text>}
-        <View style={styles.authorLine}>
-          <View style={styles.authorAvatar}>
-             <Text style={styles.avatarText}>{post.author?.displayName?.charAt(0) || '?'}</Text>
-          </View>
-          <View>
-            <Text style={styles.authorName}>{post.author?.displayName || post.author?.handle}</Text>
-            <Text style={styles.readTime}>Published {new Date(post.createdAt).toLocaleDateString()}</Text>
-          </View>
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (!post) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={styles.errorText}>Post not found</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Pressable onPress={() => router.back()} style={styles.iconButton}>
+          <MaterialIcons name="close" size={24} color={COLORS.secondary} />
+        </Pressable>
+        <View style={styles.headerRight}>
+          <Pressable onPress={toggleTextSize} style={styles.iconButton}>
+            <MaterialIcons name="format-size" size={22} color={COLORS.secondary} />
+          </Pressable>
+          <Pressable onPress={printToPdf} style={styles.iconButton}>
+            <MaterialIcons name="print" size={22} color={COLORS.secondary} />
+          </Pressable>
         </View>
-        <MarkdownText fontSize={fontSize}>{post.body}</MarkdownText>
       </View>
 
-      <View style={styles.bottomBar}>
-        <Pressable style={styles.bottomBarButton}>
-          <MaterialIcons name="bookmark-border" size={20} color={COLORS.tertiary} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.article}>
+          {post.title && <Text style={styles.title}>{post.title}</Text>}
+          
+          <Pressable 
+            style={styles.authorLine}
+            onPress={() => router.push(`/user/${post.author?.handle}`)}
+          >
+            <View style={styles.authorAvatar}>
+               <Text style={styles.avatarText}>{post.author?.displayName?.charAt(0) || '?'}</Text>
+            </View>
+            <View>
+              <Text style={styles.authorName}>{post.author?.displayName || post.author?.handle}</Text>
+              <Text style={styles.readTime}>{new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</Text>
+            </View>
+          </Pressable>
+
+          {/* Reading Mode Content - Uses Serif Font */}
+          <MarkdownText 
+            fontSize={fontSize} 
+            fontFamily={FONTS.serifRegular}
+            lineHeight={fontSize * 1.6}
+            color={COLORS.paper} // slightly softer white?
+          >
+            {post.body}
+          </MarkdownText>
+        </View>
+
+        {/* Sources Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Sources</Text>
+          {/* Mock logic for sources display */}
+          <Text style={styles.emptyText}>No external sources found.</Text>
+        </View>
+      </ScrollView>
+
+      {/* Bottom Action Bar */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 10 }]}>
+        <Pressable 
+          style={styles.bottomBarButton}
+          onPress={() => {/* Toggle keep */}}
+        >
+          <MaterialIcons name="bookmark-border" size={24} color={COLORS.tertiary} />
         </Pressable>
-        <Pressable style={styles.bottomBarButton}>
-          <MaterialIcons name="share" size={20} color={COLORS.tertiary} />
+        <Pressable 
+          style={styles.bottomBarButton}
+          onPress={() => {
+             const url = `https://cite.app/post/${post.id}`;
+             Sharing.shareAsync(url);
+          }}
+        >
+          <MaterialIcons name="share" size={24} color={COLORS.tertiary} />
         </Pressable>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.ink },
-  content: { paddingHorizontal: SPACING.xxl, paddingBottom: SPACING.xxxl },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: SPACING.header, paddingBottom: SPACING.l, paddingHorizontal: SPACING.l },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m },
+  center: { justifyContent: 'center', alignItems: 'center' },
+  content: { paddingHorizontal: SPACING.l, paddingBottom: 100 },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: SPACING.l, 
+    paddingBottom: SPACING.m,
+    borderBottomWidth: 1, 
+    borderBottomColor: COLORS.divider 
+  },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.l },
   iconButton: { padding: SPACING.xs },
-  doneButton: { fontSize: 16, color: COLORS.secondary, fontFamily: FONTS.regular },
-  textSizeButton: { padding: SPACING.xs },
-  textSizeIcon: { fontSize: 16, fontWeight: '600', color: COLORS.paper, fontFamily: FONTS.semiBold },
-  article: { maxWidth: 600, alignSelf: 'center', width: '100%' },
-  loadingText: { color: COLORS.paper, textAlign: 'center', marginTop: SPACING.xxl },
-  title: { fontSize: 32, fontWeight: '700', color: COLORS.paper, marginBottom: SPACING.l, fontFamily: FONTS.semiBold },
-  authorLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.xl },
+  
+  article: { marginTop: SPACING.xl, marginBottom: SPACING.xxl },
+  title: { 
+    fontSize: 28, 
+    fontWeight: '700', 
+    color: COLORS.paper, 
+    marginBottom: SPACING.l, 
+    fontFamily: FONTS.serifSemiBold,
+    lineHeight: 34,
+  },
+  authorLine: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: SPACING.m, 
+    marginBottom: SPACING.xl,
+    paddingBottom: SPACING.l,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
   authorAvatar: { 
-    width: 36, 
-    height: 36, 
-    borderRadius: 18, 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
     backgroundColor: 'rgba(110, 122, 138, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.divider,
   },
   avatarText: {
     color: COLORS.primary,
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: FONTS.semiBold,
   },
-  authorName: { fontSize: 14, color: COLORS.paper, fontFamily: FONTS.medium },
-  readTime: { fontSize: 14, color: COLORS.tertiary, fontFamily: FONTS.regular },
-  bottomBar: { flexDirection: 'row', justifyContent: 'center', gap: SPACING.xl, paddingVertical: SPACING.l, borderTopWidth: 1, borderTopColor: COLORS.divider },
+  authorName: { 
+    fontSize: 15, 
+    color: COLORS.paper, 
+    fontFamily: FONTS.medium 
+  },
+  readTime: { 
+    fontSize: 13, 
+    color: COLORS.tertiary, 
+    fontFamily: FONTS.regular 
+  },
+  
+  section: {
+    marginTop: SPACING.xl,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    paddingTop: SPACING.xl,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.paper,
+    marginBottom: SPACING.m,
+    fontFamily: FONTS.semiBold,
+  },
+  emptyText: {
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    fontStyle: 'italic',
+  },
+  
+  bottomBar: { 
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    gap: SPACING.xxxl, 
+    paddingTop: SPACING.l, 
+    backgroundColor: COLORS.ink,
+    borderTopWidth: 1, 
+    borderTopColor: COLORS.divider 
+  },
   bottomBarButton: { padding: SPACING.s },
+  errorText: { color: COLORS.error, fontSize: 16, fontFamily: FONTS.medium },
 });

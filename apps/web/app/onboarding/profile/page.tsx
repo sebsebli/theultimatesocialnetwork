@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/toast';
 
 export default function OnboardingProfilePage() {
+  const { error: toastError } = useToast();
   const router = useRouter();
   const [displayName, setDisplayName] = useState('');
   const [handle, setHandle] = useState('');
@@ -58,11 +60,11 @@ export default function OnboardingProfilePage() {
       if (res.ok) {
         router.push('/onboarding/languages');
       } else {
-        alert('Failed to create profile');
+        toastError('Failed to create profile');
       }
     } catch (error) {
       console.error('Error creating profile', error);
-      alert('Failed to create profile');
+      toastError('Failed to create profile');
     }
   };
 

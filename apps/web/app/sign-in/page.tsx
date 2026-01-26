@@ -121,8 +121,7 @@ function SignInForm() {
 
       const data = await res.json();
       
-      // Set cookie for middleware
-      document.cookie = `token=${data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
+      // Cookie is set by the server (HttpOnly)
       
       // Redirect
       window.location.href = '/home';

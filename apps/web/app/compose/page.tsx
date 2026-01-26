@@ -6,6 +6,8 @@ import { AutocompleteDropdown } from '@/components/autocomplete-dropdown';
 import { ImageUploader } from '@/components/image-uploader';
 import { DesktopSidebar } from '@/components/desktop-sidebar';
 import { DesktopRightSidebar } from '@/components/desktop-right-sidebar';
+import { getCaretCoordinates } from '@/utils/textarea-caret';
+import { renderMarkdown } from '@/utils/markdown';
 
 function ComposeContent() {
   const router = useRouter();
@@ -16,12 +18,15 @@ function ComposeContent() {
   const [body, setBody] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [headerImageKey, setHeaderImageKey] = useState<string | null>(null);
-  const [autocomplete, setAutocomplete] = useState<{
+  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
+  
+  const [autocomplete, setAutocomplete] = useState({
     show: boolean;
     query: string;
     type: 'topic' | 'post' | 'user' | 'all';
     position: { top: number; left: number };
   } | null>(null);
+  
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -80,7 +85,7 @@ function ComposeContent() {
     }
   };
 
-  const insertText = (before: string, after: string = '') => {
+  const insertText = (before: string, after = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     
@@ -111,49 +116,41 @@ function ComposeContent() {
   const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newBody = e.target.value;
     setBody(newBody);
+    checkAutocomplete(e.target, newBody);
+  };
 
-    const textarea = e.target;
+  // Separated autocomplete check logic
+  const checkAutocomplete = (textarea: HTMLTextAreaElement, currentBody: string) => {
     const cursorPos = textarea.selectionStart;
-    const textBeforeCursor = newBody.substring(0, cursorPos);
+    const textBeforeCursor = currentBody.substring(0, cursorPos);
 
-    const wikilinkMatch = textBeforeCursor.match(/\[\[([^\]]*)$/);
-    if (wikilinkMatch) {
-      const query = wikilinkMatch[1];
+    // Helper to set position
+    const setPosition = (query: string, type: 'topic' | 'post' | 'user' | 'all') => {
+      const coords = getCaretCoordinates(textarea, cursorPos);
       const rect = textarea.getBoundingClientRect();
-      const lineHeight = 24; // Approximate line height
-      const lines = textBeforeCursor.split('\n');
-      const currentLine = lines.length - 1;
       
       setAutocomplete({
         show: true,
         query,
-        type: 'all',
+        type,
         position: {
-          top: rect.top + (currentLine * lineHeight) + lineHeight,
-          left: rect.left + 20,
+          // Absolute position relative to the viewport/container
+          // We add rect.top to align with the textarea's position on screen
+          top: coords.top + coords.height + 10, // 10px buffer
+          left: coords.left,
         },
       });
+    };
+
+    const wikilinkMatch = textBeforeCursor.match(/\||\[\[([^\]]*)$/);
+    if (wikilinkMatch) {
+      setPosition(wikilinkMatch[1], 'all');
       return;
     }
 
-    // Detect @ for mention autocomplete
     const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
     if (mentionMatch) {
-      const query = mentionMatch[1];
-      const rect = textarea.getBoundingClientRect();
-      const lineHeight = 24;
-      const lines = textBeforeCursor.split('\n');
-      const currentLine = lines.length - 1;
-      
-      setAutocomplete({
-        show: true,
-        query,
-        type: 'user',
-        position: {
-          top: rect.top + (currentLine * lineHeight) + lineHeight,
-          left: rect.left + 20,
-        },
-      });
+      setPosition(mentionMatch[1], 'user');
       return;
     }
 
@@ -181,10 +178,10 @@ function ComposeContent() {
         }, 0);
       }
     } else if (item.type === 'topic') {
-      const wikilinkMatch = textBeforeCursor.match(/\[\[([^\]]*)$/);
+      const wikilinkMatch = textBeforeCursor.match(/\||\[\[([^\]]*)$/);
       if (wikilinkMatch) {
         replacement = `[[${item.slug || item.title}]]`;
-        const newText = textBeforeCursor.replace(/\[\[[^\]]*$/, replacement) + textAfterCursor;
+        const newText = textBeforeCursor.replace(/\||\[\[[^\]]*$/, replacement) + textAfterCursor;
         setBody(newText);
         setTimeout(() => {
           const newPos = cursorPos - wikilinkMatch[0].length + replacement.length;
@@ -192,10 +189,10 @@ function ComposeContent() {
         }, 0);
       }
     } else if (item.type === 'post') {
-      const wikilinkMatch = textBeforeCursor.match(/\[\[([^\]]*)$/);
+      const wikilinkMatch = textBeforeCursor.match(/\||\[\[([^\]]*)$/);
       if (wikilinkMatch) {
         replacement = `[[post:${item.id}]]`;
-        const newText = textBeforeCursor.replace(/\[\[[^\]]*$/, replacement) + textAfterCursor;
+        const newText = textBeforeCursor.replace(/\||\[\[[^\]]*$/, replacement) + textAfterCursor;
         setBody(newText);
         setTimeout(() => {
           const newPos = cursorPos - wikilinkMatch[0].length + replacement.length;
@@ -211,164 +208,192 @@ function ComposeContent() {
     <div className="flex min-h-screen bg-ink">
       <DesktopSidebar />
       <main className="flex-1 flex justify-center lg:max-w-4xl xl:max-w-5xl">
-        <div className="w-full border-x border-divider min-h-screen">
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-ink/90 backdrop-blur-md border-b border-divider">
-        <button
-          onClick={() => router.back()}
-          className="text-secondary hover:text-paper text-base font-normal transition-colors px-2"
-        >
-          Cancel
-        </button>
-        <h2 className="text-paper text-base font-bold tracking-tight">New post</h2>
-        <button
-          onClick={handlePublish}
-          disabled={!body.trim() || isPublishing}
-          className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-4 py-1.5 rounded-full transition-colors shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isPublishing ? 'Publishing...' : 'Publish'}
-        </button>
-      </header>
+        <div className="w-full border-x border-divider min-h-screen flex flex-col">
+          {/* Top Navigation Bar */}
+          <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-ink/90 backdrop-blur-md border-b border-divider">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.back()}
+                className="text-secondary hover:text-paper text-base font-normal transition-colors"
+              >
+                Cancel
+              </button>
+              
+              {/* View Mode Toggle */}
+              <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10">
+                <button
+                  onClick={() => setViewMode('edit')}
+                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === 'edit' 
+                    ? 'bg-primary text-white shadow-sm' 
+                    : 'text-secondary hover:text-paper'
+                  }`}
+                >
+                  Write
+                </button>
+                <button
+                  onClick={() => setViewMode('preview')}
+                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === 'preview' 
+                    ? 'bg-primary text-white shadow-sm' 
+                    : 'text-secondary hover:text-paper'
+                  }`}
+                >
+                  Preview
+                </button>
+              </div>
+            </div>
 
-      {/* Editor Content Area */}
-      <main ref={containerRef} className="flex-1 flex flex-col px-5 pt-6 pb-32 min-h-[calc(100vh-60px)]">
-        {/* Title Input (if starts with #) */}
-        {body.startsWith('#') && (
-          <div className="relative mb-6 group">
-            <input
-              type="text"
-              value={body.split('\n')[0].replace(/^#\s*/, '')}
-              onChange={(e) => {
-                const lines = body.split('\n');
-                lines[0] = '# ' + e.target.value;
-                setBody(lines.join('\n'));
-              }}
-              placeholder="Title"
-              className="w-full bg-transparent text-white text-[32px] font-bold leading-tight placeholder-tertiary border-none focus:ring-0 p-0 m-0 outline-none"
-            />
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-tertiary hidden sm:inline-block">
+                {body.length} chars
+              </span>
+              <button
+                onClick={handlePublish}
+                disabled={!body.trim() || isPublishing}
+                className="bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-5 py-2 rounded-full transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+              >
+                {isPublishing ? 'Publishing...' : 'Publish'}
+              </button>
+            </div>
+          </header>
+
+          {/* Editor Content Area */}
+          <div className="flex-1 flex flex-col px-6 pt-6 pb-32 min-h-[calc(100vh-60px)] relative">
+            {viewMode === 'edit' ? (
+              <>
+                {/* Title Input (if starts with #) */}
+                {body.startsWith('#') && (
+                  <div className="relative mb-6 group animate-in fade-in duration-300">
+                    <input
+                      type="text"
+                      value={body.split('\n')[0].replace(/^#\s*/, '')}
+                      onChange={(e) => {
+                        const lines = body.split('\n');
+                        lines[0] = '# ' + e.target.value;
+                        setBody(lines.join('\n'));
+                      }}
+                      placeholder="Title"
+                      className="w-full bg-transparent text-white text-[32px] font-bold leading-tight placeholder-tertiary border-none focus:ring-0 p-0 m-0 outline-none font-sans"
+                    />
+                  </div>
+                )}
+
+                {/* Body Text */}
+                <div ref={containerRef} className="relative flex-1">
+                  <textarea
+                    ref={textareaRef}
+                    value={body}
+                    onChange={handleBodyChange}
+                    onScroll={() => setAutocomplete(null)} // Hide autocomplete on scroll to prevent misalignment
+                    placeholder={body.startsWith('#') ? "Start writing..." : "# Title (optional)\n\nStart writing... Link with [[Topic]] or [[post:uuid]]"}
+                    className="w-full h-full text-[18px] leading-[1.6] text-paper font-normal whitespace-pre-wrap outline-none resize-none bg-transparent min-h-[300px] font-sans selection:bg-primary/30 selection:text-white"
+                    spellCheck={false}
+                  />
+                  {autocomplete?.show && (
+                    <div style={{ position: 'relative' }}>
+                       <AutocompleteDropdown
+                        query={autocomplete.query}
+                        type={autocomplete.type}
+                        onSelect={handleAutocompleteSelect}
+                        position={autocomplete.position}
+                        onClose={() => setAutocomplete(null)}
+                      />
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              // Preview Mode
+              <div className="prose prose-invert max-w-none animate-in fade-in duration-200">
+                <div 
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }}
+                />
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Body Text */}
-        <div ref={containerRef} className="relative flex-1">
-          <textarea
-            ref={textareaRef}
-            value={body}
-            onChange={handleBodyChange}
-            placeholder={body.startsWith('#') ? "Start writing..." : "# Title\n\nStart writing... Link with [[Topic]] or [[post:uuid]]"}
-            className="w-full flex-1 text-[17px] leading-[1.6] text-secondary font-normal whitespace-pre-wrap outline-none resize-none bg-transparent min-h-[200px]"
-            style={{ fontFamily: 'inherit' }}
-          />
-          {autocomplete?.show && (
-            <AutocompleteDropdown
-              query={autocomplete.query}
-              type={autocomplete.type}
-              onSelect={handleAutocompleteSelect}
-              position={autocomplete.position}
-              onClose={() => setAutocomplete(null)}
-            />
+          {/* Formatting Toolbar - Only visible in Edit mode */}
+          {viewMode === 'edit' && (
+            <div className="fixed bottom-0 left-0 right-0 w-full lg:pl-[280px] xl:pl-[320px] lg:pr-[320px]">
+              <div className="bg-[#1e1f21] border-t border-white/10 px-4 py-3 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.3)] backdrop-blur-xl bg-opacity-95">
+                {/* Left Group: Formatting */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={insertTitle}
+                    className={`size-10 flex items-center justify-center rounded-lg transition-colors ${body.startsWith('#') ? 'text-primary bg-primary/10' : 'text-tertiary hover:text-paper hover:bg-white/5'}`}
+                    title="Toggle Title"
+                  >
+                    <span className="font-serif font-bold text-xl">T</span>
+                  </button>
+                  <button
+                    onClick={() => insertText('**', '**')}
+                    className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
+                    title="Bold"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12h9" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => insertText('_', '_')}
+                    className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
+                    title="Italic"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => insertText('> ')}
+                    className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
+                    title="Quote"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="w-px h-6 bg-white/10 mx-2"></div>
+                
+                {/* Right Group: Linking */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      const topic = prompt('Topic name:');
+                      if (topic) {
+                        insertText(`[[${topic}]]`);
+                      }
+                    }}
+                    className="h-10 px-3 flex items-center gap-2 rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
+                    title="Link Topic"
+                  >
+                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                    </svg>
+                    <span className="text-sm font-medium hidden sm:block">Topic</span>
+                  </button>
+
+                   <button
+                    onClick={() => {
+                       // Trigger file input
+                       document.getElementById('header-image-upload')?.click();
+                    }}
+                    className={`size-10 flex items-center justify-center rounded-lg transition-colors ${headerImageKey ? 'text-primary bg-primary/10' : 'text-tertiary hover:text-paper hover:bg-white/5'}`}
+                    title="Header Image"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                  {/* Hidden Image Uploader Trigger */}
+                  <div className="hidden">
+                    <ImageUploader onUploadComplete={(key) => setHeaderImageKey(key)} id="header-image-upload" />
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
-        </div>
-      </main>
-
-      {/* Formatting Toolbar */}
-      <div className="fixed bottom-0 left-0 right-0 w-full bg-[#1e1f21] border-t border-white/10 px-4 py-3 flex items-center justify-between z-40 shadow-[0_-5px_20px_rgba(0,0,0,0.3)]">
-        {/* Left Group: Formatting */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={insertTitle}
-            className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
-            title="Title"
-          >
-            <span className="font-serif font-bold text-xl">T</span>
-          </button>
-          <button
-            onClick={() => insertText('**', '**')}
-            className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
-            title="Bold"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12h9" />
-            </svg>
-          </button>
-          <button
-            onClick={() => insertText('_', '_')}
-            className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
-            title="Italic"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-            </svg>
-          </button>
-        </div>
-        
-        <div className="w-px h-6 bg-white/10 mx-1"></div>
-        
-        {/* Right Group: Linking */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => {
-              const link = prompt('Enter URL:');
-              if (link) {
-                const text = prompt('Display text (optional):') || link;
-                insertText(`[${text}](`, ')');
-              }
-            }}
-            className="size-10 flex items-center justify-center rounded-lg text-primary bg-primary/10 hover:bg-primary/20 transition-colors ring-1 ring-primary/30"
-            title="Link"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-          </button>
-          <button
-            onClick={() => {
-              const topic = prompt('Topic name:');
-              if (topic) {
-                const alias = prompt('Display text (optional):');
-                insertText(`[[${topic}${alias ? '|' + alias : ''}]]`);
-              }
-            }}
-            className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
-            title="Topic"
-          >
-            <svg className="w-5 h-5 transform rotate-45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-            </svg>
-          </button>
-          <button
-            onClick={() => {
-              const postId = prompt('Post UUID:');
-              if (postId) {
-                const alias = prompt('Display text (optional):');
-                insertText(`[[post:${postId}${alias ? '|' + alias : ''}]]`);
-              }
-            }}
-            className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors ml-2"
-            title="Post link"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </button>
-          <button
-            onClick={() => {
-              const handle = prompt('User handle:');
-              if (handle) {
-                insertText(`@${handle} `);
-              }
-            }}
-            className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
-            title="Mention"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </button>
-          <ImageUploader onUploadComplete={(key) => setHeaderImageKey(key)} />
-        </div>
-      </div>
         </div>
       </main>
       <DesktopRightSidebar />

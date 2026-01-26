@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tabs, Redirect } from 'expo-router';
+import { Tabs, Redirect, useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS } from '../../constants/theme';
 import { Text, View, ActivityIndicator } from 'react-native';
@@ -9,6 +9,7 @@ import { useAuth } from '../../context/auth';
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
   if (isLoading) {
     return (
@@ -75,6 +76,12 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="compose"
+        listeners={() => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            router.push('/post/compose');
+          },
+        })}
         options={{
           title: '',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (

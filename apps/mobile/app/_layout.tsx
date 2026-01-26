@@ -9,7 +9,7 @@ import {
   IBMPlexSerif_400Regular,
   IBMPlexSerif_600SemiBold,
 } from '@expo-google-fonts/ibm-plex-serif';
-import { Stack, useSegments, Redirect, useRouter } from 'expo-router';
+import { Stack, useSegments, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import '../i18n';
@@ -19,6 +19,7 @@ import '../i18n';
 import { configureNotifications } from '../utils/push-notifications';
 import { COLORS } from '../constants/theme';
 import { AuthProvider, useAuth } from '../context/auth';
+import { ToastProvider } from '../context/ToastContext';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
@@ -88,38 +89,23 @@ function AppContent({ onReady }: { onReady?: () => void }) {
     );
   }
 
-  // Get current route segment
-  const currentSegment = segments[0];
-  const isPublicRoute = currentSegment === 'welcome' || currentSegment === 'sign-in' || currentSegment === 'onboarding';
-
-  // Use Redirect components for declarative navigation
-  // Only redirect if we have a segment (router is ready)
-  /*
-  if (currentSegment) {
-    if (!isAuthenticated && !isPublicRoute) {
-      if (__DEV__) {
-        console.log('Redirecting to welcome (not authenticated, not on public route)');
-      }
-      return <Redirect href="/welcome" />;
-    }
-
-    if (isAuthenticated && (currentSegment === 'welcome' || currentSegment === 'sign-in')) {
-      if (__DEV__) {
-        console.log('Redirecting to tabs (authenticated, on public route)');
-      }
-      return <Redirect href="/(tabs)/" />;
-    }
-  }
-  */
-
-  // Always render the Stack - it handles initial routing
-  // Always start with welcome - redirects will handle authenticated users
-  if (__DEV__) {
-    console.log('Rendering Stack - always starting with welcome, isAuthenticated:', isAuthenticated);
-  }
-
   return (
-    <Stack screenOptions={{ headerShown: false }} />
+    <Stack screenOptions={{ 
+      headerShown: false,
+      animation: 'slide_from_right', // Standard iOS-like transition
+      presentation: 'card',
+      contentStyle: { backgroundColor: COLORS.ink },
+    }}>
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+      <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
+      <Stack.Screen 
+        name="post/compose" 
+        options={{ 
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }} 
+      />
+    </Stack>
   );
 }
 
@@ -192,12 +178,14 @@ export default function RootLayout() {
         }
       >
         <AuthProvider>
-          <ThemeProvider value={MyDarkTheme}>
-            <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
-              <OfflineBanner />
-              <AppContent onReady={handleAppReady} />
-            </View>
-          </ThemeProvider>
+          <ToastProvider>
+            <ThemeProvider value={MyDarkTheme}>
+              <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
+                <OfflineBanner />
+                <AppContent onReady={handleAppReady} />
+              </View>
+            </ThemeProvider>
+          </ToastProvider>
         </AuthProvider>
       </ErrorBoundary>
     </SafeAreaProvider>

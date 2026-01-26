@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
+import { ProfileSkeleton, PostSkeleton } from '../../components/LoadingSkeleton';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 
 export default function UserProfileScreen() {
@@ -212,7 +213,10 @@ export default function UserProfileScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator color={COLORS.secondary} size="large" style={{ marginTop: 50 }} />
+        <View style={styles.headerBar} />
+        <ProfileSkeleton />
+        <PostSkeleton />
+        <PostSkeleton />
       </View>
     );
   }

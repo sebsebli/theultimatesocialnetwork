@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { renderMarkdown } from '@/utils/markdown';
 import { OverflowMenu } from './overflow-menu';
+import { AddToCollectionModal } from './add-to-collection-modal';
 
 export interface Post {
   id: string;
@@ -30,6 +31,7 @@ interface PostItemProps {
 export function PostItem({ post, isAuthor = false }: PostItemProps) {
   const [liked, setLiked] = useState((post as any).isLiked || false);
   const [kept, setKept] = useState((post as any).isKept || false);
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
   
   // Base URL for MinIO (should be in env, using localhost for dev)
   const STORAGE_URL = 'http://localhost:9000/cite-images';
@@ -199,7 +201,10 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
           </svg>
         </button>
-        <button className="flex items-center gap-1 hover:text-primary transition-colors">
+        <button 
+          onClick={() => setShowCollectionModal(true)}
+          className="flex items-center gap-1 hover:text-primary transition-colors"
+        >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
           </svg>
@@ -214,6 +219,12 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
           }}
         />
       </div>
+      
+      <AddToCollectionModal 
+        postId={post.id} 
+        isOpen={showCollectionModal} 
+        onClose={() => setShowCollectionModal(false)} 
+      />
     </article>
   );
 }

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 import { PostItem } from '../../components/PostItem';
 import { MarkdownText } from '../../components/MarkdownText';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
@@ -12,6 +13,7 @@ export default function PostDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { t } = useTranslation();
+  const { showSuccess, showError } = useToast();
   const [post, setPost] = useState<any>(null);
   const [replies, setReplies] = useState<any[]>([]);
   const [referencedBy, setReferencedBy] = useState<any[]>([]);
@@ -108,10 +110,10 @@ export default function PostDetailScreen() {
                 targetType: type,
                 reason: 'Reported via mobile app detail view',
               });
-              Alert.alert(t('common.success', 'Success'), t('post.reportSuccess', 'Content reported successfully'));
+              showSuccess(t('post.reportSuccess', 'Content reported successfully'));
             } catch (error) {
               console.error('Failed to report', error);
-              Alert.alert(t('common.error', 'Error'), t('post.reportError', 'Failed to report content'));
+              showError(t('post.reportError', 'Failed to report content'));
             }
           },
         },
@@ -247,7 +249,7 @@ export default function PostDetailScreen() {
                 if (source.url) {
                   Linking.openURL(source.url).catch((err: any) => {
                     console.error('Failed to open URL', err);
-                    Alert.alert(t('common.error', 'Error'), t('post.failedOpenUrl', 'Failed to open URL'));
+                    showError(t('post.failedOpenUrl', 'Failed to open URL'));
                   });
                 }
               }}

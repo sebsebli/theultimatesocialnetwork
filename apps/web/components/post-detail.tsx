@@ -168,10 +168,17 @@ export function PostDetail({ post }: PostDetailProps) {
       } catch (err) {
         if ((err as any).name !== 'AbortError') console.error(err);
       }
-    } else {
-      navigator.clipboard.writeText(url);
-      alert('Link copied to clipboard'); // Ideally use a toast
-    }
+import { useToast } from './ui/toast';
+
+// ... inside component ...
+  const { success: toastSuccess } = useToast();
+
+// ... inside onCopyLink ...
+          onCopyLink={() => {
+            const url = `${window.location.origin}/post/${post.id}`;
+            navigator.clipboard.writeText(url);
+            toastSuccess('Link copied to clipboard');
+          }}
   };
 
   return (

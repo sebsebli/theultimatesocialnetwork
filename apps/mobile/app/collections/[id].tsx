@@ -3,8 +3,8 @@ import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIn
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { api } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 import { PostItem } from '../../components/PostItem';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 
@@ -12,6 +12,7 @@ export default function CollectionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { t } = useTranslation();
+  const { showToast } = useToast();
   const [collection, setCollection] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +45,7 @@ export default function CollectionDetailScreen() {
   };
 
   const handleAddCitation = () => {
-    Alert.alert(t('collections.addCitation'), "To add items, browse posts and tap the 'Keep' or 'Add to Collection' button.");
+    showToast("To add items, browse posts and tap the 'Keep' or 'Add to Collection' button.");
   };
 
   useEffect(() => {

@@ -8,7 +8,9 @@ import * as Haptics from 'expo-haptics';
 import { api } from '../utils/api';
 import { queueAction } from '../utils/offlineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useToast } from '../context/ToastContext';
 import { MarkdownText } from './MarkdownText';
+import AddToCollectionSheet, { AddToCollectionSheetRef } from './AddToCollectionSheet';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 interface PostItemProps {
@@ -47,9 +49,11 @@ function PostItemComponent({
   const router = useRouter();
   const { t } = useTranslation();
   const { isOffline } = useNetworkStatus();
+  const { showSuccess, showError } = useToast();
   const [liked, setLiked] = React.useState(false);
   const [kept, setKept] = React.useState(false);
   const scaleValue = useRef(new Animated.Value(1)).current;
+  const collectionSheetRef = useRef<AddToCollectionSheetRef>(null);
 
   const formatTime = (date: string) => {
     const d = new Date(date);
@@ -130,7 +134,7 @@ function PostItemComponent({
     try {
       if (Platform.OS === 'web') {
         await navigator.clipboard.writeText(url);
-        alert('Link copied to clipboard');
+        showSuccess('Link copied to clipboard');
       } else {
         await Share.share({ message: url });
       }
@@ -165,10 +169,10 @@ function PostItemComponent({
                   reason: 'Reported via mobile app',
                 });
               }
-              Alert.alert(t('common.success', 'Success'), t('post.reportSuccess', 'Post reported successfully'));
+              showSuccess(t('post.reportSuccess', 'Post reported successfully'));
             } catch (error) {
               console.error('Failed to report', error);
-              Alert.alert(t('common.error', 'Error'), t('post.reportError', 'Failed to report post'));
+              showError(t('post.reportError', 'Failed to report post'));
             }
           },
         },
@@ -323,7 +327,10 @@ function PostItemComponent({
 
         <Pressable
           style={styles.actionButton}
-          onPress={onAddToCollection}
+          onPress={() => {
+             onAddToCollection?.();
+             collectionSheetRef.current?.open(post.id);
+          }}
           accessibilityLabel={t('post.add')}
           accessibilityRole="button"
         >
@@ -339,6 +346,8 @@ function PostItemComponent({
           <MaterialIcons name="ios-share" size={20} color={COLORS.tertiary} />
         </Pressable>
       </View>
+
+      <AddToCollectionSheet ref={collectionSheetRef} />
     </View>
   );
 }

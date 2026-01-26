@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { api } from 'utils/api';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from 'context/auth';
+import { useToast } from 'context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorState } from 'components/ErrorState';
 
@@ -20,6 +21,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
+  const { showError } = useToast();
   const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,11 +100,7 @@ export default function HomeScreen() {
       console.error('Failed to load feed', error);
       setError(true);
       if (posts.length === 0 && !loading) {
-        const { Alert } = require('react-native');
-        Alert.alert(
-          t('common.error', 'Error'),
-          t('feed.loadError', 'Failed to load feed. Please check your connection and try again.')
-        );
+        showError(t('feed.loadError', 'Failed to load feed. Please check your connection and try again.'));
       }
     } finally {
       setLoading(false);

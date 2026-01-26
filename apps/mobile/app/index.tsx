@@ -7,12 +7,14 @@ import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
 import { api } from '../utils/api';
 import { useAuth } from '../context/auth';
+import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 import { IntroModal, shouldShowIntro } from '../components/IntroModal';
 
 export default function IndexScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
+  const { showError, showSuccess, showToast } = useToast();
   const { t } = useTranslation();
   const { height: windowHeight } = useWindowDimensions();
   const screenHeight = Dimensions.get('window').height;
@@ -63,18 +65,18 @@ export default function IndexScreen() {
     const sanitizedEmail = email.trim().toLowerCase();
 
     if (!sanitizedEmail) {
-      Alert.alert(t('signIn.error'), t('signIn.emailRequired') || 'Email is required');
+      showError(t('signIn.emailRequired') || 'Email is required');
       return;
     }
 
     if (!isValidEmail(sanitizedEmail)) {
-      Alert.alert(t('signIn.error'), t('signIn.invalidEmail') || 'Please enter a valid email address');
+      showError(t('signIn.invalidEmail') || 'Please enter a valid email address');
       return;
     }
 
     // Check if terms are accepted (only for new signups, not for existing users)
     if (showInviteInput && !acceptedTerms) {
-      Alert.alert(t('signIn.error'), 'Please accept the Terms of Service and Privacy Policy to continue');
+      showError('Please accept the Terms of Service and Privacy Policy to continue');
       return;
     }
 
@@ -86,7 +88,7 @@ export default function IndexScreen() {
       });
       setSent(true);
       setCooldown(60);
-      Alert.alert(t('signIn.success'), 'Verification code sent to your email');
+      showSuccess('Verification code sent to your email');
     } catch (error: any) {
       // Check for specific beta invite requirement
       if (error?.status === 400 && error.message === 'Invite code required for registration') {
@@ -102,7 +104,7 @@ export default function IndexScreen() {
       // Check for rate limit
       if (error?.status === 400 && error.message === 'Please wait before sending another code') {
         setCooldown(60);
-        Alert.alert('Too Many Requests', 'Please wait 60 seconds before requesting another code.');
+        showToast('Please wait 60 seconds before requesting another code.');
         setLoading(false);
         return;
       }
@@ -110,7 +112,7 @@ export default function IndexScreen() {
       const errorMessage = error?.status === 429
         ? t('signIn.rateLimited') || 'Too many requests. Please try again later.'
         : t('signIn.failedSend') || 'Failed to send verification code';
-      Alert.alert(t('signIn.error'), errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -120,13 +122,13 @@ export default function IndexScreen() {
     if (!token.trim()) return;
 
     if (!/^[a-zA-Z0-9]{4,10}$/.test(token.trim())) {
-      Alert.alert(t('signIn.error'), t('signIn.invalid') || 'Invalid token format');
+      showError(t('signIn.invalid') || 'Invalid token format');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await api.post('/auth/verify', {
+      const response = await api.post('/auth/mobile-verify', {
         email: email.trim().toLowerCase(),
         token: token.trim()
       });
@@ -143,7 +145,7 @@ export default function IndexScreen() {
       const errorMessage = error?.status === 401
         ? t('signIn.invalid') || 'Invalid token'
         : t('signIn.error') || 'An error occurred';
-      Alert.alert(t('signIn.error'), errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }

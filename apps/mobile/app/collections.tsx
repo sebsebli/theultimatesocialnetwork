@@ -3,7 +3,9 @@ import { StyleSheet, Text, View, FlatList, Pressable, Modal, TextInput, Alert, R
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
+import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 interface Collection {
@@ -16,7 +18,8 @@ interface Collection {
 export default function CollectionsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const [collections, setCollections] = useState<Collection[]>([]);
+  const { showError } = useToast();
+  const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -76,7 +79,7 @@ export default function CollectionsScreen() {
       loadCollections();
     } catch (error) {
       console.error('Failed to create collection', error);
-      Alert.alert(t('common.error'), t('collections.failedCreate'));
+      showError(t('collections.failedCreate'));
     }
   };
 

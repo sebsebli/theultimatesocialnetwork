@@ -1,66 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function OnboardingProfileScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { showError } = useToast();
+  const insets = useSafeAreaInsets();
+  
   const [displayName, setDisplayName] = useState('');
   const [handle, setHandle] = useState('');
-  const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
-  const [checkingHandle, setCheckingHandle] = useState(false);
-
-  // Debounced handle check
-  useEffect(() => {
-    if (!handle || handle.length < 3 || !isValidHandle(handle)) {
-      setHandleAvailable(null);
-      return;
-    }
-
-    const checkHandle = async () => {
-      setCheckingHandle(true);
-      try {
-        const res = await api.get<{ available: boolean }>(`/users/check-handle?handle=${handle}`);
-        setHandleAvailable(res.available);
-      } catch (error) {
-        console.error('Handle check failed', error);
-      } finally {
-        setCheckingHandle(false);
-      }
-    };
-
-    const timer = setTimeout(checkHandle, 500);
-    return () => clearTimeout(timer);
-  }, [handle]);
   const [bio, setBio] = useState('');
   const [isProtected, setIsProtected] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const isValidHandle = (handle: string) => {
-    // Handle should be lowercase alphanumeric and underscores, 3-30 chars
-    const handleRegex = /^[a-z0-9_]{3,30}$/;
-    return handleRegex.test(handle);
-  };
-
   const handleSubmit = async () => {
-    if (!displayName.trim()) {
-      Alert.alert(t('common.error'), t('onboarding.profile.displayNameRequired') || 'Display name is required');
-      return;
-    }
-
-    if (!handle.trim()) {
-      Alert.alert(t('common.error'), t('onboarding.profile.handleRequired') || 'Handle is required');
-      return;
-    }
-
-    if (!isValidHandle(handle.toLowerCase())) {
-      Alert.alert(t('common.error'), t('onboarding.profile.handleInvalid') || 'Handle must be 3-30 characters, lowercase letters, numbers, and underscores only');
+    if (!displayName.trim() || !handle.trim()) {
+      showError(t('onboarding.fieldsRequired'));
       return;
     }
 
@@ -68,143 +30,123 @@ export default function OnboardingProfileScreen() {
     try {
       await api.patch('/users/me', {
         displayName: displayName.trim(),
-        handle: handle.toLowerCase().trim(),
+        handle: handle.trim().toLowerCase(),
         bio: bio.trim(),
         isProtected,
       });
       router.push('/onboarding/languages');
     } catch (error: any) {
       console.error('Failed to update profile', error);
-      const errorMessage = error?.status === 409
-        ? t('onboarding.profile.handleTaken') || 'This handle is already taken'
-        : t('onboarding.profile.updateFailed') || 'Failed to update profile';
-      Alert.alert(t('common.error'), errorMessage);
+      showError(error?.message || t('onboarding.updateFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
+    <KeyboardAvoidingView 
+      style={[styles.container, { paddingTop: insets.top }]} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.header, { marginTop: insets.top + 20 }]}>
-          <Pressable
-            onPress={() => router.back()}
-            style={styles.backButton}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-          </Pressable>
-          <Text style={styles.title}>{t('onboarding.profile.title')}</Text>
+      <View style={styles.header}>
+        <View style={styles.stepIndicator}>
+          <View style={[styles.stepDot, styles.stepDotActive]} />
+          <View style={styles.stepDot} />
+          <View style={styles.stepDot} />
         </View>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <MaterialIcons name="arrow-back" size={24} color={COLORS.secondary} />
+        </Pressable>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>{t('onboarding.createProfile')}</Text>
+        <Text style={styles.subtitle}>{t('onboarding.profileSubtitle')}</Text>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('onboarding.profile.displayName')}</Text>
+            <Text style={styles.label}>{t('profile.displayName')}</Text>
             <TextInput
               style={styles.input}
-              placeholder={t('onboarding.profile.displayName')}
-              placeholderTextColor={COLORS.tertiary}
               value={displayName}
               onChangeText={setDisplayName}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>{t('onboarding.profile.handle')}</Text>
-              {checkingHandle ? (
-                <ActivityIndicator size="small" color={COLORS.tertiary} />
-              ) : handleAvailable === true ? (
-                <Text style={[styles.statusText, { color: '#4ADE80' }]}>Available</Text>
-              ) : handleAvailable === false ? (
-                <Text style={[styles.statusText, { color: COLORS.error }]}>Taken</Text>
-              ) : null}
-            </View>
-            <TextInput
-              style={[
-                styles.input,
-                handleAvailable === false && { borderBottomColor: COLORS.error }
-              ]}
-              placeholder={t('onboarding.profile.handle')}
+              placeholder="Jane Doe"
               placeholderTextColor={COLORS.tertiary}
-              value={handle}
-              onChangeText={(text: string) => setHandle(text.toLowerCase())}
-              autoCapitalize="none"
-              autoCorrect={false}
+              autoCapitalize="words"
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>{t('onboarding.profile.bio')}</Text>
-              <Text style={styles.charCount}>{bio.length}/160</Text>
+            <Text style={styles.label}>{t('profile.handle')}</Text>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputPrefix}>@</Text>
+              <TextInput
+                style={[styles.input, styles.inputWithPrefix]}
+                value={handle}
+                onChangeText={(text) => setHandle(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                placeholder="janedoe"
+                placeholderTextColor={COLORS.tertiary}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
             </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>{t('profile.bio')}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder={t('onboarding.profile.bioPlaceholder')}
-              placeholderTextColor={COLORS.tertiary}
               value={bio}
-              onChangeText={(text: string) => {
-                if (text.length <= 160) setBio(text);
-              }}
+              onChangeText={setBio}
+              placeholder={t('onboarding.bioPlaceholder')}
+              placeholderTextColor={COLORS.tertiary}
               multiline
               numberOfLines={3}
               maxLength={160}
             />
+            <Text style={styles.charCount}>{bio.length}/160</Text>
           </View>
 
-          <View style={styles.privacySection}>
-            <Text style={styles.privacyTitle}>{t('onboarding.profile.privacy')}</Text>
-            <View style={styles.privacyToggle}>
-              <Pressable
-                style={[styles.toggleOption, !isProtected && styles.toggleOptionActive]}
-                onPress={() => setIsProtected(false)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: !isProtected }}
-              >
-                <Text style={[styles.toggleText, !isProtected && styles.toggleTextActive]}>
-                  {t('onboarding.profile.open')}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.toggleOption, isProtected && styles.toggleOptionActive]}
-                onPress={() => setIsProtected(true)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isProtected }}
-              >
-                <Text style={[styles.toggleText, isProtected && styles.toggleTextActive]}>
-                  {t('onboarding.profile.protected')}
-                </Text>
-              </Pressable>
-            </View>
-            {isProtected && (
-              <View style={styles.protectedDescContainer}>
-                <MaterialIcons name="lock" size={14} color={COLORS.secondary} />
-                <Text style={styles.privacyDescription}>
-                  {t('onboarding.profile.protectedDesc')}
+          <Pressable 
+            style={styles.privacyToggle}
+            onPress={() => setIsProtected(!isProtected)}
+          >
+            <View style={styles.privacyTextContainer}>
+              <View style={styles.privacyHeader}>
+                <MaterialIcons 
+                  name={isProtected ? "lock" : "public"} 
+                  size={20} 
+                  color={isProtected ? COLORS.primary : COLORS.secondary} 
+                />
+                <Text style={styles.privacyLabel}>
+                  {isProtected ? t('common.private') : t('common.public')}
                 </Text>
               </View>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.footer}>
-          <Pressable
-            style={[styles.button, (!displayName || !handle || loading) && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={!displayName || !handle || loading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? t('common.loading') : t('common.continue')}
-            </Text>
+              <Text style={styles.privacyDescription}>
+                {isProtected 
+                  ? t('onboarding.privateDescription') 
+                  : t('onboarding.publicDescription')}
+              </Text>
+            </View>
+            <View style={[styles.switch, isProtected && styles.switchActive]}>
+              <View style={[styles.thumb, isProtected && styles.thumbActive]} />
+            </View>
           </Pressable>
         </View>
       </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.l }]}>
+        <Pressable
+          style={[styles.button, (!displayName.trim() || !handle.trim() || loading) && styles.buttonDisabled]}
+          onPress={handleSubmit}
+          disabled={!displayName.trim() || !handle.trim() || loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? t('common.loading') : t('common.continue')}
+          </Text>
+          <MaterialIcons name="arrow-forward" size={20} color="#FFF" />
+        </Pressable>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -214,125 +156,171 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: SPACING.l,
-  },
   header: {
-    marginBottom: SPACING.xl,
+    paddingHorizontal: SPACING.l,
+    paddingBottom: SPACING.l,
+    alignItems: 'center',
+    position: 'relative',
+    height: 44,
+    justifyContent: 'center',
   },
   backButton: {
-    marginBottom: SPACING.l,
+    position: 'absolute',
+    left: SPACING.l,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.divider,
+  },
+  stepDotActive: {
+    backgroundColor: COLORS.primary,
+    width: 24,
+  },
+  content: {
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: 100,
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
-    letterSpacing: -0.5,
+    marginBottom: SPACING.s,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    textAlign: 'center',
+    marginBottom: SPACING.xxl,
   },
   form: {
-    gap: SPACING.l,
+    gap: SPACING.xl,
   },
   inputGroup: {
-    gap: SPACING.xs,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
+    gap: SPACING.s,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: COLORS.secondary,
-    fontFamily: FONTS.medium,
-  },
-  statusText: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  charCount: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
+    color: COLORS.paper,
+    fontFamily: FONTS.medium,
   },
   input: {
-    height: 50,
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    paddingHorizontal: 0,
-    paddingVertical: SPACING.m,
-    color: COLORS.paper,
+    backgroundColor: COLORS.hover,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.m,
     fontSize: 16,
+    color: COLORS.paper,
     fontFamily: FONTS.regular,
   },
+  inputWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  inputPrefix: {
+    position: 'absolute',
+    left: SPACING.m,
+    fontSize: 16,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    zIndex: 1,
+  },
+  inputWithPrefix: {
+    paddingLeft: 32,
+  },
   textArea: {
-    minHeight: 80,
-    paddingTop: SPACING.m,
+    height: 100,
     textAlignVertical: 'top',
   },
-  privacySection: {
-    marginTop: SPACING.s,
-  },
-  privacyTitle: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: COLORS.secondary,
-    marginBottom: SPACING.m,
-    fontFamily: FONTS.medium,
+  charCount: {
+    textAlign: 'right',
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
   },
   privacyToggle: {
     flexDirection: 'row',
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    padding: 2,
-    marginBottom: SPACING.m,
-  },
-  toggleOption: {
-    flex: 1,
-    paddingVertical: SPACING.s,
-    borderRadius: SIZES.borderRadius - 2,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.hover,
+    padding: SPACING.m,
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
   },
-  toggleOptionActive: {
-    backgroundColor: COLORS.ink,
+  privacyTextContainer: {
+    flex: 1,
+    marginRight: SPACING.m,
   },
-  toggleText: {
-    fontSize: 14,
-    color: COLORS.tertiary,
+  privacyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    marginBottom: 4,
+  },
+  privacyLabel: {
+    fontSize: 16,
     fontWeight: '600',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
-  toggleTextActive: {
-    color: COLORS.paper,
-  },
-  protectedDescContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.xs,
-    marginTop: SPACING.xs,
-  },
   privacyDescription: {
-    flex: 1,
     fontSize: 13,
     color: COLORS.secondary,
-    lineHeight: 18,
     fontFamily: FONTS.regular,
+    lineHeight: 18,
+  },
+  switch: {
+    width: 48,
+    height: 28,
+    backgroundColor: COLORS.divider,
+    borderRadius: 14,
+    padding: 2,
+  },
+  switchActive: {
+    backgroundColor: COLORS.primary,
+  },
+  thumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+  },
+  thumbActive: {
+    alignSelf: 'flex-end',
   },
   footer: {
-    marginTop: SPACING.xxxl,
-    paddingBottom: SPACING.l,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: SPACING.xl,
+    backgroundColor: COLORS.ink,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    paddingTop: SPACING.l,
   },
   button: {
-    height: 50,
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: SPACING.s,
+    backgroundColor: COLORS.primary,
+    height: 56,
+    borderRadius: SIZES.borderRadius,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -340,7 +328,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#FFF',
     fontFamily: FONTS.semiBold,
   },
 });

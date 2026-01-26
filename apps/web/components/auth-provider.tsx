@@ -15,8 +15,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   isAuthenticated: false,
-  signOut: async () => {},
-  refreshUser: async () => {},
+  signOut: async () => { },
+  refreshUser: async () => { },
 });
 
 export function useAuth() {
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
 
-    const publicRoutes = ['/', '/welcome', '/sign-in', '/verify', '/privacy', '/terms', '/imprint', '/ai-transparency', '/roadmap', '/manifesto'];
+    const publicRoutes = ['/', '/welcome', '/sign-in', '/verify', '/privacy', '/terms', '/imprint', '/ai-transparency', '/roadmap', '/manifesto', '/waiting-list'];
     const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/verify');
 
     if (!isAuthenticated && !isPublicRoute) {

@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useToast } from './ui/toast';
 
 interface ImageUploaderProps {
   onUploadComplete: (key: string, url: string) => void;
+  id?: string;
 }
 
-export function ImageUploader({ onUploadComplete }: ImageUploaderProps) {
+export function ImageUploader({ onUploadComplete, id }: ImageUploaderProps) {
+  const { error: toastError } = useToast();
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,13 +40,13 @@ export function ImageUploader({ onUploadComplete }: ImageUploaderProps) {
   const handleFile = async (file: File) => {
     // Validate file type
     if (!file.type.match(/^image\/(jpeg|jpg|webp)$/)) {
-      alert('Only JPG and WEBP images are allowed');
+      toastError('Only JPG and WEBP images are allowed');
       return;
     }
 
     // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB');
+      toastError('File size must be less than 10MB');
       return;
     }
 
@@ -69,11 +72,11 @@ export function ImageUploader({ onUploadComplete }: ImageUploaderProps) {
         const data = await res.json();
         onUploadComplete(data.key, data.url);
       } else {
-        alert('Failed to upload image');
+        toastError('Failed to upload image');
       }
     } catch (error) {
       console.error('Upload error', error);
-      alert('Failed to upload image');
+      toastError('Failed to upload image');
     } finally {
       setUploading(false);
     }
@@ -88,6 +91,7 @@ export function ImageUploader({ onUploadComplete }: ImageUploaderProps) {
     >
       <input
         ref={fileInputRef}
+        id={id}
         type="file"
         accept="image/jpeg,image/jpg,image/webp"
         onChange={handleFileSelect}

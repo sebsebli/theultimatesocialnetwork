@@ -72,9 +72,9 @@ export function ReadingMode({ post }: ReadingModeProps) {
 
         {/* Body - Optimized Typography */}
         <div 
-          className="prose prose-invert max-w-none text-[18px] md:text-[20px] leading-[1.8] text-secondary"
+          className="prose prose-invert max-w-none text-[20px] md:text-[22px] leading-[1.7] text-secondary/90 tracking-normal font-serif"
           style={{
-            fontFamily: 'Inter, system-ui, sans-serif',
+            fontFamily: 'var(--font-serif), Georgia, serif',
           }}
           dangerouslySetInnerHTML={{ __html: renderMarkdownForReading(post.body) }}
         />

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../utils/api';
-import { AutocompleteDropdown } from '../../components/AutocompleteDropdown';
+import { useToast } from '../../context/ToastContext';
 import { MarkdownText } from '../../components/MarkdownText';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 
@@ -13,24 +13,14 @@ export default function ComposeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
+  const { showError, showSuccess } = useToast();
   const quotePostId = params.quote as string | undefined;
   const replyToPostId = params.replyTo as string | undefined;
 
   const [body, setBody] = useState('');
-  const [title, setTitle] = useState(''); // Separate title state for cleaner UI, or parse from markdown? 
-  // User asked for "first line is title" behavior in spec, but for "better UX" a title field is often clearer.
-  // I'll stick to the markdown parsing logic but maybe offer a field that auto-prepends #?
-  // Let's stick to "body only" but with a "Title" button that inserts #.
-
   const [isPublishing, setIsPublishing] = useState(false);
   const [headerImage, setHeaderImage] = useState<string | null>(null);
   const [headerImageAsset, setHeaderImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
-  const [autocomplete, setAutocomplete] = useState<{
-    show: boolean;
-    query: string;
-    type: 'topic' | 'post' | 'user' | 'all';
-    position: number;
-  } | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
 
   // Modals state
@@ -67,11 +57,6 @@ export default function ComposeScreen() {
 
     const newBody = body.substring(0, start) + before + body.substring(start, end) + after + body.substring(end);
     setBody(newBody);
-
-    // Attempt to move cursor after insertion (basic)
-    // In a real app we might need to verify this works smoothly with the state update
-    const newCursorPos = start + before.length + (end - start);
-    // setSelection({ start: newCursorPos, end: newCursorPos }); // This often conflicts with render cycle in RN without native props
   };
 
   const pickImage = async () => {
@@ -88,7 +73,7 @@ export default function ComposeScreen() {
         setHeaderImageAsset(result.assets[0]);
       }
     } catch (error) {
-      Alert.alert(t('common.error'), t('compose.failedPickImage'));
+      showError(t('compose.failedPickImage'));
     }
   };
 
@@ -96,17 +81,12 @@ export default function ComposeScreen() {
     const trimmedBody = body.trim();
 
     if (!trimmedBody) {
-      Alert.alert(t('common.error'), t('compose.bodyRequired') || 'Post body is required');
+      showError(t('compose.bodyRequired') || 'Post body is required');
       return;
     }
 
     if (trimmedBody.length < 3) {
-      Alert.alert(t('common.error'), t('compose.bodyTooShort') || 'Post must be at least 3 characters');
-      return;
-    }
-
-    if (trimmedBody.length > 10000) {
-      Alert.alert(t('common.error'), t('compose.bodyTooLong') || 'Post must be less than 10,000 characters');
+      showError(t('compose.bodyTooShort') || 'Post must be at least 3 characters');
       return;
     }
 
@@ -134,6 +114,7 @@ export default function ComposeScreen() {
           headerImageKey: imageKey,
         });
       }
+      showSuccess('Published successfully');
       router.back();
     } catch (error: any) {
       console.error('Failed to publish', error);
@@ -142,7 +123,7 @@ export default function ComposeScreen() {
         : error?.status === 413
           ? t('compose.tooLarge') || 'Post is too large'
           : t('compose.error');
-      Alert.alert(t('common.error'), errorMessage);
+      showError(errorMessage);
     } finally {
       setIsPublishing(false);
     }
@@ -150,7 +131,6 @@ export default function ComposeScreen() {
 
   const handleBodyChange = useCallback((text: string) => {
     setBody(text);
-    // Autocomplete logic - show LINK TO TOPIC modal when typing [[
     const lastWord = text.split(/\s+/).pop();
     if (lastWord?.startsWith('[[') && !linkToTopicModalVisible) {
       setLinkToTopicModalVisible(true);
@@ -172,10 +152,8 @@ export default function ComposeScreen() {
 
   const loadTopicSuggestions = async () => {
     try {
-      // Get recent topics or search based on current text
       const data = await api.get('/explore/topics?limit=5');
       const topics = Array.isArray(data) ? data : [];
-      // Add mock suggestions if API doesn't return enough
       if (topics.length < 3) {
         topics.push(
           { id: '1', slug: 'linking-your-thinking', title: 'Linking Your Thinking', referenceCount: 12 },
@@ -185,17 +163,15 @@ export default function ComposeScreen() {
       setTopicSuggestions(topics);
     } catch (error) {
       console.error('Failed to load topic suggestions', error);
-      // Fallback to mock data
       setTopicSuggestions([
         { id: '1', slug: 'linking-your-thinking', title: 'Linking Your Thinking', referenceCount: 12 },
         { id: '2', slug: 'network-topology', title: 'Network Topology', referenceCount: 3 },
-        { id: '3', slug: 'linear-notes', title: 'Linear Notes', referenceCount: 0 },
       ]);
     }
   };
 
   const handleLinkToTopic = (topic: any) => {
-    setBody(prev => prev + `[[${topic.slug}]]`);
+    setBody(prev => prev + `${topic.slug}]]`);
     setLinkToTopicModalVisible(false);
   };
 
@@ -203,14 +179,10 @@ export default function ComposeScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityLabel={t('compose.cancel')}
-          accessibilityRole="button"
-        >
+        <Pressable onPress={() => router.back()} hitSlop={10}>
           <Text style={styles.cancelButton}>{t('compose.cancel')}</Text>
         </Pressable>
         <Text style={styles.headerTitle}>{t('compose.newPost')}</Text>
@@ -218,18 +190,12 @@ export default function ComposeScreen() {
           <Pressable
             style={[styles.toggleButton, !previewMode && styles.toggleButtonActive]}
             onPress={() => setPreviewMode(false)}
-            accessibilityLabel={t('compose.write')}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: !previewMode }}
           >
             <Text style={[styles.toggleText, !previewMode && styles.toggleTextActive]}>{t('compose.write')}</Text>
           </Pressable>
           <Pressable
             style={[styles.toggleButton, previewMode && styles.toggleButtonActive]}
             onPress={() => setPreviewMode(true)}
-            accessibilityLabel={t('compose.preview')}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: previewMode }}
           >
             <Text style={[styles.toggleText, previewMode && styles.toggleTextActive]}>{t('compose.preview')}</Text>
           </Pressable>
@@ -238,9 +204,6 @@ export default function ComposeScreen() {
           onPress={handlePublish}
           disabled={!body.trim() || isPublishing}
           style={[styles.publishButton, (!body.trim() || isPublishing) && styles.publishButtonDisabled]}
-          accessibilityLabel={t('compose.publish')}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !body.trim() || isPublishing }}
         >
           <Text style={styles.publishButtonText}>
             {isPublishing ? '...' : t('compose.publish')}
@@ -285,137 +248,46 @@ export default function ComposeScreen() {
             onSelectionChange={(event: any) => setSelection(event.nativeEvent.selection)}
             autoFocus
             textAlignVertical="top"
-            accessibilityLabel={quotedPost ? t('compose.startWriting') : t('compose.placeholder')}
           />
         )}
       </ScrollView>
 
-      {/* Toolbar - Only visible in Write mode */}
+      {/* Toolbar */}
       {!previewMode && (
         <View style={styles.toolbar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarContent}>
-            <Pressable
-              style={[styles.toolbarButton, styles.toolbarButtonActive]}
-              onPress={() => insertText('# ')}
-              accessibilityLabel="Insert heading"
-              accessibilityRole="button"
-            >
+            <Pressable style={[styles.toolbarButton, styles.toolbarButtonActive]} onPress={() => insertText('# ')}>
               <Text style={styles.toolbarButtonText}>T</Text>
             </Pressable>
-            <Pressable
-              style={styles.toolbarButton}
-              onPress={() => insertText('**', '**')}
-              accessibilityLabel="Insert bold"
-              accessibilityRole="button"
-            >
+            <Pressable style={styles.toolbarButton} onPress={() => insertText('**', '**')}>
               <Text style={styles.toolbarButtonText}>B</Text>
             </Pressable>
-            <Pressable
-              style={styles.toolbarButton}
-              onPress={() => insertText('_', '_')}
-              accessibilityLabel="Insert italic"
-              accessibilityRole="button"
-            >
+            <Pressable style={styles.toolbarButton} onPress={() => insertText('_', '_')}>
               <Text style={styles.toolbarButtonText}>I</Text>
             </Pressable>
-            <Pressable
-              style={styles.toolbarButton}
-              onPress={() => insertText('> ')}
-              accessibilityLabel="Insert quote"
-              accessibilityRole="button"
-            >
+            <Pressable style={styles.toolbarButton} onPress={() => insertText('> ')}>
               <MaterialCommunityIcons name="format-quote-close" size={20} color={COLORS.primary} />
             </Pressable>
-            <Pressable
-              style={styles.toolbarButton}
-              onPress={() => insertText('- ')}
-              accessibilityLabel="Insert list"
-              accessibilityRole="button"
-            >
+            <Pressable style={styles.toolbarButton} onPress={() => insertText('- ')}>
               <MaterialCommunityIcons name="format-list-bulleted" size={20} color={COLORS.primary} />
             </Pressable>
-            <Pressable
-              style={[styles.toolbarButton, linkToTopicModalVisible && styles.toolbarButtonActive]}
-              onPress={() => {
+            <View style={styles.divider} />
+            <Pressable style={styles.toolbarButton} onPress={() => setLinkModalVisible(true)}>
+              <MaterialIcons name="link" size={20} color={COLORS.primary} />
+            </Pressable>
+            <Pressable style={styles.toolbarButton} onPress={() => {
                 setLinkToTopicModalVisible(true);
                 loadTopicSuggestions();
-              }}
-              accessibilityLabel="Link to topic"
-              accessibilityRole="button"
-            >
-              <MaterialIcons name="link" size={20} color={linkToTopicModalVisible ? COLORS.paper : COLORS.primary} />
-            </Pressable>
-            <Pressable style={styles.toolbarButton} onPress={() => insertText('[[')}>
+                insertText('[[');
+            }}>
               <MaterialCommunityIcons name="pound" size={20} color={COLORS.primary} />
             </Pressable>
-            <Pressable style={styles.toolbarButton} onPress={() => insertText('[[post:')}>
+            <Pressable style={styles.toolbarButton} onPress={pickImage}>
               <MaterialIcons name="image" size={20} color={COLORS.primary} />
             </Pressable>
           </ScrollView>
         </View>
       )}
-
-      {/* LINK TO TOPIC Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={linkToTopicModalVisible}
-        onRequestClose={() => setLinkToTopicModalVisible(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setLinkToTopicModalVisible(false)}
-        >
-          <Pressable
-            style={styles.linkToTopicModal}
-            onPress={(e: any) => e.stopPropagation()}
-          >
-            <Text style={styles.linkToTopicTitle}>LINK TO TOPIC</Text>
-            <FlatList
-              data={topicSuggestions}
-              keyExtractor={(item: any) => item.id || item.slug}
-              renderItem={({ item }: { item: any }) => (
-                <Pressable
-                  style={styles.topicSuggestionItem}
-                  onPress={() => handleLinkToTopic(item)}
-                  accessibilityLabel={`Link to ${item.title || item.slug}`}
-                  accessibilityRole="button"
-                >
-                  {item.slug === 'linear-notes' ? (
-                    <MaterialIcons name="description" size={18} color={COLORS.tertiary} />
-                  ) : item.slug === 'network-topology' ? (
-                    <MaterialIcons name="hub" size={18} color={COLORS.tertiary} />
-                  ) : (
-                    <MaterialIcons name="link" size={18} color={COLORS.tertiary} />
-                  )}
-                  <View style={styles.topicSuggestionContent}>
-                    <Text style={styles.topicSuggestionTitle}>{item.title || item.slug}</Text>
-                    <Text style={styles.topicSuggestionRefs}>
-                      {item.referenceCount !== undefined ? `${item.referenceCount} ${t('post.references')}` : t('compose.createNewPage')}
-                    </Text>
-                  </View>
-                </Pressable>
-              )}
-              ListEmptyComponent={
-                <Pressable
-                  style={styles.topicSuggestionItem}
-                  onPress={() => {
-                    setBody(prev => prev + '[[');
-                    setLinkToTopicModalVisible(false);
-                  }}
-                  accessibilityLabel={t('compose.createNewPage')}
-                  accessibilityRole="button"
-                >
-                  <MaterialIcons name="description" size={18} color={COLORS.tertiary} />
-                  <View style={styles.topicSuggestionContent}>
-                    <Text style={styles.topicSuggestionTitle}>{t('compose.createNewPage')}</Text>
-                  </View>
-                </Pressable>
-              }
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       {/* Link Modal */}
       <Modal
@@ -454,6 +326,38 @@ export default function ComposeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Topic Suggestions Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={linkToTopicModalVisible}
+        onRequestClose={() => setLinkToTopicModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setLinkToTopicModalVisible(false)}>
+          <View style={styles.linkToTopicModal}>
+            <Text style={styles.linkToTopicTitle}>LINK TO TOPIC</Text>
+            <FlatList
+              data={topicSuggestions}
+              keyExtractor={(item: any) => item.id || item.slug}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={styles.topicSuggestionItem}
+                  onPress={() => handleLinkToTopic(item)}
+                >
+                  <MaterialIcons name="link" size={18} color={COLORS.tertiary} />
+                  <View style={styles.topicSuggestionContent}>
+                    <Text style={styles.topicSuggestionTitle}>{item.title || item.slug}</Text>
+                    {item.referenceCount !== undefined && (
+                      <Text style={styles.topicSuggestionRefs}>{item.referenceCount} references</Text>
+                    )}
+                  </View>
+                </Pressable>
+              )}
+            />
+          </View>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -472,7 +376,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.l,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
-    position: 'relative',
   },
   cancelButton: {
     fontSize: 16,
@@ -488,23 +391,25 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     textAlign: 'center',
+    zIndex: -1,
   },
   toggleContainer: {
     flexDirection: 'row',
     backgroundColor: COLORS.hover,
     borderRadius: 8,
     padding: 2,
+    marginRight: SPACING.m,
   },
   toggleButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 6,
   },
   toggleButtonActive: {
     backgroundColor: COLORS.primary,
   },
   toggleText: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.secondary,
     fontWeight: '500',
   },
@@ -514,18 +419,18 @@ const styles = StyleSheet.create({
   },
   publishButton: {
     paddingHorizontal: SPACING.l,
-    paddingVertical: 8,
-    backgroundColor: COLORS.hover,
+    paddingVertical: 6,
+    backgroundColor: COLORS.primary,
     borderRadius: SIZES.borderRadiusPill,
-    minWidth: 80,
   },
   publishButtonDisabled: {
     opacity: 0.5,
+    backgroundColor: COLORS.hover,
   },
   publishButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.paper,
+    color: '#FFF',
     fontFamily: FONTS.semiBold,
   },
   content: {
@@ -584,6 +489,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
     backgroundColor: COLORS.ink,
+    paddingBottom: Platform.OS === 'ios' ? 30 : SPACING.m,
   },
   toolbarContent: {
     paddingHorizontal: SPACING.l,
@@ -600,6 +506,12 @@ const styles = StyleSheet.create({
   },
   toolbarButtonActive: {
     backgroundColor: COLORS.hover,
+  },
+  toolbarButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
   },
   divider: {
     width: 1,
@@ -666,15 +578,10 @@ const styles = StyleSheet.create({
     borderRadius: SIZES.borderRadius,
     padding: SPACING.m,
     marginHorizontal: SPACING.l,
-    marginTop: 300,
+    marginTop: 100, // Adjust for positioning
     borderWidth: 1,
     borderColor: COLORS.divider,
     maxHeight: 300,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   linkToTopicTitle: {
     fontSize: 11,
@@ -708,11 +615,5 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     marginTop: 2,
     fontFamily: FONTS.regular,
-  },
-  toolbarButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.primary,
-    fontFamily: FONTS.semiBold,
   },
 });

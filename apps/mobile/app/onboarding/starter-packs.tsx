@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, Pressable, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -7,176 +7,128 @@ import { api } from '../../utils/api';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+interface User {
+  id: string;
+  displayName: string;
+  handle: string;
+  bio?: string;
+  isFollowing?: boolean;
+}
+
 export default function OnboardingStarterPacksScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const [suggestedUsers, setSuggestedUsers] = useState<Record<string, any[]>>({});
-  const [following, setFollowing] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
+  
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [finishing, setFinishing] = useState(false);
 
   useEffect(() => {
-    loadSuggestedUsers();
+    loadRecommendations();
   }, []);
 
-  const loadSuggestedUsers = async () => {
+  const loadRecommendations = async () => {
     try {
-      const categories = ['urbanism', 'philosophy', 'tech'];
-      
-      const results = await Promise.all(
-        categories.map(async (category) => {
-          try {
-            const data = await api.get(`/explore/people?category=${category}`);
-            return { category, users: Array.isArray(data) ? data.slice(0, 5) : [] };
-          } catch (error) {
-            return { category, users: [] };
-          }
-        })
-      );
-
-      const usersByCategory = results.reduce((acc, curr) => {
-        acc[curr.category] = curr.users;
-        return acc;
-      }, {} as Record<string, any[]>);
-
-      setSuggestedUsers(usersByCategory);
+      // Fetch suggested users (mock endpoint or actual relevance logic)
+      const data = await api.get('/explore/people?limit=10');
+      const items = Array.isArray(data.items || data) ? (data.items || data) : [];
+      setUsers(items);
     } catch (error) {
-      console.error('Failed to load suggested users', error);
-    }
-  };
-
-  const categoryIcons: Record<string, string> = {
-    urbanism: 'apartment',
-    philosophy: 'settings',
-    tech: 'code',
-  };
-
-  const categoryLabels: Record<string, string> = {
-    urbanism: 'Urbanism',
-    philosophy: 'Philosophy',
-    tech: 'Tech',
-  };
-
-  const toggleFollow = async (userId: string) => {
-    const isFollowing = following.has(userId);
-    try {
-      if (isFollowing) {
-        await api.delete(`/users/${userId}/follow`);
-        setFollowing(prev => {
-          const next = new Set(prev);
-          next.delete(userId);
-          return next;
-        });
-      } else {
-        await api.post(`/users/${userId}/follow`);
-        setFollowing(prev => new Set(prev).add(userId));
-      }
-    } catch (error) {
-      console.error('Failed to toggle follow', error);
-    }
-  };
-
-  const handleFinish = async () => {
-    setLoading(true);
-    try {
-      router.replace('/(tabs)');
+      console.error('Failed to load starter packs', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const toggleFollow = async (user: User) => {
+    // Optimistic update
+    const isFollowing = !user.isFollowing;
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isFollowing } : u));
+
+    try {
+      if (isFollowing) {
+        await api.post(`/users/${user.id}/follow`);
+      } else {
+        await api.delete(`/users/${user.id}/follow`);
+      }
+    } catch (error) {
+      // Revert on error
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, isFollowing: !isFollowing } : u));
+      console.error('Follow toggle failed', error);
+    }
+  };
+
+  const handleFinish = () => {
+    setFinishing(true);
+    // Any finalization logic here? e.g. mark onboarding as done
+    setTimeout(() => {
+      router.replace('/(tabs)/');
+    }, 500);
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <Text style={styles.title}>{t('onboarding.starterPacks.title')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.starterPacks.subtitle')}</Text>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <View style={styles.stepIndicator}>
+          <View style={styles.stepDot} />
+          <View style={styles.stepDot} />
+          <View style={[styles.stepDot, styles.stepDotActive]} />
+        </View>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <MaterialIcons name="arrow-back" size={24} color={COLORS.secondary} />
+        </Pressable>
+        <Pressable onPress={handleFinish} style={styles.skipButton}>
+          <Text style={styles.skipText}>{t('common.skip')}</Text>
+        </Pressable>
       </View>
 
-      <FlatList
-        data={Object.entries(suggestedUsers).flatMap(([category, users]) =>
-          users.map(user => ({ ...user, category }))
-        )}
-        keyExtractor={(item: any, index: number) => `${item.category}-${item.id || index}`}
-        renderItem={({ item }: { item: any }, index: number) => {
-          const isFirstInCategory = index === 0 ||
-            (index > 0 && Object.entries(suggestedUsers).find(([cat, users]) =>
-              users.some(u => u.id === item.id)
-            )?.[0] !== Object.entries(suggestedUsers).find(([cat, users]) =>
-              users.some(u => u.id === Object.entries(suggestedUsers).flatMap(([, users]) => users)[index - 1]?.id)
-            )?.[0]);
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>{t('onboarding.starterPackTitle')}</Text>
+        <Text style={styles.subtitle}>{t('onboarding.starterPackSubtitle')}</Text>
 
-          const category = item.category;
-          const showCategoryHeader = isFirstInCategory ||
-            (index > 0 && Object.entries(suggestedUsers).flatMap(([, users]) => users)[index - 1]?.category !== category);
-
-          return (
-            <View>
-              {showCategoryHeader && (
-                <View style={styles.categoryHeader}>
-                  <MaterialIcons
-                    name={categoryIcons[category] as any}
-                    size={20}
-                    color={COLORS.primary}
-                  />
-                  <Text style={styles.categoryTitle}>{categoryLabels[category]}</Text>
-                </View>
-              )}
-              <View style={styles.userCard}>
+        {loading ? (
+          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />
+        ) : (
+          <View style={styles.list}>
+            {users.map((user) => (
+              <View key={user.id} style={styles.userRow}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>
-                    {item.displayName?.charAt(0) || item.handle.charAt(0).toUpperCase()}
+                    {user.displayName?.charAt(0) || user.handle?.charAt(0)}
                   </Text>
                 </View>
                 <View style={styles.userInfo}>
-                  <View style={styles.userNameRow}>
-                    <Text style={styles.userName}>{item.displayName || item.handle}</Text>
-                    <Text style={styles.userHandle}>@{item.handle}</Text>
-                  </View>
-                  {item.bio && (
-                    <Text style={styles.userBio} numberOfLines={2}>{item.bio}</Text>
+                  <Text style={styles.userName}>{user.displayName}</Text>
+                  <Text style={styles.userHandle}>@{user.handle}</Text>
+                  {user.bio && (
+                    <Text style={styles.userBio} numberOfLines={1}>{user.bio}</Text>
                   )}
                 </View>
                 <Pressable
-                  style={[
-                    styles.followButton,
-                    following.has(item.id) && styles.followButtonActive,
-                  ]}
-                  onPress={() => toggleFollow(item.id)}
-                  accessibilityLabel={following.has(item.id) ? t('profile.following') : t('profile.follow')}
-                  accessibilityRole="button"
+                  style={[styles.followButton, user.isFollowing && styles.followingButton]}
+                  onPress={() => toggleFollow(user)}
                 >
-                  <Text
-                    style={[
-                      styles.followButtonText,
-                      following.has(item.id) && styles.followButtonTextActive,
-                    ]}
-                  >
-                    {following.has(item.id) ? t('profile.following') : t('profile.follow')}
+                  <Text style={[styles.followText, user.isFollowing && styles.followingText]}>
+                    {user.isFollowing ? t('profile.following') : t('profile.follow')}
                   </Text>
                 </Pressable>
               </View>
-            </View>
-          );
-        }}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>{t('onboarding.starterPacks.loadingSuggested')}</Text>
+            ))}
           </View>
-        }
-      />
+        )}
+      </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.l }]}>
         <Pressable
-          style={styles.finishButton}
+          style={[styles.button, finishing && styles.buttonDisabled]}
           onPress={handleFinish}
-          disabled={loading}
+          disabled={finishing}
         >
-          <Text style={styles.finishButtonText}>
-            {loading ? t('onboarding.starterPacks.finishing') : t('onboarding.starterPacks.finish')}
+          <Text style={styles.buttonText}>
+            {finishing ? t('common.loading') : t('onboarding.finish')}
           </Text>
-        </Pressable>
-        <Pressable onPress={() => router.replace('/(tabs)')}>
-          <Text style={styles.skipText}>{t('onboarding.starterPacks.skip')}</Text>
+          <MaterialIcons name="check" size={20} color="#FFF" />
         </Pressable>
       </View>
     </View>
@@ -189,66 +141,94 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.ink,
   },
   header: {
-    padding: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    paddingHorizontal: SPACING.l,
+    paddingBottom: SPACING.l,
+    alignItems: 'center',
+    position: 'relative',
+    height: 44,
+    justifyContent: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: SPACING.l,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  skipButton: {
+    position: 'absolute',
+    right: SPACING.l,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  skipText: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.medium,
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.divider,
+  },
+  stepDotActive: {
+    backgroundColor: COLORS.primary,
+    width: 24,
+  },
+  content: {
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: 100,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: COLORS.paper,
-    marginBottom: SPACING.s,
-    fontFamily: FONTS.semiBold,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-  },
-  categoryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-    paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.m,
-  },
-  categoryTitle: {
-    fontSize: 16,
+    fontSize: 28,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
+    marginBottom: SPACING.s,
+    textAlign: 'center',
   },
-  userCard: {
+  subtitle: {
+    fontSize: 16,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    textAlign: 'center',
+    marginBottom: SPACING.xxl,
+  },
+  list: {
+    gap: SPACING.l,
+  },
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    padding: SPACING.m,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
     gap: SPACING.m,
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.primary,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
   userInfo: {
     flex: 1,
-  },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    marginBottom: 4,
   },
   userName: {
     fontSize: 15,
@@ -262,64 +242,59 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
   },
   userBio: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.secondary,
-    marginTop: 4,
+    marginTop: 2,
     fontFamily: FONTS.regular,
   },
   followButton: {
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.tertiary,
-    borderRadius: SIZES.borderRadiusPill,
+    borderColor: COLORS.primary,
     minWidth: 80,
+    alignItems: 'center',
   },
-  followButtonActive: {
+  followingButton: {
     backgroundColor: COLORS.primary,
   },
-  followButtonText: {
-    fontSize: 14,
+  followText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: COLORS.paper,
+    color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
-  followButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  emptyState: {
-    padding: SPACING.xxxl,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 15,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
+  followingText: {
+    color: '#FFF',
   },
   footer: {
-    padding: SPACING.l,
-    gap: SPACING.l,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: SPACING.xl,
+    backgroundColor: COLORS.ink,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
+    paddingTop: SPACING.l,
   },
-  finishButton: {
-    height: 50,
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
+  button: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: SPACING.s,
+    backgroundColor: COLORS.primary,
+    height: 56,
+    borderRadius: SIZES.borderRadius,
   },
-  finishButtonText: {
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#FFF',
     fontFamily: FONTS.semiBold,
-  },
-  skipText: {
-    fontSize: 15,
-    color: COLORS.primary,
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-    fontFamily: FONTS.medium,
   },
 });

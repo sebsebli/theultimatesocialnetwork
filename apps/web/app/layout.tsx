@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AuthProvider } from "@/components/auth-provider";
+import { ToastProvider } from "@/components/ui/toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -27,12 +28,14 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} ${ibmPlexSerif.variable} min-h-screen bg-ink text-paper antialiased selection:bg-primary/30 selection:text-white`}>
+    <html lang="en" className={`dark ${inter.variable} ${ibmPlexSerif.variable}`}>
+      <body className={inter.className}>
         <ErrorBoundary>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <ToastProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </ToastProvider>
         </ErrorBoundary>
       </body>
     </html>
