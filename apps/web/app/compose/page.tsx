@@ -11,6 +11,7 @@ function ComposeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const quotePostId = searchParams.get('quote');
+  const replyToPostId = searchParams.get('replyTo');
   
   const [body, setBody] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
@@ -29,7 +30,7 @@ function ComposeContent() {
     
     setIsPublishing(true);
     try {
-      // Check if this is a quote
+      // Check if this is a quote or reply
       if (quotePostId) {
         const res = await fetch('/api/posts/quote', {
           method: 'POST',
@@ -42,6 +43,19 @@ function ComposeContent() {
         
         if (res.ok) {
           router.push('/home');
+          router.refresh();
+        }
+      } else if (replyToPostId) {
+        const res = await fetch(`/api/posts/${replyToPostId}/replies`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            body,
+          }),
+        });
+        
+        if (res.ok) {
+          router.push(`/post/${replyToPostId}`); // Go back to the thread
           router.refresh();
         }
       } else {

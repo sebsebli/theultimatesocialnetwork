@@ -14,9 +14,20 @@ function SignInForm() {
   
   // 'email' = initial step, 'token' = verification step
   const [step, setStep] = useState<'email' | 'token'>('email');
+  const [cooldown, setCooldown] = useState(0);
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (cooldown > 0) {
+      interval = setInterval(() => {
+        setCooldown((c) => c - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [cooldown]);
 
   useEffect(() => {
     const code = searchParams.get('code');
@@ -26,8 +37,8 @@ function SignInForm() {
     }
   }, [searchParams]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError('');
     setLoading(true);
     
@@ -53,10 +64,17 @@ function SignInForm() {
           throw new Error('You are new here! Please enter your invite code to join the beta.');
         }
 
+        // Check for rate limit
+        if (res.status === 400 && data.message === 'Please wait before sending another code') {
+          setCooldown(60);
+          throw new Error('Please wait 60 seconds before requesting another code.');
+        }
+
         throw new Error(data.message || 'Failed to send verification code');
       }
 
       setStep('token');
+      setCooldown(60);
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {
@@ -134,11 +152,21 @@ function SignInForm() {
         
         <div className="space-y-3 pt-4">
           <button
+            type="button"
+            onClick={() => handleLogin()}
+            disabled={cooldown > 0 || loading}
+            className="w-full h-12 border border-white/10 hover:bg-white/5 text-paper font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+          </button>
+
+          <button
             onClick={() => {
               setStep('email');
               setToken('');
+              setCooldown(0);
             }}
-            className="w-full text-secondary hover:text-paper text-sm transition-colors"
+            className="w-full text-secondary hover:text-paper text-sm transition-colors pt-2"
           >
             Wrong email? Go back
           </button>

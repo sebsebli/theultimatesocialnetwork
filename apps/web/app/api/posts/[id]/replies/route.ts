@@ -3,35 +3,6 @@ import { cookies } from 'next/headers';
 
 const API_URL = process.env.API_URL || 'http://localhost:3000';
 
-export async function GET(
-  request: NextRequest,
-  props: { params: Promise<{ id: string }> }
-) {
-  const params = await props.params;
-  const token = (await cookies()).get('token')?.value;
-  if (!token) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  try {
-    const res = await fetch(`${API_URL}/posts/${params.id}/replies`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!res.ok) {
-      return NextResponse.json({ error: 'Failed to fetch replies' }, { status: res.status });
-    }
-
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('Error fetching replies', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
 export async function POST(
   request: NextRequest,
   props: { params: Promise<{ id: string }> }
@@ -45,6 +16,10 @@ export async function POST(
   try {
     const body = await request.json();
 
+    if (!body.body) {
+      return NextResponse.json({ error: 'Body is required' }, { status: 400 });
+    }
+
     const res = await fetch(`${API_URL}/posts/${params.id}/replies`, {
       method: 'POST',
       headers: {
@@ -56,6 +31,7 @@ export async function POST(
 
     if (!res.ok) {
       const error = await res.text();
+      console.error('Failed to create reply', error);
       return NextResponse.json({ error: 'Failed to create reply' }, { status: res.status });
     }
 
