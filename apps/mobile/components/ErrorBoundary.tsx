@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 interface Props {
@@ -30,6 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReset = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     this.setState({ hasError: false, error: null });
   };
 
@@ -41,14 +43,19 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return <View style={styles.container}>
         <View style={styles.iconContainer}>
-          <MaterialIcons name="error-outline" size={64} color={COLORS.error} />
+          <View style={styles.iconCircle}>
+            <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
+          </View>
         </View>
-        <Text style={styles.title}>Something went wrong</Text>
+        <Text style={styles.title}>System Interrupt</Text>
         <Text style={styles.message}>
-          {this.state.error?.message || 'An unexpected error occurred'}
+          An unexpected error occurred. This has been logged for review.
         </Text>
-        <Pressable style={styles.button} onPress={this.handleReset}>
-          <Text style={styles.buttonText}>Try Again</Text>
+        <Pressable 
+          style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }]} 
+          onPress={this.handleReset}
+        >
+          <Text style={styles.buttonText}>Reload interface</Text>
         </Pressable>
       </View> as ReactNode;
     }
@@ -68,12 +75,23 @@ const styles = StyleSheet.create({
   iconContainer: {
     marginBottom: SPACING.l,
   },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: COLORS.paper,
-    marginBottom: SPACING.s,
+    marginBottom: SPACING.m,
     fontFamily: FONTS.semiBold,
+    letterSpacing: -0.5,
   },
   message: {
     color: COLORS.secondary,

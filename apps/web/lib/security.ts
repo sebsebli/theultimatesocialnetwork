@@ -48,6 +48,20 @@ export function createSecureErrorResponse(message: string, status: number = 500)
 }
 
 /**
+ * Generate a random secure token
+ */
+export function generateRandomToken(length: number = 32): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  const randomValues = new Uint32Array(length);
+  window.crypto.getRandomValues(randomValues);
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(randomValues[i] % chars.length);
+  }
+  return result;
+}
+
+/**
  * Validate request origin (basic CSRF protection)
  */
 export function validateOrigin(request: Request): boolean {

@@ -7,6 +7,7 @@ export class Invite {
   code: string;
 
   @Column({ name: 'creator_id', type: 'uuid', nullable: true }) // Null for system invites
+  @Index()
   creatorId: string | null;
 
   @ManyToOne(() => User)
@@ -14,6 +15,7 @@ export class Invite {
   creator: User;
 
   @Column({ name: 'used_by_id', type: 'uuid', nullable: true })
+  @Index()
   usedById: string | null;
 
   @ManyToOne(() => User)

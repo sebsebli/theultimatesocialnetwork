@@ -319,6 +319,7 @@ export function LandingPage() {
             <Link href="/roadmap" className="hover:text-[#F2F2F2] transition-colors">{t.footer.roadmap}</Link>
             <Link href="/imprint" className="hover:text-[#F2F2F2] transition-colors">{t.footer.imprint}</Link>
             <Link href="/privacy" className="hover:text-[#F2F2F2] transition-colors">{t.footer.privacy}</Link>
+            <Link href="/ai-transparency" className="hover:text-[#F2F2F2] transition-colors">{t.footer.ai_transparency}</Link>
             <Link href="/terms" className="hover:text-[#F2F2F2] transition-colors">{t.footer.terms}</Link>
           </div>
         </div>

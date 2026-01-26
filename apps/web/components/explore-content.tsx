@@ -12,15 +12,20 @@ export function ExploreContent() {
   const tab = searchParams.get('tab') || 'topics';
   const sort = searchParams.get('sort') || 'recommended';
   
-  const [topics, setTopics] = useState<any[]>([]);
-  const [people, setPeople] = useState<any[]>([]);
-  const [quotedNow, setQuotedNow] = useState<any[]>([]);
-  const [deepDives, setDeepDives] = useState<any[]>([]);
-  const [newsroom, setNewsroom] = useState<any[]>([]);
+  const [tabData, setTabData] = useState<Record<string, any[]>>({
+    topics: [],
+    people: [],
+    quoted: [],
+    'deep-dives': [],
+    newsroom: [],
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadContent();
+    // Only load if we don't have data for this tab/sort combo or if explicitly refreshing
+    if (tabData[tab].length === 0) {
+      loadContent();
+    }
   }, [tab, sort]);
 
   const loadContent = async () => {
@@ -30,37 +35,19 @@ export function ExploreContent() {
       if (sort) query.set('sort', sort);
       const queryString = query.toString() ? `?${query.toString()}` : '';
 
-      if (tab === 'topics') {
-        const res = await fetch(`/api/explore/topics${queryString}`);
-        if (res.ok) {
-          const data = await res.json();
-          // Handle both array and object with items property
-          setTopics(Array.isArray(data) ? data : (data.items || []));
-        }
-      } else if (tab === 'people') {
-        const res = await fetch(`/api/explore/people${queryString}`);
-        if (res.ok) {
-          const data = await res.json();
-          setPeople(Array.isArray(data) ? data : (data.items || []));
-        }
-      } else if (tab === 'quoted') {
-        const res = await fetch(`/api/explore/quoted-now${queryString}`);
-        if (res.ok) {
-          const data = await res.json();
-          setQuotedNow(Array.isArray(data) ? data : (data.items || []));
-        }
-      } else if (tab === 'deep-dives') {
-        const res = await fetch(`/api/explore/deep-dives${queryString}`);
-        if (res.ok) {
-          const data = await res.json();
-          setDeepDives(Array.isArray(data) ? data : (data.items || []));
-        }
-      } else if (tab === 'newsroom') {
-        const res = await fetch(`/api/explore/newsroom${queryString}`);
-        if (res.ok) {
-          const data = await res.json();
-          setNewsroom(Array.isArray(data) ? data : (data.items || []));
-        }
+      const endpoints: Record<string, string> = {
+        topics: '/api/explore/topics',
+        people: '/api/explore/people',
+        quoted: '/api/explore/quoted-now',
+        'deep-dives': '/api/explore/deep-dives',
+        newsroom: '/api/explore/newsroom',
+      };
+
+      const res = await fetch(`${endpoints[tab]}${queryString}`);
+      if (res.ok) {
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : (data.items || []);
+        setTabData(prev => ({ ...prev, [tab]: items }));
       }
     } catch (error) {
       console.error('Failed to load content', error);
@@ -69,139 +56,81 @@ export function ExploreContent() {
     }
   };
 
+  // Helper to get active items
+  const activeItems = tabData[tab];
+
   const toggleSort = () => {
     const newSort = sort === 'recommended' ? 'newest' : 'recommended';
     const params = new URLSearchParams(searchParams.toString());
     params.set('sort', newSort);
+    // Clear data for fresh sort
+    setTabData(prev => ({ ...prev, [tab]: [] }));
     router.push(`/explore?${params.toString()}`);
   };
 
   return (
     <div className="flex flex-col gap-4 pb-20 md:pb-0 px-4 pt-2">
       <h3 className="text-xl font-bold leading-tight text-left text-paper tracking-tight px-4 mb-4">
-        Recommended for You
+        Discover
       </h3>
 
-      {tab === 'topics' && (
+      {loading && activeItems.length === 0 ? (
+        <div className="text-center py-24">
+          <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-secondary text-sm">Finding context...</p>
+        </div>
+      ) : activeItems.length === 0 ? (
+        <div className="text-center py-24 border border-dashed border-divider rounded-xl">
+          <p className="text-secondary text-sm">No items found in this category.</p>
+        </div>
+      ) : (
         <div className="space-y-4">
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">Loading topics...</p>
-            </div>
-          ) : topics.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">No topics found.</p>
-            </div>
-          ) : (
-            topics.map((topic) => (
-              <Link key={topic.id} href={`/topic/${topic.slug}`}>
-                <div className="relative bg-gradient-to-br from-primary/10 to-primary/5 flex flex-col items-stretch justify-end rounded-xl p-6 shadow-sm overflow-hidden border border-white/10 hover:border-primary/50 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="text-paper text-xl font-bold">{topic.title}</h4>
-                    {topic.reasons && <WhyLabel reasons={topic.reasons} />}
+          {tab === 'topics' && activeItems.map((topic) => (
+             <Link key={topic.id} href={`/topic/${topic.slug}`}>
+               <div className="relative bg-white/[0.02] hover:bg-white/[0.05] flex flex-col items-stretch justify-end rounded-xl p-6 shadow-sm overflow-hidden border border-white/5 hover:border-primary/40 transition-all duration-300 group">
+                 <div className="flex items-start justify-between mb-2">
+                   <h4 className="text-paper text-2xl font-bold tracking-tight group-hover:text-primary transition-colors">{topic.title}</h4>
+                   {topic.reasons && <WhyLabel reasons={topic.reasons} />}
+                 </div>
+                 <p className="text-secondary text-sm mb-4 max-w-sm">Explore verified discussions and citations about {topic.title.toLowerCase()}.</p>
+                 <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest">
+                   View Topic 
+                   <svg className="w-3 h-3 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7"/></svg>
+                 </div>
+               </div>
+             </Link>
+          ))}
+
+          {tab === 'people' && activeItems.map((person) => (
+            <Link key={person.id} href={`/user/${person.handle}`}>
+              <div className="p-5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group active:scale-[0.99]">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xl shadow-inner group-hover:bg-primary/30 transition-colors">
+                    {person.displayName?.charAt(0) || person.handle.charAt(0)}
                   </div>
-                  <p className="text-secondary text-sm mb-4">Explore posts about {topic.title.toLowerCase()}</p>
-                </div>
-              </Link>
-            ))
-          )}
-        </div>
-      )}
-
-      {tab === 'people' && (
-        <div className="space-y-4">
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">Loading people...</p>
-            </div>
-          ) : people.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">No people found.</p>
-            </div>
-          ) : (
-            people.map((person) => (
-              <Link key={person.id} href={`/user/${person.handle}`}>
-                <div className="p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
-                      {person.displayName?.charAt(0) || person.handle.charAt(0)}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-paper">{person.displayName || person.handle}</div>
-                      <div className="text-sm text-tertiary">@{person.handle}</div>
-                      {person.bio && (
-                        <div className="text-sm text-secondary mt-1">{person.bio}</div>
-                      )}
-                    </div>
-                    {person.reasons && <WhyLabel reasons={person.reasons} />}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-paper text-lg group-hover:text-primary transition-colors truncate">{person.displayName || person.handle}</div>
+                    <div className="text-sm text-tertiary">@{person.handle}</div>
+                    {person.bio && (
+                      <div className="text-sm text-secondary mt-1 line-clamp-1">{person.bio}</div>
+                    )}
                   </div>
+                  {person.reasons && <WhyLabel reasons={person.reasons} />}
                 </div>
-              </Link>
-            ))
-          )}
-        </div>
-      )}
-
-      {tab === 'quoted' && (
-        <div className="space-y-0">
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">Loading quoted posts...</p>
-            </div>
-          ) : quotedNow.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">No trending quotes yet.</p>
-            </div>
-          ) : (
-            quotedNow.map((post) => (
-              <div key={post.id}>
-                <PostItem post={post} />
-                {post.reasons && <WhyLabel reasons={post.reasons} />}
               </div>
-            ))
-          )}
-        </div>
-      )}
+            </Link>
+          ))}
 
-      {tab === 'deep-dives' && (
-        <div className="space-y-0">
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">Loading deep dives...</p>
+          {(tab === 'quoted' || tab === 'deep-dives' || tab === 'newsroom') && activeItems.map((post) => (
+            <div key={post.id} className="relative group">
+              <PostItem post={post} />
+              {post.reasons && (
+                <div className="absolute top-4 right-5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                   <WhyLabel reasons={post.reasons} />
+                </div>
+              )}
             </div>
-          ) : deepDives.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">No deep dives found.</p>
-            </div>
-          ) : (
-            deepDives.map((post) => (
-              <div key={post.id}>
-                <PostItem post={post} />
-                {post.reasons && <WhyLabel reasons={post.reasons} />}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {tab === 'newsroom' && (
-        <div className="space-y-0">
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">Loading newsroom...</p>
-            </div>
-          ) : newsroom.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">No newsroom posts yet.</p>
-            </div>
-          ) : (
-            newsroom.map((post) => (
-              <div key={post.id}>
-                <PostItem post={post} />
-                {post.reasons && <WhyLabel reasons={post.reasons} />}
-              </div>
-            ))
-          )}
+          ))}
         </div>
       )}
     </div>

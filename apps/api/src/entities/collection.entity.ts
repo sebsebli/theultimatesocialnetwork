@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany, Index } from 'typeorm';
 import { User } from './user.entity';
 import { CollectionItem } from './collection-item.entity';
 
@@ -8,6 +8,7 @@ export class Collection {
   id: string;
 
   @Column({ name: 'owner_id' })
+  @Index()
   ownerId: string;
 
   @ManyToOne(() => User)

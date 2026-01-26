@@ -10,6 +10,7 @@ const publicRoutes = [
   '/verify',
   '/privacy',
   '/terms',
+  '/ai-transparency',
   '/imprint',
   '/roadmap',
   '/manifesto',

@@ -51,6 +51,7 @@ export function DesktopRightSidebar() {
         {/* Quick Links */}
         <div className="flex flex-col gap-2 text-xs text-tertiary">
           <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+          <Link href="/ai-transparency" className="hover:text-primary transition-colors">AI Transparency</Link>
           <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
           <Link href="/imprint" className="hover:text-primary transition-colors">Imprint</Link>
         </div>

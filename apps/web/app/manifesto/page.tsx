@@ -10,45 +10,51 @@ export default function ManifestoPage() {
       </nav>
 
       <main className="max-w-[700px] mx-auto pt-40 pb-32 px-6">
-        <header className="mb-20">
-          <span className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-4 block">The Manifesto</span>
-          <h1 className="text-4xl md:text-6xl font-serif font-normal text-[#F2F2F2] leading-[1.1]">
-            The Digital Commonwealth.
+        <header className="mb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary mb-4 block opacity-80">The Manifesto</span>
+          <h1 className="text-5xl md:text-7xl font-serif font-normal text-paper leading-[1.05] tracking-tight">
+            The Digital<br/>Commonwealth.
           </h1>
         </header>
 
-        <article className="prose prose-invert prose-lg text-[#A8A8AA] max-w-none font-serif leading-relaxed">
-          <p className="text-xl md:text-2xl text-[#F2F2F2] font-light mb-12">
+        <article className="prose prose-invert prose-lg text-secondary max-w-none font-serif leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+          <p className="text-2xl md:text-3xl text-paper font-light mb-16 leading-tight tracking-tight">
             The internet was born as a library—a place of connected knowledge. It has become a casino—a place of addictive noise.
           </p>
 
-          <h3 className="text-[#F2F2F2] font-normal text-2xl mt-16 mb-6">I. Context over Content</h3>
-          <p>
-            We are drowning in "content"—ephemeral, disconnected, designed to be consumed and forgotten. We are starving for "context"—information that is connected, sourced, and part of a larger whole. 
-            On Cite, nothing stands alone. Every thought is a node in a graph.
-          </p>
+          <section className="mb-16">
+            <h3 className="text-paper font-normal text-3xl mb-6 tracking-tight">I. Context over Content</h3>
+            <p className="text-lg opacity-90">
+              We are drowning in "content"—ephemeral, disconnected, designed to be consumed and forgotten. We are starving for "context"—information that is connected, sourced, and part of a larger whole. 
+              On Cite, nothing stands alone. Every thought is a node in a graph.
+            </p>
+          </section>
 
-          <h3 className="text-[#F2F2F2] font-normal text-2xl mt-16 mb-6">II. Verification over Virality</h3>
-          <p>
-            The current algorithm rewards the loudest voice. We reward the referenced voice. 
-            If you want to be heard, say something worth citing. If you want to be trusted, cite your sources. 
-            We automatically archive every external link you post to the Wayback Machine, ensuring your citations never rot. Truth requires permanence.
-          </p>
+          <section className="mb-16">
+            <h3 className="text-paper font-normal text-3xl mb-6 tracking-tight">II. Verification over Virality</h3>
+            <p className="text-lg opacity-90">
+              The current algorithm rewards the loudest voice. We reward the referenced voice. 
+              If you want to be heard, say something worth citing. If you want to be trusted, cite your sources. 
+              We automatically archive every external link you post to the Wayback Machine, ensuring your citations never rot. Truth requires permanence.
+            </p>
+          </section>
 
-          <h3 className="text-[#F2F2F2] font-normal text-2xl mt-16 mb-6">III. The User as Sovereign</h3>
-          <p>
-            You are not a pair of eyeballs to be sold. You are a citizen of this network. 
-            Your data is yours (exportable JSON/CSV). Your timeline is yours (chronological). Your mind is yours (no ads).
-            We charge for tools, not for access to your psychology.
-          </p>
+          <section className="mb-16">
+            <h3 className="text-paper font-normal text-3xl mb-6 tracking-tight">III. The User as Sovereign</h3>
+            <p className="text-lg opacity-90">
+              You are not a pair of eyeballs to be sold. You are a citizen of this network. 
+              Your data is yours (exportable JSON/CSV). Your timeline is yours (chronological). Your mind is yours (no ads).
+              We charge for tools, not for access to your psychology.
+            </p>
+          </section>
 
-          <div className="my-16 p-8 border border-[#333] rounded-lg bg-[#0F0F10] text-center">
-            <p className="italic text-lg text-[#F2F2F2] mb-6">
+          <div className="my-20 p-10 border border-white/10 rounded-2xl bg-white/[0.02] text-center shadow-2xl backdrop-blur-sm">
+            <p className="italic text-xl text-paper mb-8 font-light leading-relaxed">
               "History is written by those who write. Join us in writing a better one."
             </p>
-            <div className="flex flex-col items-center gap-2">
-               <span className="text-[#F2F2F2] font-medium">Sebastian Lindner</span>
-               <span className="text-xs text-[#6E6E73] uppercase tracking-widest">Founder</span>
+            <div className="flex flex-col items-center gap-3">
+               <span className="text-paper font-bold tracking-tight text-lg">Sebastian Lindner</span>
+               <span className="text-[10px] text-tertiary uppercase tracking-[0.3em] font-bold">Founder • 2026</span>
             </div>
           </div>
 

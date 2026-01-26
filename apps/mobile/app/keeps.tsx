@@ -88,17 +88,20 @@ export default function KeepsScreen() {
   const renderItem = useCallback(({ item }: { item: any }) => (
     <View style={styles.keepContainer}>
       <PostItem post={item.post} />
-      <Pressable
-        style={styles.addButton}
-        onPress={() => {
-          setSelectedPostId(item.post.id);
-          setShowPicker(true);
-        }}
-        accessibilityLabel={t('keeps.addToCollection')}
-        accessibilityRole="button"
-      >
-        <Text style={styles.addButtonText}>{t('keeps.addToCollection')}</Text>
-      </Pressable>
+      <View style={styles.keepActions}>
+        <Pressable
+          style={styles.addButton}
+          onPress={() => {
+            setSelectedPostId(item.post.id);
+            setShowPicker(true);
+          }}
+          accessibilityLabel={t('keeps.addToCollection')}
+          accessibilityRole="button"
+        >
+          <MaterialIcons name="playlist-add" size={18} color={COLORS.primary} />
+          <Text style={styles.addButtonText}>{t('keeps.addToCollection')}</Text>
+        </Pressable>
+      </View>
     </View>
   ), [t]);
 
@@ -311,20 +314,26 @@ const styles = StyleSheet.create({
   keepContainer: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
-    position: 'relative',
+  },
+  keepActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: SPACING.l,
+    paddingBottom: SPACING.m,
+    marginTop: -SPACING.s, // Pull up slightly to feel connected
   },
   addButton: {
-    position: 'absolute',
-    top: SPACING.l,
-    right: SPACING.l,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: 'rgba(110, 122, 138, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
   },
   addButtonText: {
     color: COLORS.primary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     fontFamily: FONTS.semiBold,
   },

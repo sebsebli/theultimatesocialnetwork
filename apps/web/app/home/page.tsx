@@ -73,14 +73,22 @@ export default async function HomeFeed() {
 
       <div className="divide-y divide-divider pb-20 md:pb-0">
         {posts.length === 0 ? (
-          <div className="p-8 text-center text-secondary">
-            <p className="text-base mb-6 font-normal">Your timeline is quiet.</p>
-            <div className="flex gap-3 justify-center flex-wrap">
-              <Link href="/explore" className="px-4 py-3 text-primary border border-primary rounded-full hover:bg-primary/10 transition-colors text-sm font-semibold">
-                Explore topics
+          <div className="py-24 px-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
+              <svg className="w-8 h-8 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-paper mb-2">Your timeline is quiet</h3>
+            <p className="text-secondary text-base mb-8 max-w-sm mx-auto leading-relaxed">
+              Follow people and topics to see their posts here. The best way to get started is to explore.
+            </p>
+            <div className="flex gap-4 justify-center flex-wrap">
+              <Link href="/explore" className="px-6 py-3 bg-primary/10 text-primary border border-primary/20 rounded-full hover:bg-primary/20 transition-all font-semibold">
+                Explore Topics
               </Link>
-              <Link href="/search" className="px-4 py-3 text-primary border border-primary rounded-full hover:bg-primary/10 transition-colors text-sm font-semibold">
-                Find people
+              <Link href="/search" className="px-6 py-3 bg-white/5 text-paper border border-white/10 rounded-full hover:bg-white/10 transition-all font-semibold">
+                Find People
               </Link>
             </div>
           </div>

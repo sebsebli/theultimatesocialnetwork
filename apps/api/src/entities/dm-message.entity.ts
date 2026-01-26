@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { DmThread } from './dm-thread.entity';
 
 @Entity('dm_messages')
@@ -7,6 +7,7 @@ export class DmMessage {
   id: string;
 
   @Column({ name: 'thread_id' })
+  @Index()
   threadId: string;
 
   @ManyToOne(() => DmThread)

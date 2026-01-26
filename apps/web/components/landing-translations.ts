@@ -60,7 +60,7 @@ export const translations = {
       text_2: "We are building a protocol for discourse that respects the user's intelligence and data rights. This is infrastructure for the long term.",
       sovereign: "Sovereign Data",
       sovereign_text: "Hosted strictly in the EU. Your data is yours. Exportable to open formats (JSON/CSV) at any time.",
-      no_ads: "No Ads",
+      no_ads: "Sovereign Data",
       no_ads_text: "We serve you, not advertisers. Zero tracking pixels. Zero data sales.",
       transparent: "Transparent Algorithms",
       transparent_text: "Explore is optional and transparent. See exactly why a post was recommended.",
@@ -77,6 +77,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Imprint",
       privacy: "Privacy",
+      ai_transparency: "AI Transparency",
       terms: "Terms",
       roadmap: "Roadmap",
     }
@@ -159,6 +160,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Impressum",
       privacy: "Datenschutz",
+      ai_transparency: "KI-Transparenz",
       terms: "AGB",
       roadmap: "Roadmap",
     }
@@ -202,7 +204,7 @@ export const translations = {
     },
     business: {
       title: "Business honnête",
-      text: "On ne vend pas tes données. Pour rester indépendants, les fonctions avancées seront payantes. Tu es le client, pas le produit.",
+      text: "On ne vend pas tes données. Point. Pour rester indépendants, les fonctions avancées seront payantes. Tu es le client, pas le produit.",
     },
     solo: {
       title: "Initiative solo",
@@ -241,6 +243,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Mentions légales",
       privacy: "Confidentialité",
+      ai_transparency: "Transparence IA",
       terms: "CGU",
       roadmap: "Roadmap",
     }
@@ -284,7 +287,7 @@ export const translations = {
     },
     business: {
       title: "Negocio honesto",
-      text: "No vendemos tus datos. Punto. Para mantener nuestra independencia, las funciones avanzadas serán de pago. Eres el cliente, no el producto.",
+      text: "No vendemos tus datos. Punto. Para mantener la independencia, las funcionalidades avanzadas serán de pago. Eres el cliente, no el producto.",
     },
     solo: {
       title: "Iniciativa en solitario",
@@ -323,6 +326,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Aviso legal",
       privacy: "Privacidad",
+      ai_transparency: "Transparencia IA",
       terms: "Términos",
       roadmap: "Roadmap",
     }
@@ -352,7 +356,7 @@ export const translations = {
       card_1_title: "Citazioni integrate",
       card_1_text: "Collega i tuoi pensieri direttamente alle fonti. Citare è la sostanza. Così costruisci una rete di fiducia.",
       card_2_title: "Il grafo della reputazione",
-      card_2_text: "Su Cite, ti si nota se ti citano. Una meritocrazia dove la qualità emerge perché serve, non perché fa casino.",
+      card_2_text: "Su Cite, ti si nota se ti citano. Una meritocracia dove la qualità emerge perché serve, non perché fa casino.",
       card_3_title: "Segnali privati",
       card_3_text: "I like pubblici mettono ansia. Li abbiamo resi privati. Apprezza il lavoro, ma non recitare per la platea.",
     },
@@ -405,6 +409,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Note legali",
       privacy: "Privacy",
+      ai_transparency: "Trasparenza IA",
       terms: "Termini",
       roadmap: "Roadmap",
     }
@@ -473,7 +478,7 @@ export const translations = {
       no_ads: "Zero reklam",
       no_ads_text: "Służymy tobie, nie reklamodawcy. Zero śledzenia. Zero sprzedaży danych.",
       transparent: "Przejrzyste algorytmy",
-      transparent_text: "Eksploracja jest opcjonalna. Zobacz dokładnie, dlaczego coś ci polecamy.",
+      transparent_text: "Eksploracja jest opcjonal. Zobacz dokładnie, dlaczego coś ci polecamy.",
       verified: "Zweryfikowani ludzie",
       verified_text: "Stawiamy na weryfikację ludzi. Botom dziękujemy.",
     },
@@ -487,6 +492,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Nota prawna",
       privacy: "Prywatność",
+      ai_transparency: "Przejrzystość AI",
       terms: "Regulamin",
       roadmap: "Mapa drogowa",
     }
@@ -569,6 +575,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Colofon",
       privacy: "Privacy",
+      ai_transparency: "AI Transparantie",
       terms: "Voorwaarden",
       roadmap: "Roadmap",
     }
@@ -616,7 +623,7 @@ export const translations = {
     },
     solo: {
       title: "Iniciativa a solo",
-      text: "Estou a construir isto sozinho. Se partilhas esta visão de uma internet mais verdadeira, preciso da tua ajuda. Junta-te à beta ou constrói comigo.",
+      text: "Estou a construir isto sozinho. Se partilhares esta visão de uma internet mais verdadeira, preciso da tua ajuda. Junta-te à beta ou constrói comigo.",
     },
     deep_dive: {
       title: "Contexto navegável",
@@ -637,7 +644,7 @@ export const translations = {
       no_ads: "Sem anúncios",
       no_ads_text: "Servimos o utilizador, não o anunciante. Zero rastreio. Zero venda de dados.",
       transparent: "Algoritmos transparentes",
-      transparent_text: "O Explore é opcional. Vê exatamente porque é que algo te é recomendado.",
+      transparent_text: "O Explore é opcional. Vê exactly porque é que algo te é recomendado.",
       verified: "Humanos verificados",
       verified_text: "Damos prioridade à verificação humana. Os bots ficam de fora.",
     },
@@ -651,6 +658,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Ficha técnica",
       privacy: "Privacidade",
+      ai_transparency: "Transparência IA",
       terms: "Termos",
       roadmap: "Roadmap",
     }
@@ -733,6 +741,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Impressum",
       privacy: "Integritet",
+      ai_transparency: "AI-transparens",
       terms: "Villkor",
       roadmap: "Roadmap",
     }
@@ -755,7 +764,7 @@ export const translations = {
       label: "Problemet",
       title: "Støjsløjfen",
       text_1: "Algoritmer forstærker dem, der råber højest, ikke dem, der taler sandt. Det skaber polarisering og straffer nuancer. Uden en fælles sandhed knækker samfundet.",
-      text_2: "Et traditionelt feed er en usammenhængende strøm. Ingen hukommelse. Ingen struktur. Kun et uendeligt 'nu', designet til at gøre dig vred.",
+      text_2: "Et traditionellt feed er en usammenhængende strøm. Ingen hukommelse. Ingen struktur. Kun et uendeligt 'nu', designet til at gøre dig vred.",
     },
     mechanics: {
       label: "Sådan virker det",
@@ -764,7 +773,7 @@ export const translations = {
       card_2_title: "Omdømmegraf",
       card_2_text: "På Cite bliver du set, når du bliver citeret. Et meritokrati, hvor kvalitet stiger, fordi det er nyttigt, ikke fordi det larmer.",
       card_3_title: "Private signaler",
-      card_3_text: "Offentlige likes skaber præstationsangst. Vi har gjort dem private. Anerkend godt arbejde, men optræd ikke for galleriet.",
+      card_3_text: "Offentliga likes skaber præstationsangst. Vi har gjort dem private. Anerkend godt arbejde, men optræd ikke for galleriet.",
     },
     archiving: {
       title: "Permanente citater",
@@ -815,6 +824,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Impressum",
       privacy: "Privatliv",
+      ai_transparency: "AI-gennemsigtighed",
       terms: "Vilkår",
       roadmap: "Køreplan",
     }
@@ -897,6 +907,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Impressum",
       privacy: "Tietosuoja",
+      ai_transparency: "Tekoälyn läpinäkyvyys",
       terms: "Ehdot",
       roadmap: "Tiekartta",
     }
@@ -979,6 +990,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Ταυτότητα",
       privacy: "Απόρρητο",
+      ai_transparency: "Διαφάνεια AI",
       terms: "Όροι",
       roadmap: "Οδικός Χάρτης",
     }
@@ -993,7 +1005,7 @@ export const translations = {
     hero: {
       title: "Sociální sítě pro\nkomplexní realitu.",
       subtitle: "Topíme se v obsahu, ale hladovíme po kontextu.",
-      description: "Cite stojí na jednoduché myšlence: Autorita by měla vycházet z odkazů, ne z virality. Algoritmus jsme nahradili grafem citací. Tvé klidné místo pro přemýšlení a psaní.",
+      description: "Cite stojí na jednoduché myšlence: Autorita by měla vycházet z odkazov, ne z virality. Algoritmus jsme nahradili grafem citací. Tvé klidné místo pro přemýšlení a psaní.",
       cta_primary: "Připoj se k síti",
       cta_secondary: "Přečti si Manifest",
     },
@@ -1008,7 +1020,7 @@ export const translations = {
       card_1_title: "Inline citace",
       card_1_text: "Propoj své myšlenky přímo se zdroji. Citování je tu základ. Tím buduješ síť důvěry.",
       card_2_title: "Graf reputace",
-      card_2_text: "Na Cite jsi vidět, když tě citují. Meritokracie, kde kvalita stoupá, protože je užitečná, ne proto, že je hlučná.",
+      card_2_text: "Na Cite si vidět, když tě citují. Meritokracie, kde kvalita stoupá, protože je užitečná, ne proto, že je hlučná.",
       card_3_title: "Soukromé signály",
       card_3_text: "Veřejné lajky vytvářejí úzkost z výkonu. Udělali jsme je soukromé. Ocenění práce ano, divadlo pro dav ne.",
     },
@@ -1018,7 +1030,7 @@ export const translations = {
     },
     visuals: {
       title: "Vizuální ticho",
-      text: "Omezujeme obrázky záměrně. Žádná selfie, žádní influenceři, žádný vizuální smog. Jen text a nadpisy. Prostor pro čtení, ne pro scrollování.",
+      text: "Omezujeme obrázky záměrně. Žádné selfie, žádní influenceři, žádný vizuální smog. Jen text a nadpisy. Prostor pro čtení, ne pro scrollování.",
     },
     business: {
       title: "Férový byznys",
@@ -1061,6 +1073,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Tiráž",
       privacy: "Soukromí",
+      ai_transparency: "AI Transparentnost",
       terms: "Podmínky",
       roadmap: "Plán",
     }
@@ -1143,6 +1156,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Impresszum",
       privacy: "Adatvédelem",
+      ai_transparency: "AI Átláthatóság",
       terms: "Feltételek",
       roadmap: "Útiterv",
     }
@@ -1225,6 +1239,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Date companie",
       privacy: "Confidențialitate",
+      ai_transparency: "Transparență AI",
       terms: "Termeni",
       roadmap: "Foaie de parcurs",
     }
@@ -1307,6 +1322,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Импресум",
       privacy: "Поверителност",
+      ai_transparency: "AI Прозрачност",
       terms: "Условия",
       roadmap: "План",
     }
@@ -1389,6 +1405,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Impresum",
       privacy: "Privatnost",
+      ai_transparency: "AI Transparentnost",
       terms: "Uvjeti",
       roadmap: "Plan",
     }
@@ -1424,7 +1441,7 @@ export const translations = {
     },
     archiving: {
       title: "Citácie navždy",
-      text: "Kontext by nikdy nemal končiť chybou 404. Cite automaticky ukladá každý externý odkaz do Internet Archive. Tvoje zdroje sú chránené navždy.",
+      text: "Kontekst by nikdy nemal končiť chybou 404. Cite automaticky ukladá každý externý odkaz do Internet Archive. Tvoje zdroje sú chránené navždy.",
     },
     visuals: {
       title: "Vizuálne ticho",
@@ -1471,6 +1488,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Tiráž",
       privacy: "Súkromie",
+      ai_transparency: "AI Transparentnosť",
       terms: "Podmienky",
       roadmap: "Plán",
     }
@@ -1553,6 +1571,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Impresum",
       privacy: "Zasebnost",
+      ai_transparency: "AI Transparentnost",
       terms: "Pogoji",
       roadmap: "Načrt",
     }
@@ -1635,6 +1654,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Rekvizitai",
       privacy: "Privatumas",
+      ai_transparency: "DI skaidrumas",
       terms: "Sąlygos",
       roadmap: "Planas",
     }
@@ -1717,6 +1737,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Rekvizīti",
       privacy: "Privātums",
+      ai_transparency: "MI caurspīdīgums",
       terms: "Noteikumi",
       roadmap: "Plāns",
     }
@@ -1752,7 +1773,7 @@ export const translations = {
     },
     archiving: {
       title: "Tsitaadid igaveseks",
-      text: "Kontekst ei tohi kunagi anda viga 404. Cite salvestab automaatselt iga välise lingi Internet Archive'i. Sinu allikad on kaitstud igavesti.",
+      text: "Kontekst ei tohi kunagi anda viga 404. Cite salvestab automaattisesti iga välise lingi Internet Archive'i. Sinu allikad on kaitstud igavesti.",
     },
     visuals: {
       title: "Visuaalne vaikus",
@@ -1790,7 +1811,7 @@ export const translations = {
       verified_text: "Eelistame inimeste kontrollimist. Botid jäävad ukse taha.",
     },
     cta_final: {
-      title: "Ajalugu kirjutavad need,\nkes kirjutavad.",
+      title: "Ajalugu kirjutavad need,\njotka kirjutavad.",
       subtitle: "Alusta täna.",
       button: "Alusta oma arhiivi",
       note: "Beeta ligipääs on avatud.",
@@ -1799,6 +1820,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Rekvisiidid",
       privacy: "Privaatsus",
+      ai_transparency: "AI läbipaistvus",
       terms: "Tingimused",
       roadmap: "Teekaart",
     }
@@ -1881,6 +1903,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Informazzjoni Legali",
       privacy: "Privatezza",
+      ai_transparency: "Trasparenza tal-IA",
       terms: "Termini",
       roadmap: "Pjan Direzzjonali",
     }
@@ -1963,6 +1986,7 @@ export const translations = {
       rights: "© 2026 Cite Systems GmbH",
       imprint: "Eolas Dlíthiúil",
       privacy: "Príobháideacht",
+      ai_transparency: "Trédhearcacht AI",
       terms: "Téarmaí",
       roadmap: "Treochlár",
     }

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Post } from './post.entity';
 
 export enum EdgeType {
@@ -12,9 +12,11 @@ export class PostEdge {
   id: string;
 
   @Column({ name: 'from_post_id', type: 'uuid' })
+  @Index()
   fromPostId: string;
 
   @Column({ name: 'to_post_id', type: 'uuid' })
+  @Index()
   toPostId: string;
 
   @ManyToOne(() => Post)

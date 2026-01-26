@@ -2,75 +2,116 @@ import Link from 'next/link';
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-[#0B0B0C] text-[#F2F2F2]">
-      <nav className="fixed top-0 inset-x-0 z-50 flex items-center px-6 py-6 md:px-12 bg-[#0B0B0C]/80 backdrop-blur-md border-b border-[#1A1A1D]">
-        <Link href="/" className="text-sm font-medium text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors">
-          &larr; Back to Home
-        </Link>
-      </nav>
+    <div className="max-w-3xl mx-auto px-6 py-20 text-paper">
+      <header className="mb-12">
+        <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6 tracking-tight">Privacy Policy</h1>
+        <p className="text-lg text-secondary">Effective Date: January 26, 2026</p>
+        <p className="text-sm text-tertiary mt-2"> compliant with Regulation (EU) 2016/679 (GDPR)</p>
+      </header>
 
-      <main className="max-w-[680px] mx-auto pt-32 pb-20 px-6">
-        <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#F2F2F2] mb-8">Privacy Policy</h1>
-        
-        <div className="prose prose-invert prose-lg text-[#A8A8AA] max-w-none">
-          <p className="mb-8 font-medium text-[#F2F2F2]">Effective Date: January 24, 2026</p>
+      <div className="prose prose-invert prose-p:text-secondary prose-headings:text-paper max-w-none">
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">1. Data Controller</h2>
+          <p className="mb-4">
+            The responsible party (Controller) within the meaning of the GDPR is:
+          </p>
+          <p className="mb-2">
+            <strong>Cite Systems GmbH</strong> (in formation)<br/>
+            Sample Street 123<br/>
+            10115 Berlin, Germany<br/>
+            Email: legal@cite.social
+          </p>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">2. Data Processing & Legal Basis</h2>
+          <p className="mb-4">We process personal data only when we have a legal basis (Art. 6 GDPR).</p>
           
-          <h2 className="text-xl font-semibold text-[#F2F2F2] mt-12 mb-4">1. Introduction</h2>
-          <p>
-            CITE Systems GmbH ("we", "us", or "our") respects your privacy and is committed to protecting your personal data. 
-            This privacy policy will inform you as to how we look after your personal data when you visit our website or use our application 
-            and tell you about your privacy rights and how the law protects you.
-          </p>
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-xl font-bold mb-2">2.1 Account & Identity</h3>
+              <p><strong>Data:</strong> Email, Display Name, Handle, Password Hash (if applicable).</p>
+              <p><strong>Purpose:</strong> To provide the Service and authentication.</p>
+              <p><strong>Legal Basis:</strong> Art. 6(1)(b) GDPR (Contract Performance).</p>
+            </div>
 
-          <h2 className="text-xl font-semibold text-[#F2F2F2] mt-12 mb-4">2. Data Controller</h2>
-          <p>
-            CITE Systems GmbH<br />
-            [Street Address]<br />
-            [City, Zip Code]<br />
-            Germany<br />
-            Email: <a href="mailto:privacy@cite.app" className="text-[#6E7A8A] hover:text-[#F2F2F2]">privacy@cite.app</a>
-          </p>
+            <div>
+              <h3 className="text-xl font-bold mb-2">2.2 User-Generated Content</h3>
+              <p><strong>Data:</strong> Posts, Replies, Quotes, Collections, Bio.</p>
+              <p><strong>Purpose:</strong> Publication and distribution as requested by the user.</p>
+              <p><strong>Legal Basis:</strong> Art. 6(1)(b) GDPR (Contract Performance) and Art. 6(1)(f) GDPR (Legitimate Interest in freedom of expression).</p>
+            </div>
 
-          <h2 className="text-xl font-semibold text-[#F2F2F2] mt-12 mb-4">3. The Data We Collect</h2>
-          <p>We may collect, use, store and transfer different kinds of personal data about you which we have grouped together follows:</p>
-          <ul className="list-disc pl-5 mt-4 space-y-2">
-            <li><strong>Identity Data:</strong> includes username (handle), display name.</li>
-            <li><strong>Contact Data:</strong> includes email address.</li>
-            <li><strong>Content Data:</strong> includes posts, replies, quotes, and collections you create.</li>
-            <li><strong>Technical Data:</strong> includes internet protocol (IP) address, login data, browser type and version, time zone setting and location, and device information.</li>
+            <div>
+              <h3 className="text-xl font-bold mb-2">2.3 Technical Telemetry & Security</h3>
+              <p><strong>Data:</strong> IP Address, User Agent, Request Timestamp, Error Logs.</p>
+              <p><strong>Purpose:</strong> DDoS protection, fraud prevention, and debugging.</p>
+              <p><strong>Legal Basis:</strong> Art. 6(1)(f) GDPR (Legitimate Interest in network security).</p>
+              <p><strong>Retention:</strong> Logs are strictly rotated and deleted after 14 days unless required for evidence in a security incident.</p>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold mb-2">2.4 Relevance Signals (Internal)</h3>
+              <p><strong>Data:</strong> Read time, scrolling behavior, interaction graph.</p>
+              <p><strong>Purpose:</strong> To rank content in the "Explore" feed.</p>
+              <p><strong>Legal Basis:</strong> Art. 6(1)(f) GDPR (Legitimate Interest in product improvement) or Art. 6(1)(a) GDPR (Consent, where applicable via Settings).</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">3. Data Processors (Third Parties)</h2>
+          <p className="mb-4">
+            We strictly limit data sharing. We use the following processors under Data Processing Agreements (DPAs) ensuring GDPR compliance:
+          </p>
+          <ul className="list-disc pl-5 space-y-2">
+            <li><strong>Hetzner Online GmbH (Germany/Finland):</strong> Hosting, Database, Object Storage. (No data transfer outside EU).</li>
+            <li><strong>Supabase (USA/EU):</strong> Authentication services. Data stored in EU-West (Frankfurt) region.</li>
+            <li><strong>Transactional Email Provider (EU):</strong> Sending system emails (magic links).</li>
+            <li><strong>Apple (APNs) & Google (FCM):</strong> Strictly for delivering push notifications to your device.</li>
           </ul>
+        </section>
 
-          <h2 className="text-xl font-semibold text-[#F2F2F2] mt-12 mb-4">4. How We Use Your Data</h2>
-          <p>We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:</p>
-          <ul className="list-disc pl-5 mt-4 space-y-2">
-            <li>To register you as a new customer (performance of a contract).</li>
-            <li>To enable you to post content and interact with other users (performance of a contract).</li>
-            <li>To manage our relationship with you (legal obligation).</li>
-            <li>To improve our website, products/services, marketing, customer relationships and experiences (legitimate interests).</li>
-          </ul>
-
-          <h2 className="text-xl font-semibold text-[#F2F2F2] mt-12 mb-4">5. Data Storage & Hosting</h2>
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">4. International Transfers</h2>
           <p>
-            Your data is stored exclusively on servers located within the European Union. We use Hetzner Online GmbH (Gunzenhausen, Germany) 
-            as our hosting provider. This ensures strict adherence to GDPR regulations regarding data sovereignty and security.
+            We prioritize storage within the European Economic Area (EEA). If data is transferred to a third country (e.g., via a CDN or specific sub-processor), we ensure appropriate safeguards such as Standard Contractual Clauses (SCCs) adopted by the European Commission.
           </p>
+        </section>
 
-          <h2 className="text-xl font-semibold text-[#F2F2F2] mt-12 mb-4">6. Your Legal Rights</h2>
-          <p>Under certain circumstances, you have rights under data protection laws in relation to your personal data, including the right to:</p>
-          <ul className="list-disc pl-5 mt-4 space-y-2">
-            <li>Request access to your personal data.</li>
-            <li>Request correction of your personal data.</li>
-            <li>Request erasure of your personal data ("right to be forgotten").</li>
-            <li>Object to processing of your personal data.</li>
-            <li>Request restriction of processing your personal data.</li>
-            <li>Request transfer of your personal data.</li>
-            <li>Right to withdraw consent.</li>
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">5. Your Rights</h2>
+          <p className="mb-4">Under the GDPR, you have the right to:</p>
+          <ul className="list-disc pl-5 space-y-2">
+            <li><strong>Access (Art. 15):</strong> Request a copy of your data.</li>
+            <li><strong>Rectification (Art. 16):</strong> Correct inaccurate data.</li>
+            <li><strong>Erasure / "Right to be Forgotten" (Art. 17):</strong> Delete your account and data.</li>
+            <li><strong>Restriction (Art. 18):</strong> Pause processing in specific cases.</li>
+            <li><strong>Data Portability (Art. 20):</strong> Receive your data in a structured, machine-readable format (JSON/CSV).</li>
+            <li><strong>Objection (Art. 21):</strong> Object to processing based on legitimate interest.</li>
           </ul>
-          <p className="mt-6">
-            You can exercise these rights by contacting us or using the "Data Export" and "Delete Account" functions in your settings.
+          <p className="mt-4">
+            To exercise these rights, email: legal@cite.social or use the "Data" section in Settings.
           </p>
-        </div>
-      </main>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">6. Right to Lodge a Complaint</h2>
+          <p>
+            You have the right to lodge a complaint with a supervisory authority, in particular in the Member State of your habitual residence, place of work, or place of the alleged infringement.
+          </p>
+          <p className="mt-2">
+            Our lead supervisory authority is: <strong>Berliner Beauftragte für Datenschutz und Informationsfreiheit</strong>.
+          </p>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">7. Automated Decision Making</h2>
+          <p>
+            We do not use automated decision-making or profiling that produces legal effects concerning you (Art. 22 GDPR). Our "Relevance" algorithms affect content ordering but do not restrict access to the service.
+          </p>
+        </section>
+      </div>
     </div>
   );
 }

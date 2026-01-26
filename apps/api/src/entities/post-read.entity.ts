@@ -9,9 +9,11 @@ export class PostRead {
   id: string;
 
   @Column({ name: 'user_id' })
+  @Index()
   userId: string;
 
   @Column({ name: 'post_id' })
+  @Index()
   postId: string;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

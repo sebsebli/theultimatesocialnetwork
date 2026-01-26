@@ -23,8 +23,8 @@ export const isValidEmail = (email: string): boolean => {
 // Validate handle
 export const isValidHandle = (handle: string): boolean => {
   if (!handle || typeof handle !== 'string') return false;
-  // 3-30 chars, alphanumeric + underscore, no spaces
-  const handleRegex = /^[a-zA-Z0-9_]{3,30}$/;
+  // 3-30 chars, lowercase alphanumeric + underscore only, no spaces
+  const handleRegex = /^[a-z0-9_]{3,30}$/;
   return handleRegex.test(handle);
 };
 

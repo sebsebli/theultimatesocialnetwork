@@ -26,11 +26,19 @@ export function validateToken(token: string): boolean {
   return /^[a-zA-Z0-9]{4,10}$/.test(token);
 }
 
+export function validateHandle(handle: string): boolean {
+  if (!handle || typeof handle !== 'string') return false;
+  // 3-30 chars, lowercase alphanumeric + underscore only
+  return /^[a-z0-9_]{3,30}$/.test(handle);
+}
+
 export function sanitizeHTML(input: string): string {
   if (!input || typeof input !== 'string') return '';
-  // Basic HTML sanitization - remove script tags and dangerous attributes
+  // Basic HTML sanitization - remove script tags and dangerous attributes/protocols
   return input
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/on\w+="[^"]*"/gi, '')
-    .replace(/on\w+='[^']*'/gi, '');
+    .replace(/on\w+='[^']*'/gi, '')
+    .replace(/href="javascript:[^"]*"/gi, 'href="#"')
+    .replace(/href='javascript:[^']*'/gi, "href='#'");
 }

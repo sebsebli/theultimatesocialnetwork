@@ -20,4 +20,12 @@ export class AuthController {
   async verify(@Body() dto: VerifyDto) {
     return this.authService.verifyToken(dto.email, dto.token);
   }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout() {
+    // Statistically stateless JWT logout, but provided for standard API compatibility
+    // and potential future blacklisting or session management.
+    return { success: true };
+  }
 }

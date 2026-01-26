@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
 @Entity('topics')
 export class Topic {
@@ -6,6 +6,7 @@ export class Topic {
   id: string;
 
   @Column({ unique: true })
+  @Index()
   slug: string;
 
   @Column()
@@ -15,5 +16,6 @@ export class Topic {
   createdAt: Date;
 
   @Column({ name: 'created_by', type: 'uuid', nullable: true })
+  @Index()
   createdBy: string;
 }

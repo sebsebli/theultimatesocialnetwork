@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
 
-    const publicRoutes = ['/', '/welcome', '/sign-in', '/verify', '/privacy', '/terms', '/imprint', '/roadmap', '/manifesto'];
+    const publicRoutes = ['/', '/welcome', '/sign-in', '/verify', '/privacy', '/terms', '/imprint', '/ai-transparency', '/roadmap', '/manifesto'];
     const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/verify');
 
     if (!isAuthenticated && !isPublicRoute) {

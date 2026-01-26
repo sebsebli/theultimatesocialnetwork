@@ -20,14 +20,35 @@ function SignInForm() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Check for existing cooldown
+    const savedCooldown = sessionStorage.getItem('signin_cooldown');
+    if (savedCooldown) {
+      const remaining = Math.ceil((parseInt(savedCooldown) - Date.now()) / 1000);
+      if (remaining > 0) setCooldown(remaining);
+    }
+  }, []);
+
+  useEffect(() => {
     let interval: NodeJS.Timeout;
     if (cooldown > 0) {
       interval = setInterval(() => {
-        setCooldown((c) => c - 1);
+        setCooldown((c) => {
+          if (c <= 1) {
+            sessionStorage.removeItem('signin_cooldown');
+            return 0;
+          }
+          return c - 1;
+        });
       }, 1000);
     }
     return () => clearInterval(interval);
   }, [cooldown]);
+
+  const startCooldown = () => {
+    const duration = 60;
+    setCooldown(duration);
+    sessionStorage.setItem('signin_cooldown', (Date.now() + duration * 1000).toString());
+  };
 
   useEffect(() => {
     const code = searchParams.get('code');
@@ -66,7 +87,7 @@ function SignInForm() {
 
         // Check for rate limit
         if (res.status === 400 && data.message === 'Please wait before sending another code') {
-          setCooldown(60);
+          startCooldown();
           throw new Error('Please wait 60 seconds before requesting another code.');
         }
 
@@ -74,7 +95,7 @@ function SignInForm() {
       }
 
       setStep('token');
-      setCooldown(60);
+      startCooldown();
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
     } finally {

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Req, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { InvitesService } from './invites.service';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -12,16 +12,13 @@ export class InvitesController {
   async generate(@CurrentUser() user: { id: string }) {
     const isBeta = await this.invitesService.isBetaMode();
     if (!isBeta) {
-       // If beta is off, maybe disable user invites? Or allow as referral?
-       // The prompt says "option to generate new codes is deleted".
-       // So we throw.
-       throw new Error('Invite generation is disabled (Beta Over)');
+       throw new BadRequestException('Invite generation is disabled (Beta Over)');
     }
     
     // Check remaining
     const status = await this.invitesService.getMyInvites(user.id);
     if (status.remaining <= 0) {
-        throw new Error('No invites remaining');
+        throw new BadRequestException('No invites remaining');
     }
 
     const code = await this.invitesService.generateCode(user.id);

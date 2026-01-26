@@ -75,6 +75,10 @@ export const buttonStyles = StyleSheet.create({
   primaryDisabled: {
     opacity: 0.5,
   },
+  pressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.98 }],
+  },
 
   // Secondary button (outline)
   secondary: {

@@ -310,12 +310,13 @@ export default function IndexScreen() {
             ) : (
               <>
                 <TextInput
-                  style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }]}
+                  style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontWeight: 'bold', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }]}
                   placeholder="000000"
                   placeholderTextColor={COLORS.tertiary}
                   value={token}
                   onChangeText={(val: string) => setToken(val.replace(/\D/g, '').slice(0, 6))}
                   keyboardType="number-pad"
+                  textContentType="oneTimeCode"
                   autoFocus
                 />
 

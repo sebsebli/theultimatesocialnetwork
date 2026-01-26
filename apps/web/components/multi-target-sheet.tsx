@@ -30,34 +30,32 @@ export function MultiTargetSheet({ targets, onClose }: MultiTargetSheetProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose}>
       <div
-        className="w-full max-w-md mx-auto bg-ink border-t border-divider rounded-t-2xl max-h-[80vh] overflow-y-auto"
+        className="w-full max-w-md mx-auto bg-ink border-t border-divider rounded-t-3xl max-h-[85vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom-full duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-ink border-b border-divider px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-paper">Link to</h3>
-            <button
-              onClick={onClose}
-              className="text-tertiary hover:text-paper transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+        <div className="sticky top-0 bg-ink/95 backdrop-blur-md border-b border-divider px-6 py-4 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-paper tracking-tight">Select target</h3>
+          <button
+            onClick={onClose}
+            className="p-2 -mr-2 text-tertiary hover:text-paper hover:bg-white/5 rounded-full transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
-        <div className="px-6 py-4 space-y-2">
+        <div className="px-4 py-6 space-y-3 overflow-y-auto custom-scrollbar">
           {targets.map((target, index) => (
             <button
               key={index}
               onClick={() => handleTargetClick(target)}
-              className="w-full p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors text-left"
+              className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all duration-200 group active:scale-[0.98]"
             >
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center text-primary shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:bg-primary/20 transition-colors shadow-inner">
                   {target.type === 'topic' && (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />

@@ -24,11 +24,15 @@ interface Notification {
 
 export default function InboxPage() {
   const [activeTab, setActiveTab] = useState<'notifications' | 'messages'>('notifications');
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [tabData, setTabData] = useState<{
+    notifications: Notification[];
+  }> ({
+    notifications: [],
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'notifications') {
+    if (activeTab === 'notifications' && tabData.notifications.length === 0) {
       loadNotifications();
     }
   }, [activeTab]);
@@ -39,7 +43,7 @@ export default function InboxPage() {
       const res = await fetch('/api/notifications');
       if (res.ok) {
         const data = await res.json();
-        setNotifications(data);
+        setTabData(prev => ({ ...prev, notifications: data }));
       }
     } catch (error) {
       console.error('Failed to load notifications', error);
@@ -48,86 +52,43 @@ export default function InboxPage() {
     }
   };
 
-  const formatNotificationText = (notif: Notification) => {
-    switch (notif.type) {
-      case 'FOLLOW':
-        return `${notif.actor?.displayName} started following you`;
-      case 'REPLY':
-        return `${notif.actor?.displayName} replied to your post`;
-      case 'QUOTE':
-        return `${notif.actor?.displayName} quoted your post`;
-      case 'LIKE':
-        return `${notif.actor?.displayName} liked your post`;
-      case 'MENTION':
-        return `${notif.actor?.displayName} mentioned you`;
-      default:
-        return 'New notification';
+  const markAllRead = async () => {
+    try {
+      await fetch('/api/notifications/read-all', { method: 'POST' });
+      // Update local state optimistically
+      setTabData(prev => ({
+        ...prev,
+        notifications: prev.notifications.map(n => ({ ...n, readAt: new Date().toISOString() }))
+      }));
+    } catch (e) {
+      console.error(e);
+      loadNotifications(); // Reload on failure
     }
   };
 
-  return (
-    <div className="flex min-h-screen bg-ink">
-      <DesktopSidebar />
-      <main className="flex-1 flex justify-center lg:max-w-4xl xl:max-w-5xl">
-        <div className="w-full border-x border-divider">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 py-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-paper">Inbox</h1>
-          {activeTab === 'notifications' && notifications.length > 0 && (
-            <button
-              onClick={async () => {
-                await fetch('/api/notifications/read-all', { method: 'POST' });
-                loadNotifications();
-              }}
-              className="text-primary text-sm font-medium hover:underline"
-            >
-              Mark all read
-            </button>
-          )}
-        </div>
-      </header>
+  // ... (inside render)
+  {activeTab === 'notifications' && tabData.notifications.length > 0 && (
+    <button
+      onClick={markAllRead}
+      className="text-primary text-sm font-medium hover:underline"
+    >
+      Mark all read
+    </button>
+  )}
 
-      {/* Tabs */}
-      <div className="sticky top-[60px] z-10 bg-ink border-b border-divider">
-        <div className="flex px-6">
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'notifications'
-                ? 'border-primary text-paper'
-                : 'border-transparent text-tertiary hover:text-paper'
-            }`}
-          >
-            Notifications
-          </button>
-          <button
-            onClick={() => setActiveTab('messages')}
-            className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
-              activeTab === 'messages'
-                ? 'border-primary text-paper'
-                : 'border-transparent text-tertiary hover:text-paper'
-            }`}
-          >
-            Messages
-          </button>
+  // ... (inside Content section)
+  {activeTab === 'notifications' && (
+    <div className="space-y-4">
+      {loading && tabData.notifications.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-secondary text-sm">Loading notifications...</p>
         </div>
-      </div>
-
-      {/* Content */}
-      <div className="px-6 py-6">
-        {activeTab === 'notifications' && (
-          <div className="space-y-4">
-            {loading ? (
-              <div className="text-center py-12">
-                <p className="text-secondary text-sm">Loading...</p>
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-secondary text-sm">No notifications yet.</p>
-              </div>
-            ) : (
-              notifications.map((notif) => (
+      ) : tabData.notifications.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-secondary text-sm">No notifications yet.</p>
+        </div>
+      ) : (
+        tabData.notifications.map((notif) => (
                 <Link
                   key={notif.id}
                   href={notif.post ? `/post/${notif.post.id}` : '#'}

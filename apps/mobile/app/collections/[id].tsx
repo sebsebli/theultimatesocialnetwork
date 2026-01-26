@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIn
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
@@ -20,6 +21,7 @@ export default function CollectionDetailScreen() {
   const [hasMore, setHasMore] = useState(true);
 
   const handleShare = async () => {
+    Haptics.selectionAsync();
     try {
       await Share.share({
         message: `Check out this collection: https://cite.app/collections/${id}`,
@@ -30,6 +32,7 @@ export default function CollectionDetailScreen() {
   };
 
   const handleTogglePublic = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newValue = !collection.isPublic;
     setCollection((prev: any) => ({ ...prev, isPublic: newValue }));
     try {
@@ -61,9 +64,12 @@ export default function CollectionDetailScreen() {
       setLoadingMore(true);
     }
     try {
+      // Step 1: Load collection metadata first
       const collectionData = await api.get(`/collections/${id}`);
       setCollection(collectionData);
-      
+      setLoading(false); // Show metadata instantly
+
+      // Step 2: Load items in background
       const itemsData = await api.get(`/collections/${id}/items?page=${pageNum}&limit=20`);
       const itemsList = Array.isArray(itemsData.items || itemsData) ? (itemsData.items || itemsData) : [];
       
@@ -77,8 +83,8 @@ export default function CollectionDetailScreen() {
       setHasMore(hasMoreData);
     } catch (error) {
       console.error('Failed to load collection', error);
-    } finally {
       setLoading(false);
+    } finally {
       setRefreshing(false);
       setLoadingMore(false);
     }

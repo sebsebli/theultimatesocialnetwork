@@ -238,6 +238,7 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Link href="/terms" className="block text-primary hover:underline">Terms of Service</Link>
             <Link href="/privacy" className="block text-primary hover:underline">Privacy Policy</Link>
+            <Link href="/ai-transparency" className="block text-primary hover:underline">AI Transparency</Link>
             <Link href="/imprint" className="block text-primary hover:underline">Imprint</Link>
           </div>
         </section>
