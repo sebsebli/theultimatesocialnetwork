@@ -32,6 +32,7 @@
       "expo-secure-store",
       "expo-localization"
     ],
-    "scheme": "cite"
+    "scheme": "cite",
+    "main": "index.ts"
   }
 }

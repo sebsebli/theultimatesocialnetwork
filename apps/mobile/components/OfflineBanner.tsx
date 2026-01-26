@@ -1,16 +1,18 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONTS } from '../constants/theme';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 export function OfflineBanner() {
   const { isOffline } = useNetworkStatus();
+  const insets = useSafeAreaInsets();
 
   if (!isOffline) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, SPACING.s) }]}>
       <MaterialIcons name="wifi-off" size={16} color={COLORS.paper} />
       <Text style={styles.text}>No internet connection</Text>
     </View>
@@ -25,6 +27,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.error,
     paddingVertical: SPACING.s,
     paddingHorizontal: SPACING.m,
+    paddingBottom: SPACING.s,
     gap: SPACING.s,
   },
   text: {

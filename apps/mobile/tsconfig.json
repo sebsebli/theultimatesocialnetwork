@@ -2,15 +2,20 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "skipLibCheck": true,
+    "skipLibCheck": false,
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "typeRoots": ["./node_modules/@types", "./types"],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./types"
+    ],
     "baseUrl": ".",
-    "preserveSymlinks": false
+    "preserveSymlinks": true,
+    "module": "esnext",
+    "target": "esnext"
   },
   "include": [
     "**/*.ts",

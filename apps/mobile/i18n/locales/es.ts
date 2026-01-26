@@ -39,7 +39,10 @@ export default {
     error: 'Error',
     failedSend: 'Error al enviar enlace',
     invalid: 'Token o correo inválido',
-    enterToken: 'Enter token'
+    enterToken: 'Enter token',
+    signUpAgreement: 'Al registrarte, aceptas nuestros {{terms}} y nuestra {{privacy}}',
+    termsLink: 'Términos de Servicio',
+    privacyLink: 'Política de Privacidad',
   },
   onboarding: {
     profile: {
@@ -258,5 +261,21 @@ export default {
     typeMessage: 'Type a message...',
     noMessages: 'No messages',
     send: 'Send'
+  },
+  waitingList: {
+    title: 'Unirse a la lista de espera',
+    heading: 'Obtener acceso anticipado',
+    description: 'CITE está actualmente en beta. Únete a la lista de espera para ser notificado cuando haya invitaciones disponibles.',
+    emailPlaceholder: 'Ingresa tu correo',
+    join: 'Unirse a la lista de espera',
+    success: 'Éxito',
+    successMessage: '¡Has sido agregado a la lista de espera! Te notificaremos cuando haya invitaciones disponibles.',
+    emailRequired: 'El correo es requerido',
+    invalidEmail: 'Por favor ingresa una dirección de correo válida',
+    rateLimited: 'Demasiadas solicitudes. Por favor intenta más tarde.',
+    tooManyRequests: 'Demasiadas solicitudes desde esta dirección IP.',
+    failed: 'Error al unirse a la lista de espera. Por favor intenta de nuevo.',
+    info: 'Solo usaremos tu correo para notificarte sobre la disponibilidad de invitaciones.',
+    acceptTermsRequired: 'Por favor acepta los Términos de Servicio y la Política de Privacidad para continuar',
   }
 };

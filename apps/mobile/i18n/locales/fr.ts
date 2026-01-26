@@ -40,6 +40,9 @@ export default {
     'error': 'Erreur',
     'failedSend': 'Échec de l\'envoi du lien',
     'invalid': 'Jeton ou email invalide',
+    'signUpAgreement': 'En vous inscrivant, vous acceptez nos {{terms}} et notre {{privacy}}',
+    'termsLink': 'Conditions d\'utilisation',
+    'privacyLink': 'Politique de confidentialité',
   },
   'onboarding': {
     'profile': {
@@ -247,6 +250,22 @@ export default {
     'typeMessage': 'Tapez un message...',
     'noMessages': 'Aucun message',
     'send': 'Envoyer'
+  },
+  'waitingList': {
+    'title': 'Rejoindre la liste d\'attente',
+    'heading': 'Obtenir un accès anticipé',
+    'description': 'CITE est actuellement en version bêta. Rejoignez la liste d\'attente pour être averti lorsque des invitations deviennent disponibles.',
+    'emailPlaceholder': 'Entrez votre e-mail',
+    'join': 'Rejoindre la liste d\'attente',
+    'success': 'Succès',
+    'successMessage': 'Vous avez été ajouté à la liste d\'attente ! Nous vous avertirons lorsque des invitations seront disponibles.',
+    'emailRequired': 'L\'e-mail est requis',
+    'invalidEmail': 'Veuillez entrer une adresse e-mail valide',
+    'rateLimited': 'Trop de demandes. Veuillez réessayer plus tard.',
+    'tooManyRequests': 'Trop de demandes depuis cette adresse IP.',
+    'failed': 'Échec de l\'ajout à la liste d\'attente. Veuillez réessayer.',
+    'info': 'Nous n\'utiliserons votre e-mail que pour vous informer de la disponibilité des invitations.',
+    'acceptTermsRequired': 'Veuillez accepter les Conditions d\'utilisation et la Politique de confidentialité pour continuer',
   },
   'common': {
     'loading': 'Chargement...',

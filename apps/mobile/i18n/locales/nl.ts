@@ -39,7 +39,10 @@ export default {
     error: 'Fout',
     failedSend: 'Verzenden mislukt',
     invalid: 'Ongeldig token of e-mail',
-    enterToken: 'Enter token'
+    enterToken: 'Enter token',
+    signUpAgreement: 'Door je te registreren, ga je akkoord met onze {{terms}} en {{privacy}}',
+    termsLink: 'Servicevoorwaarden',
+    privacyLink: 'Privacybeleid',
   },
   onboarding: {
     profile: {
@@ -258,5 +261,21 @@ export default {
     typeMessage: 'Type a message...',
     noMessages: 'No messages',
     send: 'Send'
+  },
+  waitingList: {
+    title: 'Wachtlijst',
+    heading: 'Vroege toegang krijgen',
+    description: 'CITE is momenteel in bèta. Meld je aan voor de wachtlijst om op de hoogte te worden gebracht wanneer uitnodigingen beschikbaar zijn.',
+    emailPlaceholder: 'Voer je e-mail in',
+    join: 'Wachtlijst',
+    success: 'Succes',
+    successMessage: 'Je bent toegevoegd aan de wachtlijst! We laten je weten wanneer uitnodigingen beschikbaar zijn.',
+    emailRequired: 'E-mail is verplicht',
+    invalidEmail: 'Voer een geldig e-mailadres in',
+    rateLimited: 'Te veel verzoeken. Probeer het later opnieuw.',
+    tooManyRequests: 'Te veel verzoeken van dit IP-adres.',
+    failed: 'Kan niet toevoegen aan wachtlijst. Probeer het opnieuw.',
+    info: 'We gebruiken je e-mail alleen om je te informeren over de beschikbaarheid van uitnodigingen.',
+    acceptTermsRequired: 'Accepteer de Servicevoorwaarden en het Privacybeleid om door te gaan',
   }
 };

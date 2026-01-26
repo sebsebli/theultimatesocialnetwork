@@ -208,8 +208,8 @@ services:
 
   web:
     build:
-      context: ../..
-      dockerfile: apps/web/Dockerfile
+      context: ../../apps/web
+      dockerfile: Dockerfile
       target: runner
     container_name: cite-web
     ports:

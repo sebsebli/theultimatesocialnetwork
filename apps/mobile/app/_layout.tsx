@@ -26,7 +26,8 @@ import { useOfflineSync } from '../hooks/useOfflineSync';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import * as NavigationBar from 'expo-navigation-bar';
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
+import * as Notifications from 'expo-notifications';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 
@@ -148,6 +149,22 @@ export default function RootLayout() {
     } catch (error) {
       console.warn('Failed to configure notifications:', error);
     }
+
+    // Handle notification taps
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      try {
+        const deepLink = response.notification.request.content.data.deepLink;
+        if (deepLink) {
+          Linking.openURL(deepLink);
+        }
+      } catch (e) {
+        console.error('Failed to handle notification tap:', e);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const MyDarkTheme = {

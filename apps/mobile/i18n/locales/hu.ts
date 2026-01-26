@@ -39,7 +39,10 @@ export default {
     error: 'Hiba',
     failedSend: 'Nem sikerült elküldeni a mágikus linket',
     invalid: 'Érvénytelen token vagy e-mail',
-    enterToken: 'Enter token'
+    enterToken: 'Enter token',
+    signUpAgreement: 'A regisztrációval elfogadja a {{terms}} és a {{privacy}}',
+    termsLink: 'Szolgáltatási feltételek',
+    privacyLink: 'Adatvédelmi irányelvek',
   },
   onboarding: {
     profile: {
@@ -258,5 +261,21 @@ export default {
     typeMessage: 'Type a message...',
     noMessages: 'No messages',
     send: 'Send'
+  },
+  waitingList: {
+    title: 'Csatlakozás a várólistához',
+    heading: 'Korai hozzáférés',
+    description: 'A CITE jelenleg béta verzióban van. Csatlakozzon a várólistához, hogy értesítést kapjon, amikor meghívók válhatnak elérhetővé.',
+    emailPlaceholder: 'Adja meg az e-mail címét',
+    join: 'Csatlakozás a várólistához',
+    success: 'Sikeres',
+    successMessage: 'Hozzáadva a várólistához! Értesítjük, amikor meghívók válhatnak elérhetővé.',
+    emailRequired: 'Az e-mail kötelező',
+    invalidEmail: 'Kérjük, adjon meg egy érvényes e-mail címet',
+    rateLimited: 'Túl sok kérés. Kérjük, próbálja újra később.',
+    tooManyRequests: 'Túl sok kérés erről az IP-címről.',
+    failed: 'Nem sikerült csatlakozni a várólistához. Kérjük, próbálja újra.',
+    info: 'Az e-mail címét csak a meghívók elérhetőségéről való értesítéshez használjuk.',
+    acceptTermsRequired: 'Kérjük, fogadja el a Szolgáltatási feltételeket és az Adatvédelmi irányelveket a folytatáshoz',
   }
 };

@@ -63,6 +63,10 @@ class ApiClient {
         ...(options.headers as Record<string, string>),
       };
 
+      if (options.body instanceof FormData) {
+        delete headers['Content-Type'];
+      }
+
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
@@ -145,6 +149,20 @@ class ApiClient {
 
   async delete<T = any>(endpoint: string): Promise<T> {
     return this.request(endpoint, { method: 'DELETE' });
+  }
+
+  async upload<T = any>(endpoint: string, file: any): Promise<T> {
+    const formData = new FormData();
+    formData.append('image', {
+      uri: file.uri,
+      name: file.fileName || 'image.jpg',
+      type: file.type || 'image/jpeg',
+    } as any);
+
+    return this.request(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
   }
 }
 

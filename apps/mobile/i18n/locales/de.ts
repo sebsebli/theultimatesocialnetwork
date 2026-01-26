@@ -28,18 +28,21 @@ export default {
   signIn: {
     title: 'Anmelden',
     email: 'E-Mail',
-    sendLink: 'Magic Link senden',
+    sendLink: 'Bestätigungscode senden',
     resend: 'Erneut senden',
     changeEmail: 'E-Mail ändern',
     enterCode: 'Code eingeben, der an {{email}} gesendet wurde',
     enterToken: 'Token eingeben',
     verifying: 'Überprüfen...',
     verify: 'Überprüfen & Anmelden',
-    success: 'Magic Link gesendet',
+    success: 'Bestätigungscode gesendet',
     checkEmail: 'Prüfen Sie Ihre E-Mail (oder Konsole) auf den Token.',
     error: 'Fehler',
-    failedSend: 'Senden des Magic Links fehlgeschlagen',
-    invalid: 'Ungültiger Token oder E-Mail'
+    failedSend: 'Senden des Bestätigungscodes fehlgeschlagen',
+    invalid: 'Ungültiger Token oder E-Mail',
+    signUpAgreement: 'Mit der Registrierung stimmen Sie unseren {{terms}} und {{privacy}} zu',
+    termsLink: 'Nutzungsbedingungen',
+    privacyLink: 'Datenschutzerklärung',
   },
   onboarding: {
     profile: {
@@ -247,6 +250,22 @@ export default {
     typeMessage: 'Nachricht eingeben...',
     noMessages: 'Keine Nachrichten',
     send: 'Send'
+  },
+  waitingList: {
+    title: 'Warteliste beitreten',
+    heading: 'Frühen Zugang erhalten',
+    description: 'CITE ist derzeit in der Beta-Phase. Treten Sie der Warteliste bei, um benachrichtigt zu werden, wenn Einladungen verfügbar werden.',
+    emailPlaceholder: 'E-Mail eingeben',
+    join: 'Warteliste beitreten',
+    success: 'Erfolg',
+    successMessage: 'Sie wurden zur Warteliste hinzugefügt! Wir benachrichtigen Sie, wenn Einladungen verfügbar sind.',
+    emailRequired: 'E-Mail ist erforderlich',
+    invalidEmail: 'Bitte geben Sie eine gültige E-Mail-Adresse ein',
+    rateLimited: 'Zu viele Anfragen. Bitte versuchen Sie es später erneut.',
+    tooManyRequests: 'Zu viele Anfragen von dieser IP-Adresse.',
+    failed: 'Beitritt zur Warteliste fehlgeschlagen. Bitte versuchen Sie es erneut.',
+    info: 'Wir verwenden Ihre E-Mail nur, um Sie über die Verfügbarkeit von Einladungen zu informieren.',
+    acceptTermsRequired: 'Bitte akzeptieren Sie die Nutzungsbedingungen und die Datenschutzerklärung, um fortzufahren',
   },
   common: {
     loading: 'Laden...',

@@ -14,6 +14,7 @@ export default function ComposeScreen() {
   const params = useLocalSearchParams();
   const { t } = useTranslation();
   const quotePostId = params.quote as string | undefined;
+  const replyToPostId = params.replyTo as string | undefined;
   
   const [body, setBody] = useState('');
   const [title, setTitle] = useState(''); // Separate title state for cleaner UI, or parse from markdown? 
@@ -23,6 +24,7 @@ export default function ComposeScreen() {
   
   const [isPublishing, setIsPublishing] = useState(false);
   const [headerImage, setHeaderImage] = useState<string | null>(null);
+  const [headerImageAsset, setHeaderImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [autocomplete, setAutocomplete] = useState<{
     show: boolean;
     query: string;
@@ -44,16 +46,18 @@ export default function ComposeScreen() {
 
   useEffect(() => {
     if (quotePostId) {
-      loadQuotedPost();
+      loadQuotedPost(quotePostId);
+    } else if (replyToPostId) {
+      loadQuotedPost(replyToPostId);
     }
-  }, [quotePostId]);
+  }, [quotePostId, replyToPostId]);
 
-  const loadQuotedPost = async () => {
+  const loadQuotedPost = async (id: string) => {
     try {
-      const post = await api.get(`/posts/${quotePostId}`);
+      const post = await api.get(`/posts/${id}`);
       setQuotedPost(post);
     } catch (error) {
-      console.error('Failed to load quoted post', error);
+      console.error('Failed to load referenced post', error);
     }
   };
 
@@ -81,6 +85,7 @@ export default function ComposeScreen() {
 
       if (!result.canceled) {
         setHeaderImage(result.assets[0].uri);
+        setHeaderImageAsset(result.assets[0]);
       }
     } catch (error) {
       Alert.alert(t('common.error'), t('compose.failedPickImage'));
@@ -107,16 +112,20 @@ export default function ComposeScreen() {
 
     setIsPublishing(true);
     try {
-      // Upload image if exists (mock upload)
+      // Upload image if exists
       let imageKey = null;
-      if (headerImage) {
-        // In real app, upload to S3/MinIO here
-        imageKey = 'mock-image-key'; 
+      if (headerImageAsset) {
+        const uploadRes = await api.upload('/upload/header-image', headerImageAsset);
+        imageKey = uploadRes.key;
       }
 
       if (quotePostId) {
         await api.post('/posts/quote', {
           postId: quotePostId,
+          body: trimmedBody,
+        });
+      } else if (replyToPostId) {
+        await api.post(`/posts/${replyToPostId}/replies`, {
           body: trimmedBody,
         });
       } else {
@@ -253,7 +262,7 @@ export default function ComposeScreen() {
           <View style={styles.imagePreview}>
             <Image source={{ uri: headerImage }} style={styles.headerImage} />
             {!previewMode && (
-              <Pressable style={styles.removeImage} onPress={() => setHeaderImage(null)}>
+              <Pressable style={styles.removeImage} onPress={() => { setHeaderImage(null); setHeaderImageAsset(null); }}>
                 <MaterialIcons name="close" size={16} color="white" />
               </Pressable>
             )}

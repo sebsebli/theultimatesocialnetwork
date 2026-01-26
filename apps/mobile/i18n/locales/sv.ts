@@ -39,7 +39,10 @@ export default {
     error: 'Fel',
     failedSend: 'Misslyckades att skicka magisk länk',
     invalid: 'Ogiltig token eller e-post',
-    enterToken: 'Enter token'
+    enterToken: 'Enter token',
+    signUpAgreement: 'Genom att registrera dig godkänner du våra {{terms}} och {{privacy}}',
+    termsLink: 'Användarvillkor',
+    privacyLink: 'Integritetspolicy',
   },
   onboarding: {
     profile: {
@@ -258,5 +261,21 @@ export default {
     typeMessage: 'Type a message...',
     noMessages: 'No messages',
     send: 'Send'
+  },
+  waitingList: {
+    title: 'Gå med i väntelistan',
+    heading: 'Få tidig åtkomst',
+    description: 'CITE är för närvarande i beta. Gå med i väntelistan för att bli meddelad när inbjudningar blir tillgängliga.',
+    emailPlaceholder: 'Ange din e-post',
+    join: 'Gå med i väntelistan',
+    success: 'Framgång',
+    successMessage: 'Du har lagts till i väntelistan! Vi meddelar dig när inbjudningar blir tillgängliga.',
+    emailRequired: 'E-post krävs',
+    invalidEmail: 'Ange en giltig e-postadress',
+    rateLimited: 'För många förfrågningar. Försök igen senare.',
+    tooManyRequests: 'För många förfrågningar från denna IP-adress.',
+    failed: 'Kunde inte gå med i väntelistan. Försök igen.',
+    info: 'Vi använder endast din e-post för att meddela dig om tillgängligheten av inbjudningar.',
+    acceptTermsRequired: 'Vänligen acceptera Användarvillkor och Integritetspolicy för att fortsätta',
   }
 };

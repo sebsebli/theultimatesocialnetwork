@@ -39,7 +39,10 @@ export default {
     error: 'Chyba',
     failedSend: 'Nepodařilo se odeslat magický odkaz',
     invalid: 'Neplatný token nebo e-mail',
-    enterToken: 'Enter token'
+    enterToken: 'Enter token',
+    signUpAgreement: 'Registrací souhlasíte s našimi {{terms}} a {{privacy}}',
+    termsLink: 'Podmínky služby',
+    privacyLink: 'Zásady ochrany osobních údajů',
   },
   onboarding: {
     profile: {
@@ -258,5 +261,21 @@ export default {
     typeMessage: 'Type a message...',
     noMessages: 'No messages',
     send: 'Send'
+  },
+  waitingList: {
+    title: 'Připojit se k čekací listině',
+    heading: 'Získat časný přístup',
+    description: 'CITE je momentálně v beta verzi. Připojte se k čekací listině, abyste byli informováni, když budou pozvánky k dispozici.',
+    emailPlaceholder: 'Zadejte svůj e-mail',
+    join: 'Připojit se k čekací listině',
+    success: 'Úspěch',
+    successMessage: 'Byli jste přidáni do čekací listiny! Upozorníme vás, když budou pozvánky k dispozici.',
+    emailRequired: 'E-mail je povinný',
+    invalidEmail: 'Zadejte platnou e-mailovou adresu',
+    rateLimited: 'Příliš mnoho požadavků. Zkuste to později.',
+    tooManyRequests: 'Příliš mnoho požadavků z této IP adresy.',
+    failed: 'Nepodařilo se připojit k čekací listině. Zkuste to znovu.',
+    info: 'Váš e-mail použijeme pouze k upozornění na dostupnost pozvánek.',
+    acceptTermsRequired: 'Pro pokračování prosím přijměte Podmínky služby a Zásady ochrany osobních údajů',
   }
 };

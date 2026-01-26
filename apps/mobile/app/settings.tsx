@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView, Pressable, Switch, Alert, Linking }
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { api } from '../utils/api';
 import { useAuth } from '../context/auth';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
@@ -20,6 +21,31 @@ export default function SettingsScreen() {
   useEffect(() => {
     loadUser();
   }, []);
+
+  // Get base URL for legal links (use API base URL, assuming web is on same domain or subdomain)
+  const getBaseUrl = () => {
+    const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+    // If API is on a subdomain like api.cite.app, use the main domain
+    if (apiUrl.includes('api.')) {
+      return apiUrl.replace('api.', '');
+    }
+    // Otherwise assume web is on same base
+    return apiUrl.replace('/api', '').replace(/\/$/, '');
+  };
+
+  const openLegalLink = async (path: string) => {
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}${path}`;
+    try {
+      await WebBrowser.openBrowserAsync(url, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
+      });
+    } catch (error) {
+      console.error('Failed to open browser:', error);
+      // Fallback to regular linking
+      Linking.openURL(url);
+    }
+  };
 
   const loadUser = async () => {
     try {
@@ -92,8 +118,8 @@ export default function SettingsScreen() {
       t('settings.deleteConfirmMessage'),
       [
         { text: t('common.cancel'), style: 'cancel' },
-        { 
-          text: t('settings.deleteButton'), 
+        {
+          text: t('settings.deleteButton'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -254,13 +280,13 @@ export default function SettingsScreen() {
       {/* Legal */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('settings.legal')}</Text>
-        <Pressable style={styles.settingButton} onPress={() => router.push('/terms')}>
+        <Pressable style={styles.settingButton} onPress={() => openLegalLink('/terms')}>
           <Text style={styles.settingButtonText}>{t('settings.termsOfService')}</Text>
         </Pressable>
-        <Pressable style={styles.settingButton} onPress={() => router.push('/privacy')}>
+        <Pressable style={styles.settingButton} onPress={() => openLegalLink('/privacy')}>
           <Text style={styles.settingButtonText}>{t('settings.privacyPolicy')}</Text>
         </Pressable>
-        <Pressable style={styles.settingButton} onPress={() => router.push('/imprint')}>
+        <Pressable style={styles.settingButton} onPress={() => openLegalLink('/imprint')}>
           <Text style={styles.settingButtonText}>{t('settings.imprint')}</Text>
         </Pressable>
       </View>

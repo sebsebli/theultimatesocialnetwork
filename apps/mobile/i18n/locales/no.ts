@@ -39,7 +39,10 @@ export default {
     error: 'Feil',
     failedSend: 'Klarte ikke sende magisk lenke',
     invalid: 'Ugyldig token eller e-post',
-    enterToken: 'Enter token'
+    enterToken: 'Enter token',
+    signUpAgreement: 'Ved å registrere deg godtar du våre {{terms}} og {{privacy}}',
+    termsLink: 'Tjenestevilkår',
+    privacyLink: 'Personvernregler',
   },
   onboarding: {
     profile: {
@@ -258,5 +261,21 @@ export default {
     typeMessage: 'Type a message...',
     noMessages: 'No messages',
     send: 'Send'
+  },
+  waitingList: {
+    title: 'Bli med på ventelisten',
+    heading: 'Få tidlig tilgang',
+    description: 'CITE er for øyeblikket i beta. Bli med på ventelisten for å bli varslet når invitasjoner blir tilgjengelige.',
+    emailPlaceholder: 'Skriv inn din e-post',
+    join: 'Bli med på ventelisten',
+    success: 'Suksess',
+    successMessage: 'Du har blitt lagt til på ventelisten! Vi varsler deg når invitasjoner blir tilgjengelige.',
+    emailRequired: 'E-post er påkrevd',
+    invalidEmail: 'Vennligst skriv inn en gyldig e-postadresse',
+    rateLimited: 'For mange forespørsler. Prøv igjen senere.',
+    tooManyRequests: 'For mange forespørsler fra denne IP-adressen.',
+    failed: 'Kunne ikke bli med på ventelisten. Prøv igjen.',
+    info: 'Vi bruker bare e-posten din for å varsle deg om tilgjengeligheten av invitasjoner.',
+    acceptTermsRequired: 'Vennligst godta Tjenestevilkår og Personvernregler for å fortsette',
   }
 };

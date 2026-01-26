@@ -39,7 +39,10 @@ export default {
     error: 'Ошибка',
     failedSend: 'Ошибка отправки',
     invalid: 'Неверный токен',
-    enterToken: 'Enter token'
+    enterToken: 'Enter token',
+    signUpAgreement: 'Регистрируясь, вы соглашаетесь с нашими {{terms}} и {{privacy}}',
+    termsLink: 'Условия использования',
+    privacyLink: 'Политика конфиденциальности',
   },
   onboarding: {
     profile: {
@@ -258,5 +261,21 @@ export default {
     typeMessage: 'Type a message...',
     noMessages: 'No messages',
     send: 'Send'
+  },
+  waitingList: {
+    title: 'Присоединиться к списку ожидания',
+    heading: 'Получить ранний доступ',
+    description: 'CITE сейчас в бета-версии. Присоединитесь к списку ожидания, чтобы получать уведомления, когда приглашения станут доступны.',
+    emailPlaceholder: 'Введите ваш email',
+    join: 'Присоединиться к списку ожидания',
+    success: 'Успешно',
+    successMessage: 'Вы добавлены в список ожидания! Мы уведомим вас, когда приглашения станут доступны.',
+    emailRequired: 'Email обязателен',
+    invalidEmail: 'Пожалуйста, введите действительный адрес email',
+    rateLimited: 'Слишком много запросов. Попробуйте позже.',
+    tooManyRequests: 'Слишком много запросов с этого IP-адреса.',
+    failed: 'Не удалось присоединиться к списку ожидания. Попробуйте снова.',
+    info: 'Мы будем использовать ваш email только для уведомления о доступности приглашений.',
+    acceptTermsRequired: 'Пожалуйста, примите Условия использования и Политику конфиденциальности, чтобы продолжить',
   }
 };

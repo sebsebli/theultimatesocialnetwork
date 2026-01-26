@@ -39,7 +39,10 @@ export default {
     error: 'Virhe',
     failedSend: 'Linkin lähetys epäonnistui',
     invalid: 'Virheellinen tunnus tai sähköposti',
-    enterToken: 'Enter token'
+    enterToken: 'Enter token',
+    signUpAgreement: 'Rekisteröitymällä hyväksyt {{terms}} ja {{privacy}}',
+    termsLink: 'Käyttöehdot',
+    privacyLink: 'Tietosuojakäytäntö',
   },
   onboarding: {
     profile: {
@@ -258,5 +261,21 @@ export default {
     typeMessage: 'Type a message...',
     noMessages: 'No messages',
     send: 'Send'
+  },
+  waitingList: {
+    title: 'Liity odotuslistalle',
+    heading: 'Hanki varhainen pääsy',
+    description: 'CITE on tällä hetkellä beetavaiheessa. Liity odotuslistalle saadaksesi ilmoituksen, kun kutsut tulevat saataville.',
+    emailPlaceholder: 'Syötä sähköpostiosoitteesi',
+    join: 'Liity odotuslistalle',
+    success: 'Onnistui',
+    successMessage: 'Sinut on lisätty odotuslistalle! Ilmoitamme sinulle, kun kutsut tulevat saataville.',
+    emailRequired: 'Sähköposti on pakollinen',
+    invalidEmail: 'Syötä kelvollinen sähköpostiosoite',
+    rateLimited: 'Liian monta pyyntöä. Yritä myöhemmin uudelleen.',
+    tooManyRequests: 'Liian monta pyyntöä tästä IP-osoitteesta.',
+    failed: 'Odotuslistalle liittyminen epäonnistui. Yritä uudelleen.',
+    info: 'Käytämme sähköpostiosoitettasi vain ilmoittaaksemme kutsujen saatavuudesta.',
+    acceptTermsRequired: 'Hyväksy käyttöehdot ja tietosuojakäytäntö jatkaaksesi',
   }
 };

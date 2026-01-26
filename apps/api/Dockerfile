@@ -24,7 +24,10 @@ COPY apps/api/tsconfig*.json ./apps/api/
 COPY apps/api/nest-cli.json ./apps/api/
 
 # Install dependencies (including dev for build)
-RUN pnpm install --filter api --include=dev --no-optional
+# Install with ignore-scripts to skip problematic native modules (inotify)
+RUN pnpm install --filter api --include=dev --no-optional --ignore-scripts || true
+# Rebuild sharp which needs native compilation
+RUN pnpm rebuild sharp --filter api || true
 
 # Copy API source code
 COPY apps/api/src ./apps/api/src
@@ -56,7 +59,10 @@ COPY apps/api/tsconfig*.json ./apps/api/
 
 # Install dependencies including dev (needed for migrations/seeding)
 # We need dev dependencies for operational tasks
-RUN pnpm install --filter api --include=dev --no-optional
+# Install with ignore-scripts to skip problematic native modules (inotify)
+RUN pnpm install --filter api --include=dev --no-optional --ignore-scripts || true
+# Rebuild sharp which needs native compilation
+RUN pnpm rebuild sharp --filter api || true
 
 # Copy built application from builder
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
