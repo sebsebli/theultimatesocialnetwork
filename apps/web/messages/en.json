@@ -1,0 +1,93 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "cancel": "Cancel",
+    "save": "Save",
+    "create": "Create",
+    "skip": "Skip",
+    "continue": "Continue",
+    "close": "Close",
+    "share": "Share",
+    "success": "Success",
+    "retry": "Retry"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "email": "Email",
+    "sendLink": "Send verification code",
+    "verify": "Verify & Login",
+    "success": "Verification code sent",
+    "signOut": "Sign Out"
+  },
+  "nav": {
+    "home": "Home",
+    "discover": "Discover",
+    "post": "Post",
+    "activity": "Activity",
+    "profile": "Profile",
+    "collections": "Collections",
+    "keeps": "Keeps",
+    "settings": "Settings"
+  },
+  "home": {
+    "title": "Home",
+    "empty": "Your timeline is quiet.",
+    "exploreTopics": "Explore Topics",
+    "findPeople": "Find People",
+    "savedBy": "Saved by",
+    "to": "to"
+  },
+  "compose": {
+    "placeholder": "What are you reading? Link with [[Topic]]...",
+    "publish": "Publish",
+    "publishing": "Publishing...",
+    "newPost": "New post",
+    "write": "Write",
+    "preview": "Preview",
+    "cancel": "Cancel",
+    "chars": "chars"
+  },
+  "post": {
+    "like": "Like",
+    "liked": "Liked",
+    "reply": "Reply",
+    "quote": "Quote",
+    "keep": "Keep",
+    "kept": "Kept",
+    "add": "Add",
+    "share": "Share",
+    "copyLink": "Copy link",
+    "copied": "Link copied to clipboard",
+    "report": "Report",
+    "mute": "Mute author",
+    "block": "Block author",
+    "privateLike": "Private: Liked by {count} people"
+  },
+  "explore": {
+    "title": "Discover",
+    "search": "Search people, topics, or citations...",
+    "topics": "Topics",
+    "people": "People",
+    "quoted": "Quoted Now",
+    "deepDives": "Deep Dives",
+    "sort": "Sort Options",
+    "empty": "No items found in this category."
+  },
+  "settings": {
+    "title": "Settings",
+    "account": "Account",
+    "privacy": "Privacy",
+    "notifications": "Notifications",
+    "feed": "Feed",
+    "relevance": "Explore relevance",
+    "safety": "Safety",
+    "data": "Data",
+    "legal": "Legal",
+    "enablePush": "Enable push notifications",
+    "showSaves": "Show saves from people I follow",
+    "enableRecs": "Enable recommendations",
+    "export": "Export archive",
+    "delete": "Delete account"
+  }
+}

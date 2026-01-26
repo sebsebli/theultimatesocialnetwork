@@ -194,11 +194,10 @@ export default function IndexScreen() {
               </View>
             </View>
 
-            {/* Title & Subtitle - Hide when entering token to save space */}
+            {/* Title - Hide when entering token to save space */}
             {!sent && (
               <View style={styles.textContainer}>
-                <Text style={styles.title}>{t('welcome.title')}</Text>
-                <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>
+                <Text style={styles.title}>CITE</Text>
               </View>
             )}
 
@@ -491,7 +490,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.s,
-    paddingBottom: SPACING.l,
+    paddingBottom: SPACING.xxxl,
   },
   legalLink: {
     fontSize: 12,

@@ -20,6 +20,7 @@ import { configureNotifications } from '../utils/push-notifications';
 import { COLORS } from '../constants/theme';
 import { AuthProvider, useAuth } from '../context/auth';
 import { ToastProvider } from '../context/ToastContext';
+import { SocketProvider } from '../context/SocketContext';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
@@ -179,12 +180,14 @@ export default function RootLayout() {
       >
         <AuthProvider>
           <ToastProvider>
-            <ThemeProvider value={MyDarkTheme}>
-              <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
-                <OfflineBanner />
-                <AppContent onReady={handleAppReady} />
-              </View>
-            </ThemeProvider>
+            <SocketProvider>
+              <ThemeProvider value={MyDarkTheme}>
+                <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
+                  <OfflineBanner />
+                  <AppContent onReady={handleAppReady} />
+                </View>
+              </ThemeProvider>
+            </SocketProvider>
           </ToastProvider>
         </AuthProvider>
       </ErrorBoundary>

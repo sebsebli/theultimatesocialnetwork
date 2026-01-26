@@ -18,6 +18,7 @@ function ComposeContent() {
   const [body, setBody] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [headerImageKey, setHeaderImageKey] = useState<string | null>(null);
+  const [headerImageBlurhash, setHeaderImageBlurhash] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   
   const [autocomplete, setAutocomplete] = useState({
@@ -70,6 +71,7 @@ function ComposeContent() {
           body: JSON.stringify({
             body,
             headerImageKey,
+            headerImageBlurhash,
           }),
         });
         
@@ -388,7 +390,13 @@ function ComposeContent() {
                   </button>
                   {/* Hidden Image Uploader Trigger */}
                   <div className="hidden">
-                    <ImageUploader onUploadComplete={(key) => setHeaderImageKey(key)} id="header-image-upload" />
+                    <ImageUploader 
+                      onUploadComplete={(key, url, blurhash) => {
+                        setHeaderImageKey(key);
+                        if (blurhash) setHeaderImageBlurhash(blurhash);
+                      }} 
+                      id="header-image-upload" 
+                    />
                   </div>
                 </div>
               </div>

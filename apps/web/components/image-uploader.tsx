@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useToast } from './ui/toast';
 
 interface ImageUploaderProps {
-  onUploadComplete: (key: string, url: string) => void;
+  onUploadComplete: (key: string, url: string, blurhash?: string) => void;
   id?: string;
 }
 
@@ -70,7 +70,7 @@ export function ImageUploader({ onUploadComplete, id }: ImageUploaderProps) {
 
       if (res.ok) {
         const data = await res.json();
-        onUploadComplete(data.key, data.url);
+        onUploadComplete(data.key, data.url, data.blurhash);
       } else {
         toastError('Failed to upload image');
       }

@@ -19,10 +19,10 @@ export class UploadController {
       throw new Error('No file uploaded');
     }
 
-    const key = await this.uploadService.uploadHeaderImage(file);
+    const { key, blurhash } = await this.uploadService.uploadHeaderImage(file);
     const url = await this.uploadService.getImageUrl(key);
 
-    return { key, url };
+    return { key, url, blurhash };
   }
 
   @Post('profile-picture')

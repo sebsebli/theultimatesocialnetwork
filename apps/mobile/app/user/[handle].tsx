@@ -31,36 +31,36 @@ export default function UserProfileScreen() {
     } else {
       setLoadingMore(true);
     }
-    
+
     try {
       // Parallelize user fetch and content fetch for first load
       const userPromise = reset ? api.get(`/users/${handle}`) : Promise.resolve(user);
-      
+
       let endpoint = '';
       if (activeTab === 'replies') endpoint = `/users/${user?.id || handle}/replies`; // Use handle if user not yet loaded (API supports handle lookup?) 
       // Actually, API usually needs ID for relations. 
       // Strategy: If resetting, we MUST wait for user ID from first call if we don't have it.
       // But if we have 'user' state, we can run parallel.
-      
+
       const fetchContent = async (userId: string) => {
-         let path;
-         if (activeTab === 'replies') path = `/users/${userId}/replies?page=${pageNum}&limit=20`;
-         else if (activeTab === 'quotes') path = `/users/${userId}/quotes?page=${pageNum}&limit=20`;
-         else if (activeTab === 'collections') path = `/users/${userId}/collections?page=${pageNum}&limit=20`;
-         else path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=${activeTab}`;
-         return api.get(path);
+        let path;
+        if (activeTab === 'replies') path = `/users/${userId}/replies?page=${pageNum}&limit=20`;
+        else if (activeTab === 'quotes') path = `/users/${userId}/quotes?page=${pageNum}&limit=20`;
+        else if (activeTab === 'collections') path = `/users/${userId}/collections?page=${pageNum}&limit=20`;
+        else path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=${activeTab}`;
+        return api.get(path);
       };
 
       let userData = user;
       let contentData;
 
       if (reset) {
-         userData = await userPromise;
-         setUser(userData);
-         setFollowing((userData as any).isFollowing || false);
-         contentData = await fetchContent(userData.id);
+        userData = await userPromise;
+        setUser(userData);
+        setFollowing((userData as any).isFollowing || false);
+        contentData = await fetchContent(userData.id);
       } else {
-         contentData = await fetchContent(user.id);
+        contentData = await fetchContent(user.id);
       }
 
       const items = Array.isArray(contentData.items || contentData) ? (contentData.items || contentData) : [];
@@ -90,7 +90,7 @@ export default function UserProfileScreen() {
     // Optimistic update
     const prevFollowing = following;
     const prevCount = user.followerCount;
-    
+
     setFollowing(!prevFollowing);
     setUser((prev: any) => ({
       ...prev,
@@ -233,8 +233,8 @@ export default function UserProfileScreen() {
     <FlatList
       style={styles.container}
       data={posts}
-      keyExtractor={keyExtractor}
-      renderItem={renderItem}
+      keyExtractor={(item: any) => item.id}
+      renderItem={({ item }: { item: any }) => <PostItem post={item} />}
       ListHeaderComponent={
         <>
           <View style={styles.headerBar}>
@@ -338,15 +338,21 @@ export default function UserProfileScreen() {
           <Text style={styles.emptyText}>{t('profile.noPosts')}</Text>
         </View>
       }
-      ListFooterComponent={ListFooterComponent}
+      ListFooterComponent={<View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={COLORS.primary} />
+      </View>}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={onRefresh}
+          onRefresh={() => {
+            setRefreshing(true);
+            loadProfile(1, true);
+            setRefreshing(false);
+          }}
           tintColor={COLORS.primary}
         />
       }
-      onEndReached={handleLoadMore}
+      onEndReached={() => loadProfile(page + 1, false).finally(() => setLoadingMore(false))}
       onEndReachedThreshold={0.5}
       removeClippedSubviews={true}
       maxToRenderPerBatch={10}

@@ -46,7 +46,7 @@ export default function SettingsScreen() {
 
   const SettingItem = ({ icon, label, onPress, destructive = false, value }: any) => (
     <Pressable
-      style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+      style={({ pressed }: { pressed: boolean }) => [styles.item, pressed && styles.itemPressed]}
       onPress={onPress}
     >
       <View style={styles.itemLeft}>

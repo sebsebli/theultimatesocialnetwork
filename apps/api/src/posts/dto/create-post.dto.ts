@@ -14,4 +14,8 @@ export class CreatePostDto {
   @IsOptional()
   @IsString()
   headerImageKey?: string;
+
+  @IsOptional()
+  @IsString()
+  headerImageBlurhash?: string;
 }

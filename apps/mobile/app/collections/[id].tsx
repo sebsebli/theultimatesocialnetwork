@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Share, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
@@ -73,13 +74,13 @@ export default function CollectionDetailScreen() {
       // Step 2: Load items in background
       const itemsData = await api.get(`/collections/${id}/items?page=${pageNum}&limit=20`);
       const itemsList = Array.isArray(itemsData.items || itemsData) ? (itemsData.items || itemsData) : [];
-      
+
       if (reset) {
         setItems(itemsList);
       } else {
         setItems(prev => [...prev, ...itemsList]);
       }
-      
+
       const hasMoreData = itemsList.length === 20 && (itemsData.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error) {
@@ -146,7 +147,7 @@ export default function CollectionDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable 
+        <Pressable
           onPress={() => router.back()}
           accessibilityLabel="Go back"
           accessibilityRole="button"
@@ -154,7 +155,7 @@ export default function CollectionDetailScreen() {
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
         </Pressable>
         <View style={styles.placeholder} />
-        <Pressable 
+        <Pressable
           onPress={handleShare}
           accessibilityLabel={t('common.share')}
           accessibilityRole="button"
@@ -195,7 +196,7 @@ export default function CollectionDetailScreen() {
           </View>
           <View style={styles.toggleContainer}>
             {/* Toggle switch - using a simple Pressable for now */}
-            <Pressable 
+            <Pressable
               style={[styles.toggle, collection.isPublic && styles.toggleActive]}
               onPress={handleTogglePublic}
               accessibilityRole="switch"
@@ -219,7 +220,7 @@ export default function CollectionDetailScreen() {
         ListFooterComponent={
           <View>
             {ListFooterComponent}
-            <Pressable 
+            <Pressable
               style={styles.addCitationButton}
               onPress={handleAddCitation}
               accessibilityLabel={t('collections.addCitation')}

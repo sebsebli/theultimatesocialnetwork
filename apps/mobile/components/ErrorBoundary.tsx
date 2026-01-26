@@ -51,8 +51,8 @@ export class ErrorBoundary extends Component<Props, State> {
         <Text style={styles.message}>
           An unexpected error occurred. This has been logged for review.
         </Text>
-        <Pressable 
-          style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }]} 
+        <Pressable
+          style={({ pressed }: { pressed: boolean }) => [styles.button, pressed && { opacity: 0.8 }]}
           onPress={this.handleReset}
         >
           <Text style={styles.buttonText}>Reload interface</Text>

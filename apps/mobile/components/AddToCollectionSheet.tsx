@@ -11,7 +11,9 @@ export interface AddToCollectionSheetRef {
   close: () => void;
 }
 
-const AddToCollectionSheet = forwardRef<AddToCollectionSheetRef, {}>((props, ref) => {
+interface AddToCollectionSheetProps { }
+
+const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollectionSheetProps>((props, ref): React.ReactElement | null => {
   const { t } = useTranslation();
   const { showError } = useToast();
   const [visible, setVisible] = useState(false);
@@ -56,7 +58,7 @@ const AddToCollectionSheet = forwardRef<AddToCollectionSheetRef, {}>((props, ref
       setCollections([newCollection, ...collections]);
       setCreating(false);
       setNewTitle('');
-      
+
       // Auto-add post to new collection
       if (postId) {
         handleToggle(newCollection.id, false);
@@ -69,20 +71,20 @@ const AddToCollectionSheet = forwardRef<AddToCollectionSheetRef, {}>((props, ref
 
   const handleToggle = async (collectionId: string, currentHasPost: boolean) => {
     // Optimistic update
-    setCollections(prev => prev.map(c => 
+    setCollections(prev => prev.map(c =>
       c.id === collectionId ? { ...c, hasPost: !currentHasPost } : c
     ));
 
     try {
       if (currentHasPost) {
-        await api.delete(`/collections/${collectionId}/items`, { postId });
+        await api.delete(`/collections/${collectionId}/items?postId=${postId}`);
       } else {
         await api.post(`/collections/${collectionId}/items`, { postId });
       }
     } catch (error) {
       console.error('Failed to toggle item', error);
       // Revert
-      setCollections(prev => prev.map(c => 
+      setCollections(prev => prev.map(c =>
         c.id === collectionId ? { ...c, hasPost: currentHasPost } : c
       ));
     }
@@ -98,7 +100,7 @@ const AddToCollectionSheet = forwardRef<AddToCollectionSheetRef, {}>((props, ref
       onRequestClose={() => setVisible(false)}
     >
       <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
-        <Pressable style={styles.sheet} onPress={e => e.stopPropagation()}>
+        <Pressable style={styles.sheet} onPress={(e: any) => e.stopPropagation()}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('post.addToCollection')}</Text>
             <Pressable onPress={() => setVisible(false)} hitSlop={10}>
@@ -111,9 +113,9 @@ const AddToCollectionSheet = forwardRef<AddToCollectionSheetRef, {}>((props, ref
           ) : (
             <FlatList
               data={collections}
-              keyExtractor={item => item.id}
+              keyExtractor={(item: any) => item.id}
               contentContainerStyle={styles.list}
-              renderItem={({ item }) => (
+              renderItem={({ item }: { item: any }) => (
                 <Pressable
                   style={styles.item}
                   onPress={() => handleToggle(item.id, !!item.hasPost)}
@@ -157,7 +159,7 @@ const AddToCollectionSheet = forwardRef<AddToCollectionSheetRef, {}>((props, ref
                   autoFocus
                 />
                 <View style={styles.createActions}>
-                  <Pressable 
+                  <Pressable
                     style={styles.privacyToggle}
                     onPress={() => setNewIsPublic(!newIsPublic)}
                   >
@@ -172,7 +174,7 @@ const AddToCollectionSheet = forwardRef<AddToCollectionSheetRef, {}>((props, ref
                     <Pressable onPress={() => setCreating(false)} style={styles.cancelButton}>
                       <Text style={styles.cancelText}>{t('common.cancel')}</Text>
                     </Pressable>
-                    <Pressable 
+                    <Pressable
                       onPress={handleCreate}
                       disabled={!newTitle.trim()}
                       style={[styles.createButton, !newTitle.trim() && styles.disabledButton]}
@@ -195,8 +197,10 @@ const AddToCollectionSheet = forwardRef<AddToCollectionSheetRef, {}>((props, ref
         </Pressable>
       </Pressable>
     </Modal>
-  );
+  ) as React.ReactElement;
 });
+
+const AddToCollectionSheet = AddToCollectionSheetBase as any;
 
 const styles = StyleSheet.create({
   overlay: {

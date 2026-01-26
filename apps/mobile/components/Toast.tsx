@@ -69,9 +69,10 @@ export function Toast({ message, type, onHide, duration = 3000 }: ToastProps) {
   };
 
   const colors = getColors();
+  const AnimatedView = Animated.View as any;
 
   return (
-    <Animated.View
+    <AnimatedView
       style={[
         styles.container,
         { 
@@ -85,7 +86,7 @@ export function Toast({ message, type, onHide, duration = 3000 }: ToastProps) {
     >
       <MaterialIcons name={getIcon()} size={20} color={colors.icon} />
       <Text style={[styles.message, { color: colors.text }]}>{message}</Text>
-    </Animated.View>
+    </AnimatedView>
   );
 }
 

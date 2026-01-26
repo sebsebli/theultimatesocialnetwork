@@ -77,6 +77,7 @@ export class PostsService {
         body: sanitizedBody,
         title: title,
         headerImageKey: dto.headerImageKey,
+        headerImageBlurhash: dto.headerImageBlurhash,
         visibility: dto.visibility,
         lang: lang,
         langConfidence: confidence,

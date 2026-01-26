@@ -77,7 +77,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="compose"
         listeners={() => ({
-          tabPress: (e) => {
+          tabPress: (e: any) => {
             e.preventDefault();
             router.push('/post/compose');
           },

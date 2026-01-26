@@ -13,7 +13,7 @@ export default function OnboardingProfileScreen() {
   const { t } = useTranslation();
   const { showError } = useToast();
   const insets = useSafeAreaInsets();
-  
+
   const [displayName, setDisplayName] = useState('');
   const [handle, setHandle] = useState('');
   const [bio, setBio] = useState('');
@@ -44,8 +44,8 @@ export default function OnboardingProfileScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={[styles.container, { paddingTop: insets.top }]} 
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
@@ -83,7 +83,7 @@ export default function OnboardingProfileScreen() {
               <TextInput
                 style={[styles.input, styles.inputWithPrefix]}
                 value={handle}
-                onChangeText={(text) => setHandle(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                onChangeText={(text: string) => setHandle(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                 placeholder="janedoe"
                 placeholderTextColor={COLORS.tertiary}
                 autoCapitalize="none"
@@ -107,24 +107,24 @@ export default function OnboardingProfileScreen() {
             <Text style={styles.charCount}>{bio.length}/160</Text>
           </View>
 
-          <Pressable 
+          <Pressable
             style={styles.privacyToggle}
             onPress={() => setIsProtected(!isProtected)}
           >
             <View style={styles.privacyTextContainer}>
               <View style={styles.privacyHeader}>
-                <MaterialIcons 
-                  name={isProtected ? "lock" : "public"} 
-                  size={20} 
-                  color={isProtected ? COLORS.primary : COLORS.secondary} 
+                <MaterialIcons
+                  name={isProtected ? "lock" : "public"}
+                  size={20}
+                  color={isProtected ? COLORS.primary : COLORS.secondary}
                 />
                 <Text style={styles.privacyLabel}>
                   {isProtected ? t('common.private') : t('common.public')}
                 </Text>
               </View>
               <Text style={styles.privacyDescription}>
-                {isProtected 
-                  ? t('onboarding.privateDescription') 
+                {isProtected
+                  ? t('onboarding.privateDescription')
                   : t('onboarding.publicDescription')}
               </Text>
             </View>

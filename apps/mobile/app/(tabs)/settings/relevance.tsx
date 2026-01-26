@@ -49,7 +49,7 @@ export default function RelevanceSettingsScreen() {
         minimumValue={0}
         maximumValue={100}
         value={sliders[valueKey]}
-        onValueChange={(val) => handleSliderChange(valueKey, val)}
+        onValueChange={(val: number) => handleSliderChange(valueKey, val)}
         minimumTrackTintColor={COLORS.primary}
         maximumTrackTintColor={COLORS.divider}
         thumbTintColor={COLORS.paper}

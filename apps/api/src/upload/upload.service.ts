@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as MinIO from 'minio';
 import sharp from 'sharp';
+import { encode } from 'blurhash';
 import { v4 as uuidv4 } from 'uuid';
 import { SafetyService } from '../safety/safety.service';
 
@@ -24,15 +25,16 @@ export class UploadService {
     this.bucketName = this.configService.get('MINIO_BUCKET') || 'cite-images';
   }
 
-  async uploadHeaderImage(file: any): Promise<string> {
-    return this.processAndUpload(file, { width: 1600, height: null, fit: 'inside' });
+  async uploadHeaderImage(file: any): Promise<{ key: string; blurhash: string }> {
+    return this.processAndUpload(file, { width: 1600, height: null, fit: 'inside' }, true);
   }
 
   async uploadProfilePicture(file: any): Promise<string> {
-    return this.processAndUpload(file, { width: 400, height: 400, fit: 'cover' });
+    const result = await this.processAndUpload(file, { width: 400, height: 400, fit: 'cover' }, false);
+    return result.key;
   }
 
-  private async processAndUpload(file: any, resizeOptions: any): Promise<string> {
+  private async processAndUpload(file: any, resizeOptions: any, generateBlurhash: boolean): Promise<{ key: string; blurhash?: string }> {
     // Validate file type
     if (!file.mimetype.match(/^image\/(jpeg|jpg|webp|png)$/)) {
       throw new BadRequestException('Only JPG, WEBP, and PNG images are allowed');
@@ -49,8 +51,23 @@ export class UploadService {
       throw new BadRequestException(safety.reason || 'Image failed safety check');
     }
 
+    const image = sharp(file.buffer);
+    
+    // Generate Blurhash if requested
+    let blurhashStr: string | undefined;
+    if (generateBlurhash) {
+      const { data, info } = await image
+        .clone()
+        .raw()
+        .ensureAlpha()
+        .resize(32, 32, { fit: 'inside' })
+        .toBuffer({ resolveWithObject: true });
+      
+      blurhashStr = encode(new Uint8ClampedArray(data), info.width, info.height, 4, 4);
+    }
+
     // Process image: compress, strip EXIF, resize
-    const processedImage = await sharp(file.buffer)
+    const processedImage = await image
       .resize(resizeOptions.width, resizeOptions.height, {
         withoutEnlargement: true,
         fit: resizeOptions.fit,
@@ -66,7 +83,7 @@ export class UploadService {
       'Content-Type': 'image/webp',
     });
 
-    return key;
+    return { key, blurhash: blurhashStr };
   }
 
   async getImageUrl(key: string): Promise<string> {

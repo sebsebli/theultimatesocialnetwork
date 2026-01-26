@@ -28,6 +28,7 @@ interface PostItemProps {
     quoteCount: number;
     privateLikeCount?: number;
     headerImageKey?: string;
+    headerImageBlurhash?: string;
   };
   onLike?: () => void;
   onReply?: () => void;
@@ -261,6 +262,7 @@ function PostItemComponent({
             style={styles.headerImage}
             contentFit="cover"
             transition={300}
+            placeholder={post.headerImageBlurhash}
             placeholderContentFit="cover"
             cachePolicy="memory-disk"
             accessibilityLabel={t('post.headerImage')}
@@ -328,8 +330,8 @@ function PostItemComponent({
         <Pressable
           style={styles.actionButton}
           onPress={() => {
-             onAddToCollection?.();
-             collectionSheetRef.current?.open(post.id);
+            onAddToCollection?.();
+            collectionSheetRef.current?.open(post.id);
           }}
           accessibilityLabel={t('post.add')}
           accessibilityRole="button"

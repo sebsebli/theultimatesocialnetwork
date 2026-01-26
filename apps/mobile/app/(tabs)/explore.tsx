@@ -65,7 +65,7 @@ export default function ExploreScreen() {
     setError(false);
     try {
       let endpoint = '/explore/topics';
-      
+
       // Handle special tabs
       if (activeTab === 'people') endpoint = '/explore/people';
       else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
@@ -76,19 +76,19 @@ export default function ExploreScreen() {
       const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
       const items = rawItems.map((item: any) => ({
         ...item,
-        author: item.author || { 
-          id: item.authorId || '', 
-          handle: item.handle || 'unknown', 
-          displayName: item.displayName || 'Unknown User' 
+        author: item.author || {
+          id: item.authorId || '',
+          handle: item.handle || 'unknown',
+          displayName: item.displayName || 'Unknown User'
         },
       }));
-      
+
       if (reset) {
         setData(items);
       } else {
         setData(prev => [...prev, ...items]);
       }
-      
+
       const hasMoreData = items.length === 20 && (res.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
@@ -157,8 +157,8 @@ export default function ExploreScreen() {
     <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
       {/* Title Row - Matching Home Screen */}
       <View style={styles.titleRow}>
-         <MaterialCommunityIcons name="compass-outline" size={24} color={COLORS.paper} />
-         <Text style={styles.headerTitle}>{t('explore.title') || 'Discover'}</Text>
+        <MaterialCommunityIcons name="compass-outline" size={24} color={COLORS.paper} />
+        <Text style={styles.headerTitle}>{t('explore.title') || 'Discover'}</Text>
       </View>
 
       {/* Search */}
@@ -170,7 +170,7 @@ export default function ExploreScreen() {
             placeholder={t('explore.searchPlaceholder')}
             placeholderTextColor={COLORS.tertiary}
             value={searchQuery}
-            onChangeText={(text) => {
+            onChangeText={(text: string) => {
               setSearchQuery(text);
               debouncedSearch(text);
             }}
@@ -192,10 +192,10 @@ export default function ExploreScreen() {
               accessibilityState={{ selected: activeTab === tab }}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab === 'deep-dives' ? t('explore.deepDives') : 
-                 tab === 'quoted' ? t('explore.quoted') : 
-                 tab === 'newsroom' ? t('explore.newsroom') :
-                 t(`explore.${tab}`)}
+                {tab === 'deep-dives' ? t('explore.deepDives') :
+                  tab === 'quoted' ? t('explore.quoted') :
+                    tab === 'newsroom' ? t('explore.newsroom') :
+                      t(`explore.${tab}`)}
               </Text>
             </Pressable>
           ))}
@@ -204,14 +204,14 @@ export default function ExploreScreen() {
 
       {/* Controls */}
       <View style={styles.controls}>
-        <Pressable 
+        <Pressable
           style={styles.filterButton}
           accessibilityLabel="Filter"
           accessibilityRole="button"
         >
           <MaterialIcons name="tune" size={24} color={COLORS.tertiary} />
         </Pressable>
-        <Pressable 
+        <Pressable
           style={styles.sortButton}
           accessibilityLabel={t('explore.sortOptions')}
           accessibilityRole="button"
@@ -239,13 +239,13 @@ export default function ExploreScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>
-                {loading ? t('common.loading') : 
-                 activeTab === 'topics' ? t('explore.noTopics') :
-                 activeTab === 'people' ? t('explore.noPeople') :
-                 activeTab === 'quoted' ? t('explore.noQuoted') :
-                 activeTab === 'deep-dives' ? t('explore.noDeepDives') :
-                 activeTab === 'newsroom' ? t('explore.noNewsroom') :
-                 t('common.loading')}
+                {loading ? t('common.loading') :
+                  activeTab === 'topics' ? t('explore.noTopics') :
+                    activeTab === 'people' ? t('explore.noPeople') :
+                      activeTab === 'quoted' ? t('explore.noQuoted') :
+                        activeTab === 'deep-dives' ? t('explore.noDeepDives') :
+                          activeTab === 'newsroom' ? t('explore.noNewsroom') :
+                            t('common.loading')}
               </Text>
             </View>
           }

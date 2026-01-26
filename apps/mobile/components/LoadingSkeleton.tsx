@@ -32,8 +32,9 @@ export function Skeleton({ width = '100%', height = 20, style, borderRadius = 4 
     return () => animation.stop();
   }, []);
 
+  const AnimatedView = Animated.View as any;
   return (
-    <Animated.View
+    <AnimatedView
       style={[
         styles.skeleton,
         { width, height, borderRadius, opacity },

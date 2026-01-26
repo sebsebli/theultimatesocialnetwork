@@ -2,11 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationType } from '../entities/notification.entity';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class NotificationHelperService {
   constructor(
     @InjectRepository(Notification) private notificationRepo: Repository<Notification>,
+    private realtimeGateway: RealtimeGateway,
   ) {}
 
   async createNotification(data: {
@@ -42,6 +44,10 @@ export class NotificationHelperService {
     }
 
     const notification = this.notificationRepo.create(data);
-    return this.notificationRepo.save(notification);
+    const saved = await this.notificationRepo.save(notification);
+    
+    this.realtimeGateway.sendNotification(data.userId, saved);
+    
+    return saved;
   }
 }

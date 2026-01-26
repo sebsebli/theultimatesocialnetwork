@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Blurhash } from 'react-blurhash';
+import { useTranslations } from 'next-intl';
 import { renderMarkdown } from '@/utils/markdown';
 import { OverflowMenu } from './overflow-menu';
 import { AddToCollectionModal } from './add-to-collection-modal';
@@ -21,6 +23,7 @@ export interface Post {
   quoteCount: number;
   privateLikeCount?: number;
   headerImageKey?: string;
+  headerImageBlurhash?: string;
 }
 
 interface PostItemProps {
@@ -29,6 +32,7 @@ interface PostItemProps {
 }
 
 export function PostItem({ post, isAuthor = false }: PostItemProps) {
+  const t = useTranslations('post');
   const [liked, setLiked] = useState((post as any).isLiked || false);
   const [kept, setKept] = useState((post as any).isKept || false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
@@ -144,11 +148,20 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
         />
         {post.headerImageKey && (
           <div className="relative w-full h-[240px] rounded-xl bg-divider mt-4 overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-300">
+            {post.headerImageBlurhash && (
+              <Blurhash
+                hash={post.headerImageBlurhash}
+                width={32}
+                height={32}
+                punch={1}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              />
+            )}
             <Image 
               src={`${STORAGE_URL}/${post.headerImageKey}`}
               alt="Post header"
               fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              className="object-cover transition-transform duration-500 group-hover:scale-105 z-10"
               sizes="(max-width: 768px) 100vw, 680px"
             />
           </div>
@@ -162,7 +175,7 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
           </svg>
           <p className="text-[13px] font-medium text-tertiary">
-            Private: Liked by <span className="text-secondary">{post.privateLikeCount} people</span>
+            {t('privateLike', { count: post.privateLikeCount })}
           </p>
         </div>
       )}

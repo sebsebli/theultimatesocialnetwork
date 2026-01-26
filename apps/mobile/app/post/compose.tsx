@@ -19,9 +19,11 @@ export default function ComposeScreen() {
 
   const [body, setBody] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
-  const [headerImage, setHeaderImage] = useState<string | null>(null);
-  const [headerImageAsset, setHeaderImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [headerImage, setHeaderImage] = useState<string | null>(null);
+  const [headerImageKey, setHeaderImageKey] = useState<string | null>(null);
+  const [headerImageBlurhash, setHeaderImageBlurhash] = useState<string | null>(null);
+  const [headerImageAsset, setHeaderImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   // Modals state
   const [linkModalVisible, setLinkModalVisible] = useState(false);
@@ -94,9 +96,11 @@ export default function ComposeScreen() {
     try {
       // Upload image if exists
       let imageKey = null;
+      let imageBlurhash = null;
       if (headerImageAsset) {
         const uploadRes = await api.upload('/upload/header-image', headerImageAsset);
         imageKey = uploadRes.key;
+        imageBlurhash = uploadRes.blurhash;
       }
 
       if (quotePostId) {
@@ -112,6 +116,7 @@ export default function ComposeScreen() {
         await api.post('/posts', {
           body: trimmedBody,
           headerImageKey: imageKey,
+          headerImageBlurhash: imageBlurhash,
         });
       }
       showSuccess('Published successfully');
@@ -276,9 +281,9 @@ export default function ComposeScreen() {
               <MaterialIcons name="link" size={20} color={COLORS.primary} />
             </Pressable>
             <Pressable style={styles.toolbarButton} onPress={() => {
-                setLinkToTopicModalVisible(true);
-                loadTopicSuggestions();
-                insertText('[[');
+              setLinkToTopicModalVisible(true);
+              loadTopicSuggestions();
+              insertText('[[');
             }}>
               <MaterialCommunityIcons name="pound" size={20} color={COLORS.primary} />
             </Pressable>
@@ -340,7 +345,7 @@ export default function ComposeScreen() {
             <FlatList
               data={topicSuggestions}
               keyExtractor={(item: any) => item.id || item.slug}
-              renderItem={({ item }) => (
+              renderItem={({ item }: { item: any }) => (
                 <Pressable
                   style={styles.topicSuggestionItem}
                   onPress={() => handleLinkToTopic(item)}

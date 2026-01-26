@@ -17,7 +17,7 @@ export function useToast() {
   return context;
 }
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function ToastProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const [toast, setToast] = useState<{ message: string; type: ToastType; id: number } | null>(null);
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
@@ -27,8 +27,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const showSuccess = useCallback((message: string) => showToast(message, 'success'), [showToast]);
   const showError = useCallback((message: string) => showToast(message, 'error'), [showToast]);
 
+  const Provider = ToastContext.Provider as any;
   return (
-    <ToastContext.Provider value={{ showToast, showSuccess, showError }}>
+    <Provider value={{ showToast, showSuccess, showError }}>
       {children}
       {toast && (
         <Toast
@@ -38,6 +39,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           onHide={() => setToast(null)}
         />
       )}
-    </ToastContext.Provider>
-  );
+    </Provider>
+  ) as React.ReactElement;
 }
