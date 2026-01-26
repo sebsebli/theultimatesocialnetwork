@@ -11,13 +11,11 @@ export class FeedController {
   @UseGuards(AuthGuard('jwt'))
   async getHomeFeed(
     @CurrentUser() user: { id: string },
-    @Query('limit') limit?: string,
-    @Query('offset') offset?: string,
+    @Query('limit') limit: number = 20,
+    @Query('offset') offset: number = 0,
     @Query('includeSavedBy') includeSavedBy?: string,
   ) {
-    const limitNum = limit ? parseInt(limit, 10) : 20;
-    const offsetNum = offset ? parseInt(offset, 10) : 0;
     const includeSaved = includeSavedBy === 'true';
-    return this.feedService.getHomeFeed(user.id, limitNum, offsetNum, includeSaved);
+    return this.feedService.getHomeFeed(user.id, +limit, +offset, includeSaved);
   }
 }

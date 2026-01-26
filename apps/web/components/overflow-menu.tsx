@@ -112,11 +112,11 @@ export function OverflowMenu({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-48 bg-ink border border-divider rounded-lg shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-48 bg-ink border border-divider rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in duration-150 origin-top-right">
           {onCopyLink && (
             <button
               onClick={handleCopyLink}
-              className="w-full px-4 py-3 text-left text-paper hover:bg-white/10 transition-colors text-sm"
+              className="w-full px-4 py-3 text-left text-paper hover:bg-white/10 active:bg-white/20 transition-colors text-sm"
             >
               Copy link
             </button>

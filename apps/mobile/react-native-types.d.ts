@@ -34,5 +34,10 @@ declare module 'react' {
       // Override Element to include undefined for React Native compatibility
       type Element = React.ReactElement<any, any> | null | undefined;
     }
+
+    // Override memo to properly type components that return JSX.Element | null
+    function memo<P extends object, T extends (props: P) => JSX.Element | null>(
+      Component: T
+    ): React.NamedExoticComponent<P> & T;
   }
 }

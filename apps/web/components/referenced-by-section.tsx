@@ -27,8 +27,10 @@ export function ReferencedBySection({ postId, quoteCount }: ReferencedBySectionP
   useEffect(() => {
     if (quoteCount > 0) {
       loadReferencedPosts();
+    } else {
+      setReferencedPosts([]);
     }
-  }, [postId]);
+  }, [postId, quoteCount]);
 
   const loadReferencedPosts = async () => {
     setLoading(true);

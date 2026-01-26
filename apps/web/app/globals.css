@@ -164,18 +164,21 @@ html {
 /* Prose styles for markdown content */
 .prose {
   max-width: none;
+  font-size: 1.0625rem; /* 17px */
+  line-height: 1.6;
 }
 
 .prose a {
   color: #6E7A8A;
-  text-decoration: underline;
-  text-decoration-color: #6E7A8A;
-  text-underline-offset: 2px;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(110, 122, 138, 0.4);
   font-weight: 500;
+  transition: border-color 0.2s ease, color 0.2s ease;
 }
 
 .prose a:hover {
-  text-decoration-color: #7d8b9d;
+  color: #8fa0b5;
+  border-bottom-color: #8fa0b5;
 }
 
 .prose strong {
@@ -185,34 +188,45 @@ html {
 
 .prose em {
   font-style: italic;
+  color: #d1d1d1;
 }
 
 .prose h1, .prose h2, .prose h3 {
   color: #F2F2F2;
-  font-weight: 600;
+  font-weight: 700;
   margin-top: 1.5em;
-  margin-bottom: 0.5em;
+  margin-bottom: 0.75em;
+  letter-spacing: -0.02em;
 }
 
 .prose p {
-  margin-bottom: 1em;
+  margin-bottom: 1.25em;
 }
 
 .prose ul, .prose ol {
-  margin-left: 1.5em;
-  margin-bottom: 1em;
+  margin-left: 1.25em;
+  margin-bottom: 1.25em;
+  padding-left: 0;
 }
 
 .prose li {
   margin-bottom: 0.5em;
+  position: relative;
+  padding-left: 0.5em;
 }
 
 .prose blockquote {
-  border-left: 2px solid #6E7A8A;
-  padding-left: 1em;
+  border-left: 3px solid #6E7A8A;
+  padding-left: 1.25em;
   margin-left: 0;
+  margin-bottom: 1.5em;
   color: #A8A8AA;
   font-style: italic;
+  font-size: 0.95em;
+  background: rgba(255,255,255,0.02);
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  border-radius: 0 4px 4px 0;
 }
 
 @media print {

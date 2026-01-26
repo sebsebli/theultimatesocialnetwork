@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import * as Haptics from 'expo-haptics';
 import { api } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
@@ -62,6 +63,7 @@ export default function WaitingListScreen() {
     }
 
     setLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await api.post('/waiting-list', { email: sanitizedEmail });
       Alert.alert(

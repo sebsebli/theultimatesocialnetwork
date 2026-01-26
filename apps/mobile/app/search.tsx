@@ -30,12 +30,12 @@ export default function SearchScreen() {
         const res = await api.get<{ hits: any[] }>(`/search/users?q=${encodeURIComponent(searchQuery)}`);
         setResults(res.hits || []);
       } else if (activeType === 'topics') {
-        const data = await api.get('/explore/topics');
-        const filtered = (Array.isArray(data) ? data : []).filter((t: any) =>
-          t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.slug.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        setResults(filtered);
+        const res = await api.get<{ hits: any[] }>(`/search/topics?q=${encodeURIComponent(searchQuery)}`);
+        const topics = (res.hits || []).map((t: any) => ({
+          ...t,
+          title: t.title || t.slug,
+        }));
+        setResults(topics);
       }
     } catch (error) {
       console.error('Failed to search', error);
@@ -44,24 +44,37 @@ export default function SearchScreen() {
     }
   };
 
+  const debouncedSearch = useMemo(
+    () => {
+      let timeoutId: NodeJS.Timeout;
+      return (searchQuery: string) => {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          handleSearch(searchQuery);
+        }, 300);
+      };
+    },
+    [activeType] // Re-create if type changes to ensure correct context
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable 
+        <Pressable
           onPress={() => router.back()}
           accessibilityLabel="Go back"
           accessibilityRole="button"
         >
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
         </Pressable>
-          <TextInput
+        <TextInput
           style={styles.searchInput}
           placeholder={t('home.search')}
           placeholderTextColor={COLORS.tertiary}
           value={query}
-          onChangeText={(text) => {
+          onChangeText={(text: string) => {
             setQuery(text);
-            handleSearch(text);
+            debouncedSearch(text);
           }}
           autoFocus
           accessibilityLabel={t('home.search')}
@@ -90,7 +103,7 @@ export default function SearchScreen() {
 
       <FlatList
         data={results}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: any) => item.id}
         renderItem={useCallback(({ item }: { item: any }) => {
           if (activeType === 'posts') {
             return <PostItem post={item} />;

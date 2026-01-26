@@ -12,9 +12,15 @@ export function WhyLabel({ reasons }: WhyLabelProps) {
 
   return (
     <View style={styles.container}>
-      <MaterialIcons name="info-outline" size={14} color={COLORS.primary} />
+      <View style={styles.iconWrapper}>
+        <MaterialIcons 
+          name={reasons[0].toLowerCase().includes('cited') ? "trending-up" : "info-outline"} 
+          size={12} 
+          color={COLORS.primary} 
+        />
+      </View>
       <Text style={styles.text}>
-        Why: {reasons.join(' + ')}
+        {reasons.join(' • ')}
       </Text>
     </View>
   );
@@ -24,22 +30,25 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: SPACING.m,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(110, 122, 138, 0.1)', // bg-primary/10
+    paddingLeft: 6,
+    paddingRight: 10,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(110, 122, 138, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(110, 122, 138, 0.2)', // border-primary/20
-    borderRadius: SIZES.borderRadius,
+    borderColor: 'rgba(110, 122, 138, 0.15)',
+    borderRadius: SIZES.borderRadiusPill,
     alignSelf: 'flex-start',
     marginTop: SPACING.xs,
   },
+  iconWrapper: {
+    marginRight: 4,
+  },
   text: {
-    fontSize: 11, // text-xs
-    fontWeight: '700', // font-bold
-    color: COLORS.primary, // text-primary
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.primary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     fontFamily: FONTS.semiBold,
   },
 });

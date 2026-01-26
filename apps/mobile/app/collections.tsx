@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable, Modal, TextInput, Alert, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import { api } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
@@ -45,8 +46,11 @@ export default function CollectionsScreen() {
 
   const renderItem = useCallback(({ item }: { item: Collection }) => (
     <Pressable
-      style={styles.item}
-      onPress={() => router.push(`/collections/${item.id}`)}
+      style={({ pressed }: { pressed: boolean }) => [styles.item, pressed && { backgroundColor: COLORS.hover }]}
+      onPress={() => {
+        Haptics.selectionAsync();
+        router.push(`/collections/${item.id}`);
+      }}
       accessibilityRole="button"
     >
       <Text style={styles.itemTitle}>{item.title}</Text>
@@ -63,8 +67,9 @@ export default function CollectionsScreen() {
 
   const createCollection = async () => {
     if (!newTitle.trim()) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await api.post('/collections', { title: newTitle, description: newDescription });
+      await api.post('/collections', { title: newTitle.trim(), description: newDescription.trim() });
       setModalVisible(false);
       setNewTitle('');
       setNewDescription('');
@@ -309,3 +314,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
   },
 });
+
+
+
+

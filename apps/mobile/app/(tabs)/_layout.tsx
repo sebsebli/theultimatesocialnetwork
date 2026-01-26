@@ -21,7 +21,7 @@ export default function TabLayout() {
   if (!isAuthenticated) {
     return <Redirect href="/welcome" />;
   }
-  
+
   return (
     <Tabs
       screenOptions={{
@@ -51,11 +51,11 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialIcons 
-              name="home" 
-              size={24} 
-              color={focused ? COLORS.primary : COLORS.tertiary} 
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <MaterialIcons
+              name="home"
+              size={24}
+              color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),
         }}
@@ -64,11 +64,11 @@ export default function TabLayout() {
         name="explore"
         options={{
           title: 'Discover',
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons 
-              name="compass-outline" 
-              size={24} 
-              color={focused ? COLORS.primary : COLORS.tertiary} 
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <MaterialCommunityIcons
+              name="compass-outline"
+              size={24}
+              color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),
         }}
@@ -77,7 +77,7 @@ export default function TabLayout() {
         name="compose"
         options={{
           title: '',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <View style={{
               width: 48,
               height: 48,
@@ -86,10 +86,10 @@ export default function TabLayout() {
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <MaterialIcons 
-                name="edit" 
-                size={24} 
-                color={COLORS.paper} 
+              <MaterialIcons
+                name="edit"
+                size={24}
+                color={COLORS.paper}
               />
             </View>
           ),
@@ -99,11 +99,11 @@ export default function TabLayout() {
         name="inbox"
         options={{
           title: 'Activity',
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialIcons 
-              name="notifications-none" 
-              size={24} 
-              color={focused ? COLORS.primary : COLORS.tertiary} 
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <MaterialIcons
+              name="notifications-none"
+              size={24}
+              color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),
         }}
@@ -112,7 +112,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <View style={{
               width: 24,
               height: 24,

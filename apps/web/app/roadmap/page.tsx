@@ -20,7 +20,7 @@ export default function RoadmapPage() {
         <div className="space-y-16">
           
           {/* Shipping Now */}
-          <section>
+          <article>
             <div className="flex items-baseline gap-4 mb-8 border-b border-[#1A1A1D] pb-2">
               <h2 className="text-xl font-serif text-[#F2F2F2]">Shipping Now</h2>
               <span className="text-xs font-mono text-[#6E6E73] uppercase tracking-widest">Active Beta</span>
@@ -39,10 +39,10 @@ export default function RoadmapPage() {
                 <p className="text-[#A8A8AA]">No algorithmic manipulation in the home feed. You see what you follow, in order.</p>
               </li>
             </ul>
-          </section>
+          </article>
 
           {/* Up Next */}
-          <section>
+          <article>
             <div className="flex items-baseline gap-4 mb-8 border-b border-[#1A1A1D] pb-2">
               <h2 className="text-xl font-serif text-[#F2F2F2]">Up Next</h2>
               <span className="text-xs font-mono text-[#6E6E73] uppercase tracking-widest">Q1 2026</span>
@@ -67,10 +67,10 @@ export default function RoadmapPage() {
                 <p className="text-[#A8A8AA]">Optimized CSS for printing threads and articles. Digital to physical archival.</p>
               </li>
             </ul>
-          </section>
+          </article>
 
           {/* Future Concepts */}
-          <section>
+          <article>
             <div className="flex items-baseline gap-4 mb-8 border-b border-[#1A1A1D] pb-2">
               <h2 className="text-xl font-serif text-[#A8A8AA]">Future Concepts</h2>
               <span className="text-xs font-mono text-[#6E6E73] uppercase tracking-widest">Research</span>
@@ -85,7 +85,7 @@ export default function RoadmapPage() {
                 <p className="text-[#6E6E73]">Exploring ActivityPub compatibility to connect with Mastodon and the Fediverse.</p>
               </li>
             </ul>
-          </section>
+          </article>
 
         </div>
 

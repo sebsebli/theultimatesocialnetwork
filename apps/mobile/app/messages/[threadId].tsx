@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, FlatList, TextInput, Pressable, KeyboardAvoidin
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { api } from '../../utils/api';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 
@@ -17,7 +18,7 @@ export default function MessageThreadScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    api.get('/users/me').then(setCurrentUser).catch(() => {});
+    api.get('/users/me').then(setCurrentUser).catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -38,10 +39,13 @@ export default function MessageThreadScreen() {
   const sendMessage = async () => {
     if (!inputText.trim()) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const tempId = Date.now().toString();
     const optimisticMessage = {
-      id: Date.now().toString(),
+      id: tempId,
       body: inputText,
-      senderId: 'me', // Temporary
+      senderId: 'me',
       createdAt: new Date().toISOString(),
     };
 
@@ -50,11 +54,15 @@ export default function MessageThreadScreen() {
     flatListRef.current?.scrollToEnd({ animated: true });
 
     try {
-      await api.post(`/messages/threads/${threadId}/messages`, { body: optimisticMessage.body });
-      loadMessages(); // Reload to get real ID and server state
+      const saved = await api.post(`/messages/threads/${threadId}/messages`, { body: optimisticMessage.body });
+      // Replace optimistic message with saved one
+      setMessages(prev => prev.map(m => m.id === tempId ? saved : m));
     } catch (error) {
       console.error('Failed to send message', error);
-      // Ideally remove optimistic message or show error
+      // Remove optimistic message on failure
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setTextInput(optimisticMessage.body); // Restore text
+      alert('Failed to send message');
     }
   };
 
@@ -65,7 +73,7 @@ export default function MessageThreadScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View style={styles.header}>
-        <Pressable 
+        <Pressable
           onPress={() => router.back()}
           accessibilityLabel="Go back"
           accessibilityRole="button"
@@ -79,10 +87,10 @@ export default function MessageThreadScreen() {
       <FlatList
         ref={flatListRef}
         data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
+        keyExtractor={(item: any) => item.id}
+        renderItem={({ item }: { item: any }) => {
           const isMe = item.senderId === 'me' || (currentUser && item.senderId === currentUser.id);
-          
+
           return (
             <View style={[
               styles.messageBubble,
@@ -99,7 +107,7 @@ export default function MessageThreadScreen() {
       />
 
       <View style={styles.inputContainer}>
-          <TextInput
+        <TextInput
           style={styles.input}
           placeholder={t('messages.typeMessage')}
           placeholderTextColor={COLORS.tertiary}
@@ -108,8 +116,8 @@ export default function MessageThreadScreen() {
           multiline
           accessibilityLabel={t('messages.typeMessage')}
         />
-        <Pressable 
-          style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]} 
+        <Pressable
+          style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
           onPress={sendMessage}
           disabled={!inputText.trim()}
           accessibilityLabel={t('messages.send')}

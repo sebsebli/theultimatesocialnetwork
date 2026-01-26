@@ -51,18 +51,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : (exception instanceof Error ? exception.message : 'Internal server error');
     }
 
-    // Normalize message structure
-    const errorResponse: any = {
-      statusCode: status,
-      timestamp: new Date().toISOString(),
-      path: request.url,
-      message,
-    };
+    // Generate unique trace ID for tracking
+    const traceId = request.get('x-trace-id') || Math.random().toString(36).substring(2, 15);
 
-    // Only include stack trace in development
-    if (!isProduction && exception instanceof Error && exception.stack) {
-      errorResponse.stack = exception.stack;
-    }
+    // Normalize message structure with standard professional fields
+    const errorResponse = {
+      success: false,
+      error: {
+        code: status >= 500 ? 'INTERNAL_SERVER_ERROR' : (exception as any).name || 'BAD_REQUEST',
+        message,
+        statusCode: status,
+        traceId,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      },
+      // Include stack only in dev
+      ...(!isProduction && exception instanceof Error ? { stack: exception.stack } : {}),
+    };
 
     response.status(status).json(errorResponse);
   }

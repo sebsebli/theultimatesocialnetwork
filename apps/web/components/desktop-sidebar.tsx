@@ -59,14 +59,14 @@ export function DesktopSidebar() {
 
           <Link
             href="/compose"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-tertiary hover:bg-white/5 hover:text-paper"
+            className="flex items-center gap-3 px-3 py-3 mt-2 rounded-full bg-primary text-white hover:bg-primaryDark transition-all shadow-lg shadow-primary/20 active:scale-[0.98] group"
           >
-            <div className="w-8 h-8 rounded-full bg-hover flex items-center justify-center">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
             </div>
-            <span className="font-medium">New Post</span>
+            <span className="font-bold tracking-tight">Post</span>
           </Link>
 
           <Link

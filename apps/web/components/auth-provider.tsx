@@ -69,15 +69,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const publicRoutes = ['/', '/welcome', '/sign-in', '/verify', '/privacy', '/terms', '/imprint', '/roadmap', '/manifesto'];
     const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/verify');
-    const isProtectedRoute = !isPublicRoute && pathname !== '/';
 
-    if (!isAuthenticated && isProtectedRoute) {
-      router.push('/');
+    if (!isAuthenticated && !isPublicRoute) {
+      router.replace('/');
     } else if (isAuthenticated && (pathname === '/' || pathname === '/welcome' || pathname === '/sign-in')) {
-      // Only redirect if we're on a public auth route, not if we're already on a protected route
-      if (pathname === '/' || pathname === '/welcome' || pathname === '/sign-in') {
-        router.push('/home');
-      }
+      router.replace('/home');
     }
   }, [isAuthenticated, isLoading, pathname, router]);
 

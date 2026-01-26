@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Get, Param, Delete, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Body, Controller, Post, Get, Param, Delete, UseGuards, ParseUUIDPipe, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -54,6 +54,9 @@ export class PostsController {
     @Param('id', ParseUUIDPipe) quotedPostId: string,
     @Body() dto: { body: string },
   ) {
-    return this.postsService.createQuote(user.id, quotedPostId, dto.body);
+    if (!dto.body || dto.body.trim().length === 0) {
+      throw new BadRequestException('Commentary is required for quotes');
+    }
+    return this.postsService.createQuote(user.id, quotedPostId, dto.body.trim());
   }
 }

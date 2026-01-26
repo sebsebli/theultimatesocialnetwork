@@ -40,6 +40,7 @@ export class EmailService {
 
   async sendSignInToken(email: string, token: string, lang: string = 'en'): Promise<boolean> {
     const t = signInTokenTemplates[lang] || signInTokenTemplates['en'];
+    const subject = t.subject || 'Your Sign In Code - Cite System';
 
     if (!this.transporter) {
       // In development, log the token
@@ -51,7 +52,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from: this.configService.get<string>('SMTP_FROM') || '"Cite System" <noreply@cite.com>',
         to: email,
-        subject: t.subject,
+        subject: subject,
         html: `
           <!DOCTYPE html>
           <html>

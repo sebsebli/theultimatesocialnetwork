@@ -11,10 +11,30 @@ export function ImageUploader({ onUploadComplete }: ImageUploaderProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const [isDragging, setIsDragging] = useState(false);
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const handleFile = async (file: File) => {
     // Validate file type
     if (!file.type.match(/^image\/(jpeg|jpg|webp)$/)) {
       alert('Only JPG and WEBP images are allowed');
@@ -60,7 +80,12 @@ export function ImageUploader({ onUploadComplete }: ImageUploaderProps) {
   };
 
   return (
-    <div>
+    <div 
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`relative rounded-lg transition-all ${isDragging ? 'ring-2 ring-primary ring-offset-2 ring-offset-ink scale-[1.02] bg-primary/5' : ''}`}
+    >
       <input
         ref={fileInputRef}
         type="file"
@@ -71,7 +96,7 @@ export function ImageUploader({ onUploadComplete }: ImageUploaderProps) {
       <button
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading}
-        className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors disabled:opacity-50"
+        className={`size-10 flex items-center justify-center rounded-lg transition-colors disabled:opacity-50 ${isDragging ? 'text-primary' : 'text-tertiary hover:text-paper hover:bg-white/5'}`}
         title="Header photo"
       >
         {uploading ? (

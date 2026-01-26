@@ -29,7 +29,7 @@ export class User {
   languages: string[];
 
   @CreateDateColumn({ name: 'created_at' })
-  @Index() // Useful for "new users" lists
+  @Index() // Explicit index for sorting by new users
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })

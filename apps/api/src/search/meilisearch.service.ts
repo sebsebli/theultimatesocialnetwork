@@ -46,16 +46,20 @@ export class MeilisearchService implements OnModuleInit {
   }) {
     try {
       const index = this.client.index(this.indexName);
+      
+      // Clean body of excessive whitespace/markdown for better search
+      const searchBody = post.body.substring(0, 5000); 
+
       await index.addDocuments([
         {
           id: post.id,
           title: post.title || '',
-          body: post.body,
+          body: searchBody,
           authorId: post.authorId,
           author: post.author ? {
-            displayName: post.author.displayName,
+            displayName: post.author.displayName || post.author.handle,
             handle: post.author.handle,
-          } : null,
+          } : { displayName: 'Unknown', handle: 'unknown' },
           lang: post.lang || 'en',
           createdAt: post.createdAt.toISOString(),
           quoteCount: post.quoteCount,
@@ -94,6 +98,16 @@ export class MeilisearchService implements OnModuleInit {
       return await index.search(query, { limit });
     } catch (error) {
       console.error('Meilisearch user search error', error);
+      return { hits: [] };
+    }
+  }
+
+  async searchTopics(query: string, limit = 10) {
+    try {
+      const index = this.client.index('topics');
+      return await index.search(query, { limit });
+    } catch (error) {
+      // Topics might not be indexed yet, return empty
       return { hits: [] };
     }
   }

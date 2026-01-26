@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -13,6 +13,31 @@ export default function OnboardingProfileScreen() {
   const { t } = useTranslation();
   const [displayName, setDisplayName] = useState('');
   const [handle, setHandle] = useState('');
+  const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
+  const [checkingHandle, setCheckingHandle] = useState(false);
+
+  // Debounced handle check
+  useEffect(() => {
+    if (!handle || handle.length < 3 || !isValidHandle(handle)) {
+      setHandleAvailable(null);
+      return;
+    }
+
+    const checkHandle = async () => {
+      setCheckingHandle(true);
+      try {
+        const res = await api.get<{ available: boolean }>(`/users/check-handle?handle=${handle}`);
+        setHandleAvailable(res.available);
+      } catch (error) {
+        console.error('Handle check failed', error);
+      } finally {
+        setCheckingHandle(false);
+      }
+    };
+
+    const timer = setTimeout(checkHandle, 500);
+    return () => clearTimeout(timer);
+  }, [handle]);
   const [bio, setBio] = useState('');
   const [isProtected, setIsProtected] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -66,7 +91,7 @@ export default function OnboardingProfileScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={[styles.header, { marginTop: insets.top + 20 }]}>
-          <Pressable 
+          <Pressable
             onPress={() => router.back()}
             style={styles.backButton}
             accessibilityLabel="Go back"
@@ -90,13 +115,25 @@ export default function OnboardingProfileScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('onboarding.profile.handle')}</Text>
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>{t('onboarding.profile.handle')}</Text>
+              {checkingHandle ? (
+                <ActivityIndicator size="small" color={COLORS.tertiary} />
+              ) : handleAvailable === true ? (
+                <Text style={[styles.statusText, { color: '#4ADE80' }]}>Available</Text>
+              ) : handleAvailable === false ? (
+                <Text style={[styles.statusText, { color: COLORS.error }]}>Taken</Text>
+              ) : null}
+            </View>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                handleAvailable === false && { borderBottomColor: COLORS.error }
+              ]}
               placeholder={t('onboarding.profile.handle')}
               placeholderTextColor={COLORS.tertiary}
               value={handle}
-              onChangeText={(text) => setHandle(text.toLowerCase())}
+              onChangeText={(text: string) => setHandle(text.toLowerCase())}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -112,7 +149,7 @@ export default function OnboardingProfileScreen() {
               placeholder={t('onboarding.profile.bioPlaceholder')}
               placeholderTextColor={COLORS.tertiary}
               value={bio}
-              onChangeText={(text) => {
+              onChangeText={(text: string) => {
                 if (text.length <= 160) setBio(text);
               }}
               multiline
@@ -211,6 +248,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.secondary,
     fontFamily: FONTS.medium,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   charCount: {
     fontSize: 13,

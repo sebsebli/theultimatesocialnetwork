@@ -63,40 +63,30 @@ export class ExploreService {
     const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    // Get quote edges from last 24 hours
-    const recentQuotes = await this.postEdgeRepo
+    // Calculate scores in DB using CASE statements
+    const scoredIds = await this.postEdgeRepo
       .createQueryBuilder('edge')
+      .select('edge.to_post_id', 'postId')
+      .addSelect(`
+        SUM(
+          CASE 
+            WHEN edge.created_at >= :sixHoursAgo THEN 1.0 
+            ELSE 0.3 
+          END
+        )`, 'score')
       .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
-      .andWhere('edge.created_at >= :since', { since: twentyFourHoursAgo })
-      .getMany();
+      .andWhere('edge.created_at >= :twentyFourHoursAgo', { twentyFourHoursAgo })
+      .setParameters({ sixHoursAgo, twentyFourHoursAgo })
+      .groupBy('edge.to_post_id')
+      .orderBy('score', 'DESC')
+      .limit(limit)
+      .getRawMany();
 
-    // Count quotes per post
-    const quoteCounts: Record<string, { last6h: number; last24h: number }> = {};
-    
-    for (const quote of recentQuotes) {
-      const postId = quote.toPostId;
-      if (!quoteCounts[postId]) {
-        quoteCounts[postId] = { last6h: 0, last24h: 0 };
-      }
-      quoteCounts[postId].last24h++;
-      if (new Date(quote.createdAt) >= sixHoursAgo) {
-        quoteCounts[postId].last6h++;
-      }
-    }
-
-    // Calculate scores
-    const scoredPosts = Object.entries(quoteCounts).map(([postId, counts]) => ({
-      postId,
-      score: counts.last6h * 1.0 + counts.last24h * 0.3,
-    }));
-
-    // Sort by score and get top posts
-    scoredPosts.sort((a, b) => b.score - a.score);
-    const topPostIds = scoredPosts.slice(0, limit).map(p => p.postId);
-
-    if (topPostIds.length === 0) {
+    if (scoredIds.length === 0) {
       return [];
     }
+
+    const topPostIds = scoredIds.map(s => s.postId);
 
     // Fetch full post data
     const query = this.postRepo
@@ -168,24 +158,24 @@ export class ExploreService {
    * Find posts with many backlinks that lead to other posts with many backlinks
    */
   async getDeepDives(userId?: string, limit = 20, filter?: { lang?: string; sort?: string }) {
-    // Get posts with high backlink counts
-    const backlinks = await this.postEdgeRepo
+    // Get top posts by backlink count directly from DB
+    const rankedIds = await this.postEdgeRepo
       .createQueryBuilder('edge')
       .select('edge.to_post_id', 'postId')
       .addSelect('COUNT(*)', 'count')
       .where('edge.edge_type = :type', { type: EdgeType.LINK })
       .groupBy('edge.to_post_id')
-      .orderBy('COUNT(*)', 'DESC')
-      .limit(limit * 2)
+      .orderBy('count', 'DESC')
+      .limit(limit)
       .getRawMany();
 
-    const postIds = backlinks.map(b => b.postId);
-
-    if (postIds.length === 0) {
+    if (rankedIds.length === 0) {
       return [];
     }
 
-    // Fetch posts with their authors
+    const postIds = rankedIds.map(r => r.postId);
+
+    // Fetch full post data for these IDs
     const query = this.postRepo
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
@@ -196,16 +186,14 @@ export class ExploreService {
       query.andWhere('post.lang = :lang', { lang: filter.lang });
     }
 
-    const posts = await query
-      .getMany();
+    const posts = await query.getMany();
     
-    // Sort by original order and limit
+    // Sort by original count order
     const sortedPosts = postIds
       .map(id => posts.find(p => p.id === id))
-      .filter(p => p !== undefined)
-      .slice(0, limit);
+      .filter(p => p !== undefined);
 
-    return posts.map(p => ({
+    return sortedPosts.map(p => ({
       ...p,
       reasons: ['Many backlinks', 'Link chain'],
     }));

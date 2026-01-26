@@ -31,17 +31,17 @@ export default function ProfileScreen() {
       let data;
       if (handle) {
         data = await api.get(`/users/${handle}`);
-        setIsSelf(false); 
+        setIsSelf(false);
       } else {
         data = await api.get('/users/me');
         setIsSelf(true);
       }
-      
+
       setUser(data);
       if (data.isFollowing !== undefined) {
         setIsFollowing(data.isFollowing);
       }
-      
+
       // Load posts/replies/quotes with pagination
       let postsData;
       if (activeTab === 'replies') {
@@ -54,13 +54,13 @@ export default function ProfileScreen() {
         postsData = await api.get(`/users/${data.id || 'me'}/posts?page=${pageNum}&limit=20&type=${activeTab}`);
       }
       const items = Array.isArray(postsData.items || postsData) ? (postsData.items || postsData) : [];
-      
+
       if (reset) {
         setPosts(items);
       } else {
         setPosts(prev => [...prev, ...items]);
       }
-      
+
       const hasMoreData = items.length === 20 && (postsData.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
@@ -70,7 +70,7 @@ export default function ProfileScreen() {
       }
       console.error('Failed to load profile', error);
       // Show user-friendly error if no data exists
-      if (reset && posts.length === 0 && !loading) {
+      if (reset && posts.length === 0 && !loadingMore) {
         const { Alert } = require('react-native');
         Alert.alert(
           t('common.error', 'Error'),
@@ -149,10 +149,10 @@ export default function ProfileScreen() {
             <MaterialIcons name="arrow-back-ios" size={24} color={COLORS.paper} />
           </Pressable>
         )}
-        {isSelf && <View style={{ width: 40 }} />} 
-        
-        <Pressable 
-          style={styles.iconButton} 
+        {isSelf && <View style={{ width: 40 }} />}
+
+        <Pressable
+          style={styles.iconButton}
           onPress={() => router.push('/settings')}
           accessibilityLabel={t('settings.title')}
           accessibilityRole="button"
@@ -181,7 +181,7 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                 </View>
-                
+
                 <View style={styles.identityBlock}>
                   <Text style={styles.name}>{user.displayName}</Text>
                   <Text style={styles.handle}>@{user.handle}</Text>
@@ -191,7 +191,7 @@ export default function ProfileScreen() {
                   <Text style={styles.bio}>{user.bio}</Text>
                 )}
 
-                <Pressable 
+                <Pressable
                   style={[
                     styles.actionButtonOutline,
                     !isSelf && isFollowing && styles.actionButtonFilled
@@ -231,8 +231,8 @@ export default function ProfileScreen() {
               {/* Tabs */}
               <View style={styles.tabsContainer}>
                 {(['posts', 'replies', 'quotes', 'collections'] as const).map((tab) => (
-                  <Pressable 
-                    key={tab} 
+                  <Pressable
+                    key={tab}
                     style={[styles.tab, activeTab === tab && styles.tabActive]}
                     onPress={() => setActiveTab(tab)}
                     accessibilityLabel={t(`profile.${tab}`)}

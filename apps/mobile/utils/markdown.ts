@@ -140,13 +140,15 @@ function parseUrls(text: string, parts: Array<any>) {
     lastLinkIndex = linkMatch.index + linkMatch[0].length;
   }
 
-  // Match bare URLs
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  // Match bare URLs (not part of a markdown link)
+  const urlRegex = /(?<!\]\()(https?:\/\/[^\s<]+)/g;
   let urlMatch;
   let lastUrlIndex = lastLinkIndex;
 
-  while ((urlMatch = urlRegex.exec(text.substring(lastLinkIndex))) !== null) {
-    const actualIndex = lastLinkIndex + urlMatch.index;
+  while ((urlMatch = urlRegex.exec(text)) !== null) {
+    const actualIndex = urlMatch.index;
+    if (actualIndex < lastLinkIndex) continue; // Skip if already processed by markdown link regex
+    
     if (actualIndex > lastUrlIndex) {
       parts.push({
         type: 'text',

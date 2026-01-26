@@ -39,21 +39,25 @@ export default function PostDetailScreen() {
 
   const loadPost = async () => {
     try {
-      const [postRes, repliesRes, referencedRes, sourcesRes] = await Promise.all([
-        api.get(`/posts/${id}`),
-        api.get(`/posts/${id}/replies`),
-        api.get(`/posts/${id}/referenced-by`),
-        api.get(`/posts/${id}/sources`).catch(() => []), // Sources may not exist
-      ]);
+      // Step 1: Load main post content first for instant display
+      const postRes = await api.get(`/posts/${id}`);
       setPost(postRes);
       setLiked(postRes.isLiked || false);
       setKept(postRes.isKept || false);
-      setReplies(Array.isArray(repliesRes) ? repliesRes : []);
-      setReferencedBy(Array.isArray(referencedRes) ? referencedRes : []);
-      setSources(Array.isArray(sourcesRes) ? sourcesRes : []);
+      setLoading(false); // Show content now
+
+      // Step 2: Load supplementary data in background
+      Promise.all([
+        api.get(`/posts/${id}/replies`),
+        api.get(`/posts/${id}/referenced-by`),
+        api.get(`/posts/${id}/sources`).catch(() => []),
+      ]).then(([repliesRes, referencedRes, sourcesRes]) => {
+        setReplies(Array.isArray(repliesRes) ? repliesRes : []);
+        setReferencedBy(Array.isArray(referencedRes) ? referencedRes : []);
+        setSources(Array.isArray(sourcesRes) ? sourcesRes : []);
+      });
     } catch (error) {
       console.error('Failed to load post', error);
-    } finally {
       setLoading(false);
     }
   };

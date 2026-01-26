@@ -1,15 +1,20 @@
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, LayoutAnimation, UIManager, Platform } from 'react-native';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { COLORS, FONTS, SIZES, SPACING } from 'constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../utils/api';
-import { PostItem } from '../../components/PostItem';
-import { ErrorState } from '../../components/ErrorState';
-import { ComposeEditor } from '../../components/ComposeEditor';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
-import { useAuth } from '../../context/auth';
+import { PostItem } from 'components/PostItem';
+import { ComposeEditor } from 'components/ComposeEditor';
+import { useRouter } from 'expo-router';
+import { api } from 'utils/api';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from 'context/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ErrorState } from 'components/ErrorState';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -26,7 +31,6 @@ export default function HomeScreen() {
 
   useEffect(() => {
     // Only load feed if authenticated
-    // Let auth context handle redirects to avoid navigation before mount
     if (isAuthenticated) {
       loadFeed(1, true);
     } else {
@@ -38,24 +42,25 @@ export default function HomeScreen() {
     if (reset) {
       setLoading(true);
       setPage(1);
-      setPosts([]);
+      // Don't clear posts immediately to avoid flash, but do it if needed
+      // setPosts([]); 
     } else {
       setLoadingMore(true);
     }
     setError(false);
     try {
       const data = await api.get(`/feed?page=${pageNum}&limit=20`);
-      // Handle feed items (can be posts or saved_by events)
+      // Handle feed items...
       const feedItems = Array.isArray(data.items || data) ? (data.items || data) : [];
       const processedPosts = feedItems.map((item: any) => {
         if (item.type === 'saved_by') {
           const post = item.data.post || item.data;
           return {
             ...post,
-            author: post.author || { 
-              id: post.authorId || '', 
-              handle: 'unknown', 
-              displayName: 'Unknown User' 
+            author: post.author || {
+              id: post.authorId || '',
+              handle: 'unknown',
+              displayName: 'Unknown User'
             },
             _isSavedBy: true,
             _savedBy: item.data,
@@ -64,27 +69,27 @@ export default function HomeScreen() {
         const post = item.data || item;
         return {
           ...post,
-          author: post.author || { 
-            id: post.authorId || '', 
-            handle: 'unknown', 
-            displayName: 'Unknown User' 
+          author: post.author || {
+            id: post.authorId || '',
+            handle: 'unknown',
+            displayName: 'Unknown User'
           },
         };
       });
-      
+
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
       if (reset) {
         setPosts(processedPosts);
       } else {
         setPosts(prev => [...prev, ...processedPosts]);
       }
-      
-      // Check if there's more data
+
       const hasMoreData = processedPosts.length === 20 && (data.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
-      // If 401, auth handler will redirect - don't set error state
+      // ... error handling
       if (error?.status === 401) {
-        // Auth handler will redirect, just stop loading
         setLoading(false);
         setRefreshing(false);
         setLoadingMore(false);
@@ -92,7 +97,6 @@ export default function HomeScreen() {
       }
       console.error('Failed to load feed', error);
       setError(true);
-      // Show user-friendly error only if no data exists
       if (posts.length === 0 && !loading) {
         const { Alert } = require('react-native');
         Alert.alert(
@@ -160,16 +164,16 @@ export default function HomeScreen() {
           <Text style={styles.headerTitle}>{t('home.title')}</Text>
         </View>
         <View style={styles.headerActions}>
-          <Pressable 
-            onPress={() => router.push('/search')} 
+          <Pressable
+            onPress={() => router.push('/search')}
             style={styles.headerActionButton}
             accessibilityLabel={t('home.search')}
             accessibilityRole="button"
           >
             <MaterialIcons name="search" size={20} color={COLORS.tertiary} />
           </Pressable>
-          <Pressable 
-            onPress={() => router.push('/settings')} 
+          <Pressable
+            onPress={() => router.push('/settings')}
             style={styles.headerActionButton}
             accessibilityLabel={t('settings.title')}
             accessibilityRole="button"

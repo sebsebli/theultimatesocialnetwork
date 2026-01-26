@@ -114,6 +114,10 @@ class ApiClient {
     } catch (error: any) {
       console.error(`API Request Failed: ${endpoint}`, error);
       
+      if (error.message === 'Auth check timeout') {
+         throw new ApiError('Connection timed out. Please check your internet connection.', 0);
+      }
+
       if (error.message === 'Network request failed' || error.message.includes('Network')) {
         throw new ApiError('Network error. Please check your internet connection.', 0);
       }
@@ -153,10 +157,13 @@ class ApiClient {
 
   async upload<T = any>(endpoint: string, file: any): Promise<T> {
     const formData = new FormData();
+    const uriParts = file.uri.split('.');
+    const fileType = uriParts[uriParts.length - 1];
+    
     formData.append('image', {
       uri: file.uri,
-      name: file.fileName || 'image.jpg',
-      type: file.type || 'image/jpeg',
+      name: file.fileName || `photo.${fileType}` || 'image.jpg',
+      type: file.type || `image/${fileType}` || 'image/jpeg',
     } as any);
 
     return this.request(endpoint, {

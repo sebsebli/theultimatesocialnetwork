@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
@@ -30,22 +30,17 @@ export class UsersService {
       where: { handle },
     });
 
-    if (!user) {
-      return null;
-    }
+    if (!user) return null;
 
-    // Get user's posts
+    // Get posts with single optimized query
     const posts = await this.postRepo.find({
-      where: { authorId: user.id },
+      where: { authorId: user.id, deletedAt: IsNull() },
       relations: ['author'],
       order: { createdAt: 'DESC' },
       take: 20,
     });
 
-    return {
-      ...user,
-      posts,
-    };
+    return { ...user, posts };
   }
 
   async findById(id: string) {
@@ -53,22 +48,16 @@ export class UsersService {
       where: { id },
     });
 
-    if (!user) {
-      return null;
-    }
+    if (!user) return null;
 
-    // Get user's posts
     const posts = await this.postRepo.find({
-      where: { authorId: user.id },
+      where: { authorId: user.id, deletedAt: IsNull() },
       relations: ['author'],
       order: { createdAt: 'DESC' },
       take: 20,
     });
 
-    return {
-      ...user,
-      posts,
-    };
+    return { ...user, posts };
   }
 
   async update(id: string, updates: Partial<User>): Promise<User> {

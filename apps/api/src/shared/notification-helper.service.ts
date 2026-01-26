@@ -22,6 +22,25 @@ export class NotificationHelperService {
       return;
     }
 
+    // Prevent duplicates
+    const existing = await this.notificationRepo.findOne({
+      where: {
+        userId: data.userId,
+        type: data.type,
+        actorUserId: data.actorUserId,
+        postId: data.postId || undefined,
+        replyId: data.replyId || undefined,
+        collectionId: data.collectionId || undefined,
+      } as any,
+    });
+
+    if (existing) {
+      // Update timestamp to bump it? Or just ignore?
+      // Usually better to ignore to prevent spam, or update 'updatedAt' if you have it.
+      // For now, simple dedupe:
+      return existing;
+    }
+
     const notification = this.notificationRepo.create(data);
     return this.notificationRepo.save(notification);
   }

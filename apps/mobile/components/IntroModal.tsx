@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Modal, Pressable, Animated, Dimensions, Image, ScrollView } from 'react-native';
 import { RFValue } from 'react-native-responsive-fontsize';
 import { useTranslation } from 'react-i18next';
+import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SIZES } from '../constants/theme';
 import * as SecureStore from 'expo-secure-store';
 
@@ -243,7 +244,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
 
-  const allItems = [
+  const allItems = React.useMemo(() => [
     { text: "I built cite to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy.\n\nThe future deserves verification over virality, context over chaos.", isFounder: true, hasAuthor: true },
     { text: t('intro.point1'), isFounder: false, hasAuthor: false },
     { text: t('intro.point2'), isFounder: false, hasAuthor: false },
@@ -253,7 +254,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
     { text: t('intro.point6'), isFounder: false, hasAuthor: false },
     { text: t('intro.point7'), isFounder: false, hasAuthor: false },
     { text: t('intro.finalMessage'), isWelcome: true, isFounder: false, hasAuthor: false },
-  ];
+  ], [t]);
 
   useEffect(() => {
     if (!visible) {
@@ -271,7 +272,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
     const lastIndex = allItems.length - 1;
     scrollViewRef.current?.scrollTo({
       x: lastIndex * width,
-      animated: true,
+      animated: false,
     });
     setCurrentIndex(lastIndex);
   };
@@ -308,7 +309,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
           </Pressable>
         </View>
 
-        {/* Scrollable Pages */}
+        {/* Invisible ScrollView for gesture handling */}
         <ScrollView
           ref={scrollViewRef}
           horizontal
@@ -319,93 +320,135 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollViewContent}
         >
-          {allItems.map((item, index) => {
-            const isFounder = item.isFounder;
-            const isWelcome = item.isWelcome;
-            const cityIndex = index % cityImages.length;
+          {allItems.map((_, index) => (
+            <View key={index} style={styles.scrollPage} />
+          ))}
+        </ScrollView>
 
-            // Calculate opacity based on scroll position for smooth fade effect
-            const inputRange = [
+        {/* Overlapping Pages with Fade Effect */}
+        {allItems.map((item, index) => {
+          const isFounder = item.isFounder;
+          const isWelcome = item.isWelcome;
+          const cityIndex = index % cityImages.length;
+
+          // Calculate opacity based on scroll position for smooth fade effect
+          const inputRange = [
+            (index - 1) * width,
+            index * width,
+            (index + 1) * width,
+          ];
+
+          // Smooth fade for text content
+          const opacity = scrollX.interpolate({
+            inputRange,
+            outputRange: [0, 1, 0],
+            extrapolate: 'clamp',
+          });
+
+          // Smooth fade for background images
+          const backgroundOpacity = scrollX.interpolate({
+            inputRange,
+            outputRange: [0, 0.2, 0],
+            extrapolate: 'clamp',
+          });
+
+          // Parallax effect: background moves slower than scroll (creates depth)
+          const backgroundTranslateX = scrollX.interpolate({
+            inputRange: [
               (index - 1) * width,
               index * width,
               (index + 1) * width,
-            ];
+            ],
+            outputRange: [-width * 0.3, 0, width * 0.3], // Moves 30% of screen width
+            extrapolate: 'clamp',
+          });
 
-            // Smooth fade for text content
-            const opacity = scrollX.interpolate({
-              inputRange,
-              outputRange: [0, 1, 0],
-              extrapolate: 'clamp',
-            });
+          return (
+            <View key={`page-${index}`} style={styles.overlayPage}>
+              {/* Background Image with fade and parallax */}
+              {/* @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
+              <Animated.View
+                style={[
+                  styles.backgroundContainer,
+                  {
+                    opacity: backgroundOpacity,
+                    transform: [
+                      { translateX: backgroundTranslateX },
+                    ],
+                  },
+                ]}
+              >
+                <Image
+                  source={cityImages[cityIndex]}
+                  style={styles.backgroundImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.backgroundOverlay} />
+              </Animated.View>
 
-            // Smooth fade for background images
-            const backgroundOpacity = scrollX.interpolate({
-              inputRange,
-              outputRange: [0, 0.2, 0],
-              extrapolate: 'clamp',
-            });
-
-            return (
-              <View key={index} style={styles.page}>
-                {/* Background Image with fade */}
-                {/* @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
-                <Animated.View
-                  style={[
-                    styles.backgroundContainer,
-                    { opacity: backgroundOpacity },
-                  ]}
-                >
-                  <Image
-                    source={cityImages[cityIndex]}
-                    style={styles.backgroundImage}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.backgroundOverlay} />
-                </Animated.View>
-
-                {/* Text Content with fade */}
-                {/* @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
-                <Animated.View
-                  style={[
-                    styles.pageContent,
-                    { opacity },
-                  ]}
-                >
-                  <View style={styles.textWrapper}>
-                    {isFounder ? (
-                      <View style={styles.founderContainer}>
-                        <Text style={[styles.text, styles.founderText]}>
-                          {item.text.split(/(cite)/i).map((part, i) =>
-                            part.toLowerCase() === 'cite' ? (
-                              <Text key={i} style={[styles.text, styles.founderText, styles.highlightedCite]}>
-                                {part}
-                              </Text>
-                            ) : (
-                              <Text key={i}>{part}</Text>
-                            )
-                          )}
-                        </Text>
-                        <Text style={styles.founderNameAlways}>
-                          {t('intro.founderName')}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text
-                        style={[
-                          styles.text,
-                          isWelcome && styles.welcomeText,
-                          item.text === t('intro.finalMessage') && styles.finalText,
-                        ]}
-                      >
-                        {item.text}
+              {/* Text Content with fade */}
+              {/* @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
+              <Animated.View
+                style={[
+                  styles.pageContent,
+                  { opacity },
+                ]}
+                pointerEvents="none"
+              >
+                <View style={styles.textWrapper}>
+                  {isFounder ? (
+                    <View style={styles.founderContainer}>
+                      <MaterialIcons
+                        name="format-quote"
+                        size={RFValue(32)}
+                        color={COLORS.paper}
+                        style={styles.quoteIcon}
+                      />
+                      <Text style={[styles.text, styles.founderText]}>
+                        {item.text.split(/(cite)/i).map((part, i) =>
+                          part.toLowerCase() === 'cite' ? (
+                            <Text key={i} style={[styles.text, styles.founderText, styles.highlightedCite]}>
+                              {part}
+                            </Text>
+                          ) : (
+                            <Text key={i}>{part}</Text>
+                          )
+                        )}
                       </Text>
-                    )}
-                  </View>
-                </Animated.View>
-              </View>
-            );
-          })}
-        </ScrollView>
+                      <Text style={styles.founderNameAlways}>
+                        {t('intro.founderName')}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text
+                      style={[
+                        styles.text,
+                        isWelcome && styles.welcomeText,
+                        item.text === t('intro.finalMessage') && styles.finalText,
+                      ]}
+                    >
+                      {item.text}
+                    </Text>
+                  )}
+                </View>
+              </Animated.View>
+            </View>
+          );
+        })}
+
+        {/* Navigation Button - Bottom (only on last page) */}
+        {isLastPage && (
+          <View style={styles.bottomSection}>
+            <Pressable
+              style={styles.beginButton}
+              onPress={handleClose}
+            >
+              <Text style={styles.beginButtonText}>
+                {t('intro.beginJourney')}
+              </Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Page Indicators */}
         <View style={styles.indicatorsContainer}>
@@ -445,20 +488,6 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
             );
           })}
         </View>
-
-        {/* Navigation Button - Bottom (only on last page) */}
-        {isLastPage && (
-          <View style={styles.bottomSection}>
-            <Pressable
-              style={styles.beginButton}
-              onPress={handleClose}
-            >
-              <Text style={styles.beginButtonText}>
-                {t('intro.beginJourney')}
-              </Text>
-            </Pressable>
-          </View>
-        )}
       </View>
     </Modal>
   );
@@ -486,16 +515,32 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 15,
   },
   scrollViewContent: {
     alignItems: 'center',
   },
-  page: {
+  scrollPage: {
     width: width,
+    height: '100%',
+  },
+  overlayPage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SPACING.m,
+    zIndex: 10,
   },
   backgroundContainer: {
     position: 'absolute',
@@ -533,7 +578,7 @@ const styles = StyleSheet.create({
   },
   indicatorsContainer: {
     position: 'absolute',
-    bottom: SPACING.xxl + 100, // Position above the button
+    bottom: SPACING.xxl + 40, // Position below the button
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -551,10 +596,10 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     position: 'absolute',
-    bottom: 0,
+    bottom: SPACING.xxl + 100, // Position above the dots
     left: 0,
     right: 0,
-    paddingBottom: SPACING.xxl + 40, // Increased bottom margin
+    paddingBottom: 0,
     paddingHorizontal: SPACING.xxl,
     alignItems: 'center',
     zIndex: 20,
@@ -586,6 +631,10 @@ const styles = StyleSheet.create({
   founderContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quoteIcon: {
+    marginBottom: SPACING.m,
+    opacity: 0.8,
   },
   founderNameAlways: {
     fontSize: RFValue(14),
@@ -621,8 +670,8 @@ const styles = StyleSheet.create({
   },
   beginButton: {
     borderRadius: SIZES.borderRadiusPill,
-    borderWidth: 0,
-    borderColor: COLORS.primary,
+    borderWidth: 1,
+    borderColor: COLORS.paper,
     backgroundColor: 'transparent',
     paddingVertical: SPACING.m + 2,
     paddingHorizontal: SPACING.xxl + 4,

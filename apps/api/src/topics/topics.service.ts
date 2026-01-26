@@ -20,21 +20,17 @@ export class TopicsService {
       where: { slug },
     });
 
-    if (!topic) {
-      return null;
-    }
+    if (!topic) return null;
 
-    // Get posts in topic
-    const postTopics = await this.postTopicRepo.find({
-      where: { topicId: topic.id },
-      relations: ['post', 'post.author'],
-    });
-    
-    const posts = postTopics
-      .map(pt => pt.post)
-      .filter(post => post && !post.deletedAt)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, 50);
+    // Get posts in topic - Optimized DB query
+    const posts = await this.postRepo.createQueryBuilder('post')
+      .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
+      .leftJoinAndSelect('post.author', 'author')
+      .where('pt.topic_id = :topicId', { topicId: topic.id })
+      .andWhere('post.deleted_at IS NULL')
+      .orderBy('post.created_at', 'DESC')
+      .take(50)
+      .getMany();
 
     // Get "Start here" posts (most cited)
     const startHere = await this.exploreService.getTopicStartHere(topic.id, 10);
@@ -46,16 +42,15 @@ export class TopicsService {
     };
   }
 
-  async getPosts(topicId: string) {
-    const postTopics = await this.postTopicRepo.find({
-      where: { topicId },
-      relations: ['post', 'post.author'],
-    });
-    
-    return postTopics
-      .map(pt => pt.post)
-      .filter(post => post && !post.deletedAt)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, 50);
+  async getPosts(topicId: string, limit = 50, offset = 0) {
+    return this.postRepo.createQueryBuilder('post')
+      .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
+      .leftJoinAndSelect('post.author', 'author')
+      .where('pt.topic_id = :topicId', { topicId })
+      .andWhere('post.deleted_at IS NULL')
+      .orderBy('post.created_at', 'DESC')
+      .skip(offset)
+      .take(limit)
+      .getMany();
   }
 }

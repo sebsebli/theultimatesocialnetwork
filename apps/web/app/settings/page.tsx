@@ -10,13 +10,21 @@ export default function SettingsPage() {
   const [showSaves, setShowSaves] = useState(true);
   const [enableRecommendations, setEnableRecommendations] = useState(true);
 
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleExport = async () => {
+    setIsExporting(true);
+    // Simulate slight delay for feedback
+    await new Promise(resolve => setTimeout(resolve, 500));
     window.open('/api/me/export', '_blank');
+    setIsExporting(false);
   };
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete your account? This action is irreversible.')) return;
     
+    setIsDeleting(true);
     try {
       const res = await fetch('/api/me/delete', { method: 'DELETE' });
       if (res.ok) {
@@ -26,6 +34,8 @@ export default function SettingsPage() {
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -199,16 +209,24 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <button 
               onClick={handleExport}
-              className="w-full p-4 bg-white/5 border border-white/10 rounded-lg text-left text-paper hover:bg-white/10 transition-colors"
+              disabled={isExporting}
+              className="w-full p-4 bg-white/5 border border-white/10 rounded-lg text-left text-paper hover:bg-white/10 transition-colors disabled:opacity-50"
             >
-              <div className="font-medium">Export archive</div>
+              <div className="font-medium flex items-center justify-between">
+                Export archive
+                {isExporting && <span className="text-xs text-primary animate-pulse">Starting...</span>}
+              </div>
               <div className="text-secondary text-sm mt-1">Download your data</div>
             </button>
             <button 
               onClick={handleDelete}
-              className="w-full p-4 bg-white/5 border border-red-500/50 rounded-lg text-left text-red-400 hover:bg-red-500/10 transition-colors"
+              disabled={isDeleting}
+              className="w-full p-4 bg-white/5 border border-red-500/50 rounded-lg text-left text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
             >
-              <div className="font-medium">Delete account</div>
+              <div className="font-medium flex items-center justify-between">
+                Delete account
+                {isDeleting && <span className="text-xs text-red-400 animate-pulse">Processing...</span>}
+              </div>
               <div className="text-secondary text-sm mt-1">Permanently delete your account</div>
             </button>
           </div>

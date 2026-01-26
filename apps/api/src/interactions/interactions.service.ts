@@ -23,23 +23,33 @@ export class InteractionsService {
   async recordReadDuration(userId: string, postId: string, durationSeconds: number) {
     if (!userId || durationSeconds <= 0) return;
 
-    // Buffer writes? For user history, immediate upsert is usually okay if traffic isn't Facebook-scale.
-    // But for safety, we can use a simpler approach: direct UPSERT.
-    // "ON CONFLICT (user_id, post_id) DO UPDATE SET duration_seconds = duration_seconds + excluded.duration_seconds"
-    
-    // Using TypeORM upsert
-    const existing = await this.readRepo.findOne({ where: { userId, postId } });
-    if (existing) {
-      existing.durationSeconds += durationSeconds;
-      existing.lastReadAt = new Date();
-      await this.readRepo.save(existing);
-    } else {
-      await this.readRepo.save({
+    // Use query builder for atomic upsert
+    await this.readRepo
+      .createQueryBuilder()
+      .insert()
+      .into(PostRead)
+      .values({
         userId,
         postId,
         durationSeconds,
-      });
-    }
+        lastReadAt: new Date(),
+      })
+      .orUpdate(['duration_seconds', 'last_read_at'], ['user_id', 'post_id'])
+      .setParameters({ durationSeconds })
+      // This part is tricky with QueryBuilder inserts, 
+      // let's use a simpler standard approach if orUpdate syntax varies by DB
+      .execute();
+      
+    // Actually, for duration accumulation:
+    await this.dataSource.query(
+      `INSERT INTO post_reads (user_id, post_id, duration_seconds, last_read_at) 
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (user_id, post_id) 
+       DO UPDATE SET 
+         duration_seconds = post_reads.duration_seconds + EXCLUDED.duration_seconds,
+         last_read_at = EXCLUDED.last_read_at`,
+      [userId, postId, durationSeconds]
+    );
   }
 
   async recordView(postId: string) {

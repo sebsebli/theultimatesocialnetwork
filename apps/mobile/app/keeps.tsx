@@ -16,7 +16,7 @@ export default function KeepsScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  
+
   // Picker state
   const [showPicker, setShowPicker] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -54,13 +54,13 @@ export default function KeepsScreen() {
 
       const data = await api.get(`/keeps?${params.toString()}`);
       const items = Array.isArray(data.items || data) ? (data.items || data) : [];
-      
+
       if (reset) {
         setKeeps(items);
       } else {
         setKeeps(prev => [...prev, ...items]);
       }
-      
+
       const hasMoreData = items.length === 20 && (data.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error) {
@@ -224,9 +224,9 @@ export default function KeepsScreen() {
             </View>
             <FlatList
               data={collections}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item: any) => item.id}
               style={{ maxHeight: 300 }}
-              renderItem={({ item }) => (
+              renderItem={({ item }: { item: any }) => (
                 <Pressable
                   style={styles.collectionItem}
                   onPress={() => addToCollection(item.id)}

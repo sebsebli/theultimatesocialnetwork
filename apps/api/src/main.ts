@@ -1,12 +1,17 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
+import compression from 'compression';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   
+  // Response compression for better performance
+  app.use(compression());
+
   // Security headers with enhanced configuration
   app.use(helmet({
     contentSecurityPolicy: {
@@ -39,29 +44,19 @@ async function bootstrap() {
   // Enable CORS with security
   const allowedOrigins = process.env.CORS_ORIGINS 
     ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-    : ['http://localhost:3001', 'http://localhost:19006', 'exp://localhost:19000'];
+    : ['http://localhost:3001', 'http://localhost:3000', 'http://localhost:19006', 'exp://localhost:19000'];
 
   app.enableCors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) {
-        return callback(null, true);
-      }
-      
-      if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range', 'X-Total-Count'],
     maxAge: 86400, // 24 hours
   });
   
-  await app.listen(process.env.PORT ?? 3000);
-  console.log('🚀 CITE API running on http://localhost:3000');
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  logger.log(`🚀 CITE API running on port ${port} [Env: ${process.env.NODE_ENV || 'development'}]`);
 }
 bootstrap();

@@ -32,13 +32,12 @@ export class InvitesService {
   // INVITES LOGIC
   async generateCode(userId?: string): Promise<string> {
     const isBeta = await this.isBetaMode();
-    if (!isBeta) {
-      // If beta is OFF, invites might still be used for "referrals" or tracking, 
-      // but the prompt says "option to generate new codes is deleted".
-      // I will allow it but maybe warn? Or restrict. 
-      // Actually, users might want to invite friends anyway.
-      // But if "option is deleted", I should block.
-      // Let's assume ADMIN can always generate, users can't if beta is off.
+    
+    if (userId) {
+      const user = await this.userRepo.findOne({ where: { id: userId } });
+      if (!user || user.invitesRemaining <= 0) {
+        throw new BadRequestException('No invites remaining');
+      }
     }
 
     const code = crypto.randomBytes(4).toString('hex').toUpperCase(); // 8 chars

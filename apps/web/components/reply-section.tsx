@@ -52,20 +52,46 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
     e.preventDefault();
     if (!replyText.trim()) return;
 
+    const body = replyText;
+    setReplyText('');
+    setShowReplyBox(false);
+
+    // Optimistic update
+    const tempId = `temp-${Date.now()}`;
+    const newReply = {
+      id: tempId,
+      body,
+      createdAt: new Date().toISOString(),
+      author: {
+        id: 'me', // placeholder
+        handle: 'me',
+        displayName: 'Me',
+      },
+    };
+    
+    setReplies(prev => [newReply, ...prev]);
+
     try {
       const res = await fetch(`/api/posts/${postId}/replies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: replyText }),
+        body: JSON.stringify({ body }),
       });
 
       if (res.ok) {
-        setReplyText('');
-        setShowReplyBox(false);
-        loadReplies();
+        const saved = await res.json();
+        // Replace optimistic reply with real one
+        setReplies(prev => prev.map(r => r.id === tempId ? saved : r));
+      } else {
+        throw new Error('Failed to post');
       }
     } catch (error) {
       console.error('Failed to post reply', error);
+      // Remove optimistic reply on failure
+      setReplies(prev => prev.filter(r => r.id !== tempId));
+      setReplyText(body); // Restore text
+      setShowReplyBox(true);
+      alert('Failed to post reply. Please try again.');
     }
   };
 

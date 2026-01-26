@@ -131,59 +131,48 @@ export class SafetyService {
   }
 
   private async handleReportThresholds(targetId: string, targetType: string) {
-    // Only handle POST and REPLY for now
-    if (targetType !== 'POST' && targetType !== 'REPLY') {
-      return;
-    }
+    if (targetType !== 'POST' && targetType !== 'REPLY') return;
 
-    // Count reports for this target
     const reportCount = await this.reportRepo.count({
       where: { targetId, targetType: targetType as any },
     });
 
-    // Thresholds
-    const AI_CHECK_THRESHOLD = 3;
     const AUTO_DELETE_THRESHOLD = 10;
+    const AI_CHECK_THRESHOLD = 3;
 
-    // Get the content
-    let content = '';
-    let authorId = '';
-    let entity: Post | Reply | null = null;
-
-    if (targetType === 'POST') {
-      entity = await this.postRepo.findOne({ where: { id: targetId } });
-      if (entity) {
-        content = (entity as Post).body;
-        authorId = (entity as Post).authorId;
-      }
-    } else if (targetType === 'REPLY') {
-      entity = await this.replyRepo.findOne({ where: { id: targetId } });
-      if (entity) {
-        content = (entity as Reply).body;
-        authorId = (entity as Reply).authorId;
-      }
-    }
-
-    if (!entity || !content) {
-      return;
-    }
-
-    // High threshold: Auto-delete without AI check (crowd-sourced moderation)
     if (reportCount >= AUTO_DELETE_THRESHOLD) {
       await this.softDeleteContent(targetId, targetType);
       return;
     }
 
-    // Low threshold: AI check
     if (reportCount >= AI_CHECK_THRESHOLD && this.contentModeration) {
-      const checkResult = await this.contentModeration.checkContent(
-        content,
-        authorId,
-        targetType === 'POST' ? 'post' : 'reply'
-      );
+      let content = '';
+      let authorId = '';
 
-      if (!checkResult.safe) {
-        await this.softDeleteContent(targetId, targetType);
+      if (targetType === 'POST') {
+        const post = await this.postRepo.findOne({ where: { id: targetId }, select: ['body', 'authorId'] });
+        if (post) {
+          content = post.body;
+          authorId = post.authorId;
+        }
+      } else {
+        const reply = await this.replyRepo.findOne({ where: { id: targetId }, select: ['body', 'authorId'] });
+        if (reply) {
+          content = reply.body;
+          authorId = reply.authorId;
+        }
+      }
+
+      if (content) {
+        const checkResult = await this.contentModeration.checkContent(
+          content,
+          authorId,
+          targetType === 'POST' ? 'post' : 'reply'
+        );
+
+        if (!checkResult.safe) {
+          await this.softDeleteContent(targetId, targetType);
+        }
       }
     }
   }
@@ -211,20 +200,20 @@ export class SafetyService {
   }
 
   async isBlocked(userId: string, otherUserId: string): Promise<boolean> {
-    const block = await this.blockRepo.findOne({
+    const count = await this.blockRepo.count({
       where: [
         { blockerId: userId, blockedId: otherUserId },
         { blockerId: otherUserId, blockedId: userId },
       ],
     });
-    return !!block;
+    return count > 0;
   }
 
   async isMuted(userId: string, otherUserId: string): Promise<boolean> {
-    const mute = await this.muteRepo.findOne({
+    const count = await this.muteRepo.count({
       where: { muterId: userId, mutedId: otherUserId },
     });
-    return !!mute;
+    return count > 0;
   }
 
   async checkContent(

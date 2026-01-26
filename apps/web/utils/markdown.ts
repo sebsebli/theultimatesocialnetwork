@@ -84,13 +84,25 @@ export function renderMarkdown(text: string): string {
 
   // Wikilinks
   html = html.replace(/\[\[([^\]]+)\]\]/g, (match, content) => {
+    const parts = content.split('|');
+    const targetsRaw = parts[0];
+    const alias = parts[1]?.trim();
+
+    const targetItems = targetsRaw.split(',').map((s: string) => s.trim());
+    
+    // If multi-target, we return a special span that the client can hook into
+    // for opening the "Targets Sheet" as per spec.
+    if (targetItems.length > 1) {
+       return `<span class="text-primary hover:underline font-medium cursor-pointer" data-targets="${targetItems.join(',')}" data-alias="${alias || 'Linked Items'}">${alias || targetItems[0] + '...'}</span>`;
+    }
+
     const target = parseWikilink(content);
     if (!target) return match;
 
     if (target.type === 'post') {
       return `<a href="/post/${target.target}" class="text-primary hover:underline font-medium">${target.alias}</a>`;
     } else if (target.type === 'topic') {
-      const slug = target.target.toLowerCase().replace(/\s+/g, '-');
+      const slug = target.target.toLowerCase().replace(/[^\w\-]+/g, '-');
       return `<a href="/topic/${slug}" class="text-primary hover:underline font-medium">${target.alias}</a>`;
     } else {
       const safeUrl = sanitizeUrl(target.target);

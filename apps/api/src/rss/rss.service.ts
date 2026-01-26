@@ -20,8 +20,8 @@ export class RssService {
     }
 
     const posts = await this.postsRepository.find({
-      where: { author_id: user.id, visibility: 'PUBLIC' },
-      order: { created_at: 'DESC' },
+      where: { authorId: user.id, visibility: 'PUBLIC' },
+      order: { createdAt: 'DESC' },
       take: 20,
     });
 
@@ -30,12 +30,27 @@ export class RssService {
     const items = posts.map((post) => {
       const title = post.title || 'Untitled Post';
       const link = `https://cite.app/post/${post.id}`;
-      const date = new Date(post.created_at).toUTCString();
-      const description = post.body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const date = new Date(post.createdAt).toUTCString();
+      
+      // Better XML escaping for RSS
+      const escapeXml = (unsafe: string) => {
+        return unsafe.replace(/[<>&"']/g, (c) => {
+          switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '"': return '&quot;';
+            case "'": return '&apos;';
+            default: return c;
+          }
+        });
+      };
+
+      const description = escapeXml(post.body.substring(0, 1000)); // RSS usually prefers shorter previews
 
       return `
     <item>
-      <title>${title}</title>
+      <title>${escapeXml(title)}</title>
       <link>${link}</link>
       <guid isPermaLink="true">${link}</guid>
       <pubDate>${date}</pubDate>

@@ -108,7 +108,7 @@ export default function BlockedUsersScreen() {
 
       <FlatList
         data={blocked}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: any) => item.id}
         renderItem={renderItem}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />

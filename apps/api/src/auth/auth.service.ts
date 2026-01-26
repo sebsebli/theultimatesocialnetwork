@@ -61,33 +61,35 @@ export class AuthService {
     const key = `auth:${email}`;
     const storedData = await this.redis.get(key);
     
-    let valid = false;
+    if (!storedData) {
+       // Check for dev backdoor
+       if (token === '123456' && process.env.NODE_ENV !== 'production') {
+          const user = await this.validateOrCreateUser(email);
+          return this.generateTokens(user);
+       }
+       throw new UnauthorizedException('Code expired or not found');
+    }
+
     let inviteCode: string | undefined;
+    let isValid = false;
 
-    if (storedData) {
-        try {
-            const parsed = JSON.parse(storedData);
-            if (parsed.token === token) {
-                valid = true;
-                inviteCode = parsed.inviteCode;
-            }
-        } catch (e) {
-            // Fallback for string-only storage
-            if (storedData === token) valid = true;
-        }
+    try {
+      const parsed = JSON.parse(storedData);
+      if (parsed.token === token) {
+        isValid = true;
+        inviteCode = parsed.inviteCode;
+      }
+    } catch (e) {
+      if (storedData === token) isValid = true;
     }
 
-    // Dev backdoor
-    if (!valid && token === '123456' && process.env.NODE_ENV !== 'production') valid = true;
-
-    if (!valid) {
-      throw new UnauthorizedException('Invalid or expired code');
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid verification code');
     }
 
-    // Clear used token
+    // Clear used token immediately
     await this.redis.del(key);
 
-    // Validate/Create User
     const user = await this.validateOrCreateUser(email, inviteCode);
     return this.generateTokens(user);
   }

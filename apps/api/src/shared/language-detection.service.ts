@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
+import Redis from 'ioredis';
 
 /**
  * Language detection service
@@ -19,12 +20,17 @@ export class LanguageDetectionService {
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @Inject('REDIS_CLIENT') private redis: Redis,
   ) {}
 
   /**
    * Get user's most common language from their posts
    */
   private async getUserMostCommonLanguage(userId: string): Promise<string | null> {
+    const cacheKey = `user:lang:${userId}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return cached;
+
     const posts = await this.postRepo.find({
       where: { authorId: userId },
       select: ['lang'],
@@ -51,6 +57,10 @@ export class LanguageDetectionService {
         maxCount = count;
         mostCommonLang = lang;
       }
+    }
+
+    if (mostCommonLang) {
+      await this.redis.set(cacheKey, mostCommonLang, 'EX', 86400); // 24h cache
     }
 
     return mostCommonLang;

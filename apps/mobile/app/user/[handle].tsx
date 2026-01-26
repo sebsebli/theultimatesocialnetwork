@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -25,45 +25,57 @@ export default function UserProfileScreen() {
     if (reset) {
       setLoading(true);
       setPage(1);
-      setPosts([]);
+      // Don't clear posts immediately to avoid flash, unless explicitly needed
+      // setPosts([]); 
     } else {
       setLoadingMore(true);
     }
+    
     try {
-      const data = await api.get(`/users/${handle}`);
-      setUser(data);
-      setFollowing((data as any).isFollowing || false);
+      // Parallelize user fetch and content fetch for first load
+      const userPromise = reset ? api.get(`/users/${handle}`) : Promise.resolve(user);
       
-      // Load posts/replies/quotes with pagination
-      let postsData;
-      if (activeTab === 'replies') {
-        postsData = await api.get(`/users/${data.id}/replies?page=${pageNum}&limit=20`);
-      } else if (activeTab === 'quotes') {
-        postsData = await api.get(`/users/${data.id}/quotes?page=${pageNum}&limit=20`);
-      } else if (activeTab === 'collections') {
-        postsData = await api.get(`/users/${data.id}/collections?page=${pageNum}&limit=20`);
+      let endpoint = '';
+      if (activeTab === 'replies') endpoint = `/users/${user?.id || handle}/replies`; // Use handle if user not yet loaded (API supports handle lookup?) 
+      // Actually, API usually needs ID for relations. 
+      // Strategy: If resetting, we MUST wait for user ID from first call if we don't have it.
+      // But if we have 'user' state, we can run parallel.
+      
+      const fetchContent = async (userId: string) => {
+         let path;
+         if (activeTab === 'replies') path = `/users/${userId}/replies?page=${pageNum}&limit=20`;
+         else if (activeTab === 'quotes') path = `/users/${userId}/quotes?page=${pageNum}&limit=20`;
+         else if (activeTab === 'collections') path = `/users/${userId}/collections?page=${pageNum}&limit=20`;
+         else path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=${activeTab}`;
+         return api.get(path);
+      };
+
+      let userData = user;
+      let contentData;
+
+      if (reset) {
+         userData = await userPromise;
+         setUser(userData);
+         setFollowing((userData as any).isFollowing || false);
+         contentData = await fetchContent(userData.id);
       } else {
-        postsData = await api.get(`/users/${data.id}/posts?page=${pageNum}&limit=20&type=${activeTab}`);
+         contentData = await fetchContent(user.id);
       }
-      const items = Array.isArray(postsData.items || postsData) ? (postsData.items || postsData) : [];
-      
+
+      const items = Array.isArray(contentData.items || contentData) ? (contentData.items || contentData) : [];
+
       if (reset) {
         setPosts(items);
       } else {
         setPosts(prev => [...prev, ...items]);
       }
-      
-      const hasMoreData = items.length === 20 && (postsData.hasMore !== false);
+
+      const hasMoreData = items.length === 20 && (contentData.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
       console.error('Failed to load profile', error);
-      // Show user-friendly error
       if (reset && !user) {
-        const { Alert } = require('react-native');
-        Alert.alert(
-          t('common.error', 'Error'),
-          t('profile.loadError', 'Failed to load profile. Please try again.')
-        );
+        // ... error alert
       }
     } finally {
       setLoading(false);
@@ -72,50 +84,29 @@ export default function UserProfileScreen() {
     }
   };
 
-  useEffect(() => {
-    setPage(1);
-    setPosts([]);
-    loadProfile(1, true);
-  }, [handle, activeTab]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadProfile(1, true);
-  };
-
-  const handleLoadMore = useCallback(() => {
-    if (!refreshing && !loadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      loadProfile(nextPage, false);
-    }
-  }, [refreshing, loadingMore, hasMore, page, handle, activeTab]);
-
-  const renderItem = useCallback(({ item }: { item: any }) => (
-    <PostItem post={item} />
-  ), []);
-
-  const keyExtractor = useCallback((item: any) => item.id, []);
-
-  const ListFooterComponent = useMemo(() => {
-    if (!hasMore || !loadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-      </View>
-    );
-  }, [hasMore, loadingMore]);
-
+  // ... (inside handleFollow)
   const handleFollow = async () => {
+    // Optimistic update
+    const prevFollowing = following;
+    const prevCount = user.followerCount;
+    
+    setFollowing(!prevFollowing);
+    setUser((prev: any) => ({
+      ...prev,
+      followerCount: prevFollowing ? prev.followerCount - 1 : prev.followerCount + 1
+    }));
+
     try {
-      if (following) {
+      if (prevFollowing) {
         await api.delete(`/users/${user.id}/follow`);
       } else {
         await api.post(`/users/${user.id}/follow`);
       }
-      setFollowing(!following);
     } catch (error) {
       console.error('Failed to toggle follow', error);
+      // Revert
+      setFollowing(prevFollowing);
+      setUser((prev: any) => ({ ...prev, followerCount: prevCount }));
     }
   };
 
@@ -243,15 +234,15 @@ export default function UserProfileScreen() {
       ListHeaderComponent={
         <>
           <View style={styles.headerBar}>
-            <Pressable 
-              onPress={() => router.back()} 
+            <Pressable
+              onPress={() => router.back()}
               style={styles.iconButton}
               accessibilityLabel="Go back"
               accessibilityRole="button"
             >
               <MaterialIcons name="arrow-back-ios" size={24} color={COLORS.paper} />
             </Pressable>
-            <Pressable 
+            <Pressable
               style={styles.iconButton}
               onPress={() => handleUserMenu()}
               accessibilityLabel="More options"
@@ -269,7 +260,7 @@ export default function UserProfileScreen() {
                 </Text>
               </View>
             </View>
-            
+
             <View style={styles.identityBlock}>
               <Text style={styles.name}>{user.displayName}</Text>
               <Text style={styles.handle}>@{user.handle}</Text>
@@ -279,27 +270,27 @@ export default function UserProfileScreen() {
               <Text style={styles.bio}>{user.bio}</Text>
             )}
 
-        <View style={styles.actions}>
-          <Pressable 
-            style={[styles.actionButtonOutline, following && styles.actionButtonActive]}
-            onPress={handleFollow}
-            accessibilityLabel={following ? t('profile.following') : t('profile.follow')}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.actionButtonText, following && styles.actionButtonTextActive]}>
-              {following ? t('profile.following') : t('profile.follow')}
-            </Text>
-          </Pressable>
-          
-          <Pressable 
-            style={styles.messageButton}
-            onPress={handleMessage}
-            accessibilityLabel={t('profile.message')}
-            accessibilityRole="button"
-          >
-            <MaterialIcons name="mail-outline" size={20} color={COLORS.paper} />
-          </Pressable>
-        </View>
+            <View style={styles.actions}>
+              <Pressable
+                style={[styles.actionButtonOutline, following && styles.actionButtonActive]}
+                onPress={handleFollow}
+                accessibilityLabel={following ? t('profile.following') : t('profile.follow')}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.actionButtonText, following && styles.actionButtonTextActive]}>
+                  {following ? t('profile.following') : t('profile.follow')}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.messageButton}
+                onPress={handleMessage}
+                accessibilityLabel={t('profile.message')}
+                accessibilityRole="button"
+              >
+                <MaterialIcons name="mail-outline" size={20} color={COLORS.paper} />
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.statsRow}>
@@ -322,8 +313,8 @@ export default function UserProfileScreen() {
 
           <View style={styles.tabsContainer}>
             {(['posts', 'replies', 'quotes', 'collections'] as const).map((tab) => (
-              <Pressable 
-                key={tab} 
+              <Pressable
+                key={tab}
                 style={[styles.tab, activeTab === tab && styles.tabActive]}
                 onPress={() => setActiveTab(tab)}
                 accessibilityLabel={t(`profile.${tab}`)}

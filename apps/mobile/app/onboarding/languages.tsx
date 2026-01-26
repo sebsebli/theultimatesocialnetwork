@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { api } from '../../utils/api';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { buttonStyles, typographyStyles, toggleStyles } from '../../constants/designSystem';
@@ -28,6 +29,7 @@ export default function OnboardingLanguagesScreen() {
   const [loading, setLoading] = useState(false);
 
   const toggleLanguage = (code: string) => {
+    Haptics.selectionAsync();
     if (selectedLanguages.includes(code)) {
       setSelectedLanguages(selectedLanguages.filter(l => l !== code));
     } else if (selectedLanguages.length < 3) {

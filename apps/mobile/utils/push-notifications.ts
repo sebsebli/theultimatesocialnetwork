@@ -63,9 +63,9 @@ export async function registerForPush(jwt: string) {
       token: deviceToken.data,
       platform,
       device_id: deviceId,
-      app_version: '1.0.0', // Could use Application.nativeApplicationVersion
+      app_version: '1.0.0', 
       locale: locales[0]?.languageCode || 'en',
-      apns_environment: platform === 'ios' ? 'production' : null, // Assuming prod for now
+      apns_environment: platform === 'ios' ? (__DEV__ ? 'sandbox' : 'production') : null,
     };
 
 

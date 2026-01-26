@@ -12,23 +12,29 @@ export async function createPostAction(formData: FormData) {
   const token = cookieStore.get('token')?.value;
 
   if (!token) {
-    throw new Error('Not authenticated');
+    return { success: false, error: 'Not authenticated' };
   }
 
-  const res = await fetch(`${API_URL}/posts`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({ body, visibility: 'PUBLIC' }),
-  });
+  try {
+    const res = await fetch(`${API_URL}/posts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ body, visibility: 'PUBLIC' }),
+    });
 
-  if (!res.ok) {
-    console.error('Failed to create post', await res.text());
-    throw new Error('Failed to create post');
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: 'Failed to create post' }));
+      return { success: false, error: error.message || 'Failed to create post' };
+    }
+
+    const post = await res.json();
+    revalidatePath('/home');
+    return { success: true, data: post };
+  } catch (e) {
+    console.error('Action error:', e);
+    return { success: false, error: 'Network error. Please try again.' };
   }
-
-  revalidatePath('/');
-  return { success: true };
 }

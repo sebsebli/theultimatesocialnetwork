@@ -38,7 +38,7 @@ export function AutocompleteDropdown({
       setLoading(true);
       try {
         let results: any[] = [];
-        
+
         if (type === 'user' || type === 'all') {
           // User search
           const res = await api.get<{ hits: any[] }>(`/search/users?q=${query}`);
@@ -102,8 +102,8 @@ export function AutocompleteDropdown({
       ) : (
         <FlatList
           data={items}
-          keyExtractor={(item) => `${item.type}-${item.id}`}
-          renderItem={({ item }) => (
+          keyExtractor={(item: any) => `${item.type}-${item.id}`}
+          renderItem={({ item }: { item: any }) => (
             <Pressable
               style={styles.item}
               onPress={() => {

@@ -96,39 +96,52 @@ export class MessagesService {
   }
 
   async getThreads(userId: string) {
-    const threads = await this.threadRepo.find({
-      where: [{ userA: userId }, { userB: userId }],
-      order: { createdAt: 'DESC' },
-    });
+    // Optimized query to get threads with otherUser, lastMessage, and unreadCount in one pass
+    // We use a raw query or complex QueryBuilder for this level of optimization
+    const threads = await this.threadRepo.createQueryBuilder('thread')
+      .leftJoinAndSelect('users', 'otherUser', 'otherUser.id = CASE WHEN thread.userA = :userId THEN thread.userB ELSE thread.userA END', { userId })
+      .addSelect((subQuery) => {
+        return subQuery
+          .select('msg.body', 'lastMessageBody')
+          .from('dm_messages', 'msg')
+          .where('msg.thread_id = thread.id')
+          .orderBy('msg.created_at', 'DESC')
+          .limit(1);
+      }, 'lastMessageBody')
+      .addSelect((subQuery) => {
+        return subQuery
+          .select('msg.created_at', 'lastMessageAt')
+          .from('dm_messages', 'msg')
+          .where('msg.thread_id = thread.id')
+          .orderBy('msg.created_at', 'DESC')
+          .limit(1);
+      }, 'lastMessageAt')
+      .addSelect((subQuery) => {
+        return subQuery
+          .select('COUNT(*)', 'unreadCount')
+          .from('dm_messages', 'msg')
+          .where('msg.thread_id = thread.id')
+          .andWhere('msg.sender_id != :userId', { userId })
+          .andWhere('msg.read_at IS NULL');
+      }, 'unreadCount')
+      .where('thread.userA = :userId OR thread.userB = :userId', { userId })
+      .orderBy('thread.updatedAt', 'DESC') // Assuming threads have updatedAt
+      .getRawMany();
 
-    return Promise.all(
-      threads.map(async (thread) => {
-        const otherUserId = thread.userA === userId ? thread.userB : thread.userA;
-        const otherUser = await this.userRepo.findOne({
-          where: { id: otherUserId },
-        });
-
-        const lastMessage = await this.messageRepo.findOne({
-          where: { threadId: thread.id },
-          order: { createdAt: 'DESC' },
-        });
-
-        const unreadCount = await this.messageRepo.count({
-          where: {
-            threadId: thread.id,
-            senderId: otherUserId,
-          },
-        });
-
-        return {
-          id: thread.id,
-          otherUser,
-          lastMessage,
-          unreadCount,
-          createdAt: thread.createdAt,
-        };
-      })
-    );
+    return (threads || []).map(t => ({
+      id: t.thread_id,
+      otherUser: {
+        id: t.otherUser_id,
+        handle: t.otherUser_handle,
+        displayName: t.otherUser_display_name,
+      },
+      lastMessage: t.lastMessageBody ? {
+        body: t.lastMessageBody,
+        createdAt: t.lastMessageAt,
+      } : null,
+      unreadCount: parseInt(t.unreadCount, 10) || 0,
+      createdAt: t.thread_created_at,
+    }));
   }
 
   async getMessages(userId: string, threadId: string) {

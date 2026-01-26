@@ -130,23 +130,23 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
       </Link>
 
       {/* Content */}
-      <Link href={post.title ? `/post/${post.id}/reading` : `/post/${post.id}`} className="flex flex-col gap-2 cursor-pointer">
+      <Link href={post.title ? `/post/${post.id}/reading` : `/post/${post.id}`} className="flex flex-col gap-2 cursor-pointer group">
         {post.title && (
-          <h2 className="text-lg font-bold leading-snug tracking-tight text-paper">
+          <h2 className="text-xl font-bold leading-tight tracking-tight text-paper group-hover:text-primary transition-colors duration-200">
             {post.title}
           </h2>
         )}
         <div 
-          className="text-base leading-relaxed text-secondary font-normal prose prose-invert max-w-none"
+          className="text-[17px] leading-relaxed text-secondary font-normal prose prose-invert max-w-none transition-colors duration-200 group-hover:text-gray-300"
           dangerouslySetInnerHTML={{ __html: renderMarkdown(post.body) }}
         />
         {post.headerImageKey && (
-          <div className="relative w-full h-[200px] rounded-xl bg-divider mt-3 overflow-hidden">
+          <div className="relative w-full h-[240px] rounded-xl bg-divider mt-4 overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-300">
             <Image 
               src={`${STORAGE_URL}/${post.headerImageKey}`}
               alt="Post header"
               fill
-              className="object-cover"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, 680px"
             />
           </div>

@@ -65,20 +65,41 @@ export function MessagesTab() {
     e.preventDefault();
     if (!messageText.trim() || !selectedThread) return;
 
+    const body = messageText;
+    setMessageText('');
+
+    // Optimistic update
+    const tempId = `temp-${Date.now()}`;
+    const newMessage = {
+      id: tempId,
+      body,
+      senderId: 'me', // placeholder
+      createdAt: new Date().toISOString(),
+    };
+    
+    setMessages(prev => [...prev, newMessage]);
+
     try {
       const res = await fetch(`/api/messages/threads/${selectedThread}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: messageText }),
+        body: JSON.stringify({ body }),
       });
 
       if (res.ok) {
-        setMessageText('');
-        loadMessages(selectedThread);
-        loadThreads(); // Refresh threads to update last message
+        const saved = await res.json();
+        // Replace optimistic message with saved one
+        setMessages(prev => prev.map(m => m.id === tempId ? saved : m));
+        loadThreads(); // Update sidebar in background
+      } else {
+        throw new Error('Failed to send');
       }
     } catch (error) {
       console.error('Failed to send message', error);
+      // Remove optimistic message on failure
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setMessageText(body); // Restore text
+      alert('Failed to send message. Please try again.');
     }
   };
 

@@ -5,6 +5,7 @@ import neo4j, { Driver, Session } from 'neo4j-driver';
 @Injectable()
 export class Neo4jService implements OnModuleInit, OnModuleDestroy {
   private driver: Driver;
+  private isHealthy = false;
 
   constructor(private configService: ConfigService) {}
 
@@ -15,17 +16,25 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
 
     this.driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
     
-    // Verify connection
+    // Verify connection with a simple ping
     try {
       await this.driver.getServerInfo();
+      this.isHealthy = true;
       console.log('Connected to Neo4j');
     } catch (e) {
-      console.error('Failed to connect to Neo4j', e);
+      this.isHealthy = false;
+      console.error('Failed to connect to Neo4j. Graph features will be disabled.', e.message);
     }
   }
 
   async onModuleDestroy() {
-    await this.driver.close();
+    if (this.driver) {
+      await this.driver.close();
+    }
+  }
+
+  getStatus() {
+    return { healthy: this.isHealthy };
   }
 
   getSession(): Session {
@@ -33,10 +42,20 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
   }
 
   async run(query: string, params: Record<string, any> = {}) {
+    if (!this.isHealthy) {
+       // Best effort: if we previously failed, try one session. 
+       // If it fails, we keep isHealthy = false.
+       // For now, return empty result to avoid blocking the caller.
+       return { records: [] };
+    }
+
     const session = this.getSession();
     try {
       const result = await session.run(query, params);
       return result;
+    } catch (error) {
+      this.isHealthy = false; // Mark as unhealthy on error
+      throw error;
     } finally {
       await session.close();
     }

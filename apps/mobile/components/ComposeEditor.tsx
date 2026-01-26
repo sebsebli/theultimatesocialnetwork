@@ -98,7 +98,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     fontSize: 18,
     color: COLORS.paper,
-    placeholderTextColor: COLORS.secondary,
     minHeight: 120,
     fontFamily: FONTS.regular,
   },

@@ -112,11 +112,13 @@ export class RepliesService {
     return savedReply;
   }
 
-  async findByPost(postId: string) {
+  async findByPost(postId: string, limit = 50, offset = 0) {
     return this.replyRepo.find({
       where: { postId },
       relations: ['author', 'parentReply', 'parentReply.author'],
       order: { createdAt: 'ASC' },
+      take: limit,
+      skip: offset,
     });
   }
 

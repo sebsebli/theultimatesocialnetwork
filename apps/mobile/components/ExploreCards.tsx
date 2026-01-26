@@ -1,12 +1,17 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable, ImageBackground } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 export const DeepDiveCard = ({ item, onPress }: { item: any; onPress: () => void }) => (
-  <Pressable 
-    onPress={onPress} 
-    style={styles.deepDiveContainer}
+  <Pressable
+    onPress={() => {
+      Haptics.selectionAsync();
+      onPress();
+    }}
+    style={({ pressed }: { pressed: boolean }) => [styles.deepDiveContainer, pressed && { opacity: 0.95 }]}
     accessibilityLabel={item.title}
     accessibilityRole="button"
   >
@@ -15,16 +20,19 @@ export const DeepDiveCard = ({ item, onPress }: { item: any; onPress: () => void
       style={styles.deepDiveBackground}
       imageStyle={{ borderRadius: SIZES.borderRadius }}
     >
-      <View style={styles.deepDiveOverlay}>
+      <LinearGradient
+        colors={['transparent', 'rgba(11, 11, 12, 0.95)']}
+        style={styles.deepDiveOverlay}
+      >
         <View style={styles.whyLabelFloating}>
           <MaterialIcons name="psychology" size={16} color={COLORS.paper} />
           <Text style={styles.whyLabelText}>Why: Cited by 3 authors you follow</Text>
         </View>
-        
+
         <View style={styles.deepDiveContent}>
           <Text style={styles.deepDiveTitle}>{item.title}</Text>
           <Text style={styles.deepDiveDesc} numberOfLines={2}>{item.body}</Text>
-          
+
           <View style={styles.deepDiveFooter}>
             <View style={styles.avatarStack}>
               {/* Mock avatars */}
@@ -37,14 +45,14 @@ export const DeepDiveCard = ({ item, onPress }: { item: any; onPress: () => void
             </View>
           </View>
         </View>
-      </View>
+      </LinearGradient>
     </ImageBackground>
   </Pressable>
 );
 
 export const PersonCard = ({ item, onPress }: { item: any; onPress: () => void }) => (
-  <Pressable 
-    onPress={onPress} 
+  <Pressable
+    onPress={onPress}
     style={styles.cardContainer}
     accessibilityLabel={`${item.displayName}, ${item.handle}`}
     accessibilityRole="button"
@@ -61,7 +69,7 @@ export const PersonCard = ({ item, onPress }: { item: any; onPress: () => void }
       </View>
       <MaterialIcons name="bookmark-border" size={24} color={COLORS.primary} />
     </View>
-    
+
     <View style={styles.whyBlock}>
       <View style={styles.whyRow}>
         <MaterialIcons name="hub" size={16} color={COLORS.primary} />
@@ -81,8 +89,8 @@ export const PersonCard = ({ item, onPress }: { item: any; onPress: () => void }
 );
 
 export const QuoteCard = ({ item, onPress }: { item: any; onPress: () => void }) => (
-  <Pressable 
-    onPress={onPress} 
+  <Pressable
+    onPress={onPress}
     style={styles.cardContainer}
     accessibilityLabel={`Quote: ${item.body.substring(0, 50)}...`}
     accessibilityRole="button"
@@ -94,11 +102,11 @@ export const QuoteCard = ({ item, onPress }: { item: any; onPress: () => void })
       </View>
       <Text style={styles.whyTitle}>Why: Viral Citation Today</Text>
     </View>
-    
+
     <Text style={styles.quoteText}>
       "{item.body}"
     </Text>
-    
+
     <View style={styles.quoteFooter}>
       <View>
         <Text style={styles.sourceTitle}>Digital Sociology 2024</Text>
@@ -135,8 +143,9 @@ const styles = StyleSheet.create({
   },
   deepDiveOverlay: {
     padding: SPACING.l,
-    backgroundColor: 'rgba(11, 11, 12, 0.85)',
-    paddingTop: 60,
+    paddingTop: 100, // Increased top padding for better gradient transition
+    justifyContent: 'flex-end',
+    flex: 1,
   },
   whyLabelFloating: {
     position: 'absolute',

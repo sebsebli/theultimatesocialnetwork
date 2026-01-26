@@ -33,26 +33,24 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null });
   };
 
-  render() {
+  render(): ReactNode {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
       }
 
-      return (
-        <View style={styles.container}>
-          <View style={styles.iconContainer}>
-            <MaterialIcons name="error-outline" size={64} color={COLORS.error} />
-          </View>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.message}>
-            {this.state.error?.message || 'An unexpected error occurred'}
-          </Text>
-          <Pressable style={styles.button} onPress={this.handleReset}>
-            <Text style={styles.buttonText}>Try Again</Text>
-          </Pressable>
+      return <View style={styles.container}>
+        <View style={styles.iconContainer}>
+          <MaterialIcons name="error-outline" size={64} color={COLORS.error} />
         </View>
-      );
+        <Text style={styles.title}>Something went wrong</Text>
+        <Text style={styles.message}>
+          {this.state.error?.message || 'An unexpected error occurred'}
+        </Text>
+        <Pressable style={styles.button} onPress={this.handleReset}>
+          <Text style={styles.buttonText}>Try Again</Text>
+        </Pressable>
+      </View> as ReactNode;
     }
 
     return this.props.children;

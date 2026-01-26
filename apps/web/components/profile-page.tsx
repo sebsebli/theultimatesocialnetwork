@@ -22,57 +22,63 @@ export function ProfilePage({ user, isSelf = false }: ProfilePageProps) {
   const [following, setFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'collections'>('posts');
   const [loading, setLoading] = useState(false);
-  const [tabData, setTabData] = useState<any>({
+  const [tabData, setTabData] = useState<{
+    replies: any[] | null;
+    quotesReceived: any[] | null;
+    collections: any[] | null;
+  }>({
     replies: null,
     quotesReceived: null,
     collections: null,
   });
 
   useEffect(() => {
-    if (activeTab === 'replies' && !tabData.replies) {
-      loadReplies();
-    } else if (activeTab === 'quotes' && !tabData.quotesReceived) {
-      loadQuotes();
-    } else if (activeTab === 'collections' && !tabData.collections) {
-      loadCollections();
-    }
-  }, [activeTab]);
+    let isMounted = true;
 
-  const loadReplies = async () => {
-    try {
-      const res = await fetch(`/api/users/${user.id}/replies`);
-      if (res.ok) {
-        const data = await res.json();
-        setTabData((prev: any) => ({ ...prev, replies: data }));
+    const fetchData = async () => {
+      if (activeTab === 'replies' && !tabData.replies) {
+        try {
+          const res = await fetch(`/api/users/${user.id}/replies`);
+          if (res.ok && isMounted) {
+            const data = await res.json();
+            setTabData(prev => ({ ...prev, replies: data }));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      } else if (activeTab === 'quotes' && !tabData.quotesReceived) {
+        try {
+          const res = await fetch(`/api/users/${user.id}/quotes`);
+          if (res.ok && isMounted) {
+            const data = await res.json();
+            setTabData(prev => ({ ...prev, quotesReceived: data }));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      } else if (activeTab === 'collections' && !tabData.collections) {
+        try {
+          const res = await fetch(`/api/users/${user.id}/collections`);
+          if (res.ok && isMounted) {
+            const data = await res.json();
+            setTabData(prev => ({ ...prev, collections: data }));
+          }
+        } catch (e) {
+          console.error(e);
+        }
       }
-    } catch (error) {
-      console.error('Failed to load replies', error);
-    }
-  };
+    };
 
-  const loadQuotes = async () => {
-    try {
-      const res = await fetch(`/api/users/${user.id}/quotes`);
-      if (res.ok) {
-        const data = await res.json();
-        setTabData((prev: any) => ({ ...prev, quotesReceived: data }));
-      }
-    } catch (error) {
-      console.error('Failed to load quotes', error);
-    }
-  };
+    fetchData();
 
-  const loadCollections = async () => {
-    try {
-      const res = await fetch(`/api/users/${user.id}/collections`);
-      if (res.ok) {
-        const data = await res.json();
-        setTabData((prev: any) => ({ ...prev, collections: data }));
-      }
-    } catch (error) {
-      console.error('Failed to load collections', error);
-    }
-  };
+    return () => { isMounted = false; };
+  }, [activeTab, tabData.replies, tabData.quotesReceived, tabData.collections, user.id]);
+
+
+
+
+
+
 
   const handleFollow = async () => {
     if (isSelf) return;

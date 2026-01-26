@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, Text, View, Linking, Modal, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
@@ -40,8 +40,8 @@ export function MarkdownText({ children }: MarkdownTextProps) {
   // This is a simplified version. Production apps should use a robust parser like react-native-markdown-display
   // customized to handle [[wikilinks]].
   
-  const parseText = (text: string) => {
-    if (!text) return null;
+  const parseText = useMemo(() => {
+    if (!children) return null;
 
     const parts = [];
     let lastIndex = 0;
@@ -50,9 +50,9 @@ export function MarkdownText({ children }: MarkdownTextProps) {
     const wikiRegex = /\[\[(.*?)(?:\|(.*?))?\]\]/g;
     let match: RegExpExecArray | null;
 
-    while ((match = wikiRegex.exec(text)) !== null) {
+    while ((match = wikiRegex.exec(children)) !== null) {
       if (match.index > lastIndex) {
-        parts.push(<Text key={lastIndex} style={styles.text}>{text.substring(lastIndex, match.index)}</Text>);
+        parts.push(<Text key={lastIndex} style={styles.text}>{children.substring(lastIndex, match.index)}</Text>);
       }
 
       const content = match[1];
@@ -72,16 +72,16 @@ export function MarkdownText({ children }: MarkdownTextProps) {
       lastIndex = match.index + match[0].length;
     }
 
-    if (lastIndex < text.length) {
-      parts.push(<Text key={lastIndex} style={styles.text}>{text.substring(lastIndex)}</Text>);
+    if (lastIndex < children.length) {
+      parts.push(<Text key={lastIndex} style={styles.text}>{children.substring(lastIndex)}</Text>);
     }
 
     return parts;
-  };
+  }, [children]);
 
   return (
     <>
-      <Text style={styles.container}>{parseText(children)}</Text>
+      <Text style={styles.container}>{parseText}</Text>
 
       <Modal
         animationType="slide"

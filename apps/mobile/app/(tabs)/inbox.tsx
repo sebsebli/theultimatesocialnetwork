@@ -12,8 +12,11 @@ export default function InboxScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'notifications' | 'messages'>('notifications');
+  
+  // Separate data stores for instant switching
   const [notifications, setNotifications] = useState<any[]>([]);
   const [threads, setThreads] = useState<any[]>([]);
+  
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -21,10 +24,12 @@ export default function InboxScreen() {
   const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
-    setPage(1);
-    setNotifications([]);
-    setThreads([]);
-    loadContent(1, true);
+    // Only clear if transitioning to a tab with NO data
+    if (activeTab === 'notifications' && notifications.length === 0) {
+        loadContent(1, true);
+    } else if (activeTab === 'messages' && threads.length === 0) {
+        loadContent(1, true);
+    }
   }, [activeTab]);
 
   const loadContent = async (pageNum: number, reset = false) => {
@@ -92,9 +97,9 @@ export default function InboxScreen() {
         <Text style={styles.notificationText}>
           {item.actor?.displayName} {item.type === 'FOLLOW' ? t('inbox.startedFollowing') :
             item.type === 'REPLY' ? t('inbox.repliedToPost') :
-            item.type === 'QUOTE' ? t('inbox.quotedPost') :
-            item.type === 'LIKE' ? t('inbox.likedPost') :
-            item.type === 'MENTION' ? t('inbox.mentionedYou') : t('inbox.interactedWithYou')}
+              item.type === 'QUOTE' ? t('inbox.quotedPost') :
+                item.type === 'LIKE' ? t('inbox.likedPost') :
+                  item.type === 'MENTION' ? t('inbox.mentionedYou') : t('inbox.interactedWithYou')}
         </Text>
         {!item.readAt && <View style={styles.unreadDot} accessibilityLabel="Unread" />}
       </View>
@@ -182,7 +187,7 @@ export default function InboxScreen() {
       {activeTab === 'notifications' ? (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           renderItem={renderNotification}
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -210,7 +215,7 @@ export default function InboxScreen() {
       ) : (
         <FlatList
           data={threads}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: any) => item.id}
           renderItem={renderThread}
           ListEmptyComponent={
             <View style={styles.emptyState}>

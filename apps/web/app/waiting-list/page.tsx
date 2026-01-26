@@ -35,11 +35,15 @@ export default function WaitingListPage() {
 
   return (
     <div className="min-h-screen bg-ink flex items-center justify-center px-6 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-[0.02]" style={{backgroundImage: `url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')`}}></div>
+      {/* Refined Mesh Gradient Background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-[25%] -left-[10%] w-[50%] h-[50%] bg-primary/10 blur-[120px] rounded-full animate-pulse"></div>
+        <div className="absolute -bottom-[20%] -right-[5%] w-[40%] h-[40%] bg-primary/5 blur-[100px] rounded-full"></div>
+      </div>
       
-      <div className="w-full max-w-md space-y-8 relative z-10 animate-in fade-in">
+      <div className="w-full max-w-md space-y-8 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="text-center space-y-4">
-          <Link href="/" className="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-white/5 border border-white/10 mb-4 transition-transform hover:scale-105">
+          <Link href="/" className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-white/5 border border-white/10 mb-4 transition-all hover:scale-105 hover:bg-white/10 hover:border-white/20 shadow-2xl">
             <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24">
               <path d="M11 5H7C4.5 9 4.5 15 7 19H11"></path>
               <path d="M13 5H17V19H13"></path>

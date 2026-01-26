@@ -70,7 +70,9 @@ export class UploadService {
   }
 
   async getImageUrl(key: string): Promise<string> {
-    // In production, this would return a presigned URL or CDN URL
-    return `${this.configService.get('MINIO_PUBLIC_URL') || 'http://localhost:9000'}/${this.bucketName}/${key}`;
+    const publicUrl = this.configService.get('MINIO_PUBLIC_URL') || 'http://localhost:9000';
+    // Remove trailing slash if present
+    const baseUrl = publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl;
+    return `${baseUrl}/${this.bucketName}/${key}`;
   }
 }

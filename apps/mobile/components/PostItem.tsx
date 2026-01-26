@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import { api } from '../utils/api';
 import { queueAction } from '../utils/offlineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
@@ -34,7 +35,7 @@ interface PostItemProps {
   onShare?: () => void;
 }
 
-export const PostItem = memo(function PostItem({
+function PostItemComponent({
   post,
   onLike,
   onReply,
@@ -42,7 +43,7 @@ export const PostItem = memo(function PostItem({
   onKeep,
   onAddToCollection,
   onShare,
-}: PostItemProps) {
+}: PostItemProps): React.JSX.Element | null {
   const router = useRouter();
   const { t } = useTranslation();
   const { isOffline } = useNetworkStatus();
@@ -82,9 +83,10 @@ export const PostItem = memo(function PostItem({
 
   const handleLike = async () => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       animateLike();
       setLiked(!liked); // Optimistic update
-      
+
       if (isOffline) {
         await queueAction({
           type: 'like',
@@ -103,8 +105,9 @@ export const PostItem = memo(function PostItem({
 
   const handleKeep = async () => {
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setKept(!kept); // Optimistic update
-      
+
       if (isOffline) {
         await queueAction({
           type: 'keep',
@@ -122,6 +125,7 @@ export const PostItem = memo(function PostItem({
   };
 
   const handleShare = async () => {
+    Haptics.selectionAsync();
     const url = `https://cite.app/post/${post.id}`;
     try {
       if (Platform.OS === 'web') {
@@ -173,6 +177,7 @@ export const PostItem = memo(function PostItem({
   };
 
   const handleMenu = () => {
+    Haptics.selectionAsync();
     if (Platform.OS === 'web') {
       const result = window.confirm('Report this post?');
       if (result) handleReport();
@@ -194,18 +199,18 @@ export const PostItem = memo(function PostItem({
       <View style={styles.container}>
         <Text style={styles.metaText}>Post data incomplete</Text>
       </View>
-    );
+    ) as React.JSX.Element;
   }
 
-  const authorInitial = post.author.displayName 
-    ? post.author.displayName.charAt(0).toUpperCase() 
+  const authorInitial = post.author.displayName
+    ? post.author.displayName.charAt(0).toUpperCase()
     : '?';
 
   return (
     <View style={styles.container}>
       {/* Author Header */}
       <Pressable
-        style={styles.authorRow}
+        style={({ pressed }: { pressed: boolean }) => [styles.authorRow, pressed && { opacity: 0.7 }]}
         onPress={() => post.author?.handle && router.push(`/user/${post.author.handle}`)}
       >
         <View style={styles.avatar}>
@@ -220,21 +225,25 @@ export const PostItem = memo(function PostItem({
             <Text style={styles.metaText}>{formatTime(post.createdAt)}</Text>
           </View>
         </View>
-        <Pressable onPress={handleMenu} hitSlop={10} style={{ padding: 4 }}>
+        <Pressable
+          onPress={handleMenu}
+          hitSlop={12}
+          style={({ pressed }: { pressed: boolean }) => [{ padding: 4 }, pressed && { opacity: 0.5 }]}
+        >
           <MaterialIcons name="more-horiz" size={20} color={COLORS.tertiary} />
         </Pressable>
       </Pressable>
 
       {/* Content */}
-      <Pressable 
+      <Pressable
         onPress={() => {
           if (post.title) {
             router.push(`/post/${post.id}/reading`);
           } else {
             router.push(`/post/${post.id}`);
           }
-        }} 
-        style={styles.content}
+        }}
+        style={({ pressed }: { pressed: boolean }) => [styles.content, pressed && { opacity: 0.9 }]}
         accessibilityRole="button"
         accessibilityLabel={post.title || post.body.substring(0, 50)}
       >
@@ -247,7 +256,7 @@ export const PostItem = memo(function PostItem({
             source={{ uri: `${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'}/images/${post.headerImageKey}` }}
             style={styles.headerImage}
             contentFit="cover"
-            transition={200}
+            transition={300}
             placeholderContentFit="cover"
             cachePolicy="memory-disk"
             accessibilityLabel={t('post.headerImage')}
@@ -268,11 +277,12 @@ export const PostItem = memo(function PostItem({
       {/* Action Row - Matching Stitch Reference + Like */}
       <View style={styles.actions}>
         <Pressable style={styles.actionButton} onPress={handleLike}>
+          {/* @ts-ignore - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
           <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
-            <MaterialIcons 
-              name={liked ? "favorite" : "favorite-border"} 
-              size={20} 
-              color={liked ? COLORS.like : COLORS.tertiary} 
+            <MaterialIcons
+              name={liked ? "favorite" : "favorite-border"}
+              size={20}
+              color={liked ? COLORS.like : COLORS.tertiary}
             />
           </Animated.View>
         </Pressable>
@@ -304,15 +314,15 @@ export const PostItem = memo(function PostItem({
         </Pressable>
 
         <Pressable style={styles.actionButton} onPress={handleKeep}>
-          <MaterialIcons 
-            name={kept ? "bookmark" : "bookmark-border"} 
-            size={20} 
-            color={kept ? COLORS.primary : COLORS.tertiary} 
+          <MaterialIcons
+            name={kept ? "bookmark" : "bookmark-border"}
+            size={20}
+            color={kept ? COLORS.primary : COLORS.tertiary}
           />
         </Pressable>
 
-        <Pressable 
-          style={styles.actionButton} 
+        <Pressable
+          style={styles.actionButton}
           onPress={onAddToCollection}
           accessibilityLabel={t('post.add')}
           accessibilityRole="button"
@@ -320,8 +330,8 @@ export const PostItem = memo(function PostItem({
           <MaterialIcons name="add-circle-outline" size={20} color={COLORS.tertiary} />
         </Pressable>
 
-        <Pressable 
-          style={styles.actionButton} 
+        <Pressable
+          style={styles.actionButton}
           onPress={handleShare}
           accessibilityLabel={t('post.share')}
           accessibilityRole="button"
@@ -331,7 +341,14 @@ export const PostItem = memo(function PostItem({
       </View>
     </View>
   );
-});
+}
+
+// Wrap with memo and type assert to satisfy React 19's strict JSX checking
+// PostItemComponent returns JSX.Element | null, but memo() expects ReactNode
+const MemoizedPostItem = memo(PostItemComponent as React.ComponentType<PostItemProps>) as typeof PostItemComponent;
+
+// Type assertion: component always returns JSX.Element, never undefined
+export const PostItem = MemoizedPostItem;
 
 const styles = StyleSheet.create({
   container: {

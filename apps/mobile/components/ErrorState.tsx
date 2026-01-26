@@ -16,11 +16,11 @@ export function ErrorState({ message = 'Something went wrong', onRetry }: ErrorS
       <Text style={styles.title}>Oops!</Text>
       <Text style={styles.text}>{message}</Text>
       {onRetry && (
-        <Pressable 
-          style={({ pressed }) => [
+        <Pressable
+          style={({ pressed }: { pressed: boolean }) => [
             styles.button,
             pressed && styles.buttonPressed
-          ]} 
+          ]}
           onPress={onRetry}
         >
           <Text style={styles.buttonText}>Try Again</Text>

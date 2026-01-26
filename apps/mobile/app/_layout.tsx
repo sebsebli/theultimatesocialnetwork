@@ -155,7 +155,7 @@ export default function RootLayout() {
       try {
         const deepLink = response.notification.request.content.data.deepLink;
         if (deepLink) {
-          Linking.openURL(deepLink);
+          Linking.openURL(deepLink as string);
         }
       } catch (e) {
         console.error('Failed to handle notification tap:', e);

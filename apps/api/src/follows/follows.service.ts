@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Follow } from '../entities/follow.entity';
 import { FollowRequest, FollowRequestStatus } from '../entities/follow-request.entity';
 import { User } from '../entities/user.entity';
@@ -12,6 +12,7 @@ export class FollowsService {
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
     @InjectRepository(FollowRequest) private followRequestRepo: Repository<FollowRequest>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    private dataSource: DataSource,
     private neo4jService: Neo4jService,
   ) {}
 
@@ -57,29 +58,37 @@ export class FollowsService {
       return this.followRequestRepo.save(request);
     }
 
-    // Create follow
-    const follow = this.followRepo.create({
-      followerId,
-      followeeId,
-    });
+    // Transaction for SQL updates
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    await this.followRepo.save(follow);
+    try {
+      const follow = this.followRepo.create({ followerId, followeeId });
+      await queryRunner.manager.save(Follow, follow);
 
-    // Update counts
-    await this.userRepo.increment({ id: followeeId }, 'followerCount', 1);
-    await this.userRepo.increment({ id: followerId }, 'followingCount', 1);
+      await queryRunner.manager.increment(User, { id: followeeId }, 'followerCount', 1);
+      await queryRunner.manager.increment(User, { id: followerId }, 'followingCount', 1);
 
-    // Neo4j update
-    await this.neo4jService.run(
-      `
-      MERGE (u1:User {id: $followerId})
-      MERGE (u2:User {id: $followeeId})
-      MERGE (u1)-[:FOLLOWS]->(u2)
-      `,
-      { followerId, followeeId }
-    );
+      await queryRunner.commitTransaction();
 
-    return follow;
+      // Neo4j update (best effort background)
+      this.neo4jService.run(
+        `
+        MERGE (u1:User {id: $followerId})
+        MERGE (u2:User {id: $followeeId})
+        MERGE (u1)-[:FOLLOWS]->(u2)
+        `,
+        { followerId, followeeId }
+      ).catch(err => console.error('Neo4j follow sync error', err));
+
+      return follow;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async unfollow(followerId: string, followeeId: string) {
@@ -91,22 +100,34 @@ export class FollowsService {
       throw new NotFoundException('Not following');
     }
 
-    await this.followRepo.remove(follow);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // Update counts
-    await this.userRepo.decrement({ id: followeeId }, 'followerCount', 1);
-    await this.userRepo.decrement({ id: followerId }, 'followingCount', 1);
+    try {
+      await queryRunner.manager.remove(follow);
 
-    // Neo4j update
-    await this.neo4jService.run(
-      `
-      MATCH (u1:User {id: $followerId})-[r:FOLLOWS]->(u2:User {id: $followeeId})
-      DELETE r
-      `,
-      { followerId, followeeId }
-    );
+      await queryRunner.manager.decrement(User, { id: followeeId }, 'followerCount', 1);
+      await queryRunner.manager.decrement(User, { id: followerId }, 'followingCount', 1);
 
-    return { success: true };
+      await queryRunner.commitTransaction();
+
+      // Neo4j update
+      this.neo4jService.run(
+        `
+        MATCH (u1:User {id: $followerId})-[r:FOLLOWS]->(u2:User {id: $followeeId})
+        DELETE r
+        `,
+        { followerId, followeeId }
+      ).catch(err => console.error('Neo4j unfollow sync error', err));
+
+      return { success: true };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async approveFollowRequest(userId: string, requestId: string) {

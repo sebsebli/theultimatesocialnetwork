@@ -34,8 +34,19 @@ export default function TopicScreen() {
       setTopic(data);
       setIsFollowing((data as any).isFollowing || false);
       
-      // Load posts with pagination based on active tab
+      // Load data with pagination based on active tab
       let endpoint = `/topics/${slug}/posts`;
+      if (activeTab === 'start-here') {
+         // The main topic endpoint already includes startHere, but for consistency 
+         // we might want a paginated list of top cited posts.
+         // For now, if reset we use topic.startHere, if not we fall back to posts.
+         if (reset && data.startHere) {
+            setPosts(data.startHere);
+            setHasMore(false); // startHere is usually limited
+            return;
+         }
+      }
+      
       if (activeTab === 'people') endpoint = `/topics/${slug}/people`;
       if (activeTab === 'source') endpoint = `/topics/${slug}/sources`;
       

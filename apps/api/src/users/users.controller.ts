@@ -15,9 +15,16 @@ export class UsersController {
   @UseGuards(AuthGuard('jwt'))
   async updateMe(
     @CurrentUser() user: { id: string },
-    @Body() updates: any,
+    @Body() updates: { displayName?: string; bio?: string; isProtected?: boolean; languages?: string[] },
   ) {
-    return this.usersService.update(user.id, updates);
+    // Whitelist allowed fields to prevent arbitrary entity updates
+    const allowedUpdates = {
+      displayName: updates.displayName,
+      bio: updates.bio,
+      isProtected: updates.isProtected,
+      languages: updates.languages,
+    };
+    return this.usersService.update(user.id, allowedUpdates);
   }
 
   @Get('me')

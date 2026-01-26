@@ -66,6 +66,10 @@ export default function SettingsScreen() {
 
   const updateSetting = async (key: string, value: boolean) => {
     // Optimistic update
+    const previousValue = key === 'pushEnabled' ? pushEnabled :
+                          key === 'showSaves' ? showSaves :
+                          enableRecommendations;
+
     if (key === 'pushEnabled') setPushEnabled(value);
     if (key === 'showSaves') setShowSaves(value);
     if (key === 'enableRecommendations') setEnableRecommendations(value);
@@ -75,8 +79,11 @@ export default function SettingsScreen() {
       await api.patch('/users/me/settings', { [key]: value });
     } catch (error) {
       console.error(`Failed to update setting ${key}`, error);
-      // Revert if failed (optional, but good UX)
-      // For now we assume success or silent fail for settings to feel snappy
+      // Revert on failure
+      if (key === 'pushEnabled') setPushEnabled(previousValue);
+      if (key === 'showSaves') setShowSaves(previousValue);
+      if (key === 'enableRecommendations') setEnableRecommendations(previousValue);
+      Alert.alert(t('settings.error'), t('settings.updateFailed'));
     }
   };
 
@@ -185,7 +192,7 @@ export default function SettingsScreen() {
           </View>
           <Switch
             value={pushEnabled}
-            onValueChange={(val) => updateSetting('pushEnabled', val)}
+            onValueChange={(val: boolean) => updateSetting('pushEnabled', val)}
             trackColor={{ false: COLORS.hover, true: COLORS.primary }}
             thumbColor="#FFFFFF"
           />
@@ -202,7 +209,7 @@ export default function SettingsScreen() {
           </View>
           <Switch
             value={showSaves}
-            onValueChange={(val) => updateSetting('showSaves', val)}
+            onValueChange={(val: boolean) => updateSetting('showSaves', val)}
             trackColor={{ false: COLORS.hover, true: COLORS.primary }}
             thumbColor="#FFFFFF"
           />
@@ -219,7 +226,7 @@ export default function SettingsScreen() {
           </View>
           <Switch
             value={enableRecommendations}
-            onValueChange={(val) => updateSetting('enableRecommendations', val)}
+            onValueChange={(val: boolean) => updateSetting('enableRecommendations', val)}
             trackColor={{ false: COLORS.hover, true: COLORS.primary }}
             thumbColor="#FFFFFF"
           />

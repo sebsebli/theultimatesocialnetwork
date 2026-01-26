@@ -38,49 +38,39 @@ export default function ExploreScreen() {
     }
   }, [activeTab, sort, isAuthenticated]);
 
+  const debouncedSearch = useMemo(
+    () => {
+      let timeoutId: NodeJS.Timeout;
+      return (q: string) => {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          // Trigger search logic - for now it just updates the query 
+          // but we could trigger a specific search endpoint
+          console.log('Searching for:', q);
+        }, 300);
+      };
+    },
+    []
+  );
+
   const loadContent = async (pageNum: number, reset = false) => {
     if (!reset && (loading || loadingMore)) return;
 
     if (reset) {
       setLoading(true);
       setPage(1);
-      // Don't clear data immediately to prevent flash, unless switching tabs
-      if (data.length === 0) setData([]); 
     } else {
       setLoadingMore(true);
     }
     setError(false);
     try {
       let endpoint = '/explore/topics';
-      if (activeTab === 'people') {
-        // Try suggested users first, fallback to explore/people
-        try {
-          const suggested = await api.get('/users/suggested?limit=20');
-          const suggestedItems = Array.isArray(suggested) ? suggested : [];
-          if (suggestedItems.length > 0) {
-            const items = suggestedItems.map((item: any) => ({
-              ...item,
-              id: item.id || item.handle,
-            }));
-            if (reset) {
-              setData(items);
-            } else {
-              setData(prev => [...prev, ...items]);
-            }
-            setHasMore(false); // Suggested users don't paginate
-            setLoading(false);
-            setRefreshing(false);
-            setLoadingMore(false);
-            return;
-          }
-        } catch (e) {
-          // Fall through to explore/people
-        }
-        endpoint = '/explore/people';
-      }
-      if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
-      if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
-      if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
+      
+      // Handle special tabs
+      if (activeTab === 'people') endpoint = '/explore/people';
+      else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
+      else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
+      else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
 
       const res = await api.get(`${endpoint}?page=${pageNum}&limit=20`);
       const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
@@ -88,8 +78,8 @@ export default function ExploreScreen() {
         ...item,
         author: item.author || { 
           id: item.authorId || '', 
-          handle: 'unknown', 
-          displayName: 'Unknown User' 
+          handle: item.handle || 'unknown', 
+          displayName: item.displayName || 'Unknown User' 
         },
       }));
       
@@ -102,7 +92,6 @@ export default function ExploreScreen() {
       const hasMoreData = items.length === 20 && (res.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
-      // If 401, auth handler will redirect - don't set error state
       if (error?.status === 401) {
         setLoading(false);
         setRefreshing(false);
@@ -111,15 +100,6 @@ export default function ExploreScreen() {
       }
       console.error('Failed to load content', error);
       setError(true);
-      // Show user-friendly error
-      if (data.length === 0) {
-        // Only show alert if no data exists
-        const { Alert } = require('react-native');
-        Alert.alert(
-          t('common.error', 'Error'),
-          t('explore.loadError', 'Failed to load content. Please try again.')
-        );
-      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -190,7 +170,10 @@ export default function ExploreScreen() {
             placeholder={t('explore.searchPlaceholder')}
             placeholderTextColor={COLORS.tertiary}
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              debouncedSearch(text);
+            }}
             accessibilityLabel={t('explore.searchPlaceholder')}
           />
         </View>

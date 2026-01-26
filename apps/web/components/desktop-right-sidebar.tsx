@@ -40,7 +40,7 @@ export function DesktopRightSidebar() {
                   <p className="text-sm font-semibold text-paper">User {i}</p>
                   <p className="text-xs text-tertiary">@user{i}</p>
                 </div>
-                <button className="px-3 py-1.5 text-xs font-semibold text-primary border border-primary rounded-full hover:bg-primary/10 transition-colors">
+                <button className="px-3 py-1.5 text-xs font-semibold text-primary border border-primary/40 rounded-full hover:bg-primary/10 hover:border-primary active:scale-[0.95] transition-all duration-200">
                   Follow
                 </button>
               </div>

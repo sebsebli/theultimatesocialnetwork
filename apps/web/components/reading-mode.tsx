@@ -85,8 +85,32 @@ export function ReadingMode({ post }: ReadingModeProps) {
           <section>
             <h2 className="text-2xl font-semibold mb-6 text-paper">Sources</h2>
             <div className="text-secondary text-sm">
-              {/* Sources would be extracted from external links */}
-              <p>No external sources found.</p>
+              {/* Sources are extracted from external links in the body during parsing or passed via props */}
+              {/* For now, we'll extract them using a simple regex since they aren't passed in the post prop yet */}
+              {(() => {
+                const urlRegex = /(https?:\/\/[^\s<]+)/g;
+                const matches = post.body.match(urlRegex) || [];
+                const uniqueUrls = Array.from(new Set(matches));
+
+                if (uniqueUrls.length === 0) {
+                  return <p>No external sources found.</p>;
+                }
+
+                return (
+                  <ol className="list-decimal pl-5 space-y-2">
+                    {uniqueUrls.map((url, i) => (
+                      <li key={i}>
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors underline decoration-primary/50 underline-offset-2">
+                          {new URL(url).hostname}
+                        </a>
+                        <span className="text-tertiary ml-2 text-xs truncate inline-block max-w-[300px] align-bottom">
+                          {url}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                );
+              })()}
             </div>
           </section>
 

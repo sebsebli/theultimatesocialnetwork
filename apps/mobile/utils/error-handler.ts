@@ -14,12 +14,17 @@ export class ApiError extends Error {
 }
 
 export const handleApiError = (error: any, customMessage?: string): string => {
+  // Check for standardized API error format
+  if (error?.error?.message) {
+    return error.error.message;
+  }
+
   // Network errors
   if (error?.message?.includes('Network') || error?.message?.includes('network')) {
     return 'Network error. Please check your internet connection.';
   }
 
-  // HTTP status codes
+  // HTTP status codes fallback
   if (error?.status) {
     switch (error.status) {
       case 400:

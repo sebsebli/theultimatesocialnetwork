@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { MeilisearchService } from './meilisearch.service';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -12,8 +12,8 @@ export class SearchController {
   async searchPosts(
     @CurrentUser() user: { id: string },
     @Query('q') query: string,
-    @Query('limit') limit?: string,
-    @Query('offset') offset?: string,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
     @Query('lang') lang?: string,
   ) {
     if (!query || query.trim().length === 0) {
@@ -21,8 +21,8 @@ export class SearchController {
     }
 
     const results = await this.meilisearch.searchPosts(query, {
-      limit: limit ? parseInt(limit, 10) : 20,
-      offset: offset ? parseInt(offset, 10) : 0,
+      limit,
+      offset,
       lang,
     });
 
@@ -33,11 +33,25 @@ export class SearchController {
   @UseGuards(AuthGuard('jwt'))
   async searchUsers(
     @Query('q') query: string,
-    @Query('limit') limit?: string,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
     if (!query || query.trim().length === 0) {
       return { hits: [] };
     }
-    return this.meilisearch.searchUsers(query, limit ? parseInt(limit, 10) : 10);
+    return this.meilisearch.searchUsers(query, limit);
+  }
+
+  @Get('topics')
+  @UseGuards(AuthGuard('jwt'))
+  async searchTopics(
+    @Query('q') query: string,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    if (!query || query.trim().length === 0) {
+      return { hits: [] };
+    }
+    // Assuming topics are indexed in Meilisearch 'topics' index
+    // If not, this needs to be implemented in MeilisearchService
+    return this.meilisearch.searchTopics(query, limit);
   }
 }

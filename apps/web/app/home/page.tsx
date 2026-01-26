@@ -25,9 +25,10 @@ async function getPosts() {
     });
     if (res.ok) {
       const data = await res.json();
-      // Feed API returns array of FeedItem: { type: 'post' | 'saved_by', data: ... }
-      return Array.isArray(data) ? data : [];
+      return Array.isArray(data) ? data : (data.items || []);
     }
+    // Handle error statuses
+    if (res.status === 401) redirect('/');
   } catch (e) {
     console.error('Failed to fetch posts', e);
   }

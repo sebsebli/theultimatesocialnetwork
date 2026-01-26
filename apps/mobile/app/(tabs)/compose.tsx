@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Modal, Alert, Image, FlatList } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -15,13 +15,13 @@ export default function ComposeScreen() {
   const { t } = useTranslation();
   const quotePostId = params.quote as string | undefined;
   const replyToPostId = params.replyTo as string | undefined;
-  
+
   const [body, setBody] = useState('');
   const [title, setTitle] = useState(''); // Separate title state for cleaner UI, or parse from markdown? 
   // User asked for "first line is title" behavior in spec, but for "better UX" a title field is often clearer.
   // I'll stick to the markdown parsing logic but maybe offer a field that auto-prepends #?
   // Let's stick to "body only" but with a "Title" button that inserts #.
-  
+
   const [isPublishing, setIsPublishing] = useState(false);
   const [headerImage, setHeaderImage] = useState<string | null>(null);
   const [headerImageAsset, setHeaderImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -64,10 +64,10 @@ export default function ComposeScreen() {
   const insertText = (before: string, after: string = '') => {
     const start = selection.start;
     const end = selection.end;
-    
+
     const newBody = body.substring(0, start) + before + body.substring(start, end) + after + body.substring(end);
     setBody(newBody);
-    
+
     // Attempt to move cursor after insertion (basic)
     // In a real app we might need to verify this works smoothly with the state update
     const newCursorPos = start + before.length + (end - start);
@@ -94,7 +94,7 @@ export default function ComposeScreen() {
 
   const handlePublish = async () => {
     const trimmedBody = body.trim();
-    
+
     if (!trimmedBody) {
       Alert.alert(t('common.error'), t('compose.bodyRequired') || 'Post body is required');
       return;
@@ -131,7 +131,7 @@ export default function ComposeScreen() {
       } else {
         await api.post('/posts', {
           body: trimmedBody,
-          headerImageKey: imageKey, 
+          headerImageKey: imageKey,
         });
       }
       router.back();
@@ -140,15 +140,15 @@ export default function ComposeScreen() {
       const errorMessage = error?.status === 400
         ? t('compose.invalidContent') || 'Invalid post content'
         : error?.status === 413
-        ? t('compose.tooLarge') || 'Post is too large'
-        : t('compose.error');
+          ? t('compose.tooLarge') || 'Post is too large'
+          : t('compose.error');
       Alert.alert(t('common.error'), errorMessage);
     } finally {
       setIsPublishing(false);
     }
   };
 
-  const handleBodyChange = (text: string) => {
+  const handleBodyChange = useCallback((text: string) => {
     setBody(text);
     // Autocomplete logic - show LINK TO TOPIC modal when typing [[
     const lastWord = text.split(/\s+/).pop();
@@ -158,7 +158,7 @@ export default function ComposeScreen() {
     } else if (!lastWord?.startsWith('[[') && linkToTopicModalVisible) {
       setLinkToTopicModalVisible(false);
     }
-  };
+  }, [linkToTopicModalVisible]);
 
   const addLink = () => {
     if (linkUrl) {
@@ -206,7 +206,7 @@ export default function ComposeScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
     >
       <View style={styles.header}>
-        <Pressable 
+        <Pressable
           onPress={() => router.back()}
           accessibilityLabel={t('compose.cancel')}
           accessibilityRole="button"
@@ -215,8 +215,8 @@ export default function ComposeScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>{t('compose.newPost')}</Text>
         <View style={styles.toggleContainer}>
-          <Pressable 
-            style={[styles.toggleButton, !previewMode && styles.toggleButtonActive]} 
+          <Pressable
+            style={[styles.toggleButton, !previewMode && styles.toggleButtonActive]}
             onPress={() => setPreviewMode(false)}
             accessibilityLabel={t('compose.write')}
             accessibilityRole="tab"
@@ -224,8 +224,8 @@ export default function ComposeScreen() {
           >
             <Text style={[styles.toggleText, !previewMode && styles.toggleTextActive]}>{t('compose.write')}</Text>
           </Pressable>
-          <Pressable 
-            style={[styles.toggleButton, previewMode && styles.toggleButtonActive]} 
+          <Pressable
+            style={[styles.toggleButton, previewMode && styles.toggleButtonActive]}
             onPress={() => setPreviewMode(true)}
             accessibilityLabel={t('compose.preview')}
             accessibilityRole="tab"
@@ -282,7 +282,7 @@ export default function ComposeScreen() {
             multiline
             value={body}
             onChangeText={handleBodyChange}
-            onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
+            onSelectionChange={(event: any) => setSelection(event.nativeEvent.selection)}
             autoFocus
             textAlignVertical="top"
             accessibilityLabel={quotedPost ? t('compose.startWriting') : t('compose.placeholder')}
@@ -294,48 +294,48 @@ export default function ComposeScreen() {
       {!previewMode && (
         <View style={styles.toolbar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarContent}>
-            <Pressable 
-              style={[styles.toolbarButton, styles.toolbarButtonActive]} 
+            <Pressable
+              style={[styles.toolbarButton, styles.toolbarButtonActive]}
               onPress={() => insertText('# ')}
               accessibilityLabel="Insert heading"
               accessibilityRole="button"
             >
               <Text style={styles.toolbarButtonText}>T</Text>
             </Pressable>
-            <Pressable 
-              style={styles.toolbarButton} 
+            <Pressable
+              style={styles.toolbarButton}
               onPress={() => insertText('**', '**')}
               accessibilityLabel="Insert bold"
               accessibilityRole="button"
             >
               <Text style={styles.toolbarButtonText}>B</Text>
             </Pressable>
-            <Pressable 
-              style={styles.toolbarButton} 
+            <Pressable
+              style={styles.toolbarButton}
               onPress={() => insertText('_', '_')}
               accessibilityLabel="Insert italic"
               accessibilityRole="button"
             >
               <Text style={styles.toolbarButtonText}>I</Text>
             </Pressable>
-            <Pressable 
-              style={styles.toolbarButton} 
+            <Pressable
+              style={styles.toolbarButton}
               onPress={() => insertText('> ')}
               accessibilityLabel="Insert quote"
               accessibilityRole="button"
             >
               <MaterialCommunityIcons name="format-quote-close" size={20} color={COLORS.primary} />
             </Pressable>
-            <Pressable 
-              style={styles.toolbarButton} 
+            <Pressable
+              style={styles.toolbarButton}
               onPress={() => insertText('- ')}
               accessibilityLabel="Insert list"
               accessibilityRole="button"
             >
               <MaterialCommunityIcons name="format-list-bulleted" size={20} color={COLORS.primary} />
             </Pressable>
-            <Pressable 
-              style={[styles.toolbarButton, linkToTopicModalVisible && styles.toolbarButtonActive]} 
+            <Pressable
+              style={[styles.toolbarButton, linkToTopicModalVisible && styles.toolbarButtonActive]}
               onPress={() => {
                 setLinkToTopicModalVisible(true);
                 loadTopicSuggestions();
@@ -362,19 +362,19 @@ export default function ComposeScreen() {
         visible={linkToTopicModalVisible}
         onRequestClose={() => setLinkToTopicModalVisible(false)}
       >
-        <Pressable 
+        <Pressable
           style={styles.modalOverlay}
           onPress={() => setLinkToTopicModalVisible(false)}
         >
-          <Pressable 
+          <Pressable
             style={styles.linkToTopicModal}
-            onPress={(e) => e.stopPropagation()}
+            onPress={(e: any) => e.stopPropagation()}
           >
             <Text style={styles.linkToTopicTitle}>LINK TO TOPIC</Text>
             <FlatList
               data={topicSuggestions}
-              keyExtractor={(item) => item.id || item.slug}
-              renderItem={({ item }) => (
+              keyExtractor={(item: any) => item.id || item.slug}
+              renderItem={({ item }: { item: any }) => (
                 <Pressable
                   style={styles.topicSuggestionItem}
                   onPress={() => handleLinkToTopic(item)}

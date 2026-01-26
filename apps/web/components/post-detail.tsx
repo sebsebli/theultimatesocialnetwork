@@ -240,8 +240,12 @@ export function PostDetail({ post }: PostDetailProps) {
             dangerouslySetInnerHTML={{ __html: renderMarkdown(post.body) }}
           />
           {post.headerImageKey && (
-            <div className="w-full rounded-2xl bg-white/5 mt-4 overflow-hidden">
-              <div className="w-full aspect-video bg-gradient-to-br from-primary/20 to-primary/5"></div>
+            <div className="relative w-full aspect-video rounded-2xl bg-white/5 mt-4 overflow-hidden shadow-2xl">
+              <img 
+                src={`http://localhost:9000/cite-images/${post.headerImageKey}`}
+                alt="Post header"
+                className="w-full h-full object-cover"
+              />
             </div>
           )}
         </div>

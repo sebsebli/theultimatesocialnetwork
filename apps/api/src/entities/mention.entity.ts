@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Post } from './post.entity';
 import { Reply } from './reply.entity';
 import { User } from './user.entity';
@@ -9,6 +9,7 @@ export class Mention {
   id: string;
 
   @Column({ name: 'post_id', nullable: true })
+  @Index()
   postId: string;
 
   @ManyToOne(() => Post, { nullable: true })
@@ -16,6 +17,7 @@ export class Mention {
   post: Post;
 
   @Column({ name: 'reply_id', nullable: true })
+  @Index()
   replyId: string;
 
   @ManyToOne(() => Reply, { nullable: true })
@@ -23,6 +25,7 @@ export class Mention {
   reply: Reply;
 
   @Column({ name: 'mentioned_user_id' })
+  @Index()
   mentionedUserId: string;
 
   @ManyToOne(() => User)

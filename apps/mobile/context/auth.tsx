@@ -10,8 +10,8 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({
-  signIn: async () => {},
-  signOut: async () => {},
+  signIn: async () => { },
+  signOut: async () => { },
   isLoading: true,
   isAuthenticated: false,
 });
@@ -39,10 +39,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // This ensures stale/invalid tokens are rejected
         // Add timeout to prevent hanging if API is unreachable
         try {
-          const timeoutPromise = new Promise((_, reject) => 
+          const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Auth check timeout')), 3000)
           );
-          
+
           // Use the api client which handles the API URL correctly
           await Promise.race([
             api.get('/auth/me'),
@@ -98,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
+    // @ts-ignore - React 19 compatibility: Context.Provider returns ReactNode which may include undefined
     <AuthContext.Provider value={{ signIn, signOut, isLoading, isAuthenticated }}>
       {children}
     </AuthContext.Provider>

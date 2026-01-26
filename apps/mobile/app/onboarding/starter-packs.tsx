@@ -21,19 +21,24 @@ export default function OnboardingStarterPacksScreen() {
 
   const loadSuggestedUsers = async () => {
     try {
-      // Load users grouped by categories
       const categories = ['urbanism', 'philosophy', 'tech'];
-      const usersByCategory: Record<string, any[]> = {};
       
-      for (const category of categories) {
-        try {
-          const data = await api.get(`/explore/people?category=${category}`);
-          usersByCategory[category] = Array.isArray(data) ? data.slice(0, 5) : [];
-        } catch (error) {
-          usersByCategory[category] = [];
-        }
-      }
-      
+      const results = await Promise.all(
+        categories.map(async (category) => {
+          try {
+            const data = await api.get(`/explore/people?category=${category}`);
+            return { category, users: Array.isArray(data) ? data.slice(0, 5) : [] };
+          } catch (error) {
+            return { category, users: [] };
+          }
+        })
+      );
+
+      const usersByCategory = results.reduce((acc, curr) => {
+        acc[curr.category] = curr.users;
+        return acc;
+      }, {} as Record<string, any[]>);
+
       setSuggestedUsers(usersByCategory);
     } catch (error) {
       console.error('Failed to load suggested users', error);
@@ -88,30 +93,30 @@ export default function OnboardingStarterPacksScreen() {
       </View>
 
       <FlatList
-        data={Object.entries(suggestedUsers).flatMap(([category, users]) => 
+        data={Object.entries(suggestedUsers).flatMap(([category, users]) =>
           users.map(user => ({ ...user, category }))
         )}
-        keyExtractor={(item, index) => `${item.category}-${item.id || index}`}
-        renderItem={({ item, index }) => {
-          const isFirstInCategory = index === 0 || 
-            (index > 0 && Object.entries(suggestedUsers).find(([cat, users]) => 
+        keyExtractor={(item: any, index: number) => `${item.category}-${item.id || index}`}
+        renderItem={({ item }: { item: any }, index: number) => {
+          const isFirstInCategory = index === 0 ||
+            (index > 0 && Object.entries(suggestedUsers).find(([cat, users]) =>
               users.some(u => u.id === item.id)
-            )?.[0] !== Object.entries(suggestedUsers).find(([cat, users]) => 
+            )?.[0] !== Object.entries(suggestedUsers).find(([cat, users]) =>
               users.some(u => u.id === Object.entries(suggestedUsers).flatMap(([, users]) => users)[index - 1]?.id)
             )?.[0]);
-          
+
           const category = item.category;
-          const showCategoryHeader = isFirstInCategory || 
+          const showCategoryHeader = isFirstInCategory ||
             (index > 0 && Object.entries(suggestedUsers).flatMap(([, users]) => users)[index - 1]?.category !== category);
-          
+
           return (
             <View>
               {showCategoryHeader && (
                 <View style={styles.categoryHeader}>
-                  <MaterialIcons 
-                    name={categoryIcons[category] as any} 
-                    size={20} 
-                    color={COLORS.primary} 
+                  <MaterialIcons
+                    name={categoryIcons[category] as any}
+                    size={20}
+                    color={COLORS.primary}
                   />
                   <Text style={styles.categoryTitle}>{categoryLabels[category]}</Text>
                 </View>
