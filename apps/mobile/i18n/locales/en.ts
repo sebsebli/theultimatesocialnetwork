@@ -150,6 +150,7 @@ export default {
     noPosts: 'No posts yet',
     userNotFound: 'User not found',
     loadError: 'Failed to load profile. Please try again.',
+    options: 'User Options',
   },
   inbox: {
     title: 'Inbox',
@@ -212,7 +213,6 @@ export default {
     exportData: 'Export Data',
     exportMessage: 'Your data export will be sent to your email address. This may take a few minutes.',
     export: 'Export',
-    exportStarted: 'Export Started',
     exportCheckEmail: 'Your data export has been started. You will receive an email when it\'s ready.',
   },
   safety: {
@@ -355,13 +355,9 @@ export default {
     ago: 'ago',
     ok: 'OK',
     success: 'Success',
-    error: 'Error',
     comingSoon: 'Coming Soon',
   },
   feed: {
     loadError: 'Failed to load feed. Please check your connection and try again.',
-  },
-  profile: {
-    options: 'User Options',
   },
 };

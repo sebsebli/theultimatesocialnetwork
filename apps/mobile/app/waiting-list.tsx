@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, useWindowDimensions, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,6 +10,8 @@ import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 export default function WaitingListScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { height: windowHeight } = useWindowDimensions();
+  const screenHeight = Dimensions.get('window').height;
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -98,95 +100,97 @@ export default function WaitingListScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>{t('waitingList.heading', 'Get Early Access')}</Text>
-        <Text style={styles.description}>
-          {t('waitingList.description', 'CITE is currently in beta. Join the waiting list to be notified when invites become available.')}
-        </Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder={t('waitingList.emailPlaceholder', 'Enter your email')}
-          placeholderTextColor={COLORS.tertiary}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          autoFocus
-          accessibilityLabel={t('waitingList.emailPlaceholder', 'Enter your email')}
-        />
-
-        {/* Terms and Privacy Acceptance */}
-        <View style={styles.termsContainer}>
-          <View style={styles.checkboxContainer}>
-            <Pressable
-              onPress={() => setAcceptedTerms(!acceptedTerms)}
-              style={styles.checkboxPressable}
-            >
-              <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
-                {acceptedTerms && (
-                  <MaterialCommunityIcons name="check" size={16} color={COLORS.ink} />
-                )}
-              </View>
-            </Pressable>
-            <Text style={styles.termsText}>
-              {(() => {
-                const agreementText = t('signIn.signUpAgreement', {
-                  terms: t('signIn.termsLink'),
-                  privacy: t('signIn.privacyLink'),
-                });
-                const termsText = t('signIn.termsLink');
-                const privacyText = t('signIn.privacyLink');
-
-                const parts = agreementText.split(/({{terms}}|{{privacy}})/);
-                return parts.map((part, index) => {
-                  if (part === '{{terms}}') {
-                    return (
-                      <Text
-                        key={index}
-                        style={styles.termsLink}
-                        onPress={() => openLegalLink('/terms')}
-                        suppressHighlighting={false}
-                      >
-                        {termsText}
-                      </Text>
-                    );
-                  }
-                  if (part === '{{privacy}}') {
-                    return (
-                      <Text
-                        key={index}
-                        style={styles.termsLink}
-                        onPress={() => openLegalLink('/privacy')}
-                        suppressHighlighting={false}
-                      >
-                        {privacyText}
-                      </Text>
-                    );
-                  }
-                  return <Text key={index}>{part}</Text>;
-                });
-              })()}
-            </Text>
-          </View>
-        </View>
-
-        <Pressable
-          style={[styles.button, (!email.trim() || loading || !acceptedTerms) && styles.buttonDisabled]}
-          onPress={handleJoin}
-          disabled={!email.trim() || loading || !acceptedTerms}
-          accessibilityLabel={t('waitingList.join', 'Join Waiting List')}
-          accessibilityRole="button"
-        >
-          <Text style={styles.buttonText}>
-            {loading ? t('common.loading', 'Loading...') : t('waitingList.join', 'Join Waiting List')}
+      <View style={[styles.centeredContent, { minHeight: screenHeight - 120 }]}>
+        <View style={styles.content}>
+          <Text style={styles.title}>{t('waitingList.heading', 'Get Early Access')}</Text>
+          <Text style={styles.description}>
+            {t('waitingList.description', 'CITE is currently in beta. Join the waiting list to be notified when invites become available.')}
           </Text>
-        </Pressable>
 
-        <Text style={styles.infoText}>
-          {t('waitingList.info', 'We\'ll only use your email to notify you about invite availability.')}
-        </Text>
+          <TextInput
+            style={styles.input}
+            placeholder={t('waitingList.emailPlaceholder', 'Enter your email')}
+            placeholderTextColor={COLORS.tertiary}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            autoFocus
+            accessibilityLabel={t('waitingList.emailPlaceholder', 'Enter your email')}
+          />
+
+          {/* Terms and Privacy Acceptance */}
+          <View style={styles.termsContainer}>
+            <View style={styles.checkboxContainer}>
+              <Pressable
+                onPress={() => setAcceptedTerms(!acceptedTerms)}
+                style={styles.checkboxPressable}
+              >
+                <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                  {acceptedTerms && (
+                    <MaterialCommunityIcons name="check" size={16} color={COLORS.ink} />
+                  )}
+                </View>
+              </Pressable>
+              <Text style={styles.termsText}>
+                {(() => {
+                  const agreementText = t('signIn.signUpAgreement', {
+                    terms: t('signIn.termsLink'),
+                    privacy: t('signIn.privacyLink'),
+                  });
+                  const termsText = t('signIn.termsLink');
+                  const privacyText = t('signIn.privacyLink');
+
+                  const parts = agreementText.split(/({{terms}}|{{privacy}})/);
+                  return parts.map((part, index) => {
+                    if (part === '{{terms}}') {
+                      return (
+                        <Text
+                          key={index}
+                          style={styles.termsLink}
+                          onPress={() => openLegalLink('/terms')}
+                          suppressHighlighting={false}
+                        >
+                          {termsText}
+                        </Text>
+                      );
+                    }
+                    if (part === '{{privacy}}') {
+                      return (
+                        <Text
+                          key={index}
+                          style={styles.termsLink}
+                          onPress={() => openLegalLink('/privacy')}
+                          suppressHighlighting={false}
+                        >
+                          {privacyText}
+                        </Text>
+                      );
+                    }
+                    return <Text key={index}>{part}</Text>;
+                  });
+                })()}
+              </Text>
+            </View>
+          </View>
+
+          <Pressable
+            style={[styles.button, (!email.trim() || loading || !acceptedTerms) && styles.buttonDisabled]}
+            onPress={handleJoin}
+            disabled={!email.trim() || loading || !acceptedTerms}
+            accessibilityLabel={t('waitingList.join', 'Join Waiting List')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.buttonText}>
+              {loading ? t('common.loading', 'Loading...') : t('waitingList.join', 'Join Waiting List')}
+            </Text>
+          </Pressable>
+
+          <Text style={styles.infoText}>
+            {t('waitingList.info', 'We\'ll only use your email to notify you about invite availability.')}
+          </Text>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -214,10 +218,12 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 24,
   },
-  content: {
+  centeredContent: {
     flex: 1,
     paddingHorizontal: SPACING.xxl,
-    paddingTop: SPACING.xxxl,
+    justifyContent: 'center',
+  },
+  content: {
     gap: SPACING.xl,
   },
   title: {

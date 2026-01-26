@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, Modal, Pressable, Animated, Dimensions, Image } from 'react-native';
+import { StyleSheet, Text, View, Modal, Pressable, Animated, Dimensions, Image, ScrollView } from 'react-native';
 import { RFValue } from 'react-native-responsive-fontsize';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, SIZES } from '../constants/theme';
@@ -225,7 +225,6 @@ function FadeInButton({ delay, duration = 1000, onPress, text, currentIndex, tot
   return (
     // @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode>
     <Animated.View style={{ opacity: fadeAnim }}>
-      {/* @ts-expect-error - React 19 compatibility: Pressable returns ReactNode */}
       <Pressable
         style={styles.beginButton}
         onPress={onPress}
@@ -241,6 +240,8 @@ function FadeInButton({ delay, duration = 1000, onPress, text, currentIndex, tot
 export function IntroModal({ visible, onClose }: IntroModalProps) {
   const { t } = useTranslation();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
 
   const allItems = [
     { text: "I built cite to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy.\n\nThe future deserves verification over virality, context over chaos.", isFounder: true, hasAuthor: true },
@@ -252,70 +253,42 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
     { text: t('intro.point6'), isFounder: false, hasAuthor: false },
     { text: t('intro.point7'), isFounder: false, hasAuthor: false },
     { text: t('intro.finalMessage'), isWelcome: true, isFounder: false, hasAuthor: false },
-
   ];
 
-  // Auto-advance through items
   useEffect(() => {
     if (!visible) {
       setCurrentIndex(0);
-      return;
+      scrollViewRef.current?.scrollTo({ x: 0, animated: false });
     }
-
-    const timeoutIds: ReturnType<typeof setTimeout>[] = [];
-    const scheduleNext = (current: number) => {
-      if (current >= allItems.length - 1) return;
-      const delay = current === 0 ? 12000 : 6000; // Founder takes 17s, others 6s
-      const timeoutId = setTimeout(() => {
-        setCurrentIndex((prev: number) => {
-          if (prev < allItems.length - 1) {
-            const next = prev + 1;
-            scheduleNext(next);
-            return next;
-          }
-          return prev;
-        });
-      }, delay);
-      timeoutIds.push(timeoutId);
-    };
-    scheduleNext(0);
-
-    return () => {
-      timeoutIds.forEach(id => clearTimeout(id));
-    };
-  }, [visible, allItems.length]);
+  }, [visible]);
 
   const handleClose = async () => {
     await SecureStore.setItemAsync(INTRO_SEEN_KEY, 'true');
     onClose();
   };
 
-  const handleSkip = async () => {
-    await SecureStore.setItemAsync(INTRO_SEEN_KEY, 'true');
-    onClose();
+  const handleSkip = () => {
+    const lastIndex = allItems.length - 1;
+    scrollViewRef.current?.scrollTo({
+      x: lastIndex * width,
+      animated: true,
+    });
+    setCurrentIndex(lastIndex);
   };
 
-  const handleDotPress = (index: number) => {
-    setCurrentIndex(index);
-    // Note: This would require more complex state management to actually jump
-    // For now, dots are visual indicators only
-  };
-
-  // Calculate delay for each item - each fades in, stays, then fades out (except Welcome)
-  // Founder: fade in (1000ms) + visible (15000ms) + fade out (1000ms) = 12000ms
-  // Others: fade in (1000ms) + visible (4000ms) + fade out (1000ms) = 6000ms
-  const getItemDelay = (index: number) => {
-    if (index === 0) {
-      // Founder message takes 12 seconds
-      return 0;
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const offsetX = event.nativeEvent.contentOffset.x;
+        const index = Math.round(offsetX / width);
+        setCurrentIndex(index);
+      },
     }
-    // After founder (17s), each subsequent item starts 6 seconds after the previous
-    return 17000 + (index - 1) * 6000;
-  };
+  );
 
-  // Button appears after welcome fades in (last item)
-  // Founder takes 17s, others take 6s each
-  const buttonDelay = 17000 + (allItems.length - 2) * 6000 + 1000 + 500; // founder (17s) + others (6s each) + fade in + small delay
+  const isLastPage = currentIndex === allItems.length - 1;
 
   return (
     <Modal
@@ -325,26 +298,8 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
       statusBarTranslucent
     >
       <View style={styles.container}>
-        {/* Background Images - Fullscreen behind safe area */}
-        {allItems.map((item, index) => {
-          const isLast = index === allItems.length - 1;
-          const isFounder = index === 0;
-          const cityIndex = index % cityImages.length;
-          return (
-            <FadeInOutBackground
-              key={`bg-${index}`}
-              imageSource={cityImages[cityIndex]}
-              delay={getItemDelay(index)}
-              visibleDuration={isLast ? 999999 : (isFounder ? 15000 : 4000)} // Founder background stays 10s, others 4s
-              fadeDuration={1000}
-              isLast={isLast}
-            />
-          );
-        })}
-
         {/* Skip Button - Top */}
         <View style={styles.topSection}>
-          {/* @ts-expect-error - React 19 compatibility: Pressable returns ReactNode */}
           <Pressable
             style={styles.skipButton}
             onPress={handleSkip}
@@ -353,47 +308,157 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
           </Pressable>
         </View>
 
-        {/* Text Container - Center */}
-        <View style={styles.textContainer}>
+        {/* Scrollable Pages */}
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollViewContent}
+        >
           {allItems.map((item, index) => {
-            const isLast = index === allItems.length - 1;
             const isFounder = item.isFounder;
             const isWelcome = item.isWelcome;
+            const cityIndex = index % cityImages.length;
+
+            // Calculate opacity based on scroll position for smooth fade effect
+            const inputRange = [
+              (index - 1) * width,
+              index * width,
+              (index + 1) * width,
+            ];
+
+            // Smooth fade for text content
+            const opacity = scrollX.interpolate({
+              inputRange,
+              outputRange: [0, 1, 0],
+              extrapolate: 'clamp',
+            });
+
+            // Smooth fade for background images
+            const backgroundOpacity = scrollX.interpolate({
+              inputRange,
+              outputRange: [0, 0.2, 0],
+              extrapolate: 'clamp',
+            });
+
             return (
-              <FadeInOutText
+              <View key={index} style={styles.page}>
+                {/* Background Image with fade */}
+                {/* @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
+                <Animated.View
+                  style={[
+                    styles.backgroundContainer,
+                    { opacity: backgroundOpacity },
+                  ]}
+                >
+                  <Image
+                    source={cityImages[cityIndex]}
+                    style={styles.backgroundImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.backgroundOverlay} />
+                </Animated.View>
+
+                {/* Text Content with fade */}
+                {/* @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
+                <Animated.View
+                  style={[
+                    styles.pageContent,
+                    { opacity },
+                  ]}
+                >
+                  <View style={styles.textWrapper}>
+                    {isFounder ? (
+                      <View style={styles.founderContainer}>
+                        <Text style={[styles.text, styles.founderText]}>
+                          {item.text.split(/(cite)/i).map((part, i) =>
+                            part.toLowerCase() === 'cite' ? (
+                              <Text key={i} style={[styles.text, styles.founderText, styles.highlightedCite]}>
+                                {part}
+                              </Text>
+                            ) : (
+                              <Text key={i}>{part}</Text>
+                            )
+                          )}
+                        </Text>
+                        <Text style={styles.founderNameAlways}>
+                          {t('intro.founderName')}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text
+                        style={[
+                          styles.text,
+                          isWelcome && styles.welcomeText,
+                          item.text === t('intro.finalMessage') && styles.finalText,
+                        ]}
+                      >
+                        {item.text}
+                      </Text>
+                    )}
+                  </View>
+                </Animated.View>
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        {/* Page Indicators */}
+        <View style={styles.indicatorsContainer}>
+          {allItems.map((_, index) => {
+            const indicatorOpacity = scrollX.interpolate({
+              inputRange: [
+                (index - 1) * width,
+                index * width,
+                (index + 1) * width,
+              ],
+              outputRange: [0.3, 1, 0.3],
+              extrapolate: 'clamp',
+            });
+
+            const indicatorScale = scrollX.interpolate({
+              inputRange: [
+                (index - 1) * width,
+                index * width,
+                (index + 1) * width,
+              ],
+              outputRange: [0.8, 1, 0.8],
+              extrapolate: 'clamp',
+            });
+
+            return (
+              // @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode>
+              <Animated.View
                 key={index}
-                text={item.text}
-                delay={getItemDelay(index)}
-                visibleDuration={isWelcome ? 999999 : (isFounder ? 15000 : 4000)} // Founder stays 10 seconds, welcome forever, others 4 seconds
-                fadeDuration={1000}
-                isLast={isLast}
-                isFounder={isFounder}
-                isWelcome={isWelcome}
-                founderName={isFounder ? t('intro.founderName') : undefined}
                 style={[
-                  styles.text,
-                  isFounder && styles.founderText,
-                  isWelcome && styles.welcomeText + ".",
-                  item.text === t('intro.finalMessage') && styles.finalText,
+                  styles.indicator,
+                  {
+                    opacity: indicatorOpacity,
+                    transform: [{ scale: indicatorScale }],
+                  },
                 ]}
               />
             );
           })}
         </View>
 
-        {/* Navigation Button - Bottom */}
-        <View style={styles.bottomSection}>
-          <FadeInButton
-            delay={getItemDelay(0) + 1000} // Show from first item
-            duration={500}
-            onPress={currentIndex < allItems.length - 1 ? () => {
-              // Could advance to next item here if needed
-            } : handleClose}
-            text={t('intro.beginJourney')}
-            currentIndex={currentIndex}
-            totalItems={allItems.length}
-          />
-        </View>
+        {/* Navigation Button - Bottom (only on last page) */}
+        {isLastPage && (
+          <View style={styles.bottomSection}>
+            <Pressable
+              style={styles.beginButton}
+              onPress={handleClose}
+            >
+              <Text style={styles.beginButtonText}>
+                {t('intro.beginJourney')}
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -418,9 +483,28 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: COLORS.ink,
-    justifyContent: 'space-between',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    alignItems: 'center',
+  },
+  page: {
+    width: width,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: SPACING.m,
-
+  },
+  backgroundContainer: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    right: -100,
+    bottom: -100,
+    width: width + 200,
+    height: height + 200,
   },
   backgroundImage: {
     width: '100%',
@@ -430,28 +514,52 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.4)', // Dark overlay for text readability
   },
+  pageContent: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
   topSection: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     paddingTop: SPACING.xxl + 40,
     paddingHorizontal: SPACING.xxl,
     alignItems: 'flex-end',
-    zIndex: 10,
+    zIndex: 20,
   },
-  textContainer: {
-    flex: 1,
-    alignItems: 'center',
+  indicatorsContainer: {
+    position: 'absolute',
+    bottom: SPACING.xxl + 100, // Position above the button
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
     justifyContent: 'center',
-    width: '100%',
-    position: 'relative',
-    zIndex: 10,
+    alignItems: 'center',
+    gap: SPACING.s,
+    zIndex: 20,
+  },
+  indicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.paper,
+    marginHorizontal: 4,
   },
   bottomSection: {
-    paddingBottom: SPACING.xxl,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: SPACING.xxl + 40, // Increased bottom margin
     paddingHorizontal: SPACING.xxl,
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 20,
   },
   textWrapper: {
-
     paddingVertical: SPACING.m,
     width: '100%',
     alignItems: 'center',
@@ -463,7 +571,6 @@ const styles = StyleSheet.create({
     color: COLORS.paper,
     fontFamily: 'IBMPlexSerif_400Regular',
     textAlign: 'center',
-
   },
   founderText: {
     fontSize: RFValue(20),
@@ -471,7 +578,6 @@ const styles = StyleSheet.create({
     color: COLORS.paper,
     fontFamily: 'IBMPlexSerif_400Regular',
     textAlign: 'center',
-
   },
   highlightedCite: {
     fontFamily: 'IBMPlexSerif_600SemiBold',
@@ -489,7 +595,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.s,
     fontStyle: 'normal',
-
   },
   finalText: {
     fontSize: RFValue(32),

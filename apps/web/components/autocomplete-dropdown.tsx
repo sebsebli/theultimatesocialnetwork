@@ -36,7 +36,11 @@ export function AutocompleteDropdown({
       return;
     }
 
-    loadSuggestions();
+    const timer = setTimeout(() => {
+      loadSuggestions();
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [query, type]);
 
   useEffect(() => {
@@ -57,8 +61,8 @@ export function AutocompleteDropdown({
         // Search users
         const res = await fetch(`/api/search/users?q=${encodeURIComponent(query)}`);
         if (res.ok) {
-          const users = await res.json();
-          const userItems: AutocompleteItem[] = users.map((u: any) => ({
+          const data = await res.json();
+          const userItems: AutocompleteItem[] = (data.hits || []).map((u: any) => ({
             id: u.id,
             type: 'user' as const,
             title: u.displayName || u.handle,
@@ -72,8 +76,8 @@ export function AutocompleteDropdown({
         // Search topics
         const res = await fetch(`/api/search/topics?q=${encodeURIComponent(query)}`);
         if (res.ok) {
-          const topics = await res.json();
-          const topicItems: AutocompleteItem[] = topics.map((t: any) => ({
+          const data = await res.json();
+          const topicItems: AutocompleteItem[] = (data.hits || []).map((t: any) => ({
             id: t.id,
             type: 'topic' as const,
             title: t.title,
@@ -87,8 +91,8 @@ export function AutocompleteDropdown({
         // Search posts
         const res = await fetch(`/api/search/posts?q=${encodeURIComponent(query)}`);
         if (res.ok) {
-          const posts = await res.json();
-          const postItems: AutocompleteItem[] = posts.map((p: any) => ({
+          const data = await res.json();
+          const postItems: AutocompleteItem[] = (data.hits || []).map((p: any) => ({
             id: p.id,
             type: 'post' as const,
             title: p.title || p.body.substring(0, 50),

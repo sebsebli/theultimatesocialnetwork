@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, Linking, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, Linking, useWindowDimensions, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -14,6 +14,8 @@ export default function IndexScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
   const { t } = useTranslation();
+  const { height: windowHeight } = useWindowDimensions();
+  const screenHeight = Dimensions.get('window').height;
 
   // Intro State
   const [showIntro, setShowIntro] = useState(false);
@@ -177,176 +179,175 @@ export default function IndexScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Top spacer */}
-        <View style={styles.topSpacer} />
-
+      <View style={styles.centeredContent}>
         {/* Main Content - Centered */}
-        <View style={styles.content}>
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logo}>
-              <View style={styles.logoIconContainer}>
-                <MaterialCommunityIcons name="code-brackets" size={40} color="rgba(255, 255, 255, 0.9)" />
+        <View style={styles.mainContent}>
+          <View style={styles.content}>
+            {/* Logo */}
+            <View style={styles.logoContainer}>
+              <View style={styles.logo}>
+                <View style={styles.logoIconContainer}>
+                  <MaterialCommunityIcons name="code-brackets" size={40} color="rgba(255, 255, 255, 0.9)" />
+                </View>
               </View>
             </View>
+
+            {/* Title & Subtitle - Hide when entering token to save space */}
+            {!sent && (
+              <View style={styles.textContainer}>
+                <Text style={styles.title}>{t('welcome.title')}</Text>
+                <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>
+              </View>
+            )}
+
+            {sent && (
+              <View style={styles.textContainer}>
+                <Text style={styles.title}>Check your email</Text>
+                <Text style={styles.subtitle}>Enter the code sent to {email}</Text>
+              </View>
+            )}
           </View>
 
-          {/* Title & Subtitle - Hide when entering token to save space */}
-          {!sent && (
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>{t('welcome.title')}</Text>
-              <Text style={styles.subtitle}>{t('welcome.subtitle')}</Text>
-            </View>
-          )}
-
-          {sent && (
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>Check your email</Text>
-              <Text style={styles.subtitle}>Enter the code sent to {email}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Auth Form Section */}
-        <View style={styles.formSection}>
-          {!sent ? (
-            <>
-              <TextInput
-                style={styles.input}
-                placeholder={t('signIn.email')}
-                placeholderTextColor={COLORS.tertiary}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
-
-              {showInviteInput && (
+          {/* Auth Form Section */}
+          <View style={styles.formSection}>
+            {!sent ? (
+              <>
                 <TextInput
                   style={styles.input}
-                  placeholder="Invite code (Required for sign up)"
+                  placeholder={t('signIn.email')}
                   placeholderTextColor={COLORS.tertiary}
-                  value={inviteCode}
-                  onChangeText={(val) => setInviteCode(val.toUpperCase())}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
                 />
-              )}
 
-              {/* Terms and Privacy Acceptance - Only show for new signups (when invite code is required) */}
-              {showInviteInput && (
-                <View style={styles.termsContainer}>
-                  <View style={styles.checkboxContainer}>
-                    <Pressable
-                      onPress={() => setAcceptedTerms(!acceptedTerms)}
-                      style={styles.checkboxPressable}
-                    >
-                      <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
-                        {acceptedTerms && (
-                          <MaterialCommunityIcons name="check" size={16} color={COLORS.ink} />
-                        )}
-                      </View>
-                    </Pressable>
-                    <Text style={styles.termsText}>
-                      {(() => {
-                        const agreementText = t('signIn.signUpAgreement', {
-                          terms: t('signIn.termsLink'),
-                          privacy: t('signIn.privacyLink'),
-                        });
-                        const termsText = t('signIn.termsLink');
-                        const privacyText = t('signIn.privacyLink');
+                {showInviteInput && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Invite code (Required for sign up)"
+                    placeholderTextColor={COLORS.tertiary}
+                    value={inviteCode}
+                    onChangeText={(val: string) => setInviteCode(val.toUpperCase())}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                  />
+                )}
 
-                        // Split by placeholders and create clickable links
-                        const parts = agreementText.split(/({{terms}}|{{privacy}})/);
-                        return parts.map((part, index) => {
-                          if (part === '{{terms}}') {
-                            return (
-                              <Text
-                                key={index}
-                                style={styles.termsLink}
-                                onPress={() => openLegalLink('/terms')}
-                                suppressHighlighting={false}
-                              >
-                                {termsText}
-                              </Text>
-                            );
-                          }
-                          if (part === '{{privacy}}') {
-                            return (
-                              <Text
-                                key={index}
-                                style={styles.termsLink}
-                                onPress={() => openLegalLink('/privacy')}
-                                suppressHighlighting={false}
-                              >
-                                {privacyText}
-                              </Text>
-                            );
-                          }
-                          return <Text key={index}>{part}</Text>;
-                        });
-                      })()}
-                    </Text>
+                {/* Terms and Privacy Acceptance - Only show for new signups (when invite code is required) */}
+                {showInviteInput && (
+                  <View style={styles.termsContainer}>
+                    <View style={styles.checkboxContainer}>
+                      <Pressable
+                        onPress={() => setAcceptedTerms(!acceptedTerms)}
+                        style={styles.checkboxPressable}
+                      >
+                        <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                          {acceptedTerms && (
+                            <MaterialCommunityIcons name="check" size={16} color={COLORS.ink} />
+                          )}
+                        </View>
+                      </Pressable>
+                      <Text style={styles.termsText}>
+                        {(() => {
+                          const agreementText = t('signIn.signUpAgreement', {
+                            terms: t('signIn.termsLink'),
+                            privacy: t('signIn.privacyLink'),
+                          });
+                          const termsText = t('signIn.termsLink');
+                          const privacyText = t('signIn.privacyLink');
+
+                          // Split by placeholders and create clickable links
+                          const parts = agreementText.split(/({{terms}}|{{privacy}})/);
+                          return parts.map((part, index) => {
+                            if (part === '{{terms}}') {
+                              return (
+                                <Text
+                                  key={index}
+                                  style={styles.termsLink}
+                                  onPress={() => openLegalLink('/terms')}
+                                  suppressHighlighting={false}
+                                >
+                                  {termsText}
+                                </Text>
+                              );
+                            }
+                            if (part === '{{privacy}}') {
+                              return (
+                                <Text
+                                  key={index}
+                                  style={styles.termsLink}
+                                  onPress={() => openLegalLink('/privacy')}
+                                  suppressHighlighting={false}
+                                >
+                                  {privacyText}
+                                </Text>
+                              );
+                            }
+                            return <Text key={index}>{part}</Text>;
+                          });
+                        })()}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              )}
+                )}
 
-              <Pressable
-                style={[styles.button, (!email.trim() || loading || (showInviteInput && !acceptedTerms)) && styles.buttonDisabled]}
-                onPress={handleSendLink}
-                disabled={!email.trim() || loading || (showInviteInput && !acceptedTerms)}
-              >
-                <Text style={styles.buttonText}>
-                  {loading ? t('common.loading') : 'Send verification code'}
-                </Text>
-              </Pressable>
+                <Pressable
+                  style={[styles.button, (!email.trim() || loading || (showInviteInput && !acceptedTerms)) && styles.buttonDisabled]}
+                  onPress={handleSendLink}
+                  disabled={!email.trim() || loading || (showInviteInput && !acceptedTerms)}
+                >
+                  <Text style={styles.buttonText}>
+                    {loading ? t('common.loading') : 'Send verification code'}
+                  </Text>
+                </Pressable>
 
-              <Pressable onPress={() => router.push('/waiting-list')}>
-                <Text style={styles.resendLink}>{t('signIn.joinWaitlist', 'Need an invite? Join the waitlist')}</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <TextInput
-                style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }]}
-                placeholder="000000"
-                placeholderTextColor={COLORS.tertiary}
-                value={token}
-                onChangeText={(val) => setToken(val.replace(/\D/g, '').slice(0, 6))}
-                keyboardType="number-pad"
-                autoFocus
-              />
+                <Pressable onPress={() => router.push('/waiting-list')}>
+                  <Text style={styles.resendLink}>{t('signIn.joinWaitlist', 'Need an invite? Join the waitlist')}</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <TextInput
+                  style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }]}
+                  placeholder="000000"
+                  placeholderTextColor={COLORS.tertiary}
+                  value={token}
+                  onChangeText={(val: string) => setToken(val.replace(/\D/g, '').slice(0, 6))}
+                  keyboardType="number-pad"
+                  autoFocus
+                />
 
-              <Pressable
-                style={[styles.button, (token.length < 6 || loading) && styles.buttonDisabled]}
-                onPress={handleVerify}
-                disabled={token.length < 6 || loading}
-              >
-                <Text style={styles.buttonText}>
-                  {loading ? t('signIn.verifying') : t('signIn.verify')}
-                </Text>
-              </Pressable>
+                <Pressable
+                  style={[styles.button, (token.length < 6 || loading) && styles.buttonDisabled]}
+                  onPress={handleVerify}
+                  disabled={token.length < 6 || loading}
+                >
+                  <Text style={styles.buttonText}>
+                    {loading ? t('signIn.verifying') : t('signIn.verify')}
+                  </Text>
+                </Pressable>
 
-              <Pressable
-                style={[styles.buttonSecondary, (cooldown > 0 || loading) && styles.buttonDisabled]}
-                onPress={handleSendLink}
-                disabled={cooldown > 0 || loading}
-              >
-                <Text style={styles.buttonTextSecondary}>
-                  {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
-                </Text>
-              </Pressable>
+                <Pressable
+                  style={[styles.buttonSecondary, (cooldown > 0 || loading) && styles.buttonDisabled]}
+                  onPress={handleSendLink}
+                  disabled={cooldown > 0 || loading}
+                >
+                  <Text style={styles.buttonTextSecondary}>
+                    {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                  </Text>
+                </Pressable>
 
-              <Pressable onPress={() => { setSent(false); setToken(''); setCooldown(0); }}>
-                <Text style={styles.resendLink}>Wrong email? Go back</Text>
-              </Pressable>
-            </>
-          )}
+                <Pressable onPress={() => { setSent(false); setToken(''); setCooldown(0); }}>
+                  <Text style={styles.resendLink}>Wrong email? Go back</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
         </View>
 
-        {/* Legal Links */}
+        {/* Legal Links - Fixed at bottom */}
         <View style={styles.legalLinks}>
           <Pressable onPress={() => openLegalLink('/privacy')}>
             <Text style={styles.legalLink}>{t('welcome.privacy')}</Text>
@@ -360,10 +361,7 @@ export default function IndexScreen() {
             <Text style={styles.legalLink}>{t('welcome.imprint')}</Text>
           </Pressable>
         </View>
-
-        {/* Bottom spacer */}
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+      </View>
 
       {/* Intro Modal */}
       <IntroModal visible={showIntro} onClose={handleIntroClose} />
@@ -376,21 +374,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
+  centeredContent: {
+    flex: 1,
     paddingHorizontal: SPACING.xxl,
+    justifyContent: 'space-between',
   },
-  topSpacer: {
-    height: 60,
-  },
-  bottomSpacer: {
-    height: 40,
+  mainContent: {
+    flex: 1,
+    justifyContent: 'center',
   },
   content: {
     alignItems: 'center',
     gap: SPACING.xl,
-    marginBottom: SPACING.xl,
   },
   logoContainer: {
     alignItems: 'center',
@@ -439,7 +434,6 @@ const styles = StyleSheet.create({
   formSection: {
     gap: SPACING.l,
     width: '100%',
-    marginBottom: SPACING.xxl,
   },
   input: {
     height: 56,
@@ -494,7 +488,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.s,
-    marginTop: 'auto',
+    paddingBottom: SPACING.l,
   },
   legalLink: {
     fontSize: 12,

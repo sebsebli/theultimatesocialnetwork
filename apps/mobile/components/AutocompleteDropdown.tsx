@@ -52,8 +52,16 @@ export function AutocompleteDropdown({
         }
 
         if (type === 'topic' || type === 'all') {
-          // Topic search (mock for now, or use generic search)
-          results.push({ id: `new-topic-${query}`, title: query, type: 'topic', subtitle: 'Create topic' });
+          // Topic search
+          const res = await api.get<{ hits: any[] }>(`/search/topics?q=${query}`);
+          // Fallback if topics API is different, but assuming Meilisearch consistency
+          const topics = (res.hits || []).map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            slug: t.slug,
+            type: 'topic',
+          }));
+          results = [...results, ...topics];
         }
 
         if (type === 'post' || type === 'all') {
@@ -62,7 +70,7 @@ export function AutocompleteDropdown({
           const posts = (res.hits || []).map((p: any) => ({
             id: p.id,
             title: p.title || 'Untitled',
-            subtitle: p.body.substring(0, 50),
+            subtitle: p.body ? p.body.substring(0, 50) : '',
             type: 'post',
           }));
           results = [...results, ...posts];

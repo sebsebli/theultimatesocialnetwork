@@ -87,7 +87,7 @@ export default function CollectionsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('collections.title')}</Text>
-        <Pressable 
+        <Pressable
           onPress={() => setModalVisible(true)}
           accessibilityLabel={t('collections.create')}
           accessibilityRole="button"
@@ -99,8 +99,8 @@ export default function CollectionsScreen() {
       {collections.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>{t('collections.empty')}</Text>
-          <Pressable 
-            style={styles.button} 
+          <Pressable
+            style={styles.button}
             onPress={() => setModalVisible(true)}
             accessibilityLabel={t('collections.create')}
             accessibilityRole="button"

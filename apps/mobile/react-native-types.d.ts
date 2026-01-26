@@ -1,35 +1,38 @@
 // Type declaration to fix React 19 / React Native compatibility
 // This makes React Native components compatible with React 19's stricter JSX types
+// React 19 requires JSX.Element (ReactElement | null) but React Native components return ReactNode (which can include undefined)
 
 import 'react';
+import type { ComponentType, ReactElement } from 'react';
+import type { PressableProps } from 'react-native';
 
-declare module 'react' {
-  namespace React {
-    interface Component<P = {}, S = {}, SS = any> {
-      refs?: {
-        [key: string]: React.ReactInstance;
-      };
-    }
+// Override Pressable to return JSX.Element | null instead of ReactNode
+declare module 'react-native' {
+  interface PressableComponent extends ComponentType<PressableProps> {
+    (props: PressableProps): ReactElement | null;
   }
+  export const Pressable: PressableComponent;
 }
 
-// Override JSX.ElementClass to be more permissive for React Native components
+// Override the global JSX namespace to allow undefined in Element type
 declare global {
   namespace JSX {
     interface ElementClass {
-      // Make the constructor signature more permissive
-      new (props: any, deprecatedLegacyContext?: any): any;
+      new(props: any, deprecatedLegacyContext?: any): any;
     }
+
+    // Override Element to include undefined for React Native compatibility
+    // This allows components returning ReactNode (which may include undefined) to be used as JSX elements
+    type Element = React.ReactElement<any, any> | null | undefined;
   }
-  
-  // Override React's JSX namespace to allow ReactNode as valid return type
+}
+
+// Also override React.JSX.Element namespace
+declare module 'react' {
   namespace React {
     namespace JSX {
-      // Allow components that return ReactNode | Promise<ReactNode>
-      type ElementType = 
-        | string
-        | React.ComponentType<any>
-        | ((props: any) => ReactNode | Promise<ReactNode> | JSX.Element | null);
+      // Override Element to include undefined for React Native compatibility
+      type Element = React.ReactElement<any, any> | null | undefined;
     }
   }
 }

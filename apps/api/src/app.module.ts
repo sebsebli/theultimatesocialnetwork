@@ -26,6 +26,7 @@ import { SafetyModule } from './safety/safety.module';
 import { KeepsModule } from './keeps/keeps.module';
 import { CleanupService } from './cleanup/cleanup.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { RssModule } from "./rss/rss.module";
 import { Post } from './entities/post.entity';
 import { User } from './entities/user.entity';
 
@@ -60,6 +61,7 @@ import { User } from './entities/user.entity';
     UploadModule,
     SafetyModule,
     KeepsModule,
+    RssModule,
   ],
   controllers: [AppController],
   providers: [

@@ -214,3 +214,48 @@ html {
   color: #A8A8AA;
   font-style: italic;
 }
+
+@media print {
+  @page {
+    margin: 2cm;
+  }
+
+  body {
+    background-color: white !important;
+    color: black !important;
+    font-family: var(--font-serif), Georgia, serif !important;
+  }
+
+  nav, footer, button, .no-print {
+    display: none !important;
+  }
+
+  a {
+    text-decoration: underline;
+    color: black !important;
+  }
+
+  /* Show URL after links */
+  a[href^="http"]:after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+
+  /* Don't show URL for internal links or anchors if possible, but generic rule is safer for now */
+  
+  .prose {
+    color: black !important;
+  }
+
+  .prose h1, .prose h2, .prose h3, .prose strong {
+    color: black !important;
+  }
+
+  /* Ensure the content container is full width */
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

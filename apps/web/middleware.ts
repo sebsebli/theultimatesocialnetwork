@@ -11,6 +11,8 @@ const publicRoutes = [
   '/privacy',
   '/terms',
   '/imprint',
+  '/roadmap',
+  '/manifesto',
 ];
 
 // Routes that require authentication

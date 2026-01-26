@@ -142,6 +142,7 @@ export class PostsService {
               url: target,
               title: alias,
             });
+            fetch(`https://web.archive.org/save/${target}`).catch(() => {});
           } else {
             // Topic Link
             const slug = this.slugify(target);

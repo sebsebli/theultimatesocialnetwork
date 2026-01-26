@@ -225,9 +225,15 @@ export const PostItem = memo(function PostItem({
         </Pressable>
       </Pressable>
 
-      {/* Post Content */}
+      {/* Content */}
       <Pressable 
-        onPress={() => router.push(`/post/${post.id}`)} 
+        onPress={() => {
+          if (post.title) {
+            router.push(`/post/${post.id}/reading`);
+          } else {
+            router.push(`/post/${post.id}`);
+          }
+        }} 
         style={styles.content}
         accessibilityRole="button"
         accessibilityLabel={post.title || post.body.substring(0, 50)}
