@@ -1,21 +1,30 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, useWindowDimensions, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, useWindowDimensions, Dimensions, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 export default function WaitingListScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { height: windowHeight } = useWindowDimensions();
   const screenHeight = Dimensions.get('window').height;
+  const insets = useSafeAreaInsets();
+  const { isOffline } = useNetworkStatus();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  // Calculate keyboard offset accounting for offline banner
+  // Banner height: ~40px (padding + text + icon) + safe area top
+  const offlineBannerHeight = isOffline ? Math.max(insets.top, SPACING.s) + 40 : 0;
+  const keyboardVerticalOffset = Platform.OS === 'ios' ? offlineBannerHeight : 0;
 
   // Get base URL for legal links
   const getBaseUrl = () => {
@@ -93,8 +102,9 @@ export default function WaitingListScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={keyboardVerticalOffset}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.m }]}>
         <Pressable onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
         </Pressable>
@@ -102,7 +112,12 @@ export default function WaitingListScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <View style={[styles.centeredContent, { minHeight: screenHeight - 120 }]}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
           <Text style={styles.title}>{t('waitingList.heading', 'Get Early Access')}</Text>
           <Text style={styles.description}>
@@ -193,7 +208,7 @@ export default function WaitingListScreen() {
             {t('waitingList.info', 'We\'ll only use your email to notify you about invite availability.')}
           </Text>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -208,7 +223,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.header + 10,
     paddingBottom: SPACING.m,
   },
   headerTitle: {
@@ -220,9 +234,13 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 24,
   },
-  centeredContent: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: SPACING.xxl,
+    paddingBottom: SPACING.xxl,
     justifyContent: 'center',
   },
   content: {

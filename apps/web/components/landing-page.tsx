@@ -307,20 +307,20 @@ export function LandingPage() {
 
       </main>
 
-      <footer className="border-t border-[#1A1A1D] bg-[#0B0B0C] py-12 px-6 md:px-12">
-        <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-4">
-            <span className="text-lg font-serif font-normal text-[#F2F2F2]">cite</span>
-            <span className="text-[#6E6E73] text-sm font-mono border-l border-[#333] pl-4">
+      <footer className="border-t border-[#1A1A1D] bg-[#0B0B0C] py-8 md:py-12 px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-center md:items-center gap-6 md:gap-0">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center sm:text-left">
+            <span className="text-base md:text-lg font-serif font-normal text-[#F2F2F2]">cite</span>
+            <span className="text-[#6E6E73] text-xs sm:text-sm font-mono border-t sm:border-t-0 sm:border-l border-[#333] pt-3 sm:pt-0 sm:pl-4">
               {t.footer.rights}
             </span>
           </div>
-          <div className="flex gap-8 text-sm text-[#A8A8AA]">
-            <Link href="/roadmap" className="hover:text-[#F2F2F2] transition-colors">{t.footer.roadmap}</Link>
-            <Link href="/imprint" className="hover:text-[#F2F2F2] transition-colors">{t.footer.imprint}</Link>
-            <Link href="/privacy" className="hover:text-[#F2F2F2] transition-colors">{t.footer.privacy}</Link>
-            <Link href="/ai-transparency" className="hover:text-[#F2F2F2] transition-colors">{t.footer.ai_transparency}</Link>
-            <Link href="/terms" className="hover:text-[#F2F2F2] transition-colors">{t.footer.terms}</Link>
+          <div className="flex flex-wrap justify-center md:justify-end gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm text-[#A8A8AA]">
+            <Link href="/roadmap" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.roadmap}</Link>
+            <Link href="/imprint" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.imprint}</Link>
+            <Link href="/privacy" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.privacy}</Link>
+            <Link href="/ai-transparency" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.ai_transparency}</Link>
+            <Link href="/terms" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.terms}</Link>
           </div>
         </div>
       </footer>
