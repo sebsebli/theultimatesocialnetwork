@@ -11,3 +11,9 @@ node_modules
 
 # Docker volumes (runtime data)
 infra/docker/volumes/
+
+# Docker environment files with secrets
+infra/docker/.env
+
+# Documentation files that may contain secrets
+SMTP_SETUP.md

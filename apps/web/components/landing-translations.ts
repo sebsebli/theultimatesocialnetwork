@@ -1,0 +1,452 @@
+export const translations = {
+  en: {
+    nav: {
+      login: "Log in",
+      requestAccess: "Request Access",
+      manifesto: "Read the Manifesto",
+    },
+    hero: {
+      title: "Social media for\ncomplex reality.",
+      subtitle: "We are drowning in content but starving for context.",
+      description: "Cite is a new network built on a simple premise: Authority should come from being referenced, not from going viral. We replaced the algorithm with a citation graph, giving you a quiet place to think, write, and connect ideas.",
+      cta_primary: "Join the Network",
+      cta_secondary: "Read the Manifesto",
+    },
+    problem: {
+      label: "The Problem",
+      title: "The Loudness Loop",
+      text_1: "Algorithms amplify the loudest voices, not the truest ones. This creates a feedback loop of polarization where nuance is punished and conflict is rewarded. Society fractures when we lose shared truth.",
+      text_2: "When you scroll a traditional feed, you are consuming a disjointed stream of consciousness. There is no memory. No structure. No history. Just an endless 'now' designed to keep you angry.",
+    },
+    mechanics: {
+      label: "How It Works",
+      card_1_title: "Inline Citations",
+      card_1_text: "Connect your thoughts directly to other posts, topics, or external sources. Linking isn't an afterthought; it's the core interaction. By citing others, you build a web of trust and context.",
+      card_2_title: "The Reputation Graph",
+      card_2_text: "On Cite, you gain visibility when your work is referenced by others. It is a meritocracy of ideas. Quality rises not because it is loud, but because it is useful.",
+      card_3_title: "Private Signals",
+      card_3_text: "Public like counts create performance anxiety and herd behavior. We made them private. Validate good work, but don't perform for the crowd.",
+    },
+    deep_dive: {
+      title: "Navigable Context",
+      subtitle: "Every post is a portal. Click through the chain of thought.",
+    },
+    quote: {
+      text: "We built Cite because we were tired of being treated like products. We wanted a place where the truth matters more than the trend.",
+      author: "Sebastian Lindner",
+      role: "Founder"
+    },
+    distinction: {
+      label: "The Distinction",
+      title: "Why Cite is Different",
+      text_1: "Most platforms are ephemeral. They are designed to consume your time and sell your attention. Cite is designed to be an archive.",
+      text_2: "We are building a protocol for discourse that respects the user's intelligence and data rights. This is infrastructure for the long term.",
+      sovereign: "Sovereign Data",
+      sovereign_text: "Hosted strictly in the EU. Your data is yours. Exportable to open formats (JSON/CSV) at any time.",
+      no_ads: "No Ads",
+      no_ads_text: "We serve you, not advertisers. Zero tracking pixels. Zero data sales.",
+      transparent: "Transparent Algorithms",
+      transparent_text: "Explore is optional and transparent. See exactly why a post was recommended.",
+      verified: "Verified Humans",
+      verified_text: "We prioritize human verification to keep the signal high and the bots out.",
+    },
+    cta_final: {
+      title: "The internet was meant to be a library.",
+      subtitle: "Let's rebuild it.",
+      button: "Start Your Archive",
+      note: "Beta access is currently open.",
+    },
+    footer: {
+      rights: "© 2026 Cite Systems GmbH",
+      imprint: "Imprint",
+      privacy: "Privacy",
+      terms: "Terms",
+    }
+  },
+  de: {
+    nav: {
+      login: "Anmelden",
+      requestAccess: "Zugang anfordern",
+      manifesto: "Manifest lesen",
+    },
+    hero: {
+      title: "Soziale Medien für\ndie komplexe Realität.",
+      subtitle: "Wir ertrinken in Inhalten, aber hungern nach Kontext.",
+      description: "Cite ist ein neues Netzwerk, das auf einer einfachen Prämisse beruht: Autorität sollte durch Referenzen entstehen, nicht durch Viralität. Wir haben den Algorithmus durch einen Zitationsgraphen ersetzt – ein ruhiger Ort zum Denken, Schreiben und Verbinden von Ideen.",
+      cta_primary: "Netzwerk beitreten",
+      cta_secondary: "Manifest lesen",
+    },
+    problem: {
+      label: "Das Problem",
+      title: "Die Lautstärke-Spirale",
+      text_1: "Algorithmen verstärken die lautesten Stimmen, nicht die wahrhaftigsten. Dies schafft eine Rückkopplungsschleife der Polarisierung, in der Nuancen bestraft und Konflikte belohnt werden. Die Gesellschaft zerbricht, wenn wir die gemeinsame Wahrheit verlieren.",
+      text_2: "Wenn Sie durch einen herkömmlichen Feed scrollen, konsumieren Sie einen unzusammenhängenden Bewusstseinsstrom. Kein Gedächtnis. Keine Struktur. Keine Geschichte. Nur ein endloses 'Jetzt', das Sie wütend machen soll.",
+    },
+    mechanics: {
+      label: "Wie es funktioniert",
+      card_1_title: "Inline-Zitate",
+      card_1_text: "Verbinden Sie Ihre Gedanken direkt mit anderen Beiträgen oder Quellen. Verlinken ist kein nachträglicher Gedanke, sondern die Kerninteraktion. Durch das Zitieren bauen Sie ein Netz aus Vertrauen und Kontext.",
+      card_2_title: "Der Reputations-Graph",
+      card_2_text: "Auf Cite gewinnen Sie an Sichtbarkeit, wenn Ihre Arbeit von anderen referenziert wird. Es ist eine Meritokratie der Ideen. Qualität steigt nicht auf, weil sie laut ist, sondern weil sie nützlich ist.",
+      card_3_title: "Private Signale",
+      card_3_text: "Öffentliche Like-Zahlen erzeugen Leistungsdruck und Herdentrieb. Wir haben sie privat gemacht. Bestätigen Sie gute Arbeit, aber performen Sie nicht für die Masse.",
+    },
+    deep_dive: {
+      title: "Navigierbarer Kontext",
+      subtitle: "Jeder Beitrag ist ein Portal. Klicken Sie sich durch die Gedankenkette.",
+    },
+    quote: {
+      text: "Wir haben Cite gebaut, weil wir es leid waren, wie Produkte behandelt zu werden. Wir wollten einen Ort, an dem die Wahrheit mehr zählt als der Trend.",
+      author: "Sebastian Lindner",
+      role: "Gründer"
+    },
+    distinction: {
+      label: "Der Unterschied",
+      title: "Warum Cite anders ist",
+      text_1: "Die meisten Plattformen sind vergänglich. Sie sind darauf ausgelegt, Ihre Zeit zu verbrauchen und Ihre Aufmerksamkeit zu verkaufen. Cite ist als Archiv konzipiert.",
+      text_2: "Wir bauen ein Protokoll für den Diskurs, das die Intelligenz und Datenrechte der Nutzer respektiert. Das ist Infrastruktur für die Langzeit.",
+      sovereign: "Souveräne Daten",
+      sovereign_text: "Hosting ausschließlich in der EU. Ihre Daten gehören Ihnen. Jederzeit exportierbar (JSON/CSV).",
+      no_ads: "Keine Werbung",
+      no_ads_text: "Wir dienen Ihnen, nicht den Werbetreibenden. Null Tracking-Pixel. Null Datenverkauf.",
+      transparent: "Transparente Algorithmen",
+      transparent_text: "Explore ist optional und transparent. Sehen Sie genau, warum ein Beitrag empfohlen wurde.",
+      verified: "Verifizierte Menschen",
+      verified_text: "Wir priorisieren menschliche Verifizierung, um das Signal hoch und Bots draußen zu halten.",
+    },
+    cta_final: {
+      title: "Das Internet sollte eine Bibliothek sein.",
+      subtitle: "Bauen wir es neu auf.",
+      button: "Starten Sie Ihr Archiv",
+      note: "Beta-Zugang ist derzeit offen.",
+    },
+    footer: {
+      rights: "© 2026 Cite Systems GmbH",
+      imprint: "Impressum",
+      privacy: "Datenschutz",
+      terms: "AGB",
+    }
+  },
+  fr: {
+    nav: {
+      login: "Se connecter",
+      requestAccess: "Demander l'accès",
+      manifesto: "Lire le Manifeste",
+    },
+    hero: {
+      title: "Réseau social pour\nune réalité complexe.",
+      subtitle: "Nous nous noyons dans le contenu mais manquons de contexte.",
+      description: "Cite est un nouveau réseau fondé sur une prémisse simple : l'autorité doit venir des références, pas de la viralité. Nous avons remplacé l'algorithme par un graphe de citations, vous offrant un lieu calme pour penser, écrire et relier les idées.",
+      cta_primary: "Rejoindre le réseau",
+      cta_secondary: "Lire le Manifeste",
+    },
+    problem: {
+      label: "Le Problème",
+      title: "La boucle du bruit",
+      text_1: "Les algorithmes amplifient les voix les plus fortes, pas les plus vraies. Cela crée une boucle de polarisation où la nuance est punie et le conflit récompensé. La société se fracture lorsque nous perdons la vérité commune.",
+      text_2: "Lorsque vous faites défiler un flux traditionnel, vous consommez un flux de conscience disjoint. Pas de mémoire. Pas de structure. Pas d'histoire. Juste un 'maintenant' sans fin conçu pour vous garder en colère.",
+    },
+    mechanics: {
+      label: "Comment ça marche",
+      card_1_title: "Citations intégrées",
+      card_1_text: "Reliez vos pensées directement à d'autres posts ou sources. Le lien n'est pas une arrière-pensée, c'est l'interaction centrale. En citant les autres, vous construisez un réseau de confiance.",
+      card_2_title: "Le graphe de réputation",
+      card_2_text: "Sur Cite, vous gagnez en visibilité lorsque votre travail est référencé par d'autres. C'est une méritocratie des idées. La qualité émerge non pas parce qu'elle est bruyante, mais parce qu'elle est utile.",
+      card_3_title: "Signaux privés",
+      card_3_text: "Les compteurs de likes publics créent de l'anxiété de performance. Nous les avons rendus privés. Validez le bon travail, mais ne jouez pas pour la foule.",
+    },
+    deep_dive: {
+      title: "Contexte navigable",
+      subtitle: "Chaque post est un portail. Cliquez à travers la chaîne de pensée.",
+    },
+    quote: {
+      text: "Nous avons construit Cite parce que nous en avions assez d'être traités comme des produits. Nous voulions un endroit où la vérité compte plus que la tendance.",
+      author: "Sebastian Lindner",
+      role: "Fondateur"
+    },
+    distinction: {
+      label: "La Distinction",
+      title: "Pourquoi Cite est différent",
+      text_1: "La plupart des plateformes sont éphémères. Elles sont conçues pour consommer votre temps. Cite est conçu pour être une archive.",
+      text_2: "Nous construisons un protocole pour le discours qui respecte l'intelligence de l'utilisateur. C'est une infrastructure pour le long terme.",
+      sovereign: "Données souveraines",
+      sovereign_text: "Hébergé strictement dans l'UE. Vos données vous appartiennent. Exportables à tout moment (JSON/CSV).",
+      no_ads: "Pas de publicité",
+      no_ads_text: "Nous vous servons, pas les annonceurs. Zéro pixel de suivi. Zéro vente de données.",
+      transparent: "Algorithmes transparents",
+      transparent_text: "Explore est optionnel et transparent. Voyez exactement pourquoi un post a été recommandé.",
+      verified: "Humains vérifiés",
+      verified_text: "Nous priorisons la vérification humaine pour maintenir un signal élevé.",
+    },
+    cta_final: {
+      title: "Internet devait être une bibliothèque.",
+      subtitle: "Reconstruisons-le.",
+      button: "Commencez votre archive",
+      note: "L'accès bêta est actuellement ouvert.",
+    },
+    footer: {
+      rights: "© 2026 Cite Systems GmbH",
+      imprint: "Mentions légales",
+      privacy: "Confidentialité",
+      terms: "Conditions",
+    }
+  },
+  es: {
+    nav: {
+      login: "Iniciar sesión",
+      requestAccess: "Solicitar acceso",
+      manifesto: "Leer el Manifiesto",
+    },
+    hero: {
+      title: "Redes sociales para\nuna realidad compleja.",
+      subtitle: "Nos ahogamos en contenido pero morimos por contexto.",
+      description: "Cite es una nueva red basada en una premisa simple: la autoridad debe provenir de ser referenciado, no de volverse viral. Reemplazamos el algoritmo con un gráfico de citas, dándote un lugar tranquilo para pensar, escribir y conectar ideas.",
+      cta_primary: "Únete a la red",
+      cta_secondary: "Leer el Manifiesto",
+    },
+    problem: {
+      label: "El Problema",
+      title: "El ciclo del ruido",
+      text_1: "Los algoritmos amplifican las voces más fuertes, no las más verdaderas. Esto crea un ciclo de polarización donde se castiga el matiz y se recompensa el conflicto.",
+      text_2: "Cuando te desplazas por un feed tradicional, consumes un flujo de conciencia desarticulado. Sin memoria. Sin estructura. Solo un 'ahora' interminable diseñado para mantenerte enfadado.",
+    },
+    mechanics: {
+      label: "Cómo funciona",
+      card_1_title: "Citas en línea",
+      card_1_text: "Conecta tus pensamientos directamente a otras publicaciones o fuentes. Citar no es secundario; es la interacción central. Al citar a otros, construyes una red de confianza.",
+      card_2_title: "El gráfico de reputación",
+      card_2_text: "En Cite, ganas visibilidad cuando tu trabajo es referenciado por otros. Es una meritocracia de ideas. La calidad sube no por ser ruidosa, sino por ser útil.",
+      card_3_title: "Señales privadas",
+      card_3_text: "Los contadores de 'me gusta' públicos crean ansiedad. Los hicimos privados. Valida el buen trabajo, pero no actúes para la multitud.",
+    },
+    deep_dive: {
+      title: "Contexto navegable",
+      subtitle: "Cada publicación es un portal. Haz clic a través de la cadena de pensamiento.",
+    },
+    quote: {
+      text: "Construimos Cite porque estábamos cansados de ser tratados como productos. Queríamos un lugar donde la verdad importara más que la tendencia.",
+      author: "Sebastian Lindner",
+      role: "Fundador"
+    },
+    distinction: {
+      label: "La Diferencia",
+      title: "Por qué Cite es diferente",
+      text_1: "La mayoría de las plataformas son efímeras. Cite está diseñado para ser un archivo.",
+      text_2: "Estamos construyendo un protocolo para el discurso que respeta la inteligencia del usuario. Es infraestructura a largo plazo.",
+      sovereign: "Datos soberanos",
+      sovereign_text: "Alojado estrictamente en la UE. Tus datos son tuyos. Exportables en cualquier momento.",
+      no_ads: "Sin publicidad",
+      no_ads_text: "Te servimos a ti, no a los anunciantes. Cero rastreo.",
+      transparent: "Algoritmos transparentes",
+      transparent_text: "Explora es opcional y transparente. Mira exactamente por qué se recomendó una publicación.",
+      verified: "Humanos verificados",
+      verified_text: "Priorizamos la verificación humana para mantener la calidad.",
+    },
+    cta_final: {
+      title: "Internet debía ser una biblioteca.",
+      subtitle: "Reconstruyámoslo.",
+      button: "Comienza tu archivo",
+      note: "El acceso beta está abierto.",
+    },
+    footer: {
+      rights: "© 2026 Cite Systems GmbH",
+      imprint: "Aviso legal",
+      privacy: "Privacidad",
+      terms: "Términos",
+    }
+  },
+  it: {
+    nav: {
+      login: "Accedi",
+      requestAccess: "Richiedi accesso",
+      manifesto: "Leggi il Manifesto",
+    },
+    hero: {
+      title: "Social media per\nuna realtà complessa.",
+      subtitle: "Affoghiamo nei contenuti ma abbiamo fame di contesto.",
+      description: "Cite è un nuovo network basato su una premessa semplice: l'autorità dovrebbe derivare dall'essere citati, non dal diventare virali. Abbiamo sostituito l'algoritmo con un grafo di citazioni.",
+      cta_primary: "Unisciti al network",
+      cta_secondary: "Leggi il Manifesto",
+    },
+    problem: {
+      label: "Il Problema",
+      title: "Il ciclo del rumore",
+      text_1: "Gli algoritmi amplificano le voci più forti, non quelle più vere. Questo crea un ciclo di polarizzazione in cui la sfumatura è punita.",
+      text_2: "Nei feed tradizionali non c'è memoria. Nessuna struttura. Solo un 'adesso' infinito progettato per mantenerti arrabbiato.",
+    },
+    mechanics: {
+      label: "Come funziona",
+      card_1_title: "Citazioni in linea",
+      card_1_text: "Collega i tuoi pensieri direttamente ad altri post. Citare non è un pensiero secondario; è l'interazione centrale.",
+      card_2_title: "Il grafo della reputazione",
+      card_2_text: "Su Cite, ottieni visibilità quando il tuo lavoro viene citato da altri. È una meritocrazia delle idee.",
+      card_3_title: "Segnali privati",
+      card_3_text: "I 'mi piace' pubblici creano ansia. Li abbiamo resi privati. Valida il buon lavoro, ma non esibirti per la folla.",
+    },
+    deep_dive: {
+      title: "Contesto navigabile",
+      subtitle: "Ogni post è un portale. Clicca attraverso la catena di pensieri.",
+    },
+    quote: {
+      text: "Abbiamo costruito Cite perché eravamo stanchi di essere trattati come prodotti. Volevamo un posto dove la verità contasse più della tendenza.",
+      author: "Sebastian Lindner",
+      role: "Fondatore"
+    },
+    distinction: {
+      label: "La Differenza",
+      title: "Perché Cite è diverso",
+      text_1: "La maggior parte delle piattaforme sono effimere. Cite è progettato per essere un archivio.",
+      text_2: "Stiamo costruendo un protocollo per il discorso che rispetta l'intelligenza dell'utente.",
+      sovereign: "Dati sovrani",
+      sovereign_text: "Ospitato rigorosamente nell'UE. I tuoi dati sono tuoi. Esportabili in qualsiasi momento.",
+      no_ads: "Nessuna pubblicità",
+      no_ads_text: "Serviamo te, non gli inserzionisti.",
+      transparent: "Algoritmi trasparenti",
+      transparent_text: "Vedi esattamente perché un post è stato raccomandato.",
+      verified: "Umani verificati",
+      verified_text: "Priorità alla verifica umana.",
+    },
+    cta_final: {
+      title: "Internet doveva essere una biblioteca.",
+      subtitle: "Ricostruiamolo.",
+      button: "Inizia il tuo archivio",
+      note: "Accesso beta aperto.",
+    },
+    footer: {
+      rights: "© 2026 Cite Systems GmbH",
+      imprint: "Impronta",
+      privacy: "Privacy",
+      terms: "Termini",
+    }
+  },
+  pl: {
+    nav: {
+      login: "Zaloguj się",
+      requestAccess: "Poproś o dostęp",
+      manifesto: "Przeczytaj Manifest",
+    },
+    hero: {
+      title: "Media społecznościowe\ndla złożonej rzeczywistości.",
+      subtitle: "Toniemy w treściach, ale głodujemy kontekstu.",
+      description: "Cite to nowa sieć oparta na prostej przesłance: autorytet powinien wynikać z bycia cytowanym, a nie z wirusowości. Zastąpiliśmy algorytm wykresem cytowań.",
+      cta_primary: "Dołącz do sieci",
+      cta_secondary: "Przeczytaj Manifest",
+    },
+    problem: {
+      label: "Problem",
+      title: "Pętla hałasu",
+      text_1: "Algorytmy wzmacniają najgłośniejsze głosy, a nie te prawdziwe. Tworzy to pętlę polaryzacji, w której niuans jest karany.",
+      text_2: "W tradycyjnych mediach nie ma pamięci. Brak struktury. Tylko niekończące się 'teraz', zaprojektowane, by cię gniewać.",
+    },
+    mechanics: {
+      label: "Jak to działa",
+      card_1_title: "Cytaty w tekście",
+      card_1_text: "Połącz swoje myśli bezpośrednio z innymi postami. Cytowanie to kluczowa interakcja.",
+      card_2_title: "Graf reputacji",
+      card_2_text: "W Cite zyskujesz widoczność, gdy twoja praca jest cytowana przez innych. To merytokracja idei.",
+      card_3_title: "Prywatne sygnały",
+      card_3_text: "Publiczne liczniki polubień tworzą lęk. Uczyniliśmy je prywatnymi.",
+    },
+    deep_dive: {
+      title: "Nawigowalny kontekst",
+      subtitle: "Każdy post to portal.",
+    },
+    quote: {
+      text: "Zbudowaliśmy Cite, ponieważ mieliśmy dość bycia traktowanym jak produkty. Chcieliśmy miejsca, gdzie prawda liczy się bardziej niż trend.",
+      author: "Sebastian Lindner",
+      role: "Założyciel"
+    },
+    distinction: {
+      label: "Różnica",
+      title: "Dlaczego Cite jest inne",
+      text_1: "Większość platform jest ulotna. Cite ma być archiwum.",
+      text_2: "Budujemy protokół dyskursu szanujący inteligencję użytkownika.",
+      sovereign: "Suwerenne dane",
+      sovereign_text: "Hosting w UE. Twoje dane należą do ciebie. Eksportowalne w każdej chwili.",
+      no_ads: "Bez reklam",
+      no_ads_text: "Służymy tobie, nie reklamodawcom.",
+      transparent: "Przejrzyste algorytmy",
+      transparent_text: "Zobacz dokładnie, dlaczego post został polecony.",
+      verified: "Zweryfikowani ludzie",
+      verified_text: "Priorytet weryfikacji ludzi.",
+    },
+    cta_final: {
+      title: "Internet miał być biblioteką.",
+      subtitle: "Odbudujmy go.",
+      button: "Rozpocznij archiwum",
+      note: "Dostęp beta otwarty.",
+    },
+    footer: {
+      rights: "© 2026 Cite Systems GmbH",
+      imprint: "Nota prawna",
+      privacy: "Prywatność",
+      terms: "Regulamin",
+    }
+  },
+  nl: {
+    nav: {
+      login: "Inloggen",
+      requestAccess: "Toegang aanvragen",
+      manifesto: "Lees het Manifest",
+    },
+    hero: {
+      title: "Sociale media voor\neen complexe realiteit.",
+      subtitle: "We verdrinken in content maar hongeren naar context.",
+      description: "Cite is een nieuw netwerk gebaseerd op een simpel idee: Autoriteit moet komen van referenties, niet van viraliteit. We hebben het algoritme vervangen door een citatiegrafiek.",
+      cta_primary: "Word lid",
+      cta_secondary: "Lees het Manifest",
+    },
+    problem: {
+      label: "Het Problema",
+      title: "De lawaai-lus",
+      text_1: "Algoritmen versterken de luidste stemmen, niet de waarste. Dit creëert polarisatie.",
+      text_2: "In een traditionele feed is er geen geheugen. Geen structuur. Alleen een eindeloos 'nu'.",
+    },
+    mechanics: {
+      label: "Hoe het werkt",
+      card_1_title: "Inline citaten",
+      card_1_text: "Verbind je gedachten direct met andere posts. Citeren is de kerninteractie.",
+      card_2_title: "De reputatiegrafiek",
+      card_2_text: "Op Cite krijg je zichtbaarheid als je werk door anderen wordt geciteerd. Kwaliteit boven lawaai.",
+      card_3_title: "Privé signalen",
+      card_3_text: "Openbare likes creëren angst. We hebben ze privé gemaakt.",
+    },
+    deep_dive: {
+      title: "Navigeerbare context",
+      subtitle: "Elke post is een portaal.",
+    },
+    quote: {
+      text: "We hebben Cite gebouwd omdat we het beu waren om als producten te worden behandeld. We wilden een plek waar waarheid belangrijker is dan de trend.",
+      author: "Sebastian Lindner",
+      role: "Oprichter"
+    },
+    distinction: {
+      label: "Het Verschil",
+      title: "Waarom Cite anders is",
+      text_1: "De meeste platforms zijn vluchtig. Cite is ontworpen als archief.",
+      text_2: "We bouwen een protocol dat de intelligentie van de gebruiker respecteert.",
+      sovereign: "Soevereine data",
+      sovereign_text: "Hosting in de EU. Je data is van jou.",
+      no_ads: "Geen advertenties",
+      no_ads_text: "Wij dienen jou, niet de adverteerders.",
+      transparent: "Transparante algoritmen",
+      transparent_text: "Zie precies waarom een post werd aanbevolen.",
+      verified: "Geverifieerde mensen",
+      verified_text: "Prioriteit voor menselijke verificatie.",
+    },
+    cta_final: {
+      title: "Het internet moest een bibliotheek zijn.",
+      subtitle: "Laten we het herbouwen.",
+      button: "Start je archief",
+      note: "Bèta-toegang is open.",
+    },
+    footer: {
+      rights: "© 2026 Cite Systems GmbH",
+      imprint: "Colofon",
+      privacy: "Privacy",
+      terms: "Voorwaarden",
+    }
+  }
+};
+
+export type Language = keyof typeof translations;
