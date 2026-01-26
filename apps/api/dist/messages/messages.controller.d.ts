@@ -4,18 +4,31 @@ export declare class MessagesController {
     constructor(messagesService: MessagesService);
     getThreads(user: {
         id: string;
-    }): unknown;
+    }): Promise<{
+        id: any;
+        otherUser: {
+            id: any;
+            handle: any;
+            displayName: any;
+        };
+        lastMessage: {
+            body: any;
+            createdAt: any;
+        } | null;
+        unreadCount: number;
+        createdAt: any;
+    }[]>;
     createThread(user: {
         id: string;
     }, dto: {
         userId: string;
-    }): unknown;
+    }): Promise<import("../entities/dm-thread.entity").DmThread>;
     getMessages(user: {
         id: string;
-    }, threadId: string): unknown;
+    }, threadId: string): Promise<import("../entities/dm-message.entity").DmMessage[]>;
     sendMessage(user: {
         id: string;
     }, threadId: string, dto: {
         body: string;
-    }): unknown;
+    }): Promise<import("../entities/dm-message.entity").DmMessage>;
 }

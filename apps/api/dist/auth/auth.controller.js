@@ -29,6 +29,9 @@ let AuthController = class AuthController {
     async verify(dto) {
         return this.authService.verifyToken(dto.email, dto.token);
     }
+    async logout() {
+        return { success: true };
+    }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -48,6 +51,13 @@ __decorate([
     __metadata("design:paramtypes", [verify_dto_1.VerifyDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "verify", null);
+__decorate([
+    (0, common_1.Post)('logout'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "logout", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])

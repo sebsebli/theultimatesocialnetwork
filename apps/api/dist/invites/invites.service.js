@@ -77,7 +77,11 @@ let InvitesService = class InvitesService {
     }
     async generateCode(userId) {
         const isBeta = await this.isBetaMode();
-        if (!isBeta) {
+        if (userId) {
+            const user = await this.userRepo.findOne({ where: { id: userId } });
+            if (!user || user.invitesRemaining <= 0) {
+                throw new common_1.BadRequestException('No invites remaining');
+            }
         }
         const code = crypto.randomBytes(4).toString('hex').toUpperCase();
         await this.inviteRepo.save({

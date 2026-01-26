@@ -44,19 +44,25 @@ let InteractionsService = class InteractionsService {
     async recordReadDuration(userId, postId, durationSeconds) {
         if (!userId || durationSeconds <= 0)
             return;
-        const existing = await this.readRepo.findOne({ where: { userId, postId } });
-        if (existing) {
-            existing.durationSeconds += durationSeconds;
-            existing.lastReadAt = new Date();
-            await this.readRepo.save(existing);
-        }
-        else {
-            await this.readRepo.save({
-                userId,
-                postId,
-                durationSeconds,
-            });
-        }
+        await this.readRepo
+            .createQueryBuilder()
+            .insert()
+            .into(post_read_entity_1.PostRead)
+            .values({
+            userId,
+            postId,
+            durationSeconds,
+            lastReadAt: new Date(),
+        })
+            .orUpdate(['duration_seconds', 'last_read_at'], ['user_id', 'post_id'])
+            .setParameters({ durationSeconds })
+            .execute();
+        await this.dataSource.query(`INSERT INTO post_reads (user_id, post_id, duration_seconds, last_read_at) 
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (user_id, post_id) 
+       DO UPDATE SET 
+         duration_seconds = post_reads.duration_seconds + EXCLUDED.duration_seconds,
+         last_read_at = EXCLUDED.last_read_at`, [userId, postId, durationSeconds]);
     }
     async recordView(postId) {
         const key = `post:views:${postId}`;

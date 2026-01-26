@@ -35,18 +35,16 @@ let TopicsService = class TopicsService {
         const topic = await this.topicRepo.findOne({
             where: { slug },
         });
-        if (!topic) {
+        if (!topic)
             return null;
-        }
-        const postTopics = await this.postTopicRepo.find({
-            where: { topicId: topic.id },
-            relations: ['post', 'post.author'],
-        });
-        const posts = postTopics
-            .map(pt => pt.post)
-            .filter(post => post && !post.deletedAt)
-            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-            .slice(0, 50);
+        const posts = await this.postRepo.createQueryBuilder('post')
+            .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
+            .leftJoinAndSelect('post.author', 'author')
+            .where('pt.topic_id = :topicId', { topicId: topic.id })
+            .andWhere('post.deleted_at IS NULL')
+            .orderBy('post.created_at', 'DESC')
+            .take(50)
+            .getMany();
         const startHere = await this.exploreService.getTopicStartHere(topic.id, 10);
         return {
             ...topic,
@@ -54,16 +52,16 @@ let TopicsService = class TopicsService {
             startHere,
         };
     }
-    async getPosts(topicId) {
-        const postTopics = await this.postTopicRepo.find({
-            where: { topicId },
-            relations: ['post', 'post.author'],
-        });
-        return postTopics
-            .map(pt => pt.post)
-            .filter(post => post && !post.deletedAt)
-            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-            .slice(0, 50);
+    async getPosts(topicId, limit = 50, offset = 0) {
+        return this.postRepo.createQueryBuilder('post')
+            .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
+            .leftJoinAndSelect('post.author', 'author')
+            .where('pt.topic_id = :topicId', { topicId })
+            .andWhere('post.deleted_at IS NULL')
+            .orderBy('post.created_at', 'DESC')
+            .skip(offset)
+            .take(limit)
+            .getMany();
     }
 };
 exports.TopicsService = TopicsService;

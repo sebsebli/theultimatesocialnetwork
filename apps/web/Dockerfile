@@ -35,6 +35,8 @@ COPY app ./app
 COPY components ./components
 COPY lib ./lib
 COPY utils ./utils
+COPY messages ./messages
+COPY i18n.ts ./
 
 # Build
 WORKDIR /app

@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useToast } from '@/components/ui/toast';
 import { useRouter } from 'next/navigation';
-import { getCookie } from '@/lib/cookies'; // I need to verify if this exists or use a utility
 
 interface RealtimeContextType {
   socket: Socket | null;

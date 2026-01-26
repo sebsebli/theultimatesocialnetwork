@@ -110,11 +110,13 @@ let RepliesService = class RepliesService {
         }
         return savedReply;
     }
-    async findByPost(postId) {
+    async findByPost(postId, limit = 50, offset = 0) {
         return this.replyRepo.find({
             where: { postId },
             relations: ['author', 'parentReply', 'parentReply.author'],
             order: { createdAt: 'ASC' },
+            take: limit,
+            skip: offset,
         });
     }
     async delete(userId, replyId) {

@@ -185,21 +185,7 @@ export default function IndexScreen() {
         {/* Main Content - Centered */}
         <View style={styles.mainContent}>
           <View style={styles.content}>
-            {/* Logo */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logo}>
-                <View style={styles.logoIconContainer}>
-                  <MaterialCommunityIcons name="code-brackets" size={40} color="rgba(255, 255, 255, 0.9)" />
-                </View>
-              </View>
-            </View>
 
-            {/* Title - Hide when entering token to save space */}
-            {!sent && (
-              <View style={styles.textContainer}>
-                <Text style={styles.title}>CITE</Text>
-              </View>
-            )}
 
             {sent && (
               <View style={styles.textContainer}>
@@ -392,37 +378,61 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: SPACING.m,
   },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: SIZES.borderRadius,
-    backgroundColor: COLORS.hover,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
+    width: 96,
+    height: 96,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: 'rgba(255, 255, 255, 0.05)',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  logoGlow: {
+    position: 'absolute',
+    width: 96,
+    height: 96,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    opacity: 0.2,
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
-    shadowRadius: 40,
-    elevation: 0,
+    shadowRadius: 24,
   },
   logoIconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   textContainer: {
     alignItems: 'center',
-    gap: SPACING.m,
+    gap: SPACING.s,
+    marginTop: SPACING.l,
   },
   title: {
-    fontSize: 32,
+    fontSize: 12,
     fontWeight: '700',
     color: COLORS.paper,
-    letterSpacing: -0.5,
+    letterSpacing: 2,
     fontFamily: FONTS.semiBold,
     textAlign: 'center',
+  },
+  tagline: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: COLORS.secondary,
+    textAlign: 'center',
+    fontFamily: FONTS.regular,
+    marginTop: SPACING.xs,
+    letterSpacing: 0.2,
   },
   subtitle: {
     fontSize: 16,

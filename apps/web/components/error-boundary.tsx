@@ -1,6 +1,7 @@
 'use client';
 
 import { Component, ReactNode } from 'react';
+import Link from 'next/link';
 
 interface Props {
   children: ReactNode;

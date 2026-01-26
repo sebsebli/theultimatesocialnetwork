@@ -40,7 +40,10 @@ let PostsController = class PostsController {
         return this.postsService.softDelete(user.id, id);
     }
     async quote(user, quotedPostId, dto) {
-        return this.postsService.createQuote(user.id, quotedPostId, dto.body);
+        if (!dto.body || dto.body.trim().length === 0) {
+            throw new common_1.BadRequestException('Commentary is required for quotes');
+        }
+        return this.postsService.createQuote(user.id, quotedPostId, dto.body.trim());
     }
 };
 exports.PostsController = PostsController;

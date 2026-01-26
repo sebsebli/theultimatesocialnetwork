@@ -18,7 +18,7 @@ export declare class RepliesService {
     private notificationHelper;
     private safetyService;
     constructor(replyRepo: Repository<Reply>, postRepo: Repository<Post>, mentionRepo: Repository<Mention>, userRepo: Repository<User>, dataSource: DataSource, languageDetection: LanguageDetectionService, neo4jService: Neo4jService, notificationHelper: NotificationHelperService, safetyService: SafetyService);
-    create(userId: string, postId: string, body: string, parentReplyId?: string): unknown;
-    findByPost(postId: string): unknown;
-    delete(userId: string, replyId: string): any;
+    create(userId: string, postId: string, body: string, parentReplyId?: string): Promise<Reply>;
+    findByPost(postId: string, limit?: number, offset?: number): Promise<Reply[]>;
+    delete(userId: string, replyId: string): Promise<void>;
 }

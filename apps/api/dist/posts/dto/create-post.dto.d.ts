@@ -3,4 +3,5 @@ export declare class CreatePostDto {
     body: string;
     visibility?: PostVisibility;
     headerImageKey?: string;
+    headerImageBlurhash?: string;
 }

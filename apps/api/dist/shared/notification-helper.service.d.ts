@@ -1,8 +1,10 @@
 import { Repository } from 'typeorm';
 import { Notification, NotificationType } from '../entities/notification.entity';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 export declare class NotificationHelperService {
     private notificationRepo;
-    constructor(notificationRepo: Repository<Notification>);
+    private realtimeGateway;
+    constructor(notificationRepo: Repository<Notification>, realtimeGateway: RealtimeGateway);
     createNotification(data: {
         userId: string;
         type: NotificationType;
@@ -10,5 +12,5 @@ export declare class NotificationHelperService {
         postId?: string;
         replyId?: string;
         collectionId?: string;
-    }): unknown;
+    }): Promise<Notification | undefined>;
 }

@@ -34,17 +34,20 @@ let NotificationsService = class NotificationsService {
             order: { createdAt: 'DESC' },
             take: 50,
         });
-        return Promise.all(notifications.map(async (notif) => {
-            const enriched = { ...notif };
-            if (notif.actorUserId) {
-                const actor = await this.userRepo.findOne({ where: { id: notif.actorUserId } });
-                enriched.actor = actor;
-            }
-            if (notif.postId) {
-                const post = await this.postRepo.findOne({ where: { id: notif.postId } });
-                enriched.post = post;
-            }
-            return enriched;
+        if (notifications.length === 0)
+            return [];
+        const actorIds = [...new Set(notifications.map(n => n.actorUserId).filter(Boolean))];
+        const postIds = [...new Set(notifications.map(n => n.postId).filter(Boolean))];
+        const [actors, posts] = await Promise.all([
+            actorIds.length > 0 ? this.userRepo.findByIds(actorIds) : [],
+            postIds.length > 0 ? this.postRepo.findByIds(postIds) : [],
+        ]);
+        const actorMap = new Map(actors.map(u => [u.id, u]));
+        const postMap = new Map(posts.map(p => [p.id, p]));
+        return notifications.map(notif => ({
+            ...notif,
+            actor: notif.actorUserId ? actorMap.get(notif.actorUserId) : null,
+            post: notif.postId ? postMap.get(notif.postId) : null,
         }));
     }
     async markAsRead(userId, notificationId) {

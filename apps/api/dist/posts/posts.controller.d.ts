@@ -5,18 +5,18 @@ export declare class PostsController {
     constructor(postsService: PostsService);
     create(user: {
         id: string;
-    }, dto: CreatePostDto): unknown;
+    }, dto: CreatePostDto): Promise<import("../entities/post.entity").Post>;
     findOne(id: string, user?: {
         id: string;
-    }): unknown;
-    getSources(id: string): unknown;
-    getReferencedBy(id: string): unknown;
+    }): Promise<import("../entities/post.entity").Post | null>;
+    getSources(id: string): Promise<import("../entities/external-source.entity").ExternalSource[]>;
+    getReferencedBy(id: string): Promise<import("../entities/post.entity").Post[]>;
     delete(user: {
         id: string;
-    }, id: string): unknown;
+    }, id: string): Promise<void>;
     quote(user: {
         id: string;
     }, quotedPostId: string, dto: {
         body: string;
-    }): unknown;
+    }): Promise<import("../entities/post.entity").Post>;
 }

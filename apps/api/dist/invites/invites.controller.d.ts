@@ -4,16 +4,25 @@ export declare class InvitesController {
     constructor(invitesService: InvitesService);
     generate(user: {
         id: string;
-    }): unknown;
+    }): Promise<{
+        code: string;
+    }>;
     getMy(user: {
         id: string;
-    }): unknown;
+    }): Promise<{
+        codes: import("../entities/invite.entity").Invite[];
+        remaining: number;
+    }>;
 }
 export declare class AdminInvitesController {
     private readonly invitesService;
     constructor(invitesService: InvitesService);
-    generateSystemInvite(): unknown;
+    generateSystemInvite(): Promise<{
+        code: string;
+    }>;
     toggleBeta(body: {
         enabled: boolean;
-    }): unknown;
+    }): Promise<{
+        success: boolean;
+    }>;
 }

@@ -8,7 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostEdge = exports.EdgeType = void 0;
 const typeorm_1 = require("typeorm");
@@ -35,10 +34,12 @@ __decorate([
 ], PostEdge.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'from_post_id', type: 'uuid' }),
+    (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], PostEdge.prototype, "fromPostId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'to_post_id', type: 'uuid' }),
+    (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], PostEdge.prototype, "toPostId", void 0);
 __decorate([
@@ -65,7 +66,7 @@ __decorate([
 ], PostEdge.prototype, "anchorText", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
-    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+    __metadata("design:type", Date)
 ], PostEdge.prototype, "createdAt", void 0);
 exports.PostEdge = PostEdge = __decorate([
     (0, typeorm_1.Entity)('post_edges')

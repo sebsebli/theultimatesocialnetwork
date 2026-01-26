@@ -19,6 +19,7 @@ const neo4j_driver_1 = __importDefault(require("neo4j-driver"));
 let Neo4jService = class Neo4jService {
     configService;
     driver;
+    isHealthy = false;
     constructor(configService) {
         this.configService = configService;
     }
@@ -29,23 +30,37 @@ let Neo4jService = class Neo4jService {
         this.driver = neo4j_driver_1.default.driver(uri, neo4j_driver_1.default.auth.basic(user, password));
         try {
             await this.driver.getServerInfo();
+            this.isHealthy = true;
             console.log('Connected to Neo4j');
         }
         catch (e) {
-            console.error('Failed to connect to Neo4j', e);
+            this.isHealthy = false;
+            console.error('Failed to connect to Neo4j. Graph features will be disabled.', e.message);
         }
     }
     async onModuleDestroy() {
-        await this.driver.close();
+        if (this.driver) {
+            await this.driver.close();
+        }
+    }
+    getStatus() {
+        return { healthy: this.isHealthy };
     }
     getSession() {
         return this.driver.session();
     }
     async run(query, params = {}) {
+        if (!this.isHealthy) {
+            return { records: [] };
+        }
         const session = this.getSession();
         try {
             const result = await session.run(query, params);
             return result;
+        }
+        catch (error) {
+            this.isHealthy = false;
+            throw error;
         }
         finally {
             await session.close();

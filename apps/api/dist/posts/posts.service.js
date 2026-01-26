@@ -79,6 +79,7 @@ let PostsService = class PostsService {
                 body: sanitizedBody,
                 title: title,
                 headerImageKey: dto.headerImageKey,
+                headerImageBlurhash: dto.headerImageBlurhash,
                 visibility: dto.visibility,
                 lang: lang,
                 langConfidence: confidence,
@@ -128,6 +129,7 @@ let PostsService = class PostsService {
                             url: target,
                             title: alias,
                         });
+                        fetch(`https://web.archive.org/save/${target}`).catch(() => { });
                     }
                     else {
                         const slug = this.slugify(target);

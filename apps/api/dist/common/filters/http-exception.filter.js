@@ -48,15 +48,19 @@ let AllExceptionsFilter = class AllExceptionsFilter {
                 ? 'Internal server error'
                 : (exception instanceof Error ? exception.message : 'Internal server error');
         }
+        const traceId = request.get('x-trace-id') || Math.random().toString(36).substring(2, 15);
         const errorResponse = {
-            statusCode: status,
-            timestamp: new Date().toISOString(),
-            path: request.url,
-            message,
+            success: false,
+            error: {
+                code: status >= 500 ? 'INTERNAL_SERVER_ERROR' : exception.name || 'BAD_REQUEST',
+                message,
+                statusCode: status,
+                traceId,
+                timestamp: new Date().toISOString(),
+                path: request.url,
+            },
+            ...(!isProduction && exception instanceof Error ? { stack: exception.stack } : {}),
         };
-        if (!isProduction && exception instanceof Error && exception.stack) {
-            errorResponse.stack = exception.stack;
-        }
         response.status(status).json(errorResponse);
     }
 };

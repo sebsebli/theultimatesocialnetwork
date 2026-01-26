@@ -13,9 +13,13 @@ export declare class InteractionsService {
     private notificationHelper;
     private redis;
     constructor(likeRepo: Repository<Like>, keepRepo: Repository<Keep>, postRepo: Repository<Post>, readRepo: Repository<PostRead>, notificationHelper: NotificationHelperService, redis: Redis);
-    recordReadDuration(userId: string, postId: string, durationSeconds: number): any;
-    recordView(postId: string): any;
-    flushViews(): any;
-    toggleLike(userId: string, postId: string): unknown;
-    toggleKeep(userId: string, postId: string): unknown;
+    recordReadDuration(userId: string, postId: string, durationSeconds: number): Promise<void>;
+    recordView(postId: string): Promise<void>;
+    flushViews(): Promise<void>;
+    toggleLike(userId: string, postId: string): Promise<{
+        liked: boolean;
+    }>;
+    toggleKeep(userId: string, postId: string): Promise<{
+        kept: boolean;
+    }>;
 }

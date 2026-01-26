@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useToast } from './ui/toast';
+import { renderMarkdown } from '@/utils/markdown';
 import { ReplySection } from './reply-section';
 import { SourcesSection } from './sources-section';
 import { ReferencedBySection } from './referenced-by-section';
@@ -27,12 +30,12 @@ interface PostDetailProps {
 }
 
 export function PostDetail({ post }: PostDetailProps) {
+  const { success: toastSuccess } = useToast();
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
 
   useEffect(() => {
     // Load initial like/keep state if available
-    // This would come from the post data if the API returns it
     if ((post as any).isLiked !== undefined) {
       setLiked((post as any).isLiked);
     }
@@ -111,20 +114,6 @@ export function PostDetail({ post }: PostDetailProps) {
     return () => {
       const duration = Math.floor((Date.now() - start) / 1000);
       if (duration > 0) {
-        // Use sendBeacon if available for reliable unload sending, fall back to fetch
-        const blob = new Blob([JSON.stringify({ duration })], { type: 'application/json' });
-        // Note: sendBeacon doesn't support custom headers easily (like Auth). 
-        // For authenticated requests, fetch keepalive is better in modern browsers.
-        // Or if we rely on cookies. The app uses Authorization header.
-        // We will try fetch with keepalive.
-        // We need the token. The component is client-side, but might not have the token easily accessible 
-        // if not using a session hook.
-        // Assuming the user is logged in via cookies or we have a way to get token.
-        // If we can't get token easily here without context, we might skip auth for now?
-        // But the requirement "which user" implies auth.
-        // We'll try to read token from document.cookie as a fallback or assume standard fetch wrapper.
-        // Ideally we use a custom fetch wrapper hook.
-        // For now, let's assume we can try to send it.
         const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
         if (token) {
            fetch(`${API_URL}/posts/${post.id}/read-time`, {
@@ -168,17 +157,10 @@ export function PostDetail({ post }: PostDetailProps) {
       } catch (err) {
         if ((err as any).name !== 'AbortError') console.error(err);
       }
-import { useToast } from './ui/toast';
-
-// ... inside component ...
-  const { success: toastSuccess } = useToast();
-
-// ... inside onCopyLink ...
-          onCopyLink={() => {
-            const url = `${window.location.origin}/post/${post.id}`;
-            navigator.clipboard.writeText(url);
-            toastSuccess('Link copied to clipboard');
-          }}
+    } else {
+      navigator.clipboard.writeText(url);
+      toastSuccess('Link copied to clipboard');
+    }
   };
 
   return (
@@ -195,6 +177,11 @@ import { useToast } from './ui/toast';
             postId={post.id}
             userId={post.author.id}
             isAuthor={false}
+            onCopyLink={() => {
+              const url = `${window.location.origin}/post/${post.id}`;
+              navigator.clipboard.writeText(url);
+              toastSuccess('Link copied to clipboard');
+            }}
           />
         </div>
       </header>
@@ -332,5 +319,3 @@ import { useToast } from './ui/toast';
     </div>
   );
 }
-
-import { renderMarkdown } from '@/utils/markdown';

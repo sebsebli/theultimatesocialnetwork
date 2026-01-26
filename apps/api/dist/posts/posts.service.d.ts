@@ -27,6 +27,6 @@ export declare class PostsService {
     findOne(id: string, viewerId?: string): Promise<Post | null>;
     softDelete(userId: string, postId: string): Promise<void>;
     createQuote(userId: string, quotedPostId: string, commentary: string): Promise<Post>;
-    getSources(postId: string): unknown;
-    getReferencedBy(postId: string): unknown;
+    getSources(postId: string): Promise<ExternalSource[]>;
+    getReferencedBy(postId: string): Promise<Post[]>;
 }

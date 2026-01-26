@@ -9,8 +9,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppService = void 0;
 const common_1 = require("@nestjs/common");
 let AppService = class AppService {
-    getHello() {
-        return 'Hello World!';
+    startTime = Date.now();
+    getInfo() {
+        return {
+            name: 'cite-api',
+            version: '1.0.0',
+            uptime: Math.floor((Date.now() - this.startTime) / 1000),
+            environment: process.env.NODE_ENV || 'development',
+        };
     }
 };
 exports.AppService = AppService;

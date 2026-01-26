@@ -15,12 +15,13 @@ const email_service_1 = require("./email.service");
 const notification_entity_1 = require("../entities/notification.entity");
 const post_entity_1 = require("../entities/post.entity");
 const user_entity_1 = require("../entities/user.entity");
+const realtime_module_1 = require("../realtime/realtime.module");
 let SharedModule = class SharedModule {
 };
 exports.SharedModule = SharedModule;
 exports.SharedModule = SharedModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([notification_entity_1.Notification, post_entity_1.Post, user_entity_1.User])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([notification_entity_1.Notification, post_entity_1.Post, user_entity_1.User]), realtime_module_1.RealtimeModule],
         providers: [language_detection_service_1.LanguageDetectionService, notification_helper_service_1.NotificationHelperService, email_service_1.EmailService],
         exports: [language_detection_service_1.LanguageDetectionService, notification_helper_service_1.NotificationHelperService, email_service_1.EmailService],
     })

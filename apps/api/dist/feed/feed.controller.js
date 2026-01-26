@@ -22,11 +22,9 @@ let FeedController = class FeedController {
     constructor(feedService) {
         this.feedService = feedService;
     }
-    async getHomeFeed(user, limit, offset, includeSavedBy) {
-        const limitNum = limit ? parseInt(limit, 10) : 20;
-        const offsetNum = offset ? parseInt(offset, 10) : 0;
+    async getHomeFeed(user, limit = 20, offset = 0, includeSavedBy) {
         const includeSaved = includeSavedBy === 'true';
-        return this.feedService.getHomeFeed(user.id, limitNum, offsetNum, includeSaved);
+        return this.feedService.getHomeFeed(user.id, +limit, +offset, includeSaved);
     }
 };
 exports.FeedController = FeedController;
@@ -38,7 +36,7 @@ __decorate([
     __param(2, (0, common_1.Query)('offset')),
     __param(3, (0, common_1.Query)('includeSavedBy')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String]),
+    __metadata("design:paramtypes", [Object, Number, Number, String]),
     __metadata("design:returntype", Promise)
 ], FeedController.prototype, "getHomeFeed", null);
 exports.FeedController = FeedController = __decorate([

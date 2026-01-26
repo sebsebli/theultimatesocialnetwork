@@ -7,9 +7,11 @@ export declare class RepliesController {
     }, postId: string, dto: {
         body: string;
         parentReplyId?: string;
-    }): unknown;
-    findAll(postId: string): unknown;
+    }): Promise<import("../entities/reply.entity").Reply>;
+    findAll(postId: string): Promise<import("../entities/reply.entity").Reply[]>;
     delete(user: {
         id: string;
-    }, replyId: string): unknown;
+    }, replyId: string): Promise<{
+        success: boolean;
+    }>;
 }

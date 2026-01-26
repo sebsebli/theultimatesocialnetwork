@@ -33,9 +33,13 @@ import { RssModule } from "./rss/rss.module";
 import { Post } from './entities/post.entity';
 import { User } from './entities/user.entity';
 import { LoggerModule } from 'nestjs-pino';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 
 @Module({
   imports: [
+    PrometheusModule.register({
+      path: '/metrics',
+    }),
     LoggerModule.forRoot({
       pinoHttp: {
         customProps: (req, res) => ({
@@ -62,7 +66,7 @@ import { LoggerModule } from 'nestjs-pino';
           ttl: 60000,
           limit: 100,
         }],
-        storage: new ThrottlerStorageRedisService(config.get('REDIS_URL') || 'redis://localhost:6379'),
+        storage: new ThrottlerStorageRedisService(config.get<string>('REDIS_URL') || 'redis://localhost:6379'),
       }),
     }),
     DatabaseModule,

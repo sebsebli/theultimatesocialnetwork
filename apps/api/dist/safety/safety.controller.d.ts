@@ -4,27 +4,31 @@ export declare class SafetyController {
     constructor(safetyService: SafetyService);
     block(user: {
         id: string;
-    }, blockedId: string): unknown;
+    }, blockedId: string): Promise<import("../entities/block.entity").Block>;
     unblock(user: {
         id: string;
-    }, blockedId: string): unknown;
+    }, blockedId: string): Promise<{
+        success: boolean;
+    }>;
     mute(user: {
         id: string;
-    }, mutedId: string): unknown;
+    }, mutedId: string): Promise<import("../entities/mute.entity").Mute>;
     unmute(user: {
         id: string;
-    }, mutedId: string): unknown;
+    }, mutedId: string): Promise<{
+        success: boolean;
+    }>;
     report(user: {
         id: string;
     }, dto: {
         targetId: string;
         targetType: string;
         reason: string;
-    }): unknown;
+    }): Promise<import("../entities/report.entity").Report>;
     getBlocked(user: {
         id: string;
-    }): unknown;
+    }): Promise<import("../entities/block.entity").Block[]>;
     getMuted(user: {
         id: string;
-    }): unknown;
+    }): Promise<import("../entities/mute.entity").Mute[]>;
 }

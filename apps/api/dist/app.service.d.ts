@@ -1,3 +1,9 @@
 export declare class AppService {
-    getHello(): string;
+    private readonly startTime;
+    getInfo(): {
+        name: string;
+        version: string;
+        uptime: number;
+        environment: string;
+    };
 }

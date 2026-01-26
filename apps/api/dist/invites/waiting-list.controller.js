@@ -55,6 +55,9 @@ let WaitingListController = class WaitingListController {
         this.invitesService = invitesService;
     }
     async join(body, ip) {
+        if (!body.email || !body.email.includes('@')) {
+            throw new common_1.BadRequestException('Valid email is required');
+        }
         const ipHash = crypto.createHash('sha256').update(ip).digest('hex');
         await this.invitesService.addToWaitingList(body.email, ipHash);
         return { message: 'Joined waiting list' };

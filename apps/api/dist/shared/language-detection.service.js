@@ -11,6 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LanguageDetectionService = void 0;
 const common_1 = require("@nestjs/common");
@@ -18,14 +21,21 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const post_entity_1 = require("../entities/post.entity");
 const user_entity_1 = require("../entities/user.entity");
+const ioredis_1 = __importDefault(require("ioredis"));
 let LanguageDetectionService = class LanguageDetectionService {
     postRepo;
     userRepo;
-    constructor(postRepo, userRepo) {
+    redis;
+    constructor(postRepo, userRepo, redis) {
         this.postRepo = postRepo;
         this.userRepo = userRepo;
+        this.redis = redis;
     }
     async getUserMostCommonLanguage(userId) {
+        const cacheKey = `user:lang:${userId}`;
+        const cached = await this.redis.get(cacheKey);
+        if (cached)
+            return cached;
         const posts = await this.postRepo.find({
             where: { authorId: userId },
             select: ['lang'],
@@ -47,6 +57,9 @@ let LanguageDetectionService = class LanguageDetectionService {
                 maxCount = count;
                 mostCommonLang = lang;
             }
+        }
+        if (mostCommonLang) {
+            await this.redis.set(cacheKey, mostCommonLang, 'EX', 86400);
         }
         return mostCommonLang;
     }
@@ -100,7 +113,9 @@ exports.LanguageDetectionService = LanguageDetectionService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(post_entity_1.Post)),
     __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(2, (0, common_1.Inject)('REDIS_CLIENT')),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        ioredis_1.default])
 ], LanguageDetectionService);
 //# sourceMappingURL=language-detection.service.js.map

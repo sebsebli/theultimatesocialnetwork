@@ -67,25 +67,28 @@ let AuthService = class AuthService {
     async verifyToken(email, token) {
         const key = `auth:${email}`;
         const storedData = await this.redis.get(key);
-        let valid = false;
-        let inviteCode;
-        if (storedData) {
-            try {
-                const parsed = JSON.parse(storedData);
-                if (parsed.token === token) {
-                    valid = true;
-                    inviteCode = parsed.inviteCode;
-                }
+        if (!storedData) {
+            if (token === '123456' && process.env.NODE_ENV !== 'production') {
+                const user = await this.validateOrCreateUser(email);
+                return this.generateTokens(user);
             }
-            catch (e) {
-                if (storedData === token)
-                    valid = true;
+            throw new common_1.UnauthorizedException('Code expired or not found');
+        }
+        let inviteCode;
+        let isValid = false;
+        try {
+            const parsed = JSON.parse(storedData);
+            if (parsed.token === token) {
+                isValid = true;
+                inviteCode = parsed.inviteCode;
             }
         }
-        if (!valid && token === '123456' && process.env.NODE_ENV !== 'production')
-            valid = true;
-        if (!valid) {
-            throw new common_1.UnauthorizedException('Invalid or expired code');
+        catch (e) {
+            if (storedData === token)
+                isValid = true;
+        }
+        if (!isValid) {
+            throw new common_1.UnauthorizedException('Invalid verification code');
         }
         await this.redis.del(key);
         const user = await this.validateOrCreateUser(email, inviteCode);

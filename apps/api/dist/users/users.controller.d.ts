@@ -6,19 +6,60 @@ export declare class UsersController {
     constructor(usersService: UsersService, exportQueue: Queue);
     updateMe(user: {
         id: string;
-    }, updates: any): unknown;
+    }, updates: {
+        displayName?: string;
+        bio?: string;
+        isProtected?: boolean;
+        languages?: string[];
+    }): Promise<import("../entities/user.entity").User>;
     getMe(user: {
         id: string;
-    }): unknown;
+    }): Promise<{
+        posts: import("../entities/post.entity").Post[];
+        id: string;
+        email: string;
+        handle: string;
+        displayName: string;
+        bio: string;
+        isProtected: boolean;
+        invitesRemaining: number;
+        languages: string[];
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt: Date;
+        followerCount: number;
+        followingCount: number;
+        quoteReceivedCount: number;
+    } | null>;
     deleteMe(user: {
         id: string;
-    }): unknown;
+    }): Promise<{
+        success: boolean;
+    }>;
     exportData(user: {
         id: string;
         email?: string;
-    }): unknown;
-    getSuggested(): unknown;
-    getReplies(id: string): unknown;
-    getQuotes(id: string): unknown;
-    findOne(handle: string): unknown;
+    }): Promise<{
+        message: string;
+    }>;
+    getSuggested(): Promise<import("../entities/user.entity").User[]>;
+    getReplies(id: string): Promise<import("../entities/reply.entity").Reply[]>;
+    getQuotes(id: string): Promise<import("../entities/post.entity").Post[]>;
+    findOne(handle: string): Promise<{
+        posts: import("../entities/post.entity").Post[];
+        id: string;
+        email: string;
+        handle: string;
+        displayName: string;
+        bio: string;
+        isProtected: boolean;
+        invitesRemaining: number;
+        languages: string[];
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt: Date;
+        followerCount: number;
+        followingCount: number;
+        quoteReceivedCount: number;
+    } | null>;
 }

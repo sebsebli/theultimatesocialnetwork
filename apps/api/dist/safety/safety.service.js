@@ -121,42 +121,39 @@ let SafetyService = class SafetyService {
         return savedReport;
     }
     async handleReportThresholds(targetId, targetType) {
-        if (targetType !== 'POST' && targetType !== 'REPLY') {
+        if (targetType !== 'POST' && targetType !== 'REPLY')
             return;
-        }
         const reportCount = await this.reportRepo.count({
             where: { targetId, targetType: targetType },
         });
-        const AI_CHECK_THRESHOLD = 3;
         const AUTO_DELETE_THRESHOLD = 10;
-        let content = '';
-        let authorId = '';
-        let entity = null;
-        if (targetType === 'POST') {
-            entity = await this.postRepo.findOne({ where: { id: targetId } });
-            if (entity) {
-                content = entity.body;
-                authorId = entity.authorId;
-            }
-        }
-        else if (targetType === 'REPLY') {
-            entity = await this.replyRepo.findOne({ where: { id: targetId } });
-            if (entity) {
-                content = entity.body;
-                authorId = entity.authorId;
-            }
-        }
-        if (!entity || !content) {
-            return;
-        }
+        const AI_CHECK_THRESHOLD = 3;
         if (reportCount >= AUTO_DELETE_THRESHOLD) {
             await this.softDeleteContent(targetId, targetType);
             return;
         }
         if (reportCount >= AI_CHECK_THRESHOLD && this.contentModeration) {
-            const checkResult = await this.contentModeration.checkContent(content, authorId, targetType === 'POST' ? 'post' : 'reply');
-            if (!checkResult.safe) {
-                await this.softDeleteContent(targetId, targetType);
+            let content = '';
+            let authorId = '';
+            if (targetType === 'POST') {
+                const post = await this.postRepo.findOne({ where: { id: targetId }, select: ['body', 'authorId'] });
+                if (post) {
+                    content = post.body;
+                    authorId = post.authorId;
+                }
+            }
+            else {
+                const reply = await this.replyRepo.findOne({ where: { id: targetId }, select: ['body', 'authorId'] });
+                if (reply) {
+                    content = reply.body;
+                    authorId = reply.authorId;
+                }
+            }
+            if (content) {
+                const checkResult = await this.contentModeration.checkContent(content, authorId, targetType === 'POST' ? 'post' : 'reply');
+                if (!checkResult.safe) {
+                    await this.softDeleteContent(targetId, targetType);
+                }
             }
         }
     }
@@ -181,19 +178,19 @@ let SafetyService = class SafetyService {
         });
     }
     async isBlocked(userId, otherUserId) {
-        const block = await this.blockRepo.findOne({
+        const count = await this.blockRepo.count({
             where: [
                 { blockerId: userId, blockedId: otherUserId },
                 { blockerId: otherUserId, blockedId: userId },
             ],
         });
-        return !!block;
+        return count > 0;
     }
     async isMuted(userId, otherUserId) {
-        const mute = await this.muteRepo.findOne({
+        const count = await this.muteRepo.count({
             where: { muterId: userId, mutedId: otherUserId },
         });
-        return !!mute;
+        return count > 0;
     }
     async checkContent(text, userId, contentType) {
         if (!this.contentModeration) {

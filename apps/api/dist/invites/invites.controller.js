@@ -25,11 +25,11 @@ let InvitesController = class InvitesController {
     async generate(user) {
         const isBeta = await this.invitesService.isBetaMode();
         if (!isBeta) {
-            throw new Error('Invite generation is disabled (Beta Over)');
+            throw new common_1.BadRequestException('Invite generation is disabled (Beta Over)');
         }
         const status = await this.invitesService.getMyInvites(user.id);
         if (status.remaining <= 0) {
-            throw new Error('No invites remaining');
+            throw new common_1.BadRequestException('No invites remaining');
         }
         const code = await this.invitesService.generateCode(user.id);
         return { code };

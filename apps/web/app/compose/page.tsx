@@ -21,7 +21,7 @@ function ComposeContent() {
   const [headerImageBlurhash, setHeaderImageBlurhash] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'edit' | 'preview'>('edit');
   
-  const [autocomplete, setAutocomplete] = useState({
+  const [autocomplete, setAutocomplete] = useState<{
     show: boolean;
     query: string;
     type: 'topic' | 'post' | 'user' | 'all';

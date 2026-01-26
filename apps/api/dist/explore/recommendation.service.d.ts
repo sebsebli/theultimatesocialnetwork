@@ -16,7 +16,7 @@ export declare class RecommendationService implements OnModuleInit {
     private embeddingModel;
     private isModelLoaded;
     constructor(postRepo: Repository<Post>, userRepo: Repository<User>, postTopicRepo: Repository<PostTopic>, followRepo: Repository<Follow>, likeRepo: Repository<Like>, keepRepo: Repository<Keep>);
-    onModuleInit(): any;
+    onModuleInit(): Promise<void>;
     private loadEmbeddingModel;
     private generateEmbedding;
     private cosineSimilarity;

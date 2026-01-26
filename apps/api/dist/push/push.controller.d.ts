@@ -5,5 +5,7 @@ export declare class PushController {
     constructor(pushService: PushService);
     register(user: {
         id: string;
-    }, dto: RegisterPushTokenDto): unknown;
+    }, dto: RegisterPushTokenDto): Promise<{
+        ok: boolean;
+    }>;
 }

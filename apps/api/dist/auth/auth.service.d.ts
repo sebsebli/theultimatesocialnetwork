@@ -13,8 +13,27 @@ export declare class AuthService {
     private emailService;
     private configService;
     constructor(userRepo: Repository<User>, jwtService: JwtService, redis: Redis, invitesService: InvitesService, emailService: EmailService, configService: ConfigService);
-    login(email: string, inviteCode?: string): unknown;
-    verifyToken(email: string, token: string): unknown;
+    login(email: string, inviteCode?: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    verifyToken(email: string, token: string): Promise<{
+        accessToken: string;
+        user: {
+            id: string;
+            email: string;
+            handle: string;
+            displayName: string;
+        };
+    }>;
     validateOrCreateUser(email: string, inviteCode?: string): Promise<User>;
-    generateTokens(user: User): unknown;
+    generateTokens(user: User): Promise<{
+        accessToken: string;
+        user: {
+            id: string;
+            email: string;
+            handle: string;
+            displayName: string;
+        };
+    }>;
 }

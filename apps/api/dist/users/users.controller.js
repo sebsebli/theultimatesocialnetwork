@@ -26,7 +26,13 @@ let UsersController = class UsersController {
         this.exportQueue = exportQueue;
     }
     async updateMe(user, updates) {
-        return this.usersService.update(user.id, updates);
+        const allowedUpdates = {
+            displayName: updates.displayName,
+            bio: updates.bio,
+            isProtected: updates.isProtected,
+            languages: updates.languages,
+        };
+        return this.usersService.update(user.id, allowedUpdates);
     }
     async getMe(user) {
         return this.usersService.findById(user.id);

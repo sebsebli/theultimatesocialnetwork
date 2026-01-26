@@ -68,31 +68,27 @@ let ExploreService = class ExploreService {
         const now = new Date();
         const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
         const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const recentQuotes = await this.postEdgeRepo
+        const scoredIds = await this.postEdgeRepo
             .createQueryBuilder('edge')
+            .select('edge.to_post_id', 'postId')
+            .addSelect(`
+        SUM(
+          CASE 
+            WHEN edge.created_at >= :sixHoursAgo THEN 1.0 
+            ELSE 0.3 
+          END
+        )`, 'score')
             .where('edge.edge_type = :type', { type: post_edge_entity_1.EdgeType.QUOTE })
-            .andWhere('edge.created_at >= :since', { since: twentyFourHoursAgo })
-            .getMany();
-        const quoteCounts = {};
-        for (const quote of recentQuotes) {
-            const postId = quote.toPostId;
-            if (!quoteCounts[postId]) {
-                quoteCounts[postId] = { last6h: 0, last24h: 0 };
-            }
-            quoteCounts[postId].last24h++;
-            if (new Date(quote.createdAt) >= sixHoursAgo) {
-                quoteCounts[postId].last6h++;
-            }
-        }
-        const scoredPosts = Object.entries(quoteCounts).map(([postId, counts]) => ({
-            postId,
-            score: counts.last6h * 1.0 + counts.last24h * 0.3,
-        }));
-        scoredPosts.sort((a, b) => b.score - a.score);
-        const topPostIds = scoredPosts.slice(0, limit).map(p => p.postId);
-        if (topPostIds.length === 0) {
+            .andWhere('edge.created_at >= :twentyFourHoursAgo', { twentyFourHoursAgo })
+            .setParameters({ sixHoursAgo, twentyFourHoursAgo })
+            .groupBy('edge.to_post_id')
+            .orderBy('score', 'DESC')
+            .limit(limit)
+            .getRawMany();
+        if (scoredIds.length === 0) {
             return [];
         }
+        const topPostIds = scoredIds.map(s => s.postId);
         const query = this.postRepo
             .createQueryBuilder('post')
             .leftJoinAndSelect('post.author', 'author')
@@ -137,19 +133,19 @@ let ExploreService = class ExploreService {
         return scored.slice(0, limit).map(s => s.post);
     }
     async getDeepDives(userId, limit = 20, filter) {
-        const backlinks = await this.postEdgeRepo
+        const rankedIds = await this.postEdgeRepo
             .createQueryBuilder('edge')
             .select('edge.to_post_id', 'postId')
             .addSelect('COUNT(*)', 'count')
             .where('edge.edge_type = :type', { type: post_edge_entity_1.EdgeType.LINK })
             .groupBy('edge.to_post_id')
-            .orderBy('COUNT(*)', 'DESC')
-            .limit(limit * 2)
+            .orderBy('count', 'DESC')
+            .limit(limit)
             .getRawMany();
-        const postIds = backlinks.map(b => b.postId);
-        if (postIds.length === 0) {
+        if (rankedIds.length === 0) {
             return [];
         }
+        const postIds = rankedIds.map(r => r.postId);
         const query = this.postRepo
             .createQueryBuilder('post')
             .leftJoinAndSelect('post.author', 'author')
@@ -158,13 +154,11 @@ let ExploreService = class ExploreService {
         if (filter?.lang && filter.lang !== 'all') {
             query.andWhere('post.lang = :lang', { lang: filter.lang });
         }
-        const posts = await query
-            .getMany();
+        const posts = await query.getMany();
         const sortedPosts = postIds
             .map(id => posts.find(p => p.id === id))
-            .filter(p => p !== undefined)
-            .slice(0, limit);
-        return posts.map(p => ({
+            .filter(p => p !== undefined);
+        return sortedPosts.map(p => ({
             ...p,
             reasons: ['Many backlinks', 'Link chain'],
         }));

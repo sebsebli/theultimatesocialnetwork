@@ -17,24 +17,30 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const report_entity_1 = require("../entities/report.entity");
+const safety_service_1 = require("../safety/safety.service");
 let ReportsService = class ReportsService {
     reportRepo;
-    constructor(reportRepo) {
+    safetyService;
+    constructor(reportRepo, safetyService) {
         this.reportRepo = reportRepo;
+        this.safetyService = safetyService;
     }
     async create(userId, targetId, targetType, reason) {
-        return this.reportRepo.save({
+        const report = await this.reportRepo.save({
             reporterId: userId,
             targetId,
             targetType,
             reason,
         });
+        return report;
     }
 };
 exports.ReportsService = ReportsService;
 exports.ReportsService = ReportsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(report_entity_1.Report)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => safety_service_1.SafetyService))),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        safety_service_1.SafetyService])
 ], ReportsService);
 //# sourceMappingURL=reports.service.js.map

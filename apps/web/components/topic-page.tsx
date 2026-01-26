@@ -15,9 +15,45 @@ interface TopicPageProps {
   };
 }
 
-// ... inside the component
+export function TopicPage({ topic }: TopicPageProps) {
+  const [isFollowing, setIsFollowing] = useState(topic.isFollowing || false);
+
+  const handleFollow = async () => {
+    const previous = isFollowing;
+    setIsFollowing(!previous);
+    try {
+      // API call would go here
+    } catch (error) {
+      setIsFollowing(previous);
+    }
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Header */}
+      <div className="bg-ink border-b border-divider">
+        <div className="max-w-[680px] mx-auto px-6 py-8">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-paper mb-2">{topic.title}</h1>
+              <p className="text-secondary">Topic</p>
+            </div>
+            <button
+              onClick={handleFollow}
+              className={`px-6 py-2.5 rounded-full font-semibold transition-colors ${
+                isFollowing
+                  ? 'bg-transparent border border-primary text-primary hover:bg-primary/10'
+                  : 'bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20'
+              }`}
+            >
+              {isFollowing ? 'Following' : 'Follow Topic'}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Sections */}
-      <div className="px-6 py-6 space-y-12">
+      <div className="px-6 py-6 space-y-12 max-w-[680px] mx-auto w-full">
         {/* Start here (most cited) */}
         {topic.startHere && topic.startHere.length > 0 && (
           <section>

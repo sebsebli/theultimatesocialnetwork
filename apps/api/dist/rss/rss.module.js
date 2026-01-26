@@ -6,21 +6,21 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MagicLoginGuard = void 0;
+exports.RssModule = void 0;
 const common_1 = require("@nestjs/common");
-const passport_1 = require("@nestjs/passport");
-let MagicLoginGuard = class MagicLoginGuard extends (0, passport_1.AuthGuard)('magiclogin') {
-    getRequest(context) {
-        const req = context.switchToHttp().getRequest();
-        if (req.body && req.body.token) {
-            req.query = req.query || {};
-            req.query.token = req.body.token;
-        }
-        return req;
-    }
+const typeorm_1 = require("@nestjs/typeorm");
+const rss_controller_1 = require("./rss.controller");
+const rss_service_1 = require("./rss.service");
+const user_entity_1 = require("../entities/user.entity");
+const post_entity_1 = require("../entities/post.entity");
+let RssModule = class RssModule {
 };
-exports.MagicLoginGuard = MagicLoginGuard;
-exports.MagicLoginGuard = MagicLoginGuard = __decorate([
-    (0, common_1.Injectable)()
-], MagicLoginGuard);
-//# sourceMappingURL=magic-login.guard.js.map
+exports.RssModule = RssModule;
+exports.RssModule = RssModule = __decorate([
+    (0, common_1.Module)({
+        imports: [typeorm_1.TypeOrmModule.forFeature([user_entity_1.User, post_entity_1.Post])],
+        controllers: [rss_controller_1.RssController],
+        providers: [rss_service_1.RssService],
+    })
+], RssModule);
+//# sourceMappingURL=rss.module.js.map

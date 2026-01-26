@@ -1,0 +1,15 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose
+  - git
+
+runcmd:
+  - systemctl enable docker
+  - systemctl start docker
+  - mkdir -p /opt/cite
+  # In a real setup, you'd pull from a registry or git repo here
+  # - git clone ... /opt/cite
+  # - cd /opt/cite && docker-compose up -d

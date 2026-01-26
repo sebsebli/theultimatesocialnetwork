@@ -16,15 +16,19 @@ export declare class SafetyService {
     private contentModeration?;
     constructor(blockRepo: Repository<Block>, muteRepo: Repository<Mute>, reportRepo: Repository<Report>, userRepo: Repository<User>, postRepo: Repository<Post>, replyRepo: Repository<Reply>, contentModeration?: ContentModerationService | undefined);
     private isValidUUID;
-    block(blockerId: string, blockedId: string): unknown;
-    unblock(blockerId: string, blockedId: string): unknown;
-    mute(muterId: string, mutedId: string): unknown;
-    unmute(muterId: string, mutedId: string): unknown;
-    report(reporterId: string, targetId: string, targetType: string, reason: string): unknown;
+    block(blockerId: string, blockedId: string): Promise<Block>;
+    unblock(blockerId: string, blockedId: string): Promise<{
+        success: boolean;
+    }>;
+    mute(muterId: string, mutedId: string): Promise<Mute>;
+    unmute(muterId: string, mutedId: string): Promise<{
+        success: boolean;
+    }>;
+    report(reporterId: string, targetId: string, targetType: string, reason: string): Promise<Report>;
     private handleReportThresholds;
     private softDeleteContent;
-    getBlocked(userId: string): unknown;
-    getMuted(userId: string): unknown;
+    getBlocked(userId: string): Promise<Block[]>;
+    getMuted(userId: string): Promise<Mute[]>;
     isBlocked(userId: string, otherUserId: string): Promise<boolean>;
     isMuted(userId: string, otherUserId: string): Promise<boolean>;
     checkContent(text: string, userId?: string, contentType?: 'post' | 'reply'): Promise<{

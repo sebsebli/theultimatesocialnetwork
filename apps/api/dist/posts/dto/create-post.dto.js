@@ -16,6 +16,7 @@ class CreatePostDto {
     body;
     visibility;
     headerImageKey;
+    headerImageBlurhash;
 }
 exports.CreatePostDto = CreatePostDto;
 __decorate([
@@ -34,4 +35,9 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreatePostDto.prototype, "headerImageKey", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreatePostDto.prototype, "headerImageBlurhash", void 0);
 //# sourceMappingURL=create-post.dto.js.map

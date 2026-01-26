@@ -44,16 +44,14 @@ let FeedService = class FeedService {
             .createQueryBuilder('post')
             .leftJoinAndSelect('post.author', 'author')
             .where('post.deleted_at IS NULL')
-            .andWhere('(post.author_id IN (:...followingIds) AND post.visibility = :public) OR post.author_id = :userId', { followingIds: followingIds.length > 0 ? followingIds : ['00000000-0000-0000-0000-000000000000'], public: 'PUBLIC', userId })
+            .andWhere(new typeorm_2.Brackets((qb) => {
+            qb.where('post.author_id = :userId', { userId })
+                .orWhere('post.author_id IN (:...followingIds) AND post.visibility = :public', { followingIds: followingIds.length > 0 ? followingIds : ['00000000-0000-0000-0000-000000000000'], public: 'PUBLIC' });
+        }))
             .orderBy('post.created_at', 'DESC')
             .skip(offset)
-            .take(limit * 2)
-            .getMany()
-            .then(allPosts => allPosts
-            .filter(post => followingIds.includes(post.authorId) &&
-            !post.deletedAt &&
-            (post.visibility === 'PUBLIC' || post.authorId === userId))
-            .slice(0, limit));
+            .take(limit)
+            .getMany();
         const feedItems = posts.map(post => ({
             type: 'post',
             data: post,

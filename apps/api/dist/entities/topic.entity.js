@@ -8,7 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Topic = void 0;
 const typeorm_1 = require("typeorm");
@@ -26,6 +25,7 @@ __decorate([
 ], Topic.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ unique: true }),
+    (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], Topic.prototype, "slug", void 0);
 __decorate([
@@ -34,10 +34,11 @@ __decorate([
 ], Topic.prototype, "title", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
-    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+    __metadata("design:type", Date)
 ], Topic.prototype, "createdAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'created_by', type: 'uuid', nullable: true }),
+    (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], Topic.prototype, "createdBy", void 0);
 exports.Topic = Topic = __decorate([

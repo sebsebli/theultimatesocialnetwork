@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 function VerifyContent() {
   const searchParams = useSearchParams();
@@ -32,8 +33,6 @@ function VerifyContent() {
 
       if (res.ok) {
         const data = await res.json();
-        // Set cookie for middleware
-        document.cookie = `token=${data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
         
         setStatus('success');
         setTimeout(() => {

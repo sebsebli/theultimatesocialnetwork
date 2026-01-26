@@ -69,7 +69,7 @@ export function getCaretCoordinates(element: HTMLTextAreaElement | HTMLInputElem
 
   // Transfer the element's properties to the div
   properties.forEach((prop) => {
-    style[prop] = computed[prop];
+    (style as any)[prop] = (computed as any)[prop];
   });
 
   if (isFirefox) {

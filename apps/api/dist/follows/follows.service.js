@@ -24,11 +24,13 @@ let FollowsService = class FollowsService {
     followRepo;
     followRequestRepo;
     userRepo;
+    dataSource;
     neo4jService;
-    constructor(followRepo, followRequestRepo, userRepo, neo4jService) {
+    constructor(followRepo, followRequestRepo, userRepo, dataSource, neo4jService) {
         this.followRepo = followRepo;
         this.followRequestRepo = followRequestRepo;
         this.userRepo = userRepo;
+        this.dataSource = dataSource;
         this.neo4jService = neo4jService;
     }
     async follow(followerId, followeeId) {
@@ -63,19 +65,29 @@ let FollowsService = class FollowsService {
             });
             return this.followRequestRepo.save(request);
         }
-        const follow = this.followRepo.create({
-            followerId,
-            followeeId,
-        });
-        await this.followRepo.save(follow);
-        await this.userRepo.increment({ id: followeeId }, 'followerCount', 1);
-        await this.userRepo.increment({ id: followerId }, 'followingCount', 1);
-        await this.neo4jService.run(`
-      MERGE (u1:User {id: $followerId})
-      MERGE (u2:User {id: $followeeId})
-      MERGE (u1)-[:FOLLOWS]->(u2)
-      `, { followerId, followeeId });
-        return follow;
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            const follow = this.followRepo.create({ followerId, followeeId });
+            await queryRunner.manager.save(follow_entity_1.Follow, follow);
+            await queryRunner.manager.increment(user_entity_1.User, { id: followeeId }, 'followerCount', 1);
+            await queryRunner.manager.increment(user_entity_1.User, { id: followerId }, 'followingCount', 1);
+            await queryRunner.commitTransaction();
+            this.neo4jService.run(`
+        MERGE (u1:User {id: $followerId})
+        MERGE (u2:User {id: $followeeId})
+        MERGE (u1)-[:FOLLOWS]->(u2)
+        `, { followerId, followeeId }).catch(err => console.error('Neo4j follow sync error', err));
+            return follow;
+        }
+        catch (err) {
+            await queryRunner.rollbackTransaction();
+            throw err;
+        }
+        finally {
+            await queryRunner.release();
+        }
     }
     async unfollow(followerId, followeeId) {
         const follow = await this.followRepo.findOne({
@@ -84,14 +96,27 @@ let FollowsService = class FollowsService {
         if (!follow) {
             throw new common_1.NotFoundException('Not following');
         }
-        await this.followRepo.remove(follow);
-        await this.userRepo.decrement({ id: followeeId }, 'followerCount', 1);
-        await this.userRepo.decrement({ id: followerId }, 'followingCount', 1);
-        await this.neo4jService.run(`
-      MATCH (u1:User {id: $followerId})-[r:FOLLOWS]->(u2:User {id: $followeeId})
-      DELETE r
-      `, { followerId, followeeId });
-        return { success: true };
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            await queryRunner.manager.remove(follow);
+            await queryRunner.manager.decrement(user_entity_1.User, { id: followeeId }, 'followerCount', 1);
+            await queryRunner.manager.decrement(user_entity_1.User, { id: followerId }, 'followingCount', 1);
+            await queryRunner.commitTransaction();
+            this.neo4jService.run(`
+        MATCH (u1:User {id: $followerId})-[r:FOLLOWS]->(u2:User {id: $followeeId})
+        DELETE r
+        `, { followerId, followeeId }).catch(err => console.error('Neo4j unfollow sync error', err));
+            return { success: true };
+        }
+        catch (err) {
+            await queryRunner.rollbackTransaction();
+            throw err;
+        }
+        finally {
+            await queryRunner.release();
+        }
     }
     async approveFollowRequest(userId, requestId) {
         const request = await this.followRequestRepo.findOne({
@@ -126,6 +151,7 @@ exports.FollowsService = FollowsService = __decorate([
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
+        typeorm_2.DataSource,
         neo4j_service_1.Neo4jService])
 ], FollowsService);
 //# sourceMappingURL=follows.service.js.map

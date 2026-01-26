@@ -4,6 +4,20 @@ import { VerifyDto } from './dto/verify.dto';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
-    login(dto: LoginDto): unknown;
-    verify(dto: VerifyDto): unknown;
+    login(dto: LoginDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    verify(dto: VerifyDto): Promise<{
+        accessToken: string;
+        user: {
+            id: string;
+            email: string;
+            handle: string;
+            displayName: string;
+        };
+    }>;
+    logout(): Promise<{
+        success: boolean;
+    }>;
 }

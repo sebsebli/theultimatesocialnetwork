@@ -27,8 +27,8 @@ let SearchController = class SearchController {
             return { hits: [], estimatedTotalHits: 0 };
         }
         const results = await this.meilisearch.searchPosts(query, {
-            limit: limit ? parseInt(limit, 10) : 20,
-            offset: offset ? parseInt(offset, 10) : 0,
+            limit,
+            offset,
             lang,
         });
         return results;
@@ -37,7 +37,13 @@ let SearchController = class SearchController {
         if (!query || query.trim().length === 0) {
             return { hits: [] };
         }
-        return this.meilisearch.searchUsers(query, limit ? parseInt(limit, 10) : 10);
+        return this.meilisearch.searchUsers(query, limit);
+    }
+    async searchTopics(query, limit) {
+        if (!query || query.trim().length === 0) {
+            return { hits: [] };
+        }
+        return this.meilisearch.searchTopics(query, limit);
     }
 };
 exports.SearchController = SearchController;
@@ -46,22 +52,31 @@ __decorate([
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Query)('q')),
-    __param(2, (0, common_1.Query)('limit')),
-    __param(3, (0, common_1.Query)('offset')),
+    __param(2, (0, common_1.Query)('limit', new common_1.DefaultValuePipe(20), common_1.ParseIntPipe)),
+    __param(3, (0, common_1.Query)('offset', new common_1.DefaultValuePipe(0), common_1.ParseIntPipe)),
     __param(4, (0, common_1.Query)('lang')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, String, String]),
+    __metadata("design:paramtypes", [Object, String, Number, Number, String]),
     __metadata("design:returntype", Promise)
 ], SearchController.prototype, "searchPosts", null);
 __decorate([
     (0, common_1.Get)('users'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __param(0, (0, common_1.Query)('q')),
-    __param(1, (0, common_1.Query)('limit')),
+    __param(1, (0, common_1.Query)('limit', new common_1.DefaultValuePipe(10), common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, Number]),
     __metadata("design:returntype", Promise)
 ], SearchController.prototype, "searchUsers", null);
+__decorate([
+    (0, common_1.Get)('topics'),
+    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
+    __param(0, (0, common_1.Query)('q')),
+    __param(1, (0, common_1.Query)('limit', new common_1.DefaultValuePipe(10), common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Number]),
+    __metadata("design:returntype", Promise)
+], SearchController.prototype, "searchTopics", null);
 exports.SearchController = SearchController = __decorate([
     (0, common_1.Controller)('search'),
     __metadata("design:paramtypes", [meilisearch_service_1.MeilisearchService])

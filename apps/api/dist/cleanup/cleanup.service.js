@@ -20,18 +20,55 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const post_entity_1 = require("../entities/post.entity");
 const user_entity_1 = require("../entities/user.entity");
+const notification_entity_1 = require("../entities/notification.entity");
+const push_outbox_entity_1 = require("../entities/push-outbox.entity");
 let CleanupService = CleanupService_1 = class CleanupService {
     postRepo;
     userRepo;
+    notificationRepo;
+    pushOutboxRepo;
     logger = new common_1.Logger(CleanupService_1.name);
-    constructor(postRepo, userRepo) {
+    constructor(postRepo, userRepo, notificationRepo, pushOutboxRepo) {
         this.postRepo = postRepo;
         this.userRepo = userRepo;
+        this.notificationRepo = notificationRepo;
+        this.pushOutboxRepo = pushOutboxRepo;
     }
     async handleCron() {
-        this.logger.log('Running daily cleanup...');
+        const start = Date.now();
+        this.logger.log('Starting daily cleanup...');
         await this.deleteOldSoftDeletedPosts();
         await this.deleteOldSoftDeletedUsers();
+        await this.deleteOldNotifications();
+        await this.deleteOldPushOutbox();
+        const duration = Date.now() - start;
+        this.logger.log(`Daily cleanup completed in ${duration}ms`);
+    }
+    async deleteOldNotifications() {
+        const sixtyDaysAgo = new Date();
+        sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+        const result = await this.notificationRepo
+            .createQueryBuilder()
+            .delete()
+            .from(notification_entity_1.Notification)
+            .where('created_at < :date', { date: sixtyDaysAgo })
+            .execute();
+        if (result.affected && result.affected > 0) {
+            this.logger.log(`Deleted ${result.affected} old notifications.`);
+        }
+    }
+    async deleteOldPushOutbox() {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const result = await this.pushOutboxRepo
+            .createQueryBuilder()
+            .delete()
+            .from(push_outbox_entity_1.PushOutbox)
+            .where('created_at < :date', { date: thirtyDaysAgo })
+            .execute();
+        if (result.affected && result.affected > 0) {
+            this.logger.log(`Deleted ${result.affected} old push outbox items.`);
+        }
     }
     async deleteOldSoftDeletedPosts() {
         const thirtyDaysAgo = new Date();
@@ -73,7 +110,11 @@ exports.CleanupService = CleanupService = CleanupService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(post_entity_1.Post)),
     __param(1, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(2, (0, typeorm_1.InjectRepository)(notification_entity_1.Notification)),
+    __param(3, (0, typeorm_1.InjectRepository)(push_outbox_entity_1.PushOutbox)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], CleanupService);
 //# sourceMappingURL=cleanup.service.js.map

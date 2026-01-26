@@ -8,7 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a, _b;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostRead = void 0;
 const typeorm_1 = require("typeorm");
@@ -31,10 +30,12 @@ __decorate([
 ], PostRead.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'user_id' }),
+    (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], PostRead.prototype, "userId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'post_id' }),
+    (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], PostRead.prototype, "postId", void 0);
 __decorate([
@@ -53,11 +54,11 @@ __decorate([
 ], PostRead.prototype, "durationSeconds", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
-    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+    __metadata("design:type", Date)
 ], PostRead.prototype, "createdAt", void 0);
 __decorate([
     (0, typeorm_1.UpdateDateColumn)({ name: 'last_read_at' }),
-    __metadata("design:type", typeof (_b = typeof Date !== "undefined" && Date) === "function" ? _b : Object)
+    __metadata("design:type", Date)
 ], PostRead.prototype, "lastReadAt", void 0);
 exports.PostRead = PostRead = __decorate([
     (0, typeorm_1.Entity)('post_reads'),

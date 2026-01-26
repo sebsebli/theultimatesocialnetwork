@@ -42,14 +42,13 @@ let CollectionsService = class CollectionsService {
         return this.collectionRepo.save(col);
     }
     async findAll(userId) {
-        return this.collectionRepo.find({
-            where: { ownerId: userId },
-            relations: ['items'],
-            order: { createdAt: 'DESC' },
-        }).then(collections => collections.map(c => ({
-            ...c,
-            itemCount: c.items?.length || 0,
-        })));
+        const collections = await this.collectionRepo
+            .createQueryBuilder('collection')
+            .where('collection.ownerId = :userId', { userId })
+            .loadRelationCountAndMap('collection.itemCount', 'collection.items')
+            .orderBy('collection.createdAt', 'DESC')
+            .getMany();
+        return collections;
     }
     async findOne(id, userId) {
         const collection = await this.collectionRepo.findOne({

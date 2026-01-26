@@ -50,37 +50,29 @@ let UsersService = class UsersService {
         const user = await this.userRepo.findOne({
             where: { handle },
         });
-        if (!user) {
+        if (!user)
             return null;
-        }
         const posts = await this.postRepo.find({
-            where: { authorId: user.id },
+            where: { authorId: user.id, deletedAt: (0, typeorm_2.IsNull)() },
             relations: ['author'],
             order: { createdAt: 'DESC' },
             take: 20,
         });
-        return {
-            ...user,
-            posts,
-        };
+        return { ...user, posts };
     }
     async findById(id) {
         const user = await this.userRepo.findOne({
             where: { id },
         });
-        if (!user) {
+        if (!user)
             return null;
-        }
         const posts = await this.postRepo.find({
-            where: { authorId: user.id },
+            where: { authorId: user.id, deletedAt: (0, typeorm_2.IsNull)() },
             relations: ['author'],
             order: { createdAt: 'DESC' },
             take: 20,
         });
-        return {
-            ...user,
-            posts,
-        };
+        return { ...user, posts };
     }
     async update(id, updates) {
         await this.userRepo.update(id, updates);

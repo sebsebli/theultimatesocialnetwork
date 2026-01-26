@@ -8,7 +8,7 @@ export declare class ContentModerationService implements OnModuleInit {
     private bayesianClassifier;
     private isGemmaAvailable;
     constructor(postRepo: Repository<Post>, replyRepo: Repository<Reply>);
-    onModuleInit(): any;
+    onModuleInit(): Promise<void>;
     private trainBayesianClassifier;
     private checkGemmaAvailability;
     private checkRepeatedContent;

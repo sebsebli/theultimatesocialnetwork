@@ -8,7 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Mention = void 0;
 const typeorm_1 = require("typeorm");
@@ -32,6 +31,7 @@ __decorate([
 ], Mention.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'post_id', nullable: true }),
+    (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], Mention.prototype, "postId", void 0);
 __decorate([
@@ -41,6 +41,7 @@ __decorate([
 ], Mention.prototype, "post", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'reply_id', nullable: true }),
+    (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], Mention.prototype, "replyId", void 0);
 __decorate([
@@ -50,6 +51,7 @@ __decorate([
 ], Mention.prototype, "reply", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'mentioned_user_id' }),
+    (0, typeorm_1.Index)(),
     __metadata("design:type", String)
 ], Mention.prototype, "mentionedUserId", void 0);
 __decorate([
@@ -59,7 +61,7 @@ __decorate([
 ], Mention.prototype, "mentionedUser", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
-    __metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+    __metadata("design:type", Date)
 ], Mention.prototype, "createdAt", void 0);
 exports.Mention = Mention = __decorate([
     (0, typeorm_1.Entity)('mentions')

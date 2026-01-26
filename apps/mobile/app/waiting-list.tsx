@@ -104,7 +104,7 @@ export default function WaitingListScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={keyboardVerticalOffset}
     >
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.m }]}>
+      <View style={[styles.header]}>
         <Pressable onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
         </Pressable>
@@ -223,7 +223,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
+    paddingVertical: SPACING.m,
+
+
   },
   headerTitle: {
     fontSize: 18,

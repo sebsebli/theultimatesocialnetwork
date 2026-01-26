@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Follow } from '../entities/follow.entity';
 import { FollowRequest } from '../entities/follow-request.entity';
 import { User } from '../entities/user.entity';
@@ -7,10 +7,13 @@ export declare class FollowsService {
     private followRepo;
     private followRequestRepo;
     private userRepo;
+    private dataSource;
     private neo4jService;
-    constructor(followRepo: Repository<Follow>, followRequestRepo: Repository<FollowRequest>, userRepo: Repository<User>, neo4jService: Neo4jService);
-    follow(followerId: string, followeeId: string): unknown;
-    unfollow(followerId: string, followeeId: string): unknown;
-    approveFollowRequest(userId: string, requestId: string): unknown;
-    rejectFollowRequest(userId: string, requestId: string): unknown;
+    constructor(followRepo: Repository<Follow>, followRequestRepo: Repository<FollowRequest>, userRepo: Repository<User>, dataSource: DataSource, neo4jService: Neo4jService);
+    follow(followerId: string, followeeId: string): Promise<Follow | FollowRequest>;
+    unfollow(followerId: string, followeeId: string): Promise<{
+        success: boolean;
+    }>;
+    approveFollowRequest(userId: string, requestId: string): Promise<FollowRequest>;
+    rejectFollowRequest(userId: string, requestId: string): Promise<FollowRequest>;
 }

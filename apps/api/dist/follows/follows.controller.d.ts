@@ -4,8 +4,10 @@ export declare class FollowsController {
     constructor(followsService: FollowsService);
     follow(user: {
         id: string;
-    }, followeeId: string): unknown;
+    }, followeeId: string): Promise<import("../entities/follow.entity").Follow | import("../entities/follow-request.entity").FollowRequest>;
     unfollow(user: {
         id: string;
-    }, followeeId: string): unknown;
+    }, followeeId: string): Promise<{
+        success: boolean;
+    }>;
 }

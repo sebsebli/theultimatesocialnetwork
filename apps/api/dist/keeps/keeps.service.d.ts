@@ -10,5 +10,5 @@ export declare class KeepsService {
     getAll(userId: string, filters?: {
         search?: string;
         inCollection?: boolean;
-    }): unknown;
+    }): Promise<Keep[]>;
 }

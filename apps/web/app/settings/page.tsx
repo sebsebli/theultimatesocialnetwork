@@ -2,11 +2,33 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/components/ui/toast';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { error: toastError } = useToast();
-  // ...
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [showSaves, setShowSaves] = useState(true);
+  const [enableRecommendations, setEnableRecommendations] = useState(true);
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    // Simulate slight delay for feedback
+    await new Promise(resolve => setTimeout(resolve, 500));
+    window.open('/api/me/export', '_blank');
+    setIsExporting(false);
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete your account? This action is irreversible.')) return;
+    
+    setIsDeleting(true);
+    try {
+      const res = await fetch('/api/me/delete', { method: 'DELETE' });
       if (res.ok) {
         router.push('/sign-in');
       } else {

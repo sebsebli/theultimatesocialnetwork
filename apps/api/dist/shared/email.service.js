@@ -80,6 +80,7 @@ let EmailService = EmailService_1 = class EmailService {
     }
     async sendSignInToken(email, token, lang = 'en') {
         const t = email_templates_1.signInTokenTemplates[lang] || email_templates_1.signInTokenTemplates['en'];
+        const subject = t.subject || 'Your Sign In Code - Cite System';
         if (!this.transporter) {
             this.logger.warn(`[MOCK EMAIL] Sign In Token for ${email} (${lang}): ${token}`);
             return false;
@@ -88,7 +89,7 @@ let EmailService = EmailService_1 = class EmailService {
             await this.transporter.sendMail({
                 from: this.configService.get('SMTP_FROM') || '"Cite System" <noreply@cite.com>',
                 to: email,
-                subject: t.subject,
+                subject: subject,
                 html: `
           <!DOCTYPE html>
           <html>
