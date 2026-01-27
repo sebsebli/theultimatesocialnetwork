@@ -78,7 +78,7 @@ export class AuthService {
     let isValid = false;
 
     try {
-      const parsed = JSON.parse(storedData) as {
+      const parsed = JSON.parse(storedData) as unknown as {
         token: string;
         inviteCode?: string;
       };

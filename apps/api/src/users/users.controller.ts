@@ -36,19 +36,21 @@ export class UsersController {
     },
   ) {
     // Whitelist allowed fields to prevent arbitrary entity updates
-    const allowedUpdates: Record<string, unknown> = {
-      displayName: updates.displayName,
-      bio: updates.bio,
-      isProtected: updates.isProtected,
-      languages: updates.languages,
-    };
+    const allowedUpdates: Partial<User> = {};
+    if (updates.displayName !== undefined)
+      allowedUpdates.displayName = updates.displayName;
+    if (updates.bio !== undefined) allowedUpdates.bio = updates.bio;
+    if (updates.isProtected !== undefined)
+      allowedUpdates.isProtected = updates.isProtected;
+    if (updates.languages !== undefined)
+      allowedUpdates.languages = updates.languages;
     if (updates.handle !== undefined) {
       allowedUpdates.handle = updates.handle
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9_]/g, '');
     }
-    return this.usersService.update(user.id, allowedUpdates as Partial<User>);
+    return this.usersService.update(user.id, allowedUpdates);
   }
 
   @Get('handle/available')
@@ -79,12 +81,13 @@ export class UsersController {
   @UseGuards(AuthGuard('jwt'))
   async exportData(@CurrentUser() user: { id: string; email?: string }) {
     // In a real app, email should be in JWT or fetched from DB
-    // Assuming user object has email or we fetch it.
     // The strategy returns { id: payload.sub, email: payload.email }
+    const email: string =
+      typeof user.email === 'string' ? user.email : 'user@example.com';
 
     await this.exportQueue.add('export-job', {
       userId: user.id,
-      email: user.email || 'user@example.com', // Fallback for dev if email missing in token
+      email,
     });
 
     return { message: 'Export started. You will receive an email shortly.' };

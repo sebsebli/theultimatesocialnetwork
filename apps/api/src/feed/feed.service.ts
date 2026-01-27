@@ -106,26 +106,14 @@ export class FeedService {
 
     // Sort by timestamp (most recent first)
     feedItems.sort((a, b) => {
-      let aTime: Date;
-      let bTime: Date;
-
-      // Define a type for the saved item structure
-      type SavedItemData = { post?: { createdAt: Date } };
-
-      if (a.type === 'post') {
-        aTime = (a.data as Post).createdAt || new Date(0);
-      } else {
-        const savedData = a.data as SavedItemData;
-        aTime = savedData.post?.createdAt || new Date(0);
-      }
-
-      if (b.type === 'post') {
-        bTime = (b.data as Post).createdAt || new Date(0);
-      } else {
-        const savedData = b.data as SavedItemData;
-        bTime = savedData.post?.createdAt || new Date(0);
-      }
-
+      const aTime =
+        a.type === 'post'
+          ? (a.data.createdAt ?? new Date(0))
+          : (a.data.post?.createdAt ?? new Date(0));
+      const bTime =
+        b.type === 'post'
+          ? (b.data.createdAt ?? new Date(0))
+          : (b.data.post?.createdAt ?? new Date(0));
       return bTime.getTime() - aTime.getTime();
     });
 

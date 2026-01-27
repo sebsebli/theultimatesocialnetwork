@@ -19,7 +19,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: { sub: string; email: string }) {
+  validate(payload: { sub: string; email: string }): {
+    id: string;
+    email: string;
+  } {
     // Supabase JWT payload: { sub: 'uuid', email: '...', ... }
     return { id: payload.sub, email: payload.email };
   }
