@@ -105,7 +105,7 @@ export default function ProfileScreen() {
 
   const handleFollow = async () => {
     if (isSelf) {
-      router.push('/settings');
+      router.push('/onboarding/profile');
       return;
     }
 
@@ -340,7 +340,8 @@ const styles = StyleSheet.create({
   },
   bio: {
     fontSize: 15,
-    color: 'rgba(242, 242, 242, 0.9)', // text-main/90
+    color: COLORS.paper, // text-main/90 - using paper as base
+    opacity: 0.9,
     textAlign: 'center',
     lineHeight: 22,
     maxWidth: 320,
@@ -377,7 +378,7 @@ const styles = StyleSheet.create({
     gap: SPACING.xxxl,
     paddingVertical: SPACING.m,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(51, 53, 56, 0.2)', // cite-border/20
+    borderBottomColor: COLORS.divider, // cite-border/20
     marginBottom: 0,
   },
   statItem: {
@@ -405,8 +406,9 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(51, 53, 56, 0.3)',
-    backgroundColor: 'rgba(11, 11, 12, 0.95)', // backdrop blur simul
+    borderBottomColor: COLORS.divider, // consistent with other borders
+    backgroundColor: COLORS.ink, // backdrop blur simul - using ink base
+    opacity: 0.95,
   },
   tab: {
     flex: 1,

@@ -102,7 +102,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
       <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
         <Pressable style={styles.sheet} onPress={(e: any) => e.stopPropagation()}>
           <View style={styles.header}>
-            <Text style={styles.title}>{t('post.addToCollection')}</Text>
+            <Text style={styles.title}>{t('post.addToCollection', 'Add to collection')}</Text>
             <Pressable onPress={() => setVisible(false)} hitSlop={10}>
               <MaterialIcons name="close" size={24} color={COLORS.secondary} />
             </Pressable>
@@ -127,7 +127,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
                         {item.isPublic ? t('common.public') : t('common.private')}
                       </Text>
                       {item.itemCount > 0 && (
-                        <Text style={styles.itemCount}>• {item.itemCount} items</Text>
+                        <Text style={styles.itemCount}>• {t('collections.itemsCount', { count: item.itemCount })}</Text>
                       )}
                     </View>
                   </View>
@@ -190,7 +190,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
                 onPress={() => setCreating(true)}
               >
                 <MaterialIcons name="add" size={24} color={COLORS.primary} />
-                <Text style={styles.newButtonText}>{t('collections.new')}</Text>
+                <Text style={styles.newButtonText}>{t('collections.new', 'New Collection')}</Text>
               </Pressable>
             )}
           </View>
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
     padding: SPACING.l,
-    backgroundColor: '#1E1F21', // Slightly lighter than ink
+    backgroundColor: COLORS.ink, // Match ink background
   },
   newButton: {
     flexDirection: 'row',
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: SPACING.s,
     padding: SPACING.m,
-    backgroundColor: 'rgba(110, 122, 138, 0.1)', // primary/10
+    backgroundColor: COLORS.hover, // Use theme hover
     borderRadius: SIZES.borderRadius,
   },
   newButtonText: {
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     gap: SPACING.m,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: COLORS.hover,
     borderRadius: 8,
     padding: SPACING.m,
     color: COLORS.paper,
@@ -322,9 +322,11 @@ const styles = StyleSheet.create({
   switch: {
     width: 36,
     height: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: COLORS.hover,
     borderRadius: 10,
     padding: 2,
+    borderWidth: 1,
+    borderColor: COLORS.secondary,
   },
   switchActive: {
     backgroundColor: COLORS.primary,

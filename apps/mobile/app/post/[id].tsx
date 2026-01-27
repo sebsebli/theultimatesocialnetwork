@@ -186,7 +186,7 @@ export default function PostDetailScreen() {
       <View style={styles.header}>
         <Pressable 
           onPress={() => router.back()}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.goBack', 'Go back')}
           accessibilityRole="button"
         >
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
@@ -215,13 +215,13 @@ export default function PostDetailScreen() {
         <View style={styles.stats}>
           <Text style={styles.stat}>{post.replyCount} {t('post.replies')}</Text>
           <Text style={styles.stat}>{post.quoteCount} {t('post.quotes')}</Text>
-          {post.readingTimeMinutes ? <Text style={styles.stat}>{post.readingTimeMinutes} min read</Text> : null}
+          {post.readingTimeMinutes ? <Text style={styles.stat}>{post.readingTimeMinutes} {t('post.minRead', 'min read')}</Text> : null}
         </View>
 
         <View style={styles.actions}>
           <Pressable 
             style={styles.actionButton}
-            onPress={() => router.push({ pathname: '/(tabs)/compose', params: { replyTo: post.id } })}
+            onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
             accessibilityLabel={t('post.reply')}
             accessibilityRole="button"
           >
@@ -229,7 +229,7 @@ export default function PostDetailScreen() {
           </Pressable>
           <Pressable 
             style={styles.actionButton}
-            onPress={() => router.push({ pathname: '/(tabs)/compose', params: { quote: post.id } })}
+            onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}
             accessibilityLabel={t('post.quote')}
             accessibilityRole="button"
           >
@@ -317,7 +317,7 @@ export default function PostDetailScreen() {
       <View style={styles.bottomActions}>
         <Pressable 
           style={styles.bottomActionButton}
-          onPress={() => router.push({ pathname: '/(tabs)/compose', params: { replyTo: post.id } })}
+          onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
           accessibilityLabel={t('post.reply')}
           accessibilityRole="button"
         >
@@ -326,7 +326,7 @@ export default function PostDetailScreen() {
         </Pressable>
         <Pressable 
           style={styles.bottomActionButton}
-          onPress={() => router.push({ pathname: '/(tabs)/compose', params: { quote: post.id } })}
+          onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}
           accessibilityLabel={t('post.quote')}
           accessibilityRole="button"
         >
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     width: 48, // h-12 w-12
     height: 48,
     borderRadius: 24, // rounded-full
-    backgroundColor: 'rgba(110, 122, 138, 0.2)', // bg-primary/20
+    backgroundColor: COLORS.hover, // bg-primary/20
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.m,
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
     width: 32, // h-8 w-8
     height: 32,
     borderRadius: 16, // rounded-full
-    backgroundColor: 'rgba(110, 122, 138, 0.2)', // bg-primary/20
+    backgroundColor: COLORS.hover, // bg-primary/20
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING.s,

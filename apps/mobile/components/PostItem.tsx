@@ -64,10 +64,10 @@ function PostItemComponent({
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (minutes < 1) return 'now';
-    if (minutes < 60) return `${minutes}m`;
-    if (hours < 24) return `${hours}h`;
-    if (days < 7) return `${days}d`;
+    if (minutes < 1) return t('common.time.now', 'now');
+    if (minutes < 60) return `${minutes}${t('common.time.minutes', 'm')}`;
+    if (hours < 24) return `${hours}${t('common.time.hours', 'h')}`;
+    if (days < 7) return `${days}${t('common.time.days', 'd')}`;
     return d.toLocaleDateString();
   };
 
@@ -135,7 +135,7 @@ function PostItemComponent({
     try {
       if (Platform.OS === 'web') {
         await navigator.clipboard.writeText(url);
-        showSuccess('Link copied to clipboard');
+        showSuccess(t('post.linkCopied', 'Link copied to clipboard'));
       } else {
         await Share.share({ message: url });
       }
@@ -202,7 +202,7 @@ function PostItemComponent({
   if (!post.author) {
     return (
       <View style={styles.container}>
-        <Text style={styles.metaText}>Post data incomplete</Text>
+        <Text style={styles.metaText}>{t('post.dataIncomplete', 'Post data incomplete')}</Text>
       </View>
     ) as React.JSX.Element;
   }
@@ -225,7 +225,7 @@ function PostItemComponent({
         </View>
         <View style={styles.authorInfo}>
           <View style={styles.nameRow}>
-            <Text style={styles.authorName}>{post.author.displayName || 'Unknown'}</Text>
+            <Text style={styles.authorName}>{post.author.displayName || t('post.unknownUser', 'Unknown')}</Text>
             <MaterialIcons name="circle" size={4} color={COLORS.tertiary} style={styles.dotIcon} />
             <Text style={styles.metaText}>{formatTime(post.createdAt)}</Text>
           </View>
@@ -275,7 +275,7 @@ function PostItemComponent({
         <View style={styles.privateFeedback}>
           <MaterialIcons name="favorite" size={14} color={COLORS.like} />
           <Text style={styles.privateFeedbackText}>
-            Private: Liked by {post.privateLikeCount} people
+            {t('post.privateLikedBy', { count: post.privateLikeCount, defaultValue: `Private: Liked by ${post.privateLikeCount} people` })}
           </Text>
         </View>
       )}

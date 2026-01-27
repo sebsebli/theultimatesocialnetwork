@@ -62,7 +62,7 @@ export default function SearchScreen() {
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.goBack', 'Go back')}
           accessibilityRole="button"
         >
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
@@ -90,12 +90,12 @@ export default function SearchScreen() {
               setActiveType(type);
               if (query) handleSearch(query);
             }}
-            accessibilityLabel={type.charAt(0).toUpperCase() + type.slice(1)}
+            accessibilityLabel={t(`search.${type}`, type.charAt(0).toUpperCase() + type.slice(1))}
             accessibilityRole="tab"
             accessibilityState={{ selected: activeType === type }}
           >
             <Text style={[styles.tabText, activeType === type && styles.tabTextActive]}>
-              {type.charAt(0).toUpperCase() + type.slice(1)}
+              {t(`search.${type}`, type.charAt(0).toUpperCase() + type.slice(1))}
             </Text>
           </Pressable>
         ))}

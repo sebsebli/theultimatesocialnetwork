@@ -101,7 +101,7 @@ export default function InboxScreen() {
                 item.type === 'LIKE' ? t('inbox.likedPost') :
                   item.type === 'MENTION' ? t('inbox.mentionedYou') : t('inbox.interactedWithYou')}
         </Text>
-        {!item.readAt && <View style={styles.unreadDot} accessibilityLabel="Unread" />}
+        {!item.readAt && <View style={styles.unreadDot} accessibilityLabel={t('inbox.unread', 'Unread')} />}
       </View>
     </Pressable>
   ), [t, router]);
@@ -121,7 +121,7 @@ export default function InboxScreen() {
         </Text>
       </View>
       {item.unreadCount > 0 && (
-        <View style={styles.unreadBadge} accessibilityLabel={`${item.unreadCount} unread messages`}>
+        <View style={styles.unreadBadge} accessibilityLabel={t('inbox.unreadMessages', { count: item.unreadCount, defaultValue: `${item.unreadCount} unread messages` })}>
           <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
         </View>
       )}

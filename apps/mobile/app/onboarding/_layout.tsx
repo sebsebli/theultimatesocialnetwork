@@ -1,6 +1,8 @@
 import { Stack } from 'expo-router';
 import { COLORS } from '../../constants/theme';
 
+export const unstable_settings = { initialRouteName: 'languages' };
+
 export default function OnboardingLayout() {
   return (
     <Stack
@@ -10,8 +12,8 @@ export default function OnboardingLayout() {
         animation: 'slide_from_right',
       }}
     >
-      <Stack.Screen name="profile" />
       <Stack.Screen name="languages" />
+      <Stack.Screen name="profile" />
       <Stack.Screen name="starter-packs" />
     </Stack>
   );

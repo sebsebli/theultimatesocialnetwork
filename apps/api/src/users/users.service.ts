@@ -25,6 +25,19 @@ export class UsersService {
     @InjectRepository(Notification) private notifRepo: Repository<Notification>,
   ) {}
 
+  async isHandleAvailable(
+    handle: string,
+    excludeUserId?: string,
+  ): Promise<boolean> {
+    const normalized = (handle || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (normalized.length < 3 || normalized.length > 30) return false;
+    const existing = await this.userRepo.findOne({
+      where: { handle: normalized },
+    });
+    if (!existing) return true;
+    return !!excludeUserId && existing.id === excludeUserId;
+  }
+
   async findByHandle(handle: string) {
     const user = await this.userRepo.findOne({
       where: { handle },
@@ -85,8 +98,9 @@ export class UsersService {
     // Find posts that QUOTE posts authored by userId.
     // We join Post (quoter) -> PostEdge (QUOTE) -> Post (quoted)
     // Where quoted.authorId = userId
-    
-    return this.postRepo.createQueryBuilder('quoter')
+
+    return this.postRepo
+      .createQueryBuilder('quoter')
       .innerJoin(PostEdge, 'edge', 'edge.from_post_id = quoter.id')
       .innerJoin('posts', 'quoted', 'quoted.id = edge.to_post_id')
       .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
@@ -111,11 +125,15 @@ export class UsersService {
     const replies = await this.replyRepo.find({ where: { authorId: userId } });
     const likes = await this.likeRepo.find({ where: { userId } });
     const keeps = await this.keepRepo.find({ where: { userId } });
-    const following = await this.followRepo.find({ where: { followerId: userId } });
-    const followers = await this.followRepo.find({ where: { followeeId: userId } });
+    const following = await this.followRepo.find({
+      where: { followerId: userId },
+    });
+    const followers = await this.followRepo.find({
+      where: { followeeId: userId },
+    });
     const reads = await this.readRepo.find({ where: { userId } });
     const notifications = await this.notifRepo.find({ where: { userId } });
-    
+
     return {
       user,
       posts,

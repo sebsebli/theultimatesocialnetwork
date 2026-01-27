@@ -51,7 +51,9 @@ export default function HomeScreen() {
     }
     setError(false);
     try {
-      const data = await api.get(`/feed?page=${pageNum}&limit=20`);
+      const limit = 20;
+      const offset = (pageNum - 1) * limit;
+      const data = await api.get(`/feed?limit=${limit}&offset=${offset}`);
       // Handle feed items...
       const feedItems = Array.isArray(data.items || data) ? (data.items || data) : [];
       const processedPosts = feedItems.map((item: any) => {
@@ -61,8 +63,8 @@ export default function HomeScreen() {
             ...post,
             author: post.author || {
               id: post.authorId || '',
-              handle: 'unknown',
-              displayName: 'Unknown User'
+              handle: t('post.unknownUser', 'Unknown'),
+              displayName: t('post.unknownUser', 'Unknown')
             },
             _isSavedBy: true,
             _savedBy: item.data,
@@ -73,8 +75,8 @@ export default function HomeScreen() {
           ...post,
           author: post.author || {
             id: post.authorId || '',
-            handle: 'unknown',
-            displayName: 'Unknown User'
+            handle: t('post.unknownUser', 'Unknown'),
+            displayName: t('post.unknownUser', 'Unknown')
           },
         };
       });

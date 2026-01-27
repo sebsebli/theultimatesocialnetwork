@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, Inject, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Inject,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -22,16 +27,16 @@ export class AuthService {
     private configService: ConfigService,
   ) {}
 
-  async login(email: string, inviteCode?: string) {
+  async login(email: string, inviteCode?: string, lang: string = 'en') {
     // 1. Check Invite (Beta Logic)
     const user = await this.userRepo.findOne({ where: { email } });
     const isBeta = await this.invitesService.isBetaMode();
 
     if (!user && isBeta) {
-        if (!inviteCode) {
-            throw new BadRequestException('Invite code required for registration');
-        }
-        await this.invitesService.validateCode(inviteCode);
+      if (!inviteCode) {
+        throw new BadRequestException('Invite code required for registration');
+      }
+      await this.invitesService.validateCode(inviteCode);
     }
 
     // 2. Rate Limit (1 per minute)
@@ -44,42 +49,44 @@ export class AuthService {
     // 3. Generate 6-digit Token
     const token = randomInt(100000, 999999).toString();
     const key = `auth:${email}`;
-    
+
     // 4. Store Token + InviteCode (15 min expiration)
     const data = JSON.stringify({ token, inviteCode });
     await this.redis.set(key, data, 'EX', 900);
     await this.redis.set(rateKey, '1', 'EX', 60);
-    
-    // 5. Send Email
-    // Default to 'en' for now, ideally passed from controller
-    await this.emailService.sendSignInToken(email, token, 'en');
-    
+
+    // 5. Send Email (localized)
+    await this.emailService.sendSignInToken(email, token, lang);
+
     return { success: true, message: 'Verification code sent' };
   }
 
   async verifyToken(email: string, token: string) {
     const key = `auth:${email}`;
     const storedData = await this.redis.get(key);
-    
+
     if (!storedData) {
-       // Check for dev backdoor
-       if (token === '123456' && process.env.NODE_ENV !== 'production') {
-          const user = await this.validateOrCreateUser(email);
-          return this.generateTokens(user);
-       }
-       throw new UnauthorizedException('Code expired or not found');
+      // Check for dev backdoor
+      if (token === '123456' && process.env.NODE_ENV !== 'production') {
+        const user = await this.validateOrCreateUser(email);
+        return this.generateTokens(user);
+      }
+      throw new UnauthorizedException('Code expired or not found');
     }
 
     let inviteCode: string | undefined;
     let isValid = false;
 
     try {
-      const parsed = JSON.parse(storedData);
+      const parsed = JSON.parse(storedData) as {
+        token: string;
+        inviteCode?: string;
+      };
       if (parsed.token === token) {
         isValid = true;
         inviteCode = parsed.inviteCode;
       }
-    } catch (e) {
+    } catch {
       if (storedData === token) isValid = true;
     }
 
@@ -87,22 +94,25 @@ export class AuthService {
       throw new UnauthorizedException('Invalid verification code');
     }
 
-    // Clear used token immediately
-    await this.redis.del(key);
-
     const user = await this.validateOrCreateUser(email, inviteCode);
-    return this.generateTokens(user);
+    const tokens = this.generateTokens(user);
+    // Clear used token only after success so a later 500 doesn't burn the code
+    await this.redis.del(key);
+    return tokens;
   }
 
-  async validateOrCreateUser(email: string, inviteCode?: string): Promise<User> {
+  async validateOrCreateUser(
+    email: string,
+    inviteCode?: string,
+  ): Promise<User> {
     let user = await this.userRepo.findOne({ where: { email } });
-    
+
     // Check if new user
     if (!user) {
       // Re-check Beta Mode (race condition safety)
       const isBeta = await this.invitesService.isBetaMode();
       if (isBeta && !inviteCode) {
-          throw new BadRequestException('Registration requires invite code');
+        throw new BadRequestException('Registration requires invite code');
       }
 
       // Create new user
@@ -120,14 +130,14 @@ export class AuthService {
 
       // Consume invite code
       if (inviteCode) {
-          await this.invitesService.consumeCode(inviteCode, user.id);
+        await this.invitesService.consumeCode(inviteCode, user.id);
       }
     }
 
     return user;
   }
 
-  async generateTokens(user: User) {
+  generateTokens(user: User) {
     const payload = { sub: user.id, email: user.email };
     return {
       accessToken: this.jwtService.sign(payload),
@@ -136,7 +146,7 @@ export class AuthService {
         email: user.email,
         handle: user.handle,
         displayName: user.displayName,
-      }
+      },
     };
   }
 }

@@ -11,6 +11,7 @@ export const DeepDiveCard = ({ item, onPress }: { item: any; onPress: () => void
       {item.reasons && <WhyLabel reasons={item.reasons} />}
     </View>
     <Text style={styles.deepDiveDescription} numberOfLines={2}>
+      {/* Fallback to simple concatenation if t() fails or for simple cases, but ideally use translation */}
       Explore verified discussions and citations about {item.title?.toLowerCase()}.
     </Text>
     <View style={styles.viewTopicRow}>
@@ -54,13 +55,13 @@ export const QuoteCard = ({ item, onPress }: { item: any; onPress: () => void })
 
 const styles = StyleSheet.create({
   deepDiveCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.02)', // bg-white/[0.02]
+    backgroundColor: COLORS.hover, // bg-white/[0.02] -> hover
     borderRadius: SIZES.borderRadius,
     padding: SPACING.xl, // p-6
     marginHorizontal: SPACING.l,
     marginBottom: SPACING.l,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)', // border-white/5
+    borderColor: COLORS.divider, // border-white/5 -> divider
     gap: SPACING.m,
   },
   deepDiveHeader: {
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
     width: 56, // w-14
     height: 56, // h-14
     borderRadius: 28, // rounded-full
-    backgroundColor: 'rgba(110, 122, 138, 0.2)', // bg-primary/20
+    backgroundColor: COLORS.divider, // bg-primary/20 fallback
     alignItems: 'center',
     justifyContent: 'center',
   },

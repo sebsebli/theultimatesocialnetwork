@@ -62,7 +62,7 @@ export default function MessageThreadScreen() {
       // Remove optimistic message on failure
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setTextInput(optimisticMessage.body); // Restore text
-      alert('Failed to send message');
+      alert(t('messages.failedSend', 'Failed to send message'));
     }
   };
 
@@ -75,7 +75,7 @@ export default function MessageThreadScreen() {
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.goBack', 'Go back')}
           accessibilityRole="button"
         >
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />

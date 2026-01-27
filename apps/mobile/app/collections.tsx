@@ -61,7 +61,7 @@ export default function CollectionsScreen() {
         <Text style={styles.itemDescription}>{item.description}</Text>
       )}
       <Text style={styles.itemCount}>
-        {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+        {t('collections.itemCount', { count: item.itemCount })}
       </Text>
     </Pressable>
   ), [router]);

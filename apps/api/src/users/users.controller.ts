@@ -1,8 +1,19 @@
-import { Controller, Get, Patch, Delete, Body, Param, UseGuards, Inject } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Inject,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { Queue } from 'bullmq';
+import { User } from '../entities/user.entity';
 
 @Controller('users')
 export class UsersController {
@@ -15,16 +26,41 @@ export class UsersController {
   @UseGuards(AuthGuard('jwt'))
   async updateMe(
     @CurrentUser() user: { id: string },
-    @Body() updates: { displayName?: string; bio?: string; isProtected?: boolean; languages?: string[] },
+    @Body()
+    updates: {
+      displayName?: string;
+      handle?: string;
+      bio?: string;
+      isProtected?: boolean;
+      languages?: string[];
+    },
   ) {
     // Whitelist allowed fields to prevent arbitrary entity updates
-    const allowedUpdates = {
+    const allowedUpdates: Record<string, unknown> = {
       displayName: updates.displayName,
       bio: updates.bio,
       isProtected: updates.isProtected,
       languages: updates.languages,
     };
-    return this.usersService.update(user.id, allowedUpdates);
+    if (updates.handle !== undefined) {
+      allowedUpdates.handle = updates.handle
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '');
+    }
+    return this.usersService.update(user.id, allowedUpdates as Partial<User>);
+  }
+
+  @Get('handle/available')
+  async checkHandleAvailable(
+    @Query('handle') handle: string,
+    @CurrentUser() currentUser?: { id: string },
+  ) {
+    const available = await this.usersService.isHandleAvailable(
+      handle || '',
+      currentUser?.id,
+    );
+    return { available };
   }
 
   @Get('me')
@@ -45,12 +81,12 @@ export class UsersController {
     // In a real app, email should be in JWT or fetched from DB
     // Assuming user object has email or we fetch it.
     // The strategy returns { id: payload.sub, email: payload.email }
-    
-    await this.exportQueue.add('export-job', { 
-        userId: user.id, 
-        email: (user as any).email || 'user@example.com' // Fallback for dev if email missing in token
+
+    await this.exportQueue.add('export-job', {
+      userId: user.id,
+      email: user.email || 'user@example.com', // Fallback for dev if email missing in token
     });
-    
+
     return { message: 'Export started. You will receive an email shortly.' };
   }
 

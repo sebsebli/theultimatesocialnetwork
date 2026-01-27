@@ -24,7 +24,7 @@ export default function OnboardingLanguagesScreen() {
   const { t } = useTranslation();
   const { showError, showToast } = useToast();
   const insets = useSafeAreaInsets();
-  
+
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['en']);
   const [onlyMyLanguages, setOnlyMyLanguages] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -46,11 +46,10 @@ export default function OnboardingLanguagesScreen() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      await api.patch('/users/me/settings', {
+      await api.patch('/users/me', {
         languages: selectedLanguages,
-        filterByLanguage: onlyMyLanguages,
       });
-      router.push('/onboarding/starter-packs');
+      router.push('/onboarding/profile');
     } catch (error: any) {
       console.error('Failed to update languages', error);
       showError(t('onboarding.updateFailed'));
@@ -70,14 +69,14 @@ export default function OnboardingLanguagesScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.secondary} />
         </Pressable>
-        <Pressable onPress={() => router.push('/onboarding/starter-packs')} style={styles.skipButton}>
+        <Pressable onPress={() => router.push('/onboarding/profile')} style={styles.skipButton}>
           <Text style={styles.skipText}>{t('common.skip')}</Text>
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{t('onboarding.languagesTitle')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.languagesSubtitle')}</Text>
+        <Text style={styles.title}>{t('onboarding.languages.languagesTitle')}</Text>
+        <Text style={styles.subtitle}>{t('onboarding.languages.languagesSubtitle')}</Text>
 
         <View style={styles.grid}>
           {LANGUAGES.map((lang) => {
@@ -104,13 +103,13 @@ export default function OnboardingLanguagesScreen() {
           })}
         </View>
 
-        <Pressable 
+        <Pressable
           style={styles.toggleRow}
           onPress={() => setOnlyMyLanguages(!onlyMyLanguages)}
         >
           <View style={styles.toggleText}>
-            <Text style={styles.toggleLabel}>{t('onboarding.filterExplore')}</Text>
-            <Text style={styles.toggleDesc}>{t('onboarding.filterExploreDesc')}</Text>
+            <Text style={styles.toggleLabel}>{t('onboarding.languages.filterExplore')}</Text>
+            <Text style={styles.toggleDesc}>{t('onboarding.languages.filterExploreDesc')}</Text>
           </View>
           <View style={[styles.switch, onlyMyLanguages && styles.switchActive]}>
             <View style={[styles.thumb, onlyMyLanguages && styles.thumbActive]} />

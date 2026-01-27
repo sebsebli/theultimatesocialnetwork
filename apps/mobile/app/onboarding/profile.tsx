@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -7,6 +7,10 @@ import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const HANDLE_MIN = 3;
+const HANDLE_MAX = 30;
+const AVAILABILITY_DEBOUNCE_MS = 400;
 
 export default function OnboardingProfileScreen() {
   const router = useRouter();
@@ -19,10 +23,60 @@ export default function OnboardingProfileScreen() {
   const [bio, setBio] = useState('');
   const [isProtected, setIsProtected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const normalizedHandle = handle.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const handleLen = normalizedHandle.length;
+  const handleTooShort = handleLen > 0 && handleLen < HANDLE_MIN;
+  const handleTooLong = handleLen > HANDLE_MAX;
+
+  const checkAvailability = useCallback(async (h: string) => {
+    const norm = h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (norm.length < HANDLE_MIN || norm.length > HANDLE_MAX) {
+      setHandleStatus('invalid');
+      return;
+    }
+    setHandleStatus('checking');
+    try {
+      const res = await api.get<{ available: boolean }>(`/users/handle/available?handle=${encodeURIComponent(norm)}`);
+      setHandleStatus(res?.available ? 'available' : 'taken');
+    } catch {
+      setHandleStatus('idle');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (handleLen === 0) {
+      setHandleStatus('idle');
+      return;
+    }
+    if (handleTooShort || handleTooLong) {
+      setHandleStatus('invalid');
+      return;
+    }
+    debounceRef.current = setTimeout(() => checkAvailability(handle), AVAILABILITY_DEBOUNCE_MS);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [handle, handleLen, handleTooShort, handleTooLong, checkAvailability]);
 
   const handleSubmit = async () => {
     if (!displayName.trim() || !handle.trim()) {
       showError(t('onboarding.fieldsRequired'));
+      return;
+    }
+    if (handleTooShort || handleTooLong) {
+      showError(t('onboarding.profile.handleInvalid'));
+      return;
+    }
+    if (handleStatus === 'taken') {
+      showError(t('onboarding.profile.handleTaken'));
+      return;
+    }
+    if (handleStatus === 'checking' || handleStatus === 'invalid') {
+      showError(t('onboarding.profile.handleInvalid'));
       return;
     }
 
@@ -30,18 +84,20 @@ export default function OnboardingProfileScreen() {
     try {
       await api.patch('/users/me', {
         displayName: displayName.trim(),
-        handle: handle.trim().toLowerCase(),
+        handle: normalizedHandle,
         bio: bio.trim(),
         isProtected,
       });
-      router.push('/onboarding/languages');
+      router.push('/onboarding/starter-packs');
     } catch (error: any) {
       console.error('Failed to update profile', error);
-      showError(error?.message || t('onboarding.updateFailed'));
+      showError(error?.message || t('onboarding.profile.updateFailed'));
     } finally {
       setLoading(false);
     }
   };
+
+  const canSubmit = Boolean(displayName.trim() && normalizedHandle.length >= HANDLE_MIN && normalizedHandle.length <= HANDLE_MAX && handleStatus === 'available' && !loading);
 
   return (
     <KeyboardAvoidingView
@@ -60,12 +116,12 @@ export default function OnboardingProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{t('onboarding.createProfile')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.profileSubtitle')}</Text>
+        <Text style={styles.title}>{t('onboarding.profile.title')}</Text>
+        <Text style={styles.subtitle}>{t('onboarding.profile.subtitle')}</Text>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('profile.displayName')}</Text>
+            <Text style={styles.label}>{t('onboarding.profile.displayName')}</Text>
             <TextInput
               style={styles.input}
               value={displayName}
@@ -77,19 +133,58 @@ export default function OnboardingProfileScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('profile.handle')}</Text>
+            <Text style={styles.label}>{t('onboarding.profile.handle')}</Text>
             <View style={styles.inputWrapper}>
               <Text style={styles.inputPrefix}>@</Text>
               <TextInput
-                style={[styles.input, styles.inputWithPrefix]}
+                style={[
+                  styles.input,
+                  styles.inputWithPrefix,
+                  handleStatus === 'taken' && styles.inputError,
+                  handleStatus === 'available' && styles.inputSuccess,
+                ]}
                 value={handle}
                 onChangeText={(text: string) => setHandle(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                 placeholder="janedoe"
                 placeholderTextColor={COLORS.tertiary}
                 autoCapitalize="none"
                 autoCorrect={false}
+                maxLength={HANDLE_MAX}
               />
             </View>
+            <View style={styles.handleMeta}>
+              <Text style={[styles.handleHint, (handleTooShort || handleTooLong) && styles.handleHintError]}>
+                {handleLen === 0
+                  ? t('onboarding.profile.handleHint')
+                  : handleTooShort
+                    ? t('onboarding.profile.handleTooShort')
+                    : handleTooLong
+                      ? t('onboarding.profile.handleTooLong')
+                      : t('onboarding.profile.handleHint')}
+              </Text>
+              <Text style={styles.handleCount}>
+                {handleLen}/{HANDLE_MAX}
+              </Text>
+            </View>
+            {handleLen >= HANDLE_MIN && handleLen <= HANDLE_MAX && (
+              <View style={styles.availabilityRow}>
+                {handleStatus === 'checking' && (
+                  <ActivityIndicator size="small" color={COLORS.primary} style={styles.availabilitySpinner} />
+                )}
+                {handleStatus === 'available' && (
+                  <View style={styles.availabilityRow}>
+                    <MaterialIcons name="check-circle" size={16} color="#22c55e" style={styles.availabilityIcon} />
+                    <Text style={styles.availabilityAvailable}>{t('onboarding.profile.handleAvailable')}</Text>
+                  </View>
+                )}
+                {handleStatus === 'taken' && (
+                  <View style={styles.availabilityRow}>
+                    <MaterialIcons name="cancel" size={16} color={COLORS.error} style={styles.availabilityIcon} />
+                    <Text style={styles.availabilityTaken}>{t('onboarding.profile.handleTaken')}</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
 
           <View style={styles.inputGroup}>
@@ -137,9 +232,9 @@ export default function OnboardingProfileScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.l }]}>
         <Pressable
-          style={[styles.button, (!displayName.trim() || !handle.trim() || loading) && styles.buttonDisabled]}
+          style={[styles.button, (!canSubmit || loading) && styles.buttonDisabled]}
           onPress={handleSubmit}
-          disabled={!displayName.trim() || !handle.trim() || loading}
+          disabled={!canSubmit || loading}
         >
           <Text style={styles.buttonText}>
             {loading ? t('common.loading') : t('common.continue')}
@@ -240,6 +335,52 @@ const styles = StyleSheet.create({
   },
   inputWithPrefix: {
     paddingLeft: 32,
+  },
+  inputError: {
+    borderColor: COLORS.error,
+  },
+  inputSuccess: {
+    borderColor: '#22c55e',
+  },
+  handleMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  handleHint: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  handleHintError: {
+    color: COLORS.error,
+  },
+  handleCount: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  availabilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  availabilityIcon: {
+    marginRight: 6,
+  },
+  availabilitySpinner: {
+    marginRight: 4,
+  },
+  availabilityAvailable: {
+    fontSize: 13,
+    color: '#22c55e',
+    fontFamily: FONTS.medium,
+  },
+  availabilityTaken: {
+    fontSize: 13,
+    color: COLORS.error,
+    fontFamily: FONTS.medium,
   },
   textArea: {
     height: 100,

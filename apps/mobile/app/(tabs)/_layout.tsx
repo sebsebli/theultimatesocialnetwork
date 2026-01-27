@@ -8,7 +8,7 @@ import { useAuth } from '../../context/auth';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, onboardingComplete } = useAuth();
   const router = useRouter();
 
   if (isLoading) {
@@ -21,6 +21,10 @@ export default function TabLayout() {
 
   if (!isAuthenticated) {
     return <Redirect href="/welcome" />;
+  }
+
+  if (onboardingComplete !== true) {
+    return <Redirect href="/onboarding/languages" />;
   }
 
   return (

@@ -11,13 +11,13 @@ const getApiUrl = () => {
     }
     return envUrl;
   }
-  
+
   // Development defaults
   if (__DEV__) {
     if (Platform.OS === 'ios') return 'http://localhost:3000';
     if (Platform.OS === 'android') return 'http://10.0.2.2:3000';
   }
-  
+
   // Production fallback - should be set via environment variable
   // This will cause an error if not configured, which is intentional
   throw new Error('EXPO_PUBLIC_API_BASE_URL must be set in production');
@@ -25,6 +25,7 @@ const getApiUrl = () => {
 
 const API_URL = getApiUrl();
 const TOKEN_KEY = 'jwt';
+const ONBOARDING_KEY = 'onboarding_complete';
 
 export const setAuthToken = async (token: string) => {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -36,6 +37,15 @@ export const getAuthToken = async () => {
 
 export const clearAuthToken = async () => {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
+};
+
+export const getOnboardingComplete = async (): Promise<boolean> => {
+  const v = await SecureStore.getItemAsync(ONBOARDING_KEY);
+  return v === 'true';
+};
+
+export const setOnboardingComplete = async () => {
+  await SecureStore.setItemAsync(ONBOARDING_KEY, 'true');
 };
 
 class ApiError extends Error {
@@ -57,7 +67,7 @@ class ApiClient {
   async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     try {
       const token = await getAuthToken();
-      
+
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...(options.headers as Record<string, string>),
@@ -73,7 +83,7 @@ class ApiClient {
 
       // Check for network connectivity (basic check via fetch failure)
       // In a real app, use NetInfo
-      
+
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
@@ -101,7 +111,9 @@ class ApiClient {
         let errorMessage = `API Error: ${response.status}`;
         try {
           const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.message || errorMessage;
+          // API returns { success, error: { message } } – support both shapes
+          const m = errorJson.error?.message ?? errorJson.message;
+          errorMessage = Array.isArray(m) ? (m[0] ?? errorMessage) : (m || errorMessage);
         } catch (e) {
           // Keep text
         }
@@ -113,15 +125,15 @@ class ApiClient {
       return await response.json();
     } catch (error: any) {
       console.error(`API Request Failed: ${endpoint}`, error);
-      
+
       if (error.message === 'Auth check timeout') {
-         throw new ApiError('Connection timed out. Please check your internet connection.', 0);
+        throw new ApiError('Connection timed out. Please check your internet connection.', 0);
       }
 
       if (error.message === 'Network request failed' || error.message.includes('Network')) {
         throw new ApiError('Network error. Please check your internet connection.', 0);
       }
-      
+
       throw error;
     }
   }
@@ -159,7 +171,7 @@ class ApiClient {
     const formData = new FormData();
     const uriParts = file.uri.split('.');
     const fileType = uriParts[uriParts.length - 1];
-    
+
     formData.append('image', {
       uri: file.uri,
       name: file.fileName || `photo.${fileType}` || 'image.jpg',

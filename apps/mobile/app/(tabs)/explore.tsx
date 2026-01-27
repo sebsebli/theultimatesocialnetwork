@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, FlatList, Pressable, TextInput, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
@@ -27,6 +28,21 @@ export default function ExploreScreen() {
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  useEffect(() => {
+    if (params.tab) {
+      const tabName = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+      if (['topics', 'people', 'quoted', 'deep-dives', 'newsroom'].includes(tabName)) {
+        setActiveTab(tabName as any);
+      }
+    }
+    if (params.q) {
+      const query = Array.isArray(params.q) ? params.q[0] : params.q;
+      setSearchQuery(query);
+      // Trigger immediate search if query exists
+      // debouncedSearch(query); // Optimization: could trigger immediate load
+    }
+  }, [params.tab, params.q]);
 
   useEffect(() => {
     // Only load content if authenticated
@@ -78,8 +94,8 @@ export default function ExploreScreen() {
         ...item,
         author: item.author || {
           id: item.authorId || '',
-          handle: item.handle || 'unknown',
-          displayName: item.displayName || 'Unknown User'
+          handle: item.handle || t('post.unknownUser', 'Unknown'),
+          displayName: item.displayName || t('post.unknownUser', 'Unknown')
         },
       }));
 
@@ -158,7 +174,7 @@ export default function ExploreScreen() {
       {/* Title Row - Matching Home Screen */}
       <View style={styles.titleRow}>
         <MaterialCommunityIcons name="compass-outline" size={24} color={COLORS.paper} />
-        <Text style={styles.headerTitle}>{t('explore.title') || 'Discover'}</Text>
+        <Text style={styles.headerTitle}>{t('explore.title', 'Discover')}</Text>
       </View>
 
       {/* Search */}
@@ -206,7 +222,7 @@ export default function ExploreScreen() {
       <View style={styles.controls}>
         <Pressable
           style={styles.filterButton}
-          accessibilityLabel="Filter"
+          accessibilityLabel={t('explore.filter', 'Filter')}
           accessibilityRole="button"
         >
           <MaterialIcons name="tune" size={24} color={COLORS.tertiary} />

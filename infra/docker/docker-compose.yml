@@ -153,6 +153,8 @@ services:
       dockerfile: apps/api/Dockerfile
       target: production
     container_name: cite-api
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     environment:
@@ -170,7 +172,9 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: cite-images
       MINIO_PUBLIC_URL: http://localhost:9000
-      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-your-secret-key}
+      # Auth: use .env or default so API can start
+      JWT_SECRET: ${JWT_SECRET:-}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-your-secret-key-change-in-production}
       OLLAMA_HOST: http://ollama:11434
       NODE_ENV: ${NODE_ENV:-production}
       DB_SSL: "false"
@@ -183,6 +187,7 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-"Cite System" <noreply@cite.com>}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      CITE_ADMIN_SECRET: ${CITE_ADMIN_SECRET:-dev-admin-change-me}
     depends_on:
       db:
         condition: service_healthy

@@ -76,7 +76,7 @@ export default function IndexScreen() {
 
     // Check if terms are accepted (only for new signups, not for existing users)
     if (showInviteInput && !acceptedTerms) {
-      showError('Please accept the Terms of Service and Privacy Policy to continue');
+      showError(t('signIn.acceptTermsError', 'Please accept the Terms of Service and Privacy Policy to continue'));
       return;
     }
 
@@ -88,14 +88,14 @@ export default function IndexScreen() {
       });
       setSent(true);
       setCooldown(60);
-      showSuccess('Verification code sent to your email');
+      showSuccess(t('signIn.verificationSent', 'Verification code sent to your email'));
     } catch (error: any) {
       // Check for specific beta invite requirement
       if (error?.status === 400 && error.message === 'Invite code required for registration') {
         setShowInviteInput(true);
         Alert.alert(
-          'Invite Code Required',
-          'You are new here! Please enter your invite code to join the beta.'
+          t('signIn.inviteCodeRequiredTitle', 'Invite Code Required'),
+          t('signIn.inviteCodeRequiredMessage', 'You are new here! Please enter your invite code to join the beta.')
         );
         setLoading(false);
         return;
@@ -104,7 +104,7 @@ export default function IndexScreen() {
       // Check for rate limit
       if (error?.status === 400 && error.message === 'Please wait before sending another code') {
         setCooldown(60);
-        showToast('Please wait 60 seconds before requesting another code.');
+        showToast(t('signIn.waitBeforeRequest', { seconds: 60, defaultValue: 'Please wait 60 seconds before requesting another code.' }));
         setLoading(false);
         return;
       }
@@ -128,7 +128,7 @@ export default function IndexScreen() {
 
     setLoading(true);
     try {
-      const response = await api.post('/auth/mobile-verify', {
+      const response = await api.post('/auth/verify', {
         email: email.trim().toLowerCase(),
         token: token.trim()
       });
@@ -188,15 +188,15 @@ export default function IndexScreen() {
 
 
             {sent && (
-              <View style={styles.textContainer}>
-                <Text style={styles.title}>Check your email</Text>
-                <Text style={styles.subtitle}>Enter the code sent to {email}</Text>
+              <View style={[styles.textContainer, styles.checkEmailBlock]}>
+                <Text style={styles.checkEmailTitle}>{t('signIn.checkEmailTitle', 'Check your email')}</Text>
+                <Text style={styles.checkEmailSubtitle}>{t('signIn.enterCode', { email })}</Text>
               </View>
             )}
           </View>
 
           {/* Auth Form Section */}
-          <View style={styles.formSection}>
+          <View style={[styles.formSection, sent && styles.formSectionCode]}>
             {!sent ? (
               <>
                 <TextInput
@@ -213,7 +213,7 @@ export default function IndexScreen() {
                 {showInviteInput && (
                   <TextInput
                     style={styles.input}
-                    placeholder="Invite code (Required for sign up)"
+                    placeholder={t('signIn.inviteCodePlaceholder', 'Invite code (Required for sign up)')}
                     placeholderTextColor={COLORS.tertiary}
                     value={inviteCode}
                     onChangeText={(val: string) => setInviteCode(val.toUpperCase())}
@@ -323,12 +323,12 @@ export default function IndexScreen() {
                   disabled={cooldown > 0 || loading}
                 >
                   <Text style={styles.buttonTextSecondary}>
-                    {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                    {cooldown > 0 ? t('signIn.resendCodeIn', { seconds: cooldown, defaultValue: `Resend code in ${cooldown}s` }) : t('signIn.resendCode', 'Resend code')}
                   </Text>
                 </Pressable>
 
                 <Pressable onPress={() => { setSent(false); setToken(''); setCooldown(0); }}>
-                  <Text style={styles.resendLink}>Wrong email? Go back</Text>
+                  <Text style={styles.resendLink}>{t('signIn.wrongEmail', 'Wrong email? Go back')}</Text>
                 </Pressable>
               </>
             )}
@@ -415,6 +415,28 @@ const styles = StyleSheet.create({
   textContainer: {
     alignItems: 'center',
     gap: SPACING.s,
+    marginTop: SPACING.l,
+  },
+  checkEmailBlock: {
+    marginBottom: SPACING.xxl,
+  },
+  checkEmailTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  checkEmailSubtitle: {
+    fontSize: 16,
+    color: COLORS.secondary,
+    lineHeight: 24,
+    fontFamily: FONTS.regular,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  formSectionCode: {
     marginTop: SPACING.l,
   },
   title: {

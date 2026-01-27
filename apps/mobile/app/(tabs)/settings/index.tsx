@@ -36,11 +36,11 @@ export default function SettingsScreen() {
       const token = await getAuthToken();
       if (token) {
         await registerForPush(token);
-        Alert.alert(t('common.success'), 'Push notifications enabled');
+        Alert.alert(t('common.success'), t('settings.pushEnabled', 'Push notifications enabled'));
       }
     } catch (error) {
       console.error('Failed to enable push', error);
-      Alert.alert(t('common.error'), 'Failed to enable push notifications');
+      Alert.alert(t('common.error'), t('settings.pushEnableError', 'Failed to enable push notifications'));
     }
   };
 
@@ -100,12 +100,12 @@ export default function SettingsScreen() {
           <SettingItem
             icon="block"
             label={t('settings.blocked')}
-            onPress={() => { /* TODO */ }}
+            onPress={() => router.push('/settings/blocked')}
           />
           <SettingItem
             icon="volume-off"
             label={t('settings.muted')}
-            onPress={() => { /* TODO */ }}
+            onPress={() => router.push('/settings/muted')}
           />
         </View>
 
@@ -137,7 +137,7 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Text style={styles.version}>Version 1.0.0 (Build 100)</Text>
+        <Text style={styles.version}>{t('settings.version', { version: '1.0.0', build: '100', defaultValue: 'Version 1.0.0 (Build 100)' })}</Text>
       </ScrollView>
     </View>
   );

@@ -21,15 +21,28 @@ import Redis from 'ioredis';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '7d' },
-      }),
+      useFactory: (configService: ConfigService) => {
+        // ConfigService first (from .env when local), then process.env (e.g. Docker-injected)
+        const fromConfig =
+          configService.get<string>('JWT_SECRET') ??
+          configService.get<string>('SUPABASE_JWT_SECRET');
+        const fromEnv =
+          process.env.JWT_SECRET ?? process.env.SUPABASE_JWT_SECRET;
+        const secret = (fromConfig ?? fromEnv ?? '').trim();
+        const fallback = 'your-secret-key-change-in-production';
+        if (!secret) {
+          console.warn(
+            '[AuthModule] JWT_SECRET/SUPABASE_JWT_SECRET not set; using default. Set in .env or Docker env for production.',
+          );
+          return { secret: fallback, signOptions: { expiresIn: '7d' } };
+        }
+        return { secret, signOptions: { expiresIn: '7d' } };
+      },
     }),
   ],
   controllers: [AuthController],
   providers: [
-    AuthService, 
+    AuthService,
     JwtStrategy,
     {
       provide: 'REDIS_CLIENT',
@@ -41,7 +54,7 @@ import Redis from 'ioredis';
         return new Redis(redisUrl);
       },
       inject: [ConfigService],
-    }
+    },
   ],
   exports: [AuthService, PassportModule],
 })

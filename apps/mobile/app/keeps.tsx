@@ -152,7 +152,7 @@ export default function KeepsScreen() {
       <View style={styles.filters}>
         <TextInput
           style={styles.searchInput}
-          placeholder={t('keeps.searchPlaceholder')}
+          placeholder={t('keeps.searchPlaceholder', 'Search keeps...')}
           placeholderTextColor={COLORS.tertiary}
           value={search}
           onChangeText={setSearch}
@@ -241,7 +241,7 @@ export default function KeepsScreen() {
                 </Pressable>
               )}
               ListEmptyComponent={
-                <Text style={styles.emptyTextModal}>{t('collections.empty')}</Text>
+                <Text style={styles.emptyTextModal}>{t('collections.empty', 'No collections found.')}</Text>
               }
             />
           </View>

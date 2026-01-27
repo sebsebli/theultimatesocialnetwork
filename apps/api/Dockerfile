@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 COPY apps/api/package.json apps/api/package-lock.json* ./
 
 # Install dependencies (including dev for build)
-RUN npm ci --ignore-scripts --no-optional || npm install --ignore-scripts --no-optional
+RUN npm ci --legacy-peer-deps --ignore-scripts --no-optional || npm install --legacy-peer-deps --ignore-scripts --no-optional
 RUN npm rebuild sharp || true
 
 # Copy API source
@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y \
 COPY apps/api/package.json apps/api/package-lock.json* ./
 
 # Install dependencies including dev (needed for migrations/seeding)
-RUN npm ci --ignore-scripts --no-optional || npm install --ignore-scripts --no-optional
+RUN npm ci --legacy-peer-deps --ignore-scripts --no-optional || npm install --legacy-peer-deps --ignore-scripts --no-optional
 RUN npm rebuild sharp || true
 
 # Copy built application from builder

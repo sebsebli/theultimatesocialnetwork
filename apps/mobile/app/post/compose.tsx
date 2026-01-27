@@ -83,12 +83,12 @@ export default function ComposeScreen() {
     const trimmedBody = body.trim();
 
     if (!trimmedBody) {
-      showError(t('compose.bodyRequired') || 'Post body is required');
+      showError(t('compose.bodyRequired', 'Post body is required'));
       return;
     }
 
     if (trimmedBody.length < 3) {
-      showError(t('compose.bodyTooShort') || 'Post must be at least 3 characters');
+      showError(t('compose.bodyTooShort', 'Post must be at least 3 characters'));
       return;
     }
 
@@ -119,14 +119,14 @@ export default function ComposeScreen() {
           headerImageBlurhash: imageBlurhash,
         });
       }
-      showSuccess('Published successfully');
+      showSuccess(t('compose.publishedSuccess', 'Published successfully'));
       router.back();
     } catch (error: any) {
       console.error('Failed to publish', error);
       const errorMessage = error?.status === 400
-        ? t('compose.invalidContent') || 'Invalid post content'
+        ? t('compose.invalidContent', 'Invalid post content')
         : error?.status === 413
-          ? t('compose.tooLarge') || 'Post is too large'
+          ? t('compose.tooLarge', 'Post is too large')
           : t('compose.error');
       showError(errorMessage);
     } finally {
@@ -341,7 +341,7 @@ export default function ComposeScreen() {
       >
         <Pressable style={styles.modalOverlay} onPress={() => setLinkToTopicModalVisible(false)}>
           <View style={styles.linkToTopicModal}>
-            <Text style={styles.linkToTopicTitle}>LINK TO TOPIC</Text>
+            <Text style={styles.linkToTopicTitle}>{t('compose.linkToTopic', 'LINK TO TOPIC')}</Text>
             <FlatList
               data={topicSuggestions}
               keyExtractor={(item: any) => item.id || item.slug}
@@ -354,7 +354,7 @@ export default function ComposeScreen() {
                   <View style={styles.topicSuggestionContent}>
                     <Text style={styles.topicSuggestionTitle}>{item.title || item.slug}</Text>
                     {item.referenceCount !== undefined && (
-                      <Text style={styles.topicSuggestionRefs}>{item.referenceCount} references</Text>
+                      <Text style={styles.topicSuggestionRefs}>{t('compose.references', { count: item.referenceCount, defaultValue: `${item.referenceCount} references` })}</Text>
                     )}
                   </View>
                 </Pressable>

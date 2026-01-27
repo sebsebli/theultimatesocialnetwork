@@ -34,7 +34,7 @@ import * as Notifications from 'expo-notifications';
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 
 function AppContent({ onReady }: { onReady?: () => void }) {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, onboardingComplete } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   useOfflineSync(); // Sync offline actions when online
@@ -60,21 +60,25 @@ function AppContent({ onReady }: { onReady?: () => void }) {
     }
   }, [isLoading, segments, onReady]);
 
-  // Fallback: If segments are empty after 1 second and user is authenticated, navigate to tabs
-  // This handles the case where router isn't ready immediately
+  // Fallback: If segments are empty after 1s and user is authenticated, navigate by onboarding state
+  // So we always show onboarding (language etc.) when not complete, never jump straight to tabs
   useEffect(() => {
     if (!isLoading && isAuthenticated && !segments[0]) {
       const timeout = setTimeout(() => {
         if (!segments[0]) {
           if (__DEV__) {
-            console.log('Segments still empty, forcing navigation to tabs');
+            console.log('Segments still empty, forcing navigation');
           }
-          router.replace('/(tabs)/');
+          if (onboardingComplete === true) {
+            router.replace('/(tabs)/');
+          } else {
+            router.replace('/onboarding/languages');
+          }
         }
       }, 1000);
       return () => clearTimeout(timeout);
     }
-  }, [isLoading, isAuthenticated, segments, router]);
+  }, [isLoading, isAuthenticated, onboardingComplete, segments, router]);
 
   // Debug logging
   if (__DEV__) {
@@ -91,7 +95,7 @@ function AppContent({ onReady }: { onReady?: () => void }) {
   }
 
   return (
-    <Stack screenOptions={{ 
+    <Stack screenOptions={{
       headerShown: false,
       animation: 'slide_from_right', // Standard iOS-like transition
       presentation: 'card',
@@ -99,12 +103,13 @@ function AppContent({ onReady }: { onReady?: () => void }) {
     }}>
       <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
       <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
-      <Stack.Screen 
-        name="post/compose" 
-        options={{ 
+      <Stack.Screen name="onboarding" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen
+        name="post/compose"
+        options={{
           presentation: 'modal',
           animation: 'slide_from_bottom',
-        }} 
+        }}
       />
     </Stack>
   );

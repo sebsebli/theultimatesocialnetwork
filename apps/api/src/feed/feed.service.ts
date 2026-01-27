@@ -13,16 +13,25 @@ export class FeedService {
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
-    @InjectRepository(CollectionItem) private collectionItemRepo: Repository<CollectionItem>,
-    @InjectRepository(Collection) private collectionRepo: Repository<Collection>,
+    @InjectRepository(CollectionItem)
+    private collectionItemRepo: Repository<CollectionItem>,
+    @InjectRepository(Collection)
+    private collectionRepo: Repository<Collection>,
     @InjectRepository(User) private userRepo: Repository<User>,
   ) {}
 
-  async getHomeFeed(userId: string, limit = 20, offset = 0, includeSavedBy = false): Promise<FeedItem[]> {
+  async getHomeFeed(
+    userId: string,
+    limit = 20,
+    offset = 0,
+    includeSavedBy = false,
+  ): Promise<FeedItem[]> {
     // Basic chronological feed: Posts from people I follow
-    const follows = await this.followRepo.find({ where: { followerId: userId } });
-    const followingIds = follows.map(f => f.followeeId);
-    
+    const follows = await this.followRepo.find({
+      where: { followerId: userId },
+    });
+    const followingIds = follows.map((f) => f.followeeId);
+
     // Always include self
     followingIds.push(userId);
 
@@ -36,19 +45,24 @@ export class FeedService {
       .where('post.deleted_at IS NULL')
       .andWhere(
         new Brackets((qb) => {
-          qb.where('post.author_id = :userId', { userId })
-            .orWhere(
-              'post.author_id IN (:...followingIds) AND post.visibility = :public',
-              { followingIds: followingIds.length > 0 ? followingIds : ['00000000-0000-0000-0000-000000000000'], public: 'PUBLIC' }
-            );
-        })
+          qb.where('post.author_id = :userId', { userId }).orWhere(
+            'post.author_id IN (:...followingIds) AND post.visibility = :visVal',
+            {
+              followingIds:
+                followingIds.length > 0
+                  ? followingIds
+                  : ['00000000-0000-0000-0000-000000000000'],
+              visVal: 'PUBLIC',
+            },
+          );
+        }),
       )
       .orderBy('post.created_at', 'DESC')
       .skip(offset)
       .take(limit)
       .getMany();
 
-    const feedItems: FeedItem[] = posts.map(post => ({
+    const feedItems: FeedItem[] = posts.map((post) => ({
       type: 'post',
       data: post,
     }));
@@ -65,7 +79,9 @@ export class FeedService {
         .where('collection.owner_id IN (:...ids)', { ids: followingIds })
         .andWhere('collection.is_public = true')
         .andWhere('collection.share_saves = true') // Respect privacy
-        .andWhere('item.added_at >= :since', { since: new Date(Date.now() - 24 * 60 * 60 * 1000) })
+        .andWhere('item.added_at >= :since', {
+          since: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        })
         .orderBy('item.added_at', 'DESC')
         .limit(10)
         .getMany();
@@ -76,7 +92,9 @@ export class FeedService {
             type: 'saved_by',
             data: {
               userId: save.collection.owner.id,
-              userName: save.collection.owner.displayName || save.collection.owner.handle,
+              userName:
+                save.collection.owner.displayName ||
+                save.collection.owner.handle,
               collectionId: save.collection.id,
               collectionName: save.collection.title,
               post: save.post,
@@ -90,21 +108,24 @@ export class FeedService {
     feedItems.sort((a, b) => {
       let aTime: Date;
       let bTime: Date;
-      
+
+      // Define a type for the saved item structure
+      type SavedItemData = { post?: { createdAt: Date } };
+
       if (a.type === 'post') {
         aTime = (a.data as Post).createdAt || new Date(0);
       } else {
-        const savedData = a.data as any;
+        const savedData = a.data as SavedItemData;
         aTime = savedData.post?.createdAt || new Date(0);
       }
-      
+
       if (b.type === 'post') {
         bTime = (b.data as Post).createdAt || new Date(0);
       } else {
-        const savedData = b.data as any;
+        const savedData = b.data as SavedItemData;
         bTime = savedData.post?.createdAt || new Date(0);
       }
-      
+
       return bTime.getTime() - aTime.getTime();
     });
 

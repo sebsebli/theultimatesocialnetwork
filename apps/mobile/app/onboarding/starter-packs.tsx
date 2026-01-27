@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/auth';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,8 +19,9 @@ interface User {
 export default function OnboardingStarterPacksScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { completeOnboarding } = useAuth();
   const insets = useSafeAreaInsets();
-  
+
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
@@ -59,12 +61,9 @@ export default function OnboardingStarterPacksScreen() {
     }
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     setFinishing(true);
-    // Any finalization logic here? e.g. mark onboarding as done
-    setTimeout(() => {
-      router.replace('/(tabs)/');
-    }, 500);
+    await completeOnboarding();
   };
 
   return (
@@ -84,8 +83,8 @@ export default function OnboardingStarterPacksScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{t('onboarding.starterPackTitle')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.starterPackSubtitle')}</Text>
+        <Text style={styles.title}>{t('onboarding.starterPacks.starterPackTitle')}</Text>
+        <Text style={styles.subtitle}>{t('onboarding.starterPacks.starterPackSubtitle')}</Text>
 
         {loading ? (
           <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 40 }} />

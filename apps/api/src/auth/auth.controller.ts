@@ -12,7 +12,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.email, dto.inviteCode);
+    return this.authService.login(dto.email, dto.inviteCode, dto.lang ?? 'en');
   }
 
   @Post('verify')
@@ -23,7 +23,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout() {
+  logout() {
     // Statistically stateless JWT logout, but provided for standard API compatibility
     // and potential future blacklisting or session management.
     return { success: true };
