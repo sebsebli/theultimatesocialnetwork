@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 interface AuthContextType {
-  user: any | null;
+  user: Record<string, unknown> | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
@@ -15,8 +21,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   isAuthenticated: false,
-  signOut: async () => { },
-  refreshUser: async () => { },
+  signOut: async () => {},
+  refreshUser: async () => {},
 });
 
 export function useAuth() {
@@ -24,14 +30,14 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
 
   const refreshUser = async () => {
     try {
-      const res = await fetch('/api/me');
+      const res = await fetch("/api/me");
       if (res.ok) {
         const userData = await res.json();
         setUser(userData);
@@ -39,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       }
     } catch (error) {
-      console.error('Failed to fetch user', error);
+      console.error("Failed to fetch user", error);
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -52,12 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch("/api/auth/logout", { method: "POST" });
     } catch (error) {
-      console.error('Failed to sign out', error);
+      console.error("Failed to sign out", error);
     } finally {
       setUser(null);
-      router.push('/');
+      router.push("/");
     }
   };
 
@@ -67,18 +73,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
 
-    const publicRoutes = ['/', '/welcome', '/sign-in', '/verify', '/privacy', '/terms', '/imprint', '/ai-transparency', '/roadmap', '/manifesto', '/waiting-list'];
-    const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/verify');
+    const publicRoutes = [
+      "/",
+      "/welcome",
+      "/sign-in",
+      "/verify",
+      "/privacy",
+      "/terms",
+      "/imprint",
+      "/ai-transparency",
+      "/roadmap",
+      "/manifesto",
+      "/waiting-list",
+    ];
+    const isPublicRoute =
+      publicRoutes.includes(pathname) ||
+      pathname.startsWith("/verify") ||
+      pathname.startsWith("/waiting-list");
 
     if (!isAuthenticated && !isPublicRoute) {
-      router.replace('/');
-    } else if (isAuthenticated && (pathname === '/' || pathname === '/welcome' || pathname === '/sign-in')) {
-      router.replace('/home');
+      router.replace("/");
+    } else if (
+      isAuthenticated &&
+      (pathname === "/" || pathname === "/welcome" || pathname === "/sign-in")
+    ) {
+      router.replace("/home");
     }
   }, [isAuthenticated, isLoading, pathname, router]);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated, signOut, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, isAuthenticated, signOut, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

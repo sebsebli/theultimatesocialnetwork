@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Like } from '../entities/like.entity';
 import { Keep } from '../entities/keep.entity';
 import { Post } from '../entities/post.entity';
+import { NotificationType } from '../entities/notification.entity';
 import { PostRead } from '../entities/post-read.entity';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 import Redis from 'ioredis';
@@ -16,11 +17,16 @@ export class InteractionsService {
     @InjectRepository(Keep) private keepRepo: Repository<Keep>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(PostRead) private readRepo: Repository<PostRead>,
+    private dataSource: DataSource,
     private notificationHelper: NotificationHelperService,
     @Inject('REDIS_CLIENT') private redis: Redis,
   ) {}
 
-  async recordReadDuration(userId: string, postId: string, durationSeconds: number) {
+  async recordReadDuration(
+    userId: string,
+    postId: string,
+    durationSeconds: number,
+  ) {
     if (!userId || durationSeconds <= 0) return;
 
     // Use query builder for atomic upsert
@@ -36,10 +42,10 @@ export class InteractionsService {
       })
       .orUpdate(['duration_seconds', 'last_read_at'], ['user_id', 'post_id'])
       .setParameters({ durationSeconds })
-      // This part is tricky with QueryBuilder inserts, 
+      // This part is tricky with QueryBuilder inserts,
       // let's use a simpler standard approach if orUpdate syntax varies by DB
       .execute();
-      
+
     // Actually, for duration accumulation:
     await this.dataSource.query(
       `INSERT INTO post_reads (user_id, post_id, duration_seconds, last_read_at) 
@@ -48,7 +54,7 @@ export class InteractionsService {
        DO UPDATE SET 
          duration_seconds = post_reads.duration_seconds + EXCLUDED.duration_seconds,
          last_read_at = EXCLUDED.last_read_at`,
-      [userId, postId, durationSeconds]
+      [userId, postId, durationSeconds],
     );
   }
 
@@ -70,7 +76,11 @@ export class InteractionsService {
       const views = await this.redis.get(key);
       if (views && parseInt(views) > 0) {
         // Atomic increment in DB
-        await this.postRepo.increment({ id: postId }, 'viewCount', parseInt(views));
+        await this.postRepo.increment(
+          { id: postId },
+          'viewCount',
+          parseInt(views),
+        );
         // Decrease Redis count or delete
         await this.redis.del(key);
       }
@@ -80,7 +90,7 @@ export class InteractionsService {
   }
 
   async toggleLike(userId: string, postId: string) {
-    const post = await this.postRepo.findOne({ 
+    const post = await this.postRepo.findOne({
       where: { id: postId },
       withDeleted: false, // Exclude soft-deleted posts
     });
@@ -94,23 +104,23 @@ export class InteractionsService {
     } else {
       await this.likeRepo.save({ userId, postId });
       await this.postRepo.increment({ id: postId }, 'privateLikeCount', 1);
-      
+
       // Notify post author (private notification)
       if (post.authorId !== userId) {
         await this.notificationHelper.createNotification({
           userId: post.authorId,
-          type: 'LIKE' as any,
+          type: NotificationType.LIKE,
           actorUserId: userId,
           postId: postId,
         });
       }
-      
+
       return { liked: true };
     }
   }
 
   async toggleKeep(userId: string, postId: string) {
-    const post = await this.postRepo.findOne({ 
+    const post = await this.postRepo.findOne({
       where: { id: postId },
       withDeleted: false, // Exclude soft-deleted posts
     });

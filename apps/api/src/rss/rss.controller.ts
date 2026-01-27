@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { RssService } from './rss.service';
 
 @Controller('rss')

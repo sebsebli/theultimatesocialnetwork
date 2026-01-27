@@ -15,5 +15,13 @@ infra/docker/volumes/
 # Docker environment files with secrets
 infra/docker/.env
 
+# Docker diagnostic output
+infra/docker/docker-logs.txt
+
 # Documentation files that may contain secrets
 SMTP_SETUP.md
+
+# Build outputs (do not commit)
+dist
+.next
+out

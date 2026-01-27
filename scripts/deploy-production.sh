@@ -72,13 +72,13 @@ fi
 
 # Step 4: Run database migrations
 echo -e "${BLUE}🗄️  Running database migrations...${NC}"
-docker compose exec -T api pnpm migration:run || {
+docker compose exec -T api npm run migration:run || {
     echo -e "${YELLOW}⚠ Migration failed or no migrations to run (this is OK if no migrations exist)${NC}"
 }
 
 # Step 5: Seed comprehensive test data
 echo -e "${BLUE}🌱 Seeding comprehensive test data...${NC}"
-docker compose exec -T api pnpm seed:comprehensive || {
+docker compose exec -T api npm run seed:comprehensive || {
     echo -e "${RED}✗ Seeding failed${NC}"
     docker compose logs api --tail 50
     exit 1

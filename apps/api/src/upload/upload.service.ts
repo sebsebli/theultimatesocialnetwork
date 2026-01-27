@@ -1,10 +1,22 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as MinIO from 'minio';
-import sharp from 'sharp';
+import sharp, { type ResizeOptions } from 'sharp';
 import { encode } from 'blurhash';
 import { v4 as uuidv4 } from 'uuid';
 import { SafetyService } from '../safety/safety.service';
+
+export interface UploadedImageFile {
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
+
+interface ResizeSpec {
+  width: number;
+  height: number | null;
+  fit: 'inside' | 'cover';
+}
 
 @Injectable()
 export class UploadService {
@@ -25,19 +37,35 @@ export class UploadService {
     this.bucketName = this.configService.get('MINIO_BUCKET') || 'cite-images';
   }
 
-  async uploadHeaderImage(file: any): Promise<{ key: string; blurhash: string }> {
-    return this.processAndUpload(file, { width: 1600, height: null, fit: 'inside' }, true);
+  async uploadHeaderImage(
+    file: UploadedImageFile,
+  ): Promise<{ key: string; blurhash?: string }> {
+    return this.processAndUpload(
+      file,
+      { width: 1600, height: null, fit: 'inside' },
+      true,
+    );
   }
 
-  async uploadProfilePicture(file: any): Promise<string> {
-    const result = await this.processAndUpload(file, { width: 400, height: 400, fit: 'cover' }, false);
+  async uploadProfilePicture(file: UploadedImageFile): Promise<string> {
+    const result = await this.processAndUpload(
+      file,
+      { width: 400, height: 400, fit: 'cover' },
+      false,
+    );
     return result.key;
   }
 
-  private async processAndUpload(file: any, resizeOptions: any, generateBlurhash: boolean): Promise<{ key: string; blurhash?: string }> {
+  private async processAndUpload(
+    file: UploadedImageFile,
+    resizeOptions: ResizeSpec,
+    generateBlurhash: boolean,
+  ): Promise<{ key: string; blurhash?: string }> {
     // Validate file type
     if (!file.mimetype.match(/^image\/(jpeg|jpg|webp|png)$/)) {
-      throw new BadRequestException('Only JPG, WEBP, and PNG images are allowed');
+      throw new BadRequestException(
+        'Only JPG, WEBP, and PNG images are allowed',
+      );
     }
 
     // Validate file size (10MB max)
@@ -48,11 +76,13 @@ export class UploadService {
     // AI Safety Check
     const safety = await this.safetyService.checkImage(file.buffer);
     if (!safety.safe) {
-      throw new BadRequestException(safety.reason || 'Image failed safety check');
+      throw new BadRequestException(
+        safety.reason || 'Image failed safety check',
+      );
     }
 
     const image = sharp(file.buffer);
-    
+
     // Generate Blurhash if requested
     let blurhashStr: string | undefined;
     if (generateBlurhash) {
@@ -62,16 +92,25 @@ export class UploadService {
         .ensureAlpha()
         .resize(32, 32, { fit: 'inside' })
         .toBuffer({ resolveWithObject: true });
-      
-      blurhashStr = encode(new Uint8ClampedArray(data), info.width, info.height, 4, 4);
+
+      blurhashStr = encode(
+        new Uint8ClampedArray(data),
+        info.width,
+        info.height,
+        4,
+        4,
+      );
     }
 
     // Process image: compress, strip EXIF, resize
+    const sharpResize: ResizeOptions = {
+      width: resizeOptions.width,
+      height: resizeOptions.height ?? undefined,
+      withoutEnlargement: true,
+      fit: resizeOptions.fit,
+    };
     const processedImage = await image
-      .resize(resizeOptions.width, resizeOptions.height, {
-        withoutEnlargement: true,
-        fit: resizeOptions.fit,
-      })
+      .resize(sharpResize)
       .webp({ quality: 85 })
       .toBuffer();
 
@@ -79,17 +118,27 @@ export class UploadService {
     const key = `uploads/${uuidv4()}.webp`;
 
     // Upload to MinIO
-    await this.minioClient.putObject(this.bucketName, key, processedImage, processedImage.length, {
-      'Content-Type': 'image/webp',
-    });
+    await this.minioClient.putObject(
+      this.bucketName,
+      key,
+      processedImage,
+      processedImage.length,
+      {
+        'Content-Type': 'image/webp',
+      },
+    );
 
     return { key, blurhash: blurhashStr };
   }
 
-  async getImageUrl(key: string): Promise<string> {
-    const publicUrl = this.configService.get('MINIO_PUBLIC_URL') || 'http://localhost:9000';
+  getImageUrl(key: string): string {
+    const publicUrl =
+      this.configService.get<string>('MINIO_PUBLIC_URL') ??
+      'http://localhost:9000';
     // Remove trailing slash if present
-    const baseUrl = publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl;
+    const baseUrl = publicUrl.endsWith('/')
+      ? publicUrl.slice(0, -1)
+      : publicUrl;
     return `${baseUrl}/${this.bucketName}/${key}`;
   }
 }

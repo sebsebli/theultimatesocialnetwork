@@ -73,7 +73,7 @@ echo ""
 
 # Step 5: Run migrations
 echo "🗄️  Step 5: Running database migrations..."
-if docker compose -f infra/docker/docker-compose.yml exec -T api pnpm migration:run 2>/dev/null; then
+if docker compose -f infra/docker/docker-compose.yml exec -T api npm run migration:run 2>/dev/null; then
     echo -e "${GREEN}✅ Migrations completed${NC}"
 else
     echo -e "${YELLOW}⚠️  Migrations may have failed or no migrations to run${NC}"

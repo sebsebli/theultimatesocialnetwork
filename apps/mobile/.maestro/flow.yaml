@@ -1,0 +1,19 @@
+appId: com.cite.mobile
+---
+- launchApp
+
+# Onboarding Flow
+- assertVisible: "CITE"
+- tapOn: "Get Started"
+- assertVisible: "Sign in"
+
+# Check Tab Navigation (assuming user logs in or we mock it)
+# For this smoke test, we verify the landing state
+- assertVisible: "Terms"
+- assertVisible: "Privacy"
+
+# Verify Navigation to Waiting List
+- tapOn: "Need an invite? Join the waitlist"
+- assertVisible: "Join Waiting List"
+- tapOn: "Go back"
+- assertVisible: "Sign in"

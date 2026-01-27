@@ -6,8 +6,7 @@ import { Reply } from '../entities/reply.entity';
 import { Post } from '../entities/post.entity';
 import { Mention } from '../entities/mention.entity';
 import { User } from '../entities/user.entity';
-import { LanguageDetectionService } from '../shared/language-detection.service';
-import { NotificationHelperService } from '../shared/notification-helper.service';
+import { SharedModule } from '../shared/shared.module';
 import { DatabaseModule } from '../database/database.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SafetyModule } from '../safety/safety.module';
@@ -18,9 +17,10 @@ import { SafetyModule } from '../safety/safety.module';
     DatabaseModule,
     NotificationsModule,
     SafetyModule,
+    SharedModule,
   ],
   controllers: [RepliesController],
-  providers: [RepliesService, LanguageDetectionService],
+  providers: [RepliesService],
   exports: [RepliesService],
 })
 export class RepliesModule {}

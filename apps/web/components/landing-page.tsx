@@ -1,24 +1,42 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { translations, Language } from './landing-translations';
+import Link from "next/link";
+import { translations, Language } from "./landing-translations";
 
 export function LandingPage() {
-  const lang: Language = 'en';
+  const lang: Language = "en";
   const t = translations[lang];
 
   return (
     <div className="min-h-screen bg-[#0B0B0C] text-[#F2F2F2] font-sans selection:bg-[#6E7A8A]/30">
-
       {/* Navigation */}
       <nav className="fixed top-0 inset-x-0 z-50 flex justify-between items-center px-6 py-6 md:px-12 bg-[#0B0B0C]/90 backdrop-blur-md border-b border-[#1A1A1D]">
         <div className="flex items-center gap-2">
-          <span className="text-xl font-serif font-normal tracking-tight text-[#F2F2F2]">cite</span>
+          <span className="text-xl font-serif font-normal tracking-tight text-[#F2F2F2]">
+            cite
+          </span>
         </div>
 
         <div className="flex items-center gap-6 md:gap-8 text-sm font-medium">
-          <Link href="/manifesto" className="hidden lg:block text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors">{t.nav.manifesto}</Link>
-          <Link href="/sign-in" className="hidden sm:block text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors">{t.nav.login}</Link>
+          <Link
+            href="/manifesto"
+            className="hidden lg:block text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors"
+          >
+            {t.nav.manifesto}
+          </Link>
+          <Link
+            href="/waiting-list"
+            className="hidden md:block text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors"
+          >
+            {(t.nav as { waitingList?: string }).waitingList ??
+              "Join waiting list"}
+          </Link>
+          <Link
+            href="/sign-in"
+            className="hidden sm:block text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors"
+          >
+            {t.nav.login}
+          </Link>
           <Link
             href="/sign-in"
             className="text-[#F2F2F2] hover:text-white transition-colors decoration-1 underline underline-offset-4 decoration-[#6E7A8A]"
@@ -29,7 +47,6 @@ export function LandingPage() {
       </nav>
 
       <main className="pt-32 md:pt-40 pb-20">
-
         {/* Hero Section */}
         <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32 md:mb-48">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
@@ -69,8 +86,12 @@ export function LandingPage() {
         <section className="px-6 md:px-12 max-w-[1000px] mx-auto mb-32 border-t border-[#1A1A1D] pt-24">
           <div className="grid md:grid-cols-12 gap-12">
             <div className="md:col-span-4">
-              <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-4">{t.problem.label}</h2>
-              <h3 className="text-3xl font-serif font-normal text-[#F2F2F2]">{t.problem.title}</h3>
+              <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-4">
+                {t.problem.label}
+              </h2>
+              <h3 className="text-3xl font-serif font-normal text-[#F2F2F2]">
+                {t.problem.title}
+              </h3>
             </div>
             <div className="md:col-span-8 space-y-6 text-lg text-[#A8A8AA] font-light leading-relaxed">
               <p>{t.problem.text_1}</p>
@@ -81,37 +102,60 @@ export function LandingPage() {
 
         {/* How It Works & Key Features Unified Grid */}
         <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32">
-          <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-12 border-b border-[#1A1A1D] pb-4">{t.mechanics.label}</h2>
+          <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-12 border-b border-[#1A1A1D] pb-4">
+            {t.mechanics.label}
+          </h2>
 
           <div className="grid md:grid-cols-3 gap-8">
-
             {/* 1. Inline Citations */}
             <div className="group flex flex-col h-full bg-[#0F0F10] border border-[#1A1A1D] rounded-lg overflow-hidden hover:border-[#333] transition-colors">
               <div className="h-48 bg-[#0B0B0C] border-b border-[#1A1A1D] relative overflow-hidden p-6 flex flex-col justify-center">
                 <div className="text-[#A8A8AA] font-serif text-lg leading-relaxed">
-                  The history of <span className="text-[#F2F2F2] bg-[#6E7A8A]/20 px-1 rounded cursor-pointer border-b border-[#6E7A8A]/50">[[Internet Sovereignty]]</span> suggests...
+                  The history of{" "}
+                  <span className="text-[#F2F2F2] bg-[#6E7A8A]/20 px-1 rounded cursor-pointer border-b border-[#6E7A8A]/50">
+                    [[Internet Sovereignty]]
+                  </span>{" "}
+                  suggests...
                 </div>
-                <div className="absolute bottom-4 right-4 bg-[#1A1A1D] px-2 py-1 rounded text-[10px] font-mono text-[#6E6E73] border border-[#333]">LINKED</div>
+                <div className="absolute bottom-4 right-4 bg-[#1A1A1D] px-2 py-1 rounded text-[10px] font-mono text-[#6E6E73] border border-[#333]">
+                  LINKED
+                </div>
               </div>
               <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">{t.mechanics.card_1_title}</h3>
-                <p className="text-[#A8A8AA] text-sm leading-relaxed">{t.mechanics.card_1_text}</p>
+                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">
+                  {t.mechanics.card_1_title}
+                </h3>
+                <p className="text-[#A8A8AA] text-sm leading-relaxed">
+                  {t.mechanics.card_1_text}
+                </p>
               </div>
             </div>
 
             {/* 2. Reputation Graph */}
             <div className="group flex flex-col h-full bg-[#0F0F10] border border-[#1A1A1D] rounded-lg overflow-hidden hover:border-[#333] transition-colors">
               <div className="h-48 bg-[#0B0B0C] border-b border-[#1A1A1D] relative overflow-hidden flex flex-col items-center justify-center gap-3">
-                <div className="flex gap-2 items-center opacity-40"><div className="w-1.5 h-1.5 rounded-full bg-[#333]"></div><div className="h-1.5 w-24 bg-[#1A1A1D] rounded"></div></div>
+                <div className="flex gap-2 items-center opacity-40">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#333]"></div>
+                  <div className="h-1.5 w-24 bg-[#1A1A1D] rounded"></div>
+                </div>
                 <div className="p-2 border border-[#333] bg-[#0F0F10] rounded shadow-lg flex items-center gap-3 w-48">
                   <div className="w-2 h-2 bg-[#F2F2F2] rounded-full"></div>
-                  <div className="flex-1 text-[10px] text-[#A8A8AA] font-mono">CITED BY 12 SOURCES</div>
+                  <div className="flex-1 text-[10px] text-[#A8A8AA] font-mono">
+                    CITED BY 12 SOURCES
+                  </div>
                 </div>
-                <div className="flex gap-2 items-center opacity-40"><div className="w-1.5 h-1.5 rounded-full bg-[#333]"></div><div className="h-1.5 w-32 bg-[#1A1A1D] rounded"></div></div>
+                <div className="flex gap-2 items-center opacity-40">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#333]"></div>
+                  <div className="h-1.5 w-32 bg-[#1A1A1D] rounded"></div>
+                </div>
               </div>
               <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">{t.mechanics.card_2_title}</h3>
-                <p className="text-[#A8A8AA] text-sm leading-relaxed">{t.mechanics.card_2_text}</p>
+                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">
+                  {t.mechanics.card_2_title}
+                </h3>
+                <p className="text-[#A8A8AA] text-sm leading-relaxed">
+                  {t.mechanics.card_2_text}
+                </p>
               </div>
             </div>
 
@@ -119,15 +163,23 @@ export function LandingPage() {
             <div className="group flex flex-col h-full bg-[#0F0F10] border border-[#1A1A1D] rounded-lg overflow-hidden hover:border-[#333] transition-colors">
               <div className="h-48 bg-[#0B0B0C] border-b border-[#1A1A1D] relative overflow-hidden flex flex-col items-center justify-center">
                 <div className="text-3xl font-serif text-[#333] mb-1">245</div>
-                <div className="text-[10px] font-mono uppercase tracking-widest text-[#6E6E73] mb-3">Private Likes</div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-[#6E6E73] mb-3">
+                  Private Likes
+                </div>
                 <div className="flex items-center gap-2 px-3 py-1 bg-[#1A1A1D] rounded-full border border-[#333]">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                  <span className="text-[10px] text-[#A8A8AA]">Visible only to you</span>
+                  <span className="text-[10px] text-[#A8A8AA]">
+                    Visible only to you
+                  </span>
                 </div>
               </div>
               <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">{t.mechanics.card_3_title}</h3>
-                <p className="text-[#A8A8AA] text-sm leading-relaxed">{t.mechanics.card_3_text}</p>
+                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">
+                  {t.mechanics.card_3_title}
+                </h3>
+                <p className="text-[#A8A8AA] text-sm leading-relaxed">
+                  {t.mechanics.card_3_text}
+                </p>
               </div>
             </div>
 
@@ -140,22 +192,32 @@ export function LandingPage() {
                     <span>STATUS</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[#A8A8AA] text-xs truncate w-24">nytimes.com/...</span>
+                    <span className="text-[#A8A8AA] text-xs truncate w-24">
+                      nytimes.com/...
+                    </span>
                     <span className="text-emerald-500 text-[10px] flex items-center gap-1">
-                      <span className="w-1 h-1 bg-emerald-500 rounded-full"></span> SAVED
+                      <span className="w-1 h-1 bg-emerald-500 rounded-full"></span>{" "}
+                      SAVED
                     </span>
                   </div>
                   <div className="flex items-center justify-between opacity-50">
-                    <span className="text-[#A8A8AA] text-xs truncate w-24">substack.com/...</span>
+                    <span className="text-[#A8A8AA] text-xs truncate w-24">
+                      substack.com/...
+                    </span>
                     <span className="text-emerald-500 text-[10px] flex items-center gap-1">
-                      <span className="w-1 h-1 bg-emerald-500 rounded-full"></span> SAVED
+                      <span className="w-1 h-1 bg-emerald-500 rounded-full"></span>{" "}
+                      SAVED
                     </span>
                   </div>
                 </div>
               </div>
               <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">{t.archiving.title}</h3>
-                <p className="text-[#A8A8AA] text-sm leading-relaxed">{t.archiving.text}</p>
+                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">
+                  {t.archiving.title}
+                </h3>
+                <p className="text-[#A8A8AA] text-sm leading-relaxed">
+                  {t.archiving.text}
+                </p>
               </div>
             </div>
 
@@ -178,11 +240,14 @@ export function LandingPage() {
                 </div>
               </div>
               <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">{t.visuals.title}</h3>
-                <p className="text-[#A8A8AA] text-sm leading-relaxed">{t.visuals.text}</p>
+                <h3 className="text-xl font-serif font-normal text-[#F2F2F2] mb-3">
+                  {t.visuals.title}
+                </h3>
+                <p className="text-[#A8A8AA] text-sm leading-relaxed">
+                  {t.visuals.text}
+                </p>
               </div>
             </div>
-
           </div>
         </section>
 
@@ -191,7 +256,9 @@ export function LandingPage() {
           <div className="bg-[#0F0F10] border border-[#1A1A1D] rounded-xl p-8 md:p-16 relative overflow-hidden group hover:border-[#333] transition-colors">
             <div className="max-w-3xl mx-auto relative z-10">
               <div className="text-center mb-12">
-                <h3 className="text-3xl md:text-4xl font-serif font-normal text-[#F2F2F2] mb-4">{t.deep_dive.title}</h3>
+                <h3 className="text-3xl md:text-4xl font-serif font-normal text-[#F2F2F2] mb-4">
+                  {t.deep_dive.title}
+                </h3>
                 <p className="text-[#A8A8AA]">{t.deep_dive.subtitle}</p>
               </div>
 
@@ -202,15 +269,33 @@ export function LandingPage() {
                 {/* Post 1 */}
                 <div className="relative pl-12">
                   <div className="absolute left-2.5 top-2 w-3 h-3 bg-[#333] rounded-full border-2 border-[#0F0F10]"></div>
-                  <div className="text-sm text-[#6E6E73] mb-1">Original Thesis • @alex</div>
-                  <p className="text-[#A8A8AA] font-serif text-lg">"Digital minimalist design often fails because it removes <span className="text-[#F2F2F2] underline decoration-[#333] underline-offset-4 cursor-pointer hover:bg-[#6E7A8A]/10 transition-colors">[[affordances]]</span> that users actually rely on."</p>
+                  <div className="text-sm text-[#6E6E73] mb-1">
+                    Original Thesis • @alex
+                  </div>
+                  <p className="text-[#A8A8AA] font-serif text-lg">
+                    &quot;Digital minimalist design often fails because it
+                    removes{" "}
+                    <span className="text-[#F2F2F2] underline decoration-[#333] underline-offset-4 cursor-pointer hover:bg-[#6E7A8A]/10 transition-colors">
+                      [[affordances]]
+                    </span>{" "}
+                    that users actually rely on.&quot;
+                  </p>
                 </div>
 
                 {/* Post 2 */}
                 <div className="relative pl-12">
                   <div className="absolute left-2.5 top-2 w-3 h-3 bg-[#6E7A8A] rounded-full border-2 border-[#0F0F10]"></div>
-                  <div className="text-sm text-[#6E6E73] mb-1">Rebuttal • @sarah</div>
-                  <p className="text-[#F2F2F2] font-serif text-xl">"I disagree. As <span className="text-[#6E7A8A] cursor-pointer hover:underline">@alex</span> mentions, affordances matter, but we must distinguish between utility and clutter..."</p>
+                  <div className="text-sm text-[#6E6E73] mb-1">
+                    Rebuttal • @sarah
+                  </div>
+                  <p className="text-[#F2F2F2] font-serif text-xl">
+                    &quot;I disagree. As{" "}
+                    <span className="text-[#6E7A8A] cursor-pointer hover:underline">
+                      @alex
+                    </span>{" "}
+                    mentions, affordances matter, but we must distinguish
+                    between utility and clutter...&quot;
+                  </p>
                   <div className="mt-4 flex gap-4 text-xs font-mono text-[#6E6E73]">
                     <span>2 Sources</span>
                     <span>Cited by 5</span>
@@ -220,25 +305,41 @@ export function LandingPage() {
                 {/* Post 3 */}
                 <div className="relative pl-12 opacity-50">
                   <div className="absolute left-2.5 top-2 w-3 h-3 bg-[#333] rounded-full border-2 border-[#0F0F10]"></div>
-                  <div className="text-sm text-[#6E6E73] mb-1">Synthesis • @david</div>
-                  <p className="text-[#A8A8AA] font-serif text-lg">"Perhaps the middle ground is..."</p>
+                  <div className="text-sm text-[#6E6E73] mb-1">
+                    Synthesis • @david
+                  </div>
+                  <p className="text-[#A8A8AA] font-serif text-lg">
+                    &quot;Perhaps the middle ground is...&quot;
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Background Mesh */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#333 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+            <div
+              className="absolute inset-0 opacity-10 pointer-events-none"
+              style={{
+                backgroundImage: "radial-gradient(#333 1px, transparent 1px)",
+                backgroundSize: "24px 24px",
+              }}
+            ></div>
           </div>
         </section>
 
         {/* Founder Quote */}
         <section className="px-6 md:px-12 max-w-[900px] mx-auto mb-32 text-center">
           <blockquote className="font-serif text-2xl md:text-4xl font-light text-[#F2F2F2] leading-relaxed mb-8">
-            "{t.quote.text}"
+            {'"'}
+            {t.quote.text}
+            {'"'}
           </blockquote>
           <div className="flex flex-col items-center">
-            <cite className="not-italic text-[#F2F2F2] font-medium text-lg">{t.quote.author}</cite>
-            <span className="text-[#6E6E73] uppercase tracking-widest text-xs mt-1">{t.quote.role}</span>
+            <cite className="not-italic text-[#F2F2F2] font-medium text-lg">
+              {t.quote.author}
+            </cite>
+            <span className="text-[#6E6E73] uppercase tracking-widest text-xs mt-1">
+              {t.quote.role}
+            </span>
           </div>
         </section>
 
@@ -246,28 +347,52 @@ export function LandingPage() {
         <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32 border-t border-[#1A1A1D] pt-24">
           <div className="grid md:grid-cols-2 gap-20">
             <div>
-              <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-4">{t.distinction.label}</h2>
-              <h3 className="text-3xl font-serif font-normal text-[#F2F2F2] mb-6">{t.distinction.title}</h3>
-              <p className="text-[#A8A8AA] text-lg leading-relaxed mb-6">{t.distinction.text_1}</p>
-              <p className="text-[#A8A8AA] text-lg leading-relaxed">{t.distinction.text_2}</p>
+              <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-4">
+                {t.distinction.label}
+              </h2>
+              <h3 className="text-3xl font-serif font-normal text-[#F2F2F2] mb-6">
+                {t.distinction.title}
+              </h3>
+              <p className="text-[#A8A8AA] text-lg leading-relaxed mb-6">
+                {t.distinction.text_1}
+              </p>
+              <p className="text-[#A8A8AA] text-lg leading-relaxed">
+                {t.distinction.text_2}
+              </p>
             </div>
 
             <div className="grid sm:grid-cols-2 gap-8">
               <div className="space-y-2">
-                <h4 className="text-[#F2F2F2] font-medium">{t.distinction.sovereign}</h4>
-                <p className="text-sm text-[#6E6E73] leading-relaxed">{t.distinction.sovereign_text}</p>
+                <h4 className="text-[#F2F2F2] font-medium">
+                  {t.distinction.sovereign}
+                </h4>
+                <p className="text-sm text-[#6E6E73] leading-relaxed">
+                  {t.distinction.sovereign_text}
+                </p>
               </div>
               <div className="space-y-2">
-                <h4 className="text-[#F2F2F2] font-medium">{t.distinction.no_ads}</h4>
-                <p className="text-sm text-[#6E6E73] leading-relaxed">{t.distinction.no_ads_text}</p>
+                <h4 className="text-[#F2F2F2] font-medium">
+                  {t.distinction.no_ads}
+                </h4>
+                <p className="text-sm text-[#6E6E73] leading-relaxed">
+                  {t.distinction.no_ads_text}
+                </p>
               </div>
               <div className="space-y-2">
-                <h4 className="text-[#F2F2F2] font-medium">{t.distinction.transparent}</h4>
-                <p className="text-sm text-[#6E6E73] leading-relaxed">{t.distinction.transparent_text}</p>
+                <h4 className="text-[#F2F2F2] font-medium">
+                  {t.distinction.transparent}
+                </h4>
+                <p className="text-sm text-[#6E6E73] leading-relaxed">
+                  {t.distinction.transparent_text}
+                </p>
               </div>
               <div className="space-y-2">
-                <h4 className="text-[#F2F2F2] font-medium">{t.distinction.verified}</h4>
-                <p className="text-sm text-[#6E6E73] leading-relaxed">{t.distinction.verified_text}</p>
+                <h4 className="text-[#F2F2F2] font-medium">
+                  {t.distinction.verified}
+                </h4>
+                <p className="text-sm text-[#6E6E73] leading-relaxed">
+                  {t.distinction.verified_text}
+                </p>
               </div>
             </div>
           </div>
@@ -277,11 +402,17 @@ export function LandingPage() {
         <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32">
           <div className="grid md:grid-cols-2 gap-12">
             <div className="p-8 border border-[#1A1A1D] rounded-xl bg-[#0F0F10]">
-              <h3 className="text-xl font-serif text-[#F2F2F2] mb-4">{t.business.title}</h3>
-              <p className="text-[#A8A8AA] leading-relaxed">{t.business.text}</p>
+              <h3 className="text-xl font-serif text-[#F2F2F2] mb-4">
+                {t.business.title}
+              </h3>
+              <p className="text-[#A8A8AA] leading-relaxed">
+                {t.business.text}
+              </p>
             </div>
             <div className="p-8 border border-[#1A1A1D] rounded-xl bg-[#0F0F10]">
-              <h3 className="text-xl font-serif text-[#F2F2F2] mb-4">{t.solo.title}</h3>
+              <h3 className="text-xl font-serif text-[#F2F2F2] mb-4">
+                {t.solo.title}
+              </h3>
               <p className="text-[#A8A8AA] leading-relaxed">{t.solo.text}</p>
             </div>
           </div>
@@ -290,10 +421,15 @@ export function LandingPage() {
         {/* Final CTA */}
         <section className="px-6 md:px-12 max-w-[800px] mx-auto text-center mb-32 pt-12">
           <h2 className="text-4xl md:text-6xl font-serif font-normal text-[#F2F2F2] mb-8 leading-[1.1]">
-            {t.cta_final.title.split('\n')[0]}<br />
-            <span className="text-[#6E7A8A] block mt-2">{t.cta_final.title.split('\n')[1]}</span>
+            {t.cta_final.title.split("\n")[0]}
+            <br />
+            <span className="text-[#6E7A8A] block mt-2">
+              {t.cta_final.title.split("\n")[1]}
+            </span>
           </h2>
-          <div className="text-[#6E6E73] text-lg mb-8">{t.cta_final.subtitle}</div>
+          <div className="text-[#6E6E73] text-lg mb-8">
+            {t.cta_final.subtitle}
+          </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link
               href="/sign-in"
@@ -304,23 +440,56 @@ export function LandingPage() {
             <span className="text-[#6E6E73] text-sm">{t.cta_final.note}</span>
           </div>
         </section>
-
       </main>
 
       <footer className="border-t border-[#1A1A1D] bg-[#0B0B0C] py-8 md:py-12 px-6 md:px-12">
         <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-center md:items-center gap-6 md:gap-0">
           <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center sm:text-left">
-            <span className="text-base md:text-lg font-serif font-normal text-[#F2F2F2]">cite</span>
+            <span className="text-base md:text-lg font-serif font-normal text-[#F2F2F2]">
+              cite
+            </span>
             <span className="text-[#6E6E73] text-xs sm:text-sm font-mono border-t sm:border-t-0 sm:border-l border-[#333] pt-3 sm:pt-0 sm:pl-4">
               {t.footer.rights}
             </span>
           </div>
           <div className="flex flex-wrap justify-center md:justify-end gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm text-[#A8A8AA]">
-            <Link href="/roadmap" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.roadmap}</Link>
-            <Link href="/imprint" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.imprint}</Link>
-            <Link href="/privacy" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.privacy}</Link>
-            <Link href="/ai-transparency" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.ai_transparency}</Link>
-            <Link href="/terms" className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap">{t.footer.terms}</Link>
+            <Link
+              href="/waiting-list"
+              className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap"
+            >
+              {(t.footer as { waitingList?: string }).waitingList ??
+                "Join waiting list"}
+            </Link>
+            <Link
+              href="/roadmap"
+              className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap"
+            >
+              {t.footer.roadmap}
+            </Link>
+            <Link
+              href="/imprint"
+              className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap"
+            >
+              {t.footer.imprint}
+            </Link>
+            <Link
+              href="/privacy"
+              className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap"
+            >
+              {t.footer.privacy}
+            </Link>
+            <Link
+              href="/ai-transparency"
+              className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap"
+            >
+              {t.footer.ai_transparency}
+            </Link>
+            <Link
+              href="/terms"
+              className="hover:text-[#F2F2F2] transition-colors whitespace-nowrap"
+            >
+              {t.footer.terms}
+            </Link>
           </div>
         </div>
       </footer>

@@ -1,176 +1,104 @@
-# CITE - Text-First Social Network
+# CITE Social Network
 
-A production-ready fullstack social network that merges social posting with Wikipedia-style inline links and citation-based recognition.
+A production-grade, full-stack social network built for verified information and citations.
 
-## Features
+## 🏗 Architecture
 
-- **Text-first posting** with markdown support
-- **Wikipedia-style links** - `[[Topic]]` and `[[post:uuid]]` syntax
-- **Citation-based recognition** - Quotes are public, likes are private
-- **Chronological home feed** - Follow-only, no algorithmic manipulation
-- **Transparent Explore** - User-controlled relevance system
-- **Collections** - Curated reposts with notes
-- **Reading Mode** - Optimized typography for long-form content
-- **Multi-language support** - Language detection and filtering
+### Infrastructure (Hetzner Cloud EU)
+- **Terraform:** Infrastructure as Code (IaC) provisioning for compliance and reproducibility.
+- **Docker Compose:** Container orchestration for DB, API, Redis, and Search services.
+- **Redis:** Distributed rate limiting and Socket.io adapter for scalability.
 
-## Tech Stack
+### Backend (NestJS)
+- **API:** RESTful endpoints with automated Swagger/OpenAPI documentation (`/api/docs`).
+- **Real-time:** Socket.io Gateway for instant notifications and messages.
+- **Observability:** Structured JSON logging (`nestjs-pino`) and Prometheus metrics (`/metrics`).
+- **Security:** Helmet, Throttler (Redis-backed), and JWT authentication.
 
-- **Web**: Next.js 15 + TypeScript
-- **Mobile**: Expo React Native (latest) + TypeScript
-- **API**: NestJS + TypeScript
-- **Database**: PostgreSQL (Supabase self-host)
-- **Graph DB**: Neo4j Community
-- **Search**: Meilisearch
-- **Cache/Queue**: Redis
-- **Storage**: MinIO
-- **Reverse Proxy**: Caddy
+### Frontend (Next.js)
+- **Internationalization:** Full i18n support via `next-intl`.
+- **UX:** Skeleton loading states, optimistic UI updates, and Toast notifications.
+- **Testing:** Playwright E2E testing suite.
 
-## Quick Start
+### Mobile (React Native / Expo)
+- **Parity:** Full feature parity with web (Compose, Reading Mode, Profile).
+- **Native Polish:** Custom Toast system, Haptics, and native-feeling navigation.
+
+## 🚀 Getting Started
 
 ### Prerequisites
-
 - Docker & Docker Compose
 - Node.js 20+
-- pnpm (or npm)
+- npm (each app has its own package.json and deps)
 
-### Local Development
+### Docker Deployment (Recommended)
 
-1. **Start infrastructure services:**
+Deploy the entire stack with Docker:
 
 ```bash
 cd infra/docker
-cp .env.example .env  # Edit if needed
+cp .env.example .env
+# Edit .env with your configuration
+./deploy.sh dev  # or 'prod' for production
+```
+
+Or manually:
+```bash
+cd infra/docker
+cp .env.example .env
 docker compose up -d
 ```
 
-This starts:
-- PostgreSQL (port 5433)
-- Neo4j (ports 7474, 7687)
-- Redis (port 6379)
-- Meilisearch (port 7700)
-- MinIO (ports 9000, 9001)
+Access the application:
+- **Web App:** http://localhost:3001
+- **API:** http://localhost:3000
+- **API Docs:** http://localhost:3000/api/docs
+- **Nginx (Reverse Proxy):** http://localhost
 
-2. **Install dependencies:**
+See [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md) for detailed deployment instructions.
 
-```bash
-pnpm install
-```
+### Local Development
 
-3. **Start API:**
+1.  **Start Infrastructure:**
+    ```bash
+    cd infra/docker
+    cp .env.example .env
+    docker-compose up -d
+    ```
 
-```bash
-cd apps/api
-pnpm dev
-```
+2.  **Run API:**
+    ```bash
+    cd apps/api
+    npm install
+    npm run start:dev
+    ```
 
-4. **Start Web:**
+3.  **Run Web App:**
+    ```bash
+    cd apps/web
+    npm install
+    npm run dev
+    ```
 
-```bash
-cd apps/web
-pnpm dev
-```
+4.  **Run Mobile App:**
+    ```bash
+    cd apps/mobile
+    npm install
+    npm start
+    ```
 
-5. **Start Mobile (optional):**
+## 🧪 Testing
 
-```bash
-cd apps/mobile
-npx expo start
-```
+- **Web E2E:** `cd apps/web && npx playwright test`
+- **API Unit:** `cd apps/api && npm test`
 
-### Environment Variables
+## 🌍 Internationalization
 
-Create `.env` files as needed:
+Translations are managed in:
+- Web: `apps/web/messages/en.json`
+- Mobile: `apps/mobile/i18n/locales/en.ts`
 
-**API** (`apps/api/.env`):
-```
-DATABASE_URL=postgres://postgres:postgres@localhost:5433/postgres
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=password
-REDIS_URL=redis://localhost:6379
-MEILISEARCH_HOST=http://localhost:7700
-MEILISEARCH_MASTER_KEY=masterKey
-SUPABASE_JWT_SECRET=your-secret-here
-```
+## 📚 API Documentation
 
-**Web** (`apps/web/.env.local`):
-```
-API_URL=http://localhost:3000
-DEV_TOKEN=your-dev-token
-```
-
-## Project Structure
-
-```
-cite-system/
-├── apps/
-│   ├── api/          # NestJS API
-│   ├── web/          # Next.js web app
-│   └── mobile/       # Expo React Native app
-├── packages/
-│   └── shared/       # Shared TypeScript types
-├── infra/
-│   └── docker/       # Docker Compose configuration
-└── GEMINI.md         # Complete specification
-```
-
-## Key Endpoints
-
-- `POST /posts` - Create post
-- `GET /posts/:id` - Get post
-- `POST /posts/:id/like` - Like post (private)
-- `POST /posts/:id/quote` - Quote post
-- `POST /posts/:id/keep` - Keep post
-- `GET /feed` - Home timeline
-- `GET /explore/quoted-now` - Trending quotes
-- `GET /topics/:slug` - Topic page
-- `GET /users/:handle` - User profile
-- `GET /search/posts?q=query` - Search posts
-
-## Design System
-
-- **Colors**: Ink (#0B0B0C), Paper (#F2F2F2), Primary (#6E7A8A)
-- **Typography**: Inter font family
-- **Spacing**: 8px base unit
-
-## Development
-
-### Database Migrations
-
-TypeORM handles migrations. Run:
-
-```bash
-cd apps/api
-pnpm typeorm migration:run
-```
-
-### Testing
-
-```bash
-# API tests
-cd apps/api
-pnpm test
-
-# Web tests
-cd apps/web
-pnpm test
-```
-
-## Deployment
-
-### Hetzner (EU-only)
-
-1. Provision VM in Germany or Finland (Falkenstein/Nuremberg/Helsinki)
-2. Install Docker & Docker Compose
-3. Clone repo and configure `.env`
-4. Run `docker compose up -d`
-5. Configure Caddy for TLS
-6. Set up backups (Postgres, Neo4j, MinIO)
-
-## License
-
-[Your License Here]
-
-## Contributing
-
-[Contributing Guidelines]
+Once the API is running, visit:
+`http://localhost:3000/api/docs`

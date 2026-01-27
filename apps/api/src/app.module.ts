@@ -29,9 +29,11 @@ import { KeepsModule } from './keeps/keeps.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { CleanupService } from './cleanup/cleanup.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { RssModule } from "./rss/rss.module";
+import { RssModule } from './rss/rss.module';
 import { Post } from './entities/post.entity';
 import { User } from './entities/user.entity';
+import { Notification } from './entities/notification.entity';
+import { PushOutbox } from './entities/push-outbox.entity';
 import { LoggerModule } from 'nestjs-pino';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 
@@ -42,15 +44,19 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     }),
     LoggerModule.forRoot({
       pinoHttp: {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- pino requires (req, res) signature
         customProps: (req, res) => ({
           context: 'HTTP',
         }),
-        transport: process.env.NODE_ENV !== 'production' ? {
-          target: 'pino-pretty',
-          options: {
-            singleLine: true,
-          },
-        } : undefined,
+        transport:
+          process.env.NODE_ENV !== 'production'
+            ? {
+                target: 'pino-pretty',
+                options: {
+                  singleLine: true,
+                },
+              }
+            : undefined,
       },
     }),
     ConfigModule.forRoot({
@@ -62,15 +68,19 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        throttlers: [{
-          ttl: 60000,
-          limit: 100,
-        }],
-        storage: new ThrottlerStorageRedisService(config.get<string>('REDIS_URL') || 'redis://localhost:6379'),
+        throttlers: [
+          {
+            ttl: 60000,
+            limit: 100,
+          },
+        ],
+        storage: new ThrottlerStorageRedisService(
+          config.get<string>('REDIS_URL') || 'redis://localhost:6379',
+        ),
       }),
     }),
     DatabaseModule,
-    TypeOrmModule.forFeature([Post, User]), // For CleanupService
+    TypeOrmModule.forFeature([Post, User, Notification, PushOutbox]), // For CleanupService
     PostsModule,
     AuthModule,
     FeedModule,

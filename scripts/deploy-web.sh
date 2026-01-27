@@ -8,8 +8,8 @@ cd "$(dirname "$0")/.."
 # Build web app
 echo "📦 Building web app..."
 cd apps/web
-pnpm install
-pnpm build
+npm install
+npm run build
 
 # Build Docker image
 echo "🐳 Building Docker image..."

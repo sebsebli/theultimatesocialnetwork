@@ -1,4 +1,4 @@
-# Multi-stage build for production
+# Multi-stage build for production (npm, standalone app)
 FROM node:20-slim AS builder
 
 WORKDIR /app
@@ -11,30 +11,18 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm
-RUN npm install -g pnpm@8.15.1
-
-# Copy workspace root files
-COPY package.json pnpm-workspace.yaml .npmrc ./
-COPY pnpm-lock.yaml* ./
-
-# Copy API package files
-COPY apps/api/package.json ./apps/api/
-COPY apps/api/tsconfig*.json ./apps/api/
-COPY apps/api/nest-cli.json ./apps/api/
+# Copy API package files (standalone npm app)
+COPY apps/api/package.json apps/api/package-lock.json* ./
 
 # Install dependencies (including dev for build)
-# Install with ignore-scripts to skip problematic native modules (inotify)
-RUN pnpm install --filter api --include=dev --no-optional --ignore-scripts || true
-# Rebuild sharp which needs native compilation
-RUN pnpm rebuild sharp --filter api || true
+RUN npm ci --ignore-scripts --no-optional || npm install --ignore-scripts --no-optional
+RUN npm rebuild sharp || true
 
-# Copy API source code
-COPY apps/api/src ./apps/api/src
+# Copy API source
+COPY apps/api/ ./
 
 # Build
-WORKDIR /app/apps/api
-RUN pnpm build
+RUN npm run build
 
 # Production stage
 FROM node:20-slim AS production
@@ -46,26 +34,15 @@ RUN apt-get update && apt-get install -y \
     libvips-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm
-RUN npm install -g pnpm@8.15.1
-
-# Copy workspace root files
-COPY package.json pnpm-workspace.yaml .npmrc ./
-COPY pnpm-lock.yaml* ./
-
 # Copy API package files
-COPY apps/api/package.json ./apps/api/
-COPY apps/api/tsconfig*.json ./apps/api/
+COPY apps/api/package.json apps/api/package-lock.json* ./
 
 # Install dependencies including dev (needed for migrations/seeding)
-# We need dev dependencies for operational tasks
-# Install with ignore-scripts to skip problematic native modules (inotify)
-RUN pnpm install --filter api --include=dev --no-optional --ignore-scripts || true
-# Rebuild sharp which needs native compilation
-RUN pnpm rebuild sharp --filter api || true
+RUN npm ci --ignore-scripts --no-optional || npm install --ignore-scripts --no-optional
+RUN npm rebuild sharp || true
 
 # Copy built application from builder
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/dist ./dist
 
 # Use existing node user
 RUN chown -R node:node /app
@@ -79,5 +56,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start
-WORKDIR /app/apps/api
+WORKDIR /app
 CMD ["node", "dist/main.js"]

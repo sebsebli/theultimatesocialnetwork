@@ -1,0 +1,25 @@
+{
+  "name": "cite-system-root",
+  "private": true,
+  "description": "Root package for husky + lint-staged only. Each app (apps/api, apps/web) has its own package.json and deps.",
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.3.0"
+  },
+  "lint-staged": {
+    "apps/api/src/**/*.{ts,tsx}": [
+      "node scripts/lint-staged-eslint.js",
+      "npx prettier --write"
+    ],
+    "apps/api/test/**/*.{ts,tsx}": [
+      "node scripts/lint-staged-eslint.js",
+      "npx prettier --write"
+    ],
+    "apps/web/**/*.{ts,tsx}": [
+      "node scripts/lint-staged-eslint.js",
+      "npx prettier --write"
+    ]
+  }
+}
