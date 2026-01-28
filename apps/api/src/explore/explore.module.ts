@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CacheModule } from '@nestjs/cache-manager';
 import { ExploreController } from './explore.controller';
 import { ExploreService } from './explore.service';
 import { RecommendationService } from './recommendation.service';
@@ -16,6 +17,10 @@ import { DatabaseModule } from '../database/database.module';
 
 @Module({
   imports: [
+    CacheModule.register({
+      ttl: 300000, // 5 minutes (in milliseconds)
+      max: 1000, // Max items in cache
+    }),
     TypeOrmModule.forFeature([
       Topic,
       User,

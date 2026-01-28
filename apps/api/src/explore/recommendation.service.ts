@@ -1,5 +1,7 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Repository, In } from 'typeorm';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
@@ -35,6 +37,7 @@ export class RecommendationService implements OnModuleInit {
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
     @InjectRepository(Like) private likeRepo: Repository<Like>,
     @InjectRepository(Keep) private keepRepo: Repository<Keep>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   onModuleInit() {
@@ -128,6 +131,15 @@ export class RecommendationService implements OnModuleInit {
     keptPosts: Post[];
     followedUsers: string[];
   }> {
+    // Check cache for profile
+    const cacheKey = `user_interest_profile:${userId}`;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const cachedProfile = await this.cacheManager.get(cacheKey);
+    if (cachedProfile) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return cachedProfile as any;
+    }
+
     // Get topics user has posted about
     const userPosts = await this.postRepo.find({
       where: { authorId: userId },
@@ -178,18 +190,32 @@ export class RecommendationService implements OnModuleInit {
     });
     const followedUsers = follows.map((f) => f.followeeId);
 
-    return {
+    const profile = {
       topics: Array.from(topics),
       likedPosts,
       keptPosts,
       followedUsers,
     };
+
+    // Cache profile for 5 minutes
+    await this.cacheManager.set(cacheKey, profile, 300000);
+
+    return profile;
   }
 
   /**
    * Get personalized post recommendations for user
    */
   async getRecommendedPosts(userId: string, limit = 20): Promise<Post[]> {
+    // Check cache for recommendations
+    const cacheKey = `recs:posts:${userId}:${limit}`;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const cachedRecs = await this.cacheManager.get(cacheKey);
+    if (cachedRecs) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return cachedRecs as Post[];
+    }
+
     const user = await this.userRepo.findOne({ where: { id: userId } });
     const prefs = (user?.preferences?.explore || {
       topicsYouFollow: 80,
@@ -212,130 +238,143 @@ export class RecommendationService implements OnModuleInit {
 
     const userProfile = await this.getUserInterestProfile(userId);
 
+    let resultPosts: Post[] = [];
+
     if (
       userProfile.likedPosts.length === 0 &&
       userProfile.keptPosts.length === 0
     ) {
       // New user - return trending posts
-      return this.getTrendingPosts(limit);
-    }
+      resultPosts = await this.getTrendingPosts(limit);
+    } else {
+      // Generate embeddings for user's interests
+      const interestTexts = userProfile.likedPosts
+        .concat(userProfile.keptPosts)
+        .map((p) => `${p.title || ''} ${p.body}`.trim())
+        .slice(0, 10); // Use top 10 for efficiency
 
-    // Generate embeddings for user's interests
-    const interestTexts = userProfile.likedPosts
-      .concat(userProfile.keptPosts)
-      .map((p) => `${p.title || ''} ${p.body}`.trim())
-      .slice(0, 10); // Use top 10 for efficiency
+      if (interestTexts.length === 0 || !this.isModelLoaded) {
+        // Fallback: return posts from followed users or trending
+        resultPosts = await this.getFallbackRecommendations(
+          userId,
+          userProfile.followedUsers,
+          limit,
+        );
+      } else {
+        // Generate average embedding for user interests
+        const embeddings = await Promise.all(
+          interestTexts.map((text) => this.generateEmbedding(text)),
+        );
+        const validEmbeddings = embeddings.filter((e) => e !== null);
 
-    if (interestTexts.length === 0 || !this.isModelLoaded) {
-      // Fallback: return posts from followed users or trending
-      return this.getFallbackRecommendations(
-        userId,
-        userProfile.followedUsers,
-        limit,
-      );
-    }
+        if (validEmbeddings.length === 0) {
+          resultPosts = await this.getFallbackRecommendations(
+            userId,
+            userProfile.followedUsers,
+            limit,
+          );
+        } else {
+          // Average embeddings
+          const avgEmbedding = new Array(validEmbeddings[0].length).fill(
+            0,
+          ) as number[];
+          for (const emb of validEmbeddings) {
+            for (let i = 0; i < emb.length; i++) {
+              avgEmbedding[i] += emb[i];
+            }
+          }
+          for (let i = 0; i < avgEmbedding.length; i++) {
+            avgEmbedding[i] /= validEmbeddings.length;
+          }
 
-    // Generate average embedding for user interests
-    const embeddings = await Promise.all(
-      interestTexts.map((text) => this.generateEmbedding(text)),
-    );
-    const validEmbeddings = embeddings.filter((e) => e !== null) as number[][];
+          // Get candidate posts (not from user, not deleted, public)
+          const query = this.postRepo
+            .createQueryBuilder('post')
+            .leftJoinAndSelect('post.author', 'author')
+            .where('post.author_id != :userId', { userId })
+            .andWhere('post.visibility = :visibility', { visibility: 'PUBLIC' })
+            .andWhere('post.deleted_at IS NULL');
 
-    if (validEmbeddings.length === 0) {
-      return this.getFallbackRecommendations(
-        userId,
-        userProfile.followedUsers,
-        limit,
-      );
-    }
+          // Strict language filtering if preference is very high
+          if (w.lang > 0.8 && user?.languages?.length) {
+            query.andWhere('post.lang IN (:...langs)', {
+              langs: user.languages,
+            });
+          }
 
-    // Average embeddings
-    const avgEmbedding = new Array(validEmbeddings[0].length).fill(0) as number[];
-    for (const emb of validEmbeddings) {
-      for (let i = 0; i < emb.length; i++) {
-        avgEmbedding[i] += emb[i];
+          const candidatePosts = await query
+            .orderBy('post.created_at', 'DESC')
+            .take(200)
+            .getMany();
+
+          // Score posts by similarity
+          const scoredPosts = await Promise.all(
+            candidatePosts.map(async (post) => {
+              const postText = `${post.title || ''} ${post.body}`.trim();
+              const postEmbedding = await this.generateEmbedding(postText);
+
+              if (!postEmbedding) {
+                return { post, score: 0 };
+              }
+
+              // Base similarity (content match) - weighted by 'likes' preference
+              const similarity =
+                this.cosineSimilarity(avgEmbedding, postEmbedding) *
+                (0.5 + 0.5 * w.likes);
+
+              // Network boost
+              const followBoost = userProfile.followedUsers.includes(
+                post.authorId,
+              )
+                ? 0.3 * w.network
+                : 0;
+
+              // Topic boost
+              const postTopics = await this.postTopicRepo.find({
+                where: { postId: post.id },
+              });
+              const topicBoost = postTopics.some((pt) =>
+                userProfile.topics.includes(pt.topicId),
+              )
+                ? 0.3 * w.topics
+                : 0;
+
+              // Engagement boosts
+              const quoteBoost =
+                (Math.min(post.quoteCount, 10) / 10) * (0.2 * w.quotes);
+              const replyBoost =
+                (Math.min(post.replyCount, 20) / 20) * (0.1 * w.replies);
+
+              // Language soft boost
+              let langBoost = 0;
+              if (user?.languages?.includes(post.lang || '')) {
+                langBoost = 0.1 * w.lang;
+              }
+
+              return {
+                post,
+                score:
+                  similarity +
+                  followBoost +
+                  topicBoost +
+                  quoteBoost +
+                  replyBoost +
+                  langBoost,
+              };
+            }),
+          );
+
+          // Sort by score and return top posts
+          scoredPosts.sort((a, b) => b.score - a.score);
+          resultPosts = scoredPosts.slice(0, limit).map((sp) => sp.post);
+        }
       }
     }
-    for (let i = 0; i < avgEmbedding.length; i++) {
-      avgEmbedding[i] /= validEmbeddings.length;
-    }
 
-    // Get candidate posts (not from user, not deleted, public)
-    const query = this.postRepo
-      .createQueryBuilder('post')
-      .leftJoinAndSelect('post.author', 'author')
-      .where('post.author_id != :userId', { userId })
-      .andWhere('post.visibility = :visibility', { visibility: 'PUBLIC' })
-      .andWhere('post.deleted_at IS NULL');
+    // Cache the results
+    await this.cacheManager.set(cacheKey, resultPosts, 300000); // 5 min TTL
 
-    // Strict language filtering if preference is very high
-    if (w.lang > 0.8 && user?.languages?.length) {
-      query.andWhere('post.lang IN (:...langs)', { langs: user.languages });
-    }
-
-    const candidatePosts = await query
-      .orderBy('post.created_at', 'DESC')
-      .take(200)
-      .getMany();
-
-    // Score posts by similarity
-    const scoredPosts = await Promise.all(
-      candidatePosts.map(async (post) => {
-        const postText = `${post.title || ''} ${post.body}`.trim();
-        const postEmbedding = await this.generateEmbedding(postText);
-
-        if (!postEmbedding) {
-          return { post, score: 0 };
-        }
-
-        // Base similarity (content match) - weighted by 'likes' preference (proxy for "content I like")
-        const similarity =
-          this.cosineSimilarity(avgEmbedding, postEmbedding) *
-          (0.5 + 0.5 * w.likes);
-
-        // Network boost
-        const followBoost = userProfile.followedUsers.includes(post.authorId)
-          ? 0.3 * w.network
-          : 0;
-
-        // Topic boost
-        const postTopics = await this.postTopicRepo.find({
-          where: { postId: post.id },
-        });
-        const topicBoost = postTopics.some((pt) =>
-          userProfile.topics.includes(pt.topicId),
-        )
-          ? 0.3 * w.topics
-          : 0;
-
-        // Engagement boosts (normalize counts roughly)
-        const quoteBoost =
-          (Math.min(post.quoteCount, 10) / 10) * (0.2 * w.quotes);
-        const replyBoost =
-          (Math.min(post.replyCount, 20) / 20) * (0.1 * w.replies);
-
-        // Language soft boost (if not strict filtered)
-        let langBoost = 0;
-        if (user?.languages?.includes(post.lang || '')) {
-          langBoost = 0.1 * w.lang;
-        }
-
-        return {
-          post,
-          score:
-            similarity +
-            followBoost +
-            topicBoost +
-            quoteBoost +
-            replyBoost +
-            langBoost,
-        };
-      }),
-    );
-
-    // Sort by score and return top posts
-    scoredPosts.sort((a, b) => b.score - a.score);
-    return scoredPosts.slice(0, limit).map((sp) => sp.post);
+    return resultPosts;
   }
 
   /**
@@ -390,6 +429,15 @@ export class RecommendationService implements OnModuleInit {
    * Get personalized people recommendations
    */
   async getRecommendedPeople(userId: string, limit = 20): Promise<User[]> {
+    // Check cache
+    const cacheKey = `recs:people:${userId}:${limit}`;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const cachedRecs = await this.cacheManager.get(cacheKey);
+    if (cachedRecs) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return cachedRecs as User[];
+    }
+
     const userProfile = await this.getUserInterestProfile(userId);
 
     // Find users who post about similar topics
@@ -409,29 +457,34 @@ export class RecommendationService implements OnModuleInit {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
     const candidateUserIds = similarUsers.map((su) => su.authorId) as string[];
 
+    let resultUsers: User[];
+
     if (candidateUserIds.length === 0) {
       // Fallback: return users with most followers
-      return this.userRepo
+      resultUsers = await this.userRepo
         .createQueryBuilder('user')
         .where('user.id != :userId', { userId })
         .orderBy('user.follower_count', 'DESC')
         .take(limit)
         .getMany();
+    } else {
+      // Get full user objects
+      const users = await this.userRepo.find({
+        where: { id: In(candidateUserIds) },
+      });
+
+      // Sort by topic overlap
+      const userMap = new Map(users.map((u) => [u.id, u]));
+      resultUsers = similarUsers
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        .map((su) => userMap.get(su.authorId as string))
+        .filter((u) => u !== undefined)
+        .slice(0, limit);
     }
 
-    // Get full user objects
-    const users = await this.userRepo.find({
-      where: { id: In(candidateUserIds) },
-    });
+    // Cache
+    await this.cacheManager.set(cacheKey, resultUsers, 300000);
 
-    // Sort by topic overlap
-    const userMap = new Map(users.map((u) => [u.id, u]));
-    const sortedUsers = similarUsers
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      .map((su) => userMap.get(su.authorId as string))
-      .filter((u) => u !== undefined)
-      .slice(0, limit);
-
-    return sortedUsers as User[];
+    return resultUsers;
   }
 }
