@@ -10,6 +10,17 @@ import { useToast } from '../../../context/ToastContext';
 import { ErrorState } from '../../../components/ErrorState';
 import { useSocket } from '../../../context/SocketContext';
 
+interface ThreadItem {
+  id: string;
+  participant?: { displayName?: string };
+  participants?: { displayName?: string }[];
+  lastMessage?: {
+    body: string;
+    createdAt: string;
+    isRead: boolean;
+  };
+}
+
 export default function MessagesScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -72,13 +83,13 @@ export default function MessagesScreen() {
     return date.toLocaleDateString();
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: ThreadItem }) => {
     const participant = item.participant || item.participants?.[0]; // Adapt based on API response
     if (!participant) return null;
 
     return (
       <Pressable
-        style={({ pressed }) => [styles.threadItem, pressed && styles.threadItemPressed]}
+        style={({ pressed }: { pressed: boolean }) => [styles.threadItem, pressed && styles.threadItemPressed]}
         onPress={() => router.push(`/(tabs)/messages/${item.id}`)}
       >
         <View style={styles.avatar}>
@@ -132,7 +143,7 @@ export default function MessagesScreen() {
       <FlatList
         data={threads}
         renderItem={renderItem}
-        keyExtractor={item => item.id}
+        keyExtractor={(item: ThreadItem) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />

@@ -41,7 +41,7 @@ export function MarkdownText({ children }: MarkdownTextProps) {
     if (!children) return null;
 
     const lines = children.split('\n');
-    const nodes: React.ReactNode[] = [];
+    const nodes: any[] = [];
 
     lines.forEach((line, lineIndex) => {
       // 1. Headings
@@ -63,7 +63,7 @@ export function MarkdownText({ children }: MarkdownTextProps) {
       // This is a naive parser. For production, use a tokenizer/lexer approach.
       // We'll iterate through the string and match patterns.
       
-      const parts: React.ReactNode[] = [];
+      const parts: any[] = [];
       let lastIndex = 0;
       
       // Combine patterns: Bold (**), Italic (_), Wikilink ([[...]])

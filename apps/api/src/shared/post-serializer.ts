@@ -1,5 +1,6 @@
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
+import { User } from '../entities/user.entity';
 
 /** Author shape for JSON (avoids TypeORM/circular refs). */
 export function authorPlain(
@@ -46,14 +47,15 @@ export function replyToPlain(r: Reply | null | undefined): Record<string, unknow
   };
 }
 
-export function userToPlain(u: any): Record<string, unknown> | null {
+export function userToPlain(u: User | null | undefined): Record<string, unknown> | null {
   if (!u || typeof u !== 'object') return null;
   // Strip email and other sensitive internal fields
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { email, preferences, ...safe } = u;
   return {
     ...safe,
     createdAt: u.createdAt != null ? new Date(u.createdAt).toISOString() : undefined,
-    posts: Array.isArray(u.posts) ? u.posts.map(postToPlain) : undefined,
+    posts: Array.isArray((u as any).posts) ? (u as any).posts.map(postToPlain) : undefined,
   };
 }
 

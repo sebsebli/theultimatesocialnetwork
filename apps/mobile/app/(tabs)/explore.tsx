@@ -20,6 +20,7 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('topics');
   const [sort, setSort] = useState<'recommended' | 'newest'>('recommended');
+  const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);

@@ -12,7 +12,8 @@ export interface ShareSheetRef {
   close: () => void;
 }
 
-const ShareSheet = forwardRef<ShareSheetRef, {}>((props, ref) => {
+// @ts-ignore
+const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>) => {
   const [visible, setVisible] = useState(false);
   const [postId, setPostId] = useState<string | null>(null);
   const router = useRouter();
@@ -110,7 +111,7 @@ const ShareSheet = forwardRef<ShareSheetRef, {}>((props, ref) => {
         </View>
       </Pressable>
     </Modal>
-  );
+  ) as unknown as React.JSX.Element;
 });
 
 const styles = StyleSheet.create({
@@ -168,4 +169,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ShareSheet;
+export default ShareSheet as any;

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -9,13 +10,24 @@ import { MarkdownText } from '../../../components/MarkdownText';
 import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+interface Post {
+  id: string;
+  title?: string;
+  body: string;
+  createdAt: string;
+  author?: {
+    displayName?: string;
+    handle?: string;
+  };
+}
+
 export default function ReadingModeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
   const postId = params.id as string;
-  const [post, setPost] = useState<any>(null);
+  const [post, setPost] = useState<Post | null>(null);
   const [sources, setSources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +54,7 @@ export default function ReadingModeScreen() {
   const [fontSize, setFontSize] = useState(18);
 
   const toggleTextSize = () => {
-    setFontSize(prev => prev >= 24 ? 16 : prev + 2);
+    setFontSize((prev: number) => prev >= 24 ? 16 : prev + 2);
   };
 
   const printToPdf = async () => {
@@ -292,7 +304,7 @@ const styles = StyleSheet.create({
   sourceIndex: {
     color: COLORS.tertiary,
     fontSize: 14,
-    fontFamily: FONTS.mono,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginTop: 2,
   },
   sourceDomain: {

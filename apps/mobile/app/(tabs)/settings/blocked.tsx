@@ -8,6 +8,18 @@ import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from '../../../context/ToastContext';
 
+interface BlockedUser {
+  id: string;
+  blockedId?: string;
+  blocked?: {
+    id: string;
+    displayName: string;
+    handle: string;
+  };
+  displayName?: string;
+  handle?: string;
+}
+
 export default function BlockedAccountsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -45,7 +57,7 @@ export default function BlockedAccountsScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: BlockedUser }) => {
     const user = item.blocked || item; // Handle direct user object or relation
     return (
       <View style={styles.item}>
@@ -85,7 +97,7 @@ export default function BlockedAccountsScreen() {
       ) : (
         <FlatList
           data={blockedUsers}
-          keyExtractor={(item) => item.id || item.blockedId}
+          keyExtractor={(item: BlockedUser) => item.id || item.blockedId || ''}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           refreshControl={

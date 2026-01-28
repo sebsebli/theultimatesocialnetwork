@@ -107,7 +107,7 @@ export function MessagesTab() {
     const newMessage = {
       id: tempId,
       body,
-      senderId: user.id,
+      senderId: user.id as string,
       createdAt: new Date().toISOString(),
     };
     
