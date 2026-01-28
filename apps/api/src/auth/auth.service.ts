@@ -49,13 +49,16 @@ export class AuthService {
     }
 
     // 3. Generate 6-digit Token
-    const token = randomInt(100000, 999999).toString();
+    const token = randomInt(100000, 1000000).toString(); // Max is exclusive
     const key = `auth:${email}`;
 
     // 4. Store Token + InviteCode (15 min expiration)
     const data = JSON.stringify({ token, inviteCode });
     await this.redis.set(key, data, 'EX', 900);
     await this.redis.set(rateKey, '1', 'EX', 60);
+
+    // Reset attempts on new code generation
+    await this.redis.del(`auth:attempts:${email}`);
 
     // 5. Send Email (localized)
     await this.emailService.sendSignInToken(email, token, lang);
@@ -65,6 +68,19 @@ export class AuthService {
 
   async verifyToken(email: string, token: string) {
     const key = `auth:${email}`;
+    const attemptsKey = `auth:attempts:${email}`;
+
+    // Check attempts
+    const attempts = await this.redis.incr(attemptsKey);
+    if (attempts === 1) {
+      await this.redis.expire(attemptsKey, 900); // 15 min expiry matches token
+    }
+    if (attempts > 5) {
+      throw new UnauthorizedException(
+        'Too many failed attempts. Please request a new code.',
+      );
+    }
+
     const storedData = await this.redis.get(key);
 
     if (!storedData) {
@@ -98,8 +114,11 @@ export class AuthService {
 
     const user = await this.validateOrCreateUser(email, inviteCode);
     const tokens = this.generateTokens(user);
-    // Clear used token only after success so a later 500 doesn't burn the code
+
+    // Clear used token and attempts after success
     await this.redis.del(key);
+    await this.redis.del(attemptsKey);
+
     return tokens;
   }
 
@@ -131,9 +150,9 @@ export class AuthService {
       user = await this.userRepo.save(user);
 
       // Index user in search
-      this.meilisearch.indexUser(user).catch(err => 
-        console.error('Failed to index new user', err)
-      );
+      this.meilisearch
+        .indexUser(user)
+        .catch((err) => console.error('Failed to index new user', err));
 
       // Consume invite code
       if (inviteCode) {
