@@ -25,7 +25,7 @@ export function ComposeEditor() {
     return (
       <View style={styles.container}>
         <Pressable
-          onPress={() => router.push('/(tabs)/compose')}
+          onPress={() => router.push('/post/compose')}
           style={styles.collapsedButton}
         >
           <View style={styles.collapsedContent}>
@@ -53,7 +53,7 @@ export function ComposeEditor() {
         />
         <View style={styles.actions}>
           <Pressable
-            onPress={() => router.push('/(tabs)/compose')}
+            onPress={() => router.push('/post/compose')}
             disabled={!body.trim()}
             style={[styles.continueButton, !body.trim() && styles.continueButtonDisabled]}
           >

@@ -54,15 +54,17 @@ docker compose -f $COMPOSE_FILE up -d
 echo "⏳ Waiting for services to be healthy..."
 sleep 10
 
-# Run migrations
+# Run migrations (use compiled dist in container; src/ is not in production image)
 echo "🔄 Running database migrations..."
-docker compose -f $COMPOSE_FILE exec -T api npm run migration:run
+docker compose -f $COMPOSE_FILE exec -T api npm run migration:run:prod
 
 # Check service status
 echo "📊 Service status:"
 docker compose -f $COMPOSE_FILE ps
 
-# Show logs
+# Show recent logs (run 'docker compose -f $COMPOSE_FILE logs -f' to follow)
 echo ""
-echo "📋 Recent logs (press Ctrl+C to exit):"
-docker compose -f $COMPOSE_FILE logs --tail=50 -f
+echo "📋 Recent logs:"
+docker compose -f $COMPOSE_FILE logs --tail=50
+echo ""
+echo "✅ Deploy complete. Run 'docker compose -f $COMPOSE_FILE logs -f' to follow logs."

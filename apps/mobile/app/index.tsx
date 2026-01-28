@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, Linking, useWindowDimensions, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, Linking, useWindowDimensions, Dimensions, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,11 +13,22 @@ import { IntroModal, shouldShowIntro } from '../components/IntroModal';
 
 export default function IndexScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { signIn, isAuthenticated, isLoading, onboardingComplete } = useAuth();
   const { showError, showSuccess, showToast } = useToast();
   const { t } = useTranslation();
   const { height: windowHeight } = useWindowDimensions();
   const screenHeight = Dimensions.get('window').height;
+
+  // Redirect if authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      if (onboardingComplete) {
+        router.replace('/(tabs)/');
+      } else {
+        router.replace('/onboarding/languages');
+      }
+    }
+  }, [isLoading, isAuthenticated, onboardingComplete]);
 
   // Intro State
   const [showIntro, setShowIntro] = useState(false);
@@ -176,6 +187,14 @@ export default function IndexScreen() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.ink, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color={COLORS.primary} />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -185,9 +204,12 @@ export default function IndexScreen() {
         {/* Main Content - Centered */}
         <View style={styles.mainContent}>
           <View style={styles.content}>
-
-
-            {sent && (
+            {!sent ? (
+              <View style={styles.logoContainer}>
+                <Text style={styles.appName}>CITE</Text>
+                <Text style={styles.tagline}>{t('welcome.tagline', 'Recognition comes from being cited.')}</Text>
+              </View>
+            ) : (
               <View style={[styles.textContainer, styles.checkEmailBlock]}>
                 <Text style={styles.checkEmailTitle}>{t('signIn.checkEmailTitle', 'Check your email')}</Text>
                 <Text style={styles.checkEmailSubtitle}>{t('signIn.enterCode', { email })}</Text>
@@ -232,7 +254,7 @@ export default function IndexScreen() {
                       >
                         <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
                           {acceptedTerms && (
-                            <MaterialCommunityIcons name="check" size={16} color={COLORS.ink} />
+                            <MaterialCommunityIcons name="check" size={14} color={COLORS.ink} />
                           )}
                         </View>
                       </Pressable>
@@ -286,7 +308,7 @@ export default function IndexScreen() {
                   disabled={!email.trim() || loading || (showInviteInput && !acceptedTerms)}
                 >
                   <Text style={styles.buttonText}>
-                    {loading ? t('common.loading') : 'Send verification code'}
+                    {loading ? t('common.loading') : 'Send magic link'}
                   </Text>
                 </Pressable>
 
@@ -366,65 +388,48 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: SPACING.xxl,
     justifyContent: 'space-between',
+    paddingVertical: SPACING.xl,
   },
   mainContent: {
     flex: 1,
     justifyContent: 'center',
+    paddingBottom: SPACING.xxl,
   },
   content: {
     alignItems: 'center',
     gap: SPACING.xl,
+    marginBottom: SPACING.xxl,
   },
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.m,
+    gap: SPACING.s, // Reduced gap between Title and Tagline
   },
-  logo: {
-    width: 96,
-    height: 96,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-    position: 'relative',
-    overflow: 'visible',
+  appName: {
+    fontSize: 48, // Much larger
+    fontFamily: FONTS.serifSemiBold,
+    color: COLORS.paper,
+    letterSpacing: -1,
   },
-  logoGlow: {
-    position: 'absolute',
-    width: 96,
-    height: 96,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
-    opacity: 0.2,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 24,
-  },
-  logoIconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
+  tagline: {
+    fontSize: 17,
+    color: COLORS.secondary,
+    textAlign: 'center',
+    fontFamily: FONTS.serifRegular, // Changed to Serif Regular
+    maxWidth: 260,
+    lineHeight: 24,
   },
   textContainer: {
     alignItems: 'center',
     gap: SPACING.s,
-    marginTop: SPACING.l,
   },
   checkEmailBlock: {
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.l,
   },
   checkEmailTitle: {
     fontSize: 28,
-    fontWeight: '700',
     color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
+    fontFamily: FONTS.serifSemiBold,
     letterSpacing: -0.5,
     textAlign: 'center',
   },
@@ -437,33 +442,7 @@ const styles = StyleSheet.create({
     maxWidth: 280,
   },
   formSectionCode: {
-    marginTop: SPACING.l,
-  },
-  title: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.paper,
-    letterSpacing: 2,
-    fontFamily: FONTS.semiBold,
-    textAlign: 'center',
-  },
-  tagline: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: COLORS.secondary,
-    textAlign: 'center',
-    fontFamily: FONTS.regular,
-    marginTop: SPACING.xs,
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: COLORS.secondary,
-    textAlign: 'center',
-    maxWidth: 280,
-    lineHeight: 24,
-    fontFamily: FONTS.regular,
+    marginTop: SPACING.s,
   },
   formSection: {
     gap: SPACING.l,
@@ -522,7 +501,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.s,
-    paddingBottom: SPACING.xxxl,
+    paddingBottom: SPACING.l,
   },
   legalLink: {
     fontSize: 12,
@@ -537,8 +516,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.tertiary,
   },
   termsContainer: {
-    marginTop: SPACING.s,
-    marginBottom: SPACING.s,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -548,17 +527,17 @@ const styles = StyleSheet.create({
   checkboxPressable: {
     padding: SPACING.xs,
     marginLeft: -SPACING.xs,
+    marginTop: -SPACING.xs,
   },
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: COLORS.divider,
-    backgroundColor: COLORS.hover,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: COLORS.tertiary,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
   },
   checkboxChecked: {
     backgroundColor: COLORS.primary,
@@ -566,14 +545,13 @@ const styles = StyleSheet.create({
   },
   termsText: {
     flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 20,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
   },
   termsLink: {
-    color: COLORS.primary,
-    fontFamily: FONTS.medium,
+    color: COLORS.paper,
     textDecorationLine: 'underline',
   },
 });

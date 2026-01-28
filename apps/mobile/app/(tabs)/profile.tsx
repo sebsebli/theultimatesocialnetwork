@@ -71,6 +71,7 @@ export default function ProfileScreen() {
         return;
       }
       console.error('Failed to load profile', error);
+      setHasMore(false); // Stop infinite loading
       // Show user-friendly error if no data exists
       if (reset && posts.length === 0 && !loadingMore) {
         showError(t('profile.loadError', 'Failed to load profile. Please try again.'));
@@ -209,14 +210,20 @@ export default function ProfileScreen() {
 
               {/* Stats Row */}
               <View style={styles.statsRow}>
-                <View style={styles.statItem}>
+                <Pressable 
+                  style={styles.statItem}
+                  onPress={() => isSelf && router.push('/user/connections?tab=followers')}
+                >
                   <Text style={styles.statNumber}>{user.followerCount}</Text>
                   <Text style={styles.statLabel}>{t('profile.followers')}</Text>
-                </View>
-                <View style={styles.statItem}>
+                </Pressable>
+                <Pressable 
+                  style={styles.statItem}
+                  onPress={() => isSelf && router.push('/user/connections?tab=following')}
+                >
                   <Text style={styles.statNumber}>{user.followingCount}</Text>
                   <Text style={styles.statLabel}>{t('profile.following')}</Text>
-                </View>
+                </Pressable>
                 <View style={styles.statItem}>
                   <View style={styles.verifiedBadge}>
                     <MaterialIcons name="verified" size={16} color={COLORS.tertiary} />

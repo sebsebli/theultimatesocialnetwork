@@ -15,10 +15,15 @@ import { ExternalSource } from '../entities/external-source.entity';
 import { PostTopic } from '../entities/post-topic.entity';
 import { Like } from '../entities/like.entity';
 import { Keep } from '../entities/keep.entity';
+import { TopicFollow } from '../entities/topic-follow.entity';
 import { DatabaseModule } from '../database/database.module';
+import { SharedModule } from '../shared/shared.module';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
+    SharedModule,
+    SearchModule,
     CacheModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -39,6 +44,7 @@ import { DatabaseModule } from '../database/database.module';
       PostTopic,
       Like,
       Keep,
+      TopicFollow,
     ]),
     DatabaseModule,
   ],

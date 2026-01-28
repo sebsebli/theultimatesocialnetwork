@@ -9,9 +9,11 @@ import { Worker, Job } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { PushOutbox, PushStatus } from '../entities/push-outbox.entity';
-import { PushToken } from '../entities/push-token.entity';
+import { PushToken, PushProvider } from '../entities/push-token.entity';
+import { ApnsSender } from './senders/apns.sender';
+import { FcmSender } from './senders/fcm.sender';
 
 @Injectable()
 export class PushWorker
@@ -25,6 +27,8 @@ export class PushWorker
     private pushOutboxRepo: Repository<PushOutbox>,
     @InjectRepository(PushToken) private pushTokenRepo: Repository<PushToken>,
     private configService: ConfigService,
+    private apnsSender: ApnsSender,
+    private fcmSender: FcmSender,
     @Inject('REDIS_CLIENT') private redis: Redis,
   ) {}
 
@@ -64,7 +68,7 @@ export class PushWorker
     if (outbox.status === PushStatus.SENT) return;
 
     const tokens = await this.pushTokenRepo.find({
-      where: { userId: outbox.userId, disabledAt: null },
+      where: { userId: outbox.userId, disabledAt: IsNull() },
     });
 
     if (tokens.length === 0) {
@@ -74,16 +78,54 @@ export class PushWorker
       return;
     }
 
-    // Simulate Send (Placeholder for APNs/FCM logic)
-    // In a real implementation, we would inject ApnsSender / FcmSender here.
+    const dataPayload = outbox.data as Record<string, string>;
+    let successCount = 0;
+
     for (const token of tokens) {
-      this.logger.log(
-        `[Mock Send] Provider: ${token.provider}, Token: ${token.token.substring(0, 10)}..., Title: ${outbox.title}`,
-      );
-      // if (failed) invalidTokens.push(token);
+      let result: { ok: boolean; invalidToken?: boolean; error?: string };
+
+      try {
+        if (token.provider === PushProvider.APNS) {
+          result = await this.apnsSender.send({
+            deviceToken: token.token,
+            title: outbox.title,
+            body: outbox.body,
+            data: dataPayload,
+            environment:
+              token.apnsEnvironment === 'production' ? 'production' : 'sandbox',
+          });
+        } else {
+          result = await this.fcmSender.send({
+            token: token.token,
+            title: outbox.title,
+            body: outbox.body,
+            data: dataPayload,
+          });
+        }
+
+        if (result.ok) {
+          successCount++;
+        } else {
+          this.logger.warn(
+            `Push failed for token ${token.id}: ${result.error}`,
+          );
+          if (result.invalidToken) {
+            token.disabledAt = new Date();
+            await this.pushTokenRepo.save(token);
+          }
+        }
+      } catch (err) {
+        this.logger.error(`Error sending to token ${token.id}`, err);
+      }
     }
 
-    outbox.status = PushStatus.SENT;
+    if (successCount > 0) {
+      outbox.status = PushStatus.SENT;
+    } else {
+      outbox.status = PushStatus.FAILED;
+      outbox.lastError = 'All tokens failed';
+    }
+
     outbox.sentAt = new Date();
     outbox.attemptCount += 1;
     await this.pushOutboxRepo.save(outbox);

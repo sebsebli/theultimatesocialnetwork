@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
-import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '../../../utils/api';
+import { api } from '../../utils/api';
 
 // Moved outside to prevent re-mounting on every render
 const RelevanceSlider = ({ 
@@ -59,17 +59,19 @@ export default function RelevanceSettingsScreen() {
     // Fetch initial settings
     api.get('/users/me').then((user: any) => {
       if (user.preferences?.explore) {
-        setSliders(prev => ({ ...prev, ...user.preferences.explore }));
+        const { showWhy: fetchedShowWhy, ...fetchedSliders } = user.preferences.explore;
+        setSliders(prev => ({ ...prev, ...fetchedSliders }));
+        if (fetchedShowWhy !== undefined) setShowWhy(fetchedShowWhy);
       }
     });
   }, []);
 
-  const savePreferences = (newSliders: any) => {
+  const savePreferences = (explorePrefs: any) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       api.patch('/users/me', {
         preferences: {
-          explore: newSliders
+          explore: explorePrefs
         }
       }).catch(console.error);
     }, 1000); // Debounce 1s
@@ -78,7 +80,12 @@ export default function RelevanceSettingsScreen() {
   const handleSliderChange = (key: string, value: number) => {
     const newSliders = { ...sliders, [key]: value };
     setSliders(newSliders);
-    savePreferences(newSliders);
+    savePreferences({ ...newSliders, showWhy });
+  };
+
+  const handleShowWhyChange = (val: boolean) => {
+    setShowWhy(val);
+    savePreferences({ ...sliders, showWhy: val });
   };
 
   const handleReset = () => {
@@ -91,7 +98,8 @@ export default function RelevanceSettingsScreen() {
       networkProximity: 40,
     };
     setSliders(defaults);
-    savePreferences(defaults);
+    setShowWhy(true);
+    savePreferences({ ...defaults, showWhy: true });
   };
 
   return (
@@ -164,7 +172,7 @@ export default function RelevanceSettingsScreen() {
               </View>
               <Switch
                 value={showWhy}
-                onValueChange={setShowWhy}
+                onValueChange={handleShowWhyChange}
                 trackColor={{ false: COLORS.divider, true: COLORS.primary }}
                 thumbColor={COLORS.paper}
               />

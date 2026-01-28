@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { User } from '../entities/user.entity';
@@ -76,12 +76,28 @@ export class UsersService {
   }
 
   async update(id: string, updates: Partial<User>): Promise<User> {
+    // Check username change limit
+    if (updates.handle) {
+      const user = await this.userRepo.findOneOrFail({ where: { id } });
+      if (user.lastUsernameChangeAt) {
+        const daysSinceChange =
+          (Date.now() - user.lastUsernameChangeAt.getTime()) /
+          (1000 * 60 * 60 * 24);
+        if (daysSinceChange < 14) {
+          throw new BadRequestException(
+            'Username can only be changed once every 14 days.',
+          );
+        }
+      }
+      updates.lastUsernameChangeAt = new Date();
+    }
+
     await this.userRepo.update(id, updates);
-    const user = await this.userRepo.findOneOrFail({ where: { id } });
+    const updatedUser = await this.userRepo.findOneOrFail({ where: { id } });
     this.meilisearch
-      .indexUser(user)
+      .indexUser(updatedUser)
       .catch((err) => console.error('Failed to update user index', err));
-    return user;
+    return updatedUser;
   }
 
   async getSuggested(userId?: string, limit = 10) {
@@ -158,5 +174,35 @@ export class UsersService {
       notifications,
       exportedAt: new Date(),
     };
+  }
+
+  async getFollowing(userId: string) {
+    const follows = await this.followRepo.find({
+      where: { followerId: userId },
+      relations: ['followee'],
+      order: { createdAt: 'DESC' },
+    });
+    return follows.map((f) => f.followee);
+  }
+
+  async getFollowers(userId: string) {
+    const follows = await this.followRepo.find({
+      where: { followeeId: userId },
+      relations: ['follower'],
+      order: { createdAt: 'DESC' },
+    });
+    return follows.map((f) => f.follower);
+  }
+
+  async removeFollower(userId: string, followerId: string) {
+    const follow = await this.followRepo.findOne({
+      where: { followerId, followeeId: userId },
+    });
+    if (follow) {
+      await this.followRepo.remove(follow);
+      await this.userRepo.decrement({ id: userId }, 'followerCount', 1);
+      await this.userRepo.decrement({ id: followerId }, 'followingCount', 1);
+    }
+    return { success: true };
   }
 }

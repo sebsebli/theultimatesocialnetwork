@@ -5,10 +5,12 @@ import { COLORS, SPACING, FONTS } from '../../constants/theme';
 import { Text, View, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/auth';
+import { useSocket } from '../../context/SocketContext';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, isLoading, onboardingComplete } = useAuth();
+  const { unreadMessages } = useSocket();
   const router = useRouter();
 
   if (isLoading) {
@@ -35,10 +37,10 @@ export default function TabLayout() {
           backgroundColor: COLORS.ink,
           borderTopColor: COLORS.divider,
           borderTopWidth: 1,
-          height: 50 + insets.bottom, // Reduced height
+          height: 50 + insets.bottom,
           paddingTop: 5,
           paddingBottom: insets.bottom,
-          paddingHorizontal: SPACING.xxl,
+          paddingHorizontal: SPACING.xl, // Increased padding for 4 icons
           position: 'absolute',
           bottom: 0,
           left: 0,
@@ -46,7 +48,7 @@ export default function TabLayout() {
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.tertiary,
-        tabBarShowLabel: false, // Remove labels as requested
+        tabBarShowLabel: false,
         tabBarIconStyle: {
           marginTop: 0,
         },
@@ -70,8 +72,8 @@ export default function TabLayout() {
         options={{
           title: 'Discover',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <MaterialCommunityIcons
-              name="compass-outline"
+            <MaterialIcons
+              name="search"
               size={24}
               color={focused ? COLORS.primary : COLORS.tertiary}
             />
@@ -90,29 +92,38 @@ export default function TabLayout() {
           title: '',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <View style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: COLORS.hover,
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: COLORS.primary,
               alignItems: 'center',
               justifyContent: 'center',
+              marginTop: -20,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 5,
+              borderWidth: 4,
+              borderColor: COLORS.ink,
             }}>
               <MaterialIcons
                 name="edit"
-                size={24}
-                color={COLORS.paper}
+                size={28}
+                color={COLORS.ink}
               />
             </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="inbox"
+        name="messages"
         options={{
-          title: 'Activity',
+          title: 'Chats',
+          tabBarBadge: unreadMessages > 0 ? unreadMessages : undefined,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <MaterialIcons
-              name="notifications-none"
+              name="chat-bubble-outline"
               size={24}
               color={focused ? COLORS.primary : COLORS.tertiary}
             />
@@ -124,64 +135,12 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <View style={{
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: 'rgba(110, 122, 138, 0.2)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <Text style={{
-                fontSize: 10,
-                fontWeight: '600',
-                color: COLORS.primary,
-                fontFamily: FONTS.semiBold,
-              }}>D</Text>
-            </View>
+            <MaterialIcons
+              name="person"
+              size={28}
+              color={focused ? COLORS.primary : COLORS.tertiary}
+            />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="user"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="collections"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="onboarding"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="post"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="topic"
-        options={{
-          href: null,
         }}
       />
     </Tabs>

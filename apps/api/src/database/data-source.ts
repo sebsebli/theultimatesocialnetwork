@@ -1,8 +1,12 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import * as path from 'path';
+import * as fs from 'fs';
 
-config({ path: path.join(__dirname, '../../../.env') });
+const envPath = path.join(__dirname, '../../../.env');
+if (fs.existsSync(envPath)) {
+  config({ path: envPath });
+}
 
 export default new DataSource({
   type: 'postgres',

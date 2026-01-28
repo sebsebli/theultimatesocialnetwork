@@ -118,6 +118,12 @@ export default {
     findPeople: 'Find people',
     savedByPrefix: 'Saved by',
     savedBySuffix: 'to',
+    suggestedPeople: 'People to follow',
+  },
+  beta: {
+    inviteTitle: 'Invite Friends',
+    inviteDesc: 'Help us grow the community during beta.',
+    inviteAction: 'Invite',
   },
   compose: {
     title: 'New post',
@@ -195,7 +201,12 @@ export default {
     noQuoted: 'No trending quotes yet',
     noDeepDives: 'No deep dives found',
     noNewsroom: 'No newsroom posts found',
-    sortOptions: 'Recommended / Newest',
+    sortOptions: 'Sort By',
+    sortRecommended: 'Recommended',
+    sortNewest: 'Newest',
+    sortMostCited: 'Most Cited',
+    filterByLanguage: 'My Languages',
+    filterAll: 'All Languages',
     loadError: 'Failed to load content. Please try again.',
     filter: 'Filter',
     deepDiveDescription: 'Explore verified discussions and citations about {{topic}}.',
@@ -219,6 +230,8 @@ export default {
     loadError: 'Failed to load profile. Please try again.',
     options: 'User Options',
     unfollow: 'Unfollow',
+    connections: 'Connections',
+    topics: 'Topics',
   },
   inbox: {
     title: 'Inbox',
@@ -292,6 +305,7 @@ export default {
     legal: 'Legal',
     pushEnabled: 'Push notifications enabled',
     pushEnableError: 'Failed to enable push notifications',
+    profileUpdated: 'Profile updated successfully',
     version: 'Version {{version}} (Build {{build}})',
   },
   collections: {
@@ -353,6 +367,9 @@ export default {
     },
     goBack: 'Go back',
     back: 'Back',
+    remove: 'Remove',
+    actionFailed: 'Action failed',
+    noResults: 'Nothing here.',
   },
   topic: {
     startHere: 'Start here',
@@ -372,6 +389,9 @@ export default {
     noMessages: 'No messages',
     send: 'Send',
     failedSend: 'Failed to send message',
+    newMessage: 'New Message',
+    searchUsers: 'Search people...',
+    loadError: 'Failed to load messages',
   },
   waitingList: {
     title: 'Join the Waitlist',

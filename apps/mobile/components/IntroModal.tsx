@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Modal, Pressable, Animated, Dimensions, Image, 
 import { RFValue } from 'react-native-responsive-fontsize';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 import * as SecureStore from 'expo-secure-store';
 
 const INTRO_SEEN_KEY = 'intro_seen';
@@ -494,10 +494,6 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
 }
 
 export async function shouldShowIntro(): Promise<boolean> {
-  // In dev mode, always show intro
-  if (__DEV__) {
-    return true;
-  }
   const seen = await SecureStore.getItemAsync(INTRO_SEEN_KEY);
   return seen !== 'true';
 }
@@ -614,18 +610,18 @@ const styles = StyleSheet.create({
     fontSize: RFValue(20),
     lineHeight: RFValue(26),
     color: COLORS.paper,
-    fontFamily: 'IBMPlexSerif_400Regular',
+    fontFamily: FONTS.serifRegular,
     textAlign: 'center',
   },
   founderText: {
     fontSize: RFValue(20),
     lineHeight: RFValue(26),
     color: COLORS.paper,
-    fontFamily: 'IBMPlexSerif_400Regular',
+    fontFamily: FONTS.serifRegular,
     textAlign: 'center',
   },
   highlightedCite: {
-    fontFamily: 'IBMPlexSerif_600SemiBold',
+    fontFamily: FONTS.serifSemiBold,
     fontWeight: '700',
   },
   founderContainer: {
@@ -640,7 +636,7 @@ const styles = StyleSheet.create({
     fontSize: RFValue(14),
     lineHeight: RFValue(20),
     color: COLORS.paper,
-    fontFamily: 'IBMPlexSerif_400Regular',
+    fontFamily: FONTS.serifRegular,
     textAlign: 'center',
     marginTop: SPACING.s,
     fontStyle: 'normal',
@@ -649,13 +645,13 @@ const styles = StyleSheet.create({
     fontSize: RFValue(32),
     lineHeight: RFValue(48),
     color: COLORS.paper,
-    fontFamily: 'IBMPlexSerif_400Regular',
+    fontFamily: FONTS.serifRegular,
   },
   welcomeText: {
     fontSize: RFValue(48),
     lineHeight: RFValue(64),
     color: COLORS.paper,
-    fontFamily: 'IBMPlexSerif_400Regular',
+    fontFamily: FONTS.serifRegular,
     marginTop: SPACING.xl,
   },
   skipButton: {
@@ -665,7 +661,7 @@ const styles = StyleSheet.create({
   skipButtonText: {
     fontSize: 12,
     color: COLORS.paper,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: FONTS.regular,
     letterSpacing: 0.5,
   },
   beginButton: {
@@ -683,7 +679,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: COLORS.paper,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: FONTS.medium,
     letterSpacing: 0.5,
   },
 });

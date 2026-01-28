@@ -7,6 +7,8 @@ import { PushWorker } from './push.worker';
 import { PushToken } from '../entities/push-token.entity';
 import { PushOutbox } from '../entities/push-outbox.entity';
 import { SharedModule } from '../shared/shared.module';
+import { ApnsSender } from './senders/apns.sender';
+import { FcmSender } from './senders/fcm.sender';
 
 @Module({
   imports: [
@@ -15,7 +17,7 @@ import { SharedModule } from '../shared/shared.module';
     SharedModule,
   ],
   controllers: [PushController],
-  providers: [PushService, PushWorker],
+  providers: [PushService, PushWorker, ApnsSender, FcmSender],
   exports: [PushService],
 })
 export class PushModule {}

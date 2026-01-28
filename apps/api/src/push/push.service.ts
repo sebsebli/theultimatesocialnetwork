@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PushToken } from '../entities/push-token.entity';
+import { PushToken, PushProvider } from '../entities/push-token.entity';
 import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class PushService {
   async register(userId: string, dto: RegisterPushTokenDto) {
     // Upsert logic
     let token = await this.pushTokenRepo.findOne({
-      where: { provider: dto.provider, token: dto.token },
+      where: { provider: dto.provider as PushProvider, token: dto.token },
     });
 
     if (token) {
@@ -24,7 +24,7 @@ export class PushService {
     } else {
       token = this.pushTokenRepo.create({
         userId,
-        provider: dto.provider,
+        provider: dto.provider as PushProvider,
         token: dto.token,
         platform: dto.platform,
         deviceId: dto.device_id,

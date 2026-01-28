@@ -3,12 +3,12 @@ import { StyleSheet, Text, View, Pressable, ScrollView, Alert, Platform } from '
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useAuth } from '../../../context/auth';
-import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
+import { useAuth } from '../../context/auth';
+import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import { registerForPush } from '../../../utils/push-notifications';
-import { getAuthToken } from '../../../utils/api';
+import { registerForPush } from '../../utils/push-notifications';
+import { getAuthToken } from '../../utils/api';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -63,7 +63,11 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
+        <Pressable onPress={() => router.back()}>
+          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
+        </Pressable>
         <Text style={styles.title}>{t('settings.title')}</Text>
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -72,12 +76,12 @@ export default function SettingsScreen() {
           <SettingItem
             icon="person-outline"
             label={t('settings.editProfile')}
-            onPress={() => router.push('/onboarding/profile')} // Re-use onboarding for edit
+            onPress={() => router.push('/settings/edit-profile')}
           />
           <SettingItem
-            icon="translate"
+            icon="language"
             label={t('settings.languages')}
-            onPress={() => router.push('/onboarding/languages')}
+            onPress={() => router.push('/settings/languages')}
           />
         </View>
 
@@ -91,7 +95,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="notifications-none"
             label={t('settings.notifications')}
-            onPress={handlePushEnable}
+            onPress={() => router.push('/settings/notifications')}
           />
         </View>
 
@@ -103,7 +107,7 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/blocked')}
           />
           <SettingItem
-            icon="volume-off"
+            icon="notifications-off"
             label={t('settings.muted')}
             onPress={() => router.push('/settings/muted')}
           />
@@ -117,7 +121,7 @@ export default function SettingsScreen() {
             onPress={() => openLink('https://cite.app/terms')}
           />
           <SettingItem
-            icon="privacy-tip"
+            icon="lock-outline"
             label={t('welcome.privacy')}
             onPress={() => openLink('https://cite.app/privacy')}
           />
@@ -149,13 +153,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.ink,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.l,
     paddingVertical: SPACING.m,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
   title: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,

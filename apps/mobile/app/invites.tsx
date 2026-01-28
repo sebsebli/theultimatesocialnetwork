@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, RefreshControl, Alert, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../../utils/api';
-import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
+import { api } from '../utils/api';
+import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 export default function InvitesScreen() {
   const router = useRouter();

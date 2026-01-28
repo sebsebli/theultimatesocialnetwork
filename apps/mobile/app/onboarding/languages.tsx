@@ -14,10 +14,21 @@ const LANGUAGES = [
   { code: 'fr', name: 'French', native: 'Français' },
   { code: 'es', name: 'Spanish', native: 'Español' },
   { code: 'it', name: 'Italian', native: 'Italiano' },
-  { code: 'nl', name: 'Dutch', native: 'Nederlands' },
   { code: 'pt', name: 'Portuguese', native: 'Português' },
+  { code: 'nl', name: 'Dutch', native: 'Nederlands' },
+  { code: 'pl', name: 'Polish', native: 'Polski' },
+  { code: 'ru', name: 'Russian', native: 'Русский' },
   { code: 'fi', name: 'Finnish', native: 'Suomi' },
+  { code: 'sv', name: 'Swedish', native: 'Svenska' },
+  { code: 'no', name: 'Norwegian', native: 'Norsk' },
+  { code: 'da', name: 'Danish', native: 'Dansk' },
+  { code: 'cs', name: 'Czech', native: 'Čeština' },
+  { code: 'hu', name: 'Hungarian', native: 'Magyar' },
 ];
+
+import * as Localization from 'expo-localization';
+
+// ...
 
 export default function OnboardingLanguagesScreen() {
   const router = useRouter();
@@ -25,7 +36,8 @@ export default function OnboardingLanguagesScreen() {
   const { showError, showToast } = useToast();
   const insets = useSafeAreaInsets();
 
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['en']);
+  const deviceLang = Localization.getLocales()[0]?.languageCode || 'en';
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([deviceLang]);
   const [onlyMyLanguages, setOnlyMyLanguages] = useState(true);
   const [loading, setLoading] = useState(false);
 

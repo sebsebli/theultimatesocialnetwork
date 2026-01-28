@@ -2,9 +2,9 @@ import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIn
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { api } from '../../utils/api';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
-import { useSocket } from '../../context/SocketContext';
+import { api } from '../utils/api';
+import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { useSocket } from '../context/SocketContext';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

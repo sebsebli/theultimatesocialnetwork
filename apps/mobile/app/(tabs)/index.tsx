@@ -1,16 +1,18 @@
 import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, LayoutAnimation, UIManager, Platform, AppState } from 'react-native';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { COLORS, FONTS, SIZES, SPACING } from 'constants/theme';
+import { COLORS, FONTS, SIZES, SPACING } from '../../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
-import { PostItem } from 'components/PostItem';
-import { ComposeEditor } from 'components/ComposeEditor';
+import { PostItem } from '../../components/PostItem';
 import { useRouter } from 'expo-router';
-import { api } from 'utils/api';
+import { api } from '../../utils/api';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from 'context/auth';
-import { useToast } from 'context/ToastContext';
+import { useAuth } from '../../context/auth';
+import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ErrorState } from 'components/ErrorState';
+import { ErrorState } from '../../components/ErrorState';
+import { Avatar } from '../../components/Avatar';
+import { useSocket } from '../../context/SocketContext';
+import { PersonCard } from '../../components/ExploreCards';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -22,6 +24,7 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const { showError } = useToast();
+  const { unreadNotifications } = useSocket();
   const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +33,7 @@ export default function HomeScreen() {
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {
@@ -39,31 +43,29 @@ export default function HomeScreen() {
     } else {
       setLoading(false);
     }
-
+    // ... rest of useEffect
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        // App has come to the foreground!
-        if (isAuthenticated) {
-          loadFeed(1, true);
-        }
+        if (isAuthenticated) loadFeed(1, true);
       }
       appState.current = nextAppState;
     });
-
-    return () => {
-      subscription.remove();
-    };
+    return () => subscription.remove();
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!loading && posts.length === 0) {
+      api.get('/users/suggested?limit=3').then(res => setSuggestions(Array.isArray(res) ? res : [])).catch(() => {});
+    }
+  }, [loading, posts.length]);
 
   const loadFeed = async (pageNum: number, reset = false) => {
     if (reset) {
       setLoading(true);
       setPage(1);
-      // Don't clear posts immediately to avoid flash, but do it if needed
-      // setPosts([]); 
     } else {
       setLoadingMore(true);
     }
@@ -110,7 +112,6 @@ export default function HomeScreen() {
       const hasMoreData = processedPosts.length === 20 && (data.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
-      // ... error handling
       if (error?.status === 401) {
         setLoading(false);
         setRefreshing(false);
@@ -171,24 +172,36 @@ export default function HomeScreen() {
     );
   }, [hasMore, loadingMore]);
 
+  const BetaNudge = () => (
+    <View style={styles.betaNudge}>
+      <View style={styles.betaContent}>
+        <Text style={styles.betaTitle}>{t('beta.inviteTitle', 'Invite Friends')}</Text>
+        <Text style={styles.betaDesc}>{t('beta.inviteDesc', 'Help us grow the community during beta.')}</Text>
+      </View>
+      <Pressable style={styles.betaButton} onPress={() => router.push('/invites')}>
+        <Text style={styles.betaButtonText}>{t('beta.inviteAction', 'Invite')}</Text>
+      </Pressable>
+    </View>
+  );
+
   return (
     <View style={[styles.container, { paddingBottom: 56 + insets.bottom }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerLeft}>
-          <View style={styles.logo}>
-            <MaterialIcons name="all-inclusive" size={24} color={COLORS.paper} />
-          </View>
-          <Text style={styles.headerTitle}>{t('home.title')}</Text>
+          {/* Logo or nothing */}
         </View>
         <View style={styles.headerActions}>
           <Pressable
-            onPress={() => router.push('/search')}
+            onPress={() => router.push('/notifications')}
             style={styles.headerActionButton}
-            accessibilityLabel={t('home.search')}
+            accessibilityLabel={t('home.notifications')}
             accessibilityRole="button"
           >
-            <MaterialIcons name="search" size={20} color={COLORS.tertiary} />
+            <View>
+              <MaterialIcons name="notifications-none" size={24} color={COLORS.tertiary} />
+              {unreadNotifications > 0 && <View style={styles.badge} />}
+            </View>
           </Pressable>
           <Pressable
             onPress={() => router.push('/settings')}
@@ -196,7 +209,7 @@ export default function HomeScreen() {
             accessibilityLabel={t('settings.title')}
             accessibilityRole="button"
           >
-            <MaterialIcons name="more-horiz" size={20} color={COLORS.tertiary} />
+            <MaterialIcons name="settings" size={24} color={COLORS.tertiary} />
           </Pressable>
         </View>
       </View>
@@ -207,32 +220,37 @@ export default function HomeScreen() {
         <FlatList
           data={posts}
           keyExtractor={keyExtractor}
-          ListHeaderComponent={<ComposeEditor />}
+          ListHeaderComponent={posts.length > 0 ? <BetaNudge /> : null}
           renderItem={renderItem}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>
-                {loading ? t('common.loading') : t('home.empty')}
+                {loading ? t('common.loading') : t('home.empty', 'Your feed is quiet.')}
               </Text>
               {!loading && (
-                <View style={styles.emptyButtons}>
-                  <Pressable
-                    style={styles.emptyButton}
-                    onPress={() => router.push('/explore')}
-                    accessibilityLabel={t('home.exploreTopics')}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.emptyButtonText}>{t('home.exploreTopics')}</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.emptyButton}
-                    onPress={() => router.push('/search')}
-                    accessibilityLabel={t('home.findPeople')}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.emptyButtonText}>{t('home.findPeople')}</Text>
-                  </Pressable>
-                </View>
+                <>
+                  {suggestions.length > 0 && (
+                    <View style={styles.suggestionsBox}>
+                        <Text style={styles.suggestionsTitle}>{t('home.suggestedPeople', 'People to follow')}</Text>
+                        {suggestions.map(u => (
+                            <View key={u.id} style={{ marginBottom: 12 }}>
+                                <PersonCard item={u} onPress={() => router.push(`/user/${u.handle}`)} showWhy={false} />
+                            </View>
+                        ))}
+                    </View>
+                  )}
+                  <View style={{ marginTop: 24, width: '100%' }}>
+                    <BetaNudge />
+                  </View>
+                  <View style={styles.emptyButtons}>
+                    <Pressable
+                        style={styles.emptyButton}
+                        onPress={() => router.push('/explore')}
+                    >
+                        <Text style={styles.emptyButtonText}>{t('home.exploreTopics')}</Text>
+                    </Pressable>
+                  </View>
+                </>
               )}
             </View>
           }
@@ -261,7 +279,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-    paddingBottom: 0, // Will be set dynamically
+    paddingBottom: 0,
   },
   header: {
     flexDirection: 'row',
@@ -273,32 +291,28 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.divider,
     backgroundColor: COLORS.ink,
   },
-  logo: {
-    width: 40, // w-10
-    height: 40, // h-10
-    alignItems: 'center',
-    justifyContent: 'center',
+  profileButton: {
+    marginRight: SPACING.s,
   },
   headerTitle: {
-    fontSize: 16, // text-base
-    fontWeight: '700', // font-bold
-    color: COLORS.paper, // text-paper
-    letterSpacing: -0.5, // tracking-tight
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.paper,
+    letterSpacing: -0.5,
     fontFamily: FONTS.semiBold,
-    marginLeft: SPACING.m, // gap-3
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.m, // gap-3
+    gap: SPACING.s,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.s, // gap-2
+    gap: SPACING.s,
   },
   headerActionButton: {
-    padding: SPACING.s, // p-2
+    padding: SPACING.s,
   },
   savedByItem: {
     borderBottomWidth: 1,
@@ -333,6 +347,18 @@ const styles = StyleSheet.create({
   emptyButtons: {
     flexDirection: 'row',
     gap: SPACING.m,
+    marginTop: SPACING.l,
+  },
+  suggestionsBox: {
+    width: '100%',
+    marginVertical: SPACING.l,
+  },
+  suggestionsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.paper,
+    marginBottom: SPACING.m,
+    fontFamily: FONTS.semiBold,
   },
   emptyButton: {
     paddingHorizontal: SPACING.l,
@@ -350,5 +376,44 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: SPACING.l,
     alignItems: 'center',
+  },
+  betaNudge: {
+    margin: SPACING.l,
+    padding: SPACING.l,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  betaContent: {
+    flex: 1,
+    marginRight: SPACING.m,
+  },
+  betaTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.paper,
+    marginBottom: 4,
+    fontFamily: FONTS.semiBold,
+  },
+  betaDesc: {
+    fontSize: 13,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+  },
+  betaButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: 8,
+    borderRadius: SIZES.borderRadiusPill,
+  },
+  betaButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFF',
+    fontFamily: FONTS.semiBold,
   },
 });

@@ -7,6 +7,10 @@ import { useToast } from './ToastContext';
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
+  unreadNotifications: number;
+  unreadMessages: number;
+  clearUnreadNotifications: () => void;
+  clearUnreadMessages: () => void;
   on: (event: string, callback: (data: any) => void) => void;
   off: (event: string, callback: (data: any) => void) => void;
 }
@@ -24,6 +28,8 @@ export function useSocket() {
 export function SocketProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   const { isAuthenticated } = useAuth();
   const { showSuccess } = useToast();
 
@@ -54,8 +60,13 @@ export function SocketProvider({ children }: { children: React.ReactNode }): Rea
       });
 
       socketInstance.on('notification', (data) => {
-        // Global notification handler (e.g. badge update)
-        // Specific toast can be handled here or by components
+        setUnreadNotifications(prev => prev + 1);
+      });
+
+      socketInstance.on('message', (data) => {
+        // Increment if not current thread? Hard to know here.
+        // For now, simple increment.
+        setUnreadMessages(prev => prev + 1);
       });
 
       setSocket(socketInstance);
@@ -69,6 +80,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }): Rea
       }
     };
   }, [isAuthenticated]);
+
+  const clearUnreadNotifications = useCallback(() => setUnreadNotifications(0), []);
+  const clearUnreadMessages = useCallback(() => setUnreadMessages(0), []);
 
   const on = useCallback((event: string, callback: (data: any) => void) => {
     if (socket) {
@@ -84,7 +98,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }): Rea
 
   const Provider = SocketContext.Provider as any;
   return (
-    <Provider value={{ socket, isConnected, on, off }}>
+    <Provider value={{ socket, isConnected, unreadNotifications, unreadMessages, clearUnreadNotifications, clearUnreadMessages, on, off }}>
       {children}
     </Provider>
   ) as React.ReactElement;

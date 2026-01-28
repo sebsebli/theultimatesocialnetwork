@@ -5,16 +5,12 @@ import { NotificationsService } from './notifications.service';
 import { Notification } from '../entities/notification.entity';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
-import { NotificationHelperService } from '../shared/notification-helper.service';
-import { RealtimeModule } from '../realtime/realtime.module';
+import { SharedModule } from '../shared/shared.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Notification, User, Post]),
-    RealtimeModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Notification, User, Post]), SharedModule],
   controllers: [NotificationsController],
-  providers: [NotificationsService, NotificationHelperService],
-  exports: [NotificationHelperService],
+  providers: [NotificationsService],
+  exports: [SharedModule],
 })
 export class NotificationsModule {}

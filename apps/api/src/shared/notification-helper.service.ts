@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Queue } from 'bullmq';
 import {
   Notification,
@@ -36,16 +36,20 @@ export class NotificationHelperService {
     }
 
     // Prevent duplicates
-    const existing = await this.notificationRepo.findOne({
-      where: {
-        userId: data.userId,
-        type: data.type,
-        actorUserId: data.actorUserId,
-        postId: data.postId || null,
-        replyId: data.replyId || null,
-        collectionId: data.collectionId || null,
-      },
-    });
+    const where: Parameters<Repository<Notification>['findOne']>[0]['where'] = {
+      userId: data.userId,
+      type: data.type,
+      actorUserId: data.actorUserId,
+      postId: data.postId ?? undefined,
+      replyId: data.replyId ?? undefined,
+      collectionId: data.collectionId ?? undefined,
+    };
+    if (data.postId == null) (where as { postId?: unknown }).postId = IsNull();
+    if (data.replyId == null)
+      (where as { replyId?: unknown }).replyId = IsNull();
+    if (data.collectionId == null)
+      (where as { collectionId?: unknown }).collectionId = IsNull();
+    const existing = await this.notificationRepo.findOne({ where });
 
     if (existing) {
       return existing;
@@ -55,7 +59,10 @@ export class NotificationHelperService {
     const saved = await this.notificationRepo.save(notification);
 
     // Realtime (Socket)
-    this.realtimeGateway.sendNotification(data.userId, saved);
+    this.realtimeGateway.sendNotification(
+      data.userId,
+      saved as unknown as Record<string, unknown>,
+    );
 
     // Push Notification (Async via Outbox)
     try {

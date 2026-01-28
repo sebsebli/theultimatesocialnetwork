@@ -1,19 +1,21 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Modal, Alert, Image, FlatList } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Image, FlatList } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { MarkdownText } from '../../components/MarkdownText';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ComposeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
   const { showError, showSuccess } = useToast();
+  const insets = useSafeAreaInsets();
   const quotePostId = params.quote as string | undefined;
   const replyToPostId = params.replyTo as string | undefined;
 
@@ -21,27 +23,24 @@ export default function ComposeScreen() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [headerImage, setHeaderImage] = useState<string | null>(null);
-  const [headerImageKey, setHeaderImageKey] = useState<string | null>(null);
-  const [headerImageBlurhash, setHeaderImageBlurhash] = useState<string | null>(null);
   const [headerImageAsset, setHeaderImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
-  // Modals state
-  const [linkModalVisible, setLinkModalVisible] = useState(false);
+  // Suggestions state
+  const [suggestionType, setSuggestionType] = useState<'none' | 'topic' | 'mention'>('none');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
+
+  // Link Input State (Inline, no modal)
+  const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  const [linkToTopicModalVisible, setLinkToTopicModalVisible] = useState(false);
-  const [topicSuggestions, setTopicSuggestions] = useState<any[]>([]);
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
 
   const textInputRef = useRef<TextInput>(null);
   const [quotedPost, setQuotedPost] = useState<any>(null);
 
   useEffect(() => {
-    if (quotePostId) {
-      loadQuotedPost(quotePostId);
-    } else if (replyToPostId) {
-      loadQuotedPost(replyToPostId);
-    }
+    if (quotePostId) loadQuotedPost(quotePostId);
+    else if (replyToPostId) loadQuotedPost(replyToPostId);
   }, [quotePostId, replyToPostId]);
 
   const loadQuotedPost = async (id: string) => {
@@ -53,12 +52,35 @@ export default function ComposeScreen() {
     }
   };
 
-  const insertText = (before: string, after: string = '') => {
-    const start = selection.start;
-    const end = selection.end;
-
-    const newBody = body.substring(0, start) + before + body.substring(start, end) + after + body.substring(end);
+  const insertText = (text: string) => {
+    const { start, end } = selection;
+    const newBody = body.substring(0, start) + text + body.substring(end);
     setBody(newBody);
+  };
+
+  const formatSelection = (type: 'bold' | 'italic' | 'quote' | 'list' | 'ordered-list') => {
+    const { start, end } = selection;
+    const selectedText = body.substring(start, end);
+    let newText = '';
+
+    if (type === 'bold') newText = `**${selectedText || 'text'}**`;
+    else if (type === 'italic') newText = `_${selectedText || 'text'}_`;
+    else if (type === 'quote') newText = `> ${selectedText || 'quote'}`;
+    else if (type === 'list') newText = `- ${selectedText || 'item'}`;
+    else if (type === 'ordered-list') newText = `1. ${selectedText || 'item'}`;
+
+    const newBody = body.substring(0, start) + newText + body.substring(end);
+    setBody(newBody);
+  };
+
+  const addLink = () => {
+    if (linkUrl) {
+      const text = linkText || linkUrl;
+      insertText(`[${text}](${linkUrl})`);
+      setShowLinkInput(false);
+      setLinkText('');
+      setLinkUrl('');
+    }
   };
 
   const pickImage = async () => {
@@ -69,7 +91,6 @@ export default function ComposeScreen() {
         aspect: [16, 9],
         quality: 0.8,
       });
-
       if (!result.canceled) {
         setHeaderImage(result.assets[0].uri);
         setHeaderImageAsset(result.assets[0]);
@@ -81,20 +102,12 @@ export default function ComposeScreen() {
 
   const handlePublish = async () => {
     const trimmedBody = body.trim();
-
     if (!trimmedBody) {
       showError(t('compose.bodyRequired', 'Post body is required'));
       return;
     }
-
-    if (trimmedBody.length < 3) {
-      showError(t('compose.bodyTooShort', 'Post must be at least 3 characters'));
-      return;
-    }
-
     setIsPublishing(true);
     try {
-      // Upload image if exists
       let imageKey = null;
       let imageBlurhash = null;
       if (headerImageAsset) {
@@ -104,269 +117,239 @@ export default function ComposeScreen() {
       }
 
       if (quotePostId) {
-        await api.post('/posts/quote', {
-          postId: quotePostId,
-          body: trimmedBody,
-        });
+        await api.post('/posts/quote', { postId: quotePostId, body: trimmedBody });
       } else if (replyToPostId) {
-        await api.post(`/posts/${replyToPostId}/replies`, {
-          body: trimmedBody,
-        });
+        await api.post(`/posts/${replyToPostId}/replies`, { body: trimmedBody });
       } else {
-        await api.post('/posts', {
-          body: trimmedBody,
-          headerImageKey: imageKey,
-          headerImageBlurhash: imageBlurhash,
-        });
+        await api.post('/posts', { body: trimmedBody, headerImageKey: imageKey, headerImageBlurhash: imageBlurhash });
       }
       showSuccess(t('compose.publishedSuccess', 'Published successfully'));
       router.back();
     } catch (error: any) {
       console.error('Failed to publish', error);
-      const errorMessage = error?.status === 400
-        ? t('compose.invalidContent', 'Invalid post content')
-        : error?.status === 413
-          ? t('compose.tooLarge', 'Post is too large')
-          : t('compose.error');
-      showError(errorMessage);
+      showError(t('compose.error'));
     } finally {
       setIsPublishing(false);
     }
   };
 
-  const handleBodyChange = useCallback((text: string) => {
-    setBody(text);
-    const lastWord = text.split(/\s+/).pop();
-    if (lastWord?.startsWith('[[') && !linkToTopicModalVisible) {
-      setLinkToTopicModalVisible(true);
-      loadTopicSuggestions();
-    } else if (!lastWord?.startsWith('[[') && linkToTopicModalVisible) {
-      setLinkToTopicModalVisible(false);
-    }
-  }, [linkToTopicModalVisible]);
+  // --- Suggestions Logic ---
+  const checkTriggers = (text: string, cursorIndex: number) => {
+    const beforeCursor = text.slice(0, cursorIndex);
+    const words = beforeCursor.split(/\s+/);
+    const currentWord = words[words.length - 1] || '';
 
-  const addLink = () => {
-    if (linkUrl) {
-      const text = linkText || linkUrl;
-      setBody(prev => prev + `[${text}](${linkUrl})`);
-      setLinkModalVisible(false);
-      setLinkText('');
-      setLinkUrl('');
+    if (currentWord.startsWith('[[')) {
+      const query = currentWord.slice(2);
+      if (suggestionType !== 'topic') setSuggestionType('topic');
+      loadTopicSuggestions(query);
+    } else if (currentWord.startsWith('@')) {
+      const query = currentWord.slice(1);
+      if (suggestionType !== 'mention') setSuggestionType('mention');
+      loadMentionSuggestions(query);
+    } else {
+      if (suggestionType !== 'none') setSuggestionType('none');
     }
   };
 
-  const loadTopicSuggestions = async () => {
+  const loadTopicSuggestions = async (q: string) => {
     try {
-      const data = await api.get('/explore/topics?limit=5');
-      const topics = Array.isArray(data) ? data : [];
-      if (topics.length < 3) {
-        topics.push(
-          { id: '1', slug: 'linking-your-thinking', title: 'Linking Your Thinking', referenceCount: 12 },
-          { id: '2', slug: 'network-topology', title: 'Network Topology', referenceCount: 3 },
-        );
-      }
-      setTopicSuggestions(topics);
-    } catch (error) {
-      console.error('Failed to load topic suggestions', error);
-      setTopicSuggestions([
-        { id: '1', slug: 'linking-your-thinking', title: 'Linking Your Thinking', referenceCount: 12 },
-        { id: '2', slug: 'network-topology', title: 'Network Topology', referenceCount: 3 },
-      ]);
+        let res;
+        if (!q) {
+           res = await api.get('/explore/topics?limit=5');
+           setSuggestions(Array.isArray(res) ? res : (res.items || []));
+        } else {
+           res = await api.get(`/search/topics?q=${encodeURIComponent(q)}`);
+           setSuggestions(res.hits || []);
+        }
+    } catch (e) {
+        // Fallback
     }
   };
 
-  const handleLinkToTopic = (topic: any) => {
-    setBody(prev => prev + `${topic.slug}]]`);
-    setLinkToTopicModalVisible(false);
+  const loadMentionSuggestions = async (q: string) => {
+    try {
+        let res;
+        if (!q) {
+           res = await api.get('/users/suggested?limit=5');
+           setSuggestions(Array.isArray(res) ? res : []);
+        } else {
+           res = await api.get(`/search/users?q=${encodeURIComponent(q)}`);
+           setSuggestions(res.hits || []);
+        }
+    } catch (e) {
+        // Fallback
+    }
   };
+
+  const handleSuggestionSelect = (item: any) => {
+    const beforeCursor = body.slice(0, selection.start);
+    const afterCursor = body.slice(selection.start);
+    const words = beforeCursor.split(/\s+/);
+    const lastWord = words[words.length - 1];
+    const triggerIndex = beforeCursor.lastIndexOf(lastWord);
+
+    let insertion = '';
+    if (suggestionType === 'topic') insertion = `[[${item.slug || item.title}]] `;
+    else if (suggestionType === 'mention') insertion = `@${item.handle} `;
+
+    const newBody = beforeCursor.substring(0, triggerIndex) + insertion + afterCursor;
+    setBody(newBody);
+    setSuggestionType('none');
+  };
+
+  // --- Components ---
+
+  const SuggestionsView = () => {
+    if (suggestionType === 'none' || suggestions.length === 0) return null;
+    return (
+      <View style={styles.suggestionsContainer}>
+        <FlatList
+          data={suggestions}
+          keyExtractor={item => item.id || item.slug || item.handle}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <Pressable style={styles.suggestionItem} onPress={() => handleSuggestionSelect(item)}>
+              <View style={styles.suggestionIcon}>
+                {suggestionType === 'mention' ? (
+                    <Text style={styles.suggestionAvatarText}>{(item.displayName || item.handle)?.charAt(0)}</Text>
+                ) : (
+                    <MaterialIcons name="pound" size={20} color={COLORS.primary} />
+                )}
+              </View>
+              <View>
+                <Text style={styles.suggestionText}>{item.displayName || item.title || item.slug}</Text>
+                <Text style={styles.suggestionSubText}>{suggestionType === 'mention' ? `@${item.handle}` : 'Topic'}</Text>
+              </View>
+            </Pressable>
+          )}
+        />
+      </View>
+    );
+  };
+
+  const LinkInput = () => (
+    <View style={styles.linkInputContainer}>
+      <View style={styles.linkInputRow}>
+        <TextInput 
+            style={styles.linkField} 
+            placeholder="URL (https://...)" 
+            placeholderTextColor={COLORS.tertiary}
+            value={linkUrl} 
+            onChangeText={setLinkUrl} 
+            autoFocus 
+            autoCapitalize="none"
+            keyboardType="url"
+        />
+        <Pressable onPress={addLink} style={styles.linkAddButton}>
+            <MaterialIcons name="check" size={20} color={COLORS.ink} />
+        </Pressable>
+        <Pressable onPress={() => setShowLinkInput(false)} style={styles.linkCloseButton}>
+            <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+        </Pressable>
+      </View>
+      <TextInput 
+          style={[styles.linkField, { marginTop: 8 }]} 
+          placeholder="Display Text (optional)" 
+          placeholderTextColor={COLORS.tertiary}
+          value={linkText} 
+          onChangeText={setLinkText} 
+      />
+    </View>
+  );
+
+  const Toolbar = () => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbar} keyboardShouldPersistTaps="handled">
+      <Pressable style={styles.toolBtn} onPress={() => insertText('# ')}><Text style={styles.toolText}>H1</Text></Pressable>
+      <Pressable style={styles.toolBtn} onPress={() => insertText('## ')}><Text style={styles.toolText}>H2</Text></Pressable>
+      <Pressable style={styles.toolBtn} onPress={() => formatSelection('bold')}><MaterialIcons name="format-bold" size={20} color={COLORS.primary} /></Pressable>
+      <Pressable style={styles.toolBtn} onPress={() => formatSelection('italic')}><MaterialIcons name="format-italic" size={20} color={COLORS.primary} /></Pressable>
+      <Pressable style={styles.toolBtn} onPress={() => formatSelection('quote')}><MaterialIcons name="format-quote" size={20} color={COLORS.primary} /></Pressable>
+      <Pressable style={styles.toolBtn} onPress={() => formatSelection('list')}><MaterialIcons name="format-list-bulleted" size={20} color={COLORS.primary} /></Pressable>
+      <View style={styles.divider} />
+      <Pressable style={styles.toolBtn} onPress={() => setShowLinkInput(true)}><MaterialIcons name="link" size={20} color={COLORS.primary} /></Pressable>
+      <Pressable style={styles.toolBtn} onPress={() => insertText('[[')}><Text style={styles.toolText}>[[ ]]</Text></Pressable>
+      <Pressable style={styles.toolBtn} onPress={() => insertText('@')}><MaterialIcons name="alternate-email" size={20} color={COLORS.primary} /></Pressable>
+      <Pressable style={styles.toolBtn} onPress={pickImage}><MaterialIcons name="image" size={20} color={COLORS.primary} /></Pressable>
+    </ScrollView>
+  );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-    >
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.cancelButton}>{t('compose.cancel')}</Text>
+        <Pressable onPress={() => router.back()} style={styles.closeBtn}>
+          <Text style={styles.closeText}>{t('common.cancel')}</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>{t('compose.newPost')}</Text>
-        <View style={styles.toggleContainer}>
-          <Pressable
-            style={[styles.toggleButton, !previewMode && styles.toggleButtonActive]}
-            onPress={() => setPreviewMode(false)}
-          >
-            <Text style={[styles.toggleText, !previewMode && styles.toggleTextActive]}>{t('compose.write')}</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.toggleButton, previewMode && styles.toggleButtonActive]}
-            onPress={() => setPreviewMode(true)}
-          >
-            <Text style={[styles.toggleText, previewMode && styles.toggleTextActive]}>{t('compose.preview')}</Text>
-          </Pressable>
+        <View style={styles.modeToggle}>
+            <Pressable onPress={() => setPreviewMode(false)} style={[styles.modeBtn, !previewMode && styles.modeBtnActive]}>
+                <Text style={[styles.modeText, !previewMode && styles.modeTextActive]}>Edit</Text>
+            </Pressable>
+            <Pressable onPress={() => setPreviewMode(true)} style={[styles.modeBtn, previewMode && styles.modeBtnActive]}>
+                <Text style={[styles.modeText, previewMode && styles.modeTextActive]}>Preview</Text>
+            </Pressable>
         </View>
-        <Pressable
-          onPress={handlePublish}
-          disabled={!body.trim() || isPublishing}
-          style={[styles.publishButton, (!body.trim() || isPublishing) && styles.publishButtonDisabled]}
+        <Pressable 
+            onPress={handlePublish} 
+            disabled={!body.trim() || isPublishing}
+            style={[styles.publishBtn, (!body.trim() || isPublishing) && styles.publishBtnDisabled]}
         >
-          <Text style={styles.publishButtonText}>
-            {isPublishing ? '...' : t('compose.publish')}
-          </Text>
+          <Text style={styles.publishText}>{isPublishing ? 'Posting...' : t('compose.publish')}</Text>
         </Pressable>
       </View>
 
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
-        {quotedPost && (
-          <View style={styles.quotedPost}>
-            <Text style={styles.quotedPostTitle}>{quotedPost.title || t('compose.quotedPost')}</Text>
-            <Text style={styles.quotedPostBody} numberOfLines={2}>
-              {quotedPost.body}
-            </Text>
-          </View>
-        )}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <Pressable style={{ flex: 1 }} onPress={() => !previewMode && textInputRef.current?.focus()}>
+            <ScrollView style={styles.editorContainer} contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+                {quotedPost && (
+                    <View style={styles.quoteBox}>
+                        <Text style={styles.quoteTitle}>{quotedPost.title || 'Post'}</Text>
+                        <Text numberOfLines={2} style={styles.quoteBody}>{quotedPost.body}</Text>
+                    </View>
+                )}
+                
+                {headerImage && (
+                    <View style={styles.imageContainer}>
+                        <Image source={{ uri: headerImage }} style={styles.headerImg} />
+                        {!previewMode && (
+                            <Pressable style={styles.removeImgBtn} onPress={() => { setHeaderImage(null); setHeaderImageAsset(null); }}>
+                                <MaterialIcons name="close" size={16} color="white" />
+                            </Pressable>
+                        )}
+                    </View>
+                )}
 
-        {headerImage && (
-          <View style={styles.imagePreview}>
-            <Image source={{ uri: headerImage }} style={styles.headerImage} />
-            {!previewMode && (
-              <Pressable style={styles.removeImage} onPress={() => { setHeaderImage(null); setHeaderImageAsset(null); }}>
-                <MaterialIcons name="close" size={16} color="white" />
-              </Pressable>
-            )}
-          </View>
-        )}
-
-        {previewMode ? (
-          <View style={styles.previewContainer}>
-            <MarkdownText>{body}</MarkdownText>
-          </View>
-        ) : (
-          <TextInput
-            ref={textInputRef}
-            style={styles.textInput}
-            placeholder={quotedPost ? t('compose.startWriting') : t('compose.placeholder')}
-            placeholderTextColor={COLORS.tertiary}
-            multiline
-            value={body}
-            onChangeText={handleBodyChange}
-            onSelectionChange={(event: any) => setSelection(event.nativeEvent.selection)}
-            autoFocus
-            textAlignVertical="top"
-          />
-        )}
-      </ScrollView>
-
-      {/* Toolbar */}
-      {!previewMode && (
-        <View style={styles.toolbar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarContent}>
-            <Pressable style={[styles.toolbarButton, styles.toolbarButtonActive]} onPress={() => insertText('# ')}>
-              <Text style={styles.toolbarButtonText}>H1</Text>
-            </Pressable>
-            <Pressable style={styles.toolbarButton} onPress={() => insertText('## ')}>
-              <Text style={styles.toolbarButtonText}>H2</Text>
-            </Pressable>
-            <Pressable style={styles.toolbarButton} onPress={() => insertText('**', '**')}>
-              <Text style={styles.toolbarButtonText}>B</Text>
-            </Pressable>
-            <Pressable style={styles.toolbarButton} onPress={() => insertText('_', '_')}>
-              <Text style={styles.toolbarButtonText}>I</Text>
-            </Pressable>
-            <Pressable style={styles.toolbarButton} onPress={() => insertText('> ')}>
-              <MaterialCommunityIcons name="format-quote-close" size={20} color={COLORS.primary} />
-            </Pressable>
-            <Pressable style={styles.toolbarButton} onPress={() => insertText('- ')}>
-              <MaterialCommunityIcons name="format-list-bulleted" size={20} color={COLORS.primary} />
-            </Pressable>
-            <View style={styles.divider} />
-            <Pressable style={styles.toolbarButton} onPress={() => setLinkModalVisible(true)}>
-              <MaterialIcons name="link" size={20} color={COLORS.primary} />
-            </Pressable>
-            <Pressable style={styles.toolbarButton} onPress={() => {
-              setLinkToTopicModalVisible(true);
-              loadTopicSuggestions();
-              insertText('[[');
-            }}>
-              <MaterialCommunityIcons name="pound" size={20} color={COLORS.primary} />
-            </Pressable>
-            <Pressable style={styles.toolbarButton} onPress={pickImage}>
-              <MaterialIcons name="image" size={20} color={COLORS.primary} />
-            </Pressable>
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Link Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={linkModalVisible}
-        onRequestClose={() => setLinkModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('compose.addLink')}</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder={t('compose.linkDisplayText')}
-              placeholderTextColor={COLORS.tertiary}
-              value={linkText}
-              onChangeText={setLinkText}
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder={t('compose.linkUrl')}
-              placeholderTextColor={COLORS.tertiary}
-              value={linkUrl}
-              onChangeText={setLinkUrl}
-              autoCapitalize="none"
-              keyboardType="url"
-            />
-            <View style={styles.modalButtons}>
-              <Pressable style={styles.modalButtonCancel} onPress={() => setLinkModalVisible(false)}>
-                <Text style={styles.modalButtonTextCancel}>{t('common.cancel')}</Text>
-              </Pressable>
-              <Pressable style={styles.modalButtonAdd} onPress={addLink}>
-                <Text style={styles.modalButtonTextAdd}>{t('post.add')}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Topic Suggestions Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={linkToTopicModalVisible}
-        onRequestClose={() => setLinkToTopicModalVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setLinkToTopicModalVisible(false)}>
-          <View style={styles.linkToTopicModal}>
-            <Text style={styles.linkToTopicTitle}>{t('compose.linkToTopic', 'LINK TO TOPIC')}</Text>
-            <FlatList
-              data={topicSuggestions}
-              keyExtractor={(item: any) => item.id || item.slug}
-              renderItem={({ item }: { item: any }) => (
-                <Pressable
-                  style={styles.topicSuggestionItem}
-                  onPress={() => handleLinkToTopic(item)}
-                >
-                  <MaterialIcons name="link" size={18} color={COLORS.tertiary} />
-                  <View style={styles.topicSuggestionContent}>
-                    <Text style={styles.topicSuggestionTitle}>{item.title || item.slug}</Text>
-                    {item.referenceCount !== undefined && (
-                      <Text style={styles.topicSuggestionRefs}>{t('compose.references', { count: item.referenceCount, defaultValue: `${item.referenceCount} references` })}</Text>
-                    )}
-                  </View>
-                </Pressable>
-              )}
-            />
-          </View>
+                {previewMode ? (
+                    <MarkdownText>{body}</MarkdownText>
+                ) : (
+                    <TextInput
+                        ref={textInputRef}
+                        style={styles.input}
+                        placeholder={t('compose.placeholderWithMarkdown', 'Start writing...')}
+                        placeholderTextColor={COLORS.tertiary}
+                        multiline
+                        scrollEnabled={false} 
+                        value={body}
+                        onChangeText={(text) => { setBody(text); checkTriggers(text, selection.start); }}
+                        onSelectionChange={(e) => {
+                            const sel = e.nativeEvent.selection;
+                            setSelection(sel);
+                            checkTriggers(body, sel.start);
+                        }}
+                        autoFocus
+                    />
+                )}
+            </ScrollView>
         </Pressable>
-      </Modal>
-    </KeyboardAvoidingView>
+
+        {/* Footer Area */}
+        {!previewMode && (
+            <View style={styles.footer}>
+                <SuggestionsView />
+                {showLinkInput ? <LinkInput /> : <Toolbar />}
+            </View>
+        )}
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -379,249 +362,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: SPACING.header,
-    paddingBottom: SPACING.m,
     paddingHorizontal: SPACING.l,
+    paddingBottom: SPACING.m,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
-  cancelButton: {
-    fontSize: 16,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    zIndex: -1,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.hover,
-    borderRadius: 8,
-    padding: 2,
-    marginRight: SPACING.m,
-  },
-  toggleButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  toggleButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  toggleText: {
-    fontSize: 12,
-    color: COLORS.secondary,
-    fontWeight: '500',
-  },
-  toggleTextActive: {
-    color: COLORS.paper,
-    fontWeight: '600',
-  },
-  publishButton: {
-    paddingHorizontal: SPACING.l,
-    paddingVertical: 6,
-    backgroundColor: COLORS.primary,
-    borderRadius: SIZES.borderRadiusPill,
-  },
-  publishButtonDisabled: {
-    opacity: 0.5,
-    backgroundColor: COLORS.hover,
-  },
-  publishButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFF',
-    fontFamily: FONTS.semiBold,
-  },
-  content: {
-    flex: 1,
-    padding: SPACING.l,
-  },
-  textInput: {
-    fontSize: 17,
-    lineHeight: 24,
-    color: COLORS.paper,
-    minHeight: 200,
-    fontFamily: FONTS.regular,
-    textAlignVertical: 'top',
-  },
-  previewContainer: {
-    paddingVertical: SPACING.m,
-  },
-  quotedPost: {
-    padding: SPACING.m,
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    marginBottom: SPACING.l,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
-  },
-  quotedPostTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.paper,
-    marginBottom: 4,
-  },
-  quotedPostBody: {
-    fontSize: 14,
-    color: COLORS.secondary,
-  },
-  imagePreview: {
-    marginBottom: SPACING.l,
-    borderRadius: SIZES.borderRadius,
-    overflow: 'hidden',
-  },
-  headerImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: SIZES.borderRadius,
-  },
-  removeImage: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 12,
-    padding: 4,
-  },
-  toolbar: {
-    paddingVertical: SPACING.m,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-    backgroundColor: COLORS.ink,
-    paddingBottom: Platform.OS === 'ios' ? 30 : SPACING.m,
-  },
-  toolbarContent: {
-    paddingHorizontal: SPACING.l,
-    alignItems: 'center',
-    gap: 8,
-  },
-  toolbarButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toolbarButtonActive: {
-    backgroundColor: COLORS.hover,
-  },
-  toolbarButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.primary,
-    fontFamily: FONTS.semiBold,
-  },
-  divider: {
-    width: 1,
-    height: 24,
-    backgroundColor: COLORS.divider,
-    marginHorizontal: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    padding: SPACING.xl,
-  },
-  modalContent: {
-    backgroundColor: COLORS.ink,
-    borderRadius: SIZES.borderRadius,
-    padding: SPACING.xl,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.paper,
-    marginBottom: SPACING.l,
-    textAlign: 'center',
-  },
-  modalInput: {
-    backgroundColor: COLORS.hover,
-    color: COLORS.paper,
-    padding: SPACING.m,
-    borderRadius: 8,
-    marginBottom: SPACING.m,
-    fontSize: 16,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: SPACING.m,
-  },
-  modalButtonCancel: {
-    flex: 1,
-    padding: SPACING.m,
-    borderRadius: 8,
-    backgroundColor: COLORS.hover,
-    alignItems: 'center',
-  },
-  modalButtonAdd: {
-    flex: 1,
-    padding: SPACING.m,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-  },
-  modalButtonTextCancel: {
-    color: COLORS.secondary,
-    fontWeight: '600',
-  },
-  modalButtonTextAdd: {
-    color: COLORS.paper,
-    fontWeight: '600',
-  },
-  linkToTopicModal: {
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    padding: SPACING.m,
-    marginHorizontal: SPACING.l,
-    marginTop: 100, // Adjust for positioning
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-    maxHeight: 300,
-  },
-  linkToTopicTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: SPACING.s,
-    paddingHorizontal: SPACING.s,
-    fontFamily: FONTS.semiBold,
-  },
-  topicSuggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.s,
-    gap: SPACING.m,
-    borderRadius: SIZES.borderRadius,
-  },
-  topicSuggestionContent: {
-    flex: 1,
-  },
-  topicSuggestionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  topicSuggestionRefs: {
-    fontSize: 12,
-    color: COLORS.secondary,
-    marginTop: 2,
-    fontFamily: FONTS.regular,
-  },
+  closeBtn: { padding: SPACING.s },
+  closeText: { color: COLORS.secondary, fontSize: 16 },
+  modeToggle: { flexDirection: 'row', backgroundColor: COLORS.hover, borderRadius: 8, padding: 2 },
+  modeBtn: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 6 },
+  modeBtnActive: { backgroundColor: COLORS.ink, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2 },
+  modeText: { color: COLORS.tertiary, fontSize: 13, fontWeight: '500' },
+  modeTextActive: { color: COLORS.paper, fontWeight: '600' },
+  publishBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 16 },
+  publishBtnDisabled: { opacity: 0.5 },
+  publishText: { color: COLORS.ink, fontWeight: '600', fontSize: 14 },
+  
+  editorContainer: { flex: 1, padding: SPACING.l },
+  input: { fontSize: 18, color: COLORS.paper, lineHeight: 26, textAlignVertical: 'top', minHeight: 200 },
+  
+  quoteBox: { backgroundColor: COLORS.hover, padding: SPACING.m, borderRadius: 8, marginBottom: SPACING.m, borderLeftWidth: 3, borderLeftColor: COLORS.primary },
+  quoteTitle: { color: COLORS.paper, fontWeight: '600', marginBottom: 4 },
+  quoteBody: { color: COLORS.secondary },
+  
+  imageContainer: { marginBottom: SPACING.m, borderRadius: 8, overflow: 'hidden' },
+  headerImg: { width: '100%', height: 200 },
+  removeImgBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', padding: 4, borderRadius: 12 },
+
+  footer: { backgroundColor: COLORS.ink, borderTopWidth: 1, borderTopColor: COLORS.divider },
+  
+  toolbar: { flexDirection: 'row', padding: SPACING.s },
+  toolBtn: { padding: 8, borderRadius: 4, marginRight: 4, backgroundColor: COLORS.hover, minWidth: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  toolText: { color: COLORS.primary, fontWeight: '700', fontSize: 14 },
+  divider: { width: 1, height: 24, backgroundColor: COLORS.divider, marginHorizontal: 8, alignSelf: 'center' },
+
+  suggestionsContainer: { maxHeight: 220, borderBottomWidth: 1, borderBottomColor: COLORS.divider, backgroundColor: COLORS.ink },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', padding: SPACING.l, borderBottomWidth: 1, borderBottomColor: COLORS.hover, gap: 16 },
+  suggestionIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.hover, alignItems: 'center', justifyContent: 'center' },
+  suggestionAvatarText: { fontSize: 18, color: COLORS.primary, fontWeight: '700' },
+  suggestionText: { color: COLORS.paper, fontSize: 16, fontWeight: '600' },
+  suggestionSubText: { color: COLORS.secondary, fontSize: 13 },
+
+  linkInputContainer: { padding: SPACING.m },
+  linkInputRow: { flexDirection: 'row', gap: 8 },
+  linkField: { flex: 1, backgroundColor: COLORS.hover, color: COLORS.paper, padding: 12, borderRadius: 8, fontSize: 16 },
+  linkAddButton: { backgroundColor: COLORS.primary, padding: 12, borderRadius: 8, justifyContent: 'center' },
+  linkCloseButton: { backgroundColor: COLORS.hover, padding: 12, borderRadius: 8, justifyContent: 'center' },
 });

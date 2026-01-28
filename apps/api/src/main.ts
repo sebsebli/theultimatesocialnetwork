@@ -55,8 +55,8 @@ async function bootstrap() {
   await redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);
 
-  // Enable CORS with security
-  const allowedOrigins = process.env.CORS_ORIGINS
+  // Enable CORS with security (allow Expo/Metro in dev: exp://*)
+  const explicitList = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
     : [
         'http://localhost:3001',
@@ -64,9 +64,19 @@ async function bootstrap() {
         'http://localhost:19006',
         'exp://localhost:19000',
       ];
+  const allowOrigin = (
+    origin: string | undefined,
+    cb: (err: Error | null, allow?: boolean) => void,
+  ) => {
+    if (!origin) return cb(null, true);
+    if (explicitList.includes(origin)) return cb(null, true);
+    if (process.env.NODE_ENV !== 'production' && /^exp:\/\//.test(origin))
+      return cb(null, true);
+    return cb(null, false);
+  };
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: allowOrigin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [

@@ -4,11 +4,38 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 import { WhyLabel } from './WhyLabel';
 
-export const DeepDiveCard = ({ item, onPress }: { item: any; onPress: () => void }) => (
+export const TopicCard = ({ item, onPress, onFollow, showWhy = true }: { item: any; onPress: () => void; onFollow?: () => void; showWhy?: boolean }) => (
+  <Pressable onPress={onPress} style={styles.topicCard}>
+    <View style={styles.topicHeader}>
+      <Text style={styles.topicTitle}>{item.title}</Text>
+      <Pressable
+        style={[styles.followButton, item.isFollowing && styles.followingButton]}
+        onPress={onFollow}
+      >
+        <Text style={[styles.followButtonText, item.isFollowing && styles.followingButtonText]}>
+          {item.isFollowing ? 'FOLLOWING' : 'FOLLOW'}
+        </Text>
+      </Pressable>
+    </View>
+    <View style={styles.topicStats}>
+      <Text style={styles.topicStatText}>{item.postCount || 0} posts</Text>
+      <View style={styles.dot} />
+      <Text style={styles.topicStatText}>{item.followerCount || 0} followers</Text>
+    </View>
+    {item.description && (
+      <Text style={styles.topicDescription} numberOfLines={2}>
+        {item.description}
+      </Text>
+    )}
+    {showWhy && item.reasons && <View style={{ marginTop: SPACING.s }}><WhyLabel reasons={item.reasons} /></View>}
+  </Pressable>
+);
+
+export const DeepDiveCard = ({ item, onPress, showWhy = true }: { item: any; onPress: () => void; showWhy?: boolean }) => (
   <Pressable onPress={onPress} style={styles.deepDiveCard}>
     <View style={styles.deepDiveHeader}>
       <Text style={styles.deepDiveTitle}>{item.title}</Text>
-      {item.reasons && <WhyLabel reasons={item.reasons} />}
+      {showWhy && item.reasons && <WhyLabel reasons={item.reasons} />}
     </View>
     <Text style={styles.deepDiveDescription} numberOfLines={2}>
       {/* Fallback to simple concatenation if t() fails or for simple cases, but ideally use translation */}
@@ -21,7 +48,7 @@ export const DeepDiveCard = ({ item, onPress }: { item: any; onPress: () => void
   </Pressable>
 );
 
-export const PersonCard = ({ item, onPress }: { item: any; onPress: () => void }) => (
+export const PersonCard = ({ item, onPress, showWhy = true }: { item: any; onPress: () => void; showWhy?: boolean }) => (
   <Pressable onPress={onPress} style={styles.personCard}>
     <View style={styles.personRow}>
       <View style={styles.avatar}>
@@ -34,18 +61,18 @@ export const PersonCard = ({ item, onPress }: { item: any; onPress: () => void }
         <Text style={styles.personHandle}>@{item.handle}</Text>
         {item.bio && <Text style={styles.personBio} numberOfLines={1}>{item.bio}</Text>}
       </View>
-      {item.reasons && <WhyLabel reasons={item.reasons} />}
+      {showWhy && item.reasons && <WhyLabel reasons={item.reasons} />}
     </View>
   </Pressable>
 );
 
-export const QuoteCard = ({ item, onPress }: { item: any; onPress: () => void }) => (
+export const QuoteCard = ({ item, onPress, showWhy = true }: { item: any; onPress: () => void; showWhy?: boolean }) => (
   <View style={styles.quoteWrapper}>
     {/* Re-use PostItem here usually, but if custom: */}
     <Pressable onPress={onPress} style={styles.quoteCard}>
       <Text style={styles.quoteBody} numberOfLines={3}>{item.body}</Text>
     </Pressable>
-    {item.reasons && (
+    {showWhy && item.reasons && (
       <View style={styles.quoteWhy}>
         <WhyLabel reasons={item.reasons} />
       </View>
@@ -54,6 +81,71 @@ export const QuoteCard = ({ item, onPress }: { item: any; onPress: () => void })
 );
 
 const styles = StyleSheet.create({
+  topicCard: {
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.l,
+    marginHorizontal: SPACING.l,
+    marginBottom: SPACING.l,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+  },
+  topicHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.s,
+  },
+  topicTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    flex: 1,
+  },
+  followButton: {
+    paddingHorizontal: SPACING.m,
+    paddingVertical: 4,
+    borderRadius: SIZES.borderRadiusPill,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  followButtonText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  followingButton: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  followingButtonText: {
+    color: COLORS.ink,
+  },
+  topicStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    marginBottom: SPACING.s,
+  },
+  topicStatText: {
+    fontSize: 12,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+  },
+  dot: {
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: COLORS.secondary,
+  },
+  topicDescription: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    lineHeight: 20,
+  },
   deepDiveCard: {
     backgroundColor: COLORS.hover, // bg-white/[0.02] -> hover
     borderRadius: SIZES.borderRadius,
@@ -97,7 +189,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
   },
   personCard: {
-    padding: 20, // p-5
+    padding: SPACING.xl, // p-5
     backgroundColor: COLORS.hover, // bg-white/5
     borderRadius: SIZES.borderRadius,
     marginHorizontal: SPACING.l,
@@ -108,7 +200,7 @@ const styles = StyleSheet.create({
   personRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16, // gap-4
+    gap: SPACING.l, // gap-4
   },
   avatar: {
     width: 56, // w-14

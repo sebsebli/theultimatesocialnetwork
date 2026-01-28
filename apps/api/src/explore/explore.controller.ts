@@ -12,8 +12,8 @@ export class ExploreController {
   ) {}
 
   @Get('topics')
-  async getTopics() {
-    return this.exploreService.getTopics();
+  async getTopics(@CurrentUser() user?: { id: string }) {
+    return this.exploreService.getTopics(user?.id);
   }
 
   @Get('people')

@@ -87,6 +87,29 @@ export class UsersController {
     };
   }
 
+  @Get('me/following')
+  @UseGuards(AuthGuard('jwt'))
+  async getFollowing(@CurrentUser() user: { id: string }) {
+    const following = await this.usersService.getFollowing(user.id);
+    return following.map(userToPlain);
+  }
+
+  @Get('me/followers')
+  @UseGuards(AuthGuard('jwt'))
+  async getFollowers(@CurrentUser() user: { id: string }) {
+    const followers = await this.usersService.getFollowers(user.id);
+    return followers.map(userToPlain);
+  }
+
+  @Delete('me/followers/:id')
+  @UseGuards(AuthGuard('jwt'))
+  async removeFollower(
+    @CurrentUser() user: { id: string },
+    @Param('id') followerId: string,
+  ) {
+    return this.usersService.removeFollower(user.id, followerId);
+  }
+
   @Delete('me')
   @UseGuards(AuthGuard('jwt'))
   async deleteMe(@CurrentUser() user: { id: string }) {

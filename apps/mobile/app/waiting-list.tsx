@@ -108,8 +108,13 @@ export default function WaitingListScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} accessibilityLabel={t('common.goBack', 'Go back')} accessibilityRole="button">
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.m) }]}>
+        <Pressable 
+          onPress={() => router.back()} 
+          accessibilityLabel={t('common.goBack', 'Go back')} 
+          accessibilityRole="button"
+          style={styles.backButton}
+        >
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
         </Pressable>
         <Text style={styles.headerTitle}>{t('waitingList.title', 'Join Waiting List')}</Text>
@@ -131,90 +136,94 @@ export default function WaitingListScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
-            <Text style={styles.title}>{t('waitingList.heading', 'Get Early Access')}</Text>
-            <Text style={styles.description}>
-              {t('waitingList.description', 'CITE is currently in beta. Join the waiting list to be notified when invites become available.')}
-            </Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder={t('waitingList.emailPlaceholder', 'Enter your email')}
-              placeholderTextColor={COLORS.tertiary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              autoFocus
-              accessibilityLabel={t('waitingList.emailPlaceholder', 'Enter your email')}
-            />
-
-            {/* Terms and Privacy Acceptance */}
-            <View style={styles.termsContainer}>
-              <View style={styles.checkboxContainer}>
-                <Pressable
-                  onPress={() => setAcceptedTerms(!acceptedTerms)}
-                  style={styles.checkboxPressable}
-                >
-                  <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
-                    {acceptedTerms && (
-                      <MaterialCommunityIcons name="check" size={16} color={COLORS.ink} />
-                    )}
-                  </View>
-                </Pressable>
-                <Text style={styles.termsText}>
-                  {(() => {
-                    const agreementText = t('signIn.signUpAgreement', {
-                      terms: t('signIn.termsLink'),
-                      privacy: t('signIn.privacyLink'),
-                    });
-                    const termsText = t('signIn.termsLink');
-                    const privacyText = t('signIn.privacyLink');
-
-                    const parts = agreementText.split(/({{terms}}|{{privacy}})/);
-                    return parts.map((part, index) => {
-                      if (part === '{{terms}}') {
-                        return (
-                          <Text
-                            key={index}
-                            style={styles.termsLink}
-                            onPress={() => openLegalLink('/terms')}
-                            suppressHighlighting={false}
-                          >
-                            {termsText}
-                          </Text>
-                        );
-                      }
-                      if (part === '{{privacy}}') {
-                        return (
-                          <Text
-                            key={index}
-                            style={styles.termsLink}
-                            onPress={() => openLegalLink('/privacy')}
-                            suppressHighlighting={false}
-                          >
-                            {privacyText}
-                          </Text>
-                        );
-                      }
-                      return <Text key={index}>{part}</Text>;
-                    });
-                  })()}
-                </Text>
-              </View>
+            <View style={styles.textGroup}>
+              <Text style={styles.title}>{t('waitingList.heading', 'Get Early Access')}</Text>
+              <Text style={styles.description}>
+                {t('waitingList.description', 'CITE is currently in beta. Join the waiting list to be notified when invites become available.')}
+              </Text>
             </View>
 
-            <Pressable
-              style={[styles.button, (!email.trim() || loading || !acceptedTerms) && styles.buttonDisabled]}
-              onPress={handleJoin}
-              disabled={!email.trim() || loading || !acceptedTerms}
-              accessibilityLabel={t('waitingList.join', 'Join Waiting List')}
-              accessibilityRole="button"
-            >
-              <Text style={styles.buttonText}>
-                {loading ? t('common.loading', 'Loading...') : t('waitingList.join', 'Join Waiting List')}
-              </Text>
-            </Pressable>
+            <View style={styles.formGroup}>
+              <TextInput
+                style={styles.input}
+                placeholder={t('waitingList.emailPlaceholder', 'Enter your email')}
+                placeholderTextColor={COLORS.tertiary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                autoFocus
+                accessibilityLabel={t('waitingList.emailPlaceholder', 'Enter your email')}
+              />
+
+              {/* Terms and Privacy Acceptance */}
+              <View style={styles.termsContainer}>
+                <View style={styles.checkboxContainer}>
+                  <Pressable
+                    onPress={() => setAcceptedTerms(!acceptedTerms)}
+                    style={styles.checkboxPressable}
+                  >
+                    <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                      {acceptedTerms && (
+                        <MaterialCommunityIcons name="check" size={14} color={COLORS.ink} />
+                      )}
+                    </View>
+                  </Pressable>
+                  <Text style={styles.termsText}>
+                    {(() => {
+                      const agreementText = t('signIn.signUpAgreement', {
+                        terms: t('signIn.termsLink'),
+                        privacy: t('signIn.privacyLink'),
+                      });
+                      const termsText = t('signIn.termsLink');
+                      const privacyText = t('signIn.privacyLink');
+
+                      const parts = agreementText.split(/({{terms}}|{{privacy}})/);
+                      return parts.map((part, index) => {
+                        if (part === '{{terms}}') {
+                          return (
+                            <Text
+                              key={index}
+                              style={styles.termsLink}
+                              onPress={() => openLegalLink('/terms')}
+                              suppressHighlighting={false}
+                            >
+                              {termsText}
+                            </Text>
+                          );
+                        }
+                        if (part === '{{privacy}}') {
+                          return (
+                            <Text
+                              key={index}
+                              style={styles.termsLink}
+                              onPress={() => openLegalLink('/privacy')}
+                              suppressHighlighting={false}
+                            >
+                              {privacyText}
+                            </Text>
+                          );
+                        }
+                        return <Text key={index}>{part}</Text>;
+                      });
+                    })()}
+                  </Text>
+                </View>
+              </View>
+
+              <Pressable
+                style={[styles.button, (!email.trim() || loading || !acceptedTerms) && styles.buttonDisabled]}
+                onPress={handleJoin}
+                disabled={!email.trim() || loading || !acceptedTerms}
+                accessibilityLabel={t('waitingList.join', 'Join Waiting List')}
+                accessibilityRole="button"
+              >
+                <Text style={styles.buttonText}>
+                  {loading ? t('common.loading', 'Loading...') : t('waitingList.join', 'Join Waiting List')}
+                </Text>
+              </Pressable>
+            </View>
 
             <Text style={styles.infoText}>
               {t('waitingList.info', 'We\'ll only use your email to notify you about invite availability.')}
@@ -236,19 +245,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.m,
+    paddingBottom: SPACING.m,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    backgroundColor: COLORS.ink,
+  },
+  backButton: {
+    padding: SPACING.xs,
+    marginLeft: -SPACING.xs,
   },
   keyboardAvoid: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   placeholder: {
-    width: 24,
+    width: 32, // Match back button size approx
   },
   scrollView: {
     flex: 1,
@@ -256,29 +272,33 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: SPACING.xxl,
-    paddingBottom: SPACING.xxl,
-    paddingTop: SPACING.xl,
-    justifyContent: 'center',
+    paddingTop: SPACING.xxl,
+    paddingBottom: SPACING.xxxl,
   },
   scrollContentKeyboardVisible: {
-    justifyContent: 'flex-start',
     paddingTop: SPACING.l,
   },
   content: {
-    gap: SPACING.xl,
+    gap: SPACING.xxl,
+  },
+  textGroup: {
+    gap: SPACING.m,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 32,
     color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
+    fontFamily: FONTS.serifSemiBold,
     letterSpacing: -0.5,
+    lineHeight: 40,
   },
   description: {
-    fontSize: 16,
+    fontSize: 17,
     color: COLORS.secondary,
-    lineHeight: 24,
-    fontFamily: FONTS.regular,
+    lineHeight: 26,
+    fontFamily: FONTS.serifRegular,
+  },
+  formGroup: {
+    gap: SPACING.l,
   },
   input: {
     backgroundColor: COLORS.hover,
@@ -308,14 +328,14 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.tertiary,
     textAlign: 'center',
     fontFamily: FONTS.regular,
+    marginTop: -SPACING.s,
   },
   termsContainer: {
-    marginTop: SPACING.s,
-    marginBottom: SPACING.s,
+    marginBottom: SPACING.xs,
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -325,17 +345,17 @@ const styles = StyleSheet.create({
   checkboxPressable: {
     padding: SPACING.xs,
     marginLeft: -SPACING.xs,
+    marginTop: -SPACING.xs,
   },
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: COLORS.divider,
-    backgroundColor: COLORS.hover,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: COLORS.tertiary,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
   },
   checkboxChecked: {
     backgroundColor: COLORS.primary,
@@ -343,14 +363,13 @@ const styles = StyleSheet.create({
   },
   termsText: {
     flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 20,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
   },
   termsLink: {
-    color: COLORS.primary,
-    fontFamily: FONTS.medium,
+    color: COLORS.paper,
     textDecorationLine: 'underline',
   },
 });

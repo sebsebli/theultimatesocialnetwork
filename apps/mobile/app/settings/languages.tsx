@@ -16,11 +16,12 @@ const LANGUAGES = [
   { code: 'nl', name: 'Nederlands' },
   { code: 'pl', name: 'Polski' },
   { code: 'ru', name: 'Русский' },
-  { code: 'cs', name: 'Čeština' },
-  { code: 'da', name: 'Dansk' },
   { code: 'fi', name: 'Suomi' },
-  { code: 'hu', name: 'Magyar' },
+  { code: 'sv', name: 'Svenska' },
   { code: 'no', name: 'Norsk' },
+  { code: 'da', name: 'Dansk' },
+  { code: 'cs', name: 'Čeština' },
+  { code: 'hu', name: 'Magyar' },
 ];
 
 export default function SettingsLanguagesScreen() {

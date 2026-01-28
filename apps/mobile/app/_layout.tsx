@@ -98,6 +98,7 @@ function AppContent({ onReady }: { onReady?: () => void }) {
           animation: 'slide_from_bottom',
         }}
       />
+      <Stack.Screen name="post/[id]" options={{ presentation: 'card' }} />
     </Stack>
   );
 }

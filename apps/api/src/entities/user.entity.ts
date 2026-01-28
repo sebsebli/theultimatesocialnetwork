@@ -58,4 +58,11 @@ export class User {
 
   @Column({ type: 'jsonb', default: {} })
   preferences: Record<string, any>;
+
+  @Column({
+    name: 'last_username_change_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  lastUsernameChangeAt: Date | null;
 }

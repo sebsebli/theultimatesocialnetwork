@@ -44,9 +44,10 @@ export function MarkdownText({ children }: MarkdownTextProps) {
     const nodes: any[] = [];
 
     lines.forEach((line, lineIndex) => {
-      // 1. Headings
+      // 1. Headings & Block Styles
       let lineStyle = styles.text;
       let content = line;
+      let prefix = null;
 
       if (line.startsWith('# ')) {
         lineStyle = styles.h1;
@@ -57,6 +58,20 @@ export function MarkdownText({ children }: MarkdownTextProps) {
       } else if (line.startsWith('### ')) {
         lineStyle = styles.h3;
         content = line.substring(4);
+      } else if (line.startsWith('> ')) {
+        lineStyle = styles.blockquote;
+        content = line.substring(2);
+        prefix = <View style={styles.blockquoteBar} />;
+      } else if (line.startsWith('- ')) {
+        lineStyle = styles.listItem;
+        content = line.substring(2);
+        prefix = <Text style={styles.bullet}>• </Text>;
+      } else if (/^\d+\. /.test(line)) {
+        lineStyle = styles.listItem;
+        const match = line.match(/^(\d+)\. /);
+        const num = match ? match[1] : '1';
+        content = line.substring(match ? match[0].length : 3);
+        prefix = <Text style={styles.number}>{num}. </Text>;
       }
 
       // 2. Parse inline styles (Bold, Italic, Wikilinks)
@@ -66,9 +81,9 @@ export function MarkdownText({ children }: MarkdownTextProps) {
       const parts: any[] = [];
       let lastIndex = 0;
       
-      // Combine patterns: Bold (**), Italic (_), Wikilink ([[...]])
+      // Combine patterns: Bold (**), Italic (_), Wikilink ([[...]]), Standard Link [...]((...)), Mention (@...)
       // Note: This regex is simple and might fail on nested/complex cases
-      const regex = /(\*\*(.*?)\*\*)|(_(.*?)_)|(\[\[(.*?)(?:\|(.*?))?\]\])/g;
+      const regex = /(\*\*(.*?)\*\*)|(_(.*?)_)|(\[\[(.*?)(?:\|(.*?))?\]\])|(\[(.*?)\]\((.*?)\))|(@[a-zA-Z0-9_]+)/g;
       
       let match;
       while ((match = regex.exec(content)) !== null) {
@@ -77,15 +92,15 @@ export function MarkdownText({ children }: MarkdownTextProps) {
           parts.push(<Text key={`${lineIndex}-${lastIndex}`} style={lineStyle}>{content.substring(lastIndex, match.index)}</Text>);
         }
 
-        // Bold
+        // Bold (Group 1, 2)
         if (match[1]) {
           parts.push(<Text key={match.index} style={[lineStyle, styles.bold]}>{match[2]}</Text>);
         }
-        // Italic
+        // Italic (Group 3, 4)
         else if (match[3]) {
           parts.push(<Text key={match.index} style={[lineStyle, styles.italic]}>{match[4]}</Text>);
         }
-        // Wikilink
+        // Wikilink (Group 5, 6, 7)
         else if (match[5]) {
           const linkContent = match[6];
           const linkDisplay = match[7] || linkContent;
@@ -101,6 +116,34 @@ export function MarkdownText({ children }: MarkdownTextProps) {
             </Text>
           );
         }
+        // Standard Link (Group 8, 9, 10)
+        else if (match[8]) {
+          const linkText = match[9];
+          const linkUrl = match[10];
+          
+          parts.push(
+            <Text
+              key={match.index}
+              style={[lineStyle, styles.link]}
+              onPress={() => handleLinkPress(linkUrl)}
+            >
+              {linkText}
+            </Text>
+          );
+        }
+        // Mention (Group 11)
+        else if (match[11]) {
+          const handle = match[11];
+          parts.push(
+            <Text
+              key={match.index}
+              style={[lineStyle, styles.link]}
+              onPress={() => router.push(`/user/${handle.substring(1)}`)}
+            >
+              {handle}
+            </Text>
+          );
+        }
 
         lastIndex = match.index + match[0].length;
       }
@@ -111,10 +154,13 @@ export function MarkdownText({ children }: MarkdownTextProps) {
       }
 
       nodes.push(
-        <Text key={lineIndex} style={lineStyle}>
-          {parts.length > 0 ? parts : content}
-          {lineIndex < lines.length - 1 ? '\n' : ''}
-        </Text>
+        <View key={lineIndex} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          {prefix}
+          <Text style={lineStyle}>
+            {parts.length > 0 ? parts : content}
+            {lineIndex < lines.length - 1 ? '\n' : ''}
+          </Text>
+        </View>
       );
     });
 
@@ -195,6 +241,36 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.serifSemiBold,
     marginTop: SPACING.s,
     marginBottom: SPACING.s,
+  },
+  blockquote: {
+    fontSize: 17,
+    fontStyle: 'italic',
+    color: COLORS.secondary,
+    fontFamily: FONTS.serifRegular,
+    paddingLeft: SPACING.m,
+  },
+  blockquoteBar: {
+    position: 'absolute',
+    left: 0,
+    top: 4,
+    bottom: 4,
+    width: 4,
+    backgroundColor: COLORS.divider,
+    borderRadius: 2,
+  },
+  listItem: {
+    fontSize: 17,
+    lineHeight: 26,
+    color: COLORS.paper,
+    fontFamily: FONTS.serifRegular,
+  },
+  bullet: {
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  number: {
+    fontWeight: 'bold',
+    color: COLORS.primary,
   },
   bold: {
     fontWeight: '700',

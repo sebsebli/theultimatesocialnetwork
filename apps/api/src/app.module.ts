@@ -37,6 +37,8 @@ import { PushOutbox } from './entities/push-outbox.entity';
 import { LoggerModule } from 'nestjs-pino';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 
+import * as Joi from 'joi';
+
 @Module({
   imports: [
     PrometheusModule.register({
@@ -63,6 +65,20 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '../../.env', // Load from root
+      validationSchema: Joi.object({
+        NODE_ENV: Joi.string()
+          .valid('development', 'production', 'test')
+          .default('development'),
+        PORT: Joi.number().default(3000),
+        DATABASE_URL: Joi.string().required(),
+        REDIS_URL: Joi.string().required(),
+        JWT_SECRET: Joi.string().required(),
+        MEILISEARCH_HOST: Joi.string().default('http://localhost:7700'),
+        MEILISEARCH_MASTER_KEY: Joi.string().default('masterKey'),
+        MINIO_ENDPOINT: Joi.string().default('localhost'),
+        MINIO_ACCESS_KEY: Joi.string().default('minioadmin'),
+        MINIO_SECRET_KEY: Joi.string().default('minioadmin'),
+      }),
     }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRootAsync({

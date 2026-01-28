@@ -18,6 +18,12 @@ export class TopicsController {
     private readonly topicFollowsService: TopicFollowsService,
   ) {}
 
+  @Get('me/following')
+  @UseGuards(AuthGuard('jwt'))
+  async getFollowed(@CurrentUser() user: { id: string }) {
+    return this.topicFollowsService.getFollowedTopics(user.id);
+  }
+
   @Get(':slug')
   async findOne(
     @Param('slug') slug: string,

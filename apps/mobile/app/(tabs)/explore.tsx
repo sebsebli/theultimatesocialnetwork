@@ -1,14 +1,15 @@
-import { StyleSheet, Text, View, FlatList, Pressable, TextInput, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, TextInput, ScrollView, RefreshControl, ActivityIndicator, Modal } from 'react-native';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
-import { DeepDiveCard, PersonCard, QuoteCard } from '../../components/ExploreCards';
+import { DeepDiveCard, PersonCard, QuoteCard, TopicCard } from '../../components/ExploreCards';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { ErrorState } from '../../components/ErrorState';
 import { useAuth } from '../../context/auth';
+import * as Haptics from 'expo-haptics';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,8 +19,12 @@ export default function ExploreScreen() {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
+  
   const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('topics');
-  const [sort, setSort] = useState<'recommended' | 'newest'>('recommended');
+  const [sort, setSort] = useState<'recommended' | 'newest' | 'cited'>('recommended');
+  const [filter, setFilter] = useState<'all' | 'languages'>('languages'); // Default to my languages
+  const [showWhy, setShowWhy] = useState(true);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,6 +33,10 @@ export default function ExploreScreen() {
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  
+  // Modals
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [sortModalVisible, setSortModalVisible] = useState(false);
 
   useEffect(() => {
     if (params.tab) {
@@ -39,20 +48,23 @@ export default function ExploreScreen() {
     if (params.q) {
       const query = Array.isArray(params.q) ? params.q[0] : params.q;
       setSearchQuery(query);
-      // Trigger immediate search if query exists
-      // debouncedSearch(query); // Optimization: could trigger immediate load
     }
   }, [params.tab, params.q]);
 
   useEffect(() => {
-    // Only load content if authenticated
-    // Let auth context handle redirects to avoid navigation before mount
     if (isAuthenticated) {
       setPage(1);
       setData([]);
       loadContent(1, true);
+
+      // Fetch preferences
+      api.get('/users/me').then((user: any) => {
+        if (user.preferences?.explore?.showWhy !== undefined) {
+          setShowWhy(user.preferences.explore.showWhy);
+        }
+      }).catch(console.error);
     }
-  }, [activeTab, sort, isAuthenticated]);
+  }, [activeTab, sort, filter, isAuthenticated]);
 
   const loadContent = async (pageNum: number, reset = false) => {
     if (!reset && (loading || loadingMore)) return;
@@ -67,13 +79,20 @@ export default function ExploreScreen() {
     try {
       let endpoint = '/explore/topics';
 
-      // Handle special tabs
       if (activeTab === 'people') endpoint = '/explore/people';
       else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
       else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
       else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
 
-      const res = await api.get(`${endpoint}?page=${pageNum}&limit=20`);
+      // Append sort/filter params
+      const queryParams = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: '20',
+        sort: sort,
+        filter: filter,
+      });
+
+      const res = await api.get(`${endpoint}?${queryParams.toString()}`);
       const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
       const items = rawItems.map((item: any) => ({
         ...item,
@@ -108,40 +127,74 @@ export default function ExploreScreen() {
     }
   };
 
+  const handleFollow = async (topic: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      // Optimistic update
+      setData(prev => prev.map(item => 
+        item.id === topic.id ? { ...item, isFollowing: !item.isFollowing } : item
+      ));
+
+      if (topic.isFollowing) {
+        await api.delete(`/topics/${topic.slug}/follow`);
+      } else {
+        await api.post(`/topics/${topic.slug}/follow`);
+      }
+    } catch (err) {
+      console.error('Follow failed', err);
+      // Revert on failure
+      setData(prev => prev.map(item => 
+        item.id === topic.id ? { ...item, isFollowing: !item.isFollowing } : item
+      ));
+    }
+  };
+
   const handleLoadMore = useCallback(() => {
     if (!loading && !refreshing && !loadingMore && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
       loadContent(nextPage, false);
     }
-  }, [loading, refreshing, loadingMore, hasMore, page, activeTab, sort]);
+  }, [loading, refreshing, loadingMore, hasMore, page, activeTab, sort, filter]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadContent(1, true);
-  }, [activeTab, sort]);
+  }, [activeTab, sort, filter]);
+
+  const applyFilter = (newFilter: 'all' | 'languages') => {
+    setFilter(newFilter);
+    setFilterModalVisible(false);
+  };
+
+  const applySort = (newSort: 'recommended' | 'newest' | 'cited') => {
+    setSort(newSort);
+    setSortModalVisible(false);
+  };
 
   const renderItem = useCallback(({ item }: { item: any }) => {
     if (activeTab === 'deep-dives') {
-      return <DeepDiveCard item={item} onPress={() => router.push(`/post/${item.id}`)} />;
+      return <DeepDiveCard item={item} onPress={() => router.push(`/post/${item.id}`)} showWhy={showWhy} />;
     } else if (activeTab === 'people') {
-      return <PersonCard item={item} onPress={() => router.push(`/user/${item.handle}`)} />;
+      return <PersonCard item={item} onPress={() => router.push(`/user/${item.handle}`)} showWhy={showWhy} />;
     } else if (activeTab === 'quoted') {
-      return <QuoteCard item={item} onPress={() => router.push(`/post/${item.id}`)} />;
+      return <QuoteCard item={item} onPress={() => router.push(`/post/${item.id}`)} showWhy={showWhy} />;
     } else if (activeTab === 'newsroom') {
-      // Newsroom shows posts with sources
-      if (!item || !item.id) {
-        return null;
-      }
+      if (!item || !item.id) return null;
+      // PostItem doesn't support showWhy yet, but maybe irrelevant for newsroom
       return <PostItem post={item} />;
     } else {
-      // Topics tab
-      if (!item || !item.id) {
-        return null;
-      }
-      return <PostItem post={item} />;
+      if (!item || !item.id) return null;
+      return (
+        <TopicCard 
+          item={item} 
+          onPress={() => router.push(`/topic/${item.slug || item.id}`)} 
+          onFollow={() => handleFollow(item)}
+          showWhy={showWhy}
+        />
+      );
     }
-  }, [activeTab, router]);
+  }, [activeTab, router, showWhy]);
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
@@ -156,13 +209,11 @@ export default function ExploreScreen() {
 
   const renderHeader = () => (
     <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
-      {/* Title Row - Matching Home Screen */}
       <View style={styles.titleRow}>
         <MaterialCommunityIcons name="compass-outline" size={24} color={COLORS.paper} />
         <Text style={styles.headerTitle}>{t('explore.title', 'Discover')}</Text>
       </View>
 
-      {/* Search */}
       <View style={styles.searchWrapper}>
         <Pressable
           style={styles.searchBar}
@@ -175,9 +226,16 @@ export default function ExploreScreen() {
             {t('explore.searchPlaceholder')}
           </Text>
         </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => setSortModalVisible(true)}
+          >
+            <MaterialIcons name="sort" size={24} color={sort !== 'recommended' ? COLORS.primary : COLORS.tertiary} />
+          </Pressable>
+        </View>
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabsContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent}>
           {(['topics', 'people', 'quoted', 'deep-dives', 'newsroom'] as const).map((tab) => (
@@ -185,9 +243,6 @@ export default function ExploreScreen() {
               key={tab}
               onPress={() => setActiveTab(tab)}
               style={[styles.tab, activeTab === tab && styles.tabActive]}
-              accessibilityLabel={tab === 'deep-dives' ? t('explore.deepDives') : tab === 'quoted' ? t('explore.quoted') : tab === 'newsroom' ? t('explore.newsroom') : t(`explore.${tab}`)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === tab }}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
                 {tab === 'deep-dives' ? t('explore.deepDives') :
@@ -199,28 +254,9 @@ export default function ExploreScreen() {
           ))}
         </ScrollView>
       </View>
-
-      {/* Controls */}
-      <View style={styles.controls}>
-        <Pressable
-          style={styles.filterButton}
-          accessibilityLabel={t('explore.filter', 'Filter')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="tune" size={24} color={COLORS.tertiary} />
-        </Pressable>
-        <Pressable
-          style={styles.sortButton}
-          accessibilityLabel={t('explore.sortOptions')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="sort" size={18} color={COLORS.secondary} />
-          <Text style={styles.sortText}>{t('explore.sortOptions')}</Text>
-        </Pressable>
-      </View>
-
-      {/* Headline */}
-      <Text style={styles.sectionHeadline}>{t('explore.recommended')}</Text>
+      
+      {/* Spacer */}
+      <View style={{ height: SPACING.l }} />
     </View>
   );
 
@@ -237,13 +273,7 @@ export default function ExploreScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>
-                {loading ? t('common.loading') :
-                  activeTab === 'topics' ? t('explore.noTopics') :
-                    activeTab === 'people' ? t('explore.noPeople') :
-                      activeTab === 'quoted' ? t('explore.noQuoted') :
-                        activeTab === 'deep-dives' ? t('explore.noDeepDives') :
-                          activeTab === 'newsroom' ? t('explore.noNewsroom') :
-                            t('common.loading')}
+                {loading ? t('common.loading') : t('explore.noContent')}
               </Text>
             </View>
           }
@@ -258,13 +288,79 @@ export default function ExploreScreen() {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.2}
           contentContainerStyle={{ paddingBottom: 80 }}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
-          windowSize={10}
         />
       )}
+
+      {/* Filter Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={filterModalVisible}
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setFilterModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('explore.filter', 'Filter Content')}</Text>
+            
+            <Pressable style={styles.filterOption} onPress={() => applyFilter('languages')}>
+              <Text style={[styles.filterOptionText, filter === 'languages' && styles.optionSelected]}>
+                {t('explore.filterByLanguage', 'My Languages')}
+              </Text>
+              {filter === 'languages' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+            </Pressable>
+            
+            <Pressable style={styles.filterOption} onPress={() => applyFilter('all')}>
+              <Text style={[styles.filterOptionText, filter === 'all' && styles.optionSelected]}>
+                {t('explore.filterAll', 'All Languages')}
+              </Text>
+              {filter === 'all' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+            </Pressable>
+
+            <Pressable style={styles.closeButton} onPress={() => setFilterModalVisible(false)}>
+              <Text style={styles.closeButtonText}>{t('common.close')}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Sort Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={sortModalVisible}
+        onRequestClose={() => setSortModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSortModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('explore.sortOptions', 'Sort By')}</Text>
+            
+            <Pressable style={styles.filterOption} onPress={() => applySort('recommended')}>
+              <Text style={[styles.filterOptionText, sort === 'recommended' && styles.optionSelected]}>
+                {t('explore.sortRecommended', 'Recommended')}
+              </Text>
+              {sort === 'recommended' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+            </Pressable>
+            
+            <Pressable style={styles.filterOption} onPress={() => applySort('newest')}>
+              <Text style={[styles.filterOptionText, sort === 'newest' && styles.optionSelected]}>
+                {t('explore.sortNewest', 'Newest')}
+              </Text>
+              {sort === 'newest' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+            </Pressable>
+
+            <Pressable style={styles.filterOption} onPress={() => applySort('cited')}>
+              <Text style={[styles.filterOptionText, sort === 'cited' && styles.optionSelected]}>
+                {t('explore.sortMostCited', 'Most Cited')}
+              </Text>
+              {sort === 'cited' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+            </Pressable>
+
+            <Pressable style={styles.closeButton} onPress={() => setSortModalVisible(false)}>
+              <Text style={styles.closeButtonText}>{t('common.close')}</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -282,7 +378,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.l,
     paddingBottom: SPACING.s,
-    paddingTop: SPACING.s, // Add some top padding
+    paddingTop: SPACING.s,
     gap: SPACING.m,
   },
   headerTitle: {
@@ -295,8 +391,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.l,
     paddingVertical: SPACING.m,
     backgroundColor: COLORS.ink,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.m,
   },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.hover,
@@ -306,6 +406,18 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: SPACING.l,
     gap: SPACING.m,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+  },
+  iconButton: {
+    padding: SPACING.s,
+    borderRadius: 8,
+    backgroundColor: COLORS.hover,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
   },
   searchInputPlaceholder: {
     flex: 1,
@@ -322,61 +434,22 @@ const styles = StyleSheet.create({
     gap: SPACING.xl,
   },
   tab: {
-    paddingBottom: SPACING.m, // pb-3
-    borderBottomWidth: 3, // border-b-[3px]
+    paddingBottom: SPACING.m,
+    borderBottomWidth: 3,
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: COLORS.primary, // border-b-primary
+    borderBottomColor: COLORS.primary,
   },
   tabText: {
-    fontSize: 14, // text-sm
-    fontWeight: '700', // font-bold
-    color: COLORS.tertiary, // text-tertiary
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.tertiary,
     fontFamily: FONTS.semiBold,
-    letterSpacing: -0.5, // tracking-tight
+    letterSpacing: -0.5,
   },
   tabTextActive: {
-    color: COLORS.paper, // text-paper
-  },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: SPACING.l,
-  },
-  filterButton: {
-    padding: SPACING.s,
-    borderRadius: 8,
-    // hover effect handled by Pressable usually
-  },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-    backgroundColor: COLORS.hover,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-    borderRadius: SIZES.borderRadiusPill,
-    height: 36,
-    paddingHorizontal: SPACING.l,
-    overflow: 'hidden',
-  },
-  sortText: {
-    fontSize: 12, // text-xs
-    fontWeight: '700', // font-bold
-    color: COLORS.secondary, // text-secondary
-    fontFamily: FONTS.semiBold,
-    letterSpacing: -0.5, // tracking-tight
-  },
-  sectionHeadline: {
-    fontSize: 20, // text-xl
-    fontWeight: '700', // font-bold
-    color: COLORS.paper, // text-paper
-    paddingHorizontal: SPACING.l, // px-4
-    marginBottom: SPACING.l,
-    fontFamily: FONTS.semiBold,
-    letterSpacing: -0.5, // tracking-tight
+    color: COLORS.paper,
   },
   emptyState: {
     padding: SPACING.xxxl,
@@ -390,5 +463,53 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: SPACING.l,
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end', // Bottom sheet style
+  },
+  modalContent: {
+    backgroundColor: COLORS.ink,
+    borderTopLeftRadius: SIZES.borderRadius,
+    borderTopRightRadius: SIZES.borderRadius,
+    padding: SPACING.xl,
+    borderTopWidth: 1,
+    borderColor: COLORS.divider,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.paper,
+    marginBottom: SPACING.l,
+    textAlign: 'center',
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.m,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.hover,
+  },
+  filterOptionText: {
+    fontSize: 16,
+    color: COLORS.paper,
+    fontFamily: FONTS.medium,
+  },
+  optionSelected: {
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  closeButton: {
+    marginTop: SPACING.l,
+    alignItems: 'center',
+    padding: SPACING.m,
+  },
+  closeButtonText: {
+    color: COLORS.secondary,
+    fontSize: 16,
+    fontFamily: FONTS.medium,
   },
 });

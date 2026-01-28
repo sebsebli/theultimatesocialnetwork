@@ -8,6 +8,17 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
+/** JWT verification errors from passport-jwt; treat as 401 so clients get Unauthorized, not 500. */
+function isJwtAuthError(e: unknown): boolean {
+  if (!(e && typeof e === 'object' && 'name' in e)) return false;
+  const name = (e as { name?: string }).name;
+  return (
+    name === 'JsonWebTokenError' ||
+    name === 'TokenExpiredError' ||
+    name === 'UnauthorizedError'
+  );
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -17,10 +28,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+    let status: number;
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+    } else if (isJwtAuthError(exception)) {
+      status = HttpStatus.UNAUTHORIZED;
+    } else {
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+    }
 
     const isProduction = process.env.NODE_ENV === 'production';
 
@@ -61,6 +76,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
           ? ((exceptionResponse as Record<string, any>).message as string) ||
             'An error occurred'
           : exceptionResponse;
+    } else if (isJwtAuthError(exception)) {
+      message = 'Unauthorized';
     } else {
       // In production, don't expose internal error details
       message = isProduction

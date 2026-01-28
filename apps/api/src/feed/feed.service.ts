@@ -8,6 +8,7 @@ import { Collection } from '../entities/collection.entity';
 import { User } from '../entities/user.entity';
 import { Block } from '../entities/block.entity';
 import { Mute } from '../entities/mute.entity';
+import { TopicFollow } from '../entities/topic-follow.entity';
 import { FeedItem } from './feed-item.entity';
 import { postToPlain } from '../shared/post-serializer';
 import Redis from 'ioredis';
@@ -47,6 +48,8 @@ export class FeedService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Block) private blockRepo: Repository<Block>,
     @InjectRepository(Mute) private muteRepo: Repository<Mute>,
+    @InjectRepository(TopicFollow)
+    private topicFollowRepo: Repository<TopicFollow>,
     @Inject('REDIS_CLIENT') private redis: Redis,
   ) {}
 
@@ -78,16 +81,32 @@ export class FeedService {
       .map((f) => f.followeeId)
       .filter((id) => !excludedUserIds.has(id));
 
+    // Also get followed topics
+    const topicFollows = await this.topicFollowRepo.find({
+      where: { userId },
+      select: ['topicId'],
+    });
+    const followedTopicIds = topicFollows.map((f) => f.topicId);
+
     // Always include self
     followingIds.push(userId);
 
-    if (followingIds.length === 0) return [];
+    // If following no one and no topics, return empty (or could return global feed? No, definition is follow-only)
+    if (followingIds.length === 0 && followedTopicIds.length === 0) return [];
 
     let feedItems: FeedItem[] = [];
     let usedCache = false;
 
     // 1. Try Redis Cache (Fan-out Read) for recent posts
-    if (offset < 500) {
+    // Note: Redis feed usually only stores USER follows push model. Topic follows usually pull model.
+    // If we want mixed feed, we likely skip cache if we have topics, or we need to merge.
+    // For now, let's skip cache if we have topic follows, or assume cache only has user feed and we need DB for topics.
+    // Simplest robust way: Use DB fallback if topics are followed, OR just use DB for now for topics.
+    // Given the request "So when following a topic, I see the newest posts on homescreen", let's prioritize correctness over cache for now.
+    // If topic follows exist, force DB pull (or implementing complex merge).
+    // Let's force DB pull if topic follows exist to ensure they appear.
+
+    if (offset < 500 && followedTopicIds.length === 0) {
       try {
         const cacheKey = `feed:${userId}`;
         const cachedIds = await this.redis.lrange(
@@ -121,9 +140,9 @@ export class FeedService {
       }
     }
 
-    // 2. DB Fallback (Pull Model) if cache miss or empty
+    // 2. DB Fallback (Pull Model) if cache miss or empty (or if we have topics)
     if (!usedCache) {
-      const posts = await this.postRepo
+      const query = this.postRepo
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
@@ -132,21 +151,33 @@ export class FeedService {
             excludedUserIds.size > 0
               ? Array.from(excludedUserIds)
               : ['00000000-0000-0000-0000-000000000000'],
-        })
-        .andWhere(
-          new Brackets((qb) => {
-            qb.where('post.author_id = :userId', { userId }).orWhere(
-              'post.author_id IN (:...followingIds) AND post.visibility = :visVal',
-              {
-                followingIds:
-                  followingIds.length > 0
-                    ? followingIds
-                    : ['00000000-0000-0000-0000-000000000000'],
-                visVal: 'PUBLIC',
-              },
+        });
+
+      query.andWhere(
+        new Brackets((qb) => {
+          // Posts by followed users (or self)
+          qb.where('post.author_id = :userId', { userId }).orWhere(
+            'post.author_id IN (:...followingIds) AND post.visibility = :visVal',
+            {
+              followingIds:
+                followingIds.length > 0
+                  ? followingIds
+                  : ['00000000-0000-0000-0000-000000000000'],
+              visVal: 'PUBLIC',
+            },
+          );
+
+          // OR Posts in followed topics
+          if (followedTopicIds.length > 0) {
+            qb.orWhere(
+              `EXISTS (SELECT 1 FROM post_topics pt WHERE pt.post_id = post.id AND pt.topic_id = ANY(:followedTopicIds))`,
+              { followedTopicIds },
             );
-          }),
-        )
+          }
+        }),
+      );
+
+      const posts = await query
         .orderBy('post.created_at', 'DESC')
         .skip(offset)
         .take(limit)

@@ -9,6 +9,7 @@ import { Collection } from '../entities/collection.entity';
 import { User } from '../entities/user.entity';
 import { Block } from '../entities/block.entity';
 import { Mute } from '../entities/mute.entity';
+import { TopicFollow } from '../entities/topic-follow.entity';
 import { SharedModule } from '../shared/shared.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { SharedModule } from '../shared/shared.module';
       User,
       Block,
       Mute,
+      TopicFollow,
     ]),
     SharedModule,
   ],

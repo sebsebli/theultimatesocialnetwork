@@ -8,6 +8,13 @@ import { PostEdge, EdgeType } from '../entities/post-edge.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { Neo4jService } from '../database/neo4j.service';
+import { TopicFollow } from '../entities/topic-follow.entity';
+
+interface TopicRawRow {
+  topic_id: string;
+  postCount: string;
+  followerCount: string;
+}
 
 @Injectable()
 export class ExploreService {
@@ -19,21 +26,54 @@ export class ExploreService {
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
     @InjectRepository(ExternalSource)
     private externalSourceRepo: Repository<ExternalSource>,
+    @InjectRepository(TopicFollow)
+    private topicFollowRepo: Repository<TopicFollow>,
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
   ) {}
 
-  async getTopics() {
-    // In a real implementation, filter by lang using Neo4j or complex queries
-    const topics = await this.topicRepo.find({
-      take: 20,
-      order: { createdAt: 'DESC' },
-    });
+  async getTopics(userId?: string) {
+    const { entities, raw } = await this.topicRepo
+      .createQueryBuilder('topic')
+      .addSelect(
+        (sq) =>
+          sq
+            .select('COUNT(*)', 'cnt')
+            .from('post_topics', 'pt')
+            .where('pt.topic_id = topic.id'),
+        'postCount',
+      )
+      .addSelect(
+        (sq) =>
+          sq
+            .select('COUNT(*)', 'cnt')
+            .from('topic_follows', 'tf')
+            .where('tf.topic_id = topic.id'),
+        'followerCount',
+      )
+      .orderBy('topic.created_at', 'DESC') // Or sort by counts for "Trending"
+      .take(20)
+      .getRawAndEntities();
 
-    return topics.map((t) => ({
-      ...t,
-      reasons: ['Topic overlap', 'Cited today'],
-    }));
+    let followedTopicIds = new Set<string>();
+    if (userId) {
+      const follows = await this.topicFollowRepo.find({
+        where: { userId },
+        select: ['topicId'],
+      });
+      followedTopicIds = new Set(follows.map((f) => f.topicId));
+    }
+
+    return entities.map((t) => {
+      const r = (raw as TopicRawRow[]).find((x) => x.topic_id === t.id);
+      return {
+        ...t,
+        postCount: r ? parseInt(r.postCount, 10) : 0,
+        followerCount: r ? parseInt(r.followerCount, 10) : 0,
+        isFollowing: followedTopicIds.has(t.id),
+        reasons: ['Topic overlap', 'Cited today'],
+      };
+    });
   }
 
   async getPeople(userId?: string) {
@@ -64,6 +104,34 @@ export class ExploreService {
     limit = 20,
     filter?: { lang?: string; sort?: string },
   ) {
+    // If specific sort requested, bypass algo
+    if (filter?.sort === 'newest') {
+      const query = this.postRepo
+        .createQueryBuilder('post')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('post.deleted_at IS NULL')
+        .orderBy('post.created_at', 'DESC');
+      if (filter?.lang && filter.lang !== 'all') {
+        query.andWhere('post.lang = :lang', { lang: filter.lang });
+      }
+      const posts = await query.take(limit).getMany();
+      return posts.map((p) => ({ ...p, reasons: ['Newest'] }));
+    }
+
+    if (filter?.sort === 'cited') {
+      const query = this.postRepo
+        .createQueryBuilder('post')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('post.deleted_at IS NULL')
+        .orderBy('post.quote_count', 'DESC');
+      if (filter?.lang && filter.lang !== 'all') {
+        query.andWhere('post.lang = :lang', { lang: filter.lang });
+      }
+      const posts = await query.take(limit).getMany();
+      return posts.map((p) => ({ ...p, reasons: ['Most cited'] }));
+    }
+
+    // Recommended (Default Algo)
     const now = new Date();
     const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -174,7 +242,40 @@ export class ExploreService {
     limit = 20,
     filter?: { lang?: string; sort?: string },
   ) {
-    // Get top posts by backlink count directly from DB
+    // Simple sort overrides
+    if (filter?.sort === 'newest') {
+      const query = this.postRepo
+        .createQueryBuilder('post')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('post.deleted_at IS NULL')
+        .orderBy('post.created_at', 'DESC')
+        .take(limit);
+      if (filter?.lang && filter.lang !== 'all') {
+        query.andWhere('post.lang = :lang', { lang: filter.lang });
+      }
+      return (await query.getMany()).map((p) => ({
+        ...p,
+        reasons: ['Newest'],
+      }));
+    }
+
+    if (filter?.sort === 'cited') {
+      const query = this.postRepo
+        .createQueryBuilder('post')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('post.deleted_at IS NULL')
+        .orderBy('post.quote_count', 'DESC')
+        .take(limit);
+      if (filter?.lang && filter.lang !== 'all') {
+        query.andWhere('post.lang = :lang', { lang: filter.lang });
+      }
+      return (await query.getMany()).map((p) => ({
+        ...p,
+        reasons: ['Most cited'],
+      }));
+    }
+
+    // Default Algo: Get top posts by backlink count directly from DB
     const rankedIds = await this.postEdgeRepo
       .createQueryBuilder('edge')
       .select('edge.to_post_id', 'postId')
@@ -223,39 +324,88 @@ export class ExploreService {
     limit = 20,
     filter?: { lang?: string; sort?: string },
   ) {
-    // Get posts with external sources from last 7 days
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // Overrides
+    if (filter?.sort === 'cited') {
+      // Cited posts that have external sources?
+      // For simplicity, just return most cited posts generally if sort=cited is global
+      // Or stick to "Newsroom" theme: posts with sources, ordered by quote count
+      // Let's do posts with sources, ordered by quote count.
 
-    // Get post IDs with sources
-    const postsWithSources = await this.externalSourceRepo
-      .createQueryBuilder('source')
-      .select('DISTINCT source.post_id', 'postId')
-      .leftJoin('posts', 'post', 'post.id = source.post_id')
-      .where('post.created_at >= :since', { since: sevenDaysAgo })
-      .andWhere('post.deleted_at IS NULL')
-      .getRawMany<{ postId: string }>();
+      const query = this.postRepo
+        .createQueryBuilder('post')
+        .innerJoin('external_sources', 'source', 'source.post_id = post.id')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('post.deleted_at IS NULL')
+        .orderBy('post.quote_count', 'DESC')
+        .take(limit);
 
-    const postIds = postsWithSources.map((p) => p.postId);
-
-    if (postIds.length === 0) {
-      return [];
+      if (filter?.lang && filter.lang !== 'all') {
+        query.andWhere('post.lang = :lang', { lang: filter.lang });
+      }
+      // distinct posts
+      query
+        .select('DISTINCT post.id')
+        .addSelect('post.*')
+        .addSelect('author.*');
+      // Note: DISTINCT on post.id might require matching Selects in TypeORM or raw query.
+      // Simpler: Just rely on TypeORM's relations, but we need to ensure unique posts.
+      // .getMany() usually handles hydration uniqueness but multiple sources per post might cause dupes in raw result before hydration.
+      // We can use subquery or stick to logic below.
     }
 
+    // Sort logic (default is Newest for Newsroom usually, but here Recommended is default)
+    // If sort is Newest or Recommended, we use the date-based logic.
+    // If sort is Cited, we use quote count.
+
+    const orderBy =
+      filter?.sort === 'cited' ? 'post.quote_count' : 'post.created_at';
+
+    // Get posts with external sources
     const query = this.postRepo
       .createQueryBuilder('post')
+      .innerJoin('external_sources', 'source', 'source.post_id = post.id')
       .leftJoinAndSelect('post.author', 'author')
-      .where('post.id IN (:...ids)', { ids: postIds });
+      .where('post.deleted_at IS NULL');
 
     if (filter?.lang && filter.lang !== 'all') {
       query.andWhere('post.lang = :lang', { lang: filter.lang });
     }
 
-    const posts = await query
-      .orderBy('post.created_at', 'DESC')
+    // We want distinct posts.
+    // TypeORM `getMany` with `innerJoin` might return duplicates if multiple sources.
+    // We can use query builder to select distinct ids first.
+
+    // Optimized approach:
+    // 1. Find IDs
+    // 2. Fetch Entities
+
+    const idQuery = this.postRepo
+      .createQueryBuilder('post')
+      .innerJoin('external_sources', 'source', 'source.post_id = post.id')
+      .where('post.deleted_at IS NULL');
+
+    if (filter?.lang && filter.lang !== 'all') {
+      idQuery.andWhere('post.lang = :lang', { lang: filter.lang });
+    }
+
+    const ids = (await idQuery
+      .select('DISTINCT post.id', 'id')
+      .addOrderBy(orderBy, 'DESC')
       .limit(limit)
+      .getRawMany()) as { id: string }[];
+
+    if (ids.length === 0) return [];
+
+    const finalPosts = await this.postRepo
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.author', 'author')
+      .where('post.id IN (:...ids)', {
+        ids: ids.map((i: { id: string }) => i.id),
+      })
+      .orderBy(orderBy, 'DESC') // Re-apply order
       .getMany();
 
-    return posts.map((p) => ({
+    return finalPosts.map((p) => ({
       ...p,
       reasons: ['Recent sources', 'External links'],
     }));

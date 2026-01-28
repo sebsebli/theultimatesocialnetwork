@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, Image, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, Image, ActivityIndicator, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS, SIZES } from '../../../constants/theme';
@@ -31,6 +31,7 @@ export default function MessagesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [search, setSearch] = useState('');
 
   const fetchThreads = async () => {
     try {
@@ -55,8 +56,6 @@ export default function MessagesScreen() {
 
   useEffect(() => {
     const handleNewMessage = (data: any) => {
-      // Optimistically update thread list or refetch
-      // For simplicity and correctness, we refetch to get updated order/snippets
       fetchThreads(); 
     };
 
@@ -84,8 +83,14 @@ export default function MessagesScreen() {
   };
 
   const renderItem = ({ item }: { item: ThreadItem }) => {
-    const participant = item.participant || item.participants?.[0]; // Adapt based on API response
+    const participant = item.participant || item.participants?.[0]; 
     if (!participant) return null;
+
+    if (search) {
+      const nameMatch = participant.displayName?.toLowerCase().includes(search.toLowerCase());
+      const msgMatch = item.lastMessage?.body.toLowerCase().includes(search.toLowerCase());
+      if (!nameMatch && !msgMatch) return null;
+    }
 
     return (
       <Pressable
@@ -115,22 +120,6 @@ export default function MessagesScreen() {
     );
   };
 
-  if (loading && !refreshing) {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
-
-  if (error && threads.length === 0) {
-    return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <ErrorState onRetry={fetchThreads} />
-      </View>
-    );
-  }
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -140,21 +129,39 @@ export default function MessagesScreen() {
         </Pressable>
       </View>
 
-      <FlatList
-        data={threads}
-        renderItem={renderItem}
-        keyExtractor={(item: ThreadItem) => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <MaterialIcons name="chat-bubble-outline" size={48} color={COLORS.tertiary} />
-            <Text style={styles.emptyText}>{t('inbox.noMessages')}</Text>
-          </View>
-        }
-      />
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder={t('messages.searchPlaceholder', 'Search chats')}
+          placeholderTextColor={COLORS.tertiary}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
+      {loading && !refreshing ? (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : error && threads.length === 0 ? (
+        <ErrorState onRetry={fetchThreads} />
+      ) : (
+        <FlatList
+          data={threads}
+          renderItem={renderItem}
+          keyExtractor={(item: ThreadItem) => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <MaterialIcons name="chat-bubble-outline" size={48} color={COLORS.tertiary} />
+              <Text style={styles.emptyText}>{t('inbox.noMessages')}</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -181,6 +188,18 @@ const styles = StyleSheet.create({
   },
   headerAction: {
     padding: SPACING.s,
+  },
+  searchContainer: {
+    padding: SPACING.m,
+    backgroundColor: COLORS.ink,
+  },
+  searchInput: {
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.m,
+    color: COLORS.paper,
+    fontSize: 16,
+    fontFamily: FONTS.regular,
   },
   listContent: {
     paddingBottom: 100,
@@ -248,6 +267,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: COLORS.primary,
     marginLeft: SPACING.s,
+  },
+  loader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyContainer: {
     alignItems: 'center',

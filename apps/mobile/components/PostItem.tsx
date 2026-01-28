@@ -13,6 +13,7 @@ import { MarkdownText } from './MarkdownText';
 import AddToCollectionSheet, { AddToCollectionSheetRef } from './AddToCollectionSheet';
 import ShareSheet, { ShareSheetRef } from './ShareSheet';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { Avatar } from './Avatar';
 
 interface PostItemProps {
   post: {
@@ -209,11 +210,7 @@ function PostItemComponent({
         style={({ pressed }: { pressed: boolean }) => [styles.authorRow, pressed && { opacity: 0.7 }]}
         onPress={() => post.author?.handle && router.push(`/user/${post.author.handle}`)}
       >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {authorInitial}
-          </Text>
-        </View>
+        <Avatar name={post.author.displayName} size={40} />
         <View style={styles.authorInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.authorName}>{post.author.displayName || t('post.unknownUser', 'Unknown')}</Text>
@@ -417,7 +414,7 @@ const styles = StyleSheet.create({
     fontWeight: '700', // font-bold
     color: COLORS.paper, // text-paper
     lineHeight: 24, // leading-snug
-    fontFamily: FONTS.serifSemiBold, // IBM Plex Serif for content
+    fontFamily: FONTS.semiBold, // Inter for feed consistency
     letterSpacing: -0.5, // tracking-tight
   },
   headerImage: {
