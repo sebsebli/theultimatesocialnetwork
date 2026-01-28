@@ -133,11 +133,16 @@ export class RecommendationService implements OnModuleInit {
   }> {
     // Check cache for profile
     const cacheKey = `user_interest_profile:${userId}`;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const cachedProfile = await this.cacheManager.get(cacheKey);
+    let cachedProfile: any;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      cachedProfile = await this.cacheManager.get(cacheKey);
+    } catch (e) {
+      console.warn('Cache get failed', e);
+    }
     if (cachedProfile) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return cachedProfile as any;
+      return cachedProfile;
     }
 
     // Get topics user has posted about
@@ -198,7 +203,11 @@ export class RecommendationService implements OnModuleInit {
     };
 
     // Cache profile for 5 minutes
-    await this.cacheManager.set(cacheKey, profile, 300000);
+    try {
+      await this.cacheManager.set(cacheKey, profile, 300000);
+    } catch (e) {
+      console.warn('Cache set failed', e);
+    }
 
     return profile;
   }
@@ -209,11 +218,16 @@ export class RecommendationService implements OnModuleInit {
   async getRecommendedPosts(userId: string, limit = 20): Promise<Post[]> {
     // Check cache for recommendations
     const cacheKey = `recs:posts:${userId}:${limit}`;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const cachedRecs = await this.cacheManager.get(cacheKey);
+    let cachedRecs: Post[] | undefined;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      cachedRecs = await this.cacheManager.get(cacheKey);
+    } catch (e) {
+      console.warn('Cache get failed', e);
+    }
     if (cachedRecs) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return cachedRecs as Post[];
+      return cachedRecs;
     }
 
     const user = await this.userRepo.findOne({ where: { id: userId } });
@@ -372,7 +386,11 @@ export class RecommendationService implements OnModuleInit {
     }
 
     // Cache the results
-    await this.cacheManager.set(cacheKey, resultPosts, 300000); // 5 min TTL
+    try {
+      await this.cacheManager.set(cacheKey, resultPosts, 300000); // 5 min TTL
+    } catch (e) {
+      console.warn('Cache set failed', e);
+    }
 
     return resultPosts;
   }
@@ -431,11 +449,16 @@ export class RecommendationService implements OnModuleInit {
   async getRecommendedPeople(userId: string, limit = 20): Promise<User[]> {
     // Check cache
     const cacheKey = `recs:people:${userId}:${limit}`;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const cachedRecs = await this.cacheManager.get(cacheKey);
+    let cachedRecs: User[] | undefined;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      cachedRecs = await this.cacheManager.get(cacheKey);
+    } catch (e) {
+      console.warn('Cache get failed', e);
+    }
     if (cachedRecs) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return cachedRecs as User[];
+      return cachedRecs;
     }
 
     const userProfile = await this.getUserInterestProfile(userId);
@@ -483,7 +506,11 @@ export class RecommendationService implements OnModuleInit {
     }
 
     // Cache
-    await this.cacheManager.set(cacheKey, resultUsers, 300000);
+    try {
+      await this.cacheManager.set(cacheKey, resultUsers, 300000);
+    } catch (e) {
+      console.warn('Cache set failed', e);
+    }
 
     return resultUsers;
   }
