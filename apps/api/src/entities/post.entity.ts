@@ -1,5 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, Index, OneToMany } from 'typeorm';
 import { User } from './user.entity';
+import { PostEdge } from './post-edge.entity';
+import { PostTopic } from './post-topic.entity';
+import { Mention } from './mention.entity';
 
 export enum PostVisibility {
   FOLLOWERS = 'FOLLOWERS',
@@ -69,4 +72,13 @@ export class Post {
 
   @Column({ name: 'reading_time_minutes', type: 'float', default: 0 })
   readingTimeMinutes: number;
+
+  @OneToMany(() => PostEdge, (edge) => edge.fromPost)
+  outgoingEdges: PostEdge[];
+
+  @OneToMany(() => PostTopic, (pt) => pt.post)
+  postTopics: PostTopic[];
+
+  @OneToMany(() => Mention, (mention) => mention.post)
+  mentions: Mention[];
 }

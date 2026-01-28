@@ -2,9 +2,11 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import { Queue } from 'bullmq';
 import { Post, PostVisibility } from '../entities/post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { PostEdge, EdgeType } from '../entities/post-edge.entity';
@@ -35,20 +37,19 @@ export class PostsService {
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
     private embeddingService: EmbeddingService,
+    @Inject('POST_QUEUE') private postQueue: Queue,
   ) {}
 
-  async create(userId: string, dto: CreatePostDto): Promise<Post> {
-    // Sanitize HTML in body (preserve markdown, remove dangerous HTML)
-    // This prevents XSS while allowing markdown syntax
-    // Dynamic import to handle ESM in CJS environment
+  async create(userId: string, dto: CreatePostDto, skipQueue = false): Promise<Post> {
+    // Sanitize HTML in body
     const { default: DOMPurify } = await import('isomorphic-dompurify');
     const sanitizedBody = DOMPurify.sanitize(dto.body, {
-      ALLOWED_TAGS: [], // No HTML tags allowed in markdown posts
+      ALLOWED_TAGS: [],
       ALLOWED_ATTR: [],
-      KEEP_CONTENT: true, // Keep text content, remove tags
+      KEEP_CONTENT: true,
     });
 
-    // AI Safety Check (Two-stage: Bayesian → Gemma)
+    // AI Safety Check
     const safety = await this.safetyService.checkContent(
       sanitizedBody,
       userId,
@@ -65,7 +66,6 @@ export class PostsService {
     await queryRunner.startTransaction();
 
     let savedPost: Post;
-    const neo4jCommands: Array<() => Promise<void>> = [];
 
     try {
       // 1. Parse Title
@@ -74,7 +74,7 @@ export class PostsService {
         ? DOMPurify.sanitize(titleMatch[1].trim(), { ALLOWED_TAGS: [] })
         : null;
 
-      // 2. Detect Language (with user profile fallback)
+      // 2. Detect Language
       const user = await this.userRepo.findOne({
         where: { id: userId },
         select: ['languages'],
@@ -85,7 +85,6 @@ export class PostsService {
         user?.languages || [],
       );
 
-      // Reading Time (Words / 200)
       const wordCount = sanitizedBody.split(/\s+/).length;
       const readingTime = Math.ceil(wordCount / 200);
 
@@ -106,24 +105,8 @@ export class PostsService {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       savedPost = (await queryRunner.manager.save(Post, post)) as Post;
 
-      // Queue Neo4j User -> Post
-      neo4jCommands.push(async () => {
-        await this.neo4jService.run(
-          `
-          MERGE (u:User {id: $userId})
-          CREATE (p:Post {id: $postId, createdAt: $createdAt})
-          MERGE (u)-[:AUTHORED]->(p)
-          `,
-          {
-            userId,
-            postId: savedPost.id,
-            createdAt: savedPost.createdAt.toISOString(),
-          },
-        );
-      });
-
       // 4. Extract & Process Wikilinks [[target|alias]]
-      const wikilinkRegex = /\\\[\[(.*?)\]\]/g;
+      const wikilinkRegex = /\[\[(.*?)\]\]/g;
       let match;
       while ((match = wikilinkRegex.exec(sanitizedBody)) !== null) {
         const content = match[1];
@@ -137,7 +120,6 @@ export class PostsService {
           if (target.toLowerCase().startsWith('post:')) {
             const targetUuid = target.split(':')[1];
             if (this.isValidUUID(targetUuid)) {
-              // Check if target post exists
               const targetPost = await queryRunner.manager.findOne(Post, {
                 where: { id: targetUuid },
               });
@@ -147,18 +129,6 @@ export class PostsService {
                   toPostId: targetUuid,
                   edgeType: EdgeType.LINK,
                   anchorText: alias,
-                });
-
-                // Neo4j Link
-                neo4jCommands.push(async () => {
-                  await this.neo4jService.run(
-                    `
-                    MATCH (p1:Post {id: $fromId})
-                    MERGE (p2:Post {id: $toId})
-                    MERGE (p1)-[:LINKS_TO]->(p2)
-                    `,
-                    { fromId: savedPost.id, toId: targetUuid },
-                  );
                 });
               }
             }
@@ -182,8 +152,7 @@ export class PostsService {
                 createdBy: userId,
               });
               topic = await queryRunner.manager.save(Topic, topic);
-
-              // Index topic
+              // Index topic (async, lightweight)
               this.meilisearch
                 .indexTopic(topic)
                 .catch((err) => console.error('Failed to index topic', err));
@@ -191,23 +160,6 @@ export class PostsService {
             await queryRunner.manager.save(PostTopic, {
               postId: savedPost.id,
               topicId: topic.id,
-            });
-
-            // Neo4j Topic
-            neo4jCommands.push(async () => {
-              await this.neo4jService.run(
-                `
-                MATCH (p:Post {id: $postId})
-                MERGE (t:Topic {slug: $slug})
-                ON CREATE SET t.title = $title
-                MERGE (p)-[:IN_TOPIC]->(t)
-                `,
-                {
-                  postId: savedPost.id,
-                  slug: topic!.slug,
-                  title: topic!.title,
-                },
-              );
             });
           }
         }
@@ -230,28 +182,6 @@ export class PostsService {
             postId: savedPost.id,
             mentionedUserId: mentionedUser.id,
           });
-
-          // Create notification
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-          await this.notificationHelper.createNotification({
-            userId: mentionedUser.id,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            type: 'MENTION' as any,
-            actorUserId: userId,
-            postId: savedPost.id,
-          });
-
-          // Neo4j Mention
-          neo4jCommands.push(async () => {
-            await this.neo4jService.run(
-              `
-              MATCH (p:Post {id: $postId})
-              MERGE (u:User {id: $userId})
-              MERGE (p)-[:MENTIONS]->(u)
-              `,
-              { postId: savedPost.id, userId: mentionedUser.id },
-            );
-          });
         }
       }
 
@@ -263,40 +193,10 @@ export class PostsService {
       await queryRunner.release();
     }
 
-    // Execute Neo4j commands AFTER Postgres commit (best effort)
-    // In prod, this should be a proper job queue (BullMQ)
-    void Promise.allSettled(neo4jCommands.map((cmd) => cmd())).then(() => {
-      // Log errors
-    });
-
-    // Generate Embedding & Index in Meilisearch (async, best effort)
-    const author = await this.postRepo.manager.findOne(User, {
-      where: { id: savedPost.authorId },
-    });
-
-    const embeddingText = `${savedPost.title || ''} ${savedPost.body}`.trim();
-    this.embeddingService.generateEmbedding(embeddingText).then((vector) => {
-      this.meilisearch
-        .indexPost({
-          id: savedPost.id,
-          title: savedPost.title,
-          body: savedPost.body,
-          authorId: savedPost.authorId,
-          author:
-            author
-              ? {
-                  displayName: author.displayName || author.handle,
-                  handle: author.handle,
-                }
-              : undefined,
-          lang: savedPost.lang,
-          createdAt: savedPost.createdAt,
-          quoteCount: savedPost.quoteCount,
-          replyCount: savedPost.replyCount,
-          embedding: vector || undefined,
-        })
-        .catch((err) => console.error('Meilisearch indexing error', err));
-    }).catch((err) => console.error('Embedding generation error', err));
+    // Offload side effects to background queue
+    if (!skipQueue) {
+        await this.postQueue.add('process', { postId: savedPost.id, userId });
+    }
 
     return savedPost;
   }
@@ -328,23 +228,18 @@ export class PostsService {
       throw new NotFoundException('Post not found');
     }
 
-    // Visibility Check
     if (post.visibility === PostVisibility.PUBLIC) {
       return post;
     }
 
-    // If protected, viewer must be authenticated
     if (!viewerId) {
-      // Mimic "not found" for unauthorized users (security best practice)
       throw new NotFoundException('Post not found');
     }
 
-    // Author can always see their own post
     if (post.authorId === viewerId) {
       return post;
     }
 
-    // If FOLLOWERS only, check if viewer follows author
     if (post.visibility === PostVisibility.FOLLOWERS) {
       const isFollowing = await this.dataSource.query(
         `SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = $2`,
@@ -370,7 +265,6 @@ export class PostsService {
 
     await this.postRepo.softDelete(postId);
 
-    // Remove from search index
     this.meilisearch
       .deletePost(postId)
       .catch((err) => console.error('Failed to delete from Meilisearch', err));
@@ -385,7 +279,6 @@ export class PostsService {
       throw new Error('Commentary is required for quotes');
     }
 
-    // Get the quoted post
     const quotedPost = await this.postRepo.findOne({
       where: { id: quotedPostId },
     });
@@ -394,15 +287,14 @@ export class PostsService {
       throw new Error('Quoted post not found');
     }
 
-    // Create quote post with reference
     const quoteBody = `${commentary}\n\n[[post:${quotedPostId}]]`;
 
+    // Create post but skip queue until we add the edge
     const quotePost = await this.create(userId, {
       body: quoteBody,
       visibility: PostVisibility.PUBLIC,
-    });
+    }, true);
 
-    // Create QUOTE edge
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
 
@@ -413,33 +305,13 @@ export class PostsService {
         edgeType: EdgeType.QUOTE,
       });
 
-      // Increment quote count on quoted post
       await this.postRepo.increment({ id: quotedPostId }, 'quoteCount', 1);
-
-      // Notify quoted post author
-      if (quotedPost.authorId !== userId) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-        await this.notificationHelper.createNotification({
-          userId: quotedPost.authorId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          type: 'QUOTE' as any,
-          actorUserId: userId,
-          postId: quotedPostId,
-        });
-      }
-
-      // Neo4j update
-      await this.neo4jService.run(
-        `
-        MATCH (p1:Post {id: $fromId})
-        MATCH (p2:Post {id: $toId})
-        MERGE (p1)-[:QUOTES]->(p2)
-        `,
-        { fromId: quotePost.id, toId: quotedPostId },
-      );
     } finally {
       await queryRunner.release();
     }
+
+    // Now queue it with consistent state
+    await this.postQueue.add('process', { postId: quotePost.id, userId });
 
     return quotePost;
   }
@@ -452,7 +324,6 @@ export class PostsService {
   }
 
   async getReferencedBy(postId: string) {
-    // Find posts that LINK_TO or QUOTE this post
     const edges = await this.dataSource.getRepository(PostEdge).find({
       where: [
         { toPostId: postId, edgeType: EdgeType.LINK },
