@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Queue } from 'bullmq';
+import Redis from 'ioredis';
 import { RepliesController } from './replies.controller';
 import { RepliesService } from './replies.service';
+import { ReplyWorker } from './reply.worker';
 import { Reply } from '../entities/reply.entity';
 import { Post } from '../entities/post.entity';
 import { Mention } from '../entities/mention.entity';
@@ -14,13 +18,27 @@ import { SafetyModule } from '../safety/safety.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Reply, Post, Mention, User]),
+    ConfigModule,
     DatabaseModule,
     NotificationsModule,
     SafetyModule,
     SharedModule,
   ],
   controllers: [RepliesController],
-  providers: [RepliesService],
+  providers: [
+    RepliesService,
+    ReplyWorker,
+    {
+      provide: 'REPLY_QUEUE',
+      useFactory: (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL');
+        return new Queue('reply-processing', { 
+            connection: new Redis(redisUrl || 'redis://redis:6379', { maxRetriesPerRequest: null }) 
+        });
+      },
+      inject: [ConfigService],
+    },
+  ],
   exports: [RepliesService],
 })
 export class RepliesModule {}

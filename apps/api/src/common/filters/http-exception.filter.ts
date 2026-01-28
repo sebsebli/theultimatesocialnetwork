@@ -1,8 +1,10 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -30,11 +32,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       } : String(exception),
     };
     
-    // Log full error details server-side
+    // Log full error details server-side using NestJS Logger (pino compatible)
     if (isProduction) {
-      console.error(JSON.stringify(logData));
+      this.logger.error(JSON.stringify(logData));
     } else {
-      console.error(`[${request.method}] ${request.url} - Status: ${status}`, exception);
+      this.logger.error(`[${request.method}] ${request.url} - Status: ${status}`, exception instanceof Error ? exception.stack : exception);
     }
 
     // Get message safely
