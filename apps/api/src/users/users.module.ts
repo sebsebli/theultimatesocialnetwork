@@ -18,12 +18,20 @@ import { Queue } from 'bullmq';
 
 import { SharedModule } from '../shared/shared.module';
 import { SearchModule } from '../search/search.module';
+import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      User, Post, Reply, PostEdge, 
-      Like, Keep, Follow, PostRead, Notification
+      User,
+      Post,
+      Reply,
+      PostEdge,
+      Like,
+      Keep,
+      Follow,
+      PostRead,
+      Notification,
     ]),
     ConfigModule,
     SharedModule,
@@ -45,8 +53,11 @@ import { SearchModule } from '../search/search.module';
       provide: 'EXPORT_QUEUE',
       useFactory: (config: ConfigService) => {
         const redisUrl = config.get<string>('REDIS_URL');
-        return new Queue('data-export', { 
-            connection: new Redis(redisUrl || 'redis://redis:6379', { maxRetriesPerRequest: null }) 
+        return new Queue('data-export', {
+          connection: new Redis(redisUrl || 'redis://redis:6379', {
+            maxRetriesPerRequest: null,
+          }),
+          ...defaultQueueConfig,
         });
       },
       inject: [ConfigService],

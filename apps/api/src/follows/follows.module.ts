@@ -12,6 +12,7 @@ import { User } from '../entities/user.entity';
 import { DatabaseModule } from '../database/database.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SharedModule } from '../shared/shared.module';
+import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
   imports: [
@@ -29,8 +30,11 @@ import { SharedModule } from '../shared/shared.module';
       provide: 'FOLLOW_QUEUE',
       useFactory: (config: ConfigService) => {
         const redisUrl = config.get<string>('REDIS_URL');
-        return new Queue('follow-processing', { 
-            connection: new Redis(redisUrl || 'redis://redis:6379', { maxRetriesPerRequest: null }) 
+        return new Queue('follow-processing', {
+          connection: new Redis(redisUrl || 'redis://redis:6379', {
+            maxRetriesPerRequest: null,
+          }),
+          ...defaultQueueConfig,
         });
       },
       inject: [ConfigService],

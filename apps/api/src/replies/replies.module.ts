@@ -14,6 +14,7 @@ import { SharedModule } from '../shared/shared.module';
 import { DatabaseModule } from '../database/database.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SafetyModule } from '../safety/safety.module';
+import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
   imports: [
@@ -32,8 +33,11 @@ import { SafetyModule } from '../safety/safety.module';
       provide: 'REPLY_QUEUE',
       useFactory: (config: ConfigService) => {
         const redisUrl = config.get<string>('REDIS_URL');
-        return new Queue('reply-processing', { 
-            connection: new Redis(redisUrl || 'redis://redis:6379', { maxRetriesPerRequest: null }) 
+        return new Queue('reply-processing', {
+          connection: new Redis(redisUrl || 'redis://redis:6379', {
+            maxRetriesPerRequest: null,
+          }),
+          ...defaultQueueConfig,
         });
       },
       inject: [ConfigService],

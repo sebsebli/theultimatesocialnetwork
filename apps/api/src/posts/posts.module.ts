@@ -16,6 +16,7 @@ import { SearchModule } from '../search/search.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SharedModule } from '../shared/shared.module';
 import { SafetyModule } from '../safety/safety.module';
+import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
   imports: [
@@ -35,8 +36,11 @@ import { SafetyModule } from '../safety/safety.module';
       provide: 'POST_QUEUE',
       useFactory: (config: ConfigService) => {
         const redisUrl = config.get<string>('REDIS_URL');
-        return new Queue('post-processing', { 
-            connection: new Redis(redisUrl || 'redis://redis:6379', { maxRetriesPerRequest: null }) 
+        return new Queue('post-processing', {
+          connection: new Redis(redisUrl || 'redis://redis:6379', {
+            maxRetriesPerRequest: null,
+          }),
+          ...defaultQueueConfig,
         });
       },
       inject: [ConfigService],

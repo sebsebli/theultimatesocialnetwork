@@ -12,6 +12,7 @@ import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
 import { PushOutbox } from '../entities/push-outbox.entity';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
   imports: [
@@ -39,8 +40,11 @@ import { RealtimeModule } from '../realtime/realtime.module';
       provide: 'PUSH_QUEUE',
       useFactory: (config: ConfigService) => {
         const redisUrl = config.get<string>('REDIS_URL');
-        return new Queue('push-processing', { 
-            connection: new Redis(redisUrl || 'redis://redis:6379', { maxRetriesPerRequest: null }) 
+        return new Queue('push-processing', {
+          connection: new Redis(redisUrl || 'redis://redis:6379', {
+            maxRetriesPerRequest: null,
+          }),
+          ...defaultQueueConfig,
         });
       },
       inject: [ConfigService],
