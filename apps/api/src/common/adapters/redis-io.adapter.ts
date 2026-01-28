@@ -6,7 +6,8 @@ import { ConfigService } from '@nestjs/config';
 import { INestApplicationContext } from '@nestjs/common';
 
 export class RedisIoAdapter extends IoAdapter {
-  private adapterConstructor: ReturnType<typeof createAdapter>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private adapterConstructor: any;
 
   constructor(
     private app: INestApplicationContext,
@@ -23,12 +24,17 @@ export class RedisIoAdapter extends IoAdapter {
 
     await Promise.all([pubClient.connect(), subClient.connect()]);
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.adapterConstructor = createAdapter(pubClient, subClient);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createIOServer(port: number, options?: ServerOptions): any {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
     const server = super.createIOServer(port, options);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
     server.adapter(this.adapterConstructor);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return server;
   }
 }

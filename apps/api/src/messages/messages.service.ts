@@ -11,6 +11,18 @@ import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationType } from '../entities/notification.entity';
+
+interface ThreadRawResult {
+  thread_id: string;
+  otherUser_id: string;
+  otherUser_handle: string;
+  otherUser_display_name: string;
+  lastMessageBody: string;
+  lastMessageAt: Date;
+  unreadCount: string;
+  thread_created_at: Date;
+}
 
 @Injectable()
 export class MessagesService {
@@ -104,7 +116,7 @@ export class MessagesService {
     // Create persistent notification
     await this.notificationHelper.createNotification({
       userId: recipientId,
-      type: 'DM' as any,
+      type: NotificationType.DM,
       actorUserId: userId,
     });
 
@@ -148,7 +160,7 @@ export class MessagesService {
       }, 'unreadCount')
       .where('thread.userA = :userId OR thread.userB = :userId', { userId })
       .orderBy('thread.updatedAt', 'DESC') // Assuming threads have updatedAt
-      .getRawMany();
+      .getRawMany<ThreadRawResult>();
 
     return (threads || []).map((t) => ({
       id: t.thread_id,

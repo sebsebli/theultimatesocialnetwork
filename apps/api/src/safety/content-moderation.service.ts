@@ -23,11 +23,11 @@ export class ContentModerationService implements OnModuleInit {
     this.bayesianClassifier = new BayesClassifier();
   }
 
-    async onModuleInit() {
-      // Train Bayesian classifier with initial spam corpus
-      this.trainBayesianClassifier();
-      
-      // Check if Gemma is available (Ollama or local)    await this.checkGemmaAvailability();
+  async onModuleInit() {
+    // Train Bayesian classifier with initial spam corpus
+    this.trainBayesianClassifier();
+
+    // Check if Gemma is available (Ollama or local)    await this.checkGemmaAvailability();
   }
 
   /**
