@@ -1,14 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Queue } from 'bullmq';
 import { Notification, NotificationType } from '../entities/notification.entity';
+import { User } from '../entities/user.entity';
+import { PushOutbox, PushStatus } from '../entities/push-outbox.entity';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class NotificationHelperService {
   constructor(
     @InjectRepository(Notification) private notificationRepo: Repository<Notification>,
+    @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(PushOutbox) private pushOutboxRepo: Repository<PushOutbox>,
     private realtimeGateway: RealtimeGateway,
+    @Inject('PUSH_QUEUE') private pushQueue: Queue,
   ) {}
 
   async createNotification(data: {
@@ -37,17 +43,86 @@ export class NotificationHelperService {
     });
 
     if (existing) {
-      // Update timestamp to bump it? Or just ignore?
-      // Usually better to ignore to prevent spam, or update 'updatedAt' if you have it.
-      // For now, simple dedupe:
       return existing;
     }
 
     const notification = this.notificationRepo.create(data);
     const saved = await this.notificationRepo.save(notification);
     
+    // Realtime (Socket)
     this.realtimeGateway.sendNotification(data.userId, saved);
     
+    // Push Notification (Async via Outbox)
+    try {
+        const { title, body } = await this.formatPushMessage(data);
+        if (title && body) {
+            const outbox = this.pushOutboxRepo.create({
+                userId: data.userId,
+                notifType: data.type,
+                title,
+                body,
+                data: {
+                    postId: data.postId,
+                    actorId: data.actorUserId,
+                    type: data.type,
+                },
+                status: PushStatus.PENDING,
+            });
+            const savedOutbox = await this.pushOutboxRepo.save(outbox);
+            
+            await this.pushQueue.add('send', { id: savedOutbox.id });
+        }
+    } catch (e) {
+        console.error('Failed to queue push notification', e);
+    }
+
     return saved;
+  }
+
+  private async formatPushMessage(data: {
+    userId: string;
+    type: NotificationType;
+    actorUserId?: string;
+  }): Promise<{ title: string; body: string } | { title: null; body: null }> {
+      let actorName = 'Someone';
+      if (data.actorUserId) {
+          const actor = await this.userRepo.findOne({ where: { id: data.actorUserId } });
+          if (actor) {
+              actorName = actor.displayName || actor.handle;
+          }
+      }
+
+      switch (data.type) {
+          case 'FOLLOW':
+              return {
+                  title: 'New Follower',
+                  body: `${actorName} started following you.`,
+              };
+          case 'FOLLOW_REQUEST':
+              return {
+                  title: 'Follow Request',
+                  body: `${actorName} requested to follow you.`,
+              };
+          case 'REPLY':
+              return {
+                  title: 'New Reply',
+                  body: `${actorName} replied to your post.`,
+              };
+          case 'QUOTE':
+              return {
+                  title: 'New Quote',
+                  body: `${actorName} quoted your post.`,
+              };
+          case 'MENTION':
+              return {
+                  title: 'New Mention',
+                  body: `${actorName} mentioned you.`,
+              };
+          case 'LIKE':
+              // Likes are private/quiet usually, often no push
+              return { title: null, body: null }; 
+          default:
+              return { title: null, body: null };
+      }
   }
 }

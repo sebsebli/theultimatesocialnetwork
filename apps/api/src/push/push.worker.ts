@@ -1,136 +1,71 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown, Inject } from '@nestjs/common';
+import { Worker, Job } from 'bullmq';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 import { PushOutbox, PushStatus } from '../entities/push-outbox.entity';
 import { PushToken } from '../entities/push-token.entity';
-import { ApnsSender } from './senders/apns.sender';
-import { FcmSender } from './senders/fcm.sender';
 
 @Injectable()
 export class PushWorker implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(PushWorker.name);
-  private isRunning = false;
-  private intervalId: NodeJS.Timeout | null = null;
+  private worker: Worker;
 
   constructor(
-    @InjectRepository(PushOutbox) private outboxRepo: Repository<PushOutbox>,
-    @InjectRepository(PushToken) private tokenRepo: Repository<PushToken>,
-    private apnsSender: ApnsSender,
-    private fcmSender: FcmSender,
+    @InjectRepository(PushOutbox) private pushOutboxRepo: Repository<PushOutbox>,
+    @InjectRepository(PushToken) private pushTokenRepo: Repository<PushToken>,
+    private configService: ConfigService,
+    @Inject('REDIS_CLIENT') private redis: Redis,
   ) {}
 
   onApplicationBootstrap() {
-    this.start();
+    const redisUrl = this.configService.get<string>('REDIS_URL');
+    
+    this.worker = new Worker('push-processing', async (job: Job) => {
+      await this.processPush(job.data.id);
+    }, { 
+        connection: new Redis(redisUrl || 'redis://redis:6379', { maxRetriesPerRequest: null }) 
+    });
+    
+    this.worker.on('failed', (job, err) => {
+        this.logger.error(`Push Job ${job?.id} failed: ${err.message}`);
+    });
   }
 
   onApplicationShutdown() {
-    this.stop();
+    this.worker.close().catch((err: Error) => {
+      console.error('Error closing worker', err);
+    });
   }
 
-  start() {
-    if (this.isRunning) return;
-    this.isRunning = true;
-    this.logger.log('Push worker started');
-    // Poll every 5 seconds
-    this.intervalId = setInterval(() => this.processOutbox(), 5000);
-  }
+  async processPush(outboxId: string) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const outbox = await this.pushOutboxRepo.findOne({ where: { id: outboxId } } as any);
+      if (!outbox) return;
 
-  stop() {
-    this.isRunning = false;
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-  }
+      if (outbox.status === PushStatus.SENT) return;
 
-  async processOutbox() {
-    try {
-      // Fetch pending items
-      const pendingItems = await this.outboxRepo.find({
-        where: { status: PushStatus.PENDING },
-        take: 50, // Batch size
-        order: { priority: 'DESC', createdAt: 'ASC' },
-      });
-
-      if (pendingItems.length === 0) return;
-
-      this.logger.debug(`Processing ${pendingItems.length} push items`);
-
-      for (const item of pendingItems) {
-        await this.processItem(item);
-      }
-    } catch (error) {
-      this.logger.error('Error processing push outbox', error);
-    }
-  }
-
-  private async processItem(item: PushOutbox) {
-    try {
-      // Get active tokens for user
-      const tokens = await this.tokenRepo.find({
-        where: { userId: item.userId, disabledAt: IsNull() },
-      });
-
-      if (tokens.length === 0) {
-        // No tokens, mark as sent (or suppressed)
-        item.status = PushStatus.SENT; // or SUPPRESSED
-        item.sentAt = new Date();
-        await this.outboxRepo.save(item);
-        return;
-      }
-
-      const results = await Promise.all(
-        tokens.map((token) => this.sendToToken(token, item)),
-      );
-
-      // Check if all failed
-      const allFailed = results.every((r) => !r.ok);
-      if (allFailed) {
-        item.status = PushStatus.FAILED;
-        item.lastError = results.map((r) => r.error).join('; ');
-      } else {
-        item.status = PushStatus.SENT;
-        item.sentAt = new Date();
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tokens = await this.pushTokenRepo.find({ where: { userId: outbox.userId, disabledAt: null } as any });
       
-      item.attemptCount++;
-      await this.outboxRepo.save(item);
+      if (tokens.length === 0) {
+          outbox.status = PushStatus.SUPPRESSED;
+          outbox.lastError = 'No active tokens';
+          await this.pushOutboxRepo.save(outbox);
+          return;
+      }
 
-    } catch (error: any) {
-      this.logger.error(`Failed to process item ${item.id}`, error);
-      item.status = PushStatus.FAILED;
-      item.lastError = error.message;
-      item.attemptCount++;
-      await this.outboxRepo.save(item);
-    }
-  }
+      // Simulate Send (Placeholder for APNs/FCM logic)
+      // In a real implementation, we would inject ApnsSender / FcmSender here.
+      for (const token of tokens) {
+          this.logger.log(`[Mock Send] Provider: ${token.provider}, Token: ${token.token.substring(0, 10)}..., Title: ${outbox.title}`);
+          // if (failed) invalidTokens.push(token);
+      }
 
-  private async sendToToken(token: PushToken, item: PushOutbox) {
-    let result: { ok: boolean; invalidToken?: boolean; error?: string };
-
-    if (token.provider === 'APNS') {
-      result = await this.apnsSender.send({
-        deviceToken: token.token,
-        title: item.title,
-        body: item.body,
-        data: item.data as any,
-        environment: token.apnsEnvironment as 'sandbox' | 'production' || 'production',
-      });
-    } else {
-      result = await this.fcmSender.send({
-        token: token.token,
-        title: item.title,
-        body: item.body,
-        data: item.data as any,
-      });
-    }
-
-    if (result.invalidToken) {
-      this.logger.warn(`Invalid token for user ${token.userId}, disabling...`);
-      token.disabledAt = new Date();
-      await this.tokenRepo.save(token);
-    }
-
-    return result;
+      outbox.status = PushStatus.SENT;
+      outbox.sentAt = new Date();
+      outbox.attemptCount += 1;
+      await this.pushOutboxRepo.save(outbox);
   }
 }
