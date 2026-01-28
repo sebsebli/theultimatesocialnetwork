@@ -17,7 +17,7 @@ function toPlainFeedItems(items: FeedItem[]): unknown[] {
   return items
     .map((item) => {
       if (item.type === 'post') {
-        const data = postToPlain(item.data as Post);
+        const data = postToPlain(item.data);
         return data ? { type: 'post' as const, data } : null;
       }
       const d = item.data;
@@ -48,7 +48,7 @@ export class FeedService {
     @InjectRepository(Block) private blockRepo: Repository<Block>,
     @InjectRepository(Mute) private muteRepo: Repository<Mute>,
     @Inject('REDIS_CLIENT') private redis: Redis,
-  ) { }
+  ) {}
 
   async getHomeFeed(
     userId: string,
@@ -58,15 +58,17 @@ export class FeedService {
   ): Promise<FeedItem[]> {
     // Get blocked and muted users to exclude
     const [blocks, mutes] = await Promise.all([
-      this.blockRepo.find({ where: [{ blockerId: userId }, { blockedId: userId }] }),
+      this.blockRepo.find({
+        where: [{ blockerId: userId }, { blockedId: userId }],
+      }),
       this.muteRepo.find({ where: { muterId: userId } }),
     ]);
 
     const excludedUserIds = new Set<string>();
-    blocks.forEach(b => {
+    blocks.forEach((b) => {
       excludedUserIds.add(b.blockerId === userId ? b.blockedId : b.blockerId);
     });
-    mutes.forEach(m => excludedUserIds.add(m.mutedId));
+    mutes.forEach((m) => excludedUserIds.add(m.mutedId));
 
     // Basic chronological feed: Posts from people I follow
     const follows = await this.followRepo.find({
@@ -74,7 +76,7 @@ export class FeedService {
     });
     const followingIds = follows
       .map((f) => f.followeeId)
-      .filter(id => !excludedUserIds.has(id));
+      .filter((id) => !excludedUserIds.has(id));
 
     // Always include self
     followingIds.push(userId);
@@ -88,8 +90,12 @@ export class FeedService {
     if (offset < 500) {
       try {
         const cacheKey = `feed:${userId}`;
-        const cachedIds = await this.redis.lrange(cacheKey, offset, offset + limit - 1);
-        
+        const cachedIds = await this.redis.lrange(
+          cacheKey,
+          offset,
+          offset + limit - 1,
+        );
+
         if (cachedIds.length > 0) {
           const posts = await this.postRepo.find({
             where: { id: In(cachedIds) },
@@ -97,17 +103,17 @@ export class FeedService {
           });
 
           // Maintain order from Redis list
-          const postMap = new Map(posts.map(p => [p.id, p]));
+          const postMap = new Map(posts.map((p) => [p.id, p]));
           const orderedPosts = cachedIds
-            .map(id => postMap.get(id))
+            .map((id) => postMap.get(id))
             .filter((p): p is Post => !!p && !p.deletedAt); // Filter deleted
 
           if (orderedPosts.length > 0) {
-             feedItems = orderedPosts.map(post => ({
-               type: 'post',
-               data: post,
-             }));
-             usedCache = true;
+            feedItems = orderedPosts.map((post) => ({
+              type: 'post',
+              data: post,
+            }));
+            usedCache = true;
           }
         }
       } catch (e) {
@@ -121,8 +127,11 @@ export class FeedService {
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
-        .andWhere('post.author_id NOT IN (:...excluded)', { 
-          excluded: excludedUserIds.size > 0 ? Array.from(excludedUserIds) : ['00000000-0000-0000-0000-000000000000'] 
+        .andWhere('post.author_id NOT IN (:...excluded)', {
+          excluded:
+            excludedUserIds.size > 0
+              ? Array.from(excludedUserIds)
+              : ['00000000-0000-0000-0000-000000000000'],
         })
         .andWhere(
           new Brackets((qb) => {

@@ -7,7 +7,7 @@ import { Reply } from '../entities/reply.entity';
 
 /**
  * Two-stage content moderation service
- * 
+ *
  * Stage 1: Bayesian Filter - Detects repeated spam (same content posted multiple times)
  * Stage 2: Gemma 3 270M - Analyzes content for violence, harassment, etc.
  */
@@ -23,18 +23,17 @@ export class ContentModerationService implements OnModuleInit {
     this.bayesianClassifier = new BayesClassifier();
   }
 
-  async onModuleInit() {
-    // Train Bayesian classifier with initial spam corpus
-    await this.trainBayesianClassifier();
-    
-    // Check if Gemma is available (Ollama or local)
-    await this.checkGemmaAvailability();
+    async onModuleInit() {
+      // Train Bayesian classifier with initial spam corpus
+      this.trainBayesianClassifier();
+      
+      // Check if Gemma is available (Ollama or local)    await this.checkGemmaAvailability();
   }
 
   /**
    * Train Bayesian classifier with spam/non-spam examples
    */
-  private async trainBayesianClassifier() {
+  private trainBayesianClassifier() {
     // Spam examples (repeated content patterns)
     const spamExamples = [
       'buy now click here',
@@ -79,17 +78,18 @@ export class ContentModerationService implements OnModuleInit {
         method: 'GET',
         signal: AbortSignal.timeout(2000), // 2 second timeout
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         // Check if gemma3:270m, gemma2:2b, or any gemma model is available
-        const hasGemma = data.models?.some((m: any) => 
-          m.name?.includes('gemma3') || 
-          m.name?.includes('gemma2') || 
-          m.name?.includes('gemma')
+        const hasGemma = data.models?.some(
+          (m: any) =>
+            m.name?.includes('gemma3') ||
+            m.name?.includes('gemma2') ||
+            m.name?.includes('gemma'),
         );
         this.isGemmaAvailable = hasGemma || false;
-        
+
         if (this.isGemmaAvailable) {
           console.log('✅ Gemma model available for content moderation');
         } else {
@@ -99,7 +99,10 @@ export class ContentModerationService implements OnModuleInit {
     } catch (error) {
       // Ollama not available - use fallback
       this.isGemmaAvailable = false;
-      console.warn('⚠️ Ollama not available, using fallback moderation:', error.message);
+      console.warn(
+        '⚠️ Ollama not available, using fallback moderation:',
+        error.message,
+      );
     }
   }
 
@@ -114,7 +117,7 @@ export class ContentModerationService implements OnModuleInit {
   ): Promise<{ isRepeated: boolean; count: number }> {
     // Normalize text for comparison (lowercase, remove extra spaces)
     const normalizedText = text.toLowerCase().trim().replace(/\s+/g, ' ');
-    
+
     // Check posts
     const posts = await this.postRepo.find({
       where: { authorId: userId },
@@ -134,16 +137,28 @@ export class ContentModerationService implements OnModuleInit {
     const similarityThreshold = 0.9; // 90% similarity
 
     for (const post of posts) {
-      const normalizedPost = post.body.toLowerCase().trim().replace(/\s+/g, ' ');
-      const similarity = this.calculateSimilarity(normalizedText, normalizedPost);
+      const normalizedPost = post.body
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ');
+      const similarity = this.calculateSimilarity(
+        normalizedText,
+        normalizedPost,
+      );
       if (similarity >= similarityThreshold) {
         count++;
       }
     }
 
     for (const reply of replies) {
-      const normalizedReply = reply.body.toLowerCase().trim().replace(/\s+/g, ' ');
-      const similarity = this.calculateSimilarity(normalizedText, normalizedReply);
+      const normalizedReply = reply.body
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ');
+      const similarity = this.calculateSimilarity(
+        normalizedText,
+        normalizedReply,
+      );
       if (similarity >= similarityThreshold) {
         count++;
       }
@@ -160,13 +175,13 @@ export class ContentModerationService implements OnModuleInit {
    */
   private calculateSimilarity(str1: string, str2: string): number {
     if (str1 === str2) return 1.0;
-    
+
     const words1 = new Set(str1.split(' '));
     const words2 = new Set(str2.split(' '));
-    
-    const intersection = new Set([...words1].filter(x => words2.has(x)));
+
+    const intersection = new Set([...words1].filter((x) => words2.has(x)));
     const union = new Set([...words1, ...words2]);
-    
+
     return intersection.size / union.size;
   }
 
@@ -178,13 +193,18 @@ export class ContentModerationService implements OnModuleInit {
     text: string,
     userId: string,
     contentType: 'post' | 'reply',
-  ): Promise<{ safe: boolean; reason?: string; confidence: number; needsStage2: boolean }> {
+  ): Promise<{
+    safe: boolean;
+    reason?: string;
+    confidence: number;
+    needsStage2: boolean;
+  }> {
     // Check for repeated content first
     const repeated = await this.checkRepeatedContent(text, userId, contentType);
     if (repeated.isRepeated) {
       return {
         safe: false,
-        reason: `Repeated content detected. This content has been posted ${repeated.count} times.`, 
+        reason: `Repeated content detected. This content has been posted ${repeated.count} times.`,
         confidence: 0.95,
         needsStage2: false,
       };
@@ -192,13 +212,15 @@ export class ContentModerationService implements OnModuleInit {
 
     // Use Bayesian classifier
     const classifications = this.bayesianClassifier.getClassifications(text);
-    const spamClassification = classifications.find(c => c.label === 'spam');
-    const nonSpamClassification = classifications.find(c => c.label === 'non-spam');
+    const spamClassification = classifications.find((c) => c.label === 'spam');
+    const nonSpamClassification = classifications.find(
+      (c) => c.label === 'non-spam',
+    );
 
     const spamScore = spamClassification?.value || 0;
     const nonSpamScore = nonSpamClassification?.value || 0;
     const totalScore = spamScore + nonSpamScore;
-    
+
     if (totalScore === 0) {
       // No classification - needs Stage 2
       return { safe: true, confidence: 0.5, needsStage2: true };
@@ -237,7 +259,9 @@ export class ContentModerationService implements OnModuleInit {
    * Stage 2: Gemma 3 270M Content Safety Analysis
    * Analyzes content for violence, harassment, hate speech, etc.
    */
-  private async stage2GemmaAnalysis(text: string): Promise<{ safe: boolean; reason?: string; confidence: number }> {
+  private async stage2GemmaAnalysis(
+    text: string,
+  ): Promise<{ safe: boolean; reason?: string; confidence: number }> {
     if (!this.isGemmaAvailable) {
       // Fallback: Use keyword-based detection if Gemma not available
       return this.fallbackContentAnalysis(text);
@@ -251,7 +275,7 @@ export class ContentModerationService implements OnModuleInit {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gemma3:270m', // Try gemma3:270m first, fallback handled by Ollama
-          prompt: `Analyze this content for safety. Check for: violence, harassment, hate speech, threats, or harmful content. Respond with JSON: {"safe": true/false, "reason": "explanation", "confidence": 0.0-1.0}\n\nContent: "${text.substring(0, 500)}"`, 
+          prompt: `Analyze this content for safety. Check for: violence, harassment, hate speech, threats, or harmful content. Respond with JSON: {"safe": true/false, "reason": "explanation", "confidence": 0.0-1.0}\n\nContent: "${text.substring(0, 500)}"`,
           stream: false,
           options: {
             temperature: 0.1, // Low temperature for consistent analysis
@@ -263,7 +287,7 @@ export class ContentModerationService implements OnModuleInit {
       if (response.ok) {
         const data = await response.json();
         const responseText = data.response || '';
-        
+
         // Try to parse JSON from response
         try {
           const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -280,14 +304,22 @@ export class ContentModerationService implements OnModuleInit {
         }
 
         // Fallback: Check if response indicates unsafe content
-        const unsafeIndicators = ['unsafe', 'violence', 'harassment', 'hate', 'threat'];
-        const isUnsafe = unsafeIndicators.some(indicator => 
-          responseText.toLowerCase().includes(indicator)
+        const unsafeIndicators = [
+          'unsafe',
+          'violence',
+          'harassment',
+          'hate',
+          'threat',
+        ];
+        const isUnsafe = unsafeIndicators.some((indicator) =>
+          responseText.toLowerCase().includes(indicator),
         );
 
         return {
           safe: !isUnsafe,
-          reason: isUnsafe ? 'Content flagged by AI safety analysis.' : undefined,
+          reason: isUnsafe
+            ? 'Content flagged by AI safety analysis.'
+            : undefined,
           confidence: 0.7,
         };
       }
@@ -302,29 +334,40 @@ export class ContentModerationService implements OnModuleInit {
    * Fallback content analysis (keyword-based)
    * Used when Gemma is not available
    */
-  private fallbackContentAnalysis(text: string): { safe: boolean; reason?: string; confidence: number } {
+  private fallbackContentAnalysis(text: string): {
+    safe: boolean;
+    reason?: string;
+    confidence: number;
+  } {
     const lower = text.toLowerCase();
-    
+
     // Violence indicators
-    const violenceKeywords = ['kill', 'murder', 'violence', 'attack', 'harm', 'hurt'];
+    const violenceKeywords = [
+      'kill',
+      'murder',
+      'violence',
+      'attack',
+      'harm',
+      'hurt',
+    ];
     // Harassment indicators
     const harassmentKeywords = ['harass', 'bully', 'threaten', 'intimidate'];
     // Hate speech indicators
     const hateKeywords = ['hate', 'racist', 'discriminate', 'slur'];
-    
-    const hasViolence = violenceKeywords.some(kw => lower.includes(kw));
-    const hasHarassment = harassmentKeywords.some(kw => lower.includes(kw));
-    const hasHate = hateKeywords.some(kw => lower.includes(kw));
+
+    const hasViolence = violenceKeywords.some((kw) => lower.includes(kw));
+    const hasHarassment = harassmentKeywords.some((kw) => lower.includes(kw));
+    const hasHate = hateKeywords.some((kw) => lower.includes(kw));
 
     if (hasViolence || hasHarassment || hasHate) {
       const reasons = [];
       if (hasViolence) reasons.push('violence');
       if (hasHarassment) reasons.push('harassment');
       if (hasHate) reasons.push('hate speech');
-      
+
       return {
         safe: false,
-        reason: `Content contains ${reasons.join(', ')}.`, 
+        reason: `Content contains ${reasons.join(', ')}.`,
         confidence: 0.7,
       };
     }
@@ -341,9 +384,18 @@ export class ContentModerationService implements OnModuleInit {
     userId: string,
     contentType: 'post' | 'reply' = 'post',
     options: { onlyFast?: boolean } = {}, // Added option
-  ): Promise<{ safe: boolean; reason?: string; confidence?: number; needsStage2?: boolean }> {
+  ): Promise<{
+    safe: boolean;
+    reason?: string;
+    confidence?: number;
+    needsStage2?: boolean;
+  }> {
     // Stage 1: Fast Bayesian Filter
-    const stage1Result = await this.stage1BayesianFilter(text, userId, contentType);
+    const stage1Result = await this.stage1BayesianFilter(
+      text,
+      userId,
+      contentType,
+    );
 
     // If Stage 1 has high confidence, return immediately
     if (!stage1Result.needsStage2) {
@@ -357,11 +409,11 @@ export class ContentModerationService implements OnModuleInit {
 
     // If only fast check is requested, return ambiguous result
     if (options.onlyFast) {
-        return {
-            safe: true, // Assume safe for now
-            confidence: stage1Result.confidence,
-            needsStage2: true, // Signal that it needs async check
-        };
+      return {
+        safe: true, // Assume safe for now
+        confidence: stage1Result.confidence,
+        needsStage2: true, // Signal that it needs async check
+      };
     }
 
     // Stage 2: Gemma 3 270M for ambiguous cases
@@ -389,10 +441,16 @@ export class ContentModerationService implements OnModuleInit {
    * Check image for appropriateness (profile pictures, header images)
    * Uses Gemma 3 270M for AI-powered image analysis
    */
-  async checkImage(buffer: Buffer): Promise<{ safe: boolean; reason?: string; confidence?: number }> {
+  async checkImage(
+    buffer: Buffer,
+  ): Promise<{ safe: boolean; reason?: string; confidence?: number }> {
     // Validate file size
     if (buffer.length < 100) {
-      return { safe: false, reason: 'Image file corrupted or invalid.', confidence: 1.0 };
+      return {
+        safe: false,
+        reason: 'Image file corrupted or invalid.',
+        confidence: 1.0,
+      };
     }
 
     // Use Gemma 3 270M for image analysis (via Ollama vision capabilities)
@@ -408,14 +466,16 @@ export class ContentModerationService implements OnModuleInit {
    * Stage 2: Gemma 3 270M Image Analysis
    * Analyzes images for inappropriate content (nudity, violence, etc.)
    */
-  private async stage2GemmaImageAnalysis(buffer: Buffer): Promise<{ safe: boolean; reason?: string; confidence: number }> {
+  private async stage2GemmaImageAnalysis(
+    buffer: Buffer,
+  ): Promise<{ safe: boolean; reason?: string; confidence: number }> {
     try {
       // Convert image to base64
       const base64Image = buffer.toString('base64');
-      
+
       // Determine image format
       let mimeType = 'image/jpeg';
-      if (buffer[0] === 0xFF && buffer[1] === 0xD8) mimeType = 'image/jpeg';
+      if (buffer[0] === 0xff && buffer[1] === 0xd8) mimeType = 'image/jpeg';
       if (buffer[0] === 0x89 && buffer[1] === 0x50) mimeType = 'image/png';
       if (buffer[0] === 0x52 && buffer[1] === 0x49) mimeType = 'image/webp';
 
@@ -426,7 +486,7 @@ export class ContentModerationService implements OnModuleInit {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gemma3:270m', // Try gemma3:270m first
-          prompt: `Analyze this image for appropriateness. Check for: nudity, violence, explicit content, inappropriate material. Respond with JSON only: {"safe": true/false, "reason": "explanation", "confidence": 0.0-1.0}`, 
+          prompt: `Analyze this image for appropriateness. Check for: nudity, violence, explicit content, inappropriate material. Respond with JSON only: {"safe": true/false, "reason": "explanation", "confidence": 0.0-1.0}`,
           images: [base64Image],
           stream: false,
           options: {
@@ -439,7 +499,7 @@ export class ContentModerationService implements OnModuleInit {
       if (response.ok) {
         const data = await response.json();
         const responseText = data.response || '';
-        
+
         // Try to parse JSON from response
         try {
           const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -456,9 +516,15 @@ export class ContentModerationService implements OnModuleInit {
         }
 
         // Fallback: Check if response indicates unsafe content
-        const unsafeIndicators = ['unsafe', 'inappropriate', 'nudity', 'violence', 'explicit'];
-        const isUnsafe = unsafeIndicators.some(indicator => 
-          responseText.toLowerCase().includes(indicator)
+        const unsafeIndicators = [
+          'unsafe',
+          'inappropriate',
+          'nudity',
+          'violence',
+          'explicit',
+        ];
+        const isUnsafe = unsafeIndicators.some((indicator) =>
+          responseText.toLowerCase().includes(indicator),
         );
 
         return {
@@ -469,7 +535,10 @@ export class ContentModerationService implements OnModuleInit {
       }
     } catch (error) {
       // Ollama not responding or model not available - use fallback
-      console.warn('Gemma image analysis failed, using fallback:', error.message);
+      console.warn(
+        'Gemma image analysis failed, using fallback:',
+        error.message,
+      );
     }
 
     // Fallback: Basic checks
@@ -479,17 +548,31 @@ export class ContentModerationService implements OnModuleInit {
   /**
    * Fallback image analysis (when Gemma not available)
    */
-  private fallbackImageAnalysis(buffer: Buffer): { safe: boolean; reason?: string; confidence: number } {
+  private fallbackImageAnalysis(buffer: Buffer): {
+    safe: boolean;
+    reason?: string;
+    confidence: number;
+  } {
     // Basic validation: file size, format
     if (buffer.length < 100) {
-      return { safe: false, reason: 'Image file too small or corrupted.', confidence: 1.0 };
+      return {
+        safe: false,
+        reason: 'Image file too small or corrupted.',
+        confidence: 1.0,
+      };
     }
 
     // Check for valid image headers
-    const isValidImage = 
-      (buffer[0] === 0xFF && buffer[1] === 0xD8) || // JPEG
-      (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) || // PNG
-      (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46); // WEBP/RIFF
+    const isValidImage =
+      (buffer[0] === 0xff && buffer[1] === 0xd8) || // JPEG
+      (buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47) || // PNG
+      (buffer[0] === 0x52 &&
+        buffer[1] === 0x49 &&
+        buffer[2] === 0x46 &&
+        buffer[3] === 0x46); // WEBP/RIFF
 
     if (!isValidImage) {
       return { safe: false, reason: 'Invalid image format.', confidence: 1.0 };

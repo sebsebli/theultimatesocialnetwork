@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Collection } from './collection.entity';
 import { Post } from './post.entity';
 
@@ -24,7 +31,11 @@ export class CollectionItem {
   @Column({ name: 'curator_note', type: 'text', nullable: true })
   curatorNote: string | null;
 
-  @Column({ name: 'added_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'added_at',
+    type: 'timestamptz',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   addedAt: Date;
 
   @Column({ name: 'sort_order', default: 0 })

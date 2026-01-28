@@ -9,13 +9,21 @@ import { User } from '../entities/user.entity';
 @Injectable()
 export class CollectionsService {
   constructor(
-    @InjectRepository(Collection) private collectionRepo: Repository<Collection>,
-    @InjectRepository(CollectionItem) private itemRepo: Repository<CollectionItem>,
+    @InjectRepository(Collection)
+    private collectionRepo: Repository<Collection>,
+    @InjectRepository(CollectionItem)
+    private itemRepo: Repository<CollectionItem>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(User) private userRepo: Repository<User>,
   ) {}
 
-  async create(userId: string, title: string, description?: string, isPublic = false, shareSaves = false) {
+  async create(
+    userId: string,
+    title: string,
+    description?: string,
+    isPublic = false,
+    shareSaves = false,
+  ) {
     const col = this.collectionRepo.create({
       ownerId: userId,
       title,
@@ -33,7 +41,7 @@ export class CollectionsService {
       .loadRelationCountAndMap('collection.itemCount', 'collection.items')
       .orderBy('collection.createdAt', 'DESC')
       .getMany();
-      
+
     return collections;
   }
 
@@ -59,7 +67,16 @@ export class CollectionsService {
     return this.itemRepo.save({ collectionId, postId, curatorNote: note });
   }
 
-  async update(id: string, userId: string, dto: { shareSaves?: boolean; title?: string; description?: string; isPublic?: boolean }) {
+  async update(
+    id: string,
+    userId: string,
+    dto: {
+      shareSaves?: boolean;
+      title?: string;
+      description?: string;
+      isPublic?: boolean;
+    },
+  ) {
     const collection = await this.collectionRepo.findOne({
       where: { id, ownerId: userId },
     });

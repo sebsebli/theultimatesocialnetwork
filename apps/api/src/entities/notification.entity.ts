@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { User } from './user.entity';
 
 export enum NotificationType {
@@ -22,7 +29,16 @@ export class Notification {
 
   @Column({
     type: 'enum',
-    enum: ['FOLLOW', 'FOLLOW_REQUEST', 'REPLY', 'QUOTE', 'LIKE', 'MENTION', 'COLLECTION_ADD', 'DM'],
+    enum: [
+      'FOLLOW',
+      'FOLLOW_REQUEST',
+      'REPLY',
+      'QUOTE',
+      'LIKE',
+      'MENTION',
+      'COLLECTION_ADD',
+      'DM',
+    ],
   })
   type: string;
 

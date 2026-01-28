@@ -17,19 +17,20 @@ export class ExploreService {
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(PostEdge) private postEdgeRepo: Repository<PostEdge>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
-    @InjectRepository(ExternalSource) private externalSourceRepo: Repository<ExternalSource>,
+    @InjectRepository(ExternalSource)
+    private externalSourceRepo: Repository<ExternalSource>,
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
   ) {}
 
   async getTopics(filter?: { lang?: string; sort?: string }) {
     // In a real implementation, filter by lang using Neo4j or complex queries
-    const topics = await this.topicRepo.find({ 
-      take: 20, 
+    const topics = await this.topicRepo.find({
+      take: 20,
       order: { createdAt: 'DESC' },
     });
 
-    return topics.map(t => ({
+    return topics.map((t) => ({
       ...t,
       reasons: ['Topic overlap', 'Cited today'],
     }));
@@ -41,14 +42,14 @@ export class ExploreService {
       // This will be handled by RecommendationService.getRecommendedPeople
       // Fallback to basic for now
     }
-    
+
     // Basic: return users ordered by follower count
-    const users = await this.userRepo.find({ 
-      take: 20, 
+    const users = await this.userRepo.find({
+      take: 20,
       order: { followerCount: 'DESC' },
     });
 
-    return users.map(u => ({
+    return users.map((u) => ({
       ...u,
       reasons: ['Topic overlap', 'Frequently quoted'],
     }));
@@ -58,7 +59,11 @@ export class ExploreService {
    * Get "Quoted Now" posts - posts with high quote velocity
    * Score = quotes_last_6h * 1.0 + quotes_last_24h * 0.3
    */
-  async getQuotedNow(userId?: string, limit = 20, filter?: { lang?: string; sort?: string }) {
+  async getQuotedNow(
+    userId?: string,
+    limit = 20,
+    filter?: { lang?: string; sort?: string },
+  ) {
     const now = new Date();
     const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -67,15 +72,20 @@ export class ExploreService {
     const scoredIds = await this.postEdgeRepo
       .createQueryBuilder('edge')
       .select('edge.to_post_id', 'postId')
-      .addSelect(`
+      .addSelect(
+        `
         SUM(
           CASE 
             WHEN edge.created_at >= :sixHoursAgo THEN 1.0 
             ELSE 0.3 
           END
-        )`, 'score')
+        )`,
+        'score',
+      )
       .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
-      .andWhere('edge.created_at >= :twentyFourHoursAgo', { twentyFourHoursAgo })
+      .andWhere('edge.created_at >= :twentyFourHoursAgo', {
+        twentyFourHoursAgo,
+      })
       .setParameters({ sixHoursAgo, twentyFourHoursAgo })
       .groupBy('edge.to_post_id')
       .orderBy('score', 'DESC')
@@ -86,7 +96,7 @@ export class ExploreService {
       return [];
     }
 
-    const topPostIds = scoredIds.map(s => s.postId);
+    const topPostIds = scoredIds.map((s) => s.postId);
 
     // Fetch full post data
     const query = this.postRepo
@@ -94,16 +104,18 @@ export class ExploreService {
       .leftJoinAndSelect('post.author', 'author')
       .where('post.id IN (:...ids)', { ids: topPostIds })
       .andWhere('post.deleted_at IS NULL');
-      
+
     if (filter?.lang && filter.lang !== 'all') {
       query.andWhere('post.lang = :lang', { lang: filter.lang });
     }
 
     const posts = await query
-      .orderBy(`CASE post.id ${topPostIds.map((id, idx) => `WHEN '${id}' THEN ${idx}`).join(' ')} END`)
+      .orderBy(
+        `CASE post.id ${topPostIds.map((id, idx) => `WHEN '${id}' THEN ${idx}`).join(' ')} END`,
+      )
       .getMany();
 
-    return posts.map(p => ({
+    return posts.map((p) => ({
       ...p,
       reasons: ['Cited today', 'High quote velocity'],
     }));
@@ -124,7 +136,7 @@ export class ExploreService {
       .getMany();
 
     // Get backlink counts from Neo4j or Postgres
-    const postIds = posts.map(p => p.id);
+    const postIds = posts.map((p) => p.id);
     const backlinks = await this.postEdgeRepo
       .createQueryBuilder('edge')
       .select('edge.to_post_id', 'postId')
@@ -135,13 +147,13 @@ export class ExploreService {
       .getRawMany();
 
     const backlinkMap = new Map(
-      backlinks.map(b => [b.postId, parseInt(b.count)])
+      backlinks.map((b) => [b.postId, parseInt(b.count)]),
     );
 
     // Calculate scores
-    const scored = posts.map(post => ({
+    const scored = posts.map((post) => ({
       post,
-      score: 
+      score:
         (post.quoteCount || 0) * 1.0 +
         (backlinkMap.get(post.id) || 0) * 0.2 +
         (post.replyCount || 0) * 0.1,
@@ -150,14 +162,18 @@ export class ExploreService {
     // Sort by score
     scored.sort((a, b) => b.score - a.score);
 
-    return scored.slice(0, limit).map(s => s.post);
+    return scored.slice(0, limit).map((s) => s.post);
   }
 
   /**
    * Deep Dives - posts that form long chains of links
    * Find posts with many backlinks that lead to other posts with many backlinks
    */
-  async getDeepDives(userId?: string, limit = 20, filter?: { lang?: string; sort?: string }) {
+  async getDeepDives(
+    userId?: string,
+    limit = 20,
+    filter?: { lang?: string; sort?: string },
+  ) {
     // Get top posts by backlink count directly from DB
     const rankedIds = await this.postEdgeRepo
       .createQueryBuilder('edge')
@@ -173,7 +189,7 @@ export class ExploreService {
       return [];
     }
 
-    const postIds = rankedIds.map(r => r.postId);
+    const postIds = rankedIds.map((r) => r.postId);
 
     // Fetch full post data for these IDs
     const query = this.postRepo
@@ -187,13 +203,13 @@ export class ExploreService {
     }
 
     const posts = await query.getMany();
-    
+
     // Sort by original count order
     const sortedPosts = postIds
-      .map(id => posts.find(p => p.id === id))
-      .filter(p => p !== undefined);
+      .map((id) => posts.find((p) => p.id === id))
+      .filter((p) => p !== undefined);
 
-    return sortedPosts.map(p => ({
+    return sortedPosts.map((p) => ({
       ...p,
       reasons: ['Many backlinks', 'Link chain'],
     }));
@@ -202,7 +218,11 @@ export class ExploreService {
   /**
    * Newsroom - recent posts with sources (external links)
    */
-  async getNewsroom(userId?: string, limit = 20, filter?: { lang?: string; sort?: string }) {
+  async getNewsroom(
+    userId?: string,
+    limit = 20,
+    filter?: { lang?: string; sort?: string },
+  ) {
     // Get posts with external sources from last 7 days
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -215,7 +235,7 @@ export class ExploreService {
       .andWhere('post.deleted_at IS NULL')
       .getRawMany();
 
-    const postIds = postsWithSources.map(p => p.postId);
+    const postIds = postsWithSources.map((p) => p.postId);
 
     if (postIds.length === 0) {
       return [];
@@ -235,7 +255,7 @@ export class ExploreService {
       .limit(limit)
       .getMany();
 
-    return posts.map(p => ({
+    return posts.map((p) => ({
       ...p,
       reasons: ['Recent sources', 'External links'],
     }));

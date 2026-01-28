@@ -7,7 +7,8 @@ import { Topic } from '../entities/topic.entity';
 @Injectable()
 export class TopicFollowsService {
   constructor(
-    @InjectRepository(TopicFollow) private topicFollowRepo: Repository<TopicFollow>,
+    @InjectRepository(TopicFollow)
+    private topicFollowRepo: Repository<TopicFollow>,
     @InjectRepository(Topic) private topicRepo: Repository<Topic>,
   ) {}
 

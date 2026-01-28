@@ -10,10 +10,14 @@ export class KeepsService {
   constructor(
     @InjectRepository(Keep) private keepRepo: Repository<Keep>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
-    @InjectRepository(CollectionItem) private collectionItemRepo: Repository<CollectionItem>,
+    @InjectRepository(CollectionItem)
+    private collectionItemRepo: Repository<CollectionItem>,
   ) {}
 
-  async getAll(userId: string, filters?: { search?: string; inCollection?: boolean }) {
+  async getAll(
+    userId: string,
+    filters?: { search?: string; inCollection?: boolean },
+  ) {
     let query = this.keepRepo
       .createQueryBuilder('keep')
       .leftJoinAndSelect('keep.post', 'post')
@@ -24,7 +28,7 @@ export class KeepsService {
     if (filters?.search) {
       query = query.andWhere(
         '(post.body ILIKE :search OR post.title ILIKE :search)',
-        { search: `%${filters.search}%` }
+        { search: `%${filters.search}%` },
       );
     }
 

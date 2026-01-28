@@ -13,23 +13,27 @@ export class FcmSender {
   }
 
   private initialize() {
-    const serviceAccountPath = this.configService.get('FCM_SERVICE_ACCOUNT_JSON');
+    const serviceAccountPath = this.configService.get(
+      'FCM_SERVICE_ACCOUNT_JSON',
+    );
     if (!serviceAccountPath) {
       this.logger.warn('FCM_SERVICE_ACCOUNT_JSON not set, FCM will not work');
       return;
     }
 
     try {
-        if (!admin.apps.length) {
-            const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
-            this.initialized = true;
-            this.logger.log('FCM initialized successfully');
-        } else {
-            this.initialized = true;
-        }
+      if (!admin.apps.length) {
+        const serviceAccount = JSON.parse(
+          fs.readFileSync(serviceAccountPath, 'utf8'),
+        );
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
+        this.initialized = true;
+        this.logger.log('FCM initialized successfully');
+      } else {
+        this.initialized = true;
+      }
     } catch (error) {
       this.logger.error('Failed to initialize FCM', error);
     }
@@ -42,7 +46,7 @@ export class FcmSender {
     data: Record<string, string>;
   }): Promise<{ ok: boolean; invalidToken?: boolean; error?: string }> {
     if (!this.initialized) {
-        return { ok: false, error: 'FCM not initialized' };
+      return { ok: false, error: 'FCM not initialized' };
     }
 
     try {
@@ -59,7 +63,7 @@ export class FcmSender {
       return { ok: true };
     } catch (error: any) {
       this.logger.error('FCM send error', error);
-      
+
       const errorCode = error.code;
       if (
         errorCode === 'messaging/registration-token-not-registered' ||

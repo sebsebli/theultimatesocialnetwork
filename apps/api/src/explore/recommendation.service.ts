@@ -215,7 +215,7 @@ export class RecommendationService {
         );
 
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
-        const postIds = (hits as any).hits.map((h: any) => h.id as string);
+        const postIds = hits.hits.map((h: any) => h.id as string);
 
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (postIds.length === 0) {
@@ -235,7 +235,9 @@ export class RecommendationService {
           // Re-ranking (lightweight)
           // Map original rank to a score
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
-          const rankMap = new Map<string, number>(postIds.map((id: string, index: number) => [id, index]));
+          const rankMap = new Map<string, number>(
+            postIds.map((id: string, index: number) => [id, index]),
+          );
 
           const scoredPosts = await Promise.all(
             candidatePosts.map(async (post) => {

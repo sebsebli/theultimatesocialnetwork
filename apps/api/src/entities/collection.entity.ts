@@ -1,4 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+  Index,
+} from 'typeorm';
 import { User } from './user.entity';
 import { CollectionItem } from './collection-item.entity';
 
@@ -15,7 +25,7 @@ export class Collection {
   @JoinColumn({ name: 'owner_id' })
   owner: User;
 
-  @OneToMany(() => CollectionItem, item => item.collection)
+  @OneToMany(() => CollectionItem, (item) => item.collection)
   items: CollectionItem[];
 
   @Column()

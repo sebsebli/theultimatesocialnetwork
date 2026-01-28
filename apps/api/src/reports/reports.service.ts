@@ -12,7 +12,12 @@ export class ReportsService {
     private safetyService: SafetyService,
   ) {}
 
-  async create(userId: string, targetId: string, targetType: ReportTargetType, reason: string) {
+  async create(
+    userId: string,
+    targetId: string,
+    targetType: ReportTargetType,
+    reason: string,
+  ) {
     const report = await this.reportRepo.save({
       reporterId: userId,
       targetId,

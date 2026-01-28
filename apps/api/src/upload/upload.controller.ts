@@ -1,4 +1,10 @@
-import { Controller, Post, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
 import { UploadService } from './upload.service';
@@ -20,7 +26,7 @@ export class UploadController {
     }
 
     const { key, blurhash } = await this.uploadService.uploadHeaderImage(file);
-    const url = await this.uploadService.getImageUrl(key);
+    const url = this.uploadService.getImageUrl(key);
 
     return { key, url, blurhash };
   }
@@ -37,7 +43,7 @@ export class UploadController {
     }
 
     const key = await this.uploadService.uploadProfilePicture(file);
-    const url = await this.uploadService.getImageUrl(key);
+    const url = this.uploadService.getImageUrl(key);
 
     return { key, url };
   }

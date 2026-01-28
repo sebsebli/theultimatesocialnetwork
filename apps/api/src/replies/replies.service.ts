@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Queue } from 'bullmq';
@@ -26,11 +31,23 @@ export class RepliesService {
     @Inject('REPLY_QUEUE') private replyQueue: Queue,
   ) {}
 
-  async create(userId: string, postId: string, body: string, parentReplyId?: string) {
+  async create(
+    userId: string,
+    postId: string,
+    body: string,
+    parentReplyId?: string,
+  ) {
     // AI Safety Check (Fast Stage 1 only)
-    const safety = await this.safetyService.checkContent(body, userId, 'reply', { onlyFast: true });
+    const safety = await this.safetyService.checkContent(
+      body,
+      userId,
+      'reply',
+      { onlyFast: true },
+    );
     if (!safety.safe) {
-      throw new BadRequestException(safety.reason || 'Reply flagged by safety check');
+      throw new BadRequestException(
+        safety.reason || 'Reply flagged by safety check',
+      );
     }
 
     const post = await this.postRepo.findOne({ where: { id: postId } });
@@ -50,7 +67,10 @@ export class RepliesService {
     }
 
     // Detect language (with user profile fallback)
-    const user = await this.userRepo.findOne({ where: { id: userId }, select: ['languages'] });
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['languages'],
+    });
     const { lang, confidence } = await this.languageDetection.detectLanguage(
       body,
       userId,
@@ -64,52 +84,61 @@ export class RepliesService {
     let savedReply: Reply;
 
     try {
-        // Create reply
-        const reply = this.replyRepo.create({
-          postId,
-          authorId: userId,
-          body,
-          parentReplyId: parentReplyId || undefined,
-          lang,
-          langConfidence: confidence,
+      // Create reply
+      const reply = this.replyRepo.create({
+        postId,
+        authorId: userId,
+        body,
+        parentReplyId: parentReplyId || undefined,
+        lang,
+        langConfidence: confidence,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      savedReply = await queryRunner.manager.save(Reply, reply);
+
+      // Increment reply count on post
+      await queryRunner.manager.increment(
+        Post,
+        { id: postId },
+        'replyCount',
+        1,
+      );
+
+      // Extract mentions and save them (Notification dispatched in worker)
+      const mentionRegex = /@(\w+)/g;
+      let mentionMatch;
+      const mentionedHandles = new Set<string>();
+      while ((mentionMatch = mentionRegex.exec(body)) !== null) {
+        mentionedHandles.add(mentionMatch[1]);
+      }
+
+      for (const handle of mentionedHandles) {
+        const mentionedUser = await queryRunner.manager.findOne(User, {
+          where: { handle },
         });
-
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        savedReply = await queryRunner.manager.save(Reply, reply);
-
-        // Increment reply count on post
-        await queryRunner.manager.increment(Post, { id: postId }, 'replyCount', 1);
-
-        // Extract mentions and save them (Notification dispatched in worker)
-        const mentionRegex = /@(\w+)/g;
-        let mentionMatch;
-        const mentionedHandles = new Set<string>();
-        while ((mentionMatch = mentionRegex.exec(body)) !== null) {
-          mentionedHandles.add(mentionMatch[1]);
-        }
-
-        for (const handle of mentionedHandles) {
-          const mentionedUser = await queryRunner.manager.findOne(User, {
-            where: { handle },
+        if (mentionedUser && mentionedUser.id !== userId) {
+          await queryRunner.manager.save(Mention, {
+            replyId: savedReply.id,
+            mentionedUserId: mentionedUser.id,
           });
-          if (mentionedUser && mentionedUser.id !== userId) {
-            await queryRunner.manager.save(Mention, {
-              replyId: savedReply.id,
-              mentionedUserId: mentionedUser.id,
-            });
-          }
         }
+      }
 
-        await queryRunner.commitTransaction();
+      await queryRunner.commitTransaction();
     } catch (err) {
-        await queryRunner.rollbackTransaction();
-        throw err;
+      await queryRunner.rollbackTransaction();
+      throw err;
     } finally {
-        await queryRunner.release();
+      await queryRunner.release();
     }
 
     // Queue Job for Side Effects (Safety Stage 2, Neo4j, Notifications)
-    await this.replyQueue.add('process', { replyId: savedReply.id, userId, postId });
+    await this.replyQueue.add('process', {
+      replyId: savedReply.id,
+      userId,
+      postId,
+    });
 
     return savedReply;
   }

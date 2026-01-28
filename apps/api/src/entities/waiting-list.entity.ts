@@ -1,4 +1,10 @@
-import { Entity, PrimaryColumn, CreateDateColumn, Column, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryColumn,
+  CreateDateColumn,
+  Column,
+  Index,
+} from 'typeorm';
 
 @Entity('waiting_list')
 export class WaitingList {

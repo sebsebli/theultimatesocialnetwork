@@ -15,7 +15,11 @@ import { UsersService } from './users.service';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { Queue } from 'bullmq';
 import { User } from '../entities/user.entity';
-import { postToPlain, replyToPlain, userToPlain } from '../shared/post-serializer';
+import {
+  postToPlain,
+  replyToPlain,
+  userToPlain,
+} from '../shared/post-serializer';
 
 @Controller('users')
 @SkipThrottle() // GET /users/me is hit on every app load; avoid 429 on cold start
@@ -23,7 +27,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     @Inject('EXPORT_QUEUE') private exportQueue: Queue,
-  ) { }
+  ) {}
 
   @Patch('me')
   @UseGuards(AuthGuard('jwt'))

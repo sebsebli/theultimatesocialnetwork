@@ -1,4 +1,13 @@
-import { Controller, Post, Delete, Get, Param, Body, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Delete,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { SafetyService } from './safety.service';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -49,7 +58,12 @@ export class SafetyController {
     @CurrentUser() user: { id: string },
     @Body() dto: { targetId: string; targetType: string; reason: string },
   ) {
-    return this.safetyService.report(user.id, dto.targetId, dto.targetType, dto.reason);
+    return this.safetyService.report(
+      user.id,
+      dto.targetId,
+      dto.targetType,
+      dto.reason,
+    );
   }
 
   @Get('blocked')

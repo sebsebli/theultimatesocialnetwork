@@ -78,9 +78,9 @@ export class UsersService {
   async update(id: string, updates: Partial<User>): Promise<User> {
     await this.userRepo.update(id, updates);
     const user = await this.userRepo.findOneOrFail({ where: { id } });
-    this.meilisearch.indexUser(user).catch(err => 
-      console.error('Failed to update user index', err)
-    );
+    this.meilisearch
+      .indexUser(user)
+      .catch((err) => console.error('Failed to update user index', err));
     return user;
   }
 
@@ -122,11 +122,11 @@ export class UsersService {
     await this.userRepo.softDelete(userId);
     // Soft delete all posts by user
     await this.postRepo.softDelete({ authorId: userId });
-    
+
     // Remove from search
-    this.meilisearch.deleteUser(userId).catch(err => 
-      console.error('Failed to remove user from index', err)
-    );
+    this.meilisearch
+      .deleteUser(userId)
+      .catch((err) => console.error('Failed to remove user from index', err));
 
     return { success: true };
   }

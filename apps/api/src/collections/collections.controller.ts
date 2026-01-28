@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CollectionsService } from './collections.service';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -12,13 +22,16 @@ export class CollectionsController {
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
-  create(@CurrentUser() user: { id: string }, @Body() dto: CreateCollectionDto) {
+  create(
+    @CurrentUser() user: { id: string },
+    @Body() dto: CreateCollectionDto,
+  ) {
     return this.collectionsService.create(
-      user.id, 
-      dto.title, 
-      dto.description, 
-      dto.isPublic ?? false, 
-      dto.shareSaves ?? false
+      user.id,
+      dto.title,
+      dto.description,
+      dto.isPublic ?? false,
+      dto.shareSaves ?? false,
     );
   }
 

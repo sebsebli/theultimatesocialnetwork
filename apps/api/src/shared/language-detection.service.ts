@@ -8,7 +8,7 @@ import Redis from 'ioredis';
 /**
  * Language detection service
  * Uses franc library (Node.js equivalent of lingua-py)
- * 
+ *
  * Fallback strategy:
  * 1. Use franc for detection
  * 2. If confidence low, use user's profile languages
@@ -26,7 +26,9 @@ export class LanguageDetectionService {
   /**
    * Get user's most common language from their posts
    */
-  private async getUserMostCommonLanguage(userId: string): Promise<string | null> {
+  private async getUserMostCommonLanguage(
+    userId: string,
+  ): Promise<string | null> {
     const cacheKey = `user:lang:${userId}`;
     const cached = await this.redis.get(cacheKey);
     if (cached) return cached;
@@ -97,23 +99,54 @@ export class LanguageDetectionService {
     // Dynamic import to handle ESM in CJS environment (Jest)
     const { franc } = await import('franc');
     const detectedLang = franc(cleanText, { minLength: 3 });
-    
+
     // Franc returns ISO 639-3 codes, convert to ISO 639-1 for common languages
     const langMap: Record<string, string> = {
-      'eng': 'en', 'deu': 'de', 'fra': 'fr', 'spa': 'es', 'ita': 'it',
-      'por': 'pt', 'nld': 'nl', 'fin': 'fi', 'swe': 'sv', 'nor': 'no',
-      'dan': 'da', 'pol': 'pl', 'rus': 'ru', 'jpn': 'ja', 'kor': 'ko',
-      'zho': 'zh', 'ara': 'ar', 'heb': 'he', 'tur': 'tr', 'ces': 'cs',
-      'hun': 'hu', 'ron': 'ro', 'bul': 'bg', 'hrv': 'hr', 'srp': 'sr',
-      'slk': 'sk', 'slv': 'sl', 'est': 'et', 'lav': 'lv', 'lit': 'lt',
-      'gre': 'el', 'tha': 'th', 'vie': 'vi', 'ind': 'id', 'msa': 'ms',
+      eng: 'en',
+      deu: 'de',
+      fra: 'fr',
+      spa: 'es',
+      ita: 'it',
+      por: 'pt',
+      nld: 'nl',
+      fin: 'fi',
+      swe: 'sv',
+      nor: 'no',
+      dan: 'da',
+      pol: 'pl',
+      rus: 'ru',
+      jpn: 'ja',
+      kor: 'ko',
+      zho: 'zh',
+      ara: 'ar',
+      heb: 'he',
+      tur: 'tr',
+      ces: 'cs',
+      hun: 'hu',
+      ron: 'ro',
+      bul: 'bg',
+      hrv: 'hr',
+      srp: 'sr',
+      slk: 'sk',
+      slv: 'sl',
+      est: 'et',
+      lav: 'lv',
+      lit: 'lt',
+      gre: 'el',
+      tha: 'th',
+      vie: 'vi',
+      ind: 'id',
+      msa: 'ms',
     };
 
     const lang = langMap[detectedLang] || detectedLang || 'en';
-    
+
     // Franc doesn't provide confidence, estimate based on text length
     // Longer text = higher confidence
-    const baseConfidence = Math.min(0.95, Math.max(0.5, cleanText.length / 200));
+    const baseConfidence = Math.min(
+      0.95,
+      Math.max(0.5, cleanText.length / 200),
+    );
 
     // If confidence is low, try fallbacks
     if (baseConfidence < 0.6) {

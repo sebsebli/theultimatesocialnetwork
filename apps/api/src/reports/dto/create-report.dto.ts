@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, IsEnum, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { ReportTargetType } from '../../entities/report.entity';
 
 export class CreateReportDto {

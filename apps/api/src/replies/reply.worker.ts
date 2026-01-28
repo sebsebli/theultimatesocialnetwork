@@ -1,4 +1,10 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnApplicationShutdown,
+  Inject,
+} from '@nestjs/common';
 import { Worker, Job } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
@@ -20,7 +26,9 @@ interface ReplyJobData {
 }
 
 @Injectable()
-export class ReplyWorker implements OnApplicationBootstrap, OnApplicationShutdown {
+export class ReplyWorker
+  implements OnApplicationBootstrap, OnApplicationShutdown
+{
   private readonly logger = new Logger(ReplyWorker.name);
   private worker: Worker;
 
@@ -38,15 +46,21 @@ export class ReplyWorker implements OnApplicationBootstrap, OnApplicationShutdow
 
   onApplicationBootstrap() {
     const redisUrl = this.configService.get<string>('REDIS_URL');
-    
-    this.worker = new Worker<ReplyJobData>('reply-processing', async (job: Job<ReplyJobData>) => {
-      await this.processReply(job.data);
-    }, { 
-        connection: new Redis(redisUrl || 'redis://redis:6379', { maxRetriesPerRequest: null }) 
-    });
-    
+
+    this.worker = new Worker<ReplyJobData>(
+      'reply-processing',
+      async (job: Job<ReplyJobData>) => {
+        await this.processReply(job.data);
+      },
+      {
+        connection: new Redis(redisUrl || 'redis://redis:6379', {
+          maxRetriesPerRequest: null,
+        }),
+      },
+    );
+
     this.worker.on('failed', (job, err) => {
-        this.logger.error(`Job ${job?.id} failed: ${err.message}`);
+      this.logger.error(`Job ${job?.id} failed: ${err.message}`);
     });
   }
 
@@ -57,87 +71,93 @@ export class ReplyWorker implements OnApplicationBootstrap, OnApplicationShutdow
   }
 
   async processReply(data: ReplyJobData) {
-      const end = workerJobDuration.startTimer({ worker: 'reply' });
-      const { replyId, userId, postId } = data;
-      
-      try {
-          const reply = await this.replyRepo.findOne({ where: { id: replyId } });
-          if (!reply) {
-              end();
-              workerJobCounter.inc({ worker: 'reply', status: 'skipped' });
-              return;
-          }
+    const end = workerJobDuration.startTimer({ worker: 'reply' });
+    const { replyId, userId, postId } = data;
 
-          // 1. Async Moderation (Full)
-          const safety = await this.safetyService.checkContent(reply.body, userId, 'reply');
-          if (!safety.safe) {
-              await this.replyRepo.softDelete(replyId);
-              await this.postRepo.decrement({ id: postId }, 'replyCount', 1);
-              this.logger.warn(`Reply ${replyId} soft-deleted by moderation: ${safety.reason}`);
-              end();
-              workerJobCounter.inc({ worker: 'reply', status: 'moderated' });
-              return;
-          }
+    try {
+      const reply = await this.replyRepo.findOne({ where: { id: replyId } });
+      if (!reply) {
+        end();
+        workerJobCounter.inc({ worker: 'reply', status: 'skipped' });
+        return;
+      }
 
-          // 2. Neo4j Sync
-          await this.neo4jService.run(
-              `
+      // 1. Async Moderation (Full)
+      const safety = await this.safetyService.checkContent(
+        reply.body,
+        userId,
+        'reply',
+      );
+      if (!safety.safe) {
+        await this.replyRepo.softDelete(replyId);
+        await this.postRepo.decrement({ id: postId }, 'replyCount', 1);
+        this.logger.warn(
+          `Reply ${replyId} soft-deleted by moderation: ${safety.reason}`,
+        );
+        end();
+        workerJobCounter.inc({ worker: 'reply', status: 'moderated' });
+        return;
+      }
+
+      // 2. Neo4j Sync
+      await this.neo4jService.run(
+        `
               MATCH (p:Post {id: $postId})
               MERGE (u:User {id: $userId})
               CREATE (r:Reply {id: $replyId, createdAt: $createdAt})
               MERGE (u)-[:AUTHORED]->(r)
               MERGE (r)-[:REPLIED_TO]->(p)
               `,
-              { userId, postId, replyId, createdAt: reply.createdAt.toISOString() }
-          );
+        { userId, postId, replyId, createdAt: reply.createdAt.toISOString() },
+      );
 
-          // 3. Notifications (Post Author)
-          const post = await this.postRepo.findOne({ where: { id: postId } });
-          if (post && post.authorId !== userId) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-              await this.notificationHelper.createNotification({
-                userId: post.authorId,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                type: 'REPLY' as any,
-                actorUserId: userId,
-                postId: postId,
-                replyId: replyId,
-              });
-          }
+      // 3. Notifications (Post Author)
+      const post = await this.postRepo.findOne({ where: { id: postId } });
+      if (post && post.authorId !== userId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        await this.notificationHelper.createNotification({
+          userId: post.authorId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          type: 'REPLY' as any,
+          actorUserId: userId,
+          postId: postId,
+          replyId: replyId,
+        });
+      }
 
-          // 4. Mentions (Notify)
-          const mentions = await this.mentionRepo.find({ where: { replyId } });
-          for (const mention of mentions) {
-              if (mention.mentionedUserId !== userId) {
-                  // Neo4j Mention Sync (Reply mentions User)
-                  await this.neo4jService.run(
-                      `
+      // 4. Mentions (Notify)
+      const mentions = await this.mentionRepo.find({ where: { replyId } });
+      for (const mention of mentions) {
+        if (mention.mentionedUserId !== userId) {
+          // Neo4j Mention Sync (Reply mentions User)
+          await this.neo4jService.run(
+            `
                       MATCH (r:Reply {id: $replyId})
                       MERGE (u:User {id: $userId})
                       MERGE (r)-[:MENTIONS]->(u)
                       `,
-                      { replyId, userId: mention.mentionedUserId }
-                  );
+            { replyId, userId: mention.mentionedUserId },
+          );
 
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-                  await this.notificationHelper.createNotification({
-                      userId: mention.mentionedUserId,
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      type: 'MENTION' as any,
-                      actorUserId: userId,
-                      postId: postId,
-                      replyId: replyId,
-                  });
-              }
-          }
-          
-          workerJobCounter.inc({ worker: 'reply', status: 'success' });
-          end();
-      } catch (e) {
-          this.logger.error(`Error processing reply ${replyId}`, e);
-          workerJobCounter.inc({ worker: 'reply', status: 'failed' });
-          end();
-          throw e;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          await this.notificationHelper.createNotification({
+            userId: mention.mentionedUserId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            type: 'MENTION' as any,
+            actorUserId: userId,
+            postId: postId,
+            replyId: replyId,
+          });
+        }
       }
+
+      workerJobCounter.inc({ worker: 'reply', status: 'success' });
+      end();
+    } catch (e) {
+      this.logger.error(`Error processing reply ${replyId}`, e);
+      workerJobCounter.inc({ worker: 'reply', status: 'failed' });
+      end();
+      throw e;
+    }
   }
 }

@@ -10,7 +10,10 @@ export class PushController {
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
-  async register(@CurrentUser() user: { id: string }, @Body() dto: RegisterPushTokenDto) {
+  async register(
+    @CurrentUser() user: { id: string },
+    @Body() dto: RegisterPushTokenDto,
+  ) {
     await this.pushService.register(user.id, dto);
     return { ok: true };
   }

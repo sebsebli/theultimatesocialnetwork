@@ -19,7 +19,12 @@ import { User } from '../entities/user.entity';
           autoLoadEntities: true,
           synchronize: !isProduction, // Disable in production
           logging: !isProduction,
-          ssl: configService.get('DB_SSL') === 'false' ? false : (isProduction ? { rejectUnauthorized: false } : false),
+          ssl:
+            configService.get('DB_SSL') === 'false'
+              ? false
+              : isProduction
+                ? { rejectUnauthorized: false }
+                : false,
         };
       },
     }),

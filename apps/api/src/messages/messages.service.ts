@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DmThread } from '../entities/dm-thread.entity';
@@ -43,7 +47,9 @@ export class MessagesService {
         ],
       });
       if (!existingThread) {
-        throw new ForbiddenException('Must follow each other or have prior interaction');
+        throw new ForbiddenException(
+          'Must follow each other or have prior interaction',
+        );
       }
     }
 
@@ -88,7 +94,7 @@ export class MessagesService {
 
     // Notify recipient
     const recipientId = thread.userA === userId ? thread.userB : thread.userA;
-    
+
     // Emit real-time message event for chat UI
     this.realtimeGateway.sendMessage(recipientId, {
       ...savedMessage,
@@ -108,8 +114,14 @@ export class MessagesService {
   async getThreads(userId: string) {
     // Optimized query to get threads with otherUser, lastMessage, and unreadCount in one pass
     // We use a raw query or complex QueryBuilder for this level of optimization
-    const threads = await this.threadRepo.createQueryBuilder('thread')
-      .leftJoinAndSelect('users', 'otherUser', 'otherUser.id = CASE WHEN thread.userA = :userId THEN thread.userB ELSE thread.userA END', { userId })
+    const threads = await this.threadRepo
+      .createQueryBuilder('thread')
+      .leftJoinAndSelect(
+        'users',
+        'otherUser',
+        'otherUser.id = CASE WHEN thread.userA = :userId THEN thread.userB ELSE thread.userA END',
+        { userId },
+      )
       .addSelect((subQuery) => {
         return subQuery
           .select('msg.body', 'lastMessageBody')
@@ -138,17 +150,19 @@ export class MessagesService {
       .orderBy('thread.updatedAt', 'DESC') // Assuming threads have updatedAt
       .getRawMany();
 
-    return (threads || []).map(t => ({
+    return (threads || []).map((t) => ({
       id: t.thread_id,
       otherUser: {
         id: t.otherUser_id,
         handle: t.otherUser_handle,
         displayName: t.otherUser_display_name,
       },
-      lastMessage: t.lastMessageBody ? {
-        body: t.lastMessageBody,
-        createdAt: t.lastMessageAt,
-      } : null,
+      lastMessage: t.lastMessageBody
+        ? {
+            body: t.lastMessageBody,
+            createdAt: t.lastMessageAt,
+          }
+        : null,
       unreadCount: parseInt(t.unreadCount, 10) || 0,
       createdAt: t.thread_created_at,
     }));

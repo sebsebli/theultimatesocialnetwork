@@ -14,20 +14,22 @@ export class CleanupService {
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(User) private userRepo: Repository<User>,
-    @InjectRepository(Notification) private notificationRepo: Repository<Notification>,
-    @InjectRepository(PushOutbox) private pushOutboxRepo: Repository<PushOutbox>,
+    @InjectRepository(Notification)
+    private notificationRepo: Repository<Notification>,
+    @InjectRepository(PushOutbox)
+    private pushOutboxRepo: Repository<PushOutbox>,
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleCron() {
     const start = Date.now();
     this.logger.log('Starting daily cleanup...');
-    
+
     await this.deleteOldSoftDeletedPosts();
     await this.deleteOldSoftDeletedUsers();
     await this.deleteOldNotifications();
     await this.deleteOldPushOutbox();
-    
+
     const duration = Date.now() - start;
     this.logger.log(`Daily cleanup completed in ${duration}ms`);
   }
@@ -78,7 +80,7 @@ export class CleanupService {
       .execute();
 
     if (result.affected && result.affected > 0) {
-        this.logger.log(`Hard deleted ${result.affected} old posts.`);
+      this.logger.log(`Hard deleted ${result.affected} old posts.`);
     }
   }
 
@@ -96,7 +98,7 @@ export class CleanupService {
       .execute();
 
     if (result.affected && result.affected > 0) {
-        this.logger.log(`Hard deleted ${result.affected} old users.`);
+      this.logger.log(`Hard deleted ${result.affected} old users.`);
     }
   }
 }

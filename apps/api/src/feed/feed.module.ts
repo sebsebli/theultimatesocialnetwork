@@ -13,7 +13,15 @@ import { SharedModule } from '../shared/shared.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Post, Follow, CollectionItem, Collection, User, Block, Mute]),
+    TypeOrmModule.forFeature([
+      Post,
+      Follow,
+      CollectionItem,
+      Collection,
+      User,
+      Block,
+      Mute,
+    ]),
     SharedModule,
   ],
   controllers: [FeedController],

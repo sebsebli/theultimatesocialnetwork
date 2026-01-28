@@ -17,7 +17,7 @@ export class ApnsSender {
     const now = Math.floor(Date.now() / 1000);
     // Refresh token every 50 minutes (max 1 hour)
     if (this.token && now - this.tokenGeneratedAt < 3000) {
-      return this.token!;
+      return this.token;
     }
 
     const keyId = this.configService.get('APNS_KEY_ID');
@@ -78,8 +78,8 @@ export class ApnsSender {
     const bundleId = this.configService.get('APNS_BUNDLE_ID');
 
     if (!bundleId) {
-        this.logger.error('APNs Bundle ID not configured');
-        return { ok: false, error: 'Configuration Error' };
+      this.logger.error('APNs Bundle ID not configured');
+      return { ok: false, error: 'Configuration Error' };
     }
 
     try {
@@ -101,7 +101,7 @@ export class ApnsSender {
         const req = session.request({
           ':method': 'POST',
           ':path': `/3/device/${deviceToken}`,
-          'authorization': `bearer ${token}`,
+          authorization: `bearer ${token}`,
           'apns-topic': bundleId,
           'apns-push-type': 'alert', // Required for iOS 13+
           'apns-priority': '10',
@@ -109,7 +109,7 @@ export class ApnsSender {
 
         let data = '';
         req.on('data', (chunk) => (data += chunk));
-        
+
         req.on('response', (headers) => {
           const status = headers[':status'];
           if (status === 200) {
@@ -118,8 +118,12 @@ export class ApnsSender {
             const responseBody = data ? JSON.parse(data) : {};
             const reason = responseBody.reason;
             this.logger.warn(`APNs error: ${status} ${reason}`);
-            
-            if (status === 410 || reason === 'BadDeviceToken' || reason === 'Unregistered') {
+
+            if (
+              status === 410 ||
+              reason === 'BadDeviceToken' ||
+              reason === 'Unregistered'
+            ) {
               resolve({ ok: false, invalidToken: true, error: reason });
             } else {
               resolve({ ok: false, error: reason || `Status ${status}` });
@@ -134,7 +138,6 @@ export class ApnsSender {
 
         req.end(JSON.stringify(payload));
       });
-
     } catch (error: any) {
       this.logger.error('Failed to send APNs notification', error);
       return { ok: false, error: error.message };

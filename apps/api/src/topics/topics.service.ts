@@ -23,7 +23,8 @@ export class TopicsService {
     if (!topic) return null;
 
     // Get posts in topic - Optimized DB query
-    const posts = await this.postRepo.createQueryBuilder('post')
+    const posts = await this.postRepo
+      .createQueryBuilder('post')
       .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
       .leftJoinAndSelect('post.author', 'author')
       .where('pt.topic_id = :topicId', { topicId: topic.id })
@@ -43,7 +44,8 @@ export class TopicsService {
   }
 
   async getPosts(topicId: string, limit = 50, offset = 0) {
-    return this.postRepo.createQueryBuilder('post')
+    return this.postRepo
+      .createQueryBuilder('post')
       .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
       .leftJoinAndSelect('post.author', 'author')
       .where('pt.topic_id = :topicId', { topicId })

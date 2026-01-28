@@ -1,9 +1,17 @@
-import { Injectable, NotFoundException, ConflictException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Inject,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Queue } from 'bullmq';
 import { Follow } from '../entities/follow.entity';
-import { FollowRequest, FollowRequestStatus } from '../entities/follow-request.entity';
+import {
+  FollowRequest,
+  FollowRequestStatus,
+} from '../entities/follow-request.entity';
 import { User } from '../entities/user.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
@@ -12,7 +20,8 @@ import { NotificationHelperService } from '../shared/notification-helper.service
 export class FollowsService {
   constructor(
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
-    @InjectRepository(FollowRequest) private followRequestRepo: Repository<FollowRequest>,
+    @InjectRepository(FollowRequest)
+    private followRequestRepo: Repository<FollowRequest>,
     @InjectRepository(User) private userRepo: Repository<User>,
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
@@ -42,10 +51,10 @@ export class FollowsService {
     // If protected account, create follow request
     if (followee.isProtected) {
       const existingRequest = await this.followRequestRepo.findOne({
-        where: { 
-          requesterId: followerId, 
-          targetId: followeeId, 
-          status: FollowRequestStatus.PENDING 
+        where: {
+          requesterId: followerId,
+          targetId: followeeId,
+          status: FollowRequestStatus.PENDING,
         },
       });
 
@@ -86,9 +95,9 @@ export class FollowsService {
 
       // Queue background processing (Counts, Neo4j, Notifications)
       await this.followQueue.add('process', {
-          type: 'follow',
-          followerId,
-          followeeId
+        type: 'follow',
+        followerId,
+        followeeId,
       });
 
       return follow;
@@ -120,9 +129,9 @@ export class FollowsService {
 
       // Queue background processing (Counts, Neo4j)
       await this.followQueue.add('process', {
-          type: 'unfollow',
-          followerId,
-          followeeId
+        type: 'unfollow',
+        followerId,
+        followeeId,
       });
 
       return { success: true };
@@ -137,14 +146,18 @@ export class FollowsService {
   async approveFollowRequest(userId: string, requestId: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const request = await this.followRequestRepo.findOne({
-      where: { id: requestId, targetId: userId, status: FollowRequestStatus.PENDING } as any,
+      where: {
+        id: requestId,
+        targetId: userId,
+        status: FollowRequestStatus.PENDING,
+      } as any,
     });
 
     if (!request) {
       throw new NotFoundException('Follow request not found');
     }
 
-      request.status = FollowRequestStatus.APPROVED;
+    request.status = FollowRequestStatus.APPROVED;
     await this.followRequestRepo.save(request);
 
     // Create follow
@@ -156,14 +169,18 @@ export class FollowsService {
   async rejectFollowRequest(userId: string, requestId: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const request = await this.followRequestRepo.findOne({
-      where: { id: requestId, targetId: userId, status: FollowRequestStatus.PENDING } as any,
+      where: {
+        id: requestId,
+        targetId: userId,
+        status: FollowRequestStatus.PENDING,
+      } as any,
     });
 
     if (!request) {
       throw new NotFoundException('Follow request not found');
     }
 
-      request.status = FollowRequestStatus.REJECTED;
+    request.status = FollowRequestStatus.REJECTED;
     await this.followRequestRepo.save(request);
 
     return request;

@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RepliesService } from './replies.service';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -14,7 +22,12 @@ export class RepliesController {
     @Param('postId') postId: string,
     @Body() dto: { body: string; parentReplyId?: string },
   ) {
-    return this.repliesService.create(user.id, postId, dto.body, dto.parentReplyId);
+    return this.repliesService.create(
+      user.id,
+      postId,
+      dto.body,
+      dto.parentReplyId,
+    );
   }
 
   @Get()

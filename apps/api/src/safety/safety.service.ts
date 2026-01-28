@@ -1,4 +1,10 @@
-import { Injectable, BadRequestException, NotFoundException, Inject, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Inject,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Block } from '../entities/block.entity';
@@ -19,11 +25,14 @@ export class SafetyService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(Reply) private replyRepo: Repository<Reply>,
-    @Optional() @Inject(ContentModerationService) private contentModeration?: ContentModerationService,
+    @Optional()
+    @Inject(ContentModerationService)
+    private contentModeration?: ContentModerationService,
   ) {}
 
   private isValidUUID(uuid: string): boolean {
-    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const regex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return regex.test(uuid);
   }
 
@@ -37,7 +46,9 @@ export class SafetyService {
     }
 
     // Verify blocked user exists
-    const blockedUser = await this.userRepo.findOne({ where: { id: blockedId } });
+    const blockedUser = await this.userRepo.findOne({
+      where: { id: blockedId },
+    });
     if (!blockedUser) {
       throw new NotFoundException('User not found');
     }
@@ -113,7 +124,12 @@ export class SafetyService {
     return { success: true };
   }
 
-  async report(reporterId: string, targetId: string, targetType: string, reason: string) {
+  async report(
+    reporterId: string,
+    targetId: string,
+    targetType: string,
+    reason: string,
+  ) {
     const report = this.reportRepo.create({
       reporterId,
       targetId,
@@ -150,13 +166,19 @@ export class SafetyService {
       let authorId = '';
 
       if (targetType === 'POST') {
-        const post = await this.postRepo.findOne({ where: { id: targetId }, select: ['body', 'authorId'] });
+        const post = await this.postRepo.findOne({
+          where: { id: targetId },
+          select: ['body', 'authorId'],
+        });
         if (post) {
           content = post.body;
           authorId = post.authorId;
         }
       } else {
-        const reply = await this.replyRepo.findOne({ where: { id: targetId }, select: ['body', 'authorId'] });
+        const reply = await this.replyRepo.findOne({
+          where: { id: targetId },
+          select: ['body', 'authorId'],
+        });
         if (reply) {
           content = reply.body;
           authorId = reply.authorId;
@@ -167,7 +189,7 @@ export class SafetyService {
         const checkResult = await this.contentModeration.checkContent(
           content,
           authorId,
-          targetType === 'POST' ? 'post' : 'reply'
+          targetType === 'POST' ? 'post' : 'reply',
         );
 
         if (!checkResult.safe) {
@@ -221,30 +243,46 @@ export class SafetyService {
     userId?: string,
     contentType?: 'post' | 'reply',
     options: { onlyFast?: boolean } = {}, // Support async moderation options
-  ): Promise<{ safe: boolean; reason?: string; confidence?: number; needsStage2?: boolean }> {
+  ): Promise<{
+    safe: boolean;
+    reason?: string;
+    confidence?: number;
+    needsStage2?: boolean;
+  }> {
     // Use ContentModerationService for two-stage moderation
     if (!this.contentModeration) {
       // Fallback if ContentModerationService not injected
       const lower = text.toLowerCase();
       const forbidden = ['spam', 'violence', 'hate'];
-      if (forbidden.some(w => lower.includes(w))) {
+      if (forbidden.some((w) => lower.includes(w))) {
         return { safe: false, reason: 'Content flagged by safety check.' };
       }
       return { safe: true };
     }
 
-    return this.contentModeration.checkContent(text, userId || '', contentType || 'post', options);
+    return this.contentModeration.checkContent(
+      text,
+      userId || '',
+      contentType || 'post',
+      options,
+    );
   }
 
-  async checkImage(buffer: Buffer): Promise<{ safe: boolean; reason?: string; confidence?: number }> {
+  async checkImage(
+    buffer: Buffer,
+  ): Promise<{ safe: boolean; reason?: string; confidence?: number }> {
     // Use ContentModerationService for AI-powered image analysis
     if (this.contentModeration) {
       return this.contentModeration.checkImage(buffer);
     }
-    
+
     // Fallback if ContentModerationService not injected
     if (buffer.length < 100) {
-      return { safe: false, reason: 'Image file corrupted or invalid.', confidence: 1.0 };
+      return {
+        safe: false,
+        reason: 'Image file corrupted or invalid.',
+        confidence: 1.0,
+      };
     }
     return { safe: true, confidence: 0.5 };
   }

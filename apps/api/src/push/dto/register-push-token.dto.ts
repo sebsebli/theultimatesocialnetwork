@@ -1,14 +1,14 @@
 import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class RegisterPushTokenDto {
-  @IsIn(["APNS", "FCM"])
-  provider: "APNS" | "FCM";
+  @IsIn(['APNS', 'FCM'])
+  provider: 'APNS' | 'FCM';
 
   @IsString()
   token: string;
 
-  @IsIn(["ios", "android"])
-  platform: "ios" | "android";
+  @IsIn(['ios', 'android'])
+  platform: 'ios' | 'android';
 
   @IsOptional()
   @IsString()
@@ -23,6 +23,6 @@ export class RegisterPushTokenDto {
   locale?: string;
 
   @IsOptional()
-  @IsIn(["sandbox", "production"])
-  apns_environment?: "sandbox" | "production";
+  @IsIn(['sandbox', 'production'])
+  apns_environment?: 'sandbox' | 'production';
 }

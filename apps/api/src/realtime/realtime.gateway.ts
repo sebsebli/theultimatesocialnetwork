@@ -14,7 +14,9 @@ import { Injectable, Logger } from '@nestjs/common';
   },
 })
 @Injectable()
-export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RealtimeGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -25,7 +27,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   async handleConnection(client: Socket) {
     try {
-      const token = client.handshake.auth.token?.split(' ')[1] || client.handshake.headers.authorization?.split(' ')[1];
+      const token =
+        client.handshake.auth.token?.split(' ')[1] ||
+        client.handshake.headers.authorization?.split(' ')[1];
       if (!token) {
         client.disconnect();
         return;
@@ -35,13 +39,13 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       const userId = payload.sub; // Assuming 'sub' is userId
 
       client.data.userId = userId;
-      
+
       const sockets = this.userSockets.get(userId) || [];
       sockets.push(client.id);
       this.userSockets.set(userId, sockets);
 
       client.join(`user:${userId}`); // Join a room specific to this user
-      
+
       this.logger.log(`User connected: ${userId} (Socket: ${client.id})`);
     } catch (e) {
       this.logger.error('Connection unauthorized');
@@ -53,7 +57,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     const userId = client.data.userId;
     if (userId) {
       const sockets = this.userSockets.get(userId) || [];
-      const updatedSockets = sockets.filter(id => id !== client.id);
+      const updatedSockets = sockets.filter((id) => id !== client.id);
       if (updatedSockets.length > 0) {
         this.userSockets.set(userId, updatedSockets);
       } else {

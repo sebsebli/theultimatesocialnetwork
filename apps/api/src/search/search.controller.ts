@@ -1,4 +1,11 @@
-import { Controller, Get, Query, UseGuards, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+  DefaultValuePipe,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { MeilisearchService } from './meilisearch.service';
 import { CurrentUser } from '../shared/current-user.decorator';

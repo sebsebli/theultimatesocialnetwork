@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Delete, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { TopicsService } from './topics.service';
 import { TopicFollowsService } from './topic-follows.service';
@@ -12,7 +19,10 @@ export class TopicsController {
   ) {}
 
   @Get(':slug')
-  async findOne(@Param('slug') slug: string, @CurrentUser() user?: { id: string }) {
+  async findOne(
+    @Param('slug') slug: string,
+    @CurrentUser() user?: { id: string },
+  ) {
     const topic = await this.topicsService.findOne(slug);
     if (!topic) {
       throw new Error('Topic not found');
@@ -20,7 +30,10 @@ export class TopicsController {
     const posts = await this.topicsService.getPosts(topic.id);
     let isFollowing = false;
     if (user) {
-      isFollowing = await this.topicFollowsService.isFollowing(user.id, topic.id);
+      isFollowing = await this.topicFollowsService.isFollowing(
+        user.id,
+        topic.id,
+      );
     }
     return { ...topic, posts, isFollowing };
   }

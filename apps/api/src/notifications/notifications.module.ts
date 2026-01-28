@@ -9,7 +9,10 @@ import { NotificationHelperService } from '../shared/notification-helper.service
 import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Notification, User, Post]), RealtimeModule],
+  imports: [
+    TypeOrmModule.forFeature([Notification, User, Post]),
+    RealtimeModule,
+  ],
   controllers: [NotificationsController],
   providers: [NotificationsService, NotificationHelperService],
   exports: [NotificationHelperService],

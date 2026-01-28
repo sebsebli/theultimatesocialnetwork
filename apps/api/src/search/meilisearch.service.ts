@@ -9,9 +9,11 @@ export class MeilisearchService implements OnModuleInit {
 
   constructor(private configService: ConfigService) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const host = this.configService.get('MEILISEARCH_HOST') || 'http://localhost:7700';
+    const host =
+      this.configService.get('MEILISEARCH_HOST') || 'http://localhost:7700';
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const apiKey = this.configService.get('MEILISEARCH_MASTER_KEY') || 'masterKey';
+    const apiKey =
+      this.configService.get('MEILISEARCH_MASTER_KEY') || 'masterKey';
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.client = new MeiliSearch({
@@ -33,11 +35,7 @@ export class MeilisearchService implements OnModuleInit {
         'author.displayName',
         'author.handle',
       ]);
-      await index.updateFilterableAttributes([
-        'authorId',
-        'lang',
-        'createdAt',
-      ]);
+      await index.updateFilterableAttributes(['authorId', 'lang', 'createdAt']);
       await index.updateSortableAttributes([
         'createdAt',
         'quoteCount',

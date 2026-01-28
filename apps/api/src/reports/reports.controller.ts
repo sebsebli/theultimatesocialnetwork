@@ -11,6 +11,11 @@ export class ReportsController {
   @Post()
   @UseGuards(AuthGuard('jwt'))
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateReportDto) {
-    return this.reportsService.create(user.id, dto.targetId, dto.targetType, dto.reason);
+    return this.reportsService.create(
+      user.id,
+      dto.targetId,
+      dto.targetType,
+      dto.reason,
+    );
   }
 }

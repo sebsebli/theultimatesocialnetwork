@@ -40,7 +40,11 @@ export class PostsService {
     @Inject('POST_QUEUE') private postQueue: Queue,
   ) {}
 
-  async create(userId: string, dto: CreatePostDto, skipQueue = false): Promise<Post> {
+  async create(
+    userId: string,
+    dto: CreatePostDto,
+    skipQueue = false,
+  ): Promise<Post> {
     // Sanitize HTML in body
     const { default: DOMPurify } = await import('isomorphic-dompurify');
     const sanitizedBody = DOMPurify.sanitize(dto.body, {
@@ -104,7 +108,7 @@ export class PostsService {
 
       // Explicitly save as single entity
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      savedPost = (await queryRunner.manager.save(Post, post)) as Post;
+      savedPost = await queryRunner.manager.save(Post, post);
 
       // 4. Extract & Process Wikilinks [[target|alias]]
       const wikilinkRegex = /\[\[(.*?)\]\]/g;
@@ -196,7 +200,7 @@ export class PostsService {
 
     // Offload side effects to background queue
     if (!skipQueue) {
-        await this.postQueue.add('process', { postId: savedPost.id, userId });
+      await this.postQueue.add('process', { postId: savedPost.id, userId });
     }
 
     return savedPost;
@@ -210,7 +214,7 @@ export class PostsService {
       .trim()
       .replace(/\s+/g, '-')
       .replace(/[^\w-]+/g, '')
-      .replace(/--+/g, '-')
+      .replace(/--+/g, '-');
   }
 
   private isValidUUID(uuid: string) {
@@ -291,10 +295,14 @@ export class PostsService {
     const quoteBody = `${commentary}\n\n[[post:${quotedPostId}]]`;
 
     // Create post but skip queue until we add the edge
-    const quotePost = await this.create(userId, {
-      body: quoteBody,
-      visibility: PostVisibility.PUBLIC,
-    }, true);
+    const quotePost = await this.create(
+      userId,
+      {
+        body: quoteBody,
+        visibility: PostVisibility.PUBLIC,
+      },
+      true,
+    );
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
