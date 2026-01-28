@@ -11,11 +11,11 @@ export class PostTopic {
   @PrimaryColumn({ name: 'topic_id' })
   topicId: string;
 
-  @ManyToOne(() => Post)
+  @ManyToOne(() => Post, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'post_id' })
   post: Post;
 
-  @ManyToOne(() => Topic)
+  @ManyToOne(() => Topic, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'topic_id' })
   topic: Topic;
 }
