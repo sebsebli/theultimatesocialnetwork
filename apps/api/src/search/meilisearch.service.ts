@@ -8,9 +8,12 @@ export class MeilisearchService implements OnModuleInit {
   private readonly indexName = 'posts';
 
   constructor(private configService: ConfigService) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const host = this.configService.get('MEILISEARCH_HOST') || 'http://localhost:7700';
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const apiKey = this.configService.get('MEILISEARCH_MASTER_KEY') || 'masterKey';
-    
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.client = new MeiliSearch({
       host,
       apiKey,
@@ -21,15 +24,77 @@ export class MeilisearchService implements OnModuleInit {
     try {
       // Create index if it doesn't exist
       await this.client.createIndex(this.indexName, { primaryKey: 'id' });
-      
+
       // Configure searchable attributes
       const index = this.client.index(this.indexName);
-      await index.updateSearchableAttributes(['title', 'body', 'author.displayName', 'author.handle']);
-      await index.updateFilterableAttributes(['authorId', 'lang', 'createdAt']);
-      await index.updateSortableAttributes(['createdAt', 'quoteCount', 'replyCount']);
-    } catch (error) {
+      await index.updateSearchableAttributes([
+        'title',
+        'body',
+        'author.displayName',
+        'author.handle',
+      ]);
+      await index.updateFilterableAttributes([
+        'authorId',
+        'lang',
+        'createdAt',
+      ]);
+      await index.updateSortableAttributes([
+        'createdAt',
+        'quoteCount',
+        'replyCount',
+      ]);
+    } catch (error: unknown) {
       // Index might already exist, which is fine
-      console.log('Meilisearch index setup:', error.message);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      console.log('Meilisearch index setup:', (error as any).message);
+    }
+  }
+
+  async indexUser(user: {
+    id: string;
+    handle: string;
+    displayName: string;
+    bio?: string;
+  }) {
+    try {
+      const index = this.client.index('users');
+      // Create index if it doesn't exist (lazy creation)
+      // await this.client.createIndex('users', { primaryKey: 'id' });
+
+      await index.addDocuments([
+        {
+          id: user.id,
+          handle: user.handle,
+          displayName: user.displayName,
+          bio: user.bio || '',
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to index user', error);
+    }
+  }
+
+  async deleteUser(userId: string) {
+    try {
+      const index = this.client.index('users');
+      await index.deleteDocument(userId);
+    } catch (error) {
+      console.error('Failed to delete user from index', error);
+    }
+  }
+
+  async indexTopic(topic: { id: string; slug: string; title: string }) {
+    try {
+      const index = this.client.index('topics');
+      await index.addDocuments([
+        {
+          id: topic.id,
+          slug: topic.slug,
+          title: topic.title,
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to index topic', error);
     }
   }
 
@@ -46,9 +111,9 @@ export class MeilisearchService implements OnModuleInit {
   }) {
     try {
       const index = this.client.index(this.indexName);
-      
+
       // Clean body of excessive whitespace/markdown for better search
-      const searchBody = post.body.substring(0, 5000); 
+      const searchBody = post.body.substring(0, 5000);
 
       await index.addDocuments([
         {
@@ -56,10 +121,12 @@ export class MeilisearchService implements OnModuleInit {
           title: post.title || '',
           body: searchBody,
           authorId: post.authorId,
-          author: post.author ? {
-            displayName: post.author.displayName || post.author.handle,
-            handle: post.author.handle,
-          } : { displayName: 'Unknown', handle: 'unknown' },
+          author: post.author
+            ? {
+                displayName: post.author.displayName || post.author.handle,
+                handle: post.author.handle,
+              }
+            : { displayName: 'Unknown', handle: 'unknown' },
           lang: post.lang || 'en',
           createdAt: post.createdAt.toISOString(),
           quoteCount: post.quoteCount,
@@ -71,11 +138,14 @@ export class MeilisearchService implements OnModuleInit {
     }
   }
 
-  async searchPosts(query: string, options?: {
-    limit?: number;
-    offset?: number;
-    lang?: string;
-  }) {
+  async searchPosts(
+    query: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      lang?: string;
+    },
+  ) {
     try {
       const index = this.client.index(this.indexName);
       const results = await index.search(query, {
@@ -106,8 +176,9 @@ export class MeilisearchService implements OnModuleInit {
     try {
       const index = this.client.index('topics');
       return await index.search(query, { limit });
-    } catch (error) {
+    } catch {
       // Topics might not be indexed yet, return empty
+      // console.error('Meilisearch topic search error', error);
       return { hits: [] };
     }
   }

@@ -10,6 +10,7 @@ import { Keep } from '../entities/keep.entity';
 import { Follow } from '../entities/follow.entity';
 import { PostRead } from '../entities/post-read.entity';
 import { Notification } from '../entities/notification.entity';
+import { MeilisearchService } from '../search/meilisearch.service';
 
 @Injectable()
 export class UsersService {
@@ -23,6 +24,7 @@ export class UsersService {
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
     @InjectRepository(PostRead) private readRepo: Repository<PostRead>,
     @InjectRepository(Notification) private notifRepo: Repository<Notification>,
+    private meilisearch: MeilisearchService,
   ) {}
 
   async isHandleAvailable(
@@ -75,7 +77,11 @@ export class UsersService {
 
   async update(id: string, updates: Partial<User>): Promise<User> {
     await this.userRepo.update(id, updates);
-    return this.userRepo.findOneOrFail({ where: { id } });
+    const user = await this.userRepo.findOneOrFail({ where: { id } });
+    this.meilisearch.indexUser(user).catch(err => 
+      console.error('Failed to update user index', err)
+    );
+    return user;
   }
 
   async getSuggested(userId?: string, limit = 10) {
@@ -116,6 +122,12 @@ export class UsersService {
     await this.userRepo.softDelete(userId);
     // Soft delete all posts by user
     await this.postRepo.softDelete({ authorId: userId });
+    
+    // Remove from search
+    this.meilisearch.deleteUser(userId).catch(err => 
+      console.error('Failed to remove user from index', err)
+    );
+
     return { success: true };
   }
 

@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, IsNull, In } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
 import { PostTopic } from '../entities/post-topic.entity';
@@ -8,12 +8,23 @@ import { Follow } from '../entities/follow.entity';
 import { Like } from '../entities/like.entity';
 import { Keep } from '../entities/keep.entity';
 
+// Define the shape of user exploration preferences
+interface ExplorePreferences {
+  topicsYouFollow?: number;
+  languageMatch?: number;
+  citations?: number;
+  replies?: number;
+  likes?: number;
+  networkProximity?: number;
+}
+
 /**
  * AI-powered recommendation service
  * Uses embeddings for content similarity and personalization
  */
 @Injectable()
 export class RecommendationService implements OnModuleInit {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private embeddingModel: any = null;
   private isModelLoaded = false;
 
@@ -26,10 +37,13 @@ export class RecommendationService implements OnModuleInit {
     @InjectRepository(Keep) private keepRepo: Repository<Keep>,
   ) {}
 
-  async onModuleInit() {
+  onModuleInit() {
     // Load embedding model asynchronously (don't block startup)
-    this.loadEmbeddingModel().catch(err => {
-      console.warn('Failed to load embedding model, recommendations will use fallback:', err.message);
+    void this.loadEmbeddingModel().catch((err: Error) => {
+      console.warn(
+        'Failed to load embedding model, recommendations will use fallback:',
+        err.message,
+      );
     });
   }
 
@@ -71,11 +85,13 @@ export class RecommendationService implements OnModuleInit {
         .trim()
         .substring(0, 512); // Limit length
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const output = await this.embeddingModel(cleanText, {
         pooling: 'mean',
         normalize: true,
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
       return Array.from(output.data);
     } catch (error) {
       console.error('Error generating embedding:', error);
@@ -133,32 +149,34 @@ export class RecommendationService implements OnModuleInit {
       where: { userId },
       take: 50,
     });
-    const likedPostIds = likes.map(l => l.postId);
-    const likedPosts = likedPostIds.length > 0
-      ? await this.postRepo.find({
-          where: { id: In(likedPostIds) },
-          relations: ['author'],
-        })
-      : [];
+    const likedPostIds = likes.map((l) => l.postId);
+    const likedPosts =
+      likedPostIds.length > 0
+        ? await this.postRepo.find({
+            where: { id: In(likedPostIds) },
+            relations: ['author'],
+          })
+        : [];
 
     // Get posts user has kept
     const keeps = await this.keepRepo.find({
       where: { userId },
       take: 50,
     });
-    const keptPostIds = keeps.map(k => k.postId);
-    const keptPosts = keptPostIds.length > 0
-      ? await this.postRepo.find({
-          where: { id: In(keptPostIds) },
-          relations: ['author'],
-        })
-      : [];
+    const keptPostIds = keeps.map((k) => k.postId);
+    const keptPosts =
+      keptPostIds.length > 0
+        ? await this.postRepo.find({
+            where: { id: In(keptPostIds) },
+            relations: ['author'],
+          })
+        : [];
 
     // Get followed users
     const follows = await this.followRepo.find({
       where: { followerId: userId },
     });
-    const followedUsers = follows.map(f => f.followeeId);
+    const followedUsers = follows.map((f) => f.followeeId);
 
     return {
       topics: Array.from(topics),
@@ -172,9 +190,32 @@ export class RecommendationService implements OnModuleInit {
    * Get personalized post recommendations for user
    */
   async getRecommendedPosts(userId: string, limit = 20): Promise<Post[]> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    const prefs = (user?.preferences?.explore || {
+      topicsYouFollow: 80,
+      languageMatch: 70,
+      citations: 90,
+      replies: 50,
+      likes: 30, // Affects embedding influence
+      networkProximity: 40,
+    }) as ExplorePreferences;
+
+    // Normalize weights (0-100 -> 0-1)
+    const w = {
+      topics: (prefs.topicsYouFollow ?? 80) / 100,
+      lang: (prefs.languageMatch ?? 70) / 100,
+      quotes: (prefs.citations ?? 90) / 100,
+      replies: (prefs.replies ?? 50) / 100,
+      likes: (prefs.likes ?? 30) / 100,
+      network: (prefs.networkProximity ?? 40) / 100,
+    };
+
     const userProfile = await this.getUserInterestProfile(userId);
 
-    if (userProfile.likedPosts.length === 0 && userProfile.keptPosts.length === 0) {
+    if (
+      userProfile.likedPosts.length === 0 &&
+      userProfile.keptPosts.length === 0
+    ) {
       // New user - return trending posts
       return this.getTrendingPosts(limit);
     }
@@ -182,26 +223,34 @@ export class RecommendationService implements OnModuleInit {
     // Generate embeddings for user's interests
     const interestTexts = userProfile.likedPosts
       .concat(userProfile.keptPosts)
-      .map(p => `${p.title || ''} ${p.body}`.trim())
+      .map((p) => `${p.title || ''} ${p.body}`.trim())
       .slice(0, 10); // Use top 10 for efficiency
 
     if (interestTexts.length === 0 || !this.isModelLoaded) {
       // Fallback: return posts from followed users or trending
-      return this.getFallbackRecommendations(userId, userProfile.followedUsers, limit);
+      return this.getFallbackRecommendations(
+        userId,
+        userProfile.followedUsers,
+        limit,
+      );
     }
 
     // Generate average embedding for user interests
     const embeddings = await Promise.all(
-      interestTexts.map(text => this.generateEmbedding(text))
+      interestTexts.map((text) => this.generateEmbedding(text)),
     );
-    const validEmbeddings = embeddings.filter(e => e !== null) as number[][];
+    const validEmbeddings = embeddings.filter((e) => e !== null) as number[][];
 
     if (validEmbeddings.length === 0) {
-      return this.getFallbackRecommendations(userId, userProfile.followedUsers, limit);
+      return this.getFallbackRecommendations(
+        userId,
+        userProfile.followedUsers,
+        limit,
+      );
     }
 
     // Average embeddings
-    const avgEmbedding = new Array(validEmbeddings[0].length).fill(0);
+    const avgEmbedding = new Array(validEmbeddings[0].length).fill(0) as number[];
     for (const emb of validEmbeddings) {
       for (let i = 0; i < emb.length; i++) {
         avgEmbedding[i] += emb[i];
@@ -212,12 +261,19 @@ export class RecommendationService implements OnModuleInit {
     }
 
     // Get candidate posts (not from user, not deleted, public)
-    const candidatePosts = await this.postRepo
+    const query = this.postRepo
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .where('post.author_id != :userId', { userId })
       .andWhere('post.visibility = :visibility', { visibility: 'PUBLIC' })
-      .andWhere('post.deleted_at IS NULL')
+      .andWhere('post.deleted_at IS NULL');
+
+    // Strict language filtering if preference is very high
+    if (w.lang > 0.8 && user?.languages?.length) {
+      query.andWhere('post.lang IN (:...langs)', { langs: user.languages });
+    }
+
+    const candidatePosts = await query
       .orderBy('post.created_at', 'DESC')
       .take(200)
       .getMany();
@@ -232,27 +288,54 @@ export class RecommendationService implements OnModuleInit {
           return { post, score: 0 };
         }
 
-        const similarity = this.cosineSimilarity(avgEmbedding, postEmbedding);
-        
-        // Boost score for posts from followed users
-        const followBoost = userProfile.followedUsers.includes(post.authorId) ? 0.2 : 0;
-        
-        // Boost score for posts in user's topics
+        // Base similarity (content match) - weighted by 'likes' preference (proxy for "content I like")
+        const similarity =
+          this.cosineSimilarity(avgEmbedding, postEmbedding) *
+          (0.5 + 0.5 * w.likes);
+
+        // Network boost
+        const followBoost = userProfile.followedUsers.includes(post.authorId)
+          ? 0.3 * w.network
+          : 0;
+
+        // Topic boost
         const postTopics = await this.postTopicRepo.find({
           where: { postId: post.id },
         });
-        const topicBoost = postTopics.some(pt => userProfile.topics.includes(pt.topicId)) ? 0.1 : 0;
+        const topicBoost = postTopics.some((pt) =>
+          userProfile.topics.includes(pt.topicId),
+        )
+          ? 0.3 * w.topics
+          : 0;
+
+        // Engagement boosts (normalize counts roughly)
+        const quoteBoost =
+          (Math.min(post.quoteCount, 10) / 10) * (0.2 * w.quotes);
+        const replyBoost =
+          (Math.min(post.replyCount, 20) / 20) * (0.1 * w.replies);
+
+        // Language soft boost (if not strict filtered)
+        let langBoost = 0;
+        if (user?.languages?.includes(post.lang || '')) {
+          langBoost = 0.1 * w.lang;
+        }
 
         return {
           post,
-          score: similarity + followBoost + topicBoost,
+          score:
+            similarity +
+            followBoost +
+            topicBoost +
+            quoteBoost +
+            replyBoost +
+            langBoost,
         };
-      })
+      }),
     );
 
     // Sort by score and return top posts
     scoredPosts.sort((a, b) => b.score - a.score);
-    return scoredPosts.slice(0, limit).map(sp => sp.post);
+    return scoredPosts.slice(0, limit).map((sp) => sp.post);
   }
 
   /**
@@ -323,7 +406,8 @@ export class RecommendationService implements OnModuleInit {
       .limit(limit * 2)
       .getRawMany();
 
-    const candidateUserIds = similarUsers.map(su => su.authorId);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+    const candidateUserIds = similarUsers.map((su) => su.authorId) as string[];
 
     if (candidateUserIds.length === 0) {
       // Fallback: return users with most followers
@@ -341,12 +425,13 @@ export class RecommendationService implements OnModuleInit {
     });
 
     // Sort by topic overlap
-    const userMap = new Map(users.map(u => [u.id, u]));
+    const userMap = new Map(users.map((u) => [u.id, u]));
     const sortedUsers = similarUsers
-      .map(su => userMap.get(su.authorId))
-      .filter(u => u !== undefined)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .map((su) => userMap.get(su.authorId as string))
+      .filter((u) => u !== undefined)
       .slice(0, limit);
 
-    return sortedUsers;
+    return sortedUsers as User[];
   }
 }

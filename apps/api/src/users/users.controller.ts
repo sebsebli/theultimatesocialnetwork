@@ -36,6 +36,7 @@ export class UsersController {
       bio?: string;
       isProtected?: boolean;
       languages?: string[];
+      preferences?: Record<string, any>;
     },
   ) {
     // Whitelist allowed fields to prevent arbitrary entity updates
@@ -47,6 +48,8 @@ export class UsersController {
       allowedUpdates.isProtected = updates.isProtected;
     if (updates.languages !== undefined)
       allowedUpdates.languages = updates.languages;
+    if (updates.preferences !== undefined)
+      allowedUpdates.preferences = updates.preferences;
     if (updates.handle !== undefined) {
       allowedUpdates.handle = updates.handle
         .trim()

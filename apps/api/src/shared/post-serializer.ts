@@ -55,6 +55,8 @@ export function userToPlain(u: User | null | undefined): Record<string, unknown>
   return {
     ...safe,
     createdAt: u.createdAt != null ? new Date(u.createdAt).toISOString() : undefined,
+    // @ts-expect-error - posts is loaded dynamically and might not be in the strict User type
+    // eslint-disable-next-line
     posts: Array.isArray((u as any).posts) ? (u as any).posts.map(postToPlain) : undefined,
   };
 }

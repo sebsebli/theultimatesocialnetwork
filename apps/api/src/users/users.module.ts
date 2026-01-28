@@ -17,6 +17,7 @@ import { ExportWorker } from './export.worker';
 import { Queue } from 'bullmq';
 
 import { SharedModule } from '../shared/shared.module';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SharedModule } from '../shared/shared.module';
     ]),
     ConfigModule,
     SharedModule,
+    SearchModule,
   ],
   controllers: [UsersController],
   providers: [

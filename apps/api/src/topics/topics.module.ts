@@ -8,11 +8,13 @@ import { TopicFollow } from '../entities/topic-follow.entity';
 import { PostTopic } from '../entities/post-topic.entity';
 import { Post } from '../entities/post.entity';
 import { ExploreModule } from '../explore/explore.module';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Topic, TopicFollow, PostTopic, Post]),
     forwardRef(() => ExploreModule),
+    SearchModule,
   ],
   controllers: [TopicsController],
   providers: [TopicsService, TopicFollowsService],

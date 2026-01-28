@@ -15,6 +15,7 @@ import { randomInt } from 'crypto';
 import { InvitesService } from '../invites/invites.service';
 import { EmailService } from '../shared/email.service';
 import { ConfigService } from '@nestjs/config';
+import { MeilisearchService } from '../search/meilisearch.service';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +26,7 @@ export class AuthService {
     private invitesService: InvitesService,
     private emailService: EmailService,
     private configService: ConfigService,
+    private meilisearch: MeilisearchService,
   ) {}
 
   async login(email: string, inviteCode?: string, lang: string = 'en') {
@@ -127,6 +129,11 @@ export class AuthService {
         invitesRemaining: 3, // Give 3 invites
       });
       user = await this.userRepo.save(user);
+
+      // Index user in search
+      this.meilisearch.indexUser(user).catch(err => 
+        console.error('Failed to index new user', err)
+      );
 
       // Consume invite code
       if (inviteCode) {
