@@ -11,6 +11,7 @@ import { Mention } from '../entities/mention.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 import { SafetyService } from '../safety/safety.service';
+import { workerJobCounter, workerJobDuration } from '../common/metrics';
 
 interface ReplyJobData {
   replyId: string;
@@ -56,17 +57,25 @@ export class ReplyWorker implements OnApplicationBootstrap, OnApplicationShutdow
   }
 
   async processReply(data: ReplyJobData) {
+      const end = workerJobDuration.startTimer({ worker: 'reply' });
       const { replyId, userId, postId } = data;
-      const reply = await this.replyRepo.findOne({ where: { id: replyId } });
-      if (!reply) return;
-
+      
       try {
+          const reply = await this.replyRepo.findOne({ where: { id: replyId } });
+          if (!reply) {
+              end();
+              workerJobCounter.inc({ worker: 'reply', status: 'skipped' });
+              return;
+          }
+
           // 1. Async Moderation (Full)
           const safety = await this.safetyService.checkContent(reply.body, userId, 'reply');
           if (!safety.safe) {
               await this.replyRepo.softDelete(replyId);
               await this.postRepo.decrement({ id: postId }, 'replyCount', 1);
               this.logger.warn(`Reply ${replyId} soft-deleted by moderation: ${safety.reason}`);
+              end();
+              workerJobCounter.inc({ worker: 'reply', status: 'moderated' });
               return;
           }
 
@@ -121,8 +130,13 @@ export class ReplyWorker implements OnApplicationBootstrap, OnApplicationShutdow
                   });
               }
           }
+          
+          workerJobCounter.inc({ worker: 'reply', status: 'success' });
+          end();
       } catch (e) {
           this.logger.error(`Error processing reply ${replyId}`, e);
+          workerJobCounter.inc({ worker: 'reply', status: 'failed' });
+          end();
           throw e;
       }
   }

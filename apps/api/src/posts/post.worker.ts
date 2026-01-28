@@ -10,8 +10,9 @@ import { Neo4jService } from '../database/neo4j.service';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { EmbeddingService } from '../shared/embedding.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
-import { SafetyService } from '../safety/safety.service';
 import { EdgeType } from '../entities/post-edge.entity';
+import { workerJobCounter, workerJobDuration } from '../common/metrics';
+import { SafetyService } from '../safety/safety.service';
 
 interface PostJobData {
   postId: string;
@@ -57,24 +58,27 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
   }
 
   async processPost(postId: string, userId: string) {
-    const post = await this.postRepo.findOne({
-        where: { id: postId },
-        relations: ['author', 'outgoingEdges', 'postTopics', 'postTopics.topic', 'mentions', 'mentions.mentionedUser'],
-    });
-
-    if (!post) {
-        this.logger.warn(`Post ${postId} not found, skipping processing.`);
-        return;
-    }
-
+    const end = workerJobDuration.startTimer({ worker: 'post' });
     try {
+        const post = await this.postRepo.findOne({
+            where: { id: postId },
+            relations: ['author', 'outgoingEdges', 'postTopics', 'postTopics.topic', 'mentions', 'mentions.mentionedUser'],
+        });
+
+        if (!post) {
+            this.logger.warn(`Post ${postId} not found, skipping processing.`);
+            end();
+            workerJobCounter.inc({ worker: 'post', status: 'skipped' });
+            return;
+        }
+
         // 0. Async Moderation (Full Stage 2 Check)
-        // If content was flagged as "ambiguous" in Stage 1, this will catch it.
         const safety = await this.safetyService.checkContent(post.body, userId, 'post');
         if (!safety.safe) {
             this.logger.warn(`Post ${postId} failed async moderation: ${safety.reason}`);
             await this.postRepo.softDelete(postId);
-            // TODO: Create "Violation" notification
+            end();
+            workerJobCounter.inc({ worker: 'post', status: 'moderated' });
             return;
         }
 
@@ -99,7 +103,6 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
         });
 
         // 2. Neo4j Sync
-        // User -> Authored -> Post
         await this.neo4jService.run(
             `
             MERGE (u:User {id: $userId})
@@ -125,7 +128,7 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
             }
         }
 
-        // Edges (Links & Quotes)
+        // Edges
         if (post.outgoingEdges?.length) {
             for (const edge of post.outgoingEdges) {
                 if (edge.edgeType === EdgeType.LINK) {
@@ -147,7 +150,6 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
                         { fromId: post.id, toId: edge.toPostId }
                     );
                     
-                    // Quote Notification (if not self)
                     const quotedPost = await this.postRepo.findOne({ where: { id: edge.toPostId } });
                     if (quotedPost && quotedPost.authorId !== userId) {
                          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
@@ -163,11 +165,10 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
             }
         }
 
-        // Mentions & Notifications
+        // Mentions
         if (post.mentions?.length) {
             for (const mention of post.mentions) {
                 if (mention.mentionedUserId !== userId) {
-                    // Neo4j Mention
                     await this.neo4jService.run(
                         `
                         MATCH (p:Post {id: $postId})
@@ -177,7 +178,6 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
                         { postId: post.id, userId: mention.mentionedUserId }
                     );
 
-                    // Notification
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
                     await this.notificationHelper.createNotification({
                         userId: mention.mentionedUserId,
@@ -190,7 +190,7 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
             }
         }
 
-        // 3. Feed Fan-out (Push Model)
+        // 3. Feed Fan-out
         const BATCH_SIZE = 1000;
         let page = 0;
         let followers: Follow[];
@@ -215,8 +215,12 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
             page++;
         } while (followers.length === BATCH_SIZE);
 
+        workerJobCounter.inc({ worker: 'post', status: 'success' });
+        end();
     } catch (e) {
         this.logger.error(`Error processing post ${postId}`, e);
+        workerJobCounter.inc({ worker: 'post', status: 'failed' });
+        end();
         throw e; // Retry
     }
   }
