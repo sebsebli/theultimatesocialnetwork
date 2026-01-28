@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, LayoutAnimation, UIManager, Platform } from 'react-native';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, LayoutAnimation, UIManager, Platform, AppState } from 'react-native';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { COLORS, FONTS, SIZES, SPACING } from 'constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { PostItem } from 'components/PostItem';
@@ -30,6 +30,7 @@ export default function HomeScreen() {
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     // Only load feed if authenticated
@@ -38,6 +39,23 @@ export default function HomeScreen() {
     } else {
       setLoading(false);
     }
+
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        // App has come to the foreground!
+        if (isAuthenticated) {
+          loadFeed(1, true);
+        }
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, [isAuthenticated]);
 
   const loadFeed = async (pageNum: number, reset = false) => {

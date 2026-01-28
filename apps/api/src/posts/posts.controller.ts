@@ -1,9 +1,19 @@
-import { Body, Controller, Post, Get, Param, Delete, UseGuards, ParseUUIDPipe, BadRequestException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Get,
+  Param,
+  Delete,
+  UseGuards,
+  ParseUUIDPipe,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CurrentUser } from '../shared/current-user.decorator';
-
+import { postToPlain } from '../shared/post-serializer';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 
 @Controller('posts')
@@ -25,7 +35,9 @@ export class PostsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user?: { id: string },
   ) {
-    return this.postsService.findOne(id, user?.id);
+    const post = await this.postsService.findOne(id, user?.id);
+    const plain = postToPlain(post);
+    return plain ?? {};
   }
 
   @Get(':id/sources')

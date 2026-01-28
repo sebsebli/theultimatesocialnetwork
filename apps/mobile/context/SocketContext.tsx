@@ -7,6 +7,8 @@ import { useToast } from './ToastContext';
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
+  on: (event: string, callback: (data: any) => void) => void;
+  off: (event: string, callback: (data: any) => void) => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -45,7 +47,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }): Rea
 
       socketInstance.on('connect', () => {
         setIsConnected(true);
-        console.log('Mobile Socket Connected');
       });
 
       socketInstance.on('disconnect', () => {
@@ -53,8 +54,8 @@ export function SocketProvider({ children }: { children: React.ReactNode }): Rea
       });
 
       socketInstance.on('notification', (data) => {
-        showSuccess('New Notification'); // Replace with specific message
-        // Trigger global refetch or state update
+        // Global notification handler (e.g. badge update)
+        // Specific toast can be handled here or by components
       });
 
       setSocket(socketInstance);
@@ -69,9 +70,21 @@ export function SocketProvider({ children }: { children: React.ReactNode }): Rea
     };
   }, [isAuthenticated]);
 
+  const on = useCallback((event: string, callback: (data: any) => void) => {
+    if (socket) {
+      socket.on(event, callback);
+    }
+  }, [socket]);
+
+  const off = useCallback((event: string, callback: (data: any) => void) => {
+    if (socket) {
+      socket.off(event, callback);
+    }
+  }, [socket]);
+
   const Provider = SocketContext.Provider as any;
   return (
-    <Provider value={{ socket, isConnected }}>
+    <Provider value={{ socket, isConnected, on, off }}>
       {children}
     </Provider>
   ) as React.ReactElement;

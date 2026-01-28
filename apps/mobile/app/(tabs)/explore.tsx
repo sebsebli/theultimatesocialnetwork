@@ -20,7 +20,6 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('topics');
   const [sort, setSort] = useState<'recommended' | 'newest'>('recommended');
-  const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,21 +52,6 @@ export default function ExploreScreen() {
       loadContent(1, true);
     }
   }, [activeTab, sort, isAuthenticated]);
-
-  const debouncedSearch = useMemo(
-    () => {
-      let timeoutId: NodeJS.Timeout;
-      return (q: string) => {
-        if (timeoutId) clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => {
-          // Trigger search logic - for now it just updates the query 
-          // but we could trigger a specific search endpoint
-          console.log('Searching for:', q);
-        }, 300);
-      };
-    },
-    []
-  );
 
   const loadContent = async (pageNum: number, reset = false) => {
     if (!reset && (loading || loadingMore)) return;
@@ -179,20 +163,17 @@ export default function ExploreScreen() {
 
       {/* Search */}
       <View style={styles.searchWrapper}>
-        <View style={styles.searchBar}>
-          <MaterialIcons name="search" size={24} color={COLORS.tertiary} accessibilityLabel={t('home.search')} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t('explore.searchPlaceholder')}
-            placeholderTextColor={COLORS.tertiary}
-            value={searchQuery}
-            onChangeText={(text: string) => {
-              setSearchQuery(text);
-              debouncedSearch(text);
-            }}
-            accessibilityLabel={t('explore.searchPlaceholder')}
-          />
-        </View>
+        <Pressable
+          style={styles.searchBar}
+          onPress={() => router.push('/search')}
+          accessibilityRole="button"
+          accessibilityLabel={t('explore.searchPlaceholder')}
+        >
+          <MaterialIcons name="search" size={24} color={COLORS.tertiary} />
+          <Text style={styles.searchInputPlaceholder}>
+            {t('explore.searchPlaceholder')}
+          </Text>
+        </Pressable>
       </View>
 
       {/* Tabs */}
@@ -325,9 +306,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.l,
     gap: SPACING.m,
   },
-  searchInput: {
+  searchInputPlaceholder: {
     flex: 1,
-    color: COLORS.paper,
+    color: COLORS.tertiary,
     fontSize: 16,
     fontFamily: FONTS.regular,
   },

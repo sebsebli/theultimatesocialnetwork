@@ -10,6 +10,7 @@ import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 export default function TopicScreen() {
   const router = useRouter();
   const { slug } = useLocalSearchParams();
+  const slugStr = (Array.isArray(slug) ? slug?.[0] : slug) ?? '';
   const { t } = useTranslation();
   const [topic, setTopic] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -22,6 +23,7 @@ export default function TopicScreen() {
   const [activeTab, setActiveTab] = useState<'start-here' | 'new' | 'people' | 'source'>('start-here');
 
   const loadTopic = async (pageNum: number, reset = false) => {
+    if (!slugStr) return;
     if (reset) {
       setLoading(true);
       setPage(1);
@@ -30,35 +32,35 @@ export default function TopicScreen() {
       setLoadingMore(true);
     }
     try {
-      const data = await api.get(`/topics/${slug}`);
+      const data = await api.get(`/topics/${slugStr}`);
       setTopic(data);
       setIsFollowing((data as any).isFollowing || false);
-      
+
       // Load data with pagination based on active tab
-      let endpoint = `/topics/${slug}/posts`;
+      let endpoint = `/topics/${slugStr}/posts`;
       if (activeTab === 'start-here') {
-         // The main topic endpoint already includes startHere, but for consistency 
-         // we might want a paginated list of top cited posts.
-         // For now, if reset we use topic.startHere, if not we fall back to posts.
-         if (reset && data.startHere) {
-            setPosts(data.startHere);
-            setHasMore(false); // startHere is usually limited
-            return;
-         }
+        // The main topic endpoint already includes startHere, but for consistency 
+        // we might want a paginated list of top cited posts.
+        // For now, if reset we use topic.startHere, if not we fall back to posts.
+        if (reset && data.startHere) {
+          setPosts(data.startHere);
+          setHasMore(false); // startHere is usually limited
+          return;
+        }
       }
-      
-      if (activeTab === 'people') endpoint = `/topics/${slug}/people`;
-      if (activeTab === 'source') endpoint = `/topics/${slug}/sources`;
-      
+
+      if (activeTab === 'people') endpoint = `/topics/${slugStr}/people`;
+      if (activeTab === 'source') endpoint = `/topics/${slugStr}/sources`;
+
       const postsData = await api.get(`${endpoint}?page=${pageNum}&limit=20`);
       const items = Array.isArray(postsData.items || postsData) ? (postsData.items || postsData) : [];
-      
+
       if (reset) {
         setPosts(items);
       } else {
         setPosts(prev => [...prev, ...items]);
       }
-      
+
       const hasMoreData = items.length === 20 && (postsData.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error) {
@@ -74,7 +76,7 @@ export default function TopicScreen() {
     setPage(1);
     setPosts([]);
     loadTopic(1, true);
-  }, [slug, activeTab]);
+  }, [slugStr, activeTab]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -87,7 +89,7 @@ export default function TopicScreen() {
       setPage(nextPage);
       loadTopic(nextPage, false);
     }
-  }, [refreshing, loadingMore, hasMore, page, slug]);
+  }, [refreshing, loadingMore, hasMore, page, slugStr]);
 
   const renderItem = useCallback(({ item }: { item: any }) => (
     <PostItem post={item} />
@@ -105,11 +107,12 @@ export default function TopicScreen() {
   }, [hasMore, loadingMore]);
 
   const handleFollow = async () => {
+    if (!slugStr) return;
     try {
       if (isFollowing) {
-        await api.delete(`/topics/${slug}/follow`);
+        await api.delete(`/topics/${slugStr}/follow`);
       } else {
-        await api.post(`/topics/${slug}/follow`);
+        await api.post(`/topics/${slugStr}/follow`);
       }
       setIsFollowing(!isFollowing);
     } catch (error) {
@@ -142,7 +145,7 @@ export default function TopicScreen() {
       ListHeaderComponent={
         <>
           <View style={styles.header}>
-            <Pressable 
+            <Pressable
               onPress={() => router.back()}
               accessibilityLabel="Go back"
               accessibilityRole="button"
@@ -151,7 +154,7 @@ export default function TopicScreen() {
             </Pressable>
             <Text style={styles.headerTitle}>{topic.title}</Text>
             <View style={styles.headerRight}>
-              <Pressable 
+              <Pressable
                 style={styles.headerIconButton}
                 onPress={() => router.push('/search')}
                 accessibilityLabel={t('home.search')}
@@ -159,7 +162,7 @@ export default function TopicScreen() {
               >
                 <MaterialIcons name="search" size={20} color={COLORS.tertiary} />
               </Pressable>
-              <Pressable 
+              <Pressable
                 style={[styles.followButton, isFollowing && styles.followButtonActive]}
                 onPress={handleFollow}
                 accessibilityLabel={isFollowing ? t('profile.following') : t('profile.follow')}
@@ -190,9 +193,9 @@ export default function TopicScreen() {
                 accessibilityState={{ selected: activeTab === tab }}
               >
                 <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                  {tab === 'start-here' ? t('topic.startHere') : 
-                   tab === 'source' ? t('topic.source') :
-                   t(`topic.${tab}`)}
+                  {tab === 'start-here' ? t('topic.startHere') :
+                    tab === 'source' ? t('topic.source') :
+                      t(`topic.${tab}`)}
                 </Text>
               </Pressable>
             ))}

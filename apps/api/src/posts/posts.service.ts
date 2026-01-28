@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Post, PostVisibility } from '../entities/post.entity';
@@ -264,13 +264,15 @@ export class PostsService {
     return regex.test(uuid);
   }
 
-  async findOne(id: string, viewerId?: string): Promise<Post | null> {
+  async findOne(id: string, viewerId?: string): Promise<Post> {
     const post = await this.postRepo.findOne({
       where: { id },
       relations: ['author'],
     });
 
-    if (!post) return null;
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
 
     // Visibility Check
     if (post.visibility === PostVisibility.PUBLIC) {
@@ -279,9 +281,8 @@ export class PostsService {
 
     // If protected, viewer must be authenticated
     if (!viewerId) {
-       // Returning null mimics "not found" for unauthorized users (security best practice)
-       // or we could throw ForbiddenException. Let's return null to hide existence.
-       return null;
+      // Mimic "not found" for unauthorized users (security best practice)
+      throw new NotFoundException('Post not found');
     }
 
     // Author can always see their own post
@@ -291,19 +292,16 @@ export class PostsService {
 
     // If FOLLOWERS only, check if viewer follows author
     if (post.visibility === PostVisibility.FOLLOWERS) {
-       // Optimization: In a real app, you might query this in the initial DB call using a subquery or join.
-       // For now, we'll do a quick check.
-       const isFollowing = await this.dataSource.query(
-         `SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = $2`,
-         [viewerId, post.authorId]
-       );
-       
-       if (isFollowing.length > 0) {
-         return post;
-       }
+      const isFollowing = await this.dataSource.query(
+        `SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = $2`,
+        [viewerId, post.authorId],
+      );
+      if (isFollowing.length > 0) {
+        return post;
+      }
     }
 
-    return null;
+    throw new NotFoundException('Post not found');
   }
 
   async softDelete(userId: string, postId: string): Promise<void> {

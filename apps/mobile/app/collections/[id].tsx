@@ -105,6 +105,16 @@ export default function CollectionDetailScreen() {
     loadCollection(1, true);
   }, [id]);
 
+  const contributors = useMemo(() => {
+    const authors = new Map();
+    items.forEach(item => {
+      if (item.post?.author) {
+        authors.set(item.post.author.id, item.post.author);
+      }
+    });
+    return Array.from(authors.values());
+  }, [items]);
+
   const renderItem = useCallback(({ item }: { item: any }) => (
     <View style={styles.itemContainer}>
       <PostItem post={item.post} />
@@ -172,11 +182,35 @@ export default function CollectionDetailScreen() {
         )}
         <View style={styles.metaRow}>
           <View style={styles.avatarStack}>
-            {/* Mock avatars - in real app, load from collection.contributors */}
-            <View style={styles.avatarSmall} />
-            <View style={[styles.avatarSmall, styles.avatarOverlay]}>
-              <Text style={styles.avatarOverlayText}>+3</Text>
-            </View>
+            {contributors.length === 0 ? (
+              <View style={[styles.avatarSmall, { backgroundColor: COLORS.hover }]} />
+            ) : (
+              <>
+                {contributors.slice(0, 3).map((author: any, index) => (
+                  <View 
+                    key={author.id} 
+                    style={[
+                      styles.avatarSmall, 
+                      index > 0 && styles.avatarOverlay,
+                      { 
+                        backgroundColor: COLORS.hover,
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }
+                    ]}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: COLORS.primary }}>
+                      {author.displayName?.charAt(0)}
+                    </Text>
+                  </View>
+                ))}
+                {contributors.length > 3 && (
+                  <View style={[styles.avatarSmall, styles.avatarOverlay]}>
+                    <Text style={styles.avatarOverlayText}>+{contributors.length - 3}</Text>
+                  </View>
+                )}
+              </>
+            )}
           </View>
           <Text style={styles.count}>
             {items.length} {items.length === 1 ? t('collections.post') : t('collections.posts')}

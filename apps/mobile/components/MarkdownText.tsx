@@ -36,47 +36,89 @@ export function MarkdownText({ children }: MarkdownTextProps) {
     }
   };
 
-  // Basic markdown parser (bold, italic, links)
-  // This is a simplified version. Production apps should use a robust parser like react-native-markdown-display
-  // customized to handle [[wikilinks]].
-  
+  // Improved markdown parser: headings, bold, italic, wikilinks
   const parseText = useMemo(() => {
     if (!children) return null;
 
-    const parts = [];
-    let lastIndex = 0;
-    
-    // Regex for [[target|alias]] or [[target]]
-    const wikiRegex = /\[\[(.*?)(?:\|(.*?))?\]\]/g;
-    let match: RegExpExecArray | null;
+    const lines = children.split('\n');
+    const nodes: React.ReactNode[] = [];
 
-    while ((match = wikiRegex.exec(children)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(<Text key={lastIndex} style={styles.text}>{children.substring(lastIndex, match.index)}</Text>);
+    lines.forEach((line, lineIndex) => {
+      // 1. Headings
+      let lineStyle = styles.text;
+      let content = line;
+
+      if (line.startsWith('# ')) {
+        lineStyle = styles.h1;
+        content = line.substring(2);
+      } else if (line.startsWith('## ')) {
+        lineStyle = styles.h2;
+        content = line.substring(3);
+      } else if (line.startsWith('### ')) {
+        lineStyle = styles.h3;
+        content = line.substring(4);
       }
 
-      const content = match[1];
-      const display = match[2] || content;
-      const alias = match[2];
+      // 2. Parse inline styles (Bold, Italic, Wikilinks)
+      // This is a naive parser. For production, use a tokenizer/lexer approach.
+      // We'll iterate through the string and match patterns.
       
-      parts.push(
-        <Text
-          key={match.index}
-          style={styles.link}
-          onPress={() => handleWikiLinkPress(content, alias)}
-        >
-          {display}
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      
+      // Combine patterns: Bold (**), Italic (_), Wikilink ([[...]])
+      // Note: This regex is simple and might fail on nested/complex cases
+      const regex = /(\*\*(.*?)\*\*)|(_(.*?)_)|(\[\[(.*?)(?:\|(.*?))?\]\])/g;
+      
+      let match;
+      while ((match = regex.exec(content)) !== null) {
+        // Text before match
+        if (match.index > lastIndex) {
+          parts.push(<Text key={`${lineIndex}-${lastIndex}`} style={lineStyle}>{content.substring(lastIndex, match.index)}</Text>);
+        }
+
+        // Bold
+        if (match[1]) {
+          parts.push(<Text key={match.index} style={[lineStyle, styles.bold]}>{match[2]}</Text>);
+        }
+        // Italic
+        else if (match[3]) {
+          parts.push(<Text key={match.index} style={[lineStyle, styles.italic]}>{match[4]}</Text>);
+        }
+        // Wikilink
+        else if (match[5]) {
+          const linkContent = match[6];
+          const linkDisplay = match[7] || linkContent;
+          const linkAlias = match[7];
+          
+          parts.push(
+            <Text
+              key={match.index}
+              style={[lineStyle, styles.link]}
+              onPress={() => handleWikiLinkPress(linkContent, linkAlias)}
+            >
+              {linkDisplay}
+            </Text>
+          );
+        }
+
+        lastIndex = match.index + match[0].length;
+      }
+
+      // Remaining text
+      if (lastIndex < content.length) {
+        parts.push(<Text key={`${lineIndex}-end`} style={lineStyle}>{content.substring(lastIndex)}</Text>);
+      }
+
+      nodes.push(
+        <Text key={lineIndex} style={lineStyle}>
+          {parts.length > 0 ? parts : content}
+          {lineIndex < lines.length - 1 ? '\n' : ''}
         </Text>
       );
+    });
 
-      lastIndex = match.index + match[0].length;
-    }
-
-    if (lastIndex < children.length) {
-      parts.push(<Text key={lastIndex} style={styles.text}>{children.substring(lastIndex)}</Text>);
-    }
-
-    return parts;
+    return nodes;
   }, [children]);
 
   return (
@@ -125,14 +167,45 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 26,
     color: COLORS.paper,
-    fontFamily: FONTS.serifRegular, // IBM Plex Serif for content
+    fontFamily: FONTS.serifRegular,
+  },
+  h1: {
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.serifSemiBold,
+    marginTop: SPACING.m,
+    marginBottom: SPACING.s,
+  },
+  h2: {
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.serifSemiBold,
+    marginTop: SPACING.m,
+    marginBottom: SPACING.s,
+  },
+  h3: {
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.serifSemiBold,
+    marginTop: SPACING.s,
+    marginBottom: SPACING.s,
+  },
+  bold: {
+    fontWeight: '700',
+    fontFamily: FONTS.serifSemiBold,
+  },
+  italic: {
+    fontStyle: 'italic',
   },
   link: {
-    fontSize: 17,
-    lineHeight: 26,
     color: COLORS.primary,
     textDecorationLine: 'underline',
-    fontFamily: FONTS.serifRegular, // IBM Plex Serif for content links
   },
   modalOverlay: {
     flex: 1,

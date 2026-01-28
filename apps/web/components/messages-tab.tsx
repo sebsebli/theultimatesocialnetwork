@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRealtime } from '@/context/realtime-provider';
+import { useAuth } from '@/components/auth-provider';
 
 interface Thread {
   id: string;
@@ -17,16 +19,48 @@ interface Thread {
   unreadCount: number;
 }
 
+interface Message {
+  id: string;
+  body: string;
+  senderId: string;
+  createdAt: string;
+  threadId?: string;
+}
+
 export function MessagesTab() {
+  const { user } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
+  const { on, off } = useRealtime();
 
   useEffect(() => {
     loadThreads();
   }, []);
+
+  useEffect(() => {
+    const handleMessage = (data: unknown) => {
+      const message = data as Message;
+      // Reload threads to update sidebar (last message, unread count)
+      loadThreads();
+
+      // If viewing this thread, append message
+      if (selectedThread && message.threadId === selectedThread) {
+        setMessages(prev => {
+          // Prevent duplicates
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+      }
+    };
+
+    on('message', handleMessage);
+    return () => {
+      off('message', handleMessage);
+    };
+  }, [on, off, selectedThread]);
 
   useEffect(() => {
     if (selectedThread) {
@@ -63,7 +97,7 @@ export function MessagesTab() {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim() || !selectedThread) return;
+    if (!messageText.trim() || !selectedThread || !user) return;
 
     const body = messageText;
     setMessageText('');
@@ -73,7 +107,7 @@ export function MessagesTab() {
     const newMessage = {
       id: tempId,
       body,
-      senderId: 'me', // placeholder
+      senderId: user.id,
       createdAt: new Date().toISOString(),
     };
     

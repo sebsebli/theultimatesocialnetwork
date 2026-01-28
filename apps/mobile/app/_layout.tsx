@@ -63,27 +63,14 @@ function AppContent({ onReady }: { onReady?: () => void }) {
   // Fallback: If segments are empty after 1s and user is authenticated, navigate by onboarding state
   // So we always show onboarding (language etc.) when not complete, never jump straight to tabs
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !segments[0]) {
-      const timeout = setTimeout(() => {
-        if (!segments[0]) {
-          if (__DEV__) {
-            console.log('Segments still empty, forcing navigation');
-          }
-          if (onboardingComplete === true) {
-            router.replace('/(tabs)/');
-          } else {
-            router.replace('/onboarding/languages');
-          }
-        }
-      }, 1000);
-      return () => clearTimeout(timeout);
+    if (!isLoading && !isAuthenticated) {
+      // Check if we're already on a public route
+      const isPublicRoute = segments[0] === 'welcome' || segments[0] === 'sign-in' || segments[0] === 'waiting-list';
+      if (!isPublicRoute) {
+        router.replace('/welcome');
+      }
     }
   }, [isLoading, isAuthenticated, onboardingComplete, segments, router]);
-
-  // Debug logging
-  if (__DEV__) {
-    console.log('AppContent render:', { isLoading, isAuthenticated, segments: segments[0] });
-  }
 
   // Show loading while checking auth
   if (isLoading) {

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../utils/api';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { useSocket } from '../../context/SocketContext';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,6 +12,7 @@ export default function InboxScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { on, off } = useSocket();
   const [activeTab, setActiveTab] = useState<'notifications' | 'messages'>('notifications');
   
   // Separate data stores for instant switching
@@ -22,6 +24,29 @@ export default function InboxScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  // Listen for real-time events
+  useEffect(() => {
+    const handleNotification = () => {
+      if (activeTab === 'notifications') {
+        loadContent(1, true); // Refresh list
+      }
+    };
+
+    const handleMessage = () => {
+      if (activeTab === 'messages') {
+        loadContent(1, true); // Refresh list
+      }
+    };
+
+    on('notification', handleNotification);
+    on('message', handleMessage);
+
+    return () => {
+      off('notification', handleNotification);
+      off('message', handleMessage);
+    };
+  }, [on, off, activeTab]);
 
   useEffect(() => {
     // Only clear if transitioning to a tab with NO data

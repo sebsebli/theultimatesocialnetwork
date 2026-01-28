@@ -16,6 +16,8 @@ import Redis from 'ioredis';
 import { ExportWorker } from './export.worker';
 import { Queue } from 'bullmq';
 
+import { SharedModule } from '../shared/shared.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -23,6 +25,7 @@ import { Queue } from 'bullmq';
       Like, Keep, Follow, PostRead, Notification
     ]),
     ConfigModule,
+    SharedModule,
   ],
   controllers: [UsersController],
   providers: [

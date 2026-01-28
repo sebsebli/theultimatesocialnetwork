@@ -32,7 +32,7 @@ export default function OnboardingStarterPacksScreen() {
 
   const loadRecommendations = async () => {
     try {
-      // Fetch suggested users (mock endpoint or actual relevance logic)
+      // Fetch suggested users using the recommendation engine
       const data = await api.get('/explore/people?limit=10');
       const items = Array.isArray(data.items || data) ? (data.items || data) : [];
       setUsers(items);

@@ -47,4 +47,7 @@ export class User {
 
   @Column({ name: 'quote_received_count', default: 0 })
   quoteReceivedCount: number;
+
+  @Column({ type: 'jsonb', default: {} })
+  preferences: Record<string, any>;
 }

@@ -10,17 +10,20 @@ import {
   Inject,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { SkipThrottle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { Queue } from 'bullmq';
 import { User } from '../entities/user.entity';
+import { postToPlain, replyToPlain, userToPlain } from '../shared/post-serializer';
 
 @Controller('users')
+@SkipThrottle() // GET /users/me is hit on every app load; avoid 429 on cold start
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     @Inject('EXPORT_QUEUE') private exportQueue: Queue,
-  ) {}
+  ) { }
 
   @Patch('me')
   @UseGuards(AuthGuard('jwt'))
@@ -68,7 +71,13 @@ export class UsersController {
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   async getMe(@CurrentUser() user: { id: string }) {
-    return this.usersService.findById(user.id);
+    const me = await this.usersService.findById(user.id);
+    if (!me) return null;
+    // Keep email/preferences for self, but serialize posts
+    return {
+      ...me,
+      posts: me.posts?.map(postToPlain),
+    };
   }
 
   @Delete('me')
@@ -100,16 +109,19 @@ export class UsersController {
 
   @Get(':id/replies')
   async getReplies(@Param('id') id: string) {
-    return this.usersService.getReplies(id);
+    const replies = await this.usersService.getReplies(id);
+    return replies.map(replyToPlain);
   }
 
   @Get(':id/quotes')
   async getQuotes(@Param('id') id: string) {
-    return this.usersService.getQuotes(id);
+    const quotes = await this.usersService.getQuotes(id);
+    return quotes.map(postToPlain);
   }
 
   @Get(':handle')
   async findOne(@Param('handle') handle: string) {
-    return this.usersService.findByHandle(handle);
+    const user = await this.usersService.findByHandle(handle);
+    return userToPlain(user);
   }
 }

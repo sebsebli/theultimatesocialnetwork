@@ -1,12 +1,38 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets } from 'typeorm';
+import { Repository, Brackets, In } from 'typeorm';
 import { Post } from '../entities/post.entity';
 import { Follow } from '../entities/follow.entity';
 import { CollectionItem } from '../entities/collection-item.entity';
 import { Collection } from '../entities/collection.entity';
 import { User } from '../entities/user.entity';
+import { Block } from '../entities/block.entity';
+import { Mute } from '../entities/mute.entity';
 import { FeedItem } from './feed-item.entity';
+import { postToPlain } from '../shared/post-serializer';
+
+/** Return plain objects so the response is guaranteed JSON-serializable. */
+function toPlainFeedItems(items: FeedItem[]): unknown[] {
+  return items
+    .map((item) => {
+      if (item.type === 'post') {
+        const data = postToPlain(item.data as Post);
+        return data ? { type: 'post' as const, data } : null;
+      }
+      const d = item.data;
+      return {
+        type: 'saved_by' as const,
+        data: {
+          userId: d.userId ?? '',
+          userName: d.userName ?? '',
+          collectionId: d.collectionId ?? '',
+          collectionName: d.collectionName ?? '',
+          post: d.post ? postToPlain(d.post) : undefined,
+        },
+      };
+    })
+    .filter(Boolean);
+}
 
 @Injectable()
 export class FeedService {
@@ -18,7 +44,9 @@ export class FeedService {
     @InjectRepository(Collection)
     private collectionRepo: Repository<Collection>,
     @InjectRepository(User) private userRepo: Repository<User>,
-  ) {}
+    @InjectRepository(Block) private blockRepo: Repository<Block>,
+    @InjectRepository(Mute) private muteRepo: Repository<Mute>,
+  ) { }
 
   async getHomeFeed(
     userId: string,
@@ -26,23 +54,48 @@ export class FeedService {
     offset = 0,
     includeSavedBy = false,
   ): Promise<FeedItem[]> {
+    // Get blocked and muted users to exclude
+    const [blocks, mutes] = await Promise.all([
+      this.blockRepo.find({ where: [{ blockerId: userId }, { blockedId: userId }] }),
+      this.muteRepo.find({ where: { muterId: userId } }),
+    ]);
+
+    const excludedUserIds = new Set<string>();
+    blocks.forEach(b => {
+      excludedUserIds.add(b.blockerId === userId ? b.blockedId : b.blockerId);
+    });
+    mutes.forEach(m => excludedUserIds.add(m.mutedId));
+
     // Basic chronological feed: Posts from people I follow
     const follows = await this.followRepo.find({
       where: { followerId: userId },
     });
-    const followingIds = follows.map((f) => f.followeeId);
+    const followingIds = follows
+      .map((f) => f.followeeId)
+      .filter(id => !excludedUserIds.has(id));
 
     // Always include self
     followingIds.push(userId);
 
     if (followingIds.length === 0) return [];
 
+    // Fetch user preferences to adjust feed (e.g. density, ranking)
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    const prefs = user?.preferences?.explore || {};
+    
+    // Example: If user prefers 'replies/discussion' (high value), we might fetch more items
+    // or include more reply-heavy content. For now, we'll just respect the requested limit.
+    // Future: Use prefs.languageMatch to filter post.lang
+    
     // Get posts from followed users and own posts (excluding deleted)
     // Optimization: Filter directly in DB to avoid over-fetching
     const posts = await this.postRepo
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .where('post.deleted_at IS NULL')
+      .andWhere('post.author_id NOT IN (:...excluded)', { 
+        excluded: excludedUserIds.size > 0 ? Array.from(excludedUserIds) : ['00000000-0000-0000-0000-000000000000'] 
+      })
       .andWhere(
         new Brackets((qb) => {
           qb.where('post.author_id = :userId', { userId }).orWhere(
@@ -87,7 +140,7 @@ export class FeedService {
         .getMany();
 
       for (const save of recentSaves) {
-        if (save.collection.owner) {
+        if (save.collection?.owner && save.post) {
           feedItems.push({
             type: 'saved_by',
             data: {
@@ -104,19 +157,20 @@ export class FeedService {
       }
     }
 
-    // Sort by timestamp (most recent first)
+    // Sort by timestamp (most recent first) — coerce to Date so .getTime() is safe (DB may return string)
     feedItems.sort((a, b) => {
-      const aTime =
+      const aTs =
         a.type === 'post'
-          ? (a.data.createdAt ?? new Date(0))
-          : (a.data.post?.createdAt ?? new Date(0));
-      const bTime =
+          ? new Date(a.data.createdAt ?? 0).getTime()
+          : new Date(a.data.post?.createdAt ?? 0).getTime();
+      const bTs =
         b.type === 'post'
-          ? (b.data.createdAt ?? new Date(0))
-          : (b.data.post?.createdAt ?? new Date(0));
-      return bTime.getTime() - aTime.getTime();
+          ? new Date(b.data.createdAt ?? 0).getTime()
+          : new Date(b.data.post?.createdAt ?? 0).getTime();
+      return bTs - aTs;
     });
 
-    return feedItems.slice(0, limit);
+    const trimmed = feedItems.slice(0, limit);
+    return toPlainFeedItems(trimmed) as FeedItem[];
   }
 }

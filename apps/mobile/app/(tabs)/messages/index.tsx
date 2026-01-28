@@ -1,0 +1,253 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, Image, ActivityIndicator } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
+import { COLORS, SPACING, FONTS, SIZES } from '../../../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import { api } from '../../../utils/api';
+import { useToast } from '../../../context/ToastContext';
+import { ErrorState } from '../../../components/ErrorState';
+import { useSocket } from '../../../context/SocketContext';
+
+export default function MessagesScreen() {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { showError } = useToast();
+  const { on, off } = useSocket();
+  const [threads, setThreads] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const fetchThreads = async () => {
+    try {
+      const data = await api.get('/messages/threads');
+      setThreads(Array.isArray(data) ? data : []);
+      setError(false);
+    } catch (error) {
+      console.error(error);
+      setError(true);
+      showError(t('messages.loadError', 'Failed to load messages'));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchThreads();
+    }, [])
+  );
+
+  useEffect(() => {
+    const handleNewMessage = (data: any) => {
+      // Optimistically update thread list or refetch
+      // For simplicity and correctness, we refetch to get updated order/snippets
+      fetchThreads(); 
+    };
+
+    on('message', handleNewMessage);
+    return () => {
+      off('message', handleNewMessage);
+    };
+  }, [on, off]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchThreads();
+  };
+
+  const formatTime = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    if (diff < 1000 * 60 * 60 * 24) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString();
+  };
+
+  const renderItem = ({ item }: { item: any }) => {
+    const participant = item.participant || item.participants?.[0]; // Adapt based on API response
+    if (!participant) return null;
+
+    return (
+      <Pressable
+        style={({ pressed }) => [styles.threadItem, pressed && styles.threadItemPressed]}
+        onPress={() => router.push(`/(tabs)/messages/${item.id}`)}
+      >
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{participant.displayName?.charAt(0) || '?'}</Text>
+        </View>
+        <View style={styles.threadContent}>
+          <View style={styles.threadHeader}>
+            <Text style={styles.displayName}>{participant.displayName || t('common.unknown', 'Unknown')}</Text>
+            {item.lastMessage && (
+              <Text style={styles.timestamp}>{formatTime(item.lastMessage.createdAt)}</Text>
+            )}
+          </View>
+          {item.lastMessage ? (
+            <Text style={[styles.lastMessage, !item.lastMessage.isRead && styles.unreadMessage]} numberOfLines={1}>
+              {item.lastMessage.body}
+            </Text>
+          ) : (
+            <Text style={styles.lastMessage}>{t('messages.noMessages', 'No messages yet')}</Text>
+          )}
+        </View>
+        {item.lastMessage && !item.lastMessage.isRead && <View style={styles.unreadDot} />}
+      </Pressable>
+    );
+  };
+
+  if (loading && !refreshing) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (error && threads.length === 0) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <ErrorState onRetry={fetchThreads} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>{t('inbox.messages')}</Text>
+        <Pressable style={styles.headerAction} onPress={() => router.push('/(tabs)/messages/new')}>
+          <MaterialIcons name="edit" size={24} color={COLORS.primary} />
+        </Pressable>
+      </View>
+
+      <FlatList
+        data={threads}
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <MaterialIcons name="chat-bubble-outline" size={48} color={COLORS.tertiary} />
+            <Text style={styles.emptyText}>{t('inbox.noMessages')}</Text>
+          </View>
+        }
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.ink,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.l,
+    paddingBottom: SPACING.m,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  headerAction: {
+    padding: SPACING.s,
+  },
+  listContent: {
+    paddingBottom: 100,
+  },
+  threadItem: {
+    flexDirection: 'row',
+    padding: SPACING.l,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    alignItems: 'center',
+  },
+  threadItemPressed: {
+    backgroundColor: COLORS.hover,
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.hover,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.m,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  threadContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  threadHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  displayName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  lastMessage: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+  },
+  unreadMessage: {
+    color: COLORS.paper,
+    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
+    marginLeft: SPACING.s,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 100,
+    opacity: 0.5,
+  },
+  emptyText: {
+    marginTop: SPACING.m,
+    fontSize: 16,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+  },
+});

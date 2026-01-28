@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -17,6 +16,7 @@ export default function ReadingModeScreen() {
   const { t } = useTranslation();
   const postId = params.id as string;
   const [post, setPost] = useState<any>(null);
+  const [sources, setSources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,8 +25,12 @@ export default function ReadingModeScreen() {
 
   const loadPost = async () => {
     try {
-      const data = await api.get(`/posts/${postId}`);
-      setPost(data);
+      const [postData, sourcesData] = await Promise.all([
+        api.get(`/posts/${postId}`),
+        api.get(`/posts/${postId}/sources`).catch(() => [])
+      ]);
+      setPost(postData);
+      setSources(sourcesData);
     } catch (error) {
       console.error('Failed to load post', error);
       Alert.alert(t('common.error'), t('post.loadFailed'));
@@ -152,8 +156,31 @@ export default function ReadingModeScreen() {
         {/* Sources Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Sources</Text>
-          {/* Mock logic for sources display */}
-          <Text style={styles.emptyText}>No external sources found.</Text>
+          {sources.length === 0 ? (
+            <Text style={styles.emptyText}>No external sources found.</Text>
+          ) : (
+            <View style={{ gap: 12 }}>
+              {sources.map((source: any, index: number) => {
+                const domain = source.url ? new URL(source.url).hostname.replace('www.', '') : 'source';
+                return (
+                  <Pressable
+                    key={index}
+                    style={styles.sourceItem}
+                    onPress={() => source.url && Linking.openURL(source.url)}
+                  >
+                    <Text style={styles.sourceIndex}>{index + 1}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.sourceDomain}>{domain}</Text>
+                      <Text style={styles.sourceTitle} numberOfLines={2}>
+                        {source.title || source.url}
+                      </Text>
+                    </View>
+                    <MaterialIcons name="north-east" size={16} color={COLORS.tertiary} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -208,7 +235,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     alignItems: 'center', 
     gap: SPACING.m, 
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.xl, 
     paddingBottom: SPACING.l,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
@@ -255,6 +282,31 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
     fontStyle: 'italic',
+  },
+  sourceItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  sourceIndex: {
+    color: COLORS.tertiary,
+    fontSize: 14,
+    fontFamily: FONTS.mono,
+    marginTop: 2,
+  },
+  sourceDomain: {
+    color: COLORS.primary,
+    fontSize: 12,
+    marginBottom: 2,
+    fontFamily: FONTS.medium,
+    textTransform: 'uppercase',
+  },
+  sourceTitle: {
+    color: COLORS.secondary,
+    fontSize: 16,
+    fontFamily: FONTS.regular,
+    lineHeight: 22,
   },
   
   bottomBar: { 

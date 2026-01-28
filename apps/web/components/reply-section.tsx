@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { OverflowMenu } from './overflow-menu';
+import { useAuth } from '@/components/auth-provider';
 
 interface Reply {
   id: string;
@@ -22,6 +23,7 @@ interface ReplySectionProps {
 }
 
 export function ReplySection({ postId, replyCount }: ReplySectionProps) {
+  const { user } = useAuth();
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
@@ -50,7 +52,7 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
 
   const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyText.trim()) return;
+    if (!replyText.trim() || !user) return;
 
     const body = replyText;
     setReplyText('');
@@ -63,9 +65,9 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
       body,
       createdAt: new Date().toISOString(),
       author: {
-        id: 'me', // placeholder
-        handle: 'me',
-        displayName: 'Me',
+        id: user.id as string,
+        handle: user.handle as string,
+        displayName: user.displayName as string,
       },
     };
     

@@ -6,9 +6,10 @@ import { Notification } from '../entities/notification.entity';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { NotificationHelperService } from '../shared/notification-helper.service';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Notification, User, Post])],
+  imports: [TypeOrmModule.forFeature([Notification, User, Post]), RealtimeModule],
   controllers: [NotificationsController],
   providers: [NotificationsService, NotificationHelperService],
   exports: [NotificationHelperService],

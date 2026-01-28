@@ -6,6 +6,7 @@ import { DmMessage } from '../entities/dm-message.entity';
 import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { NotificationHelperService } from '../shared/notification-helper.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class MessagesService {
@@ -15,6 +16,7 @@ export class MessagesService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
     private notificationHelper: NotificationHelperService,
+    private realtimeGateway: RealtimeGateway,
   ) {}
 
   async findOrCreateThread(userId: string, otherUserId: string) {
@@ -86,6 +88,14 @@ export class MessagesService {
 
     // Notify recipient
     const recipientId = thread.userA === userId ? thread.userB : thread.userA;
+    
+    // Emit real-time message event for chat UI
+    this.realtimeGateway.sendMessage(recipientId, {
+      ...savedMessage,
+      threadId: thread.id,
+    });
+
+    // Create persistent notification
     await this.notificationHelper.createNotification({
       userId: recipientId,
       type: 'DM' as any,

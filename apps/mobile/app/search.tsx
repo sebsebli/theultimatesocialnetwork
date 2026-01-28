@@ -116,12 +116,12 @@ export default function SearchScreen() {
               >
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>
-                    {item.displayName?.charAt(0) || item.handle.charAt(0).toUpperCase()}
+                    {(item.displayName ?? item.handle ?? '?').charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.personInfo}>
-                  <Text style={styles.personName}>{item.displayName || item.handle}</Text>
-                  <Text style={styles.personHandle}>@{item.handle}</Text>
+                  <Text style={styles.personName}>{item.displayName || item.handle || '—'}</Text>
+                  <Text style={styles.personHandle}>@{item.handle ?? '—'}</Text>
                   {item.bio && (
                     <Text style={styles.personBio} numberOfLines={2}>{item.bio}</Text>
                   )}

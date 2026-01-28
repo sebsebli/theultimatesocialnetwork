@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Switch, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,37 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { api } from '../../../utils/api';
+
+// Moved outside to prevent re-mounting on every render
+const RelevanceSlider = ({ 
+  label, 
+  valueKey, 
+  value, 
+  onValueChange 
+}: { 
+  label: string, 
+  valueKey: string, 
+  value: number, 
+  onValueChange: (key: string, val: number) => void 
+}) => (
+  <View style={styles.sliderContainer}>
+    <View style={styles.sliderHeader}>
+      <Text style={styles.sliderLabel}>{label}</Text>
+      <Text style={styles.sliderValue}>{Math.round(value)}%</Text>
+    </View>
+    <Slider
+      style={styles.slider}
+      minimumValue={0}
+      maximumValue={100}
+      value={value}
+      onValueChange={(val: number) => onValueChange(valueKey, val)}
+      minimumTrackTintColor={COLORS.primary}
+      maximumTrackTintColor={COLORS.divider}
+      thumbTintColor={COLORS.paper}
+    />
+  </View>
+);
 
 export default function RelevanceSettingsScreen() {
   const router = useRouter();
@@ -22,40 +53,46 @@ export default function RelevanceSettingsScreen() {
     likes: 30,
     networkProximity: 40,
   });
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // Fetch initial settings
+    api.get('/users/me').then((user: any) => {
+      if (user.preferences?.explore) {
+        setSliders(prev => ({ ...prev, ...user.preferences.explore }));
+      }
+    });
+  }, []);
+
+  const savePreferences = (newSliders: any) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      api.patch('/users/me', {
+        preferences: {
+          explore: newSliders
+        }
+      }).catch(console.error);
+    }, 1000); // Debounce 1s
+  };
 
   const handleSliderChange = (key: string, value: number) => {
-    setSliders(prev => ({ ...prev, [key]: value }));
+    const newSliders = { ...sliders, [key]: value };
+    setSliders(newSliders);
+    savePreferences(newSliders);
   };
 
   const handleReset = () => {
-    setSliders({
+    const defaults = {
       topicsYouFollow: 80,
       languageMatch: 70,
       citations: 90,
       replies: 50,
       likes: 30,
       networkProximity: 40,
-    });
+    };
+    setSliders(defaults);
+    savePreferences(defaults);
   };
-
-  const RelevanceSlider = ({ label, valueKey }: { label: string, valueKey: keyof typeof sliders }) => (
-    <View style={styles.sliderContainer}>
-      <View style={styles.sliderHeader}>
-        <Text style={styles.sliderLabel}>{label}</Text>
-        <Text style={styles.sliderValue}>{Math.round(sliders[valueKey])}%</Text>
-      </View>
-      <Slider
-        style={styles.slider}
-        minimumValue={0}
-        maximumValue={100}
-        value={sliders[valueKey]}
-        onValueChange={(val: number) => handleSliderChange(valueKey, val)}
-        minimumTrackTintColor={COLORS.primary}
-        maximumTrackTintColor={COLORS.divider}
-        thumbTintColor={COLORS.paper}
-      />
-    </View>
-  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -83,12 +120,42 @@ export default function RelevanceSettingsScreen() {
 
         {enabled && (
           <View style={styles.controls}>
-            <RelevanceSlider label="Topics you follow" valueKey="topicsYouFollow" />
-            <RelevanceSlider label="Language match" valueKey="languageMatch" />
-            <RelevanceSlider label="Citations / Quotes" valueKey="citations" />
-            <RelevanceSlider label="Replies / Discussion" valueKey="replies" />
-            <RelevanceSlider label="Likes (Private Signal)" valueKey="likes" />
-            <RelevanceSlider label="Network Proximity" valueKey="networkProximity" />
+            <RelevanceSlider 
+              label="Topics you follow" 
+              valueKey="topicsYouFollow" 
+              value={sliders.topicsYouFollow}
+              onValueChange={handleSliderChange}
+            />
+            <RelevanceSlider 
+              label="Language match" 
+              valueKey="languageMatch" 
+              value={sliders.languageMatch}
+              onValueChange={handleSliderChange}
+            />
+            <RelevanceSlider 
+              label="Citations / Quotes" 
+              valueKey="citations" 
+              value={sliders.citations}
+              onValueChange={handleSliderChange}
+            />
+            <RelevanceSlider 
+              label="Replies / Discussion" 
+              valueKey="replies" 
+              value={sliders.replies}
+              onValueChange={handleSliderChange}
+            />
+            <RelevanceSlider 
+              label="Likes (Private Signal)" 
+              valueKey="likes" 
+              value={sliders.likes}
+              onValueChange={handleSliderChange}
+            />
+            <RelevanceSlider 
+              label="Network Proximity" 
+              valueKey="networkProximity" 
+              value={sliders.networkProximity}
+              onValueChange={handleSliderChange}
+            />
 
             <View style={[styles.toggleRow, styles.showWhyToggle]}>
               <View style={styles.toggleText}>

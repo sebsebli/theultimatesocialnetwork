@@ -11,6 +11,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useToast } from '../context/ToastContext';
 import { MarkdownText } from './MarkdownText';
 import AddToCollectionSheet, { AddToCollectionSheetRef } from './AddToCollectionSheet';
+import ShareSheet, { ShareSheetRef } from './ShareSheet';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 interface PostItemProps {
@@ -55,6 +56,7 @@ function PostItemComponent({
   const [kept, setKept] = React.useState(false);
   const scaleValue = useRef(new Animated.Value(1)).current;
   const collectionSheetRef = useRef<AddToCollectionSheetRef>(null);
+  const shareSheetRef = useRef<ShareSheetRef>(null);
 
   const formatTime = (date: string) => {
     const d = new Date(date);
@@ -129,20 +131,9 @@ function PostItemComponent({
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     Haptics.selectionAsync();
-    const url = `https://cite.app/post/${post.id}`;
-    try {
-      if (Platform.OS === 'web') {
-        await navigator.clipboard.writeText(url);
-        showSuccess(t('post.linkCopied', 'Link copied to clipboard'));
-      } else {
-        await Share.share({ message: url });
-      }
-      onShare?.();
-    } catch (error) {
-      console.error('Failed to share', error);
-    }
+    shareSheetRef.current?.open(post.id);
   };
 
   const handleReport = async () => {
@@ -350,6 +341,7 @@ function PostItemComponent({
       </View>
 
       <AddToCollectionSheet ref={collectionSheetRef} />
+      <ShareSheet ref={shareSheetRef} />
     </View>
   );
 }

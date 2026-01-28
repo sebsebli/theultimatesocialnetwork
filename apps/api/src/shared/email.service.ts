@@ -21,9 +21,13 @@ export class EmailService {
     const pass = this.configService.get<string>('SMTP_PASS');
 
     if (!host || !user || !pass) {
-      this.logger.warn('SMTP not configured. Email sending will be disabled.');
+      if (this.configService.get<string>('NODE_ENV') === 'production') {
+        throw new Error(
+          'SMTP configuration is missing in production. Please set SMTP_HOST, SMTP_USER, and SMTP_PASS.',
+        );
+      }
       this.logger.warn(
-        'Set SMTP_HOST, SMTP_USER, and SMTP_PASS to enable email.',
+        'SMTP not configured. Email sending will be disabled (DEV mode).',
       );
       return;
     }
@@ -48,7 +52,7 @@ export class EmailService {
 
     if (!this.transporter) {
       this.logger.warn(
-        `[MOCK EMAIL] Sign In Token for ${email} (${lang}): ${token}`,
+        `[DEV] Email suppressed (SMTP not configured). To: ${email}, Token: ${token}`,
       );
       return false;
     }
@@ -94,7 +98,9 @@ export class EmailService {
     const subject = t.subject;
 
     if (!this.transporter) {
-      this.logger.warn(`[MOCK EMAIL] Invite code for ${to} (${lang}): ${code}`);
+      this.logger.warn(
+        `[DEV] Email suppressed (SMTP not configured). To: ${to}, Code: ${code}`,
+      );
       return false;
     }
 
@@ -138,7 +144,9 @@ export class EmailService {
     attachments?: Array<{ filename: string; content: Buffer }>,
   ): Promise<boolean> {
     if (!this.transporter) {
-      this.logger.warn(`[MOCK EMAIL] To: ${to} | Subject: ${subject}`);
+      this.logger.warn(
+        `[DEV] Email suppressed (SMTP not configured). To: ${to} | Subject: ${subject}`,
+      );
       return false;
     }
 

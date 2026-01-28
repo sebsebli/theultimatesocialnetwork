@@ -262,7 +262,10 @@ export default function ComposeScreen() {
         <View style={styles.toolbar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarContent}>
             <Pressable style={[styles.toolbarButton, styles.toolbarButtonActive]} onPress={() => insertText('# ')}>
-              <Text style={styles.toolbarButtonText}>T</Text>
+              <Text style={styles.toolbarButtonText}>H1</Text>
+            </Pressable>
+            <Pressable style={styles.toolbarButton} onPress={() => insertText('## ')}>
+              <Text style={styles.toolbarButtonText}>H2</Text>
             </Pressable>
             <Pressable style={styles.toolbarButton} onPress={() => insertText('**', '**')}>
               <Text style={styles.toolbarButtonText}>B</Text>

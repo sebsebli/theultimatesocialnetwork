@@ -36,7 +36,7 @@ export function Navigation() {
           }`}
         >
           <svg className="w-6 h-6 mt-1" fill={isActive('/explore') ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
           <span className={`text-[10px] font-bold uppercase tracking-widest mt-1 transition-opacity ${isActive('/explore') ? 'opacity-100' : 'opacity-0'}`}>{t('explore')}</span>
         </Link>

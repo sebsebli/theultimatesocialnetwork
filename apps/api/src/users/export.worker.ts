@@ -3,9 +3,8 @@ import { UsersService } from './users.service';
 import { Worker, Job } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import archiver from 'archiver';
-import * as nodemailer from 'nodemailer';
 import Redis from 'ioredis';
-import { Readable } from 'stream';
+import { EmailService } from '../shared/email.service';
 
 @Injectable()
 export class ExportWorker implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -15,6 +14,7 @@ export class ExportWorker implements OnApplicationBootstrap, OnApplicationShutdo
   constructor(
     private usersService: UsersService,
     private configService: ConfigService,
+    private emailService: EmailService,
     @Inject('REDIS_CLIENT') private redis: Redis, 
   ) {}
 
@@ -52,7 +52,13 @@ export class ExportWorker implements OnApplicationBootstrap, OnApplicationShutdo
             const resultBuffer = Buffer.concat(chunks);
             
             // 3. Send Email
-            await this.sendEmail(userEmail, resultBuffer);
+            await this.emailService.sendEmail(
+                userEmail, 
+                'Your Data Export', 
+                '<p>Attached is your requested data export.</p>',
+                'Attached is your requested data export.',
+                [{ filename: 'cite-export.zip', content: resultBuffer }]
+            );
             resolve();
         });
         
@@ -70,38 +76,5 @@ export class ExportWorker implements OnApplicationBootstrap, OnApplicationShutdo
         
         archive.finalize();
     });
-  }
-
-  async sendEmail(to: string, attachment: Buffer) {
-    // Mock Email Service if keys not present
-    const host = this.configService.get('SMTP_HOST');
-    if (!host) {
-        this.logger.log(`[MOCK EMAIL] To: ${to} | Subject: Your Data Export | Attachment Size: ${attachment.length} bytes`);
-        return;
-    }
-
-    const transporter = nodemailer.createTransport({
-        host: host,
-        port: parseInt(this.configService.get('SMTP_PORT') || '587'),
-        secure: this.configService.get('SMTP_SECURE') === 'true',
-        auth: {
-            user: this.configService.get('SMTP_USER'),
-            pass: this.configService.get('SMTP_PASS'),
-        },
-    });
-
-    await transporter.sendMail({
-        from: '"Cite System" <noreply@cite.com>',
-        to: to,
-        subject: 'Your Data Export',
-        text: 'Attached is your requested data export.',
-        attachments: [
-            {
-                filename: 'cite-export.zip',
-                content: attachment,
-            },
-        ],
-    });
-    this.logger.log(`Email sent to ${to}`);
   }
 }

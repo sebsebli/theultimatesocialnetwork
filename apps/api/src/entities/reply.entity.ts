@@ -10,8 +10,16 @@ export class Reply {
   @Column({ name: 'post_id', type: 'uuid' })
   postId: string;
 
+  @ManyToOne(() => Post)
+  @JoinColumn({ name: 'post_id' })
+  post: Post;
+
   @Column({ name: 'author_id', type: 'uuid' })
   authorId: string;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'author_id' })
+  author: User;
 
   @Column({ name: 'parent_reply_id', type: 'uuid', nullable: true })
   parentReplyId: string | null;

@@ -5,6 +5,7 @@ import { Follow } from '../entities/follow.entity';
 import { FollowRequest, FollowRequestStatus } from '../entities/follow-request.entity';
 import { User } from '../entities/user.entity';
 import { Neo4jService } from '../database/neo4j.service';
+import { NotificationHelperService } from '../shared/notification-helper.service';
 
 @Injectable()
 export class FollowsService {
@@ -14,6 +15,7 @@ export class FollowsService {
     @InjectRepository(User) private userRepo: Repository<User>,
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
+    private notificationHelper: NotificationHelperService,
   ) {}
 
   async follow(followerId: string, followeeId: string) {
@@ -55,7 +57,16 @@ export class FollowsService {
         status: FollowRequestStatus.PENDING as any,
       });
 
-      return this.followRequestRepo.save(request);
+      const savedRequest = await this.followRequestRepo.save(request);
+
+      // Notify target of follow request
+      await this.notificationHelper.createNotification({
+        userId: followeeId,
+        type: 'FOLLOW_REQUEST' as any,
+        actorUserId: followerId,
+      });
+
+      return savedRequest;
     }
 
     // Transaction for SQL updates
@@ -71,6 +82,13 @@ export class FollowsService {
       await queryRunner.manager.increment(User, { id: followerId }, 'followingCount', 1);
 
       await queryRunner.commitTransaction();
+
+      // Create notification
+      await this.notificationHelper.createNotification({
+        userId: followeeId,
+        type: 'FOLLOW' as any,
+        actorUserId: followerId,
+      });
 
       // Neo4j update (best effort background)
       this.neo4jService.run(

@@ -26,15 +26,17 @@ export default function PostDetailScreen() {
   const [kept, setKept] = useState(false);
 
   useEffect(() => {
-    loadPost();
-    // Fire view beacon (fire and forget)
-    api.post(`/posts/${id}/view`).catch(err => console.log('View tracking failed', err));
+    if (!id) return;
+    
+    // Track view
+    api.post(`/posts/${id}/view`).catch(() => {});
 
-    const start = Date.now();
+    // Track read time on unmount
+    const startTime = Date.now();
     return () => {
-      const duration = Math.floor((Date.now() - start) / 1000);
-      if (duration > 0) {
-        api.post(`/posts/${id}/read-time`, { duration }).catch(err => console.log('Read time tracking failed', err));
+      const duration = Math.floor((Date.now() - startTime) / 1000);
+      if (duration > 5) {
+        api.post(`/posts/${id}/read-time`, { duration }).catch(() => {});
       }
     };
   }, [id]);
@@ -52,7 +54,7 @@ export default function PostDetailScreen() {
       Promise.all([
         api.get(`/posts/${id}/replies`),
         api.get(`/posts/${id}/referenced-by`),
-        api.get(`/posts/${id}/sources`).catch(() => []),
+        api.get(`/posts/${id}/sources`),
       ]).then(([repliesRes, referencedRes, sourcesRes]) => {
         setReplies(Array.isArray(repliesRes) ? repliesRes : []);
         setReferencedBy(Array.isArray(referencedRes) ? referencedRes : []);

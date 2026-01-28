@@ -26,6 +26,27 @@ export default function OnboardingProfileScreen() {
   const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await api.get<any>('/users/me');
+        if (user) {
+          setDisplayName(user.displayName || '');
+          setHandle(user.handle || '');
+          setBio(user.bio || '');
+          setIsProtected(user.isProtected || false);
+          // If handle exists, mark as available/valid so we don't force re-check unless changed
+          if (user.handle) {
+             setHandleStatus('available'); 
+          }
+        }
+      } catch (e) {
+        // Ignore error if new user
+      }
+    };
+    fetchUser();
+  }, []);
+
   const normalizedHandle = handle.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
   const handleLen = normalizedHandle.length;
   const handleTooShort = handleLen > 0 && handleLen < HANDLE_MIN;

@@ -142,6 +142,48 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="user"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="collections"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="onboarding"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="post"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="topic"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

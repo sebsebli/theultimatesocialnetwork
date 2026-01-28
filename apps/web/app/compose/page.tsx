@@ -320,11 +320,18 @@ function ComposeContent() {
                 {/* Left Group: Formatting */}
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={insertTitle}
-                    className={`size-10 flex items-center justify-center rounded-lg transition-colors ${body.startsWith('#') ? 'text-primary bg-primary/10' : 'text-tertiary hover:text-paper hover:bg-white/5'}`}
-                    title="Toggle Title"
+                    onClick={() => insertText('# ')}
+                    className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
+                    title="Heading 1"
                   >
-                    <span className="font-serif font-bold text-xl">T</span>
+                    <span className="font-serif font-bold text-lg">H1</span>
+                  </button>
+                  <button
+                    onClick={() => insertText('## ')}
+                    className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
+                    title="Heading 2"
+                  >
+                    <span className="font-serif font-bold text-lg">H2</span>
                   </button>
                   <button
                     onClick={() => insertText('**', '**')}
