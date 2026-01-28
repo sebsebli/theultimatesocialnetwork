@@ -220,9 +220,9 @@ export class SafetyService {
     text: string,
     userId?: string,
     contentType?: 'post' | 'reply',
-  ): Promise<{ safe: boolean; reason?: string; confidence?: number }> {
+    options: { onlyFast?: boolean } = {}, // Support async moderation options
+  ): Promise<{ safe: boolean; reason?: string; confidence?: number; needsStage2?: boolean }> {
     // Use ContentModerationService for two-stage moderation
-    // This method is kept for backward compatibility
     if (!this.contentModeration) {
       // Fallback if ContentModerationService not injected
       const lower = text.toLowerCase();
@@ -233,7 +233,7 @@ export class SafetyService {
       return { safe: true };
     }
 
-    return this.contentModeration.checkContent(text, userId || '', contentType || 'post');
+    return this.contentModeration.checkContent(text, userId || '', contentType || 'post', options);
   }
 
   async checkImage(buffer: Buffer): Promise<{ safe: boolean; reason?: string; confidence?: number }> {

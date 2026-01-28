@@ -10,6 +10,7 @@ import { Neo4jService } from '../database/neo4j.service';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { EmbeddingService } from '../shared/embedding.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
+import { SafetyService } from '../safety/safety.service';
 import { EdgeType } from '../entities/post-edge.entity';
 
 interface PostJobData {
@@ -30,6 +31,7 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
     private meilisearchService: MeilisearchService,
     private embeddingService: EmbeddingService,
     private notificationHelper: NotificationHelperService,
+    private safetyService: SafetyService,
     @Inject('REDIS_CLIENT') private redis: Redis,
   ) {}
 
@@ -66,6 +68,16 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
     }
 
     try {
+        // 0. Async Moderation (Full Stage 2 Check)
+        // If content was flagged as "ambiguous" in Stage 1, this will catch it.
+        const safety = await this.safetyService.checkContent(post.body, userId, 'post');
+        if (!safety.safe) {
+            this.logger.warn(`Post ${postId} failed async moderation: ${safety.reason}`);
+            await this.postRepo.softDelete(postId);
+            // TODO: Create "Violation" notification
+            return;
+        }
+
         // 1. Embedding & Search Indexing
         const embeddingText = `${post.title || ''} ${post.body}`.trim();
         const embedding = await this.embeddingService.generateEmbedding(embeddingText);
@@ -179,7 +191,6 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
         }
 
         // 3. Feed Fan-out (Push Model)
-        // Push post ID to followers' feeds
         const BATCH_SIZE = 1000;
         let page = 0;
         let followers: Follow[];

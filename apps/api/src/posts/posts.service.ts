@@ -49,11 +49,12 @@ export class PostsService {
       KEEP_CONTENT: true,
     });
 
-    // AI Safety Check
+    // AI Safety Check (Fast Stage 1 only)
     const safety = await this.safetyService.checkContent(
       sanitizedBody,
       userId,
       'post',
+      { onlyFast: true },
     );
     if (!safety.safe) {
       throw new BadRequestException(

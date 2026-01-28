@@ -184,7 +184,7 @@ export class ContentModerationService implements OnModuleInit {
     if (repeated.isRepeated) {
       return {
         safe: false,
-        reason: `Repeated content detected. This content has been posted ${repeated.count} times.`,
+        reason: `Repeated content detected. This content has been posted ${repeated.count} times.`, 
         confidence: 0.95,
         needsStage2: false,
       };
@@ -251,7 +251,7 @@ export class ContentModerationService implements OnModuleInit {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gemma3:270m', // Try gemma3:270m first, fallback handled by Ollama
-          prompt: `Analyze this content for safety. Check for: violence, harassment, hate speech, threats, or harmful content. Respond with JSON: {"safe": true/false, "reason": "explanation", "confidence": 0.0-1.0}\n\nContent: "${text.substring(0, 500)}"`,
+          prompt: `Analyze this content for safety. Check for: violence, harassment, hate speech, threats, or harmful content. Respond with JSON: {"safe": true/false, "reason": "explanation", "confidence": 0.0-1.0}\n\nContent: "${text.substring(0, 500)}"`, 
           stream: false,
           options: {
             temperature: 0.1, // Low temperature for consistent analysis
@@ -324,7 +324,7 @@ export class ContentModerationService implements OnModuleInit {
       
       return {
         safe: false,
-        reason: `Content contains ${reasons.join(', ')}.`,
+        reason: `Content contains ${reasons.join(', ')}.`, 
         confidence: 0.7,
       };
     }
@@ -340,7 +340,8 @@ export class ContentModerationService implements OnModuleInit {
     text: string,
     userId: string,
     contentType: 'post' | 'reply' = 'post',
-  ): Promise<{ safe: boolean; reason?: string; confidence?: number }> {
+    options: { onlyFast?: boolean } = {}, // Added option
+  ): Promise<{ safe: boolean; reason?: string; confidence?: number; needsStage2?: boolean }> {
     // Stage 1: Fast Bayesian Filter
     const stage1Result = await this.stage1BayesianFilter(text, userId, contentType);
 
@@ -350,7 +351,17 @@ export class ContentModerationService implements OnModuleInit {
         safe: stage1Result.safe,
         reason: stage1Result.reason,
         confidence: stage1Result.confidence,
+        needsStage2: false,
       };
+    }
+
+    // If only fast check is requested, return ambiguous result
+    if (options.onlyFast) {
+        return {
+            safe: true, // Assume safe for now
+            confidence: stage1Result.confidence,
+            needsStage2: true, // Signal that it needs async check
+        };
     }
 
     // Stage 2: Gemma 3 270M for ambiguous cases
@@ -362,6 +373,7 @@ export class ContentModerationService implements OnModuleInit {
         safe: false,
         reason: stage2Result.reason || 'Content flagged by AI safety analysis.',
         confidence: stage2Result.confidence,
+        needsStage2: false,
       };
     }
 
@@ -369,6 +381,7 @@ export class ContentModerationService implements OnModuleInit {
     return {
       safe: true,
       confidence: (stage1Result.confidence + stage2Result.confidence) / 2,
+      needsStage2: false,
     };
   }
 
@@ -402,6 +415,7 @@ export class ContentModerationService implements OnModuleInit {
       
       // Determine image format
       let mimeType = 'image/jpeg';
+      if (buffer[0] === 0xFF && buffer[1] === 0xD8) mimeType = 'image/jpeg';
       if (buffer[0] === 0x89 && buffer[1] === 0x50) mimeType = 'image/png';
       if (buffer[0] === 0x52 && buffer[1] === 0x49) mimeType = 'image/webp';
 
@@ -412,7 +426,7 @@ export class ContentModerationService implements OnModuleInit {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gemma3:270m', // Try gemma3:270m first
-          prompt: `Analyze this image for appropriateness. Check for: nudity, violence, explicit content, inappropriate material. Respond with JSON only: {"safe": true/false, "reason": "explanation", "confidence": 0.0-1.0}`,
+          prompt: `Analyze this image for appropriateness. Check for: nudity, violence, explicit content, inappropriate material. Respond with JSON only: {"safe": true/false, "reason": "explanation", "confidence": 0.0-1.0}`, 
           images: [base64Image],
           stream: false,
           options: {
