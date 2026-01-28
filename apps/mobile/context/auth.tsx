@@ -9,6 +9,7 @@ import {
   setOnboardingComplete as persistOnboardingComplete,
   api,
 } from '../utils/api';
+import { registerForPush } from '../utils/push-notifications';
 
 interface AuthContextType {
   signIn: (token: string) => Promise<void>;
@@ -57,6 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsAuthenticated(true);
           const complete = await getOnboardingComplete();
           setOnboardingComplete(complete);
+          
+          // Re-register push token on launch
+          registerForPush(token).catch(err => console.warn('Push registration failed', err));
         } catch (apiError: any) {
           if (apiError?.message === 'Auth check timeout' || apiError?.status === 0) {
             if (__DEV__) {
@@ -92,6 +96,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(true);
     const complete = await getOnboardingComplete();
     setOnboardingComplete(complete);
+    
+    // Register push token
+    registerForPush(token).catch(err => console.warn('Push registration failed', err));
+
     if (complete) {
       router.replace('/(tabs)/');
     } else {
