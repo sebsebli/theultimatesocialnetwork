@@ -6,6 +6,7 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Post } from './post.entity';
 import { User } from './user.entity';
@@ -16,6 +17,7 @@ export class Reply {
   id: string;
 
   @Column({ name: 'post_id', type: 'uuid' })
+  @Index() // Efficient lookup for post replies
   postId: string;
 
   @ManyToOne(() => Post, { onDelete: 'CASCADE' })
@@ -23,6 +25,7 @@ export class Reply {
   post: Post;
 
   @Column({ name: 'author_id', type: 'uuid' })
+  @Index() // Efficient lookup for user replies
   authorId: string;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
