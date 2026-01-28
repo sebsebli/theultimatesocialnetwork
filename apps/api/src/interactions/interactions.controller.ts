@@ -17,7 +17,7 @@ export class InteractionsController {
 
   @Post(':id/view')
   @UseGuards(OptionalJwtAuthGuard)
-  async view(@Param('id', ParseUUIDPipe) postId: string) {
+  view(@Param('id', ParseUUIDPipe) postId: string) {
     // Fire and forget - don't wait for Redis
     this.interactionsService
       .recordView(postId)

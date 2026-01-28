@@ -13,7 +13,7 @@ export class PushService {
   async register(userId: string, dto: RegisterPushTokenDto) {
     // Upsert logic
     let token = await this.pushTokenRepo.findOne({
-      where: { provider: dto.provider as any, token: dto.token } as any,
+      where: { provider: dto.provider, token: dto.token },
     });
 
     if (token) {
@@ -24,7 +24,7 @@ export class PushService {
     } else {
       token = this.pushTokenRepo.create({
         userId,
-        provider: dto.provider as any,
+        provider: dto.provider,
         token: dto.token,
         platform: dto.platform,
         deviceId: dto.device_id,

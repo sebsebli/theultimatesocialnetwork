@@ -8,14 +8,12 @@ export class MeilisearchService implements OnModuleInit {
   private readonly indexName = 'posts';
 
   constructor(private configService: ConfigService) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const host =
-      this.configService.get('MEILISEARCH_HOST') || 'http://localhost:7700';
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      this.configService.get<string>('MEILISEARCH_HOST') ||
+      'http://localhost:7700';
     const apiKey =
-      this.configService.get('MEILISEARCH_MASTER_KEY') || 'masterKey';
+      this.configService.get<string>('MEILISEARCH_MASTER_KEY') || 'masterKey';
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.client = new MeiliSearch({
       host,
       apiKey,
@@ -52,10 +50,10 @@ export class MeilisearchService implements OnModuleInit {
           },
         },
       });
-    } catch (error: unknown) {
+    } catch (error) {
       // Index might already exist or feature already enabled
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      console.log('Meilisearch index setup:', (error as any).message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.log('Meilisearch index setup:', message);
     }
   }
 
@@ -178,8 +176,7 @@ export class MeilisearchService implements OnModuleInit {
         limit,
         filter,
       });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-      return results;
+      return results as { hits: Record<string, any>[] };
     } catch (error) {
       console.error('Meilisearch vector search error', error);
       return { hits: [] };

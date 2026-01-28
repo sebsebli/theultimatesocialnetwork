@@ -57,8 +57,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const exceptionResponse = exception.getResponse();
       message =
-        typeof exceptionResponse === 'object'
-          ? (exceptionResponse as any).message || 'An error occurred'
+        typeof exceptionResponse === 'object' && exceptionResponse !== null
+          ? ((exceptionResponse as Record<string, any>).message as string) ||
+            'An error occurred'
           : exceptionResponse;
     } else {
       // In production, don't expose internal error details
@@ -80,7 +81,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         code:
           status >= 500
             ? 'INTERNAL_SERVER_ERROR'
-            : (exception as any).name || 'BAD_REQUEST',
+            : (exception as Error).name || 'BAD_REQUEST',
         message,
         statusCode: status,
         traceId,

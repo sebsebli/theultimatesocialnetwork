@@ -1,6 +1,6 @@
 import { QueueOptions } from 'bullmq';
 
-export const defaultQueueConfig: QueueOptions = {
+export const defaultQueueConfig: Omit<QueueOptions, 'connection'> = {
   defaultJobOptions: {
     attempts: 5,
     backoff: {

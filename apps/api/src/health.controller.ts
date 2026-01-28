@@ -28,7 +28,7 @@ export class HealthController {
     try {
       await this.dataSource.query('SELECT 1');
       status.services.database = 'up';
-    } catch (e) {
+    } catch {
       status.services.database = 'down';
       status.status = 'error';
     }
@@ -36,7 +36,7 @@ export class HealthController {
     try {
       await this.redis.ping();
       status.services.redis = 'up';
-    } catch (e) {
+    } catch {
       status.services.redis = 'down';
       status.status = 'error';
     }

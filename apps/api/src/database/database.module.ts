@@ -2,7 +2,6 @@ import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Neo4jService } from './neo4j.service';
-import { User } from '../entities/user.entity';
 // ... other imports
 
 @Global()

@@ -11,6 +11,7 @@ import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
+import { NotificationType } from '../entities/notification.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 
@@ -81,11 +82,9 @@ export class FollowWorker
         );
 
         // 3. Notification
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         await this.notificationHelper.createNotification({
           userId: followeeId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          type: 'FOLLOW' as any,
+          type: NotificationType.FOLLOW,
           actorUserId: followerId,
         });
       } else {

@@ -7,7 +7,6 @@ import { Like } from '../entities/like.entity';
 import { Keep } from '../entities/keep.entity';
 import { Post } from '../entities/post.entity';
 import { PostRead } from '../entities/post-read.entity';
-import { NotificationHelperService } from '../shared/notification-helper.service';
 import { SharedModule } from '../shared/shared.module';
 import Redis from 'ioredis';
 

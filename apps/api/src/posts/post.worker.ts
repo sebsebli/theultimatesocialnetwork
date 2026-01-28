@@ -12,6 +12,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Post } from '../entities/post.entity';
 import { Follow } from '../entities/follow.entity';
+import { NotificationType } from '../entities/notification.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { EmbeddingService } from '../shared/embedding.service';
@@ -182,11 +183,9 @@ export class PostWorker
               where: { id: edge.toPostId },
             });
             if (quotedPost && quotedPost.authorId !== userId) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
               await this.notificationHelper.createNotification({
                 userId: quotedPost.authorId,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                type: 'QUOTE' as any,
+                type: NotificationType.QUOTE,
                 actorUserId: userId,
                 postId: quotedPost.id,
               });
@@ -208,11 +207,9 @@ export class PostWorker
               { postId: post.id, userId: mention.mentionedUserId },
             );
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
             await this.notificationHelper.createNotification({
               userId: mention.mentionedUserId,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              type: 'MENTION' as any,
+              type: NotificationType.MENTION,
               actorUserId: userId,
               postId: post.id,
             });

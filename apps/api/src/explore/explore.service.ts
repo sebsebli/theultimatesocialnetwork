@@ -23,7 +23,7 @@ export class ExploreService {
     private neo4jService: Neo4jService,
   ) {}
 
-  async getTopics(filter?: { lang?: string; sort?: string }) {
+  async getTopics() {
     // In a real implementation, filter by lang using Neo4j or complex queries
     const topics = await this.topicRepo.find({
       take: 20,
@@ -36,7 +36,7 @@ export class ExploreService {
     }));
   }
 
-  async getPeople(userId?: string, filter?: { lang?: string; sort?: string }) {
+  async getPeople(userId?: string) {
     // If user is logged in, use AI-powered recommendations
     if (userId) {
       // This will be handled by RecommendationService.getRecommendedPeople
@@ -90,7 +90,7 @@ export class ExploreService {
       .groupBy('edge.to_post_id')
       .orderBy('score', 'DESC')
       .limit(limit)
-      .getRawMany();
+      .getRawMany<{ postId: string; score: number }>();
 
     if (scoredIds.length === 0) {
       return [];
@@ -144,7 +144,7 @@ export class ExploreService {
       .where('edge.to_post_id IN (:...ids)', { ids: postIds })
       .andWhere('edge.edge_type = :type', { type: EdgeType.LINK })
       .groupBy('edge.to_post_id')
-      .getRawMany();
+      .getRawMany<{ postId: string; count: string }>();
 
     const backlinkMap = new Map(
       backlinks.map((b) => [b.postId, parseInt(b.count)]),
@@ -183,7 +183,7 @@ export class ExploreService {
       .groupBy('edge.to_post_id')
       .orderBy('count', 'DESC')
       .limit(limit)
-      .getRawMany();
+      .getRawMany<{ postId: string; count: string }>();
 
     if (rankedIds.length === 0) {
       return [];
@@ -233,7 +233,7 @@ export class ExploreService {
       .leftJoin('posts', 'post', 'post.id = source.post_id')
       .where('post.created_at >= :since', { since: sevenDaysAgo })
       .andWhere('post.deleted_at IS NULL')
-      .getRawMany();
+      .getRawMany<{ postId: string }>();
 
     const postIds = postsWithSources.map((p) => p.postId);
 

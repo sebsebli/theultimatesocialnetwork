@@ -9,7 +9,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Block } from '../entities/block.entity';
 import { Mute } from '../entities/mute.entity';
-import { Report } from '../entities/report.entity';
+import {
+  Report,
+  ReportStatus,
+  ReportTargetType,
+} from '../entities/report.entity';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
@@ -133,9 +137,9 @@ export class SafetyService {
     const report = this.reportRepo.create({
       reporterId,
       targetId,
-      targetType: targetType as any,
+      targetType: targetType as ReportTargetType,
       reason,
-      status: 'OPEN' as any,
+      status: ReportStatus.OPEN,
     });
 
     const savedReport = await this.reportRepo.save(report);
@@ -150,7 +154,7 @@ export class SafetyService {
     if (targetType !== 'POST' && targetType !== 'REPLY') return;
 
     const reportCount = await this.reportRepo.count({
-      where: { targetId, targetType: targetType as any },
+      where: { targetId, targetType: targetType as ReportTargetType },
     });
 
     const AUTO_DELETE_THRESHOLD = 10;

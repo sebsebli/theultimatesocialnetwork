@@ -20,9 +20,9 @@ export class ApnsSender {
       return this.token;
     }
 
-    const keyId = this.configService.get('APNS_KEY_ID');
-    const teamId = this.configService.get('APNS_TEAM_ID');
-    const p8Path = this.configService.get('APNS_P8_PATH');
+    const keyId = this.configService.get<string>('APNS_KEY_ID');
+    const teamId = this.configService.get<string>('APNS_TEAM_ID');
+    const p8Path = this.configService.get<string>('APNS_P8_PATH');
 
     if (!keyId || !teamId || !p8Path) {
       throw new Error('Missing APNs configuration');
@@ -75,7 +75,7 @@ export class ApnsSender {
     environment: 'sandbox' | 'production';
   }): Promise<{ ok: boolean; invalidToken?: boolean; error?: string }> {
     const { deviceToken, title, body, data, environment } = args;
-    const bundleId = this.configService.get('APNS_BUNDLE_ID');
+    const bundleId = this.configService.get<string>('APNS_BUNDLE_ID');
 
     if (!bundleId) {
       this.logger.error('APNs Bundle ID not configured');
@@ -115,7 +115,10 @@ export class ApnsSender {
           if (status === 200) {
             resolve({ ok: true });
           } else {
-            const responseBody = data ? JSON.parse(data) : {};
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            const responseBody: { reason?: string } = data
+              ? JSON.parse(data)
+              : {};
             const reason = responseBody.reason;
             this.logger.warn(`APNs error: ${status} ${reason}`);
 
@@ -131,16 +134,17 @@ export class ApnsSender {
           }
         });
 
-        req.on('error', (err) => {
+        req.on('error', (err: Error) => {
           this.logger.error('APNs request error', err);
           resolve({ ok: false, error: err.message });
         });
 
         req.end(JSON.stringify(payload));
       });
-    } catch (error: any) {
-      this.logger.error('Failed to send APNs notification', error);
-      return { ok: false, error: error.message };
+    } catch (error) {
+      const err = error as Error;
+      this.logger.error('Failed to send APNs notification', err);
+      return { ok: false, error: err.message };
     }
   }
 }

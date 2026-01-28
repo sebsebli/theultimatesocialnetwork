@@ -14,6 +14,7 @@ import { Reply } from '../entities/reply.entity';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
 import { Mention } from '../entities/mention.entity';
+import { NotificationType } from '../entities/notification.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 import { SafetyService } from '../safety/safety.service';
@@ -114,11 +115,9 @@ export class ReplyWorker
       // 3. Notifications (Post Author)
       const post = await this.postRepo.findOne({ where: { id: postId } });
       if (post && post.authorId !== userId) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         await this.notificationHelper.createNotification({
           userId: post.authorId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          type: 'REPLY' as any,
+          type: NotificationType.REPLY,
           actorUserId: userId,
           postId: postId,
           replyId: replyId,
@@ -139,11 +138,9 @@ export class ReplyWorker
             { replyId, userId: mention.mentionedUserId },
           );
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           await this.notificationHelper.createNotification({
             userId: mention.mentionedUserId,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            type: 'MENTION' as any,
+            type: NotificationType.MENTION,
             actorUserId: userId,
             postId: postId,
             replyId: replyId,

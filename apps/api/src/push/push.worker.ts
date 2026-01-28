@@ -34,7 +34,8 @@ export class PushWorker
     this.worker = new Worker(
       'push-processing',
       async (job: Job) => {
-        await this.processPush(job.data.id);
+        const data = job.data as { id: string };
+        await this.processPush(data.id);
       },
       {
         connection: new Redis(redisUrl || 'redis://redis:6379', {
@@ -55,17 +56,15 @@ export class PushWorker
   }
 
   async processPush(outboxId: string) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const outbox = await this.pushOutboxRepo.findOne({
       where: { id: outboxId },
-    } as any);
+    });
     if (!outbox) return;
 
     if (outbox.status === PushStatus.SENT) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tokens = await this.pushTokenRepo.find({
-      where: { userId: outbox.userId, disabledAt: null } as any,
+      where: { userId: outbox.userId, disabledAt: null },
     });
 
     if (tokens.length === 0) {

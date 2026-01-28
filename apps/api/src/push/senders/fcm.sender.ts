@@ -13,7 +13,7 @@ export class FcmSender {
   }
 
   private initialize() {
-    const serviceAccountPath = this.configService.get(
+    const serviceAccountPath = this.configService.get<string>(
       'FCM_SERVICE_ACCOUNT_JSON',
     );
     if (!serviceAccountPath) {
@@ -25,7 +25,7 @@ export class FcmSender {
       if (!admin.apps.length) {
         const serviceAccount = JSON.parse(
           fs.readFileSync(serviceAccountPath, 'utf8'),
-        );
+        ) as admin.ServiceAccount;
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
         });
@@ -61,10 +61,11 @@ export class FcmSender {
 
       await admin.messaging().send(message);
       return { ok: true };
-    } catch (error: any) {
-      this.logger.error('FCM send error', error);
+    } catch (error) {
+      const err = error as { code?: string; message: string };
+      this.logger.error('FCM send error', err);
 
-      const errorCode = error.code;
+      const errorCode = err.code;
       if (
         errorCode === 'messaging/registration-token-not-registered' ||
         errorCode === 'messaging/invalid-argument'
@@ -72,7 +73,7 @@ export class FcmSender {
         return { ok: false, invalidToken: true, error: errorCode };
       }
 
-      return { ok: false, error: error.message };
+      return { ok: false, error: err.message };
     }
   }
 }

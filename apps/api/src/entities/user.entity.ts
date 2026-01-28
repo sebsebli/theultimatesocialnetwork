@@ -6,9 +6,6 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
   Index,
-  OneToMany,
-  ManyToOne,
-  JoinColumn,
 } from 'typeorm';
 
 @Entity('users')

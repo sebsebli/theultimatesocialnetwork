@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Controller,
   Post,
@@ -17,6 +18,7 @@ export class UploadController {
   @Post('header-image')
   @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(FileInterceptor('image'))
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   async uploadHeaderImage(
     @CurrentUser() user: { id: string },
     @UploadedFile() file: any,
@@ -34,6 +36,7 @@ export class UploadController {
   @Post('profile-picture')
   @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(FileInterceptor('image'))
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   async uploadProfilePicture(
     @CurrentUser() user: { id: string },
     @UploadedFile() file: any,

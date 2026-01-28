@@ -25,9 +25,10 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
       console.log('Connected to Neo4j');
     } catch (e) {
       this.isHealthy = false;
+      const message = e instanceof Error ? e.message : String(e);
       console.error(
         'Failed to connect to Neo4j. Graph features will be disabled.',
-        e.message,
+        message,
       );
     }
   }

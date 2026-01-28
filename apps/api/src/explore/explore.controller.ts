@@ -12,21 +12,17 @@ export class ExploreController {
   ) {}
 
   @Get('topics')
-  async getTopics(@Query('lang') lang?: string, @Query('sort') sort?: string) {
-    return this.exploreService.getTopics({ lang, sort });
+  async getTopics() {
+    return this.exploreService.getTopics();
   }
 
   @Get('people')
-  async getPeople(
-    @CurrentUser() user?: { id: string },
-    @Query('lang') lang?: string,
-    @Query('sort') sort?: string,
-  ) {
+  async getPeople(@CurrentUser() user?: { id: string }) {
     // Use AI-powered recommendations if user is logged in
     if (user?.id) {
       return this.recommendationService.getRecommendedPeople(user.id, 20);
     }
-    return this.exploreService.getPeople(user?.id, { lang, sort });
+    return this.exploreService.getPeople(user?.id);
   }
 
   @Get('quoted-now')

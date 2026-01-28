@@ -41,10 +41,10 @@ export class NotificationHelperService {
         userId: data.userId,
         type: data.type,
         actorUserId: data.actorUserId,
-        postId: data.postId || undefined,
-        replyId: data.replyId || undefined,
-        collectionId: data.collectionId || undefined,
-      } as any,
+        postId: data.postId || null,
+        replyId: data.replyId || null,
+        collectionId: data.collectionId || null,
+      },
     });
 
     if (existing) {

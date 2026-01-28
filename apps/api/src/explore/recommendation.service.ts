@@ -26,6 +26,17 @@ interface ExplorePreferences {
  * AI-powered recommendation service
  * Uses embeddings for content similarity and personalization
  */
+interface UserInterestProfile {
+  topics: string[];
+  likedPosts: Post[];
+  keptPosts: Post[];
+  followedUsers: string[];
+}
+
+/**
+ * AI-powered recommendation service
+ * Uses embeddings for content similarity and personalization
+ */
 @Injectable()
 export class RecommendationService {
   constructor(
@@ -43,23 +54,19 @@ export class RecommendationService {
   /**
    * Get user's interest profile based on their activity
    */
-  private async getUserInterestProfile(userId: string): Promise<{
-    topics: string[];
-    likedPosts: Post[];
-    keptPosts: Post[];
-    followedUsers: string[];
-  }> {
+  private async getUserInterestProfile(
+    userId: string,
+  ): Promise<UserInterestProfile> {
     // Check cache for profile
     const cacheKey = `user_interest_profile:${userId}`;
-    let cachedProfile: any;
+    let cachedProfile: UserInterestProfile | undefined;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      cachedProfile = await this.cacheManager.get(cacheKey);
+      cachedProfile =
+        await this.cacheManager.get<UserInterestProfile>(cacheKey);
     } catch (e) {
       console.warn('Cache get failed', e);
     }
     if (cachedProfile) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return cachedProfile;
     }
 
@@ -138,13 +145,11 @@ export class RecommendationService {
     const cacheKey = `recs:posts:${userId}:${limit}`;
     let cachedRecs: Post[] | undefined;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      cachedRecs = await this.cacheManager.get(cacheKey);
+      cachedRecs = await this.cacheManager.get<Post[]>(cacheKey);
     } catch (e) {
       console.warn('Cache get failed', e);
     }
     if (cachedRecs) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return cachedRecs;
     }
 
@@ -207,17 +212,14 @@ export class RecommendationService {
             .join(',')}]`;
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const hits = await this.meilisearchService.searchSimilar(
           userVector,
           limit * 2, // Fetch candidates
           langFilter,
         );
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
-        const postIds = hits.hits.map((h: any) => h.id as string);
+        const postIds = hits.hits.map((h) => h.id as string);
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (postIds.length === 0) {
           resultPosts = await this.getFallbackRecommendations(
             userId,
@@ -227,14 +229,12 @@ export class RecommendationService {
         } else {
           // Re-hydrate posts
           const candidatePosts = await this.postRepo.find({
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
             where: { id: In(postIds) },
             relations: ['author'],
           });
 
           // Re-ranking (lightweight)
           // Map original rank to a score
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
           const rankMap = new Map<string, number>(
             postIds.map((id: string, index: number) => [id, index]),
           );
@@ -359,13 +359,11 @@ export class RecommendationService {
     const cacheKey = `recs:people:${userId}:${limit}`;
     let cachedRecs: User[] | undefined;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      cachedRecs = await this.cacheManager.get(cacheKey);
+      cachedRecs = await this.cacheManager.get<User[]>(cacheKey);
     } catch (e) {
       console.warn('Cache get failed', e);
     }
     if (cachedRecs) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return cachedRecs;
     }
 
@@ -383,10 +381,9 @@ export class RecommendationService {
       .groupBy('p.author_id')
       .orderBy('topicOverlap', 'DESC')
       .limit(limit * 2)
-      .getRawMany();
+      .getRawMany<{ authorId: string; topicOverlap: string }>();
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-    const candidateUserIds = similarUsers.map((su) => su.authorId) as string[];
+    const candidateUserIds = similarUsers.map((su) => su.authorId);
 
     let resultUsers: User[];
 
@@ -407,9 +404,8 @@ export class RecommendationService {
       // Sort by topic overlap
       const userMap = new Map(users.map((u) => [u.id, u]));
       resultUsers = similarUsers
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        .map((su) => userMap.get(su.authorId as string))
-        .filter((u) => u !== undefined)
+        .map((su) => userMap.get(su.authorId))
+        .filter((u): u is User => u !== undefined)
         .slice(0, limit);
     }
 

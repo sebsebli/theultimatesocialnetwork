@@ -13,6 +13,7 @@ import {
   FollowRequestStatus,
 } from '../entities/follow-request.entity';
 import { User } from '../entities/user.entity';
+import { NotificationType } from '../entities/notification.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 
@@ -65,17 +66,15 @@ export class FollowsService {
       const request = this.followRequestRepo.create({
         requesterId: followerId,
         targetId: followeeId,
-        status: FollowRequestStatus.PENDING as any,
+        status: FollowRequestStatus.PENDING,
       });
 
       const savedRequest = await this.followRequestRepo.save(request);
 
       // Notify target of follow request (Synchronous for immediate feedback, or queue? Sync is fine for requests)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
       await this.notificationHelper.createNotification({
         userId: followeeId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        type: 'FOLLOW_REQUEST' as any,
+        type: NotificationType.FOLLOW_REQUEST,
         actorUserId: followerId,
       });
 
@@ -144,13 +143,12 @@ export class FollowsService {
   }
 
   async approveFollowRequest(userId: string, requestId: string) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const request = await this.followRequestRepo.findOne({
       where: {
         id: requestId,
         targetId: userId,
         status: FollowRequestStatus.PENDING,
-      } as any,
+      },
     });
 
     if (!request) {
@@ -167,13 +165,12 @@ export class FollowsService {
   }
 
   async rejectFollowRequest(userId: string, requestId: string) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const request = await this.followRequestRepo.findOne({
       where: {
         id: requestId,
         targetId: userId,
         status: FollowRequestStatus.PENDING,
-      } as any,
+      },
     });
 
     if (!request) {

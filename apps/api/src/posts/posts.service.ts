@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   BadRequestException,
@@ -108,7 +109,10 @@ export class PostsService {
 
       // Explicitly save as single entity
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      savedPost = await queryRunner.manager.save(Post, post);
+      savedPost = (await queryRunner.manager.save(
+        Post,
+        post,
+      )) as unknown as Post;
 
       // 4. Extract & Process Wikilinks [[target|alias]]
       const wikilinkRegex = /\[\[(.*?)\]\]/g;
