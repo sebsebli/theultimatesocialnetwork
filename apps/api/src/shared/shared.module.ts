@@ -5,6 +5,7 @@ import Redis from 'ioredis';
 import { LanguageDetectionService } from './language-detection.service';
 import { NotificationHelperService } from './notification-helper.service';
 import { EmailService } from './email.service';
+import { EmbeddingService } from './embedding.service';
 import { Notification } from '../entities/notification.entity';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
@@ -20,6 +21,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
     LanguageDetectionService,
     NotificationHelperService,
     EmailService,
+    EmbeddingService,
     {
       provide: 'REDIS_CLIENT',
       useFactory: (config: ConfigService) => {
@@ -36,6 +38,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
     LanguageDetectionService,
     NotificationHelperService,
     EmailService,
+    EmbeddingService,
     'REDIS_CLIENT',
   ],
 })

@@ -18,6 +18,7 @@ import { LanguageDetectionService } from '../shared/language-detection.service';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 import { SafetyService } from '../safety/safety.service';
+import { EmbeddingService } from '../shared/embedding.service';
 
 @Injectable()
 export class PostsService {
@@ -33,6 +34,7 @@ export class PostsService {
     private meilisearch: MeilisearchService,
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
+    private embeddingService: EmbeddingService,
   ) {}
 
   async create(userId: string, dto: CreatePostDto): Promise<Post> {
@@ -101,7 +103,8 @@ export class PostsService {
       });
 
       // Explicitly save as single entity
-      savedPost = (await queryRunner.manager.save(Post, post)) as Post; // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      savedPost = (await queryRunner.manager.save(Post, post)) as Post;
 
       // Queue Neo4j User -> Post
       neo4jCommands.push(async () => {
@@ -229,8 +232,8 @@ export class PostsService {
           });
 
           // Create notification
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await this.notificationHelper.createNotification({ // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          await this.notificationHelper.createNotification({
             userId: mentionedUser.id,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             type: 'MENTION' as any,
@@ -266,29 +269,34 @@ export class PostsService {
       // Log errors
     });
 
-    // Index in Meilisearch (async, best effort)
-    // Fetch author for indexing
+    // Generate Embedding & Index in Meilisearch (async, best effort)
     const author = await this.postRepo.manager.findOne(User, {
       where: { id: savedPost.authorId },
     });
-    this.meilisearch
-      .indexPost({
-        id: savedPost.id,
-        title: savedPost.title,
-        body: savedPost.body,
-        authorId: savedPost.authorId,
-        author: author
-          ? {
-              displayName: author.displayName || author.handle,
-              handle: author.handle,
-            }
-          : undefined,
-        lang: savedPost.lang,
-        createdAt: savedPost.createdAt,
-        quoteCount: savedPost.quoteCount,
-        replyCount: savedPost.replyCount,
-      })
-      .catch((err) => console.error('Meilisearch indexing error', err));
+
+    const embeddingText = `${savedPost.title || ''} ${savedPost.body}`.trim();
+    this.embeddingService.generateEmbedding(embeddingText).then((vector) => {
+      this.meilisearch
+        .indexPost({
+          id: savedPost.id,
+          title: savedPost.title,
+          body: savedPost.body,
+          authorId: savedPost.authorId,
+          author:
+            author
+              ? {
+                  displayName: author.displayName || author.handle,
+                  handle: author.handle,
+                }
+              : undefined,
+          lang: savedPost.lang,
+          createdAt: savedPost.createdAt,
+          quoteCount: savedPost.quoteCount,
+          replyCount: savedPost.replyCount,
+          embedding: vector || undefined,
+        })
+        .catch((err) => console.error('Meilisearch indexing error', err));
+    }).catch((err) => console.error('Embedding generation error', err));
 
     return savedPost;
   }
@@ -300,8 +308,8 @@ export class PostsService {
       .toLowerCase()
       .trim()
       .replace(/\s+/g, '-')
-      .replace(/[^\w-]+/g, '') // fixed regex escape
-      .replace(/--+/g, '-'); // fixed regex escape
+      .replace(/[^\w-]+/g, '')
+      .replace(/--+/g, '-')
   }
 
   private isValidUUID(uuid: string) {
@@ -410,8 +418,8 @@ export class PostsService {
 
       // Notify quoted post author
       if (quotedPost.authorId !== userId) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await this.notificationHelper.createNotification({ // eslint-disable-line @typescript-eslint/no-unsafe-assignment
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+        await this.notificationHelper.createNotification({
           userId: quotedPost.authorId,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           type: 'QUOTE' as any,

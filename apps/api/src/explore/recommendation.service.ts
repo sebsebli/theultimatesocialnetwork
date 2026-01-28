@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -9,6 +9,8 @@ import { PostTopic } from '../entities/post-topic.entity';
 import { Follow } from '../entities/follow.entity';
 import { Like } from '../entities/like.entity';
 import { Keep } from '../entities/keep.entity';
+import { EmbeddingService } from '../shared/embedding.service';
+import { MeilisearchService } from '../search/meilisearch.service';
 
 // Define the shape of user exploration preferences
 interface ExplorePreferences {
@@ -25,11 +27,7 @@ interface ExplorePreferences {
  * Uses embeddings for content similarity and personalization
  */
 @Injectable()
-export class RecommendationService implements OnModuleInit {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private embeddingModel: any = null;
-  private isModelLoaded = false;
-
+export class RecommendationService {
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(User) private userRepo: Repository<User>,
@@ -38,89 +36,9 @@ export class RecommendationService implements OnModuleInit {
     @InjectRepository(Like) private likeRepo: Repository<Like>,
     @InjectRepository(Keep) private keepRepo: Repository<Keep>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private embeddingService: EmbeddingService,
+    private meilisearchService: MeilisearchService,
   ) {}
-
-  onModuleInit() {
-    // Load embedding model asynchronously (don't block startup)
-    void this.loadEmbeddingModel().catch((err: Error) => {
-      console.warn(
-        'Failed to load embedding model, recommendations will use fallback:',
-        err.message,
-      );
-    });
-  }
-
-  /**
-   * Load embedding model (Xenova Transformers - runs locally)
-   */
-  private async loadEmbeddingModel() {
-    try {
-      // Lazy import to avoid startup crashes if native deps are missing
-      const { pipeline } = await import('@xenova/transformers');
-      // Use a lightweight sentence transformer model
-      this.embeddingModel = await pipeline(
-        'feature-extraction',
-        'Xenova/all-MiniLM-L6-v2', // Fast, lightweight model
-      );
-      this.isModelLoaded = true;
-      console.log('✅ Embedding model loaded for recommendations');
-    } catch (error) {
-      console.warn('Could not load embedding model:', error);
-      this.isModelLoaded = false;
-    }
-  }
-
-  /**
-   * Generate embedding for text
-   */
-  private async generateEmbedding(text: string): Promise<number[] | null> {
-    if (!this.isModelLoaded || !this.embeddingModel) {
-      return null;
-    }
-
-    try {
-      // Clean text (remove markdown, wikilinks)
-      const cleanText = text
-        .replace(/\[\[.*?\]\]/g, '')
-        .replace(/\[.*?\]\(.*?\)/g, '')
-        .replace(/https?:\/\/[^\s]+/g, '')
-        .replace(/#+\s*/g, '')
-        .trim()
-        .substring(0, 512); // Limit length
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
-      const output = await this.embeddingModel(cleanText, {
-        pooling: 'mean',
-        normalize: true,
-      });
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
-      return Array.from(output.data);
-    } catch (error) {
-      console.error('Error generating embedding:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Calculate cosine similarity between two vectors
-   */
-  private cosineSimilarity(vec1: number[], vec2: number[]): number {
-    if (vec1.length !== vec2.length) return 0;
-
-    let dotProduct = 0;
-    let norm1 = 0;
-    let norm2 = 0;
-
-    for (let i = 0; i < vec1.length; i++) {
-      dotProduct += vec1[i] * vec2[i];
-      norm1 += vec1[i] * vec1[i];
-      norm2 += vec2[i] * vec2[i];
-    }
-
-    const denominator = Math.sqrt(norm1) * Math.sqrt(norm2);
-    return denominator === 0 ? 0 : dotProduct / denominator;
-  }
 
   /**
    * Get user's interest profile based on their activity
@@ -261,13 +179,19 @@ export class RecommendationService implements OnModuleInit {
       // New user - return trending posts
       resultPosts = await this.getTrendingPosts(limit);
     } else {
-      // Generate embeddings for user's interests
+      // Generate user embedding from interests
       const interestTexts = userProfile.likedPosts
         .concat(userProfile.keptPosts)
         .map((p) => `${p.title || ''} ${p.body}`.trim())
-        .slice(0, 10); // Use top 10 for efficiency
+        .slice(0, 5); // Use top 5 for speed
 
-      if (interestTexts.length === 0 || !this.isModelLoaded) {
+      let userVector: number[] | null = null;
+      if (interestTexts.length > 0) {
+        const text = interestTexts.join(' ').substring(0, 1000);
+        userVector = await this.embeddingService.generateEmbedding(text);
+      }
+
+      if (!userVector) {
         // Fallback: return posts from followed users or trending
         resultPosts = await this.getFallbackRecommendations(
           userId,
@@ -275,66 +199,49 @@ export class RecommendationService implements OnModuleInit {
           limit,
         );
       } else {
-        // Generate average embedding for user interests
-        const embeddings = await Promise.all(
-          interestTexts.map((text) => this.generateEmbedding(text)),
-        );
-        const validEmbeddings = embeddings.filter((e) => e !== null);
+        // Retrieve Candidates via Vector Search (Scalable)
+        let langFilter: string | undefined;
+        if (w.lang > 0.8 && user?.languages?.length) {
+          langFilter = `lang IN [${user.languages
+            .map((l) => `'${l}'`)
+            .join(',')}]`;
+        }
 
-        if (validEmbeddings.length === 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        const hits = await this.meilisearchService.searchSimilar(
+          userVector,
+          limit * 2, // Fetch candidates
+          langFilter,
+        );
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
+        const postIds = (hits as any).hits.map((h: any) => h.id as string);
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        if (postIds.length === 0) {
           resultPosts = await this.getFallbackRecommendations(
             userId,
             userProfile.followedUsers,
             limit,
           );
         } else {
-          // Average embeddings
-          const avgEmbedding = new Array(validEmbeddings[0].length).fill(
-            0,
-          ) as number[];
-          for (const emb of validEmbeddings) {
-            for (let i = 0; i < emb.length; i++) {
-              avgEmbedding[i] += emb[i];
-            }
-          }
-          for (let i = 0; i < avgEmbedding.length; i++) {
-            avgEmbedding[i] /= validEmbeddings.length;
-          }
+          // Re-hydrate posts
+          const candidatePosts = await this.postRepo.find({
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
+            where: { id: In(postIds) },
+            relations: ['author'],
+          });
 
-          // Get candidate posts (not from user, not deleted, public)
-          const query = this.postRepo
-            .createQueryBuilder('post')
-            .leftJoinAndSelect('post.author', 'author')
-            .where('post.author_id != :userId', { userId })
-            .andWhere('post.visibility = :visibility', { visibility: 'PUBLIC' })
-            .andWhere('post.deleted_at IS NULL');
+          // Re-ranking (lightweight)
+          // Map original rank to a score
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
+          const rankMap = new Map<string, number>(postIds.map((id: string, index: number) => [id, index]));
 
-          // Strict language filtering if preference is very high
-          if (w.lang > 0.8 && user?.languages?.length) {
-            query.andWhere('post.lang IN (:...langs)', {
-              langs: user.languages,
-            });
-          }
-
-          const candidatePosts = await query
-            .orderBy('post.created_at', 'DESC')
-            .take(200)
-            .getMany();
-
-          // Score posts by similarity
           const scoredPosts = await Promise.all(
             candidatePosts.map(async (post) => {
-              const postText = `${post.title || ''} ${post.body}`.trim();
-              const postEmbedding = await this.generateEmbedding(postText);
-
-              if (!postEmbedding) {
-                return { post, score: 0 };
-              }
-
-              // Base similarity (content match) - weighted by 'likes' preference
-              const similarity =
-                this.cosineSimilarity(avgEmbedding, postEmbedding) *
-                (0.5 + 0.5 * w.likes);
+              const rank = rankMap.get(post.id) ?? 999;
+              // Base score from vector rank (lower rank is better)
+              const vectorScore = 1.0 / (rank + 1);
 
               // Network boost
               const followBoost = userProfile.followedUsers.includes(
@@ -368,7 +275,7 @@ export class RecommendationService implements OnModuleInit {
               return {
                 post,
                 score:
-                  similarity +
+                  vectorScore +
                   followBoost +
                   topicBoost +
                   quoteBoost +
@@ -378,7 +285,6 @@ export class RecommendationService implements OnModuleInit {
             }),
           );
 
-          // Sort by score and return top posts
           scoredPosts.sort((a, b) => b.score - a.score);
           resultPosts = scoredPosts.slice(0, limit).map((sp) => sp.post);
         }

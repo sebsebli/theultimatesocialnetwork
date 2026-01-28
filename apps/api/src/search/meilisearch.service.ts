@@ -43,8 +43,19 @@ export class MeilisearchService implements OnModuleInit {
         'quoteCount',
         'replyCount',
       ]);
+
+      // Enable vector search (Meilisearch v1.6+)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      await (index as any).updateSettings({
+        embedders: {
+          default: {
+            source: 'userProvided',
+            dimensions: 384, // MiniLM-L6-v2 dimensions
+          },
+        },
+      });
     } catch (error: unknown) {
-      // Index might already exist, which is fine
+      // Index might already exist or feature already enabled
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       console.log('Meilisearch index setup:', (error as any).message);
     }
@@ -58,9 +69,6 @@ export class MeilisearchService implements OnModuleInit {
   }) {
     try {
       const index = this.client.index('users');
-      // Create index if it doesn't exist (lazy creation)
-      // await this.client.createIndex('users', { primaryKey: 'id' });
-
       await index.addDocuments([
         {
           id: user.id,
@@ -108,6 +116,7 @@ export class MeilisearchService implements OnModuleInit {
     createdAt: Date;
     quoteCount: number;
     replyCount: number;
+    embedding?: number[];
   }) {
     try {
       const index = this.client.index(this.indexName);
@@ -131,6 +140,7 @@ export class MeilisearchService implements OnModuleInit {
           createdAt: post.createdAt.toISOString(),
           quoteCount: post.quoteCount,
           replyCount: post.replyCount,
+          _vectors: post.embedding ? { default: post.embedding } : undefined,
         },
       ]);
     } catch (error) {
@@ -161,6 +171,23 @@ export class MeilisearchService implements OnModuleInit {
     }
   }
 
+  async searchSimilar(vector: number[], limit = 20, filter?: string) {
+    try {
+      const index = this.client.index(this.indexName);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+      const results = await (index as any).search('', {
+        vector: vector,
+        limit,
+        filter,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      return results;
+    } catch (error) {
+      console.error('Meilisearch vector search error', error);
+      return { hits: [] };
+    }
+  }
+
   async searchUsers(query: string, limit = 10) {
     try {
       // In a real app, ensure 'users' index exists
@@ -178,7 +205,6 @@ export class MeilisearchService implements OnModuleInit {
       return await index.search(query, { limit });
     } catch {
       // Topics might not be indexed yet, return empty
-      // console.error('Meilisearch topic search error', error);
       return { hits: [] };
     }
   }
