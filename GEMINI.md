@@ -110,7 +110,7 @@ Collection (public curated reposts / “articles I collect”)
 
 Saved by X discovery
 	•	If a user you follow has public collections, you may see a lightweight timeline item:
-	•	“Saved by @alex to Collection: Urbanism”
+	•	“Saved by `@alex` to Collection: Urbanism”
 	•	This is opt-in in Settings:
 	•	toggle: “Show saves from people I follow”
 	•	The saved item links to the original post + the collection.
@@ -195,7 +195,7 @@ Feed items:
 	•	Share (copy link / system share)
 	•	“Saved by X” item (if enabled):
 	•	text line + tap-through to collection/post
-	•	button: “Hide saves from @x” (muted) in overflow
+	•	button: “Hide saves from `@x`” (muted) in overflow
 
 Composer entry:
 	•	Floating “+” compose button
@@ -231,7 +231,7 @@ Toolbar row (icons + labels):
 	•	Cite post
 	•	opens post search; inserts [[post:uuid|Text]]
 	•	Mention
-	•	opens user search; inserts @handle
+	•	opens user search; inserts `@handle`
 	•	Photo header (optional)
 	•	opens image picker; shows crop/preview
 	•	Visibility toggle: Followers / Public
@@ -1599,7 +1599,7 @@ If you do serif in reading mode, keep UI sans to avoid confusion.
 
 **User profile**
 *   Display name
-*   Handle @handle
+*   Handle `@handle`
 *   Bio
 *   Counts:
     *   Followers
@@ -1753,7 +1753,7 @@ A) Post item
 B) Saved-by event item (optional, if enabled)
 
 **A) Post item layout (no card)**
-*   Row 1: Name (semibold) • @handle (secondary) • time (tertiary)
+*   Row 1: Name (semibold) • `@handle` (secondary) • time (tertiary)
 *   Row 2: (optional) Title derived from # (20px, 600)
 *   Row 3: Body preview (max 10 lines) then "Read more"
 *   Row 4: Header image (if present): 16:9 crop, rounded 12px, edge-to-edge within padding
@@ -1779,11 +1779,11 @@ B) Saved-by event item (optional, if enabled)
 *   Share (system share or copy link)
 
 **B) Saved-by event item layout**
-*   One line: "Saved by @alex to Urbanism"
+*   One line: "Saved by `@alex` to Urbanism"
 *   Small excerpt of the post (3 lines)
 *   Buttons:
     *   "Open" (accent)
-    *   Overflow: "Hide saves from @alex" / "Turn off saves"
+    *   Overflow: "Hide saves from `@alex`" / "Turn off saves"
 
 **Empty state**
 *   Headline: "Your timeline is quiet."
@@ -2296,7 +2296,7 @@ Examples
 
 User profile
 	•	Display name
-	•	Handle @handle
+	•	Handle `@handle`
 	•	Bio
 	•	Counts:
 	•	Followers
@@ -2450,7 +2450,7 @@ A) Post item
 B) Saved-by event item (optional, if enabled)
 
 A) Post item layout (no card)
-	•	Row 1: Name (semibold) • @handle (secondary) • time (tertiary)
+	•	Row 1: Name (semibold) • `@handle` (secondary) • time (tertiary)
 	•	Row 2: (optional) Title derived from # (20px, 600)
 	•	Row 3: Body preview (max 10 lines) then "Read more"
 	•	Row 4: Header image (if present): 16:9 crop, rounded 12px, edge-to-edge within padding
@@ -2476,11 +2476,11 @@ Buttons
 	•	Share (system share or copy link)
 
 B) Saved-by event item layout
-	•	One line: "Saved by @alex to Urbanism"
+	•	One line: "Saved by `@alex` to Urbanism"
 	•	Small excerpt of the post (3 lines)
 	•	Buttons:
 	•	"Open" (accent)
-	•	Overflow: "Hide saves from @alex" / "Turn off saves"
+	•	Overflow: "Hide saves from `@alex`" / "Turn off saves"
 
 Empty state
 	•	Headline: "Your timeline is quiet."
