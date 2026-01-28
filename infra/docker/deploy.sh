@@ -54,6 +54,10 @@ docker compose -f $COMPOSE_FILE up -d
 echo "⏳ Waiting for services to be healthy..."
 sleep 10
 
+# Run migrations
+echo "🔄 Running database migrations..."
+docker compose -f $COMPOSE_FILE exec -T api npm run migration:run
+
 # Check service status
 echo "📊 Service status:"
 docker compose -f $COMPOSE_FILE ps

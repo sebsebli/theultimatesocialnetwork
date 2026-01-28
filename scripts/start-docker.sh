@@ -32,6 +32,10 @@ sleep 10
 
 # Check service health
 echo ""
+echo "🔄 Running database migrations..."
+docker compose exec -T api npm run migration:run
+
+echo ""
 echo "📊 Service Status:"
 docker compose ps
 
