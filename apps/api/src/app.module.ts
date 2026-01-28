@@ -49,7 +49,8 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
           context: 'HTTP',
         }),
         transport:
-          process.env.NODE_ENV !== 'production'
+          process.env.NODE_ENV !== 'production' &&
+          process.env.NODE_ENV !== 'test'
             ? {
                 target: 'pino-pretty',
                 options: {

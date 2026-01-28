@@ -16,6 +16,7 @@ export class AuthController {
   }
 
   @Post('verify')
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // Limit verification attempts
   @HttpCode(HttpStatus.OK)
   async verify(@Body() dto: VerifyDto) {
     return this.authService.verifyToken(dto.email, dto.token);

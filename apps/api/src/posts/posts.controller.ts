@@ -10,6 +10,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -22,6 +23,7 @@ export class PostsController {
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // Limit to 10 posts per minute to prevent spam
   async create(
     @CurrentUser() user: { id: string },
     @Body() dto: CreatePostDto,
@@ -61,6 +63,7 @@ export class PostsController {
 
   @Post(':id/quote')
   @UseGuards(AuthGuard('jwt'))
+  @Throttle({ default: { limit: 10, ttl: 60000 } }) // Limit quotes too
   async quote(
     @CurrentUser() user: { id: string },
     @Param('id', ParseUUIDPipe) quotedPostId: string,
@@ -69,6 +72,10 @@ export class PostsController {
     if (!dto.body || dto.body.trim().length === 0) {
       throw new BadRequestException('Commentary is required for quotes');
     }
-    return this.postsService.createQuote(user.id, quotedPostId, dto.body.trim());
+    return this.postsService.createQuote(
+      user.id,
+      quotedPostId,
+      dto.body.trim(),
+    );
   }
 }
