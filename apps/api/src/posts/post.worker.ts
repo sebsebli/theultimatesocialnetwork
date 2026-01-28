@@ -5,6 +5,7 @@ import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Post } from '../entities/post.entity';
+import { Follow } from '../entities/follow.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { EmbeddingService } from '../shared/embedding.service';
@@ -23,6 +24,7 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
 
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
+    @InjectRepository(Follow) private followRepo: Repository<Follow>,
     private configService: ConfigService,
     private neo4jService: Neo4jService,
     private meilisearchService: MeilisearchService,
@@ -175,6 +177,33 @@ export class PostWorker implements OnApplicationBootstrap, OnApplicationShutdown
                 }
             }
         }
+
+        // 3. Feed Fan-out (Push Model)
+        // Push post ID to followers' feeds
+        const BATCH_SIZE = 1000;
+        let page = 0;
+        let followers: Follow[];
+        
+        do {
+            followers = await this.followRepo.find({
+                where: { followeeId: userId },
+                select: ['followerId'],
+                take: BATCH_SIZE,
+                skip: page * BATCH_SIZE,
+            });
+            
+            if (followers.length > 0) {
+                const pipeline = this.redis.pipeline();
+                for (const follow of followers) {
+                    const key = `feed:${follow.followerId}`;
+                    pipeline.lpush(key, post.id);
+                    pipeline.ltrim(key, 0, 500); // Keep top 500
+                }
+                await pipeline.exec();
+            }
+            page++;
+        } while (followers.length === BATCH_SIZE);
+
     } catch (e) {
         this.logger.error(`Error processing post ${postId}`, e);
         throw e; // Retry

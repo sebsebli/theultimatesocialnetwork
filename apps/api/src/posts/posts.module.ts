@@ -10,6 +10,7 @@ import { Post } from '../entities/post.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { Mention } from '../entities/mention.entity';
 import { User } from '../entities/user.entity';
+import { Follow } from '../entities/follow.entity';
 import { DatabaseModule } from '../database/database.module';
 import { SearchModule } from '../search/search.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -18,7 +19,7 @@ import { SafetyModule } from '../safety/safety.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Post, ExternalSource, Mention, User]),
+    TypeOrmModule.forFeature([Post, ExternalSource, Mention, User, Follow]),
     ConfigModule,
     DatabaseModule,
     SearchModule,
