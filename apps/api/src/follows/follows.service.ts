@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import { Queue } from 'bullmq';
 import { Follow } from '../entities/follow.entity';
 import { FollowRequest, FollowRequestStatus } from '../entities/follow-request.entity';
 import { User } from '../entities/user.entity';
@@ -16,6 +17,7 @@ export class FollowsService {
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
     private notificationHelper: NotificationHelperService,
+    @Inject('FOLLOW_QUEUE') private followQueue: Queue,
   ) {}
 
   async follow(followerId: string, followeeId: string) {
@@ -59,9 +61,11 @@ export class FollowsService {
 
       const savedRequest = await this.followRequestRepo.save(request);
 
-      // Notify target of follow request
+      // Notify target of follow request (Synchronous for immediate feedback, or queue? Sync is fine for requests)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
       await this.notificationHelper.createNotification({
         userId: followeeId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         type: 'FOLLOW_REQUEST' as any,
         actorUserId: followerId,
       });
@@ -78,27 +82,14 @@ export class FollowsService {
       const follow = this.followRepo.create({ followerId, followeeId });
       await queryRunner.manager.save(Follow, follow);
 
-      await queryRunner.manager.increment(User, { id: followeeId }, 'followerCount', 1);
-      await queryRunner.manager.increment(User, { id: followerId }, 'followingCount', 1);
-
       await queryRunner.commitTransaction();
 
-      // Create notification
-      await this.notificationHelper.createNotification({
-        userId: followeeId,
-        type: 'FOLLOW' as any,
-        actorUserId: followerId,
+      // Queue background processing (Counts, Neo4j, Notifications)
+      await this.followQueue.add('process', {
+          type: 'follow',
+          followerId,
+          followeeId
       });
-
-      // Neo4j update (best effort background)
-      this.neo4jService.run(
-        `
-        MERGE (u1:User {id: $followerId})
-        MERGE (u2:User {id: $followeeId})
-        MERGE (u1)-[:FOLLOWS]->(u2)
-        `,
-        { followerId, followeeId }
-      ).catch(err => console.error('Neo4j follow sync error', err));
 
       return follow;
     } catch (err) {
@@ -125,19 +116,14 @@ export class FollowsService {
     try {
       await queryRunner.manager.remove(follow);
 
-      await queryRunner.manager.decrement(User, { id: followeeId }, 'followerCount', 1);
-      await queryRunner.manager.decrement(User, { id: followerId }, 'followingCount', 1);
-
       await queryRunner.commitTransaction();
 
-      // Neo4j update
-      this.neo4jService.run(
-        `
-        MATCH (u1:User {id: $followerId})-[r:FOLLOWS]->(u2:User {id: $followeeId})
-        DELETE r
-        `,
-        { followerId, followeeId }
-      ).catch(err => console.error('Neo4j unfollow sync error', err));
+      // Queue background processing (Counts, Neo4j)
+      await this.followQueue.add('process', {
+          type: 'unfollow',
+          followerId,
+          followeeId
+      });
 
       return { success: true };
     } catch (err) {
@@ -149,6 +135,7 @@ export class FollowsService {
   }
 
   async approveFollowRequest(userId: string, requestId: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const request = await this.followRequestRepo.findOne({
       where: { id: requestId, targetId: userId, status: FollowRequestStatus.PENDING } as any,
     });
@@ -167,6 +154,7 @@ export class FollowsService {
   }
 
   async rejectFollowRequest(userId: string, requestId: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const request = await this.followRequestRepo.findOne({
       where: { id: requestId, targetId: userId, status: FollowRequestStatus.PENDING } as any,
     });

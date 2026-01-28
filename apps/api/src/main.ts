@@ -1,11 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { RedisIoAdapter } from './common/adapters/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -46,6 +48,12 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  // WebSocket Adapter (Redis for scaling)
+  const configService = app.get(ConfigService);
+  const redisIoAdapter = new RedisIoAdapter(app, configService);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
 
   // Enable CORS with security
   const allowedOrigins = process.env.CORS_ORIGINS
