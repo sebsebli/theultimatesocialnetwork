@@ -132,4 +132,15 @@ export class InvitesService {
       status: 'PENDING',
     });
   }
+
+  /** Remove an email from the waiting list when the user signs up. */
+  async removeFromWaitingList(email: string): Promise<void> {
+    const normalized = email?.trim().toLowerCase();
+    if (!normalized) return;
+    await this.waitingListRepo
+      .createQueryBuilder()
+      .delete()
+      .where('LOWER(email) = :email', { email: normalized })
+      .execute();
+  }
 }

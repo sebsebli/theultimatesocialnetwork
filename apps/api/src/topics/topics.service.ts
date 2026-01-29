@@ -89,8 +89,8 @@ export class TopicsService {
         "(post.quote_count > 0 OR post.reply_count > 0 OR author.created_at < NOW() - INTERVAL '7 days')",
       );
 
-      query.addSelect('(post.quote_count * 3 + post.reply_count)', 'score');
-      query.orderBy('score', 'DESC');
+      // Order by ranking score without adding non-entity column (avoids getMany() issues)
+      query.orderBy('(post.quote_count * 3 + post.reply_count)', 'DESC');
       query.addOrderBy('post.created_at', 'DESC');
     } else {
       // Recent

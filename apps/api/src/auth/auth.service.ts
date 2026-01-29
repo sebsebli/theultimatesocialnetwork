@@ -158,6 +158,9 @@ export class AuthService {
       if (inviteCode) {
         await this.invitesService.consumeCode(inviteCode, user.id);
       }
+
+      // Remove from waiting list when user signs up (if they were on it)
+      await this.invitesService.removeFromWaitingList(email);
     }
 
     return user;

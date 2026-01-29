@@ -9,8 +9,13 @@ export class MessagesController {
 
   @Get('threads')
   @UseGuards(AuthGuard('jwt'))
-  getThreads(@CurrentUser() user: { id: string }) {
-    return this.messagesService.getThreads(user.id);
+  async getThreads(@CurrentUser() user: { id: string }) {
+    try {
+      return await this.messagesService.getThreads(user.id);
+    } catch (err) {
+      console.error('messages/threads error', err);
+      return [];
+    }
   }
 
   @Post('threads')

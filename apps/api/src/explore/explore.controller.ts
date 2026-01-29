@@ -49,7 +49,15 @@ export class ExploreController {
     @Query('lang') lang?: string,
     @Query('sort') sort?: string,
   ) {
-    return this.exploreService.getNewsroom(user?.id, 20, { lang, sort });
+    try {
+      return await this.exploreService.getNewsroom(user?.id, 20, {
+        lang,
+        sort,
+      });
+    } catch (err) {
+      console.error('explore/newsroom error', err);
+      return [];
+    }
   }
 
   @Get('for-you')

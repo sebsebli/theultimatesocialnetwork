@@ -11,6 +11,7 @@ import { Follow } from '../entities/follow.entity';
 import { PostRead } from '../entities/post-read.entity';
 import { Notification } from '../entities/notification.entity';
 import { MeilisearchService } from '../search/meilisearch.service';
+import { postToPlain, replyToPlain } from '../shared/post-serializer';
 
 @Injectable()
 export class UsersService {
@@ -105,6 +106,54 @@ export class UsersService {
       order: { followerCount: 'DESC' },
       take: limit,
     });
+  }
+
+  async getUserPosts(
+    userId: string,
+    page: number,
+    limit: number,
+    type: 'posts' | 'replies' | 'quotes' = 'posts',
+  ): Promise<{ items: unknown[]; hasMore: boolean }> {
+    const skip = (page - 1) * limit;
+    if (type === 'posts') {
+      const posts = await this.postRepo.find({
+        where: { authorId: userId, deletedAt: IsNull() },
+        relations: ['author'],
+        order: { createdAt: 'DESC' },
+        skip,
+        take: limit + 1,
+      });
+      const hasMore = posts.length > limit;
+      const items = posts.slice(0, limit).map((p) => postToPlain(p));
+      return { items, hasMore };
+    }
+    if (type === 'replies') {
+      const replies = await this.replyRepo.find({
+        where: { authorId: userId },
+        relations: ['post', 'post.author'],
+        order: { createdAt: 'DESC' },
+        skip,
+        take: limit + 1,
+      });
+      const hasMore = replies.length > limit;
+      const items = replies.slice(0, limit).map((r) => replyToPlain(r));
+      return { items, hasMore };
+    }
+    // type === 'quotes'
+    const quotes = await this.postRepo
+      .createQueryBuilder('quoter')
+      .innerJoin(PostEdge, 'edge', 'edge.from_post_id = quoter.id')
+      .innerJoin('posts', 'quoted', 'quoted.id = edge.to_post_id')
+      .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
+      .andWhere('quoted.author_id = :userId', { userId })
+      .leftJoinAndSelect('quoter.author', 'author')
+      .orderBy('quoter.created_at', 'DESC')
+      .skip(skip)
+      .take(limit + 1)
+      .getMany();
+    const hasMore = quotes.length > limit;
+    const items = quotes.slice(0, limit);
+    return { items: items.map((p) => postToPlain(p)), hasMore };
   }
 
   async getReplies(userId: string) {

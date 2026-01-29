@@ -23,6 +23,7 @@ import { ToastProvider } from '../context/ToastContext';
 import { SocketProvider } from '../context/SocketContext';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { ErrorFallbackWithNav } from '../components/ErrorFallbackWithNav';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { useOfflineSync } from '../hooks/useOfflineSync';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -162,15 +163,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" backgroundColor={COLORS.ink} />
-      <ErrorBoundary
-        fallback={
-          <View style={{ flex: 1, backgroundColor: COLORS.ink, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-            <Text style={{ color: COLORS.paper, fontSize: 16, textAlign: 'center' }}>
-              App failed to load. Check console for errors.
-            </Text>
-          </View>
-        }
-      >
+      <ErrorBoundary fallback={<ErrorFallbackWithNav />}>
         <AuthProvider>
           <ToastProvider>
             <SocketProvider>

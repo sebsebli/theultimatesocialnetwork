@@ -22,7 +22,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, resetOnboarding } = useAuth();
   const { showError } = useToast();
   const { unreadNotifications } = useSocket();
   const insets = useSafeAreaInsets();
@@ -58,7 +58,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!loading && posts.length === 0) {
-      api.get('/users/suggested?limit=3').then(res => setSuggestions(Array.isArray(res) ? res : [])).catch(() => {});
+      api.get('/users/suggested?limit=3').then(res => setSuggestions(Array.isArray(res) ? res : [])).catch(() => { });
     }
   }, [loading, posts.length]);
 
@@ -70,20 +70,20 @@ export default function HomeScreen() {
       setLoadingMore(true);
     }
     setError(false);
-    
+
     const startTime = Date.now();
     try {
       const limit = 20;
       const offset = (pageNum - 1) * limit;
-      
+
       // Add rudimentary request ID tracking if API supports it or generates it
       // const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const data = await api.get(`/feed?limit=${limit}&offset=${offset}`);
-      
+
       // Validate payload shape
       if (!data || (!Array.isArray(data) && !Array.isArray(data.items))) {
-         throw new Error('Invalid feed payload');
+        throw new Error('Invalid feed payload');
       }
 
       // Handle feed items...
@@ -136,6 +136,14 @@ export default function HomeScreen() {
         setLoading(false);
         setRefreshing(false);
         setLoadingMore(false);
+        return;
+      }
+      // Server says profile/onboarding incomplete — send user back to onboarding (never show feed without full onboarding)
+      if (error?.status === 403) {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+        await resetOnboarding();
         return;
       }
       setError(true);
@@ -193,8 +201,8 @@ export default function HomeScreen() {
 
   // Updated Empty State Components
   const InviteNudge = () => (
-    <Pressable 
-      style={styles.inviteNudgeContainer} 
+    <Pressable
+      style={styles.inviteNudgeContainer}
       onPress={() => router.push('/invites')}
     >
       <View style={styles.inviteIconCircle}>
@@ -250,16 +258,16 @@ export default function HomeScreen() {
             <View style={styles.emptyState}>
               <Text style={styles.emptyHeadline}>{t('home.emptyHeadline', 'Your timeline is quiet.')}</Text>
               <Text style={styles.emptySubtext}>{t('home.emptySubtext', 'Follow people and topics to see posts here.')}</Text>
-              
+
               {!loading && (
                 <View style={styles.emptyActions}>
                   <InviteNudge />
-                  
+
                   <Pressable
-                      style={styles.secondaryButton}
-                      onPress={() => router.push('/explore')}
+                    style={styles.secondaryButton}
+                    onPress={() => router.push('/explore')}
                   >
-                      <Text style={styles.secondaryButtonText}>{t('home.exploreTopics', 'Explore Topics')}</Text>
+                    <Text style={styles.secondaryButtonText}>{t('home.exploreTopics', 'Explore Topics')}</Text>
                   </Pressable>
                 </View>
               )}

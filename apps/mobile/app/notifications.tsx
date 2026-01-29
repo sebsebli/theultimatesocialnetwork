@@ -5,57 +5,30 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 import { useSocket } from '../context/SocketContext';
-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function InboxScreen() {
+/** Notifications-only screen (bell). Messages are in the Messages tab. */
+export default function NotificationsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { on, off } = useSocket();
-  const [activeTab, setActiveTab] = useState<'notifications' | 'messages'>('notifications');
-  
-  // Separate data stores for instant switching
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [threads, setThreads] = useState<any[]>([]);
-  
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  // Listen for real-time events
   useEffect(() => {
-    const handleNotification = () => {
-      if (activeTab === 'notifications') {
-        loadContent(1, true); // Refresh list
-      }
-    };
-
-    const handleMessage = () => {
-      if (activeTab === 'messages') {
-        loadContent(1, true); // Refresh list
-      }
-    };
-
+    const handleNotification = () => loadContent(1, true);
     on('notification', handleNotification);
-    on('message', handleMessage);
-
-    return () => {
-      off('notification', handleNotification);
-      off('message', handleMessage);
-    };
-  }, [on, off, activeTab]);
+    return () => off('notification', handleNotification);
+  }, [on, off]);
 
   useEffect(() => {
-    // Only clear if transitioning to a tab with NO data
-    if (activeTab === 'notifications' && notifications.length === 0) {
-        loadContent(1, true);
-    } else if (activeTab === 'messages' && threads.length === 0) {
-        loadContent(1, true);
-    }
-  }, [activeTab]);
+    if (notifications.length === 0) loadContent(1, true);
+  }, []);
 
   const loadContent = async (pageNum: number, reset = false) => {
     if (reset) {
@@ -65,27 +38,16 @@ export default function InboxScreen() {
       setLoadingMore(true);
     }
     try {
-      if (activeTab === 'notifications') {
-        const data = await api.get(`/notifications?page=${pageNum}&limit=20`);
-        const items = Array.isArray(data.items || data) ? (data.items || data) : [];
-        if (reset) {
-          setNotifications(items);
-        } else {
-          setNotifications(prev => [...prev, ...items]);
-        }
-        setHasMore(items.length === 20 && (data.hasMore !== false));
+      const data = await api.get(`/notifications?page=${pageNum}&limit=20`);
+      const items = Array.isArray(data.items || data) ? (data.items || data) : [];
+      if (reset) {
+        setNotifications(items);
       } else {
-        const data = await api.get(`/messages/threads?page=${pageNum}&limit=20`);
-        const items = Array.isArray(data.items || data) ? (data.items || data) : [];
-        if (reset) {
-          setThreads(items);
-        } else {
-          setThreads(prev => [...prev, ...items]);
-        }
-        setHasMore(items.length === 20 && (data.hasMore !== false));
+        setNotifications(prev => [...prev, ...items]);
       }
+      setHasMore(items.length === 20 && (data.hasMore !== false));
     } catch (error) {
-      console.error('Failed to load content', error);
+      console.error('Failed to load notifications', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -99,12 +61,12 @@ export default function InboxScreen() {
       setPage(nextPage);
       loadContent(nextPage, false);
     }
-  }, [loading, refreshing, loadingMore, hasMore, page, activeTab]);
+  }, [loading, refreshing, loadingMore, hasMore, page]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadContent(1, true);
-  }, [activeTab]);
+  }, []);
 
   const renderNotification = useCallback(({ item }: { item: any }) => (
     <Pressable
@@ -131,28 +93,6 @@ export default function InboxScreen() {
     </Pressable>
   ), [t, router]);
 
-  const renderThread = useCallback(({ item }: { item: any }) => (
-    <Pressable
-      style={styles.thread}
-      onPress={() => router.push(`/messages/${item.id}`)}
-      accessibilityRole="button"
-    >
-      <View style={styles.threadContent}>
-        <Text style={styles.threadName}>
-          {item.otherUser?.displayName || item.otherUser?.handle}
-        </Text>
-        <Text style={styles.threadLastMessage} numberOfLines={1}>
-          {item.lastMessage?.body || t('messages.noMessages')}
-        </Text>
-      </View>
-      {item.unreadCount > 0 && (
-        <View style={styles.unreadBadge} accessibilityLabel={t('inbox.unreadMessages', { count: item.unreadCount, defaultValue: `${item.unreadCount} unread messages` })}>
-          <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
-        </View>
-      )}
-    </Pressable>
-  ), [t, router]);
-
   const ListFooterComponent = useMemo(() => {
     if (!hasMore || !loadingMore) return null;
     return (
@@ -166,7 +106,7 @@ export default function InboxScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text style={styles.headerTitle}>{t('inbox.title')}</Text>
-        {activeTab === 'notifications' && notifications.length > 0 && (
+        {notifications.length > 0 && (
           <Pressable
             onPress={async () => {
               try {
@@ -184,88 +124,33 @@ export default function InboxScreen() {
         )}
       </View>
 
-      <View style={styles.tabs}>
-        <Pressable
-          onPress={() => setActiveTab('notifications')}
-          style={[styles.tab, activeTab === 'notifications' && styles.tabActive]}
-          accessibilityLabel={t('inbox.notifications')}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'notifications' }}
-        >
-          <Text style={[styles.tabText, activeTab === 'notifications' && styles.tabTextActive]}>
-            {t('inbox.notifications')}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setActiveTab('messages')}
-          style={[styles.tab, activeTab === 'messages' && styles.tabActive]}
-          accessibilityLabel={t('inbox.messages')}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'messages' }}
-        >
-          <Text style={[styles.tabText, activeTab === 'messages' && styles.tabTextActive]}>
-            {t('inbox.messages')}
-          </Text>
-        </Pressable>
-      </View>
-
-      {activeTab === 'notifications' ? (
-        <FlatList
-          data={notifications}
-          keyExtractor={(item: any) => item.id}
-          renderItem={renderNotification}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>
-                {loading ? t('common.loading') : t('inbox.noNotifications')}
-              </Text>
-            </View>
-          }
-          ListFooterComponent={ListFooterComponent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={COLORS.primary}
-            />
-          }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
-          windowSize={10}
-        />
-      ) : (
-        <FlatList
-          data={threads}
-          keyExtractor={(item: any) => item.id}
-          renderItem={renderThread}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>
-                {loading ? t('common.loading') : t('inbox.noMessages')}
-              </Text>
-            </View>
-          }
-          ListFooterComponent={ListFooterComponent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={COLORS.primary}
-            />
-          }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
-          windowSize={10}
-        />
-      )}
+      <FlatList
+        data={notifications}
+        keyExtractor={(item: any) => item.id}
+        renderItem={renderNotification}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              {loading ? t('common.loading') : t('inbox.noNotifications')}
+            </Text>
+          </View>
+        }
+        ListFooterComponent={ListFooterComponent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.primary}
+          />
+        }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
+      />
     </View>
   );
 }
@@ -276,7 +161,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.ink,
   },
   header: {
-    paddingTop: 0, // Handled dynamically
     paddingBottom: SPACING.m,
     paddingHorizontal: SPACING.l,
     borderBottomWidth: 1,
@@ -296,30 +180,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.primary,
     fontFamily: FONTS.medium,
-  },
-  tabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: SPACING.m,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: COLORS.primary,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.tertiary,
-    fontFamily: FONTS.semiBold,
-  },
-  tabTextActive: {
-    color: COLORS.paper,
   },
   notification: {
     padding: SPACING.l,
@@ -343,44 +203,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: COLORS.primary,
     marginLeft: SPACING.s,
-  },
-  thread: {
-    padding: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  threadContent: {
-    flex: 1,
-  },
-  threadName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.paper,
-    marginBottom: 4,
-    fontFamily: FONTS.semiBold,
-  },
-  threadLastMessage: {
-    fontSize: 14,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-  },
-  unreadBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: SPACING.s,
-  },
-  unreadBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontFamily: FONTS.semiBold,
   },
   emptyState: {
     padding: SPACING.xxxl,

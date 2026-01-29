@@ -8,6 +8,7 @@ import { api } from '../utils/api';
 import { queueAction } from '../utils/offlineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/auth';
 import AddToCollectionSheet, { AddToCollectionSheetRef } from './AddToCollectionSheet';
 import ShareSheet, { ShareSheetRef } from './ShareSheet';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
@@ -38,6 +39,7 @@ function PostItemComponent({
   const { t } = useTranslation();
   const { isOffline } = useNetworkStatus();
   const { showSuccess, showError } = useToast();
+  const { userId } = useAuth();
   const [liked, setLiked] = React.useState(false);
   const [kept, setKept] = React.useState(false);
   const scaleValue = useRef(new Animated.Value(1)).current;
@@ -171,11 +173,11 @@ function PostItemComponent({
 
   return (
     <View style={styles.container}>
-      
+
       <PostContent post={post} onMenuPress={handleMenu} />
 
-      {/* Private Feedback Line (Author Only) */}
-      {post.privateLikeCount !== undefined && post.privateLikeCount > 0 && (
+      {/* Private Feedback Line (Author Only) - never show like count to non-creators */}
+      {userId === post.author?.id && post.privateLikeCount !== undefined && post.privateLikeCount > 0 && (
         <View style={styles.privateFeedback}>
           <MaterialIcons name="favorite" size={14} color={COLORS.like} />
           <Text style={styles.privateFeedbackText}>

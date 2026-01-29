@@ -7,6 +7,7 @@ import {
   setAuthErrorHandler,
   getOnboardingComplete,
   setOnboardingComplete as persistOnboardingComplete,
+  clearOnboardingComplete as clearOnboardingCompleteStorage,
   api,
 } from '../utils/api';
 import { registerForPush } from '../utils/push-notifications';
@@ -15,18 +16,22 @@ interface AuthContextType {
   signIn: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
+  resetOnboarding: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
   onboardingComplete: boolean | null;
+  userId: string | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
   signIn: async () => { },
   signOut: async () => { },
   completeOnboarding: async () => { },
+  resetOnboarding: async () => { },
   isLoading: true,
   isAuthenticated: false,
   onboardingComplete: null,
+  userId: null,
 });
 
 export function useAuth() {
@@ -36,6 +41,7 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -46,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!token) {
           setIsAuthenticated(false);
           setOnboardingComplete(null);
+          setUserId(null);
           setIsLoading(false);
           return;
         }
@@ -54,10 +61,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Auth check timeout')), 3000)
           );
-          await Promise.race([api.get('/users/me'), timeoutPromise]);
+          const me = await Promise.race([api.get('/users/me'), timeoutPromise]) as { id?: string; handle?: string; displayName?: string } | null;
           setIsAuthenticated(true);
-          const complete = await getOnboardingComplete();
-          setOnboardingComplete(complete);
+          setUserId(me?.id ?? null);
+          // Onboarding complete only if server has profile AND user completed onboarding in this app (storage)
+          const serverComplete = !!(me?.handle && String(me.handle).trim() && me?.displayName && String(me.displayName).trim());
+          const storedComplete = await getOnboardingComplete();
+          setOnboardingComplete(serverComplete && storedComplete);
 
           // Re-register push token on launch
           registerForPush(token).catch(err => console.warn('Push registration failed', err));
@@ -68,19 +78,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await clearApiToken();
             setIsAuthenticated(false);
             setOnboardingComplete(null);
+            setUserId(null);
           } else {
-            // Stored session valid; treat as offline but logged in
+            // Stored session valid; treat as offline but logged in — use storage for onboarding state
             if (__DEV__) {
               console.warn('Auth check failed (network/server error), staying logged in (offline mode)', apiError?.message ?? apiError);
             }
             setIsAuthenticated(true);
-            const complete = await getOnboardingComplete();
-            setOnboardingComplete(complete);
+            const storedComplete = await getOnboardingComplete();
+            setOnboardingComplete(storedComplete);
           }
         }
       } catch (error) {
         setIsAuthenticated(false);
         setOnboardingComplete(null);
+        setUserId(null);
       } finally {
         setIsLoading(false);
       }
@@ -90,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthErrorHandler(() => {
       setIsAuthenticated(false);
       setOnboardingComplete(null);
+      setUserId(null);
       router.replace('/welcome');
     });
   }, []);
@@ -97,23 +110,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (token: string) => {
     await setApiToken(token);
     setIsAuthenticated(true);
-    const complete = await getOnboardingComplete();
-    setOnboardingComplete(complete);
-
-    // Register push token
+    // Always show onboarding after sign-in. Never skip to tabs — user must complete languages → profile → starter-packs.
+    // (Returning users who already completed get tabs on next app open via checkAuth.)
+    setOnboardingComplete(false);
+    router.replace('/onboarding/languages');
     registerForPush(token).catch(err => console.warn('Push registration failed', err));
-
-    if (complete) {
-      router.replace('/(tabs)/');
-    } else {
-      router.replace('/onboarding/languages');
-    }
   };
 
   const signOut = async () => {
     await clearApiToken();
+    await clearOnboardingCompleteStorage();
     setIsAuthenticated(false);
     setOnboardingComplete(null);
+    setUserId(null);
     router.replace('/welcome');
   };
 
@@ -123,6 +132,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.replace('/(tabs)/');
   };
 
+  const resetOnboarding = async () => {
+    await clearOnboardingCompleteStorage();
+    setOnboardingComplete(null);
+    router.replace('/onboarding/languages');
+  };
+
   return (
     // @ts-ignore - React 19 compatibility
     <AuthContext.Provider
@@ -130,9 +145,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signOut,
         completeOnboarding,
+        resetOnboarding,
         isLoading,
         isAuthenticated,
         onboardingComplete,
+        userId,
       }}
     >
       {children}

@@ -9,6 +9,8 @@ import {
   UseGuards,
   Inject,
   NotFoundException,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -138,6 +140,31 @@ export class UsersController {
   @Get('suggested')
   async getSuggested() {
     return this.usersService.getSuggested();
+  }
+
+  @Get('me/posts')
+  @UseGuards(AuthGuard('jwt'))
+  async getMyPosts(
+    @CurrentUser() user: { id: string },
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('type') type: 'posts' | 'replies' | 'quotes' = 'posts',
+  ) {
+    return this.usersService.getUserPosts(user.id, page, limit, type);
+  }
+
+  @Get(':id/posts')
+  async getUserPosts(
+    @Param('id') id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('type') type: 'posts' | 'replies' | 'quotes' = 'posts',
+  ) {
+    const userId = id === 'me' ? undefined : id;
+    if (!userId) {
+      throw new NotFoundException('Use GET /users/me/posts for current user');
+    }
+    return this.usersService.getUserPosts(userId, page, limit, type);
   }
 
   @Get(':id/replies')

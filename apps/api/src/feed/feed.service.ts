@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Brackets, In } from 'typeorm';
 import { Post } from '../entities/post.entity';
@@ -38,6 +38,8 @@ function toPlainFeedItems(items: FeedItem[]): unknown[] {
 
 @Injectable()
 export class FeedService {
+  private readonly logger = new Logger(FeedService.name);
+
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
@@ -54,6 +56,28 @@ export class FeedService {
   ) {}
 
   async getHomeFeed(
+    userId: string,
+    limit = 20,
+    offset = 0,
+    includeSavedBy = false,
+  ): Promise<FeedItem[]> {
+    try {
+      return await this.getHomeFeedInternal(
+        userId,
+        limit,
+        offset,
+        includeSavedBy,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Feed load failed for user ${userId}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      return [];
+    }
+  }
+
+  private async getHomeFeedInternal(
     userId: string,
     limit = 20,
     offset = 0,

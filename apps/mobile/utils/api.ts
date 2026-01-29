@@ -48,6 +48,10 @@ export const setOnboardingComplete = async () => {
   await SecureStore.setItemAsync(ONBOARDING_KEY, 'true');
 };
 
+export const clearOnboardingComplete = async () => {
+  await SecureStore.deleteItemAsync(ONBOARDING_KEY);
+};
+
 class ApiError extends Error {
   status?: number;
   constructor(message: string, status?: number) {
@@ -117,12 +121,20 @@ class ApiClient {
         } catch (e) {
           // Keep text
         }
-        // Treat "user no longer exists" and similar auth/user errors: clear auth and redirect to sign-in
+        // Do NOT treat "Complete onboarding first" (403) as sign-out — user stays logged in and is sent back to onboarding
+        const isOnboardingRequired =
+          response.status === 403 && /complete onboarding first/i.test(errorMessage);
+        // 404 "Cannot GET" = route not found (e.g. API missing endpoint) — do NOT sign out
+        const isRouteNotFound =
+          response.status === 404 && /cannot get|not found/i.test(errorMessage) && !/user no longer exists|user not found/i.test(errorMessage);
+        // Treat only real auth/session errors: 401, 403, or 404 with user-not-found message
         const isAuthError =
-          response.status === 401 ||
-          response.status === 403 ||
-          response.status === 404 ||
-          /user no longer exists|user not found|unauthorized|invalid token|token expired/i.test(errorMessage);
+          !isOnboardingRequired &&
+          !isRouteNotFound &&
+          (response.status === 401 ||
+            response.status === 403 ||
+            (response.status === 404 && /user no longer exists|user not found/i.test(errorMessage)) ||
+            /unauthorized|invalid token|token expired/i.test(errorMessage));
         if (isAuthError) {
           await clearAuthToken();
           if (onAuthError) {

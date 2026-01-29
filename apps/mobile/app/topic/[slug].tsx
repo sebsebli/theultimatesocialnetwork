@@ -48,7 +48,7 @@ export default function TopicScreen() {
         if (reset && data.startHere) {
           setPosts(data.startHere);
           updateStickyImage(data.startHere);
-          setHasMore(false); 
+          setHasMore(false);
           return;
         }
         endpoint = `/topics/${slugStr}/posts?sort=ranked`;
@@ -57,7 +57,8 @@ export default function TopicScreen() {
       if (activeTab === 'people') endpoint = `/topics/${slugStr}/people`;
       if (activeTab === 'source') endpoint = `/topics/${slugStr}/sources`;
 
-      const postsData = await api.get(`${endpoint}?page=${pageNum}&limit=20`);
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const postsData = await api.get(`${endpoint}${sep}page=${pageNum}&limit=20`);
       const items = Array.isArray(postsData.items || postsData) ? (postsData.items || postsData) : [];
 
       if (reset) {
@@ -71,6 +72,7 @@ export default function TopicScreen() {
       setHasMore(hasMoreData);
     } catch (error) {
       console.error('Failed to load topic', error);
+      setHasMore(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -81,9 +83,9 @@ export default function TopicScreen() {
   const updateStickyImage = (items: any[]) => {
     // Only set if not already set to ensure stability (deterministic per session)
     setStickyHeaderImageKey(prev => {
-        if (prev) return prev;
-        const found = items.find(p => p.headerImageKey)?.headerImageKey;
-        return found || null;
+      if (prev) return prev;
+      const found = items.find(p => p.headerImageKey)?.headerImageKey;
+      return found || null;
     });
   };
 
@@ -108,19 +110,19 @@ export default function TopicScreen() {
   const renderItem = useCallback(({ item }: { item: any }) => {
     if (activeTab === 'people') {
       return (
-        <PersonCard 
-          item={item} 
-          onPress={() => router.push(`/user/${item.handle}`)} 
-          showWhy={false} 
+        <PersonCard
+          item={item}
+          onPress={() => router.push(`/user/${item.handle}`)}
+          showWhy={false}
         />
       );
     }
     if (activeTab === 'source') {
       return (
-        <Pressable 
+        <Pressable
           style={styles.sourceItem}
           onPress={async () => {
-             if (item.url) await WebBrowser.openBrowserAsync(item.url);
+            if (item.url) await WebBrowser.openBrowserAsync(item.url);
           }}
         >
           <View style={styles.sourceIcon}>
@@ -199,16 +201,16 @@ export default function TopicScreen() {
         <>
           <View style={styles.header}>
             {stickyHeaderImageKey ? (
-                <Image
-                    source={{ uri: `${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'}/images/${stickyHeaderImageKey}` }}
-                    style={styles.topicHeaderImage}
-                    contentFit="cover"
-                    transition={300}
-                />
+              <Image
+                source={{ uri: `${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'}/images/${stickyHeaderImageKey}` }}
+                style={styles.topicHeaderImage}
+                contentFit="cover"
+                transition={300}
+              />
             ) : (
-                <View style={styles.topicHeaderPlaceholder} />
+              <View style={styles.topicHeaderPlaceholder} />
             )}
-            
+
             <Pressable
               onPress={() => router.back()}
               accessibilityLabel="Go back"
@@ -216,10 +218,10 @@ export default function TopicScreen() {
               style={styles.backButtonAbsolute}
             >
               <View style={styles.iconCircle}>
-                 <MaterialIcons name="arrow-back" size={24} color="#FFF" />
+                <MaterialIcons name="arrow-back" size={24} color="#FFF" />
               </View>
             </Pressable>
-            
+
             <View style={styles.headerRightAbsolute}>
               <Pressable
                 style={styles.iconCircle}
@@ -230,22 +232,22 @@ export default function TopicScreen() {
             </View>
 
             <View style={styles.headerOverlay}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.headerTitle}>{topic.title}</Text>
-                  <View style={styles.metricsRow}>
-                    <Text style={styles.metricText}>{(topic.postCount || 0).toLocaleString()} posts</Text>
-                    <Text style={styles.metricText}>•</Text>
-                    <Text style={styles.metricText}>{(topic.contributorCount || 0).toLocaleString()} contributors</Text>
-                  </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.headerTitle}>{topic.title}</Text>
+                <View style={styles.metricsRow}>
+                  <Text style={styles.metricText}>{(topic.postCount || 0).toLocaleString()} posts</Text>
+                  <Text style={styles.metricText}>•</Text>
+                  <Text style={styles.metricText}>{(topic.contributorCount || 0).toLocaleString()} contributors</Text>
                 </View>
-                <Pressable
-                    style={[styles.followButton, isFollowing && styles.followButtonActive]}
-                    onPress={handleFollow}
-                >
-                    <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-                    {isFollowing ? t('profile.following') : t('profile.follow')}
-                    </Text>
-                </Pressable>
+              </View>
+              <Pressable
+                style={[styles.followButton, isFollowing && styles.followButtonActive]}
+                onPress={handleFollow}
+              >
+                <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
+                  {isFollowing ? t('profile.following') : t('profile.follow')}
+                </Text>
+              </Pressable>
             </View>
           </View>
 

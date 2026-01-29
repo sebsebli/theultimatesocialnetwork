@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { TopicsService } from './topics.service';
@@ -49,31 +50,36 @@ export class TopicsController {
   @Get(':slug/posts')
   async getPosts(
     @Param('slug') slug: string,
-    @Query('page', ParseIntPipe) page = 1,
-    @Query('limit', ParseIntPipe) limit = 20,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('sort') sort: 'ranked' | 'recent' = 'recent',
   ) {
-    const topic = await this.topicsService.findOne(slug);
-    if (!topic) throw new Error('Topic not found');
+    try {
+      const topic = await this.topicsService.findOne(slug);
+      if (!topic) return { items: [], hasMore: false };
 
-    const offset = (page - 1) * limit;
-    const posts = await this.topicsService.getTopicPosts(
-      topic.id,
-      sort,
-      limit,
-      offset,
-    );
-    return {
-      items: posts,
-      hasMore: posts.length === limit,
-    };
+      const offset = (page - 1) * limit;
+      const posts = await this.topicsService.getTopicPosts(
+        topic.id,
+        sort,
+        limit,
+        offset,
+      );
+      return {
+        items: posts,
+        hasMore: posts.length === limit,
+      };
+    } catch (err) {
+      console.error('topics getPosts error', slug, err);
+      return { items: [], hasMore: false };
+    }
   }
 
   @Get(':slug/people')
   async getPeople(
     @Param('slug') slug: string,
-    @Query('page', ParseIntPipe) page = 1,
-    @Query('limit', ParseIntPipe) limit = 20,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
     const topic = await this.topicsService.findOne(slug);
     if (!topic) throw new Error('Topic not found');
@@ -93,8 +99,8 @@ export class TopicsController {
   @Get(':slug/sources')
   async getSources(
     @Param('slug') slug: string,
-    @Query('page', ParseIntPipe) page = 1,
-    @Query('limit', ParseIntPipe) limit = 20,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
     const topic = await this.topicsService.findOne(slug);
     if (!topic) throw new Error('Topic not found');

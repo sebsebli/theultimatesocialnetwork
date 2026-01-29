@@ -47,11 +47,11 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
 
   const handlePostPress = () => {
     if (!disableNavigation) {
-        if (post.title) {
-            router.push(`/post/${post.id}/reading`);
-        } else {
-            router.push(`/post/${post.id}`);
-        }
+      if (post.title) {
+        router.push(`/post/${post.id}/reading`);
+      } else {
+        router.push(`/post/${post.id}`);
+      }
     }
   };
 
@@ -66,23 +66,24 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
     } else if (source.type === 'post') {
       router.push(`/post/${source.id}`);
     } else if (source.type === 'topic') {
-       // Slugify
-       const slug = source.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-       router.push(`/topic/${slug}`);
+      // Slugify
+      const slug = source.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      router.push(`/topic/${slug}`);
     } else if (source.type === 'user') {
-       router.push(`/user/${source.handle}`);
+      router.push(`/user/${source.handle}`);
     }
   };
 
-  // Strip title from body if it matches the header
-  const displayBody = (post.title && post.body.startsWith(`# ${post.title}`))
-    ? post.body.substring(post.body.indexOf('\n') + 1).trim()
-    : post.body;
+  // Strip title from body if it matches the header (guard: body can be undefined from API)
+  const body = post.body ?? '';
+  const displayBody = (post.title && body.startsWith(`# ${post.title}`))
+    ? body.substring(body.indexOf('\n') + 1).trim()
+    : body;
 
   // Determine image source
-  const imageSource = headerImageUri 
+  const imageSource = headerImageUri
     ? { uri: headerImageUri }
-    : post.headerImageKey 
+    : post.headerImageKey
       ? { uri: `${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'}/images/${post.headerImageKey}` }
       : null;
 
@@ -106,22 +107,22 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
       const id = match[1];
       const alias = match[2];
       const resolvedTitle = referenceMetadata[id]?.title;
-      list.push({ 
-          type: 'post', 
-          id, 
-          title: alias || resolvedTitle || 'Referenced Post', 
-          icon: 'description' 
+      list.push({
+        type: 'post',
+        id,
+        title: alias || resolvedTitle || 'Referenced Post',
+        icon: 'description'
       });
     }
 
     // Topic links [[Topic]]
     const topicRegex = /\[\[([^\]:]+?)\]\]/g; // Simplified, assumes no prefix means topic
     while ((match = topicRegex.exec(post.body)) !== null) {
-       // Avoid matching post: or other prefixes if simplified regex catches them
-       if (!match[1].startsWith('post:')) {
-         const parts = match[1].split('|');
-         list.push({ type: 'topic', title: parts[0], alias: parts[1], icon: 'tag' });
-       }
+      // Avoid matching post: or other prefixes if simplified regex catches them
+      if (!match[1].startsWith('post:')) {
+        const parts = match[1].split('|');
+        list.push({ type: 'topic', title: parts[0], alias: parts[1], icon: 'tag' });
+      }
     }
 
     // Mentions @handle
@@ -190,23 +191,23 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
         <View style={styles.sourcesSection}>
           <Text style={styles.sourcesHeader}>{t('post.sources', 'SOURCES')}</Text>
           {sources.map((source, index) => (
-            <Pressable 
-              key={index} 
+            <Pressable
+              key={index}
               style={({ pressed }) => [styles.sourceItem, pressed && { backgroundColor: COLORS.hover }]}
               onPress={() => handleSourcePress(source)}
             >
               <Text style={styles.sourceNumber}>{index + 1}</Text>
               <View style={styles.sourceIcon}>
                 <Text style={styles.sourceIconText}>
-                  {source.type === 'external' && source.url 
+                  {source.type === 'external' && source.url
                     ? (new URL(source.url).hostname).charAt(0).toUpperCase()
                     : (source.title || '?').charAt(0).toUpperCase()}
                 </Text>
               </View>
               <View style={styles.sourceContent}>
                 <Text style={styles.sourceDomain}>
-                  {source.type === 'external' && source.url 
-                    ? new URL(source.url).hostname 
+                  {source.type === 'external' && source.url
+                    ? new URL(source.url).hostname
                     : source.type === 'user' ? 'User' : 'Topic/Post'}
                 </Text>
                 <Text style={styles.sourceText} numberOfLines={1}>

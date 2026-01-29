@@ -77,9 +77,6 @@ export default function OnboardingStarterPacksScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.secondary} />
         </Pressable>
-        <Pressable onPress={handleFinish} style={styles.skipButton}>
-          <Text style={styles.skipText}>{t('common.skip')}</Text>
-        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -153,18 +150,6 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     justifyContent: 'center',
-  },
-  skipButton: {
-    position: 'absolute',
-    right: SPACING.l,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-  },
-  skipText: {
-    fontSize: 14,
-    color: COLORS.secondary,
-    fontFamily: FONTS.medium,
   },
   stepIndicator: {
     flexDirection: 'row',
