@@ -16,7 +16,8 @@ import { Neo4jService } from './neo4j.service';
           type: 'postgres',
           url: configService.get<string>('DATABASE_URL'),
           autoLoadEntities: true,
-          synchronize: !isProduction, // Disable in production
+          synchronize:
+            !isProduction || configService.get('DB_SYNCHRONIZE') === 'true', // Disable in production unless explicitly enabled
           logging: !isProduction,
           ssl:
             configService.get('DB_SSL') === 'false'

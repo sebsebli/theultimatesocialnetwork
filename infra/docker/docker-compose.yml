@@ -3,7 +3,7 @@ services:
   # CORE DATA
   # -----------------------------------------------------------------------------
   db:
-    image: supabase/postgres:15.1.1.2
+    image: postgres:15-alpine
     container_name: cite-db
     ports:
       - "5433:5432"
@@ -99,7 +99,7 @@ services:
       - ./volumes/meilisearch:/meili_data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:7700/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:7700/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -118,10 +118,11 @@ services:
     command: server /data --console-address ":9001"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 30s
       timeout: 20s
       retries: 3
+      start_period: 10s
 
   ollama:
     image: ollama/ollama:latest
@@ -133,11 +134,11 @@ services:
       - ./init-ollama.sh:/init-ollama.sh
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 10
-      start_period: 60s
+      start_period: 90s
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -173,8 +174,7 @@ services:
       MINIO_BUCKET: cite-images
       MINIO_PUBLIC_URL: http://localhost:9000
       # Auth: use .env or default so API can start
-      JWT_SECRET: ${JWT_SECRET:-}
-      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-your-secret-key-change-in-production}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       OLLAMA_HOST: http://ollama:11434
       NODE_ENV: ${NODE_ENV:-production}
       DB_SSL: "false"

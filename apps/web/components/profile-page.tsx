@@ -4,6 +4,24 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { PostItem, Post } from "./post-item";
 
+interface Reply {
+  id: string;
+  postId: string;
+  body: string;
+}
+
+interface Quote {
+  id: string;
+  body: string;
+}
+
+interface Collection {
+  id: string;
+  title: string;
+  description?: string;
+  itemCount: number;
+}
+
 interface ProfilePageProps {
   user: {
     id: string;
@@ -50,6 +68,7 @@ export function ProfilePage({ user, isSelf = false }: ProfilePageProps) {
         }
       } else if (activeTab === "quotes" && !tabData.quotesReceived) {
         try {
+          const res = await fetch(`/api/users/${user.id}/quotes`);
           if (res.ok && isMounted) {
             const data = await res.json();
             setTabData((prev) => ({ ...prev, quotesReceived: data }));

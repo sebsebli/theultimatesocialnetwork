@@ -17,7 +17,7 @@ NEO4J_PASSWORD=password
 MEILI_MASTER_KEY=masterKey
 MINIO_ROOT_USER=minioadmin
 MINIO_ROOT_PASSWORD=minioadmin
-SUPABASE_JWT_SECRET=your-secret-key-change-in-production
+JWT_SECRET=your-secret-key-change-in-production
 DEV_TOKEN=
 EOF
   echo "✅ Created .env file. Please update DEV_TOKEN if needed."

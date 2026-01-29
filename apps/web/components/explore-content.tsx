@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PostItem } from "./post-item";
 import { WhyLabel } from "./why-label";
@@ -23,19 +23,24 @@ interface Person {
 
 import { Post } from "./post-item";
 
+interface ExplorePost extends Post {
+  reasons?: string[];
+}
+
+type TabData = {
+  topics: Topic[];
+  people: Person[];
+  quoted: ExplorePost[];
+  "deep-dives": ExplorePost[];
+  newsroom: ExplorePost[];
+};
+
 export function ExploreContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") || "topics";
   const sort = searchParams.get("sort") || "recommended";
 
-  const [tabData, setTabData] = useState<{
-    topics: Topic[];
-    people: Person[];
-    quoted: Post[];
-    "deep-dives": Post[];
-    newsroom: Post[];
-  }>({
+  const [tabData, setTabData] = useState<TabData>({
     topics: [],
     people: [],
     quoted: [],
@@ -44,14 +49,7 @@ export function ExploreContent() {
   });
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    // Only load if we don't have data for this tab/sort combo or if explicitly refreshing
-    if ((tabData as any)[tab]?.length === 0) {
-      loadContent();
-    }
-  }, [tab, sort]);
-
-  const loadContent = async () => {
+  const loadContent = useCallback(async () => {
     setLoading(true);
     try {
       const query = new URLSearchParams();
@@ -77,12 +75,21 @@ export function ExploreContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tab, sort]);
+
+  useEffect(() => {
+    // Only load if we don't have data for this tab/sort combo or if explicitly refreshing
+    const key = tab as keyof TabData;
+    if (tabData[key]?.length === 0) {
+      loadContent();
+    }
+  }, [tab, sort, loadContent, tabData]);
 
   // Helper to get active items
   const activeItems =
-    (tabData as unknown as Record<string, (Topic | Person | Post)[]>)[tab] ||
-    [];
+    (tabData as unknown as Record<string, (Topic | Person | ExplorePost)[]>)[
+      tab
+    ] || [];
 
   return (
     <div className="flex flex-col gap-4 pb-20 md:pb-0 px-4 pt-2">
@@ -104,7 +111,7 @@ export function ExploreContent() {
       ) : (
         <div className="space-y-4">
           {tab === "topics" &&
-            activeItems.map((topic) => (
+            (activeItems as Topic[]).map((topic) => (
               <Link key={topic.id} href={`/topic/${topic.slug}`}>
                 <div className="relative bg-white/[0.02] hover:bg-white/[0.05] flex flex-col items-stretch justify-end rounded-xl p-6 shadow-sm overflow-hidden border border-white/5 hover:border-primary/40 transition-all duration-300 group">
                   <div className="flex items-start justify-between mb-2">
@@ -138,7 +145,7 @@ export function ExploreContent() {
             ))}
 
           {tab === "people" &&
-            activeItems.map((person) => (
+            (activeItems as Person[]).map((person) => (
               <Link key={person.id} href={`/user/${person.handle}`}>
                 <div className="p-5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group active:scale-[0.99]">
                   <div className="flex items-center gap-4">
@@ -165,7 +172,7 @@ export function ExploreContent() {
             ))}
 
           {(tab === "quoted" || tab === "deep-dives" || tab === "newsroom") &&
-            activeItems.map((post) => (
+            (activeItems as ExplorePost[]).map((post) => (
               <div key={post.id} className="relative group">
                 <PostItem post={post} />
                 {post.reasons && (

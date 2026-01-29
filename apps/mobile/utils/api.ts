@@ -117,6 +117,22 @@ class ApiClient {
         } catch (e) {
           // Keep text
         }
+        // Treat "user no longer exists" and similar auth/user errors: clear auth and redirect to sign-in
+        const isAuthError =
+          response.status === 401 ||
+          response.status === 403 ||
+          response.status === 404 ||
+          /user no longer exists|user not found|unauthorized|invalid token|token expired/i.test(errorMessage);
+        if (isAuthError) {
+          await clearAuthToken();
+          if (onAuthError) {
+            try {
+              onAuthError();
+            } catch (handlerError) {
+              if (__DEV__) console.warn('Auth error handler failed:', handlerError);
+            }
+          }
+        }
         throw new ApiError(errorMessage, response.status);
       }
 

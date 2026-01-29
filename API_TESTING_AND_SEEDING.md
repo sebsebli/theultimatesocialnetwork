@@ -126,7 +126,7 @@ MINIO_ACCESS_KEY="minioadmin" \
 MINIO_SECRET_KEY="minioadmin" \
 MINIO_BUCKET="cite-images" \
 MINIO_PUBLIC_URL="http://localhost:9000" \
-SUPABASE_JWT_SECRET="your-secret-key" \
+JWT_SECRET="your-secret-key" \
 OLLAMA_HOST="http://localhost:11434" \
 pnpm seed:comprehensive
 ```

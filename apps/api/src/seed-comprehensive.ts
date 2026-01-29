@@ -1,3 +1,10 @@
+/**
+ * Comprehensive seed: realistic social network data for end-to-end testing.
+ *
+ * IDs: User uses @PrimaryColumn('uuid') so we set id explicitly. All other
+ * entities use @PrimaryGeneratedColumn('uuid') and get UUIDs from the database.
+ */
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DataSource } from 'typeorm';
@@ -13,598 +20,369 @@ import { PostEdge, EdgeType } from './entities/post-edge.entity';
 import { Collection } from './entities/collection.entity';
 import { CollectionItem } from './entities/collection-item.entity';
 import { Mention } from './entities/mention.entity';
-import { ExternalSource } from './entities/external-source.entity';
 import { TopicFollow } from './entities/topic-follow.entity';
 import { Invite } from './entities/invite.entity';
 import { SystemSetting } from './entities/system-setting.entity';
 import { WaitingList } from './entities/waiting-list.entity';
+import { NotificationPref } from './entities/notification-pref.entity';
+import { Block } from './entities/block.entity';
+import { Mute } from './entities/mute.entity';
+import {
+  Report,
+  ReportTargetType,
+  ReportStatus,
+} from './entities/report.entity';
+import { DmThread } from './entities/dm-thread.entity';
+import { DmMessage } from './entities/dm-message.entity';
+import {
+  FollowRequest,
+  FollowRequestStatus,
+} from './entities/follow-request.entity';
+import { PushToken, PushProvider } from './entities/push-token.entity';
 import { Neo4jService } from './database/neo4j.service';
 import { v4 as uuidv4 } from 'uuid';
-import * as crypto from 'crypto';
 
-// Realistic sample data
-const USER_NAMES = [
+// --- PERSONAS: mix of public/private, custom recommendation prefs, languages ---
+const PERSONAS = [
   {
-    handle: 'alice_writer',
-    displayName: 'Alice Writer',
-    bio: 'Tech journalist and science communicator. Writing about AI, climate, and society.',
+    id: uuidv4(),
+    handle: 'alex.urban',
+    name: 'Alex Rivera',
+    bio: 'Cities for people, not cars. Urbanist & advocate. 🚲🌆',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 90,
+      languageMatch: 80,
+      citations: 95,
+      replies: 60,
+      likes: 40,
+      networkProximity: 50,
+    },
   },
   {
-    handle: 'bob_researcher',
-    displayName: 'Bob Researcher',
-    bio: 'PhD in Computer Science. Researching distributed systems and consensus algorithms.',
+    id: uuidv4(),
+    handle: 'sarah.tech',
+    name: 'Sarah Chen',
+    bio: 'Systems engineer. Rustacean. Building safe infra. 🦀',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 85,
+      languageMatch: 70,
+      citations: 90,
+      replies: 70,
+      likes: 35,
+      networkProximity: 60,
+    },
   },
   {
-    handle: 'charlie_thinker',
-    displayName: 'Charlie Thinker',
-    bio: 'Philosopher exploring ethics in technology. Long-form essays on digital culture.',
+    id: uuidv4(),
+    handle: 'mike.skeptic',
+    name: 'Mike Johnson',
+    bio: 'Asking the hard questions. Freedom maximalist.',
+    lang: 'en',
+    isProtected: true,
+    explore: {
+      topicsYouFollow: 50,
+      languageMatch: 60,
+      citations: 70,
+      replies: 80,
+      likes: 20,
+      networkProximity: 70,
+    },
   },
   {
-    handle: 'diana_curator',
-    displayName: 'Diana Curator',
-    bio: 'Curating the best long-form content on the web. Collections of deep dives.',
+    id: uuidv4(),
+    handle: 'emily.green',
+    name: 'Emily Park',
+    bio: 'Climate scientist. Data-driven. IPCC contributor.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 95,
+      languageMatch: 75,
+      citations: 98,
+      replies: 50,
+      likes: 45,
+      networkProximity: 40,
+    },
   },
   {
-    handle: 'eve_developer',
-    displayName: 'Eve Developer',
-    bio: 'Full-stack developer. Building open-source tools and sharing learnings.',
+    id: uuidv4(),
+    handle: 'david.des',
+    name: 'David Kim',
+    bio: 'UI/UX and accessible design. A11y first.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 75,
+      languageMatch: 80,
+      citations: 85,
+      replies: 55,
+      likes: 50,
+      networkProximity: 55,
+    },
   },
   {
-    handle: 'frank_analyst',
-    displayName: 'Frank Analyst',
-    bio: 'Data analyst and visualization expert. Making sense of complex datasets.',
+    id: uuidv4(),
+    handle: 'lisa.journo',
+    name: 'Lisa Vance',
+    bio: 'Tech journalist. Future of work & platforms.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 70,
+      languageMatch: 65,
+      citations: 88,
+      replies: 75,
+      likes: 30,
+      networkProximity: 65,
+    },
   },
   {
-    handle: 'grace_designer',
-    displayName: 'Grace Designer',
-    bio: 'UX designer focused on accessibility and inclusive design principles.',
+    id: uuidv4(),
+    handle: 'marcus.phil',
+    name: 'Marcus Webb',
+    bio: 'Stoicism and modern life. Memento mori.',
+    lang: 'en',
+    isProtected: true,
+    explore: {
+      topicsYouFollow: 60,
+      languageMatch: 90,
+      citations: 75,
+      replies: 40,
+      likes: 25,
+      networkProximity: 45,
+    },
   },
   {
-    handle: 'henry_historian',
-    displayName: 'Henry Historian',
-    bio: 'Digital historian. Exploring how technology shapes and is shaped by society.',
+    id: uuidv4(),
+    handle: 'maria.es',
+    name: 'María González',
+    bio: 'Arquitectura y diseño urbano. Barcelona.',
+    lang: 'es',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 80,
+      languageMatch: 95,
+      citations: 85,
+      replies: 60,
+      likes: 40,
+      networkProximity: 50,
+    },
   },
   {
-    handle: 'ivy_educator',
-    displayName: 'Ivy Educator',
-    bio: 'Online educator creating courses on programming, design, and critical thinking.',
+    id: uuidv4(),
+    handle: 'james.dev',
+    name: 'James Wright',
+    bio: 'Full-stack. TypeScript & Go. Open source.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 88,
+      languageMatch: 72,
+      citations: 92,
+      replies: 65,
+      likes: 38,
+      networkProximity: 58,
+    },
   },
   {
-    handle: 'jack_entrepreneur',
-    displayName: 'Jack Entrepreneur',
-    bio: 'Building the future of work. Sharing insights on startups and innovation.',
+    id: uuidv4(),
+    handle: 'anna.art',
+    name: 'Anna Kozlov',
+    bio: 'Digital artist. Generative art & code.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 65,
+      languageMatch: 78,
+      citations: 70,
+      replies: 85,
+      likes: 55,
+      networkProximity: 62,
+    },
   },
   {
-    handle: 'kate_scientist',
-    displayName: 'Kate Scientist',
-    bio: 'Climate scientist. Communicating research on climate change and solutions.',
+    id: uuidv4(),
+    handle: 'yuki.jp',
+    name: 'Yuki Tanaka',
+    bio: 'Privacy researcher. Encryption & identity.',
+    lang: 'ja',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 92,
+      languageMatch: 88,
+      citations: 96,
+      replies: 45,
+      likes: 28,
+      networkProximity: 42,
+    },
   },
   {
-    handle: 'liam_writer',
-    displayName: 'Liam Writer',
-    bio: 'Fiction and non-fiction writer. Exploring narrative structures and storytelling.',
+    id: uuidv4(),
+    handle: 'oliver.news',
+    name: 'Oliver News',
+    bio: 'Curator. Just the links. No hot takes.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 55,
+      languageMatch: 60,
+      citations: 99,
+      replies: 30,
+      likes: 15,
+      networkProximity: 35,
+    },
   },
   {
-    handle: 'mia_artist',
-    displayName: 'Mia Artist',
-    bio: 'Digital artist and creative coder. Blending art, technology, and philosophy.',
+    id: uuidv4(),
+    handle: 'rebecca.policy',
+    name: 'Rebecca Shaw',
+    bio: 'Policy analyst. Tech regulation & rights.',
+    lang: 'en',
+    isProtected: true,
+    explore: {
+      topicsYouFollow: 78,
+      languageMatch: 82,
+      citations: 88,
+      replies: 72,
+      likes: 32,
+      networkProximity: 68,
+    },
   },
   {
-    handle: 'noah_engineer',
-    displayName: 'Noah Engineer',
-    bio: 'Systems engineer. Building reliable infrastructure and sharing war stories.',
+    id: uuidv4(),
+    handle: 'tom.rust',
+    name: 'Tom Blake',
+    bio: 'Rust core contributor. Memory safety advocate.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 94,
+      languageMatch: 76,
+      citations: 97,
+      replies: 58,
+      likes: 42,
+      networkProximity: 48,
+    },
   },
   {
-    handle: 'olivia_philosopher',
-    displayName: 'Olivia Philosopher',
-    bio: 'Philosopher of mind and technology. Long-form essays on consciousness and AI.',
+    id: uuidv4(),
+    handle: 'nina.design',
+    name: 'Nina Petrova',
+    bio: 'Design systems. Component libraries.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 72,
+      languageMatch: 85,
+      citations: 80,
+      replies: 68,
+      likes: 48,
+      networkProximity: 52,
+    },
   },
   {
-    handle: 'peter_economist',
-    displayName: 'Peter Economist',
-    bio: 'Behavioral economist. Researching decision-making and market dynamics.',
+    id: uuidv4(),
+    handle: 'chris.indie',
+    name: 'Chris Moore',
+    bio: 'Indie hacker. Bootstrapping in public.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 68,
+      languageMatch: 70,
+      citations: 82,
+      replies: 78,
+      likes: 35,
+      networkProximity: 72,
+    },
   },
   {
-    handle: 'quinn_linguist',
-    displayName: 'Quinn Linguist',
-    bio: 'Computational linguist. Studying how language evolves in digital spaces.',
+    id: uuidv4(),
+    handle: 'fatima.data',
+    name: 'Fatima Al-Hassan',
+    bio: 'Data science. ML fairness & ethics.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 86,
+      languageMatch: 74,
+      citations: 91,
+      replies: 52,
+      likes: 44,
+      networkProximity: 46,
+    },
   },
   {
-    handle: 'rachel_psychologist',
-    displayName: 'Rachel Psychologist',
-    bio: 'Social psychologist. Researching online communities and digital behavior.',
+    id: uuidv4(),
+    handle: 'leo.writer',
+    name: 'Leo Martelli',
+    bio: 'Essayist. Long-form on tech and society.',
+    lang: 'en',
+    isProtected: true,
+    explore: {
+      topicsYouFollow: 82,
+      languageMatch: 90,
+      citations: 93,
+      replies: 48,
+      likes: 36,
+      networkProximity: 44,
+    },
   },
   {
-    handle: 'sam_architect',
-    displayName: 'Sam Architect',
-    bio: 'Software architect. Designing scalable systems and sharing patterns.',
+    id: uuidv4(),
+    handle: 'zara.ux',
+    name: 'Zara Khan',
+    bio: 'UX research. Human-centered AI.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 74,
+      languageMatch: 79,
+      citations: 84,
+      replies: 62,
+      likes: 46,
+      networkProximity: 54,
+    },
   },
   {
-    handle: 'taylor_activist',
-    displayName: 'Taylor Activist',
-    bio: 'Digital rights activist. Advocating for privacy, open source, and digital freedom.',
-  },
-  {
-    handle: 'uma_curator',
-    displayName: 'Uma Curator',
-    bio: 'Content curator specializing in science communication and public understanding.',
-  },
-  {
-    handle: 'vince_developer',
-    displayName: 'Vince Developer',
-    bio: 'Backend developer. Building APIs, databases, and distributed systems.',
-  },
-  {
-    handle: 'willa_writer',
-    displayName: 'Willa Writer',
-    bio: 'Technical writer. Making complex topics accessible through clear documentation.',
-  },
-  {
-    handle: 'xavier_researcher',
-    displayName: 'Xavier Researcher',
-    bio: 'AI researcher. Working on language models and their societal implications.',
-  },
-  {
-    handle: 'yara_designer',
-    displayName: 'Yara Designer',
-    bio: 'Product designer. Creating interfaces that are both beautiful and functional.',
-  },
-  {
-    handle: 'zoe_educator',
-    displayName: 'Zoe Educator',
-    bio: 'Online educator. Teaching programming, design, and critical thinking skills.',
-  },
-  {
-    handle: 'alex_analyst',
-    displayName: 'Alex Analyst',
-    bio: 'Business analyst. Helping companies make data-driven decisions.',
-  },
-  {
-    handle: 'blake_engineer',
-    displayName: 'Blake Engineer',
-    bio: 'DevOps engineer. Automating infrastructure and improving reliability.',
-  },
-  {
-    handle: 'casey_thinker',
-    displayName: 'Casey Thinker',
-    bio: 'Independent researcher. Exploring the intersection of technology and society.',
-  },
-  {
-    handle: 'dakota_writer',
-    displayName: 'Dakota Writer',
-    bio: 'Science writer. Translating complex research into engaging narratives.',
-  },
-  {
-    handle: 'emery_developer',
-    displayName: 'Emery Developer',
-    bio: 'Frontend developer. Building responsive, accessible web applications.',
-  },
-  {
-    handle: 'finley_curator',
-    displayName: 'Finley Curator',
-    bio: 'Content curator. Finding and sharing the best long-form content online.',
-  },
-  {
-    handle: 'gray_analyst',
-    displayName: 'Gray Analyst',
-    bio: 'Security analyst. Researching vulnerabilities and defense strategies.',
-  },
-  {
-    handle: 'hunter_researcher',
-    displayName: 'Hunter Researcher',
-    bio: 'Social science researcher. Studying online communities and digital culture.',
-  },
-  {
-    handle: 'indigo_designer',
-    displayName: 'Indigo Designer',
-    bio: 'Interaction designer. Creating intuitive user experiences.',
-  },
-  {
-    handle: 'jordan_engineer',
-    displayName: 'Jordan Engineer',
-    bio: 'ML engineer. Building and deploying machine learning systems.',
-  },
-  {
-    handle: 'kendall_writer',
-    displayName: 'Kendall Writer',
-    bio: 'Tech journalist. Covering startups, innovation, and industry trends.',
-  },
-  {
-    handle: 'logan_developer',
-    displayName: 'Logan Developer',
-    bio: 'Full-stack developer. Building web applications and APIs.',
-  },
-  {
-    handle: 'morgan_thinker',
-    displayName: 'Morgan Thinker',
-    bio: 'Philosopher and writer. Exploring ethics, technology, and human nature.',
-  },
-  {
-    handle: 'niko_curator',
-    displayName: 'Niko Curator',
-    bio: 'Content curator. Specializing in technology, science, and philosophy.',
-  },
-  {
-    handle: 'parker_analyst',
-    displayName: 'Parker Analyst',
-    bio: 'Data analyst. Helping organizations understand their data.',
-  },
-  {
-    handle: 'quinn_developer',
-    displayName: 'Quinn Developer',
-    bio: 'Mobile developer. Building iOS and Android applications.',
-  },
-  {
-    handle: 'riley_writer',
-    displayName: 'Riley Writer',
-    bio: 'Long-form essayist. Writing about technology, culture, and society.',
-  },
-  {
-    handle: 'sage_researcher',
-    displayName: 'Sage Researcher',
-    bio: 'Academic researcher. Publishing on digital humanities and computational methods.',
-  },
-  {
-    handle: 'taylor_designer',
-    displayName: 'Taylor Designer',
-    bio: 'Visual designer. Creating brand identities and digital experiences.',
-  },
-  {
-    handle: 'val_engineer',
-    displayName: 'Val Engineer',
-    bio: 'Systems engineer. Building and maintaining large-scale infrastructure.',
-  },
-  {
-    handle: 'wren_curator',
-    displayName: 'Wren Curator',
-    bio: 'Content curator. Finding hidden gems in long-form writing.',
-  },
-  {
-    handle: 'xara_analyst',
-    displayName: 'Xara Analyst',
-    bio: 'Business intelligence analyst. Creating dashboards and reports.',
-  },
-  {
-    handle: 'yuki_developer',
-    displayName: 'Yuki Developer',
-    bio: 'Game developer. Creating interactive experiences and narratives.',
-  },
-  {
-    handle: 'zane_writer',
-    displayName: 'Zane Writer',
-    bio: 'Technical writer. Documenting APIs, frameworks, and best practices.',
+    id: uuidv4(),
+    handle: 'henry.teacher',
+    name: 'Henry Liu',
+    bio: 'CS educator. Making hard concepts simple.',
+    lang: 'en',
+    isProtected: false,
+    explore: {
+      topicsYouFollow: 88,
+      languageMatch: 82,
+      citations: 89,
+      replies: 82,
+      likes: 50,
+      networkProximity: 58,
+    },
   },
 ];
 
 const TOPICS = [
-  { slug: 'artificial-intelligence', title: 'Artificial Intelligence' },
-  { slug: 'climate-change', title: 'Climate Change' },
-  { slug: 'web-development', title: 'Web Development' },
-  { slug: 'philosophy', title: 'Philosophy' },
-  { slug: 'data-science', title: 'Data Science' },
-  { slug: 'design', title: 'Design' },
-  { slug: 'startups', title: 'Startups' },
-  { slug: 'open-source', title: 'Open Source' },
-  { slug: 'privacy', title: 'Privacy' },
-  { slug: 'education', title: 'Education' },
-  { slug: 'society', title: 'Society' },
+  { slug: 'urbanism', title: 'Urbanism' },
   { slug: 'technology', title: 'Technology' },
-  { slug: 'science', title: 'Science' },
-  { slug: 'culture', title: 'Culture' },
-  { slug: 'ethics', title: 'Ethics' },
-  { slug: 'innovation', title: 'Innovation' },
-  { slug: 'research', title: 'Research' },
+  { slug: 'rust', title: 'Rust' },
+  { slug: 'climate', title: 'Climate' },
+  { slug: 'design', title: 'Design' },
+  { slug: 'politics', title: 'Politics' },
+  { slug: 'ai', title: 'Artificial Intelligence' },
+  { slug: 'privacy', title: 'Privacy' },
+  { slug: 'startups', title: 'Startups' },
+  { slug: 'accessibility', title: 'Accessibility' },
+  { slug: 'data-science', title: 'Data Science' },
   { slug: 'writing', title: 'Writing' },
-  { slug: 'programming', title: 'Programming' },
-  { slug: 'history', title: 'History' },
-];
-
-// Classic short posts without titles (Twitter/X style)
-const CLASSIC_POSTS = [
-  'Just shipped a new feature. Feeling good! 🚀',
-  'Anyone else find debugging oddly satisfying?',
-  "The best code is code you don't have to write.",
-  'Coffee + code = productivity. Change my mind.',
-  'Spent 3 hours debugging. It was a typo. Classic.',
-  "Why do we call it 'refactoring' when we're just fixing our mistakes?",
-  "Documentation is like a good joke: if you have to explain it, it's not good.",
-  "The only thing worse than no tests is tests that don't test anything.",
-  "Code review: 'This could be simpler.' Me: 'Everything could be simpler.'",
-  "I don't always test my code, but when I do, I do it in production.",
-  'The best way to learn is to build something. Then break it. Then fix it.',
-  'Stack Overflow: where I go to feel both smart and stupid at the same time.',
-  "Git commit message: 'Fixed bug' - Future me: 'What bug?'",
-  'The three hardest things in programming: naming things, cache invalidation, and off-by-one errors.',
-  "Code is like humor. When you have to explain it, it's bad.",
-  "Just realized I've been optimizing the wrong thing for the past week.",
-  'The best error message is the one that tells you exactly what you did wrong.',
-  "I write code that works. I don't write code that's easy to understand. That's a problem.",
-  'The difference between a junior and senior developer: juniors write code that works. Seniors write code that works AND is maintainable.',
-  "Why is it called 'pair programming' when I'm the only one typing?",
-  'The best code is the code you delete.',
-  "I'm not lazy, I'm just efficient at finding the easiest solution.",
-  'The only thing more permanent than a temporary solution is a temporary solution that works.',
-  "Debugging is like being a detective in a crime movie where you're also the murderer.",
-  "I don't have a problem with procrastination. I have a problem with deadlines.",
-  'The best way to get a good answer on Stack Overflow is to post a wrong answer.',
-  'Code that works on my machine is the best kind of code.',
-  "The three stages of learning to code: 1) It doesn't work. 2) It works but I don't know why. 3) It works and I know why.",
-  "I'm not saying my code is perfect, but it's the best code I've written today.",
-  'The best time to refactor is right after you finish the feature. The second best time is never.',
-];
-
-const POST_TEMPLATES = [
-  {
-    title: 'The Future of AI in Education',
-    body: `# The Future of AI in Education
-
-Artificial intelligence is transforming how we learn and teach. From personalized learning paths to automated grading, AI tools are becoming integral to educational systems worldwide.
-
-## Personalized Learning
-
-One of the most promising applications is personalized learning. AI can analyze a student's learning patterns and adapt content in real-time, ensuring each learner progresses at their optimal pace.
-
-## Challenges Ahead
-
-However, we must be cautious. Issues of [[privacy]], algorithmic bias, and the digital divide need careful consideration. The goal should be to enhance human teaching, not replace it.
-
-What are your thoughts on AI in education?`,
-    topics: ['artificial-intelligence', 'education'],
-  },
-  {
-    title: 'Climate Solutions That Actually Work',
-    body: `# Climate Solutions That Actually Work
-
-After years of research and analysis, I've identified the most effective climate solutions based on scientific evidence.
-
-## Renewable Energy Transition
-
-The transition to renewable energy is accelerating. Solar and wind power are now cheaper than fossil fuels in most regions. This economic shift is driving rapid adoption.
-
-## Carbon Capture and Storage
-
-While controversial, carbon capture technologies are improving. Direct air capture facilities are becoming more efficient and cost-effective.
-
-## Nature-Based Solutions
-
-Reforestation and ecosystem restoration offer multiple benefits beyond carbon sequestration. They protect biodiversity and support local communities.
-
-The key is implementing multiple solutions simultaneously. No single approach will solve the climate crisis alone.`,
-    topics: ['climate-change', 'science'],
-  },
-  {
-    title: 'Building Scalable Web Applications',
-    body: `# Building Scalable Web Applications
-
-Over the past decade, I've learned hard lessons about building applications that scale. Here's what actually matters.
-
-## Start with the Right Architecture
-
-Microservices aren't always the answer. Sometimes a well-designed monolith is the right choice. The key is understanding your requirements and constraints.
-
-## Database Design Matters
-
-Your database schema will make or break your application. Invest time in proper indexing, query optimization, and understanding your access patterns.
-
-## Caching Strategies
-
-Effective caching can reduce database load by 80-90%. Use Redis for session data, frequently accessed content, and computed results.
-
-## Monitoring and Observability
-
-You can't optimize what you can't measure. Implement comprehensive logging, metrics, and distributed tracing from day one.
-
-The best architecture is the one that solves your specific problem, not the one that looks impressive on paper.`,
-    topics: ['web-development', 'programming'],
-  },
-  {
-    title: 'The Ethics of AI Development',
-    body: `# The Ethics of AI Development
-
-As AI systems become more powerful, the ethical implications become more complex. We need to have serious conversations about responsibility and accountability.
-
-## Transparency and Explainability
-
-Users deserve to know when they're interacting with AI systems. We need explainable AI that can justify its decisions, especially in high-stakes applications.
-
-## Bias and Fairness
-
-AI systems reflect the biases in their training data. We must actively work to identify and mitigate these biases, ensuring fair outcomes for all users.
-
-## Privacy and Consent
-
-Data collection for AI training raises serious privacy concerns. We need stronger consent mechanisms and better data governance.
-
-## The Path Forward
-
-The solution isn't to stop AI development, but to develop it responsibly. This requires interdisciplinary collaboration between technologists, ethicists, policymakers, and affected communities.
-
-What principles should guide AI development?`,
-    topics: ['artificial-intelligence', 'ethics', 'philosophy'],
-  },
-  {
-    title: 'The Open Source Movement in 2024',
-    body: `# The Open Source Movement in 2024
-
-Open source software has fundamentally changed how we build technology. But the movement faces new challenges and opportunities.
-
-## Sustainability
-
-Many critical open source projects are maintained by volunteers. We need sustainable funding models that support maintainers while preserving the open source ethos.
-
-## Corporate Involvement
-
-Large tech companies contribute significantly to open source, but their motivations are complex. We must balance corporate support with community autonomy.
-
-## Licensing Evolution
-
-New licenses are emerging to address AI training, cloud usage, and other modern concerns. The licensing landscape is more complex than ever.
-
-## Community Health
-
-Healthy communities are the foundation of successful open source projects. We need better tools and practices for community management and conflict resolution.
-
-The future of open source depends on finding the right balance between openness, sustainability, and practical constraints.`,
-    topics: ['open-source', 'technology'],
-  },
-  {
-    title: 'Understanding Privacy in the Digital Age',
-    body: `# Understanding Privacy in the Digital Age
-
-Privacy is a fundamental right, but it's under constant threat in our digital world. We need to rethink how we protect personal information.
-
-## The Value of Privacy
-
-Privacy isn't about hiding wrongdoing—it's about autonomy and control over our personal information. It enables free expression and protects vulnerable populations.
-
-## Current Threats
-
-Surveillance capitalism, data breaches, and government surveillance all threaten privacy. The scale and sophistication of these threats are unprecedented.
-
-## Technical Solutions
-
-Encryption, zero-knowledge proofs, and privacy-preserving technologies offer technical solutions. But technology alone isn't enough.
-
-## Legal and Social Frameworks
-
-We need stronger legal protections and cultural shifts that value privacy. GDPR is a start, but we need global standards and enforcement.
-
-## What You Can Do
-
-Use privacy-focused tools, support organizations fighting for digital rights, and advocate for stronger privacy protections.
-
-Privacy is worth fighting for.`,
-    topics: ['privacy', 'society'],
-  },
-  {
-    title: 'The Art of Long-Form Writing',
-    body: `# The Art of Long-Form Writing
-
-In an age of tweets and short-form content, long-form writing offers something unique: depth, nuance, and the space to explore complex ideas.
-
-## Why Long-Form Matters
-
-Long-form writing allows for complexity. It can explore multiple perspectives, provide context, and build arguments over thousands of words.
-
-## The Writing Process
-
-Good long-form writing requires research, structure, and revision. It's a craft that takes time to develop.
-
-## Finding Your Voice
-
-Your unique perspective is your greatest asset. Don't try to sound like someone else—develop your own authentic voice.
-
-## The Reader's Journey
-
-Think about the reader's experience. How do you guide them through your ideas? What questions do you answer? What emotions do you evoke?
-
-Long-form writing is a conversation with the reader, stretched over time and space.`,
-    topics: ['writing', 'culture'],
-  },
-  {
-    title: 'Data Science in Practice',
-    body: `# Data Science in Practice
-
-Data science is more than just machine learning models. It's about asking the right questions and telling compelling stories with data.
-
-## The Scientific Method
-
-Good data science follows the scientific method: hypothesis, experimentation, analysis, and interpretation. Don't skip steps.
-
-## Data Quality
-
-Garbage in, garbage out. Invest time in data cleaning, validation, and understanding your data sources.
-
-## Visualization
-
-A good visualization can communicate insights more effectively than pages of analysis. Learn to create clear, honest visualizations.
-
-## Communication
-
-Technical skills are important, but communication skills are essential. You need to explain your findings to non-technical stakeholders.
-
-## Ethics
-
-Data science has real-world consequences. Consider the ethical implications of your work, from privacy to algorithmic bias.
-
-Data science is a tool for understanding the world. Use it responsibly.`,
-    topics: ['data-science', 'research'],
-  },
-  {
-    title: 'Designing for Accessibility',
-    body: `# Designing for Accessibility
-
-Accessibility isn't an afterthought—it's a fundamental requirement for good design. When we design for accessibility, we design for everyone.
-
-## Universal Design Principles
-
-Universal design benefits everyone, not just people with disabilities. Curb cuts help wheelchair users, parents with strollers, and people with luggage.
-
-## Web Accessibility
-
-WCAG guidelines provide a framework for accessible web design. Color contrast, keyboard navigation, and screen reader compatibility are essential.
-
-## Inclusive Design Process
-
-Include people with disabilities in your design process. Their insights will improve your product for all users.
-
-## Beyond Compliance
-
-Accessibility is more than checking boxes. It's about creating experiences that are truly usable by everyone.
-
-## The Business Case
-
-Accessible design expands your audience, improves SEO, and reduces legal risk. It's not just the right thing to do—it's good business.
-
-Design with accessibility in mind from the start, and you'll create better products for everyone.`,
-    topics: ['design', 'society'],
-  },
-  {
-    title: 'The Startup Journey',
-    body: `# The Startup Journey
-
-Starting a company is one of the most challenging and rewarding experiences. Here's what I've learned from building multiple startups.
-
-## The Idea
-
-Ideas are cheap. Execution is everything. Don't fall in love with your idea—fall in love with solving a real problem.
-
-## Building the Team
-
-Your team is your most important asset. Hire for culture fit, growth potential, and complementary skills.
-
-## Product-Market Fit
-
-Finding product-market fit is the hardest part. It requires constant iteration, customer feedback, and the willingness to pivot.
-
-## Fundraising
-
-Fundraising is a means to an end, not the goal. Focus on building a sustainable business, not just raising money.
-
-## The Long Game
-
-Most startups fail. Success requires persistence, adaptability, and a bit of luck. Keep learning, keep iterating, and don't give up.
-
-The startup journey is a marathon, not a sprint.`,
-    topics: ['startups', 'innovation'],
-  },
-];
-
-const REPLY_TEMPLATES = [
-  'Great point! I think this connects to what you mentioned about...',
-  'I have a different perspective on this. What if we consider...',
-  'This reminds me of a similar situation I encountered...',
-  "Could you elaborate on that? I'm particularly interested in...",
-  "I agree, but I'd also add that...",
-  'Interesting take. I wonder if we should also consider...',
-  "Thanks for sharing this. It's given me a lot to think about.",
-  "I see what you mean, though I think there's another angle...",
-  'This is a really important point that often gets overlooked.',
-  "I've been thinking about this too. Here's what I've found...",
 ];
 
 async function bootstrap() {
-  console.log('🌱 Starting comprehensive data seeding...');
+  console.log('🌱 Starting REALISTIC INTERCONNECTED seeding...');
 
   const app = await NestFactory.createApplicationContext(AppModule);
   const dataSource = app.get(DataSource);
@@ -621,563 +399,789 @@ async function bootstrap() {
   const postEdgeRepo = dataSource.getRepository(PostEdge);
   const collectionRepo = dataSource.getRepository(Collection);
   const collectionItemRepo = dataSource.getRepository(CollectionItem);
+  const notifPrefRepo = dataSource.getRepository(NotificationPref);
   const mentionRepo = dataSource.getRepository(Mention);
-  const externalSourceRepo = dataSource.getRepository(ExternalSource);
   const topicFollowRepo = dataSource.getRepository(TopicFollow);
   const inviteRepo = dataSource.getRepository(Invite);
-  const settingsRepo = dataSource.getRepository(SystemSetting);
+  const systemSettingRepo = dataSource.getRepository(SystemSetting);
   const waitingListRepo = dataSource.getRepository(WaitingList);
+  const followRequestRepo = dataSource.getRepository(FollowRequest);
+  const reportRepo = dataSource.getRepository(Report);
+  const blockRepo = dataSource.getRepository(Block);
+  const muteRepo = dataSource.getRepository(Mute);
+  const dmThreadRepo = dataSource.getRepository(DmThread);
+  const dmMessageRepo = dataSource.getRepository(DmMessage);
+  const pushTokenRepo = dataSource.getRepository(PushToken);
 
   try {
-    // Clear existing data (optional - comment out if you want to keep existing data)
-    console.log('🧹 Clearing existing data...');
-    // Use TRUNCATE for efficient deletion - order matters due to foreign keys
+    // --- CLEANUP (child tables first, then roots; CASCADE handles FKs) ---
+    console.log('🧹 Clearing DB...');
     await dataSource.query(`
-      TRUNCATE TABLE 
-        collection_items, collections, mentions, external_sources, 
-        post_edges, keeps, likes, replies, post_topics, topic_follows, 
-        follows, posts, topics, invites, waiting_list, system_settings, 
-        users, notifications, blocks, mutes, reports, dm_messages, dm_threads,
-        post_reads, push_outbox, push_tokens, notification_prefs, follow_requests
+      TRUNCATE TABLE
+        collection_items, collections, mentions, external_sources,
+        post_edges, keeps, likes, replies, post_topics, topic_follows,
+        follows, follow_requests, posts, topics,
+        notifications, blocks, mutes, reports, dm_messages, dm_threads,
+        post_reads, push_outbox, push_tokens, notification_prefs,
+        invites, waiting_list, system_settings, users
       RESTART IDENTITY CASCADE
     `);
+    try {
+      await neo4jService.run('MATCH (n) DETACH DELETE n');
+    } catch (e) {}
 
-    // 1. Create Users
+    // --- 1. USERS (id set explicitly; UUID) ---
     console.log('👥 Creating users...');
-    const users: User[] = [];
-    for (const userData of USER_NAMES) {
+    const userMap = new Map<string, User>();
+    for (const p of PERSONAS) {
       const user = userRepo.create({
-        id: uuidv4(),
-        handle: userData.handle,
-        displayName: userData.displayName,
-        bio: userData.bio,
-        email: `${userData.handle}@example.com`,
-        languages: ['en'],
-        isProtected: Math.random() < 0.1, // 10% protected accounts
-        invitesRemaining: Math.floor(Math.random() * 5),
+        id: p.id,
+        handle: p.handle,
+        displayName: p.name,
+        bio: p.bio,
+        email: `${p.handle}@example.com`,
+        languages: [p.lang],
+        isProtected: p.isProtected,
+        preferences: { theme: 'system', explore: p.explore },
       });
-      const savedUser = await userRepo.save(user);
-      users.push(savedUser);
+      await userRepo.save(user);
+      userMap.set(p.handle, user);
 
-      // Sync to Neo4j: User node
+      const pref = notifPrefRepo.create({
+        userId: user.id,
+        pushEnabled: true,
+        replies: true,
+        quotes: true,
+        mentions: true,
+        dms: true,
+        follows: true,
+        saves: true,
+        ...(p.handle === 'marcus.phil' && {
+          quietHoursStart: 22,
+          quietHoursEnd: 7,
+        }),
+      });
+      await notifPrefRepo.save(pref);
+
       try {
         await neo4jService.run(
-          `MERGE (u:User {id: $userId}) SET u.handle = $handle`,
-          { userId: savedUser.id, handle: savedUser.handle },
+          `MERGE (u:User {id: $id}) SET u.handle = $handle`,
+          { id: user.id, handle: user.handle },
         );
-      } catch (e) {
-        console.warn(
-          `Failed to sync user ${savedUser.id} to Neo4j:`,
-          e.message,
-        );
-      }
+      } catch (e) {}
     }
-    console.log(`✅ Created ${users.length} users`);
 
-    // 2. Create Topics
+    // --- 2. TOPICS (DB generates UUID) ---
     console.log('📚 Creating topics...');
-    const topics: Topic[] = [];
-    for (const topicData of TOPICS) {
+    const topicMap = new Map<string, Topic>();
+    const alex = userMap.get('alex.urban')!;
+    for (const t of TOPICS) {
       const topic = topicRepo.create({
-        slug: topicData.slug,
-        title: topicData.title,
-        createdBy: users[Math.floor(Math.random() * users.length)].id,
+        slug: t.slug,
+        title: t.title,
+        createdBy: alex.id,
       });
-      const savedTopic = await topicRepo.save(topic);
-      topics.push(savedTopic);
-
-      // Sync to Neo4j: Topic node
+      await topicRepo.save(topic);
+      topicMap.set(t.slug, topic);
       try {
         await neo4jService.run(
-          `MERGE (t:Topic {id: $topicId}) SET t.slug = $slug, t.title = $title`,
-          {
-            topicId: savedTopic.id,
-            slug: savedTopic.slug,
-            title: savedTopic.title,
-          },
+          `MERGE (t:Topic {id: $id}) SET t.slug = $slug, t.title = $title`,
+          { id: topic.id, slug: topic.slug, title: topic.title },
         );
-      } catch (e) {
-        console.warn(
-          `Failed to sync topic ${savedTopic.id} to Neo4j:`,
-          e.message,
-        );
+      } catch (e) {}
+    }
+
+    // --- 3. SYSTEM SETTINGS, INVITES, WAITING LIST ---
+    console.log('⚙️ System settings, invites, waiting list...');
+    await systemSettingRepo.save({ key: 'beta_mode', value: 'true' });
+    await systemSettingRepo.save({ key: 'maintenance_message', value: '' });
+
+    await inviteRepo.save({
+      code: 'SEED-OPEN-1',
+      creatorId: alex.id,
+      usedById: null,
+      usedAt: null,
+    });
+    await inviteRepo.save({
+      code: 'SEED-OPEN-2',
+      creatorId: alex.id,
+      usedById: null,
+      usedAt: null,
+    });
+    await inviteRepo.save({
+      code: 'SEED-USED-1',
+      creatorId: alex.id,
+      usedById: userMap.get('sarah.tech')!.id,
+      usedAt: new Date(),
+    });
+    await inviteRepo.save({
+      code: 'ADMIN-INVITE',
+      creatorId: null,
+      usedById: null,
+      usedAt: null,
+    });
+
+    await waitingListRepo.save({
+      email: 'waiting1@example.com',
+      status: 'PENDING',
+    });
+    await waitingListRepo.save({
+      email: 'waiting2@example.com',
+      status: 'INVITED',
+    });
+
+    // --- 4. FOLLOWS (dense graph) ---
+    console.log('🔗 Follows...');
+    for (const u1 of PERSONAS) {
+      for (const u2 of PERSONAS) {
+        if (u1.id === u2.id) continue;
+        if (Math.random() > 0.45) {
+          await followRepo.save({ followerId: u1.id, followeeId: u2.id });
+          try {
+            await neo4jService.run(
+              `MATCH (a:User {id:$a}), (b:User {id:$b}) MERGE (a)-[:FOLLOWS]->(b)`,
+              { a: u1.id, b: u2.id },
+            );
+          } catch (e) {}
+        }
       }
     }
-    console.log(`✅ Created ${topics.length} topics`);
 
-    // 3. Create Follows (realistic network)
-    console.log('🔗 Creating follow relationships...');
-    let followCount = 0;
-    for (let i = 0; i < users.length; i++) {
-      const user = users[i];
-      // Each user follows 5-15 other users
-      const numFollows = Math.floor(Math.random() * 11) + 5;
-      const followed = new Set<string>();
-      followed.add(user.id); // Don't follow self
+    // --- 5. FOLLOW REQUESTS (protected accounts: mike, marcus, rebecca) ---
+    console.log('📬 Follow requests...');
+    const mike = userMap.get('mike.skeptic')!;
+    const marcus = userMap.get('marcus.phil')!;
+    const rebecca = userMap.get('rebecca.policy')!;
+    await followRequestRepo.save({
+      requesterId: userMap.get('sarah.tech')!.id,
+      targetId: mike.id,
+      status: FollowRequestStatus.APPROVED,
+    });
+    await followRequestRepo.save({
+      requesterId: userMap.get('emily.green')!.id,
+      targetId: mike.id,
+      status: FollowRequestStatus.PENDING,
+    });
+    await followRequestRepo.save({
+      requesterId: userMap.get('david.des')!.id,
+      targetId: marcus.id,
+      status: FollowRequestStatus.REJECTED,
+    });
+    const rebeccaUser = userMap.get('rebecca.policy')!;
+    await followRequestRepo.save({
+      requesterId: userMap.get('lisa.journo')!.id,
+      targetId: rebeccaUser.id,
+      status: FollowRequestStatus.APPROVED,
+    });
+    await followRequestRepo.save({
+      requesterId: userMap.get('james.dev')!.id,
+      targetId: rebeccaUser.id,
+      status: FollowRequestStatus.PENDING,
+    });
 
-      for (let j = 0; j < numFollows; j++) {
-        let targetIndex = Math.floor(Math.random() * users.length);
-        while (followed.has(users[targetIndex].id)) {
-          targetIndex = Math.floor(Math.random() * users.length);
-        }
-        followed.add(users[targetIndex].id);
-
-        const follow = followRepo.create({
-          followerId: user.id,
-          followeeId: users[targetIndex].id,
-        });
-        await followRepo.save(follow);
-        followCount++;
-
-        // Sync to Neo4j: User -> User (FOLLOWS)
+    // --- 6. TOPIC FOLLOWS ---
+    console.log('📌 Topic follows...');
+    for (const p of PERSONAS) {
+      const user = userMap.get(p.handle)!;
+      const topics = Array.from(topicMap.keys());
+      for (let i = 0; i < 3 + Math.floor(Math.random() * 5); i++) {
+        const slug = topics[Math.floor(Math.random() * topics.length)];
+        const topic = topicMap.get(slug)!;
+        await topicFollowRepo.save({ userId: user.id, topicId: topic.id });
         try {
           await neo4jService.run(
-            `
-            MERGE (u1:User {id: $followerId})
-            MERGE (u2:User {id: $followeeId})
-            MERGE (u1)-[:FOLLOWS]->(u2)
-            `,
-            { followerId: user.id, followeeId: users[targetIndex].id },
+            `MATCH (u:User {id:$uid}), (t:Topic {id:$tid}) MERGE (u)-[:FOLLOWS_TOPIC]->(t)`,
+            { uid: user.id, tid: topic.id },
           );
-        } catch (e) {
-          console.warn(
-            `Failed to sync follow relationship to Neo4j:`,
-            e.message,
-          );
-        }
+        } catch (e) {}
       }
     }
-    console.log(`✅ Created ${followCount} follow relationships`);
 
-    // Update follower/following counts
-    for (const user of users) {
+    // --- 7. POSTS (PUBLIC + FOLLOWERS, varied topics; DB generates UUID) ---
+    console.log('📝 Posts...');
+    const sarah = userMap.get('sarah.tech')!;
+    const emily = userMap.get('emily.green')!;
+    const david = userMap.get('david.des')!;
+    const lisa = userMap.get('lisa.journo')!;
+    const tom = userMap.get('tom.rust')!;
+    const maria = userMap.get('maria.es')!;
+
+    const postBodies: {
+      author: string;
+      title: string;
+      body: string;
+      visibility: PostVisibility;
+      topics: string[];
+      daysAgo: number;
+    }[] = [
+      {
+        author: 'alex.urban',
+        title: 'The Case for the 15-Minute City',
+        body: "We need cities where everything is within a 15-minute walk or bike ride. This isn't about control; it's about **freedom** from the car. See [[urbanism]] and [[design]].",
+        visibility: PostVisibility.PUBLIC,
+        topics: ['urbanism', 'design'],
+        daysAgo: 5,
+      },
+      {
+        author: 'mike.skeptic',
+        title: 'Hidden Restrictions',
+        body: 'Heavy zoning against cars feels like control. What about rural connectivity? I disagree with the premise of the 15-minute city push.',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['urbanism', 'politics'],
+        daysAgo: 4,
+      },
+      {
+        author: 'sarah.tech',
+        title: 'Memory Safety in 2026',
+        body: 'Why I moved our core loop to [[rust]]. It eliminates an entire class of bugs. Code sample: `fn main() { println!("Hello, safety!"); }`',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['rust', 'technology'],
+        daysAgo: 6,
+      },
+      {
+        author: 'emily.green',
+        title: 'Latest Climate Models',
+        body: 'New data on ocean heat uptake. We need to act faster. [[climate]]',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['climate'],
+        daysAgo: 3,
+      },
+      {
+        author: 'david.des',
+        title: 'Design is Political',
+        body: 'Watching the urbanism debate highlights a core tension in [[design]]. We need accessible cities that prioritize pedestrians without alienating drivers.',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['design', 'urbanism'],
+        daysAgo: 2,
+      },
+      {
+        author: 'lisa.journo',
+        title: 'Future of Work Survey',
+        body: 'We surveyed 500 remote workers. Key finding: flexibility beats salary for many. [[technology]]',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['technology'],
+        daysAgo: 4,
+      },
+      {
+        author: 'marcus.phil',
+        title: 'Stoicism and Social Media',
+        body: 'Focus on what you can control. Your feed is not one of them. Memento mori.',
+        visibility: PostVisibility.FOLLOWERS,
+        topics: [],
+        daysAgo: 7,
+      },
+      {
+        author: 'maria.es',
+        title: 'Diseño urbano en Barcelona',
+        body: 'Superilles y menos coches. La ciudad para las personas. [[urbanism]] [[design]]',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['urbanism', 'design'],
+        daysAgo: 3,
+      },
+      {
+        author: 'tom.rust',
+        title: 'Rust 2026 Edition Notes',
+        body: 'Proposed changes for the next edition. Better async ergonomics and const generics. [[rust]]',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['rust'],
+        daysAgo: 1,
+      },
+      {
+        author: 'yuki.jp',
+        title: 'Privacy by Design',
+        body: "Encryption should be default. Here's how we approach identity. [[privacy]] [[technology]]",
+        visibility: PostVisibility.PUBLIC,
+        topics: ['privacy', 'technology'],
+        daysAgo: 2,
+      },
+      {
+        author: 'anna.art',
+        title: 'Generative Art with Code',
+        body: 'Using noise and recursion. Link to my latest piece. [[design]]',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['design'],
+        daysAgo: 4,
+      },
+      {
+        author: 'james.dev',
+        title: 'TypeScript Tips for Large Codebases',
+        body: 'Strict mode, path aliases, and monorepos. What worked for us.',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['technology'],
+        daysAgo: 1,
+      },
+      {
+        author: 'rebecca.policy',
+        title: 'Platform Accountability',
+        body: 'Why we need stronger rules for algorithmic transparency. [[politics]] [[technology]]',
+        visibility: PostVisibility.FOLLOWERS,
+        topics: ['politics', 'technology'],
+        daysAgo: 3,
+      },
+      {
+        author: 'fatima.data',
+        title: 'ML Fairness in Hiring Tools',
+        body: 'Bias in resume screening. What we found and how to fix. [[ai]] [[data-science]]',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['ai', 'data-science'],
+        daysAgo: 2,
+      },
+      {
+        author: 'leo.writer',
+        title: 'The Long Now of Tech',
+        body: 'We think in quarters. We should think in decades. Essay on infrastructure and time. [[writing]]',
+        visibility: PostVisibility.FOLLOWERS,
+        topics: ['writing', 'technology'],
+        daysAgo: 5,
+      },
+      {
+        author: 'nina.design',
+        title: 'Accessible Color Systems',
+        body: 'Contrast ratios and semantic tokens. [[design]] [[accessibility]]',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['design', 'accessibility'],
+        daysAgo: 1,
+      },
+      {
+        author: 'chris.indie',
+        title: 'Bootstrapping Month 12',
+        body: 'Revenue update and lessons. Still no VC. [[startups]]',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['startups'],
+        daysAgo: 0,
+      },
+      {
+        author: 'oliver.news',
+        title: 'Curated: Best of the Week',
+        body: 'Five reads on urbanism, AI, and policy. Links only.',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['urbanism', 'ai', 'politics'],
+        daysAgo: 0,
+      },
+      {
+        author: 'henry.teacher',
+        title: 'Teaching Recursion',
+        body: 'How I explain recursion to beginners. With diagrams.',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['technology'],
+        daysAgo: 2,
+      },
+      {
+        author: 'zara.ux',
+        title: 'Human-Centered AI',
+        body: 'Research findings: when users trust (and distrust) recommendations. [[ai]] [[design]]',
+        visibility: PostVisibility.PUBLIC,
+        topics: ['ai', 'design'],
+        daysAgo: 1,
+      },
+    ];
+
+    const savedPosts: Post[] = [];
+    for (const spec of postBodies) {
+      const author = userMap.get(spec.author)!;
+      const post = postRepo.create({
+        authorId: author.id,
+        title: spec.title,
+        body: spec.body,
+        visibility: spec.visibility,
+        lang: spec.author === 'maria.es' ? 'es' : 'en',
+        readingTimeMinutes: Math.max(1, Math.ceil(spec.body.length / 250)),
+        createdAt: new Date(Date.now() - 86400000 * spec.daysAgo),
+      });
+      await postRepo.save(post);
+      savedPosts.push(post);
+      for (const slug of spec.topics) {
+        const topic = topicMap.get(slug);
+        if (topic) await linkTopic(postTopicRepo, neo4jService, post, topic);
+      }
+      await syncPost(neo4jService, post);
+    }
+
+    // Post edges (quotes/links) and mentions
+    const postA1 = savedPosts[0];
+    const postA2 = savedPosts[1];
+    const postA3 = savedPosts[4];
+    const postB1 = savedPosts[2];
+    await createEdge(
+      postEdgeRepo,
+      neo4jService,
+      postA2,
+      postA1,
+      EdgeType.QUOTE,
+    );
+    await createEdge(postEdgeRepo, neo4jService, postA3, postA1, EdgeType.LINK);
+    await createEdge(postEdgeRepo, neo4jService, postA3, postA2, EdgeType.LINK);
+    await mentionUser(mentionRepo, neo4jService, postA3, alex);
+    await mentionUser(mentionRepo, neo4jService, postA3, mike);
+
+    // --- 8. REPLIES (comment threads) ---
+    console.log('💬 Replies...');
+    await addReply(
+      replyRepo,
+      postRepo,
+      userMap.get('alex.urban')!,
+      postA2,
+      "Mike, you're conflating zoning with restriction. It's about mixed-use.",
+      4,
+    );
+    const r1 = await addReply(
+      replyRepo,
+      postRepo,
+      mike,
+      postA2,
+      'Mixed-use often prices out local businesses.',
+      3.8,
+    );
+    await addReply(
+      replyRepo,
+      postRepo,
+      david,
+      postA2,
+      'Data shows mixed-use increases foot traffic for small biz.',
+      3.6,
+      r1.id,
+    );
+    await addReply(
+      replyRepo,
+      postRepo,
+      userMap.get('lisa.journo')!,
+      postB1,
+      'Great breakdown. Would love to interview you on this.',
+      5.5,
+    );
+    await addReply(
+      replyRepo,
+      postRepo,
+      tom,
+      postB1,
+      'Thanks! Happy to chat.',
+      5.2,
+    );
+    for (let i = 0; i < savedPosts.length; i++) {
+      if (i % 3 === 0 && savedPosts[i].authorId !== alex.id) {
+        await addReply(
+          replyRepo,
+          postRepo,
+          alex,
+          savedPosts[i],
+          'Really enjoyed this. Thanks for sharing.',
+          savedPosts[i].createdAt
+            ? (Date.now() - savedPosts[i].createdAt.getTime()) / 86400000 - 0.1
+            : 1,
+        );
+      }
+    }
+
+    // --- 9. LIKES & KEEPS ---
+    console.log('❤️ Likes & keeps...');
+    for (const post of savedPosts) {
+      for (const p of PERSONAS) {
+        if (Math.random() > 0.5) {
+          await likeRepo.save({ userId: p.id, postId: post.id });
+          await postRepo.increment({ id: post.id }, 'privateLikeCount', 1);
+        }
+        if (Math.random() > 0.75)
+          await keepRepo.save({ userId: p.id, postId: post.id });
+      }
+    }
+
+    // --- 10. COLLECTIONS (public + private) ---
+    console.log('📁 Collections...');
+    const lisaUser = userMap.get('lisa.journo')!;
+    const colPublic = collectionRepo.create({
+      ownerId: lisaUser.id,
+      title: 'Future of Code',
+      description: 'Memory-safe languages and systems.',
+      isPublic: true,
+      shareSaves: true,
+    });
+    await collectionRepo.save(colPublic);
+    await collectionItemRepo.save({
+      collectionId: colPublic.id,
+      postId: postB1.id,
+      curatorNote: 'The definitive argument for Rust.',
+      sortOrder: 0,
+    });
+    await keepRepo.save({ userId: lisaUser.id, postId: postB1.id });
+
+    const colPrivate = collectionRepo.create({
+      ownerId: userMap.get('rebecca.policy')!.id,
+      title: 'Policy Reads',
+      description: 'Private reading list.',
+      isPublic: false,
+      shareSaves: false,
+    });
+    await collectionRepo.save(colPrivate);
+    await collectionItemRepo.save({
+      collectionId: colPrivate.id,
+      postId: savedPosts[12].id,
+      curatorNote: 'For follow-up.',
+      sortOrder: 0,
+    });
+
+    const colDesign = collectionRepo.create({
+      ownerId: david.id,
+      title: 'Design References',
+      description: 'A11y and design systems.',
+      isPublic: true,
+      shareSaves: true,
+    });
+    await collectionRepo.save(colDesign);
+    await collectionItemRepo.save({
+      collectionId: colDesign.id,
+      postId: savedPosts[4].id,
+      curatorNote: null,
+      sortOrder: 0,
+    });
+    await collectionItemRepo.save({
+      collectionId: colDesign.id,
+      postId: savedPosts[14].id,
+      curatorNote: 'Color contrast.',
+      sortOrder: 1,
+    });
+
+    // --- 11. REPORTS (flags: POST, REPLY, USER; statuses) ---
+    console.log('🚩 Reports...');
+    await reportRepo.save({
+      reporterId: userMap.get('oliver.news')!.id,
+      targetType: ReportTargetType.POST,
+      targetId: postA2.id,
+      reason: 'Spam',
+      status: ReportStatus.DISMISSED,
+    });
+    const firstReplyOnA2 = await replyRepo.findOne({
+      where: { postId: postA2.id },
+    });
+    if (firstReplyOnA2)
+      await reportRepo.save({
+        reporterId: userMap.get('anna.art')!.id,
+        targetType: ReportTargetType.REPLY,
+        targetId: firstReplyOnA2.id,
+        reason: 'Harassment',
+        status: ReportStatus.OPEN,
+      });
+    await reportRepo.save({
+      reporterId: userMap.get('james.dev')!.id,
+      targetType: ReportTargetType.USER,
+      targetId: mike.id,
+      reason: 'Impersonation',
+      status: ReportStatus.REVIEWED,
+    });
+    await reportRepo.save({
+      reporterId: userMap.get('emily.green')!.id,
+      targetType: ReportTargetType.POST,
+      targetId: savedPosts[3].id,
+      reason: 'Misinformation',
+      status: ReportStatus.ACTIONED,
+    });
+
+    // --- 12. BLOCKS & MUTES ---
+    console.log('🚫 Blocks & mutes...');
+    await blockRepo.save({
+      blockerId: mike.id,
+      blockedId: userMap.get('oliver.news')!.id,
+    });
+    await blockRepo.save({
+      blockerId: rebeccaUser.id,
+      blockedId: userMap.get('chris.indie')!.id,
+    });
+    await muteRepo.save({
+      muterId: lisaUser.id,
+      mutedId: userMap.get('tom.rust')!.id,
+    });
+    await muteRepo.save({
+      muterId: marcus.id,
+      mutedId: userMap.get('anna.art')!.id,
+    });
+
+    // --- 13. DM THREADS & MESSAGES ---
+    console.log('✉️ DMs...');
+    const thread1 = await dmThreadRepo.save(
+      dmThreadRepo.create({ userA: alex.id, userB: sarah.id }),
+    );
+    await dmMessageRepo.save(
+      dmMessageRepo.create({
+        threadId: thread1.id,
+        senderId: alex.id,
+        body: 'Hey, want to collaborate on a post about urbanism and tech?',
+      }),
+    );
+    await dmMessageRepo.save(
+      dmMessageRepo.create({
+        threadId: thread1.id,
+        senderId: sarah.id,
+        body: 'Sure! When do you want to draft?',
+      }),
+    );
+    await dmMessageRepo.save(
+      dmMessageRepo.create({
+        threadId: thread1.id,
+        senderId: alex.id,
+        body: 'How about next week?',
+      }),
+    );
+
+    const thread2 = await dmThreadRepo.save(
+      dmThreadRepo.create({
+        userA: david.id,
+        userB: userMap.get('nina.design')!.id,
+      }),
+    );
+    await dmMessageRepo.save(
+      dmMessageRepo.create({
+        threadId: thread2.id,
+        senderId: david.id,
+        body: 'Loved your post on color systems.',
+      }),
+    );
+    await dmMessageRepo.save(
+      dmMessageRepo.create({
+        threadId: thread2.id,
+        senderId: userMap.get('nina.design')!.id,
+        body: 'Thank you! Let me know if you want to reference it.',
+      }),
+    );
+
+    const thread3 = await dmThreadRepo.save(
+      dmThreadRepo.create({
+        userA: emily.id,
+        userB: userMap.get('yuki.jp')!.id,
+      }),
+    );
+    await dmMessageRepo.save(
+      dmMessageRepo.create({
+        threadId: thread3.id,
+        senderId: emily.id,
+        body: 'Could we chat about privacy and climate data?',
+      }),
+    );
+
+    // --- 14. PUSH TOKENS (sample) ---
+    console.log('📱 Push tokens...');
+    await pushTokenRepo.save(
+      pushTokenRepo.create({
+        userId: alex.id,
+        provider: PushProvider.FCM,
+        token: 'seed-fcm-token-alex',
+        platform: 'web',
+        locale: 'en',
+      }),
+    );
+    await pushTokenRepo.save(
+      pushTokenRepo.create({
+        userId: sarah.id,
+        provider: PushProvider.APNS,
+        token: 'seed-apns-token-sarah',
+        platform: 'ios',
+        locale: 'en',
+      }),
+    );
+
+    // --- 15. USER COUNTS (follower_count, following_count) ---
+    console.log('📊 Updating user counts...');
+    for (const p of PERSONAS) {
+      const userId = p.id;
       const followerCount = await followRepo.count({
-        where: { followeeId: user.id },
+        where: { followeeId: userId },
       });
       const followingCount = await followRepo.count({
-        where: { followerId: user.id },
+        where: { followerId: userId },
       });
-      await userRepo.update(user.id, { followerCount, followingCount });
+      await userRepo.update({ id: userId }, { followerCount, followingCount });
     }
 
-    // 4. Create Topic Follows
-    console.log('📌 Creating topic follows...');
-    let topicFollowCount = 0;
-    for (const user of users) {
-      // Each user follows 2-6 topics
-      const numTopics = Math.floor(Math.random() * 5) + 2;
-      const followedTopics = new Set<string>();
-
-      for (let i = 0; i < numTopics; i++) {
-        const topic = topics[Math.floor(Math.random() * topics.length)];
-        if (!followedTopics.has(topic.id)) {
-          followedTopics.add(topic.id);
-          const topicFollow = topicFollowRepo.create({
-            userId: user.id,
-            topicId: topic.id,
-          });
-          await topicFollowRepo.save(topicFollow);
-          topicFollowCount++;
-        }
-      }
-    }
-    console.log(`✅ Created ${topicFollowCount} topic follows`);
-
-    // 5. Create Posts
-    console.log('📝 Creating posts...');
-    const posts: Post[] = [];
-    const numPosts = 200; // Create 200 posts
-
-    for (let i = 0; i < numPosts; i++) {
-      const author = users[Math.floor(Math.random() * users.length)];
-
-      // 30% chance of classic post (no title), 70% chance of long-form post (with title)
-      const isClassicPost = Math.random() < 0.3;
-
-      let body: string;
-      let title: string | null = null;
-
-      let topicsToAdd: string[] = [];
-
-      if (isClassicPost) {
-        // Classic post without title
-        body = CLASSIC_POSTS[Math.floor(Math.random() * CLASSIC_POSTS.length)];
-        // Classic posts can have random topics
-        const randomTopics = ['programming', 'technology', 'web-development'];
-        topicsToAdd = [
-          randomTopics[Math.floor(Math.random() * randomTopics.length)],
-        ];
-      } else {
-        // Long-form post with title
-        const template =
-          POST_TEMPLATES[Math.floor(Math.random() * POST_TEMPLATES.length)];
-        body = template.body.replace(/\[\[privacy\]\]/g, '[[Privacy]]');
-        topicsToAdd = template.topics;
-
-        // Extract title from body if present
-        const titleMatch = body.match(/^#\s+(.+)$/m);
-        title = titleMatch ? titleMatch[1].trim() : null;
-      }
-
-      const post = postRepo.create({
-        id: uuidv4(),
-        authorId: author.id,
-        body: body,
-        title: title,
-        visibility:
-          Math.random() < 0.9
-            ? PostVisibility.PUBLIC
-            : PostVisibility.FOLLOWERS,
-        lang: 'en',
-        langConfidence: 0.95,
-        readingTimeMinutes: Math.ceil(body.split(/\s+/).length / 200),
-        createdAt: new Date(
-          Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000,
-        ), // Random time in last 30 days
-      });
-
-      const savedPost = await postRepo.save(post);
-      posts.push(savedPost);
-
-      // Sync to Neo4j: User -> Post (AUTHORED)
-      try {
-        await neo4jService.run(
-          `
-          MERGE (u:User {id: $userId})
-          MERGE (p:Post {id: $postId})
-          SET p.createdAt = $createdAt
-          MERGE (u)-[:AUTHORED]->(p)
-          `,
-          {
-            userId: author.id,
-            postId: savedPost.id,
-            createdAt: savedPost.createdAt.toISOString(),
-          },
-        );
-      } catch (e) {
-        console.warn(
-          `Failed to sync post ${savedPost.id} to Neo4j:`,
-          e.message,
-        );
-      }
-
-      // Add topics to post
-      for (const topicSlug of topicsToAdd) {
-        const topic = topics.find((t) => t.slug === topicSlug);
-        if (topic) {
-          const postTopic = postTopicRepo.create({
-            postId: savedPost.id,
-            topicId: topic.id,
-          });
-          await postTopicRepo.save(postTopic);
-
-          // Sync to Neo4j: Post -> Topic (IN_TOPIC)
-          try {
-            await neo4jService.run(
-              `
-              MERGE (p:Post {id: $postId})
-              MERGE (t:Topic {id: $topicId})
-              MERGE (p)-[:IN_TOPIC]->(t)
-              `,
-              { postId: savedPost.id, topicId: topic.id },
-            );
-          } catch (e) {
-            console.warn(
-              `Failed to sync post-topic relationship to Neo4j:`,
-              e.message,
-            );
-          }
-        }
-      }
-
-      // Add external sources (30% of posts)
-      if (Math.random() < 0.3) {
-        const source = externalSourceRepo.create({
-          postId: savedPost.id,
-          url: `https://example.com/article-${i}`,
-          canonicalUrl: `https://example.com/article-${i}`,
-          title: `Source Article ${i}`,
-        });
-        await externalSourceRepo.save(source);
-      }
-
-      // Add mentions (20% of posts)
-      if (Math.random() < 0.2 && users.length > 1) {
-        const mentionedUser = users[Math.floor(Math.random() * users.length)];
-        if (mentionedUser.id !== author.id) {
-          const mention = mentionRepo.create({
-            postId: savedPost.id,
-            mentionedUserId: mentionedUser.id,
-          });
-          await mentionRepo.save(mention);
-        }
-      }
-    }
-    console.log(`✅ Created ${posts.length} posts`);
-
-    // 6. Create Post Edges (links and quotes)
-    console.log('🔗 Creating post edges (links and quotes)...');
-    let edgeCount = 0;
-    for (let i = 0; i < posts.length; i++) {
-      const post = posts[i];
-
-      // 30% of posts link to other posts
-      if (Math.random() < 0.3 && posts.length > 1) {
-        const targetPost = posts[Math.floor(Math.random() * posts.length)];
-        if (targetPost.id !== post.id) {
-          const edge = postEdgeRepo.create({
-            fromPostId: post.id,
-            toPostId: targetPost.id,
-            edgeType: EdgeType.LINK,
-            anchorText: 'related post',
-          });
-          await postEdgeRepo.save(edge);
-          edgeCount++;
-
-          // Sync to Neo4j: Post -> Post (LINKS_TO)
-          try {
-            await neo4jService.run(
-              `
-              MERGE (p1:Post {id: $fromId})
-              MERGE (p2:Post {id: $toId})
-              MERGE (p1)-[:LINKS_TO]->(p2)
-              `,
-              { fromId: post.id, toId: targetPost.id },
-            );
-          } catch (e) {
-            console.warn(`Failed to sync link edge to Neo4j:`, e.message);
-          }
-        }
-      }
-
-      // 15% of posts quote other posts
-      if (Math.random() < 0.15 && posts.length > 1) {
-        const quotedPost = posts[Math.floor(Math.random() * posts.length)];
-        if (
-          quotedPost.id !== post.id &&
-          quotedPost.authorId !== post.authorId
-        ) {
-          const edge = postEdgeRepo.create({
-            fromPostId: post.id,
-            toPostId: quotedPost.id,
-            edgeType: EdgeType.QUOTE,
-          });
-          await postEdgeRepo.save(edge);
-          edgeCount++;
-
-          // Update quote count
-          await postRepo.increment({ id: quotedPost.id }, 'quoteCount', 1);
-
-          // Sync to Neo4j: Post -> Post (QUOTES)
-          try {
-            await neo4jService.run(
-              `
-              MERGE (p1:Post {id: $fromId})
-              MERGE (p2:Post {id: $toId})
-              MERGE (p1)-[:QUOTES]->(p2)
-              `,
-              { fromId: post.id, toId: quotedPost.id },
-            );
-          } catch (e) {
-            console.warn(`Failed to sync quote edge to Neo4j:`, e.message);
-          }
-        }
-      }
-    }
-    console.log(`✅ Created ${edgeCount} post edges`);
-
-    // 7. Create Replies
-    console.log('💬 Creating replies...');
-    let replyCount = 0;
-    for (let i = 0; i < 150; i++) {
-      const post = posts[Math.floor(Math.random() * posts.length)];
-      const author = users[Math.floor(Math.random() * users.length)];
-      const template =
-        REPLY_TEMPLATES[Math.floor(Math.random() * REPLY_TEMPLATES.length)];
-
-      const reply = replyRepo.create({
-        id: uuidv4(),
-        postId: post.id,
-        authorId: author.id,
-        body: template,
-        lang: 'en',
-        langConfidence: 0.9,
-        createdAt: new Date(
-          post.createdAt.getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000,
-        ), // Within 7 days of post
-      });
-
-      await replyRepo.save(reply);
-      replyCount++;
-
-      // Update reply count
-      await postRepo.increment({ id: post.id }, 'replyCount', 1);
-    }
-    console.log(`✅ Created ${replyCount} replies`);
-
-    // 8. Create Likes
-    console.log('❤️ Creating likes...');
-    let likeCount = 0;
-    for (let i = 0; i < 300; i++) {
-      const post = posts[Math.floor(Math.random() * posts.length)];
-      const user = users[Math.floor(Math.random() * users.length)];
-
-      // Check if like already exists
-      const existing = await likeRepo.findOne({
-        where: { userId: user.id, postId: post.id },
-      });
-
-      if (!existing) {
-        const like = likeRepo.create({
-          userId: user.id,
-          postId: post.id,
-        });
-        await likeRepo.save(like);
-        likeCount++;
-
-        // Update like count
-        await postRepo.increment({ id: post.id }, 'privateLikeCount', 1);
-      }
-    }
-    console.log(`✅ Created ${likeCount} likes`);
-
-    // 9. Create Keeps
-    console.log('🔖 Creating keeps...');
-    let keepCount = 0;
-    for (let i = 0; i < 250; i++) {
-      const post = posts[Math.floor(Math.random() * posts.length)];
-      const user = users[Math.floor(Math.random() * users.length)];
-
-      // Check if keep already exists
-      const existing = await keepRepo.findOne({
-        where: { userId: user.id, postId: post.id },
-      });
-
-      if (!existing) {
-        const keep = keepRepo.create({
-          userId: user.id,
-          postId: post.id,
-        });
-        await keepRepo.save(keep);
-        keepCount++;
-      }
-    }
-    console.log(`✅ Created ${keepCount} keeps`);
-
-    // 10. Create Collections
-    console.log('📚 Creating collections...');
-    const collections: Collection[] = [];
-    for (let i = 0; i < 30; i++) {
-      const owner = users[Math.floor(Math.random() * users.length)];
-      const collection = collectionRepo.create({
-        id: uuidv4(),
-        ownerId: owner.id,
-        title: `Collection ${i + 1}: ${TOPICS[Math.floor(Math.random() * TOPICS.length)].title}`,
-        description: `A curated collection of posts on ${TOPICS[Math.floor(Math.random() * TOPICS.length)].title}`,
-        isPublic: Math.random() < 0.7,
-        shareSaves: Math.random() < 0.5,
-      });
-      collections.push(await collectionRepo.save(collection));
-    }
-    console.log(`✅ Created ${collections.length} collections`);
-
-    // 11. Add items to collections
-    console.log('📎 Adding items to collections...');
-    let itemCount = 0;
-    for (const collection of collections) {
-      // Each collection has 3-10 items
-      const numItems = Math.floor(Math.random() * 8) + 3;
-      const addedPosts = new Set<string>();
-
-      for (let i = 0; i < numItems; i++) {
-        let post = posts[Math.floor(Math.random() * posts.length)];
-        while (addedPosts.has(post.id)) {
-          post = posts[Math.floor(Math.random() * posts.length)];
-        }
-        addedPosts.add(post.id);
-
-        const item = collectionItemRepo.create({
-          collectionId: collection.id,
-          postId: post.id,
-          curatorNote:
-            Math.random() < 0.5
-              ? `Why this matters: ${REPLY_TEMPLATES[Math.floor(Math.random() * REPLY_TEMPLATES.length)]}`
-              : null,
-          sortOrder: i,
-        });
-        await collectionItemRepo.save(item);
-        itemCount++;
-      }
-    }
-    console.log(`✅ Added ${itemCount} items to collections`);
-
-    // 12. Set up Beta Mode and Invites
-    console.log('🎫 Setting up beta mode and invites...');
-
-    // Enable beta mode
-    await settingsRepo.save({
-      key: 'BETA_MODE',
-      value: 'true',
-    });
-    console.log('✅ Beta mode enabled');
-
-    // Create system invites (for testing)
-    for (let i = 0; i < 10; i++) {
-      const code = crypto.randomBytes(4).toString('hex').toUpperCase();
-      await inviteRepo.save({
-        code,
-        creatorId: null, // System invite
-      });
-    }
-    console.log('✅ Created 10 system invites');
-
-    // Create user invites (some users generate invites)
-    let userInviteCount = 0;
-    for (let i = 0; i < Math.min(20, users.length); i++) {
-      const user = users[i];
-      if (user.invitesRemaining > 0) {
-        const code = crypto.randomBytes(4).toString('hex').toUpperCase();
-        await inviteRepo.save({
-          code,
-          creatorId: user.id,
-        });
-        userInviteCount++;
-      }
-    }
-    console.log(`✅ Created ${userInviteCount} user invites`);
-
-    // Add some waiting list entries
-    for (let i = 0; i < 5; i++) {
-      await waitingListRepo.save({
-        email: `waitlist-${i}@example.com`,
-        status: 'PENDING',
-      });
-    }
-    console.log('✅ Added 5 waiting list entries');
-
-    console.log('\n✅ Comprehensive seeding complete!');
-    console.log(`\n📊 Summary:`);
-    console.log(`   Users: ${users.length}`);
-    console.log(`   Topics: ${topics.length}`);
-    console.log(`   Posts: ${posts.length}`);
-    console.log(`   Replies: ${replyCount}`);
-    console.log(`   Likes: ${likeCount}`);
-    console.log(`   Keeps: ${keepCount}`);
-    console.log(`   Follows: ${followCount}`);
-    console.log(`   Topic Follows: ${topicFollowCount}`);
-    console.log(`   Post Edges: ${edgeCount}`);
-    console.log(`   Collections: ${collections.length}`);
-    console.log(`   Collection Items: ${itemCount}`);
-    console.log(`   System Invites: 10`);
-    console.log(`   User Invites: ${userInviteCount}`);
-    console.log(`   Waiting List: 5`);
-    console.log(`   Beta Mode: Enabled`);
+    console.log('\n✅ SEEDING COMPLETE');
+    console.log(
+      '   Users (public/private, custom explore prefs), Topics, Invites, Waiting list',
+    );
+    console.log('   Follows, Follow requests, Topic follows');
+    console.log('   Posts (PUBLIC/FOLLOWERS), Replies, Likes, Keeps');
+    console.log('   Collections (public + private), Reports, Blocks, Mutes');
+    console.log('   DMs, Push tokens, Neo4j synced.');
   } catch (error) {
     console.error('❌ Seeding failed:', error);
     throw error;
   } finally {
     await app.close();
   }
+}
+
+async function syncPost(neo4j: Neo4jService, post: Post) {
+  try {
+    await neo4j.run(
+      `MATCH (u:User {id: $uid}) MERGE (p:Post {id: $pid}) SET p.createdAt = $cat MERGE (u)-[:AUTHORED]->(p)`,
+      { uid: post.authorId, pid: post.id, cat: post.createdAt.toISOString() },
+    );
+  } catch (e) {}
+}
+
+async function linkTopic(
+  repo: any,
+  neo4j: Neo4jService,
+  post: Post,
+  topic: Topic,
+) {
+  if (!topic) return;
+  await repo.save({ postId: post.id, topicId: topic.id });
+  try {
+    await neo4j.run(
+      `MATCH (p:Post {id: $pid}), (t:Topic {id: $tid}) MERGE (p)-[:IN_TOPIC]->(t)`,
+      { pid: post.id, tid: topic.id },
+    );
+  } catch (e) {}
+}
+
+async function createEdge(
+  repo: any,
+  neo4j: Neo4jService,
+  from: Post,
+  to: Post,
+  type: EdgeType,
+) {
+  await repo.save({ fromPostId: from.id, toPostId: to.id, edgeType: type });
+  const rel = type === EdgeType.QUOTE ? 'QUOTES' : 'LINKS_TO';
+  try {
+    await neo4j.run(
+      `MATCH (a:Post {id: $a}), (b:Post {id: $b}) MERGE (a)-[:${rel}]->(b)`,
+      { a: from.id, b: to.id },
+    );
+  } catch (e) {}
+}
+
+async function addReply(
+  repo: any,
+  postRepo: any,
+  author: User,
+  parentPost: Post,
+  body: string,
+  daysAgo: number,
+  parentReplyId?: string,
+) {
+  const reply = repo.create({
+    postId: parentPost.id,
+    authorId: author.id,
+    body,
+    parentReplyId,
+    createdAt: new Date(Date.now() - 86400000 * daysAgo),
+  });
+  const saved = await repo.save(reply);
+  await postRepo.increment({ id: parentPost.id }, 'replyCount', 1);
+  return saved;
+}
+
+async function mentionUser(
+  repo: any,
+  neo4j: Neo4jService,
+  post: Post,
+  user: User,
+) {
+  await repo.save({ postId: post.id, mentionedUserId: user.id });
+  try {
+    await neo4j.run(
+      `MATCH (p:Post {id: $pid}), (u:User {id: $uid}) MERGE (p)-[:MENTIONS]->(u)`,
+      { pid: post.id, uid: user.id },
+    );
+  } catch (e) {}
 }
 
 bootstrap();

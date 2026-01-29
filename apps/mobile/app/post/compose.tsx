@@ -1,4 +1,27 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  ScrollView,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import { MaterialIcons } from '@expo/vector-icons';
+import { api } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
+import { useComposerSearch } from '../../hooks/useComposerSearch';
+import { PostContent } from '../../components/PostContent';
 import { Post } from '../../types';
+import { COLORS, SPACING } from '../../constants/theme';
 
 export default function ComposeScreen() {
   const router = useRouter();
@@ -24,7 +47,7 @@ export default function ComposeScreen() {
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
-  
+
   const [referenceMetadata, setReferenceMetadata] = useState<Record<string, { title?: string }>>({});
 
   const textInputRef = useRef<TextInput>(null);
@@ -38,25 +61,25 @@ export default function ComposeScreen() {
   // Load referenced post metadata when entering preview
   useEffect(() => {
     if (previewMode) {
-        const loadRefs = async () => {
-            const matches = body.matchAll(/\[\[post:([^\]|]+)(?:\|[^\]]+)?\]\]/g);
-            const ids = new Set<string>();
-            for (const m of matches) ids.add(m[1]);
-            
-            if (ids.size > 0) {
-                const metadata: Record<string, { title?: string }> = {};
-                await Promise.all(Array.from(ids).map(async (id) => {
-                    try {
-                        const p = await api.get(`/posts/${id}`);
-                        metadata[id] = { title: p.title };
-                    } catch (e) {
-                        // ignore
-                    }
-                }));
-                setReferenceMetadata(metadata);
+      const loadRefs = async () => {
+        const matches = body.matchAll(/\[\[post:([^\]|]+)(?:\|[^\]]+)?\]\]/g);
+        const ids = new Set<string>();
+        for (const m of matches) ids.add(m[1]);
+
+        if (ids.size > 0) {
+          const metadata: Record<string, { title?: string }> = {};
+          await Promise.all(Array.from(ids).map(async (id) => {
+            try {
+              const p = await api.get(`/posts/${id}`);
+              metadata[id] = { title: p.title };
+            } catch (e) {
+              // ignore
             }
-        };
-        loadRefs();
+          }));
+          setReferenceMetadata(metadata);
+        }
+      };
+      loadRefs();
     }
   }, [previewMode, body]);
 
@@ -73,7 +96,7 @@ export default function ComposeScreen() {
     const { start, end } = selection;
     const newBody = body.substring(0, start) + text + body.substring(end);
     setBody(newBody);
-    
+
     // Update cursor position
     const newPos = start + text.length;
     setSelection({ start: newPos, end: newPos });
@@ -92,7 +115,7 @@ export default function ComposeScreen() {
 
     const newBody = body.substring(0, start) + newText + body.substring(end);
     setBody(newBody);
-    
+
     // Select the wrapped text or cursor at end
     const newEnd = start + newText.length;
     setSelection({ start: newEnd, end: newEnd });
@@ -113,11 +136,11 @@ export default function ComposeScreen() {
     if (linkUrl) {
       const { start, end } = selection;
       const textToDisplay = linkText || (start !== end ? body.substring(start, end) : linkUrl);
-      
+
       const newText = `[${textToDisplay}](${linkUrl})`;
       const newBody = body.substring(0, start) + newText + body.substring(end);
       setBody(newBody);
-      
+
       const newPos = start + newText.length;
       setSelection({ start: newPos, end: newPos });
 
@@ -180,64 +203,64 @@ export default function ComposeScreen() {
   // --- Suggestions Logic ---
   const checkTriggers = (text: string, cursorIndex: number) => {
     const beforeCursor = text.slice(0, cursorIndex);
-    
+
     // Check for Mention (@Name Surname)
     const lastAt = beforeCursor.lastIndexOf('@');
     // Ensure @ is preceded by space or start of line
     const isAtValid = lastAt === 0 || /\s/.test(beforeCursor[lastAt - 1]);
 
     if (lastAt !== -1 && isAtValid) {
-        const query = beforeCursor.slice(lastAt + 1);
-        // Allow spaces in mentions, but stop at newline or reasonable length
-        if (!query.includes('\n') && query.length < 50) {
-            // Check if we typed another trigger character that invalidates this one
-            if (!query.includes('[[')) {
-                if (suggestionType !== 'mention') setSuggestionType('mention');
-                search(query, 'mention');
-                return;
-            }
+      const query = beforeCursor.slice(lastAt + 1);
+      // Allow spaces in mentions, but stop at newline or reasonable length
+      if (!query.includes('\n') && query.length < 50) {
+        // Check if we typed another trigger character that invalidates this one
+        if (!query.includes('[[')) {
+          if (suggestionType !== 'mention') setSuggestionType('mention');
+          search(query, 'mention');
+          return;
         }
+      }
     }
 
     // Check for Topic ([[Topic]])
     const lastBracket = beforeCursor.lastIndexOf('[[');
     if (lastBracket !== -1) {
-        const query = beforeCursor.slice(lastBracket + 2);
-        if (!query.includes(']]') && !query.includes('\n')) {
-             if (suggestionType !== 'topic') setSuggestionType('topic');
-             search(query, 'topic');
-             return;
-        }
+      const query = beforeCursor.slice(lastBracket + 2);
+      if (!query.includes(']]') && !query.includes('\n')) {
+        if (suggestionType !== 'topic') setSuggestionType('topic');
+        search(query, 'topic');
+        return;
+      }
     }
 
     if (suggestionType !== 'none') {
-        setSuggestionType('none');
-        clearSearch();
+      setSuggestionType('none');
+      clearSearch();
     }
   };
 
   const handleSuggestionSelect = (item: any) => {
     const beforeCursor = body.slice(0, selection.start);
     const afterCursor = body.slice(selection.start);
-    
+
     let triggerIndex = -1;
     let insertion = '';
 
     if (suggestionType === 'mention') {
-        triggerIndex = beforeCursor.lastIndexOf('@');
-        insertion = `@${item.handle} `;
+      triggerIndex = beforeCursor.lastIndexOf('@');
+      insertion = `@${item.handle} `;
     } else if (suggestionType === 'topic') {
-        triggerIndex = beforeCursor.lastIndexOf('[[');
-        if (item.type === 'post') {
-             insertion = `[[post:${item.id}|${item.displayName || item.title}]] `;
-        } else {
-             insertion = `[[${item.slug || item.title}]] `;
-        }
+      triggerIndex = beforeCursor.lastIndexOf('[[');
+      if (item.type === 'post') {
+        insertion = `[[post:${item.id}|${item.displayName || item.title}]] `;
+      } else {
+        insertion = `[[${item.slug || item.title}]] `;
+      }
     }
 
     if (triggerIndex !== -1) {
-        const newBody = beforeCursor.substring(0, triggerIndex) + insertion + afterCursor;
-        setBody(newBody);
+      const newBody = beforeCursor.substring(0, triggerIndex) + insertion + afterCursor;
+      setBody(newBody);
     }
     setSuggestionType('none');
     clearSearch();
@@ -257,9 +280,9 @@ export default function ComposeScreen() {
             <Pressable style={styles.suggestionItem} onPress={() => handleSuggestionSelect(item)}>
               <View style={styles.suggestionIcon}>
                 {suggestionType === 'mention' ? (
-                    <Text style={styles.suggestionAvatarText}>{(item.displayName || item.handle)?.charAt(0)}</Text>
+                  <Text style={styles.suggestionAvatarText}>{(item.displayName || item.handle)?.charAt(0)}</Text>
                 ) : (
-                    <MaterialIcons name="pound" size={20} color={COLORS.primary} />
+                  <MaterialIcons name="pound" size={20} color={COLORS.primary} />
                 )}
               </View>
               <View>
@@ -276,29 +299,29 @@ export default function ComposeScreen() {
   const LinkInput = () => (
     <View style={styles.linkInputContainer}>
       <View style={styles.linkInputRow}>
-        <TextInput 
-            style={styles.linkField} 
-            placeholder="URL (https://...)" 
-            placeholderTextColor={COLORS.tertiary}
-            value={linkUrl} 
-            onChangeText={setLinkUrl} 
-            autoFocus 
-            autoCapitalize="none"
-            keyboardType="url"
+        <TextInput
+          style={styles.linkField}
+          placeholder="URL (https://...)"
+          placeholderTextColor={COLORS.tertiary}
+          value={linkUrl}
+          onChangeText={setLinkUrl}
+          autoFocus
+          autoCapitalize="none"
+          keyboardType="url"
         />
         <Pressable onPress={addLink} style={styles.linkAddButton}>
-            <MaterialIcons name="check" size={20} color={COLORS.ink} />
+          <MaterialIcons name="check" size={20} color={COLORS.ink} />
         </Pressable>
         <Pressable onPress={() => setShowLinkInput(false)} style={styles.linkCloseButton}>
-            <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+          <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
         </Pressable>
       </View>
-      <TextInput 
-          style={[styles.linkField, { marginTop: 8 }]} 
-          placeholder="Display Text (optional)" 
-          placeholderTextColor={COLORS.tertiary}
-          value={linkText} 
-          onChangeText={setLinkText} 
+      <TextInput
+        style={[styles.linkField, { marginTop: 8 }]}
+        placeholder="Display Text (optional)"
+        placeholderTextColor={COLORS.tertiary}
+        value={linkText}
+        onChangeText={setLinkText}
       />
     </View>
   );
@@ -337,8 +360,8 @@ export default function ComposeScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { paddingTop: insets.top }]}
     >
       <View style={styles.header}>
@@ -346,75 +369,75 @@ export default function ComposeScreen() {
           <Text style={styles.closeText}>{t('common.cancel')}</Text>
         </Pressable>
         <View style={styles.modeToggle}>
-            <Pressable onPress={() => setPreviewMode(false)} style={[styles.modeBtn, !previewMode && styles.modeBtnActive]}>
-                <Text style={[styles.modeText, !previewMode && styles.modeTextActive]}>Edit</Text>
-            </Pressable>
-            <Pressable onPress={() => setPreviewMode(true)} style={[styles.modeBtn, previewMode && styles.modeBtnActive]}>
-                <Text style={[styles.modeText, previewMode && styles.modeTextActive]}>Preview</Text>
-            </Pressable>
+          <Pressable onPress={() => setPreviewMode(false)} style={[styles.modeBtn, !previewMode && styles.modeBtnActive]}>
+            <Text style={[styles.modeText, !previewMode && styles.modeTextActive]}>Edit</Text>
+          </Pressable>
+          <Pressable onPress={() => setPreviewMode(true)} style={[styles.modeBtn, previewMode && styles.modeBtnActive]}>
+            <Text style={[styles.modeText, previewMode && styles.modeTextActive]}>Preview</Text>
+          </Pressable>
         </View>
-        <Pressable 
-            onPress={handlePublish} 
-            disabled={!body.trim() || isPublishing}
-            style={[styles.publishBtn, (!body.trim() || isPublishing) && styles.publishBtnDisabled]}
+        <Pressable
+          onPress={handlePublish}
+          disabled={!body.trim() || isPublishing}
+          style={[styles.publishBtn, (!body.trim() || isPublishing) && styles.publishBtnDisabled]}
         >
           <Text style={styles.publishText}>{isPublishing ? 'Posting...' : t('compose.publish')}</Text>
         </Pressable>
       </View>
 
       <Pressable style={{ flex: 1 }} onPress={() => !previewMode && textInputRef.current?.focus()}>
-          <ScrollView 
-            style={styles.editorContainer} 
-            contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }} 
-            keyboardShouldPersistTaps="handled"
-          >
-              {quotedPost && (
-                  <View style={styles.quoteBox}>
-                      <Text style={styles.quoteTitle}>{quotedPost.title || 'Post'}</Text>
-                      <Text numberOfLines={2} style={styles.quoteBody}>{quotedPost.body}</Text>
-                  </View>
-              )}
-              
-              {headerImage && !previewMode && (
-                  <View style={styles.imageContainer}>
-                      <Image source={{ uri: headerImage }} style={styles.headerImg} />
-                      <Pressable style={styles.removeImgBtn} onPress={() => { setHeaderImage(null); setHeaderImageAsset(null); }}>
-                          <MaterialIcons name="close" size={16} color="white" />
-                      </Pressable>
-                  </View>
-              )}
+        <ScrollView
+          style={styles.editorContainer}
+          contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {quotedPost && (
+            <View style={styles.quoteBox}>
+              <Text style={styles.quoteTitle}>{quotedPost.title || 'Post'}</Text>
+              <Text numberOfLines={2} style={styles.quoteBody}>{quotedPost.body}</Text>
+            </View>
+          )}
 
-              {previewMode ? (
-                  <PostContent 
-                    post={previewPost} 
-                    headerImageUri={headerImage}
-                    disableNavigation
-                    showSources={true}
-                    referenceMetadata={referenceMetadata}
-                  />
-              ) : (
-                  <TextInput
-                      ref={textInputRef}
-                      style={styles.input}
-                      placeholder={t('compose.placeholderWithMarkdown', 'Start writing...')}
-                      placeholderTextColor={COLORS.tertiary}
-                      multiline
-                      scrollEnabled={false} 
-                      value={body}
-                      onChangeText={setBody}
-                      onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-                      autoFocus
-                  />
-              )}
-          </ScrollView>
+          {headerImage && !previewMode && (
+            <View style={styles.imageContainer}>
+              <Image source={{ uri: headerImage }} style={styles.headerImg} />
+              <Pressable style={styles.removeImgBtn} onPress={() => { setHeaderImage(null); setHeaderImageAsset(null); }}>
+                <MaterialIcons name="close" size={16} color="white" />
+              </Pressable>
+            </View>
+          )}
+
+          {previewMode ? (
+            <PostContent
+              post={previewPost}
+              headerImageUri={headerImage}
+              disableNavigation
+              showSources={true}
+              referenceMetadata={referenceMetadata}
+            />
+          ) : (
+            <TextInput
+              ref={textInputRef}
+              style={styles.input}
+              placeholder={t('compose.placeholderWithMarkdown', 'Start writing...')}
+              placeholderTextColor={COLORS.tertiary}
+              multiline
+              scrollEnabled={false}
+              value={body}
+              onChangeText={setBody}
+              onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+              autoFocus
+            />
+          )}
+        </ScrollView>
       </Pressable>
 
       {/* Footer Area */}
       {!previewMode && (
-          <View style={styles.footer}>
-              <SuggestionsView />
-              {showLinkInput ? <LinkInput /> : <Toolbar />}
-          </View>
+        <View style={styles.footer}>
+          <SuggestionsView />
+          {showLinkInput ? <LinkInput /> : <Toolbar />}
+        </View>
       )}
     </KeyboardAvoidingView>
   );
@@ -444,20 +467,20 @@ const styles = StyleSheet.create({
   publishBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 16 },
   publishBtnDisabled: { opacity: 0.5 },
   publishText: { color: COLORS.ink, fontWeight: '600', fontSize: 14 },
-  
+
   editorContainer: { flex: 1, padding: SPACING.l },
   input: { fontSize: 18, color: COLORS.paper, lineHeight: 26, textAlignVertical: 'top', minHeight: 200 },
-  
+
   quoteBox: { backgroundColor: COLORS.hover, padding: SPACING.m, borderRadius: 8, marginBottom: SPACING.m, borderLeftWidth: 3, borderLeftColor: COLORS.primary },
   quoteTitle: { color: COLORS.paper, fontWeight: '600', marginBottom: 4 },
   quoteBody: { color: COLORS.secondary },
-  
+
   imageContainer: { marginBottom: SPACING.m, borderRadius: 8, overflow: 'hidden' },
   headerImg: { width: '100%', height: 200 },
   removeImgBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', padding: 4, borderRadius: 12 },
 
   footer: { backgroundColor: COLORS.ink, borderTopWidth: 1, borderTopColor: COLORS.divider },
-  
+
   toolbar: { flexDirection: 'row', padding: SPACING.s },
   toolBtn: { padding: 8, borderRadius: 4, marginRight: 4, backgroundColor: COLORS.hover, minWidth: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   toolText: { color: COLORS.primary, fontWeight: '700', fontSize: 14 },

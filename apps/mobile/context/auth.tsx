@@ -89,6 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
     setAuthErrorHandler(() => {
       setIsAuthenticated(false);
+      setOnboardingComplete(null);
+      router.replace('/welcome');
     });
   }, []);
 

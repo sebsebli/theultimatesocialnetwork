@@ -6,7 +6,9 @@ import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { PostItem } from '../../components/PostItem';
 import { Collection, CollectionItem } from '../../types';
+import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 
 export default function CollectionDetailScreen() {
   const router = useRouter();
@@ -187,12 +189,12 @@ export default function CollectionDetailScreen() {
             ) : (
               <>
                 {contributors.slice(0, 3).map((author: any, index) => (
-                  <View 
-                    key={author.id} 
+                  <View
+                    key={author.id}
                     style={[
-                      styles.avatarSmall, 
+                      styles.avatarSmall,
                       index > 0 && styles.avatarOverlay,
-                      { 
+                      {
                         backgroundColor: COLORS.hover,
                         alignItems: 'center',
                         justifyContent: 'center'

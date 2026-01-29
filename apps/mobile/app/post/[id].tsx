@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StyleSheet, Text, View, ScrollView, Pressable, RefreshControl, Alert, Platform, Share, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -6,7 +6,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { PostItem } from '../../components/PostItem';
+import { PostContent } from '../../components/PostContent';
+import { MarkdownText } from '../../components/MarkdownText';
 import { Post } from '../../types';
+import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 
 export default function PostDetailScreen() {
   const { id, highlightReplyId } = useLocalSearchParams();
@@ -19,43 +22,43 @@ export default function PostDetailScreen() {
   const [sources, setSources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   // Interaction state
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
 
-    // Scroll ref for deep linking (basic implementation)
+  // Scroll ref for deep linking (basic implementation)
 
-    const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-    const [highlightY, setHighlightY] = useState<number | null>(null);
-    const repliesSectionY = useRef(0);
+  const [highlightY, setHighlightY] = useState<number | null>(null);
+  const repliesSectionY = useRef(0);
 
-    useEffect(() => {
-      if (highlightY !== null && scrollViewRef.current) {
-          setTimeout(() => {
-              scrollViewRef.current?.scrollTo({ y: highlightY, animated: true });
-          }, 500); // Slight delay for layout to settle
-      }
-    }, [highlightY]);
+  useEffect(() => {
+    if (highlightY !== null && scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: highlightY, animated: true });
+      }, 500); // Slight delay for layout to settle
+    }
+  }, [highlightY]);
 
-  
 
-    useEffect(() => {
 
-      if (!id) return;
+  useEffect(() => {
 
-  
-    
+    if (!id) return;
+
+
+
     // Track view
-    api.post(`/posts/${id}/view`).catch(() => {});
+    api.post(`/posts/${id}/view`).catch(() => { });
 
     // Track read time on unmount
     const startTime = Date.now();
     return () => {
       const duration = Math.floor((Date.now() - startTime) / 1000);
       if (duration > 5) {
-        api.post(`/posts/${id}/read-time`, { duration }).catch(() => {});
+        api.post(`/posts/${id}/read-time`, { duration }).catch(() => { });
       }
     };
   }, [id]);
@@ -198,7 +201,7 @@ export default function PostDetailScreen() {
   }
 
   return (
-    <ScrollView 
+    <ScrollView
       ref={scrollViewRef}
       style={styles.container}
       refreshControl={
@@ -206,7 +209,7 @@ export default function PostDetailScreen() {
       }
     >
       <View style={styles.header}>
-        <Pressable 
+        <Pressable
           onPress={() => router.back()}
           accessibilityLabel={t('common.goBack', 'Go back')}
           accessibilityRole="button"
@@ -229,7 +232,7 @@ export default function PostDetailScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Pressable 
+          <Pressable
             style={styles.actionButton}
             onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
             accessibilityLabel={t('post.reply')}
@@ -237,7 +240,7 @@ export default function PostDetailScreen() {
           >
             <Text style={styles.actionButtonText}>{t('post.reply')}</Text>
           </Pressable>
-          <Pressable 
+          <Pressable
             style={styles.actionButton}
             onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}
             accessibilityLabel={t('post.quote')}
@@ -252,8 +255,8 @@ export default function PostDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('post.sources', 'SOURCES')}</Text>
           {sources.map((source: any, index: number) => (
-            <Pressable 
-              key={source.id || index} 
+            <Pressable
+              key={source.id || index}
               style={styles.sourceItem}
               onPress={async () => {
                 if (source.type === 'external' && source.url) {
@@ -275,18 +278,18 @@ export default function PostDetailScreen() {
               <Text style={styles.sourceNumber}>{index + 1}</Text>
               <View style={styles.sourceIcon}>
                 <Text style={styles.sourceIconText}>
-                  {source.type === 'external' && source.url 
+                  {source.type === 'external' && source.url
                     ? (new URL(source.url).hostname).charAt(0).toUpperCase()
                     : (source.title || '?').charAt(0).toUpperCase()}
                 </Text>
               </View>
               <View style={styles.sourceContent}>
                 <Text style={styles.sourceDomain}>
-                   {source.type === 'external' && source.url 
-                    ? new URL(source.url).hostname 
-                    : source.type === 'user' ? 'User' 
-                    : source.type === 'topic' ? 'Topic' 
-                    : 'Post'}
+                  {source.type === 'external' && source.url
+                    ? new URL(source.url).hostname
+                    : source.type === 'user' ? 'User'
+                      : source.type === 'topic' ? 'Topic'
+                        : 'Post'}
                 </Text>
                 <Text style={styles.sourceTitle} numberOfLines={1}>
                   {source.alias || source.title || source.handle || source.url}
@@ -315,26 +318,26 @@ export default function PostDetailScreen() {
         </View>
       )}
 
-      <View 
+      <View
         style={styles.section}
         onLayout={(event) => {
-            repliesSectionY.current = event.nativeEvent.layout.y;
+          repliesSectionY.current = event.nativeEvent.layout.y;
         }}
       >
         <Text style={styles.sectionTitle}>{t('post.replies')}</Text>
         {replies.map((reply) => (
-          <View 
-            key={reply.id} 
+          <View
+            key={reply.id}
             onLayout={(event) => {
-                if (highlightReplyId === reply.id) {
-                    const itemY = event.nativeEvent.layout.y;
-                    const totalY = repliesSectionY.current + itemY;
-                    setHighlightY(totalY);
-                }
+              if (highlightReplyId === reply.id) {
+                const itemY = event.nativeEvent.layout.y;
+                const totalY = repliesSectionY.current + itemY;
+                setHighlightY(totalY);
+              }
             }}
             style={[
-                styles.replyItem,
-                highlightReplyId === reply.id && { backgroundColor: COLORS.hover, borderColor: COLORS.primary, borderWidth: 1 }
+              styles.replyItem,
+              highlightReplyId === reply.id && { backgroundColor: COLORS.hover, borderColor: COLORS.primary, borderWidth: 1 }
             ]}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -357,7 +360,7 @@ export default function PostDetailScreen() {
       </View>
 
       <View style={styles.bottomActions}>
-        <Pressable 
+        <Pressable
           style={styles.bottomActionButton}
           onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
           accessibilityLabel={t('post.reply')}
@@ -366,7 +369,7 @@ export default function PostDetailScreen() {
           <MaterialIcons name="chat-bubble-outline" size={20} color={COLORS.tertiary} />
           <Text style={styles.bottomActionText}>{t('post.reply')}</Text>
         </Pressable>
-        <Pressable 
+        <Pressable
           style={styles.bottomActionButton}
           onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}
           accessibilityLabel={t('post.quote')}
@@ -375,37 +378,37 @@ export default function PostDetailScreen() {
           <MaterialIcons name="format-quote" size={20} color={COLORS.tertiary} />
           <Text style={styles.bottomActionText}>{t('post.quote')}</Text>
         </Pressable>
-        <Pressable 
+        <Pressable
           style={styles.bottomActionButton}
           onPress={handleLike}
           accessibilityLabel={liked ? t('post.liked') : t('post.like')}
           accessibilityRole="button"
         >
-          <MaterialIcons 
-            name={liked ? "favorite" : "favorite-border"} 
-            size={20} 
-            color={liked ? (COLORS.like || COLORS.primary) : COLORS.tertiary} 
+          <MaterialIcons
+            name={liked ? "favorite" : "favorite-border"}
+            size={20}
+            color={liked ? (COLORS.like || COLORS.primary) : COLORS.tertiary}
           />
           <Text style={[styles.bottomActionText, liked && { color: (COLORS.like || COLORS.primary) }]}>
             {liked ? t('post.liked') : t('post.like')}
           </Text>
         </Pressable>
-        <Pressable 
+        <Pressable
           style={styles.bottomActionButton}
           onPress={handleKeep}
           accessibilityLabel={kept ? t('post.kept') : t('post.keep')}
           accessibilityRole="button"
         >
-          <MaterialIcons 
-            name={kept ? "bookmark" : "bookmark-border"} 
-            size={20} 
-            color={kept ? COLORS.primary : COLORS.tertiary} 
+          <MaterialIcons
+            name={kept ? "bookmark" : "bookmark-border"}
+            size={20}
+            color={kept ? COLORS.primary : COLORS.tertiary}
           />
           <Text style={[styles.bottomActionText, kept && { color: COLORS.primary }]}>
             {kept ? t('post.kept') : t('post.keep')}
           </Text>
         </Pressable>
-        <Pressable 
+        <Pressable
           style={styles.bottomActionButton}
           onPress={handleShare}
           accessibilityLabel={t('post.share')}

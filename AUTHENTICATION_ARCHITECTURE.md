@@ -36,25 +36,10 @@ User authenticated
 - **JWT Generation**: `@nestjs/jwt` (not Supabase)
 - **Token Validation**: Custom Redis lookup (not Supabase)
 
-### 3. Why the Confusion?
+### 3. JWT and Database
 
-The code has some Supabase-related references that might be confusing:
-
-1. **`SUPABASE_JWT_SECRET` env var**: 
-   - Just used as a fallback for `JWT_SECRET`
-   - No actual Supabase integration
-   - JWT format is compatible with Supabase's format (using `sub` for user ID)
-
-2. **JWT Strategy comment**: 
-   ```typescript
-   // Supabase JWT payload: { sub: 'uuid', email: '...', ... }
-   ```
-   - This is just a comment explaining the JWT format
-   - The format is compatible, but it's not using Supabase
-
-3. **PostgreSQL database**:
-   - Uses Supabase's PostgreSQL image (`supabase/postgres:15.1.1.2`)
-   - But this is just the database, not Supabase Auth
+- **JWT**: Signed with `JWT_SECRET`; payload uses `sub` (user ID) and `email`.
+- **PostgreSQL**: Plain Postgres (`postgres:15-alpine` in Docker); no Supabase.
 
 ## Current Stack
 
@@ -65,36 +50,6 @@ The code has some Supabase-related references that might be confusing:
 | **User Database** | PostgreSQL | Store user accounts |
 | **JWT Library** | `@nestjs/jwt` | Generate authentication tokens |
 | **Auth Service** | Custom NestJS service | Handle authentication logic |
-
-## If You Want to Use Supabase Auth
-
-If you want to switch to Supabase's built-in authentication, you would need to:
-
-1. **Install Supabase SDK**:
-   ```bash
-   pnpm add @supabase/supabase-js
-   ```
-
-2. **Replace AuthService**:
-   - Use `supabase.auth.signInWithOtp()` instead of custom magic link
-   - Use `supabase.auth.verifyOtp()` instead of custom token validation
-   - Let Supabase handle email sending (or configure custom SMTP in Supabase dashboard)
-
-3. **Update JWT Strategy**:
-   - Use Supabase's JWT verification
-   - Or use Supabase's session management
-
-4. **Benefits of Supabase Auth**:
-   - Built-in email sending (or use your SMTP)
-   - Built-in rate limiting
-   - Built-in security features
-   - Less code to maintain
-   - Built-in user management UI
-
-5. **Trade-offs**:
-   - Less control over the flow
-   - Need to configure Supabase project
-   - Custom invite code logic would need to be adapted
 
 ## Current Custom Implementation Benefits
 

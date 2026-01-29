@@ -1390,7 +1390,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-postgres}
       REDIS_URL: redis://redis:6379
-      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
       APNS_KEY_ID: ${APNS_KEY_ID}
       APNS_TEAM_ID: ${APNS_TEAM_ID}
       APNS_BUNDLE_ID: ${APNS_BUNDLE_ID}

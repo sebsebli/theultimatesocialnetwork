@@ -94,7 +94,7 @@ Key environment variables (see `.env.example` for full list):
 - `MINIO_ROOT_PASSWORD`: MinIO admin password
 
 ### Application
-- `SUPABASE_JWT_SECRET`: JWT secret for authentication
+- `JWT_SECRET`: JWT secret for authentication
 - `FRONTEND_URL`: Frontend URL for CORS
 - `NEXT_PUBLIC_API_URL`: Public API URL
 - `SMTP_*`: Email configuration
@@ -142,7 +142,7 @@ Update `.env` with strong, unique passwords for:
 - `NEO4J_PASSWORD`
 - `MEILI_MASTER_KEY`
 - `MINIO_ROOT_PASSWORD`
-- `SUPABASE_JWT_SECRET`
+- `JWT_SECRET`
 
 ### 4. Configure Firewall
 

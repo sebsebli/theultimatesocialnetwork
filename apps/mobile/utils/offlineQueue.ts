@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 
 interface QueuedAction {
   id: string;
@@ -9,7 +9,7 @@ interface QueuedAction {
   timestamp: number;
 }
 
-const QUEUE_FILE = FileSystem.documentDirectory + 'offline_action_queue.json';
+const QUEUE_FILE = new File(Paths.document, 'offline_action_queue.json');
 
 export async function queueAction(action: Omit<QueuedAction, 'id' | 'timestamp'>): Promise<void> {
   try {
@@ -19,7 +19,8 @@ export async function queueAction(action: Omit<QueuedAction, 'id' | 'timestamp'>
       id: `${Date.now()}-${Math.random()}`,
       timestamp: Date.now(),
     };
-    await FileSystem.writeAsStringAsync(QUEUE_FILE, JSON.stringify([...existing, newAction]));
+    QUEUE_FILE.create({ overwrite: true });
+    QUEUE_FILE.write(JSON.stringify([...existing, newAction]));
   } catch (error) {
     // Fail silently in production or report to crashlytics
   }
@@ -27,10 +28,8 @@ export async function queueAction(action: Omit<QueuedAction, 'id' | 'timestamp'>
 
 export async function getQueuedActions(): Promise<QueuedAction[]> {
   try {
-    const info = await FileSystem.getInfoAsync(QUEUE_FILE);
-    if (!info.exists) return [];
-    
-    const data = await FileSystem.readAsStringAsync(QUEUE_FILE);
+    if (!QUEUE_FILE.exists) return [];
+    const data = await QUEUE_FILE.text();
     return data ? JSON.parse(data) : [];
   } catch (error) {
     return [];
@@ -39,7 +38,7 @@ export async function getQueuedActions(): Promise<QueuedAction[]> {
 
 export async function clearQueuedActions(): Promise<void> {
   try {
-    await FileSystem.deleteAsync(QUEUE_FILE, { idempotent: true });
+    if (QUEUE_FILE.exists) QUEUE_FILE.delete();
   } catch (error) {
     // ignore
   }
@@ -49,7 +48,8 @@ export async function removeQueuedAction(actionId: string): Promise<void> {
   try {
     const actions = await getQueuedActions();
     const filtered = actions.filter(a => a.id !== actionId);
-    await FileSystem.writeAsStringAsync(QUEUE_FILE, JSON.stringify(filtered));
+    QUEUE_FILE.create({ overwrite: true });
+    QUEUE_FILE.write(JSON.stringify(filtered));
   } catch (error) {
     // ignore
   }

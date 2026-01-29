@@ -7,6 +7,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { User } from '../entities/user.entity';
+import { NotificationPref } from '../entities/notification-pref.entity';
 import { InvitesModule } from '../invites/invites.module';
 import { SharedModule } from '../shared/shared.module';
 import { SearchModule } from '../search/search.module';
@@ -16,7 +17,7 @@ import Redis from 'ioredis';
   imports: [
     PassportModule,
     ConfigModule,
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, NotificationPref]),
     InvitesModule,
     SharedModule,
     SearchModule,
@@ -25,16 +26,13 @@ import Redis from 'ioredis';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         // ConfigService first (from .env when local), then process.env (e.g. Docker-injected)
-        const fromConfig =
-          configService.get<string>('JWT_SECRET') ??
-          configService.get<string>('SUPABASE_JWT_SECRET');
-        const fromEnv =
-          process.env.JWT_SECRET ?? process.env.SUPABASE_JWT_SECRET;
+        const fromConfig = configService.get<string>('JWT_SECRET');
+        const fromEnv = process.env.JWT_SECRET;
         const secret = (fromConfig ?? fromEnv ?? '').trim();
         const fallback = 'your-secret-key-change-in-production';
         if (!secret) {
           console.warn(
-            '[AuthModule] JWT_SECRET/SUPABASE_JWT_SECRET not set; using default. Set in .env or Docker env for production.',
+            '[AuthModule] JWT_SECRET not set; using default. Set in .env or Docker env for production.',
           );
           return { secret: fallback, signOptions: { expiresIn: '7d' } };
         }
