@@ -44,8 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null);
       }
-    } catch (error) {
-      console.error("Failed to fetch user", error);
+    } catch {
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -59,8 +58,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-    } catch (error) {
-      console.error("Failed to sign out", error);
+    } catch {
+      // ignore
     } finally {
       setUser(null);
       router.push("/");

@@ -237,13 +237,17 @@ export class PostsService {
 
   // ... helpers
   private slugify(text: string): string {
-    return text
-      .toString()
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]+/g, '')
-      .replace(/--+/g, '-');
+    return (
+      text
+        .toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-')
+        // Remove control characters, standard punctuation (except -), etc.
+        // Allow Unicode letters (\p{L}) and numbers (\p{N})
+        .replace(/[^\p{L}\p{N}-]+/gu, '')
+        .replace(/--+/g, '-')
+    );
   }
 
   private isValidUUID(uuid: string) {

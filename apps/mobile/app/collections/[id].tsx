@@ -6,16 +6,15 @@ import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { PostItem } from '../../components/PostItem';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { Collection, CollectionItem } from '../../types';
 
 export default function CollectionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const [collection, setCollection] = useState<any>(null);
-  const [items, setItems] = useState<any[]>([]);
+  const [collection, setCollection] = useState<Collection | null>(null);
+  const [items, setItems] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -29,19 +28,20 @@ export default function CollectionDetailScreen() {
         message: `Check out this collection: https://cite.app/collections/${id}`,
       });
     } catch (error) {
-      console.error(error);
+      // console.error(error);
     }
   };
 
   const handleTogglePublic = async () => {
+    if (!collection) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newValue = !collection.isPublic;
-    setCollection((prev: any) => ({ ...prev, isPublic: newValue }));
+    setCollection((prev) => prev ? ({ ...prev, isPublic: newValue }) : null);
     try {
       await api.patch(`/collections/${id}`, { isPublic: newValue });
     } catch (error) {
-      setCollection((prev: any) => ({ ...prev, isPublic: !newValue }));
-      console.error(error);
+      setCollection((prev) => prev ? ({ ...prev, isPublic: !newValue }) : null);
+      // console.error(error);
     }
   };
 
@@ -84,7 +84,7 @@ export default function CollectionDetailScreen() {
       const hasMoreData = itemsList.length === 20 && (itemsData.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error) {
-      console.error('Failed to load collection', error);
+      // console.error('Failed to load collection', error);
       setLoading(false);
     } finally {
       setRefreshing(false);
@@ -115,7 +115,7 @@ export default function CollectionDetailScreen() {
     return Array.from(authors.values());
   }, [items]);
 
-  const renderItem = useCallback(({ item }: { item: any }) => (
+  const renderItem = useCallback(({ item }: { item: CollectionItem }) => (
     <View style={styles.itemContainer}>
       <PostItem post={item.post} />
       {item.curatorNote && (
@@ -127,7 +127,7 @@ export default function CollectionDetailScreen() {
     </View>
   ), [t]);
 
-  const keyExtractor = useCallback((item: any) => item.id, []);
+  const keyExtractor = useCallback((item: CollectionItem) => item.id, []);
 
   const ListFooterComponent = useMemo(() => {
     if (!hasMore || !loadingMore) return null;

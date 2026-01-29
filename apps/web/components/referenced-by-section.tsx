@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from "react";
+import Link from "next/link";
 
 interface ReferencedPost {
   id: string;
@@ -20,7 +20,10 @@ interface ReferencedBySectionProps {
   quoteCount: number;
 }
 
-export function ReferencedBySection({ postId, quoteCount }: ReferencedBySectionProps) {
+export function ReferencedBySection({
+  postId,
+  quoteCount,
+}: ReferencedBySectionProps) {
   const [referencedPosts, setReferencedPosts] = useState<ReferencedPost[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -40,8 +43,8 @@ export function ReferencedBySection({ postId, quoteCount }: ReferencedBySectionP
         const data = await res.json();
         setReferencedPosts(data);
       }
-    } catch (error) {
-      console.error('Failed to load referenced posts', error);
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
@@ -68,7 +71,7 @@ export function ReferencedBySection({ postId, quoteCount }: ReferencedBySectionP
   return (
     <section className="border-t border-divider pt-6">
       <h2 className="text-lg font-semibold mb-4 text-paper">
-        Referenced by {quoteCount} {quoteCount === 1 ? 'post' : 'posts'}
+        Referenced by {quoteCount} {quoteCount === 1 ? "post" : "posts"}
       </h2>
       {referencedPosts.length > 0 ? (
         <div className="space-y-4">
@@ -83,12 +86,18 @@ export function ReferencedBySection({ postId, quoteCount }: ReferencedBySectionP
                   {post.author.displayName.charAt(0)}
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-paper">{post.author.displayName}</div>
-                  <div className="text-xs text-tertiary">@{post.author.handle}</div>
+                  <div className="text-sm font-semibold text-paper">
+                    {post.author.displayName}
+                  </div>
+                  <div className="text-xs text-tertiary">
+                    @{post.author.handle}
+                  </div>
                 </div>
               </div>
               {post.title && (
-                <h3 className="text-base font-bold text-paper mb-1">{post.title}</h3>
+                <h3 className="text-base font-bold text-paper mb-1">
+                  {post.title}
+                </h3>
               )}
               <p className="text-sm text-secondary line-clamp-2">{post.body}</p>
             </Link>
@@ -96,7 +105,9 @@ export function ReferencedBySection({ postId, quoteCount }: ReferencedBySectionP
         </div>
       ) : (
         <p className="text-secondary text-sm">
-          {quoteCount > 0 ? `${quoteCount} posts reference this post` : 'Not referenced yet.'}
+          {quoteCount > 0
+            ? `${quoteCount} posts reference this post`
+            : "Not referenced yet."}
         </p>
       )}
     </section>

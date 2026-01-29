@@ -18,7 +18,7 @@ export function useOfflineSync() {
       const actions = await getQueuedActions();
       if (actions.length === 0) return;
 
-      console.log(`Syncing ${actions.length} offline actions...`);
+      // console.log(`Syncing ${actions.length} offline actions...`);
       
       for (const action of actions) {
         try {
@@ -31,19 +31,19 @@ export function useOfflineSync() {
           // Remove from queue on success
           await removeQueuedAction(action.id);
         } catch (error: any) {
-          console.error(`Failed to sync action ${action.id}:`, error);
+          // console.error(`Failed to sync action ${action.id}:`, error);
           
           // If the error is 400 (Bad Request) or 404 (Not Found), 
           // it's unlikely to succeed on retry, so we remove it.
           if (error?.status >= 400 && error?.status < 500) {
-             console.warn(`Action ${action.id} failed with non-retryable error ${error.status}. Removing from queue.`);
+             // console.warn(`Action ${action.id} failed with non-retryable error ${error.status}. Removing from queue.`);
              await removeQueuedAction(action.id);
           }
           // Otherwise keep in queue for retry later when network is better
         }
       }
     } catch (error) {
-      console.error('Failed to sync queued actions', error);
+      // console.error('Failed to sync queued actions', error);
     }
   };
 

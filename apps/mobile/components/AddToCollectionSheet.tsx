@@ -6,6 +6,8 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
+import { Collection } from '../types';
+
 export interface AddToCollectionSheetRef {
   open: (postId: string) => void;
   close: () => void;
@@ -18,7 +20,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
   const { showError } = useToast();
   const [visible, setVisible] = useState(false);
   const [postId, setPostId] = useState<string | null>(null);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -39,7 +41,6 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
       const data = await api.get(`/collections?postId=${id}`);
       setCollections(data);
     } catch (error) {
-      console.error('Failed to load collections', error);
       showError(t('collections.loadFailed'));
     } finally {
       setLoading(false);
@@ -64,7 +65,6 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
         handleToggle(newCollection.id, false);
       }
     } catch (error) {
-      console.error('Failed to create collection', error);
       showError(t('collections.createFailed'));
     }
   };
@@ -82,7 +82,6 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
         await api.post(`/collections/${collectionId}/items`, { postId });
       }
     } catch (error) {
-      console.error('Failed to toggle item', error);
       // Revert
       setCollections(prev => prev.map(c =>
         c.id === collectionId ? { ...c, hasPost: currentHasPost } : c
@@ -117,9 +116,9 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
             ) : (
               <FlatList
                 data={collections}
-                keyExtractor={(item: any) => item.id}
+                keyExtractor={(item: Collection) => item.id}
                 contentContainerStyle={styles.list}
-                renderItem={({ item }: { item: any }) => (
+                renderItem={({ item }: { item: Collection }) => (
                   <Pressable
                     style={styles.item}
                     onPress={() => handleToggle(item.id, !!item.hasPost)}

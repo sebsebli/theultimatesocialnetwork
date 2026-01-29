@@ -127,7 +127,7 @@ export default function RootLayout() {
     try {
       configureNotifications();
     } catch (error) {
-      console.warn('Failed to configure notifications:', error);
+      // console.warn('Failed to configure notifications:', error);
     }
 
     // Handle notification taps
@@ -138,7 +138,7 @@ export default function RootLayout() {
           Linking.openURL(deepLink as string);
         }
       } catch (e) {
-        console.error('Failed to handle notification tap:', e);
+        // console.error('Failed to handle notification tap:', e);
       }
     });
 

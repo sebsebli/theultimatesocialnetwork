@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Topic } from '../entities/topic.entity';
@@ -8,6 +8,8 @@ import { ExploreService } from '../explore/explore.service';
 
 @Injectable()
 export class TopicsService {
+  private readonly logger = new Logger(TopicsService.name);
+
   constructor(
     @InjectRepository(Topic) private topicRepo: Repository<Topic>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
@@ -42,14 +44,26 @@ export class TopicsService {
     limit = 20,
     offset = 0,
   ) {
-    // Resolve ID
-    const topicId = topicIdOrSlug;
-    if (topicIdOrSlug.match(/^[a-z0-9-]+$/) && !topicIdOrSlug.includes('-')) {
-      // simplistic uuid check failure, assume slug if not uuid
-      // but strictly we should check. For now assume caller passes ID if they have it, or we resolve.
-      // The controller usually resolves slug.
+    let topicId = topicIdOrSlug;
+
+    // Check if it's a valid UUID
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        topicIdOrSlug,
+      );
+
+    if (!isUUID) {
+      // Resolve slug to ID
+      const topic = await this.topicRepo.findOne({
+        where: { slug: topicIdOrSlug },
+      });
+      if (topic) {
+        topicId = topic.id;
+      } else {
+        // If strictly a slug and not found, return empty
+        return [];
+      }
     }
-    // If we assume controller passes ID, we are good.
 
     const query = this.postRepo
       .createQueryBuilder('post')
@@ -61,6 +75,8 @@ export class TopicsService {
 
     if (sort === 'ranked') {
       // Spam/Quality Filter
+      this.logger.log(`Applying spam/quality gate for topic ${topicId}`);
+
       // 1. Account Age > 3 days OR has significant engagement
       // We can't easily check account age in DB if not indexed or simple.
       // Let's rely on engagement metrics.

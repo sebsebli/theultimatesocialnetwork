@@ -38,8 +38,8 @@ export function DesktopRightSidebar() {
           const data = await usersRes.json();
           setUsers(Array.isArray(data) ? data.slice(0, 3) : []);
         }
-      } catch (error) {
-        console.error("Failed to load sidebar data", error);
+      } catch {
+        // ignore
       } finally {
         setLoading(false);
       }

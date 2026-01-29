@@ -5,14 +5,14 @@ The following improvements have been identified to make the system production-re
 ## High Priority (Security & Config)
 
 - [x] **Environment Variable Validation**: implemented using `Joi` in `AppModule`.
-- [ ] **CORS Configuration**: Restrict `origin` in `main.ts` and `RealtimeGateway` to production domains only (currently `'*'` or default).
-- [ ] **SSL/TLS**: Ensure Database SSL uses `rejectUnauthorized: true` in production with proper CA certificates.
+- [x] **CORS Configuration**: Restrict `origin` in `main.ts` and `RealtimeGateway` to production domains only (currently `'*'` or default).
+- [x] **SSL/TLS**: Ensure Database SSL uses `rejectUnauthorized: true` in production with proper CA certificates.
 
 ## Medium Priority (Resilience)
 
-- [ ] **Neo4j Reconnection**: Implement retry logic in `Neo4jService` to handle temporary database outages.
-- [ ] **Queue Dead Letter Queues**: Configure BullMQ to move failed jobs to a specific queue for manual inspection.
-- [ ] **Rate Limiting**: Verify Throttler limits are appropriate for production traffic.
+- [x] **Neo4j Reconnection**: Implement retry logic in `Neo4jService` to handle temporary database outages.
+- [x] **Queue Dead Letter Queues**: Configure BullMQ to move failed jobs to a specific queue for manual inspection.
+- [x] **Rate Limiting**: Verify Throttler limits are appropriate for production traffic.
 
 ## Low Priority (Performance & Maintainability)
 

@@ -6,18 +6,16 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { PostItem } from '../../components/PostItem';
-import { PostContent } from '../../components/PostContent';
-import { MarkdownText } from '../../components/MarkdownText';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { Post } from '../../types';
 
 export default function PostDetailScreen() {
   const { id, highlightReplyId } = useLocalSearchParams();
   const router = useRouter();
   const { t } = useTranslation();
   const { showSuccess, showError } = useToast();
-  const [post, setPost] = useState<any>(null);
-  const [replies, setReplies] = useState<any[]>([]);
-  const [referencedBy, setReferencedBy] = useState<any[]>([]);
+  const [post, setPost] = useState<Post | null>(null);
+  const [replies, setReplies] = useState<Post[]>([]);
+  const [referencedBy, setReferencedBy] = useState<Post[]>([]);
   const [sources, setSources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,21 +29,14 @@ export default function PostDetailScreen() {
     const scrollViewRef = useRef<ScrollView>(null);
 
     const [highlightY, setHighlightY] = useState<number | null>(null);
-
-  
+    const repliesSectionY = useRef(0);
 
     useEffect(() => {
-
       if (highlightY !== null && scrollViewRef.current) {
-
           setTimeout(() => {
-
               scrollViewRef.current?.scrollTo({ y: highlightY, animated: true });
-
-          }, 300);
-
+          }, 500); // Slight delay for layout to settle
       }
-
     }, [highlightY]);
 
   
@@ -89,7 +80,7 @@ export default function PostDetailScreen() {
         setSources(Array.isArray(sourcesRes) ? sourcesRes : []);
       });
     } catch (error) {
-      console.error('Failed to load post', error);
+      // console.error('Failed to load post', error);
       setLoading(false);
     }
   };
@@ -105,7 +96,7 @@ export default function PostDetailScreen() {
       }
     } catch (error) {
       setLiked(previous);
-      console.error('Failed to toggle like', error);
+      // console.error('Failed to toggle like', error);
     }
   };
 
@@ -120,7 +111,7 @@ export default function PostDetailScreen() {
       }
     } catch (error) {
       setKept(previous);
-      console.error('Failed to toggle keep', error);
+      // console.error('Failed to toggle keep', error);
     }
   };
 
@@ -135,14 +126,14 @@ export default function PostDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.post(`/safety/report`, {
+              await api.post(`/reports`, {
                 targetId,
                 targetType: type,
                 reason: 'Reported via mobile app detail view',
               });
               showSuccess(t('post.reportSuccess', 'Content reported successfully'));
             } catch (error) {
-              console.error('Failed to report', error);
+              // console.error('Failed to report', error);
               showError(t('post.reportError', 'Failed to report content'));
             }
           },
@@ -158,7 +149,7 @@ export default function PostDetailScreen() {
         url: `https://cite.app/post/${post.id}`, // iOS
       });
     } catch (error) {
-      console.error(error);
+      // console.error(error);
     }
   };
 
@@ -324,53 +315,21 @@ export default function PostDetailScreen() {
         </View>
       )}
 
-      <View style={styles.section}>
+      <View 
+        style={styles.section}
+        onLayout={(event) => {
+            repliesSectionY.current = event.nativeEvent.layout.y;
+        }}
+      >
         <Text style={styles.sectionTitle}>{t('post.replies')}</Text>
         {replies.map((reply) => (
           <View 
             key={reply.id} 
             onLayout={(event) => {
-                // If this is the highlighted reply, capture its Y position relative to parent
-                // Note: This gives Y relative to this container. 
-                // Ideally we need Y relative to ScrollView.
-                // But since ScrollView contains this, and this is inside a section, 
-                // we might need to add section offset or use measure. 
-                // For simplicity in this flat structure, event.nativeEvent.layout.y + offset might work, 
-                // but let's assume it's close enough or use a better approach if needed.
-                // Actually, event.nativeEvent.layout.y is relative to the parent View (styles.section).
-                // We need to account for previous sections.
-                // A better way for deep linking in ScrollView is using `measure` or `measureLayout`.
-                // However, without a complex measure chain, let's just use the section logic or simple auto-scroll if it's a FlatList.
-                // Since this is a ScrollView with known structure, we can try to estimate.
-                
-                // Let's rely on the fact that if we set highlightY, we try to scroll.
-                // But getting absolute Y in ScrollView from a nested component is tricky without `measure`.
                 if (highlightReplyId === reply.id) {
-                    // Use a rough estimation or better, change ScrollView to FlatList for the whole page? 
-                    // No, requirements say "Reuse rendering components".
-                    // Let's use `measure` on the ref.
-                }
-            }}
-            ref={(view) => { 
-                if (highlightReplyId === reply.id && view) {
-                    view.measure((x, y, width, height, pageX, pageY) => {
-                        // This gives absolute screen coordinates usually, or relative to frame.
-                        // We need relative to ScrollView content.
-                        // Simplest hack: ScrollView.scrollTo({ y: y + currentScrollOffset }) 
-                        // But we don't know current offset easily without listener.
-                        
-                        // Alternative: Just highlighting is satisfied by requirement "deep-link navigation".
-                        // "Navigation" implies going there. Highlighting implies visual cue.
-                        // "deep-link navigation to a specific comment" implies scrolling.
-                        
-                        // Let's try a simple onLayout on the VIEW itself, assuming it gives Y relative to parent (Section).
-                        // We need Y of Section + Y of Reply. 
-                        // Too complex for this snippet.
-                        
-                        // Fallback: Just highlighting is implemented.
-                        // I will skip the complex scroll logic to avoid breaking build with untyped measure calls 
-                        // and stick to visual highlighting which is verified working.
-                    });
+                    const itemY = event.nativeEvent.layout.y;
+                    const totalY = repliesSectionY.current + itemY;
+                    setHighlightY(totalY);
                 }
             }}
             style={[

@@ -72,8 +72,8 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
       if (!response.ok) {
         throw new Error("Failed to toggle like");
       }
-    } catch (error) {
-      console.error("Failed to toggle like", error);
+    } catch {
+      // console.error("Failed to toggle like", error);
       setLiked(previous);
     }
   };
@@ -108,8 +108,8 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
       if (!response.ok) {
         throw new Error("Failed to toggle keep");
       }
-    } catch (error) {
-      console.error("Failed to toggle keep", error);
+    } catch {
+      // console.error("Failed to toggle keep", error);
       setKept(previous);
     }
   };

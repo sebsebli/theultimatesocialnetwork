@@ -77,15 +77,12 @@ export default function HomeScreen() {
       const offset = (pageNum - 1) * limit;
       
       // Add rudimentary request ID tracking if API supports it or generates it
-      const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
-      console.log(`[Feed] Loading page ${pageNum} (offset ${offset}) - ID: ${requestId}`);
-
       const data = await api.get(`/feed?limit=${limit}&offset=${offset}`);
       
       // Validate payload shape
       if (!data || (!Array.isArray(data) && !Array.isArray(data.items))) {
-         console.error(`[Feed] Payload shape mismatch. ID: ${requestId}`, { keys: Object.keys(data || {}) });
          throw new Error('Invalid feed payload');
       }
 
@@ -166,8 +163,8 @@ export default function HomeScreen() {
   }, []);
 
 
-  const renderItem = useCallback(({ item }: { item: any }) => {
-    if (item._isSavedBy) {
+  const renderItem = useCallback(({ item }: { item: Post }) => {
+    if (item._isSavedBy && item._savedBy) {
       return (
         <View style={styles.savedByItem}>
           <View style={styles.savedByHeader}>
@@ -183,7 +180,7 @@ export default function HomeScreen() {
     return <PostItem post={item} />;
   }, [t]);
 
-  const keyExtractor = useCallback((item: any) => item.id || `saved-${item._savedBy?.userId}-${item.id}`, []);
+  const keyExtractor = useCallback((item: Post) => item.id || `saved-${item._savedBy?.userId}-${item.id}`, []);
 
   const ListFooterComponent = useMemo(() => {
     if (!hasMore || !loadingMore) return null;

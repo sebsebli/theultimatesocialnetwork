@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 interface Collection {
   id: string;
@@ -17,11 +17,15 @@ interface AddToCollectionModalProps {
   onClose: () => void;
 }
 
-export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectionModalProps) {
+export function AddToCollectionModal({
+  postId,
+  isOpen,
+  onClose,
+}: AddToCollectionModalProps) {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
+  const [newTitle, setNewTitle] = useState("");
   const [newIsPublic, setNewIsPublic] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -38,12 +42,12 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
   // Prevent scrolling when modal is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     }
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, [isOpen]);
 
@@ -55,8 +59,8 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
         const data = await res.json();
         setCollections(data);
       }
-    } catch (error) {
-      console.error('Failed to load collections', error);
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
@@ -64,11 +68,11 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
-    
+
     try {
-      const res = await fetch('/api/collections', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/collections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newTitle,
           isPublic: newIsPublic,
@@ -79,36 +83,43 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
         const newCollection = await res.json();
         setCollections([newCollection, ...collections]);
         setCreating(false);
-        setNewTitle('');
+        setNewTitle("");
         // Automatically add to the new collection
         handleToggle(newCollection.id, false);
       }
-    } catch (error) {
-      console.error('Failed to create collection', error);
+    } catch {
+      // ignore
     }
   };
 
-  const handleToggle = async (collectionId: string, currentHasPost: boolean) => {
+  const handleToggle = async (
+    collectionId: string,
+    currentHasPost: boolean,
+  ) => {
     // Optimistic update
-    setCollections(cols => cols.map(c => 
-      c.id === collectionId ? { ...c, hasPost: !currentHasPost } : c
-    ));
+    setCollections((cols) =>
+      cols.map((c) =>
+        c.id === collectionId ? { ...c, hasPost: !currentHasPost } : c,
+      ),
+    );
 
     try {
-      const method = currentHasPost ? 'DELETE' : 'POST';
+      const method = currentHasPost ? "DELETE" : "POST";
       const res = await fetch(`/api/collections/${collectionId}/items`, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postId }),
       });
 
-      if (!res.ok) throw new Error('Failed to update');
+      if (!res.ok) throw new Error("Failed to update");
     } catch (error) {
       // Revert
-      setCollections(cols => cols.map(c => 
-        c.id === collectionId ? { ...c, hasPost: currentHasPost } : c
-      ));
-      console.error('Failed to toggle collection item', error);
+      setCollections((cols) =>
+        cols.map((c) =>
+          c.id === collectionId ? { ...c, hasPost: currentHasPost } : c,
+        ),
+      );
+      // ignore
     }
   };
 
@@ -117,7 +128,7 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
         onClick={onClose}
       />
@@ -127,12 +138,22 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
           <h2 className="text-lg font-bold text-paper">Add to Collection</h2>
-          <button 
+          <button
             onClick={onClose}
             className="p-1 text-secondary hover:text-paper rounded-full hover:bg-white/5 transition-colors"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -143,10 +164,12 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
             <div className="py-8 text-center text-secondary">Loading...</div>
           ) : (
             <div className="space-y-1">
-              {collections.map(collection => (
+              {collections.map((collection) => (
                 <button
                   key={collection.id}
-                  onClick={() => handleToggle(collection.id, !!collection.hasPost)}
+                  onClick={() =>
+                    handleToggle(collection.id, !!collection.hasPost)
+                  }
                   className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors group text-left"
                 >
                   <div className="flex flex-col">
@@ -154,24 +177,36 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
                       {collection.title}
                     </span>
                     <span className="text-xs text-tertiary flex items-center gap-1.5">
-                      {collection.isPublic ? 'Public' : 'Private'}
+                      {collection.isPublic ? "Public" : "Private"}
                     </span>
                   </div>
-                  
-                  <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
-                    collection.hasPost 
-                      ? 'bg-primary border-primary text-white' 
-                      : 'border-secondary/30 group-hover:border-primary/50'
-                  }`}>
+
+                  <div
+                    className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${
+                      collection.hasPost
+                        ? "bg-primary border-primary text-white"
+                        : "border-secondary/30 group-hover:border-primary/50"
+                    }`}
+                  >
                     {collection.hasPost && (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     )}
                   </div>
                 </button>
               ))}
-              
+
               {collections.length === 0 && !creating && (
                 <div className="text-center py-6 text-secondary text-sm">
                   No collections found.
@@ -188,7 +223,7 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
               <input
                 type="text"
                 value={newTitle}
-                onChange={e => setNewTitle(e.target.value)}
+                onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Collection title (e.g. 'Urbanism')"
                 className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-paper placeholder-secondary focus:outline-none focus:border-primary transition-colors"
                 autoFocus
@@ -198,19 +233,23 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
                   onClick={() => setNewIsPublic(!newIsPublic)}
                   className="flex items-center gap-2 text-sm text-secondary hover:text-paper transition-colors"
                 >
-                  <div className={`w-9 h-5 rounded-full relative transition-colors ${newIsPublic ? 'bg-primary' : 'bg-white/20'}`}>
-                    <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-transform ${newIsPublic ? 'left-5' : 'left-1'}`} />
+                  <div
+                    className={`w-9 h-5 rounded-full relative transition-colors ${newIsPublic ? "bg-primary" : "bg-white/20"}`}
+                  >
+                    <div
+                      className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-transform ${newIsPublic ? "left-5" : "left-1"}`}
+                    />
                   </div>
-                  {newIsPublic ? 'Public' : 'Private'}
+                  {newIsPublic ? "Public" : "Private"}
                 </button>
                 <div className="flex items-center gap-2">
-                  <button 
+                  <button
                     onClick={() => setCreating(false)}
                     className="px-3 py-1.5 text-sm text-secondary hover:text-paper transition-colors"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={handleCreate}
                     disabled={!newTitle.trim()}
                     className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
@@ -225,8 +264,18 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
               onClick={() => setCreating(true)}
               className="w-full py-2.5 flex items-center justify-center gap-2 text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors font-medium"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               New Collection
             </button>
@@ -234,6 +283,6 @@ export function AddToCollectionModal({ postId, isOpen, onClose }: AddToCollectio
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

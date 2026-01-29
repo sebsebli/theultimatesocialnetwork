@@ -22,7 +22,10 @@ import { Neo4jService } from './neo4j.service';
             configService.get('DB_SSL') === 'false'
               ? false
               : isProduction
-                ? { rejectUnauthorized: false }
+                ? {
+                    rejectUnauthorized: true,
+                    ca: configService.get('DB_CA_CERT'),
+                  }
                 : false,
         };
       },

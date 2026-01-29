@@ -1,15 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, Image, FlatList } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { api } from '../../utils/api';
-import { useToast } from '../../context/ToastContext';
-import { MarkdownText } from '../../components/MarkdownText';
-import { PostContent } from '../../components/PostContent';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Post } from '../../types';
 
 export default function ComposeScreen() {
   const router = useRouter();
@@ -28,10 +17,8 @@ export default function ComposeScreen() {
 
   // Suggestions state
   const [suggestionType, setSuggestionType] = useState<'none' | 'topic' | 'mention'>('none');
-  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
-  const searchRequestId = useRef(0);
-  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const { results: suggestions, search, clearSearch } = useComposerSearch();
 
   // Link Input State (Inline, no modal)
   const [showLinkInput, setShowLinkInput] = useState(false);
@@ -41,7 +28,7 @@ export default function ComposeScreen() {
   const [referenceMetadata, setReferenceMetadata] = useState<Record<string, { title?: string }>>({});
 
   const textInputRef = useRef<TextInput>(null);
-  const [quotedPost, setQuotedPost] = useState<any>(null);
+  const [quotedPost, setQuotedPost] = useState<Post | null>(null);
 
   useEffect(() => {
     if (quotePostId) loadQuotedPost(quotePostId);
@@ -78,7 +65,7 @@ export default function ComposeScreen() {
       const post = await api.get(`/posts/${id}`);
       setQuotedPost(post);
     } catch (error) {
-      console.error('Failed to load referenced post', error);
+      // ignore
     }
   };
 
@@ -206,7 +193,7 @@ export default function ComposeScreen() {
             // Check if we typed another trigger character that invalidates this one
             if (!query.includes('[[')) {
                 if (suggestionType !== 'mention') setSuggestionType('mention');
-                loadMentionSuggestions(query);
+                search(query, 'mention');
                 return;
             }
         }
@@ -218,81 +205,15 @@ export default function ComposeScreen() {
         const query = beforeCursor.slice(lastBracket + 2);
         if (!query.includes(']]') && !query.includes('\n')) {
              if (suggestionType !== 'topic') setSuggestionType('topic');
-             loadTopicSuggestions(query);
+             search(query, 'topic');
              return;
         }
     }
 
     if (suggestionType !== 'none') {
         setSuggestionType('none');
-        setSuggestions([]);
+        clearSearch();
     }
-  };
-
-  const loadTopicSuggestions = (q: string) => {
-    const requestId = ++searchRequestId.current;
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    
-    // Telemetry: Request Queued
-    // console.log(`[Search Telemetry] Queueing topic search for '${q}' (ID: ${requestId})`);
-
-    searchTimeout.current = setTimeout(async () => {
-        if (searchRequestId.current !== requestId) {
-            console.log(`[Search Telemetry] Cancelled topic search (ID: ${requestId})`);
-            return;
-        }
-        
-        const startTime = Date.now();
-        console.log(`[Search Telemetry] Executing topic search for '${q}' (ID: ${requestId})`);
-
-        try {
-            let results = [];
-            const trimmedQ = q.trim();
-            if (!trimmedQ) {
-               setSuggestions([]); 
-            } else {
-               const [topicRes, postRes] = await Promise.all([
-                 api.get(`/search/topics?q=${encodeURIComponent(trimmedQ)}`),
-                 api.get(`/search/posts?q=${encodeURIComponent(trimmedQ)}`)
-               ]);
-               
-               if (searchRequestId.current !== requestId) {
-                   console.log(`[Search Telemetry] Stale response ignored (ID: ${requestId})`);
-                   return;
-               }
-
-               const topics = (topicRes.hits || []).map((t: any) => ({ ...t, type: 'topic' }));
-               const posts = (postRes.hits || []).map((p: any) => ({ ...p, type: 'post', displayName: p.title || 'Untitled Post' }));
-               
-               results = [...topics, ...posts];
-               setSuggestions(results);
-               console.log(`[Search Telemetry] Success (ID: ${requestId}) - ${results.length} results in ${Date.now() - startTime}ms`);
-            }
-        } catch (e) {
-            console.error(`[Search Telemetry] Failed (ID: ${requestId})`, e);
-        }
-    }, 150); // Debounce
-  };
-
-  const loadMentionSuggestions = (q: string) => {
-    const requestId = ++searchRequestId.current;
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    
-    searchTimeout.current = setTimeout(async () => {
-        if (searchRequestId.current !== requestId) return;
-        try {
-            const trimmedQ = q.trim();
-            let res;
-            if (!trimmedQ) {
-               setSuggestions([]);
-            } else {
-               res = await api.get(`/search/users?q=${encodeURIComponent(trimmedQ)}`);
-               setSuggestions(res.hits || []);
-            }
-        } catch (e) {
-            // Fallback
-        }
-    }, 150);
   };
 
   const handleSuggestionSelect = (item: any) => {
@@ -319,6 +240,7 @@ export default function ComposeScreen() {
         setBody(newBody);
     }
     setSuggestionType('none');
+    clearSearch();
   };
 
   // --- Components ---

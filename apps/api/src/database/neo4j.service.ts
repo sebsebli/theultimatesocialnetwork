@@ -6,30 +6,45 @@ import neo4j, { Driver, Session } from 'neo4j-driver';
 export class Neo4jService implements OnModuleInit, OnModuleDestroy {
   private driver: Driver;
   private isHealthy = false;
+  private lastCheck = 0;
+  private readonly CHECK_INTERVAL = 30000; // 30s
 
   constructor(private configService: ConfigService) {}
 
   async onModuleInit() {
+    await this.connect();
+  }
+
+  private async connect() {
     const uri =
       this.configService.get<string>('NEO4J_URI') || 'bolt://localhost:7687';
     const user = this.configService.get<string>('NEO4J_USER') || 'neo4j';
     const password =
       this.configService.get<string>('NEO4J_PASSWORD') || 'password';
 
-    this.driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
+    this.driver = neo4j.driver(uri, neo4j.auth.basic(user, password), {
+      maxConnectionLifetime: 3 * 60 * 60 * 1000, // 3 hours
+      maxConnectionPoolSize: 50,
+      connectionAcquisitionTimeout: 2000, // 2s
+    });
 
-    // Verify connection with a simple ping
+    await this.verifyConnection();
+  }
+
+  private async verifyConnection(): Promise<boolean> {
     try {
       await this.driver.getServerInfo();
       this.isHealthy = true;
       console.log('Connected to Neo4j');
+      return true;
     } catch (e) {
       this.isHealthy = false;
       const message = e instanceof Error ? e.message : String(e);
       console.error(
-        'Failed to connect to Neo4j. Graph features will be disabled.',
+        'Failed to connect to Neo4j. Graph features will be disabled until reconnection.',
         message,
       );
+      return false;
     }
   }
 
@@ -48,11 +63,18 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
   }
 
   async run(query: string, params: Record<string, any> = {}) {
+    // Self-healing: Try to reconnect if unhealthy and interval passed
     if (!this.isHealthy) {
-      // Best effort: if we previously failed, try one session.
-      // If it fails, we keep isHealthy = false.
-      // For now, return empty result to avoid blocking the caller.
-      return { records: [] };
+      const now = Date.now();
+      if (now - this.lastCheck > this.CHECK_INTERVAL) {
+        this.lastCheck = now;
+        const connected = await this.verifyConnection();
+        if (!connected) {
+          return { records: [] };
+        }
+      } else {
+        return { records: [] };
+      }
     }
 
     const session = this.getSession();
@@ -60,7 +82,15 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
       const result = await session.run(query, params);
       return result;
     } catch (error) {
-      this.isHealthy = false; // Mark as unhealthy on error
+      // If it's a connection error, mark unhealthy
+      if (
+        error instanceof Error &&
+        (error.message.includes('Connection') ||
+          error.message.includes('Session'))
+      ) {
+        this.isHealthy = false;
+        console.warn('Neo4j connection lost during query execution');
+      }
       throw error;
     } finally {
       await session.close();

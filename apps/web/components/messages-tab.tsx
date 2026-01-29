@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRealtime } from '@/context/realtime-provider';
-import { useAuth } from '@/components/auth-provider';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRealtime } from "@/context/realtime-provider";
+import { useAuth } from "@/components/auth-provider";
 
 interface Thread {
   id: string;
@@ -33,7 +33,7 @@ export function MessagesTab() {
   const [loading, setLoading] = useState(false);
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [messageText, setMessageText] = useState('');
+  const [messageText, setMessageText] = useState("");
   const { on, off } = useRealtime();
 
   useEffect(() => {
@@ -48,17 +48,17 @@ export function MessagesTab() {
 
       // If viewing this thread, append message
       if (selectedThread && message.threadId === selectedThread) {
-        setMessages(prev => {
+        setMessages((prev) => {
           // Prevent duplicates
-          if (prev.some(m => m.id === message.id)) return prev;
+          if (prev.some((m) => m.id === message.id)) return prev;
           return [...prev, message];
         });
       }
     };
 
-    on('message', handleMessage);
+    on("message", handleMessage);
     return () => {
-      off('message', handleMessage);
+      off("message", handleMessage);
     };
   }, [on, off, selectedThread]);
 
@@ -71,13 +71,13 @@ export function MessagesTab() {
   const loadThreads = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/messages/threads');
+      const res = await fetch("/api/messages/threads");
       if (res.ok) {
         const data = await res.json();
         setThreads(data);
       }
-    } catch (error) {
-      console.error('Failed to load threads', error);
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
@@ -90,8 +90,8 @@ export function MessagesTab() {
         const data = await res.json();
         setMessages(data);
       }
-    } catch (error) {
-      console.error('Failed to load messages', error);
+    } catch {
+      // ignore
     }
   };
 
@@ -100,7 +100,7 @@ export function MessagesTab() {
     if (!messageText.trim() || !selectedThread || !user) return;
 
     const body = messageText;
-    setMessageText('');
+    setMessageText("");
 
     // Optimistic update
     const tempId = `temp-${Date.now()}`;
@@ -110,30 +110,33 @@ export function MessagesTab() {
       senderId: user.id as string,
       createdAt: new Date().toISOString(),
     };
-    
-    setMessages(prev => [...prev, newMessage]);
+
+    setMessages((prev) => [...prev, newMessage]);
 
     try {
-      const res = await fetch(`/api/messages/threads/${selectedThread}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body }),
-      });
+      const res = await fetch(
+        `/api/messages/threads/${selectedThread}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body }),
+        },
+      );
 
       if (res.ok) {
         const saved = await res.json();
         // Replace optimistic message with saved one
-        setMessages(prev => prev.map(m => m.id === tempId ? saved : m));
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? saved : m)));
         loadThreads(); // Update sidebar in background
       } else {
-        throw new Error('Failed to send');
+        throw new Error("Failed to send");
       }
-    } catch (error) {
-      console.error('Failed to send message', error);
+    } catch {
+      // ignore
       // Remove optimistic message on failure
-      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setMessageText(body); // Restore text
-      alert('Failed to send message. Please try again.');
+      alert("Failed to send message. Please try again.");
     }
   };
 
@@ -143,8 +146,8 @@ export function MessagesTab() {
     const diff = now.getTime() - d.getTime();
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(minutes / 60);
-    
-    if (minutes < 1) return 'now';
+
+    if (minutes < 1) return "now";
     if (minutes < 60) return `${minutes}m`;
     if (hours < 24) return `${hours}h`;
     return d.toLocaleDateString();
@@ -167,7 +170,7 @@ export function MessagesTab() {
   }
 
   if (selectedThread) {
-    const thread = threads.find(t => t.id === selectedThread);
+    const thread = threads.find((t) => t.id === selectedThread);
     if (!thread) return null;
 
     return (
@@ -178,8 +181,18 @@ export function MessagesTab() {
             onClick={() => setSelectedThread(null)}
             className="text-tertiary hover:text-paper"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
           <Link href={`/user/${thread.otherUser.handle}`}>
@@ -189,9 +202,13 @@ export function MessagesTab() {
           </Link>
           <div>
             <Link href={`/user/${thread.otherUser.handle}`}>
-              <div className="font-semibold text-paper">{thread.otherUser.displayName}</div>
+              <div className="font-semibold text-paper">
+                {thread.otherUser.displayName}
+              </div>
             </Link>
-            <div className="text-xs text-tertiary">@{thread.otherUser.handle}</div>
+            <div className="text-xs text-tertiary">
+              @{thread.otherUser.handle}
+            </div>
           </div>
         </div>
 
@@ -200,17 +217,23 @@ export function MessagesTab() {
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${msg.senderId === thread.otherUser.id ? 'justify-start' : 'justify-end'}`}
+              className={`flex ${msg.senderId === thread.otherUser.id ? "justify-start" : "justify-end"}`}
             >
-              <div className={`max-w-[70%] px-4 py-2 rounded-lg ${
-                msg.senderId === thread.otherUser.id
-                  ? 'bg-white/5 text-paper'
-                  : 'bg-primary text-white'
-              }`}>
+              <div
+                className={`max-w-[70%] px-4 py-2 rounded-lg ${
+                  msg.senderId === thread.otherUser.id
+                    ? "bg-white/5 text-paper"
+                    : "bg-primary text-white"
+                }`}
+              >
                 <p className="text-sm">{msg.body}</p>
-                <p className={`text-xs mt-1 ${
-                  msg.senderId === thread.otherUser.id ? 'text-tertiary' : 'text-primary/70'
-                }`}>
+                <p
+                  className={`text-xs mt-1 ${
+                    msg.senderId === thread.otherUser.id
+                      ? "text-tertiary"
+                      : "text-primary/70"
+                  }`}
+                >
                   {formatTime(msg.createdAt)}
                 </p>
               </div>
@@ -219,7 +242,10 @@ export function MessagesTab() {
         </div>
 
         {/* Input */}
-        <form onSubmit={sendMessage} className="px-6 py-4 border-t border-divider">
+        <form
+          onSubmit={sendMessage}
+          className="px-6 py-4 border-t border-divider"
+        >
           <div className="flex gap-2">
             <input
               type="text"
@@ -254,14 +280,18 @@ export function MessagesTab() {
               {thread.otherUser.displayName.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-paper truncate">{thread.otherUser.displayName}</div>
+              <div className="font-semibold text-paper truncate">
+                {thread.otherUser.displayName}
+              </div>
               <div className="text-sm text-secondary truncate">
-                {thread.lastMessage?.body || 'No messages yet'}
+                {thread.lastMessage?.body || "No messages yet"}
               </div>
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
               {thread.lastMessage && (
-                <span className="text-xs text-tertiary">{formatTime(thread.lastMessage.createdAt)}</span>
+                <span className="text-xs text-tertiary">
+                  {formatTime(thread.lastMessage.createdAt)}
+                </span>
               )}
               {thread.unreadCount > 0 && (
                 <span className="px-2 py-0.5 bg-primary text-white text-xs rounded-full">

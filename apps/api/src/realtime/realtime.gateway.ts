@@ -9,9 +9,14 @@ import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable, Logger } from '@nestjs/common';
 
+const origins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map((url) => url.trim())
+  : '*';
+
 @WebSocketGateway({
   cors: {
-    origin: '*', // In production, restrict this to your web/mobile domains
+    origin: origins,
+    credentials: true,
   },
 })
 @Injectable()

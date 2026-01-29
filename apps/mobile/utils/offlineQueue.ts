@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import * as FileSystem from 'expo-file-system';
 
 interface QueuedAction {
   id: string;
@@ -9,7 +9,7 @@ interface QueuedAction {
   timestamp: number;
 }
 
-const QUEUE_KEY = 'offline_action_queue';
+const QUEUE_FILE = FileSystem.documentDirectory + 'offline_action_queue.json';
 
 export async function queueAction(action: Omit<QueuedAction, 'id' | 'timestamp'>): Promise<void> {
   try {
@@ -19,27 +19,29 @@ export async function queueAction(action: Omit<QueuedAction, 'id' | 'timestamp'>
       id: `${Date.now()}-${Math.random()}`,
       timestamp: Date.now(),
     };
-    await SecureStore.setItemAsync(QUEUE_KEY, JSON.stringify([...existing, newAction]));
+    await FileSystem.writeAsStringAsync(QUEUE_FILE, JSON.stringify([...existing, newAction]));
   } catch (error) {
-    console.error('Failed to queue action', error);
+    // Fail silently in production or report to crashlytics
   }
 }
 
 export async function getQueuedActions(): Promise<QueuedAction[]> {
   try {
-    const data = await SecureStore.getItemAsync(QUEUE_KEY);
+    const info = await FileSystem.getInfoAsync(QUEUE_FILE);
+    if (!info.exists) return [];
+    
+    const data = await FileSystem.readAsStringAsync(QUEUE_FILE);
     return data ? JSON.parse(data) : [];
   } catch (error) {
-    console.error('Failed to get queued actions', error);
     return [];
   }
 }
 
 export async function clearQueuedActions(): Promise<void> {
   try {
-    await SecureStore.deleteItemAsync(QUEUE_KEY);
+    await FileSystem.deleteAsync(QUEUE_FILE, { idempotent: true });
   } catch (error) {
-    console.error('Failed to clear queued actions', error);
+    // ignore
   }
 }
 
@@ -47,8 +49,8 @@ export async function removeQueuedAction(actionId: string): Promise<void> {
   try {
     const actions = await getQueuedActions();
     const filtered = actions.filter(a => a.id !== actionId);
-    await SecureStore.setItemAsync(QUEUE_KEY, JSON.stringify(filtered));
+    await FileSystem.writeAsStringAsync(QUEUE_FILE, JSON.stringify(filtered));
   } catch (error) {
-    console.error('Failed to remove queued action', error);
+    // ignore
   }
 }

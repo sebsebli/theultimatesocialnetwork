@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from "react";
 
 interface OverflowMenuProps {
   onReport?: () => void;
@@ -34,11 +34,11 @@ export function OverflowMenu({
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
 
@@ -57,17 +57,17 @@ export function OverflowMenu({
     } else if (postId || replyId) {
       // Default report behavior
       try {
-        await fetch('/api/safety/report', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        await fetch("/api/safety/report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             targetId: postId || replyId,
-            targetType: postId ? 'POST' : 'REPLY',
-            reason: 'Reported via overflow menu',
+            targetType: postId ? "POST" : "REPLY",
+            reason: "Reported via overflow menu",
           }),
         });
-      } catch (error) {
-        console.error('Failed to report', error);
+      } catch {
+        // ignore
       }
     }
     setIsOpen(false);
@@ -78,9 +78,9 @@ export function OverflowMenu({
       onMute();
     } else if (userId) {
       try {
-        await fetch(`/api/safety/mute/${userId}`, { method: 'POST' });
-      } catch (error) {
-        console.error('Failed to mute', error);
+        await fetch(`/api/safety/mute/${userId}`, { method: "POST" });
+      } catch {
+        // ignore
       }
     }
     setIsOpen(false);
@@ -91,9 +91,9 @@ export function OverflowMenu({
       onBlock();
     } else if (userId) {
       try {
-        await fetch(`/api/safety/block/${userId}`, { method: 'POST' });
-      } catch (error) {
-        console.error('Failed to block', error);
+        await fetch(`/api/safety/block/${userId}`, { method: "POST" });
+      } catch {
+        // ignore
       }
     }
     setIsOpen(false);
@@ -106,8 +106,18 @@ export function OverflowMenu({
         className="p-2 text-tertiary hover:text-paper transition-colors"
         aria-label="More options"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+          />
         </svg>
       </button>
 

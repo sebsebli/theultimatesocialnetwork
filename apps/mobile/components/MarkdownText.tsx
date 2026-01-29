@@ -6,9 +6,10 @@ import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 interface MarkdownTextProps {
   children: string;
+  referenceMetadata?: Record<string, { title?: string }>;
 }
 
-export function MarkdownText({ children }: MarkdownTextProps) {
+export function MarkdownText({ children, referenceMetadata = {} }: MarkdownTextProps) {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [targets, setTargets] = useState<string[]>([]);
@@ -112,8 +113,15 @@ export function MarkdownText({ children }: MarkdownTextProps) {
         // Wikilink (Group 5, 6, 7)
         else if (match[5]) {
           const linkContent = match[6];
-          const linkDisplay = match[7] || linkContent;
+          let linkDisplay = match[7] || linkContent;
           const linkAlias = match[7];
+          
+          if (!linkAlias && linkContent.startsWith('post:')) {
+             const id = linkContent.split(':')[1];
+             if (referenceMetadata[id]?.title) {
+                 linkDisplay = referenceMetadata[id].title;
+             }
+          }
           
           parts.push(
             <Text

@@ -13,23 +13,10 @@ import ShareSheet, { ShareSheetRef } from './ShareSheet';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 import { PostContent } from './PostContent';
 
+import { Post } from '../types';
+
 interface PostItemProps {
-  post: {
-    id: string;
-    title?: string;
-    body: string;
-    createdAt: string;
-    author?: {
-      id: string;
-      handle: string;
-      displayName: string;
-    };
-    replyCount: number;
-    quoteCount: number;
-    privateLikeCount?: number;
-    headerImageKey?: string;
-    headerImageBlurhash?: string;
-  };
+  post: Post;
   onLike?: () => void;
   onReply?: () => void;
   onQuote?: () => void;

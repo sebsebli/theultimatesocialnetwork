@@ -40,6 +40,9 @@ async function bootstrap() {
   // Global Error Handling
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  // Graceful Shutdown
+  app.enableShutdownHooks();
+
   // Validation
   app.useGlobalPipes(
     new ValidationPipe({

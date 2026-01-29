@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { OverflowMenu } from './overflow-menu';
-import { useAuth } from '@/components/auth-provider';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { OverflowMenu } from "./overflow-menu";
+import { useAuth } from "@/components/auth-provider";
 
 interface Reply {
   id: string;
@@ -27,7 +27,7 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
-  const [replyText, setReplyText] = useState('');
+  const [replyText, setReplyText] = useState("");
 
   useEffect(() => {
     if (replyCount > 0) {
@@ -43,8 +43,8 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
         const data = await res.json();
         setReplies(data);
       }
-    } catch (error) {
-      console.error('Failed to load replies', error);
+    } catch {
+      // console.error('Failed to load replies', error);
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
     if (!replyText.trim() || !user) return;
 
     const body = replyText;
-    setReplyText('');
+    setReplyText("");
     setShowReplyBox(false);
 
     // Optimistic update
@@ -70,30 +70,30 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
         displayName: user.displayName as string,
       },
     };
-    
-    setReplies(prev => [newReply, ...prev]);
+
+    setReplies((prev) => [newReply, ...prev]);
 
     try {
       const res = await fetch(`/api/posts/${postId}/replies`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body }),
       });
 
       if (res.ok) {
         const saved = await res.json();
         // Replace optimistic reply with real one
-        setReplies(prev => prev.map(r => r.id === tempId ? saved : r));
+        setReplies((prev) => prev.map((r) => (r.id === tempId ? saved : r)));
       } else {
-        throw new Error('Failed to post');
+        throw new Error("Failed to post");
       }
-    } catch (error) {
-      console.error('Failed to post reply', error);
+    } catch {
+      // console.error('Failed to post reply', error);
       // Remove optimistic reply on failure
-      setReplies(prev => prev.filter(r => r.id !== tempId));
+      setReplies((prev) => prev.filter((r) => r.id !== tempId));
       setReplyText(body); // Restore text
       setShowReplyBox(true);
-      alert('Failed to post reply. Please try again.');
+      alert("Failed to post reply. Please try again.");
     }
   };
 
@@ -103,8 +103,8 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
     const diff = now.getTime() - d.getTime();
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(minutes / 60);
-    
-    if (minutes < 1) return 'now';
+
+    if (minutes < 1) return "now";
     if (minutes < 60) return `${minutes}m`;
     if (hours < 24) return `${hours}h`;
     return d.toLocaleDateString();
@@ -114,13 +114,13 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
     <section className="border-t border-divider pt-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-paper">
-          {replyCount} {replyCount === 1 ? 'Reply' : 'Replies'}
+          {replyCount} {replyCount === 1 ? "Reply" : "Replies"}
         </h2>
         <button
           onClick={() => setShowReplyBox(!showReplyBox)}
           className="text-primary text-sm font-medium hover:underline"
         >
-          {showReplyBox ? 'Cancel' : 'Reply'}
+          {showReplyBox ? "Cancel" : "Reply"}
         </button>
       </div>
 
@@ -138,7 +138,7 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
               type="button"
               onClick={() => {
                 setShowReplyBox(false);
-                setReplyText('');
+                setReplyText("");
               }}
               className="px-4 py-2 text-secondary hover:text-paper transition-colors"
             >
@@ -180,8 +180,8 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
                         {reply.author.displayName}
                       </span>
                     </Link>
-                    <OverflowMenu 
-                      replyId={reply.id} 
+                    <OverflowMenu
+                      replyId={reply.id}
                       userId={reply.author.handle}
                     />
                   </div>
@@ -190,7 +190,9 @@ export function ReplySection({ postId, replyCount }: ReplySectionProps) {
                   </span>
                 </div>
               </div>
-              <p className="text-sm text-secondary leading-relaxed">{reply.body}</p>
+              <p className="text-sm text-secondary leading-relaxed">
+                {reply.body}
+              </p>
             </div>
           ))}
         </div>

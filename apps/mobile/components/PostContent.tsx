@@ -9,20 +9,10 @@ import { MarkdownText } from './MarkdownText';
 import { Avatar } from './Avatar';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
+import { Post } from '../types';
+
 interface PostContentProps {
-  post: {
-    id: string;
-    title?: string;
-    body: string;
-    createdAt: string;
-    author?: {
-      id: string;
-      handle: string;
-      displayName: string;
-    };
-    headerImageKey?: string;
-    headerImageBlurhash?: string;
-  };
+  post: Partial<Post> & Pick<Post, 'id' | 'body' | 'createdAt'>;
   onMenuPress?: () => void;
   disableNavigation?: boolean;
   headerImageUri?: string | null;
@@ -181,7 +171,7 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
         {post.title && (
           <Text style={styles.title}>{post.title}</Text>
         )}
-        <MarkdownText>{displayBody}</MarkdownText>
+        <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
         {imageSource && (
           <Image
             source={imageSource}

@@ -55,7 +55,7 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
       try {
         await NativeShare.share({ message: url });
       } catch (e) {
-        console.error(e);
+        // console.error(e);
       }
     }
   };

@@ -25,7 +25,7 @@ export async function ensureAndroidChannel() {
  */
 export async function registerForPush(jwt: string) {
   if (!Device.isDevice) {
-    console.warn('Push notifications require a physical device');
+    // console.warn('Push notifications require a physical device');
     return;
   }
 
@@ -40,7 +40,7 @@ export async function registerForPush(jwt: string) {
   }
   
   if (status !== 'granted') {
-    console.warn('Push notification permissions not granted');
+    // console.warn('Push notification permissions not granted');
     return;
   }
 
@@ -85,10 +85,10 @@ export async function registerForPush(jwt: string) {
     });
 
     if (!response.ok) {
-      console.error('Failed to register push token', await response.text());
+      // console.error('Failed to register push token', await response.text());
     }
   } catch (error) {
-    console.error('Error registering push token', error);
+    // console.error('Error registering push token', error);
   }
 }
 
