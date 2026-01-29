@@ -40,12 +40,25 @@ export class SearchController {
   @UseGuards(AuthGuard('jwt'))
   async searchUsers(
     @Query('q') query: string,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
     if (!query || query.trim().length === 0) {
-      return { hits: [] };
+      return { hits: [], estimatedTotalHits: 0 };
     }
     return this.meilisearch.searchUsers(query, limit);
+  }
+
+  @Get('all')
+  @UseGuards(AuthGuard('jwt'))
+  async searchAll(
+    @CurrentUser() user: { id: string },
+    @Query('q') query: string,
+    @Query('limit', new DefaultValuePipe(15), ParseIntPipe) limit: number,
+  ) {
+    if (!query || query.trim().length === 0) {
+      return { posts: [], users: [], topics: [] };
+    }
+    return this.meilisearch.searchAll(query, limit);
   }
 
   @Get('topics')

@@ -58,16 +58,21 @@ export class EmailService {
     }
 
     const bodyHtml = `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:16px;line-height:1.6;">${t.body}</p><p style="margin:0;color:#6E6E73;font-size:14px;">${t.tokenLabel}</p>`;
+    const baseUrl = this.configService.get<string>('FRONTEND_URL') || undefined;
     const html = buildEmailHtml({
       title: t.title,
       bodyHtml,
       code: token,
       footerText: t.ignore,
-      baseUrl: this.configService.get<string>('FRONTEND_URL') || undefined,
+      baseUrl,
       companyName:
         this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Cite',
       companyAddress:
         this.configService.get<string>('EMAIL_COMPANY_ADDRESS') || undefined,
+      unsubscribeUrl:
+        this.configService.get<string>('EMAIL_PREFERENCES_URL') || undefined,
+      reasonText:
+        'You received this email because you have a Cite account or requested to sign in.',
     });
     const text = [t.title, t.body, t.tokenLabel, token, t.ignore].join('\n\n');
 
@@ -105,16 +110,21 @@ export class EmailService {
     }
 
     const bodyHtml = `<p style="margin:0;color:#A8A8AA;font-size:16px;line-height:1.6;">${t.body}</p>`;
+    const baseUrl = this.configService.get<string>('FRONTEND_URL') || undefined;
     const html = buildEmailHtml({
       title: t.title,
       bodyHtml,
       code,
       footerText: t.footer,
-      baseUrl: this.configService.get<string>('FRONTEND_URL') || undefined,
+      baseUrl,
       companyName:
         this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Cite',
       companyAddress:
         this.configService.get<string>('EMAIL_COMPANY_ADDRESS') || undefined,
+      unsubscribeUrl:
+        this.configService.get<string>('EMAIL_PREFERENCES_URL') || undefined,
+      reasonText:
+        'You received this because you or someone requested an invite code for Cite.',
     });
     const text = [t.title, t.body, code, t.footer].join('\n\n');
 

@@ -10,6 +10,7 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -18,16 +19,69 @@ import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/auth';
 import { useComposerSearch } from '../../hooks/useComposerSearch';
 import { PostContent } from '../../components/PostContent';
 import { Post } from '../../types';
 import { COLORS, SPACING } from '../../constants/theme';
+
+/** Stable component so typing in link fields does not remount and dismiss keyboard */
+function LinkInputFields({
+  linkUrl,
+  setLinkUrl,
+  linkText,
+  setLinkText,
+  onAdd,
+  onClose,
+  styles: linkStyles,
+}: {
+  linkUrl: string;
+  setLinkUrl: (s: string) => void;
+  linkText: string;
+  setLinkText: (s: string) => void;
+  onAdd: () => void;
+  onClose: () => void;
+  styles: Record<string, any>;
+}) {
+  return (
+    <View style={linkStyles.linkInputContainer}>
+      <View style={linkStyles.linkInputRow}>
+        <TextInput
+          style={linkStyles.linkField}
+          placeholder="URL (https://...)"
+          placeholderTextColor={COLORS.tertiary}
+          value={linkUrl}
+          onChangeText={setLinkUrl}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          blurOnSubmit={false}
+        />
+        <Pressable onPress={onAdd} style={linkStyles.linkAddButton}>
+          <MaterialIcons name="check" size={20} color={COLORS.ink} />
+        </Pressable>
+        <Pressable onPress={onClose} style={linkStyles.linkCloseButton}>
+          <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+        </Pressable>
+      </View>
+      <TextInput
+        style={[linkStyles.linkField, linkStyles.linkDisplayField]}
+        placeholder="Display Text (optional)"
+        placeholderTextColor={COLORS.tertiary}
+        value={linkText}
+        onChangeText={setLinkText}
+        blurOnSubmit={false}
+      />
+    </View>
+  );
+}
 
 export default function ComposeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
   const { showError, showSuccess } = useToast();
+  const { userId } = useAuth();
   const insets = useSafeAreaInsets();
   const quotePostId = params.quote as string | undefined;
   const replyToPostId = params.replyTo as string | undefined;
@@ -270,10 +324,14 @@ export default function ComposeScreen() {
 
   const SuggestionsView = () => {
     if (suggestionType === 'none' || suggestions.length === 0) return null;
+    const list = suggestionType === 'mention' && userId
+      ? suggestions.filter((item: any) => item.id !== userId)
+      : suggestions;
+    if (list.length === 0 && suggestionType === 'mention') return null;
     return (
       <View style={styles.suggestionsContainer}>
         <FlatList
-          data={suggestions}
+          data={list}
           keyExtractor={item => item.id || item.slug || item.handle}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
@@ -296,36 +354,6 @@ export default function ComposeScreen() {
     );
   };
 
-  const LinkInput = () => (
-    <View style={styles.linkInputContainer}>
-      <View style={styles.linkInputRow}>
-        <TextInput
-          style={styles.linkField}
-          placeholder="URL (https://...)"
-          placeholderTextColor={COLORS.tertiary}
-          value={linkUrl}
-          onChangeText={setLinkUrl}
-          autoFocus
-          autoCapitalize="none"
-          keyboardType="url"
-        />
-        <Pressable onPress={addLink} style={styles.linkAddButton}>
-          <MaterialIcons name="check" size={20} color={COLORS.ink} />
-        </Pressable>
-        <Pressable onPress={() => setShowLinkInput(false)} style={styles.linkCloseButton}>
-          <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
-        </Pressable>
-      </View>
-      <TextInput
-        style={[styles.linkField, { marginTop: 8 }]}
-        placeholder="Display Text (optional)"
-        placeholderTextColor={COLORS.tertiary}
-        value={linkText}
-        onChangeText={setLinkText}
-      />
-    </View>
-  );
-
   const Toolbar = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbar} keyboardShouldPersistTaps="handled">
       <Pressable style={styles.toolBtn} onPress={() => insertText('# ')}><Text style={styles.toolText}>H1</Text></Pressable>
@@ -334,12 +362,27 @@ export default function ComposeScreen() {
       <Pressable style={styles.toolBtn} onPress={() => formatSelection('italic')}><MaterialIcons name="format-italic" size={20} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => formatSelection('quote')}><MaterialIcons name="format-quote" size={20} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => formatSelection('list')}><MaterialIcons name="format-list-bulleted" size={20} color={COLORS.primary} /></Pressable>
+      <Pressable style={styles.toolBtn} onPress={() => formatSelection('ordered-list')}><MaterialIcons name="format-list-numbered" size={20} color={COLORS.primary} /></Pressable>
       <View style={styles.divider} />
       <Pressable style={styles.toolBtn} onPress={openLinkInput}><MaterialIcons name="link" size={20} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => insertText('[[')}><Text style={styles.toolText}>[[ ]]</Text></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => insertText('@')}><MaterialIcons name="alternate-email" size={20} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={pickImage}><MaterialIcons name="image" size={20} color={COLORS.primary} /></Pressable>
     </ScrollView>
+  );
+
+  const linkInputEl = showLinkInput ? (
+    <LinkInputFields
+      linkUrl={linkUrl}
+      setLinkUrl={setLinkUrl}
+      linkText={linkText}
+      setLinkText={setLinkText}
+      onAdd={addLink}
+      onClose={() => setShowLinkInput(false)}
+      styles={styles}
+    />
+  ) : (
+    <Toolbar />
   );
 
   useEffect(() => {
@@ -385,11 +428,11 @@ export default function ComposeScreen() {
         </Pressable>
       </View>
 
-      <Pressable style={{ flex: 1 }} onPress={() => !previewMode && textInputRef.current?.focus()}>
+      <Pressable style={{ flex: 1 }} onPress={() => !previewMode && !showLinkInput && textInputRef.current?.focus()}>
         <ScrollView
           style={styles.editorContainer}
           contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
         >
           {quotedPost && (
             <View style={styles.quoteBox}>
@@ -408,14 +451,24 @@ export default function ComposeScreen() {
           )}
 
           {previewMode ? (
-            <PostContent
-              post={previewPost}
-              headerImageUri={headerImage}
-              disableNavigation
-              showSources={true}
-              referenceMetadata={referenceMetadata}
-            />
-          ) : (
+            <Modal visible={true} animationType="slide" presentationStyle="fullScreen">
+              <View style={[styles.previewFullscreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+                <Pressable style={styles.previewCloseBar} onPress={() => setPreviewMode(false)}>
+                  <Text style={styles.previewCloseText}>{t('common.close', 'Close')}</Text>
+                </Pressable>
+                <ScrollView style={styles.previewScroll} contentContainerStyle={{ paddingBottom: 40 }}>
+                  <PostContent
+                    post={previewPost}
+                    headerImageUri={headerImage}
+                    disableNavigation
+                    showSources={true}
+                    referenceMetadata={referenceMetadata}
+                  />
+                </ScrollView>
+              </View>
+            </Modal>
+          ) : null}
+          {!previewMode && (
             <TextInput
               ref={textInputRef}
               style={styles.input}
@@ -434,9 +487,9 @@ export default function ComposeScreen() {
 
       {/* Footer Area */}
       {!previewMode && (
-        <View style={styles.footer}>
+        <View style={styles.footer} pointerEvents="box-none">
           <SuggestionsView />
-          {showLinkInput ? <LinkInput /> : <Toolbar />}
+          {linkInputEl}
         </View>
       )}
     </KeyboardAvoidingView>
@@ -496,6 +549,12 @@ const styles = StyleSheet.create({
   linkInputContainer: { padding: SPACING.m },
   linkInputRow: { flexDirection: 'row', gap: 8 },
   linkField: { flex: 1, backgroundColor: COLORS.hover, color: COLORS.paper, padding: 12, borderRadius: 8, fontSize: 16 },
+  linkDisplayField: { marginTop: 8, minHeight: 56, textAlignVertical: 'top' },
   linkAddButton: { backgroundColor: COLORS.primary, padding: 12, borderRadius: 8, justifyContent: 'center' },
   linkCloseButton: { backgroundColor: COLORS.hover, padding: 12, borderRadius: 8, justifyContent: 'center' },
+
+  previewFullscreen: { flex: 1, backgroundColor: COLORS.ink },
+  previewCloseBar: { padding: SPACING.l, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  previewCloseText: { color: COLORS.primary, fontSize: 16, fontWeight: '600' },
+  previewScroll: { flex: 1 },
 });

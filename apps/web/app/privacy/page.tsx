@@ -1,116 +1,166 @@
-import Link from 'next/link';
-
 export default function PrivacyPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-20 text-paper">
       <header className="mb-12">
-        <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6 tracking-tight">Privacy Policy</h1>
-        <p className="text-lg text-secondary">Effective Date: January 26, 2026</p>
-        <p className="text-sm text-tertiary mt-2"> compliant with Regulation (EU) 2016/679 (GDPR)</p>
+        <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6 tracking-tight">
+          Privacy Policy
+        </h1>
+        <p className="text-lg text-secondary">
+          Effective Date: January 26, 2026
+        </p>
+        <p className="text-sm text-tertiary mt-2">
+          Regulation (EU) 2016/679 (GDPR)
+        </p>
       </header>
 
       <div className="prose prose-invert prose-p:text-secondary prose-headings:text-paper max-w-none">
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">1. Data Controller</h2>
-          <p className="mb-4">
-            The responsible party (Controller) within the meaning of the GDPR is:
-          </p>
-          <p className="mb-2">
-            <strong>Cite Systems GmbH</strong> (in formation)<br/>
-            Sample Street 123<br/>
-            10115 Berlin, Germany<br/>
+          <h2 className="text-2xl font-bold mb-4">1. Controller</h2>
+          <p>Controller within the meaning of Art. 4(7) GDPR:</p>
+          <p>
+            Operator: [Your Full Legal Name], private individual
+            <br />
+            Sample Street 123
+            <br />
+            10115 Berlin, Germany
+            <br />
             Email: legal@cite.social
           </p>
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">2. Data Processing & Legal Basis</h2>
-          <p className="mb-4">We process personal data only when we have a legal basis (Art. 6 GDPR).</p>
-          
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-xl font-bold mb-2">2.1 Account & Identity</h3>
-              <p><strong>Data:</strong> Email, Display Name, Handle, Password Hash (if applicable).</p>
-              <p><strong>Purpose:</strong> To provide the Service and authentication.</p>
-              <p><strong>Legal Basis:</strong> Art. 6(1)(b) GDPR (Contract Performance).</p>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold mb-2">2.2 User-Generated Content</h3>
-              <p><strong>Data:</strong> Posts, Replies, Quotes, Collections, Bio.</p>
-              <p><strong>Purpose:</strong> Publication and distribution as requested by the user.</p>
-              <p><strong>Legal Basis:</strong> Art. 6(1)(b) GDPR (Contract Performance) and Art. 6(1)(f) GDPR (Legitimate Interest in freedom of expression).</p>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold mb-2">2.3 Technical Telemetry & Security</h3>
-              <p><strong>Data:</strong> IP Address, User Agent, Request Timestamp, Error Logs.</p>
-              <p><strong>Purpose:</strong> DDoS protection, fraud prevention, and debugging.</p>
-              <p><strong>Legal Basis:</strong> Art. 6(1)(f) GDPR (Legitimate Interest in network security).</p>
-              <p><strong>Retention:</strong> Logs are strictly rotated and deleted after 14 days unless required for evidence in a security incident.</p>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold mb-2">2.4 Relevance Signals (Internal)</h3>
-              <p><strong>Data:</strong> Read time, scrolling behavior, interaction graph.</p>
-              <p><strong>Purpose:</strong> To rank content in the "Explore" feed.</p>
-              <p><strong>Legal Basis:</strong> Art. 6(1)(f) GDPR (Legitimate Interest in product improvement) or Art. 6(1)(a) GDPR (Consent, where applicable via Settings).</p>
-            </div>
-          </div>
+          <h2 className="text-2xl font-bold mb-4">
+            2. Principles of Processing
+          </h2>
+          <p>
+            We process personal data in accordance with Art. 5 GDPR, in
+            particular lawfulness, purpose limitation, data minimization, and
+            storage limitation.
+          </p>
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">3. Data Processors (Third Parties)</h2>
-          <p className="mb-4">
-            We strictly limit data sharing. We use the following processors under Data Processing Agreements (DPAs) ensuring GDPR compliance:
+          <h2 className="text-2xl font-bold mb-4">
+            3. Categories of Data & Legal Bases
+          </h2>
+
+          <h3 className="text-xl font-bold mb-2">3.1 Account Data</h3>
+          <p>
+            <strong>Data:</strong> Email address, username, display name,
+            password hash, account settings.
           </p>
+          <p>
+            <strong>Legal Basis:</strong> Art. 6(1)(b) GDPR (contract
+            performance).
+          </p>
+
+          <h3 className="text-xl font-bold mb-2">3.2 User Content</h3>
+          <p>
+            <strong>Data:</strong> Posts, replies, messages, profile
+            information.
+          </p>
+          <p>
+            <strong>Legal Basis:</strong> Art. 6(1)(b) GDPR and Art. 6(1)(f)
+            GDPR (legitimate interest in operating a communication platform).
+          </p>
+
+          <h3 className="text-xl font-bold mb-2">
+            3.3 Technical & Security Data
+          </h3>
+          <p>
+            <strong>Data:</strong> IP address, device information, access logs.
+          </p>
+          <p>
+            <strong>Legal Basis:</strong> Art. 6(1)(f) GDPR (IT security, abuse
+            prevention).
+          </p>
+          <p>
+            <strong>Retention:</strong> Up to 14 days, unless required longer
+            for security investigations or legal obligations.
+          </p>
+
+          <h3 className="text-xl font-bold mb-2">
+            3.4 Internal Relevance Signals
+          </h3>
+          <p>
+            <strong>Data:</strong> Interaction data, read signals, engagement
+            metrics.
+          </p>
+          <p>
+            <strong>Legal Basis:</strong> Art. 6(1)(f) GDPR or Art. 6(1)(a) GDPR
+            (consent, where applicable).
+          </p>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">4. Processors</h2>
+          <p>We use processors bound by Art. 28 GDPR:</p>
           <ul className="list-disc pl-5 space-y-2">
-            <li><strong>Hetzner Online GmbH (Germany/Finland):</strong> Hosting, Database, Object Storage. (No data transfer outside EU).</li>
-            <li><strong>Supabase (USA/EU):</strong> Authentication services. Data stored in EU-West (Frankfurt) region.</li>
-            <li><strong>Transactional Email Provider (EU):</strong> Sending system emails (magic links).</li>
-            <li><strong>Apple (APNs) & Google (FCM):</strong> Strictly for delivering push notifications to your device.</li>
+            <li>Hetzner Online GmbH (EU hosting)</li>
+            <li>Supabase (EU region)</li>
+            <li>Email and notification providers</li>
           </ul>
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">4. International Transfers</h2>
+          <h2 className="text-2xl font-bold mb-4">
+            5. International Transfers
+          </h2>
           <p>
-            We prioritize storage within the European Economic Area (EEA). If data is transferred to a third country (e.g., via a CDN or specific sub-processor), we ensure appropriate safeguards such as Standard Contractual Clauses (SCCs) adopted by the European Commission.
+            Where data is transferred outside the EEA, appropriate safeguards
+            such as EU Standard Contractual Clauses are applied (Art. 46 GDPR).
           </p>
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">5. Your Rights</h2>
-          <p className="mb-4">Under the GDPR, you have the right to:</p>
-          <ul className="list-disc pl-5 space-y-2">
-            <li><strong>Access (Art. 15):</strong> Request a copy of your data.</li>
-            <li><strong>Rectification (Art. 16):</strong> Correct inaccurate data.</li>
-            <li><strong>Erasure / "Right to be Forgotten" (Art. 17):</strong> Delete your account and data.</li>
-            <li><strong>Restriction (Art. 18):</strong> Pause processing in specific cases.</li>
-            <li><strong>Data Portability (Art. 20):</strong> Receive your data in a structured, machine-readable format (JSON/CSV).</li>
-            <li><strong>Objection (Art. 21):</strong> Object to processing based on legitimate interest.</li>
-          </ul>
-          <p className="mt-4">
-            To exercise these rights, email: legal@cite.social or use the "Data" section in Settings.
+          <h2 className="text-2xl font-bold mb-4">6. Retention & Deletion</h2>
+          <p>
+            Personal data is deleted when no longer required for the purposes
+            stated or upon account deletion, unless statutory retention
+            obligations apply.
+          </p>
+          <p>Backups may persist for a limited time for technical reasons.</p>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">
+            7. Service Termination or Shutdown
+          </h2>
+          <p>
+            In the event of suspension or permanent shutdown of the Service
+            (e.g. for economic or legal reasons), we will delete or anonymize
+            personal data within a reasonable timeframe, unless retention is
+            required by law.
+          </p>
+          <p>
+            Users are responsible for exporting their data prior to shutdown.
           </p>
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">6. Right to Lodge a Complaint</h2>
+          <h2 className="text-2xl font-bold mb-4">8. Data Subject Rights</h2>
           <p>
-            You have the right to lodge a complaint with a supervisory authority, in particular in the Member State of your habitual residence, place of work, or place of the alleged infringement.
-          </p>
-          <p className="mt-2">
-            Our lead supervisory authority is: <strong>Berliner Beauftragte für Datenschutz und Informationsfreiheit</strong>.
+            Users have rights under Arts. 15–21 GDPR. Requests may be submitted
+            via legal@cite.social.
           </p>
         </section>
 
         <section className="mb-12">
-          <h2 className="text-2xl font-bold mb-4">7. Automated Decision Making</h2>
+          <h2 className="text-2xl font-bold mb-4">9. Supervisory Authority</h2>
+          <p>Berliner Beauftragte für Datenschutz und Informationsfreiheit.</p>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="text-2xl font-bold mb-4">10. Automated Decisions</h2>
           <p>
-            We do not use automated decision-making or profiling that produces legal effects concerning you (Art. 22 GDPR). Our "Relevance" algorithms affect content ordering but do not restrict access to the service.
+            No automated decision-making producing legal effects within the
+            meaning of Art. 22 GDPR takes place.
           </p>
         </section>
+
+        <p className="text-sm text-tertiary mt-8">
+          In case of discrepancies, the English version shall prevail.
+        </p>
       </div>
     </div>
   );

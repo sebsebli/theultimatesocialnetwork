@@ -40,7 +40,7 @@ export default function TabLayout() {
           height: 50 + insets.bottom,
           paddingTop: 5,
           paddingBottom: insets.bottom,
-          paddingHorizontal: SPACING.xl, // Increased padding for 4 icons
+          paddingHorizontal: 0,
           position: 'absolute',
           bottom: 0,
           left: 0,
@@ -49,9 +49,8 @@ export default function TabLayout() {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.tertiary,
         tabBarShowLabel: false,
-        tabBarIconStyle: {
-          marginTop: 0,
-        },
+        tabBarIconStyle: { marginTop: 0 },
+        tabBarItemStyle: { flex: 1, justifyContent: 'center', alignItems: 'center' },
       }}
     >
       <Tabs.Screen
@@ -61,7 +60,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <MaterialIcons
               name="home"
-              size={24}
+              size={28}
               color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),
@@ -74,7 +73,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <MaterialIcons
               name="search"
-              size={24}
+              size={28}
               color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),
@@ -124,7 +123,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <MaterialIcons
               name="chat-bubble-outline"
-              size={24}
+              size={28}
               color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),

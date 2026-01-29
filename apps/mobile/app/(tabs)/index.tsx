@@ -58,7 +58,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!loading && posts.length === 0) {
-      api.get('/users/suggested?limit=3').then(res => setSuggestions(Array.isArray(res) ? res : [])).catch(() => { });
+      api.get('/users/suggested?limit=5').then(res => setSuggestions(Array.isArray(res) ? res : [])).catch(() => { });
     }
   }, [loading, posts.length]);
 
@@ -252,7 +252,7 @@ export default function HomeScreen() {
         <FlatList
           data={posts}
           keyExtractor={keyExtractor}
-          // BetaNudge removed from header, using specialized empty state
+          contentContainerStyle={{ paddingBottom: 56 + insets.bottom }}
           renderItem={renderItem}
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -262,10 +262,19 @@ export default function HomeScreen() {
               {!loading && (
                 <View style={styles.emptyActions}>
                   <InviteNudge />
-
+                  {suggestions.length > 0 && (
+                    <View style={styles.suggestionsBlock}>
+                      <Text style={styles.suggestionsHeader}>{t('home.suggestedPeople', 'People to follow')}</Text>
+                      {suggestions.map((item: any) => (
+                        <View key={item.id} style={styles.suggestionRow}>
+                          <PersonCard item={item} onPress={() => router.push(`/user/${item.handle}`)} showWhy={false} fullWidth />
+                        </View>
+                      ))}
+                    </View>
+                  )}
                   <Pressable
                     style={styles.secondaryButton}
-                    onPress={() => router.push('/explore')}
+                    onPress={() => router.push('/(tabs)/explore')}
                   >
                     <Text style={styles.secondaryButtonText}>{t('home.exploreTopics', 'Explore Topics')}</Text>
                   </Pressable>
@@ -386,6 +395,20 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: SPACING.l,
     alignItems: 'center',
+  },
+  suggestionsBlock: {
+    width: '100%',
+    marginBottom: SPACING.m,
+  },
+  suggestionsHeader: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.paper,
+    marginBottom: SPACING.s,
+    fontFamily: FONTS.semiBold,
+  },
+  suggestionRow: {
+    marginBottom: SPACING.s,
   },
   inviteNudgeContainer: {
     flexDirection: 'row',

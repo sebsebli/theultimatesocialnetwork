@@ -234,6 +234,15 @@ export default function PostDetailScreen() {
         <View style={styles.actions}>
           <Pressable
             style={styles.actionButton}
+            onPress={() => router.push(`/post/${post.id}/reading`)}
+            accessibilityLabel={t('post.readArticle', 'Read article')}
+            accessibilityRole="button"
+          >
+            <MaterialIcons name="menu-book" size={20} color={COLORS.primary} />
+            <Text style={styles.actionButtonText}>{t('post.readArticle', 'Read')}</Text>
+          </Pressable>
+          <Pressable
+            style={styles.actionButton}
             onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
             accessibilityLabel={t('post.reply')}
             accessibilityRole="button"

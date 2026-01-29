@@ -19,12 +19,12 @@ export default function ExploreScreen() {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
-  
+
   const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('topics');
   const [sort, setSort] = useState<'recommended' | 'newest' | 'cited'>('recommended');
   const [filter, setFilter] = useState<'all' | 'languages'>('languages'); // Default to my languages
   const [showWhy, setShowWhy] = useState(true);
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ export default function ExploreScreen() {
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  
+
   // Modals
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
@@ -84,15 +84,11 @@ export default function ExploreScreen() {
       else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
       else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
 
-      // Append sort/filter params
-      const queryParams = new URLSearchParams({
-        page: pageNum.toString(),
-        limit: '20',
-        sort: sort,
-        filter: filter,
-      });
-
-      const res = await api.get(`${endpoint}?${queryParams.toString()}`);
+      // Append sort/filter params (API expects sort, lang; avoid sending filter as body key)
+      const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort };
+      if (filter === 'languages') params.lang = 'preferred';
+      const query = new URLSearchParams(params).toString();
+      const res = await api.get(`${endpoint}?${query}`);
       const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
       const items = rawItems.map((item: any) => ({
         ...item,
@@ -131,7 +127,7 @@ export default function ExploreScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       // Optimistic update
-      setData(prev => prev.map(item => 
+      setData(prev => prev.map(item =>
         item.id === topic.id ? { ...item, isFollowing: !item.isFollowing } : item
       ));
 
@@ -143,7 +139,7 @@ export default function ExploreScreen() {
     } catch (err) {
       console.error('Follow failed', err);
       // Revert on failure
-      setData(prev => prev.map(item => 
+      setData(prev => prev.map(item =>
         item.id === topic.id ? { ...item, isFollowing: !item.isFollowing } : item
       ));
     }
@@ -186,9 +182,9 @@ export default function ExploreScreen() {
     } else {
       if (!item || !item.id) return null;
       return (
-        <TopicCard 
-          item={item} 
-          onPress={() => router.push(`/topic/${item.slug || item.id}`)} 
+        <TopicCard
+          item={item}
+          onPress={() => router.push(`/topic/${item.slug || item.id}`)}
           onFollow={() => handleFollow(item)}
           showWhy={showWhy}
         />
@@ -207,14 +203,14 @@ export default function ExploreScreen() {
     );
   }, [hasMore, loadingMore]);
 
-  const renderHeader = () => (
-    <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
-      <View style={styles.titleRow}>
+  const listHeader = useMemo(() => (
+    <View key="explore-list-header" style={[styles.headerContainer, { paddingTop: insets.top }]}>
+      <View key="explore-titleRow" style={styles.titleRow}>
         <MaterialCommunityIcons name="compass-outline" size={24} color={COLORS.paper} />
         <Text style={styles.headerTitle}>{t('explore.title', 'Discover')}</Text>
       </View>
 
-      <View style={styles.searchWrapper}>
+      <View key="explore-search" style={styles.searchWrapper}>
         <Pressable
           style={styles.searchBar}
           onPress={() => router.push('/search')}
@@ -236,7 +232,7 @@ export default function ExploreScreen() {
         </View>
       </View>
 
-      <View style={styles.tabsContainer}>
+      <View key="explore-tabs" style={styles.tabsContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent}>
           {(['topics', 'people', 'quoted', 'deep-dives', 'newsroom'] as const).map((tab) => (
             <Pressable
@@ -254,11 +250,9 @@ export default function ExploreScreen() {
           ))}
         </ScrollView>
       </View>
-      
-      {/* Spacer */}
-      <View style={{ height: SPACING.l }} />
+      <View key="explore-spacer" style={{ height: SPACING.l }} />
     </View>
-  );
+  ), [insets.top, sort, activeTab, t]);
 
   return (
     <View style={styles.container}>
@@ -268,7 +262,7 @@ export default function ExploreScreen() {
         <FlatList
           data={data}
           keyExtractor={keyExtractor}
-          ListHeaderComponent={renderHeader}
+          ListHeaderComponent={listHeader}
           renderItem={renderItem}
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -301,14 +295,14 @@ export default function ExploreScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setFilterModalVisible(false)}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{t('explore.filter', 'Filter Content')}</Text>
-            
+
             <Pressable style={styles.filterOption} onPress={() => applyFilter('languages')}>
               <Text style={[styles.filterOptionText, filter === 'languages' && styles.optionSelected]}>
                 {t('explore.filterByLanguage', 'My Languages')}
               </Text>
               {filter === 'languages' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
             </Pressable>
-            
+
             <Pressable style={styles.filterOption} onPress={() => applyFilter('all')}>
               <Text style={[styles.filterOptionText, filter === 'all' && styles.optionSelected]}>
                 {t('explore.filterAll', 'All Languages')}
@@ -333,14 +327,14 @@ export default function ExploreScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setSortModalVisible(false)}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{t('explore.sortOptions', 'Sort By')}</Text>
-            
+
             <Pressable style={styles.filterOption} onPress={() => applySort('recommended')}>
               <Text style={[styles.filterOptionText, sort === 'recommended' && styles.optionSelected]}>
                 {t('explore.sortRecommended', 'Recommended')}
               </Text>
               {sort === 'recommended' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
             </Pressable>
-            
+
             <Pressable style={styles.filterOption} onPress={() => applySort('newest')}>
               <Text style={[styles.filterOptionText, sort === 'newest' && styles.optionSelected]}>
                 {t('explore.sortNewest', 'Newest')}

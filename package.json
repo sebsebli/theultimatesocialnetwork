@@ -2,6 +2,10 @@
   "name": "cite-system-root",
   "private": true,
   "description": "Root package for husky + lint-staged only. Each app (apps/api, apps/web) has its own package.json and deps.",
+  "scripts": {
+    "deploy:dev": "cd infra/docker && ./deploy.sh dev",
+    "deploy:watch": "node scripts/watch-and-deploy.js"
+  },
   "devDependencies": {
     "eslint": "^8.57.0",
     "husky": "^9.0.11",

@@ -18,7 +18,7 @@ export function useComposerSearch() {
 
   const search = useCallback((query: string, type: 'topic' | 'mention') => {
     const requestId = ++searchRequestId.current;
-    
+
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
     }
@@ -35,7 +35,7 @@ export function useComposerSearch() {
       if (searchRequestId.current !== requestId) {
         return;
       }
-      
+
       try {
         let newResults: SearchResult[] = [];
         const encodedQ = encodeURIComponent(query.trim());
@@ -47,18 +47,21 @@ export function useComposerSearch() {
           ]);
 
           if (searchRequestId.current !== requestId) {
-             return;
+            return;
           }
 
-          const topics = (topicRes.hits || []).map((t: any) => ({ ...t, type: 'topic' }));
-          const posts = (postRes.hits || []).map((p: any) => ({ ...p, type: 'post', displayName: p.title || 'Untitled Post' }));
+          const topicHits = Array.isArray(topicRes?.hits) ? topicRes.hits : [];
+          const postHits = Array.isArray(postRes?.hits) ? postRes.hits : [];
+          const topics = topicHits.map((t: any) => ({ ...t, type: 'topic', id: t.id || t.slug }));
+          const posts = postHits.map((p: any) => ({ ...p, type: 'post', id: p.id, displayName: p.title || 'Untitled Post' }));
           newResults = [...topics, ...posts];
         } else if (type === 'mention') {
           const res = await api.get(`/search/users?q=${encodedQ}`);
-          
+
           if (searchRequestId.current !== requestId) return;
 
-          newResults = (res.hits || []).map((u: any) => ({ ...u, type: 'mention' }));
+          const userHits = Array.isArray(res?.hits) ? res.hits : [];
+          newResults = userHits.map((u: any) => ({ ...u, type: 'mention', id: u.id }));
         }
 
         setResults(newResults);

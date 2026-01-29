@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -105,8 +106,11 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Text style={styles.headerTitle}>{t('inbox.title')}</Text>
-        {notifications.length > 0 && (
+        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Go back" accessibilityRole="button">
+          <MaterialIcons name="arrow-back-ios" size={22} color={COLORS.paper} />
+        </Pressable>
+        <Text style={styles.headerTitle} numberOfLines={1}>{t('notifications.title', 'Notifications')}</Text>
+        {notifications.length > 0 ? (
           <Pressable
             onPress={async () => {
               try {
@@ -116,12 +120,12 @@ export default function NotificationsScreen() {
                 console.error('Failed to mark all read', error);
               }
             }}
-            accessibilityLabel={t('inbox.markAllRead')}
+            accessibilityLabel={t('notifications.markAllRead', 'Mark all read')}
             accessibilityRole="button"
           >
-            <Text style={styles.markAllRead}>{t('inbox.markAllRead')}</Text>
+            <Text style={styles.markAllRead}>{t('notifications.markAllRead', 'Mark all read')}</Text>
           </Pressable>
-        )}
+        ) : <View style={{ width: 80 }} />}
       </View>
 
       <FlatList
@@ -131,7 +135,7 @@ export default function NotificationsScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>
-              {loading ? t('common.loading') : t('inbox.noNotifications')}
+              {loading ? t('common.loading') : t('notifications.empty', 'No notifications yet')}
             </Text>
           </View>
         }
@@ -169,7 +173,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  backButton: {
+    padding: SPACING.xs,
+    marginRight: SPACING.xs,
+  },
   headerTitle: {
+    flex: 1,
     fontSize: 20,
     fontWeight: '600',
     color: COLORS.paper,

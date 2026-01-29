@@ -32,7 +32,18 @@ export class ExploreService {
     private neo4jService: Neo4jService,
   ) {}
 
-  async getTopics(userId?: string) {
+  async getTopics(
+    userId?: string,
+    filter?: { sort?: string; page?: string; limit?: string },
+  ) {
+    const sortBy = filter?.sort || 'recommended';
+    const limitNum = Math.min(
+      50,
+      Math.max(1, parseInt(filter?.limit || '20', 10) || 20),
+    );
+    const pageNum = Math.max(1, parseInt(filter?.page || '1', 10) || 1);
+    const skip = (pageNum - 1) * limitNum;
+
     const { entities, raw } = await this.topicRepo
       .createQueryBuilder('topic')
       .addSelect(
@@ -51,9 +62,31 @@ export class ExploreService {
             .where('tf.topic_id = topic.id'),
         'followerCount',
       )
-      .orderBy('topic.created_at', 'DESC') // Or sort by counts for "Trending"
-      .take(20)
+      .orderBy('topic.created_at', 'DESC')
+      .skip(skip)
+      .take(limitNum + 1)
       .getRawAndEntities();
+
+    let mapped = entities.map((t) => {
+      const r = (raw as TopicRawRow[]).find((x) => x.topic_id === t.id);
+      return {
+        ...t,
+        postCount: r ? parseInt(r.postCount, 10) : 0,
+        followerCount: r ? parseInt(r.followerCount, 10) : 0,
+      };
+    });
+    if (sortBy === 'cited') {
+      mapped = mapped.sort(
+        (a, b) =>
+          b.followerCount + b.postCount - (a.followerCount + a.postCount),
+      );
+    } else if (sortBy === 'newest') {
+      mapped = mapped.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+    }
+    const result = mapped.slice(0, limitNum);
 
     let followedTopicIds = new Set<string>();
     if (userId) {
@@ -64,34 +97,36 @@ export class ExploreService {
       followedTopicIds = new Set(follows.map((f) => f.topicId));
     }
 
-    return entities.map((t) => {
-      const r = (raw as TopicRawRow[]).find((x) => x.topic_id === t.id);
-      return {
-        ...t,
-        postCount: r ? parseInt(r.postCount, 10) : 0,
-        followerCount: r ? parseInt(r.followerCount, 10) : 0,
-        isFollowing: followedTopicIds.has(t.id),
-        reasons: ['Topic overlap', 'Cited today'],
-      };
-    });
+    return result.map((t) => ({
+      ...t,
+      isFollowing: followedTopicIds.has(t.id),
+      reasons: ['Topic overlap', 'Cited today'],
+    }));
   }
 
-  async getPeople(userId?: string) {
-    // If user is logged in, use AI-powered recommendations
-    if (userId) {
-      // This will be handled by RecommendationService.getRecommendedPeople
-      // Fallback to basic for now
-    }
+  async getPeople(userId?: string, limit = 20, filter?: { sort?: string }) {
+    const sortBy = filter?.sort || 'recommended';
+    const order: Record<string, 'ASC' | 'DESC'> =
+      sortBy === 'newest'
+        ? { createdAt: 'DESC' }
+        : sortBy === 'cited'
+          ? { followerCount: 'DESC' }
+          : { followerCount: 'DESC' };
 
-    // Basic: return users ordered by follower count
     const users = await this.userRepo.find({
-      take: 20,
-      order: { followerCount: 'DESC' },
+      take: limit,
+      order,
+      relations: [],
     });
 
     return users.map((u) => ({
       ...u,
-      reasons: ['Topic overlap', 'Frequently quoted'],
+      reasons:
+        sortBy === 'newest'
+          ? ['Newest']
+          : sortBy === 'cited'
+            ? ['Most followed']
+            : ['Topic overlap', 'Frequently quoted'],
     }));
   }
 
@@ -388,11 +423,11 @@ export class ExploreService {
       idQuery.andWhere('post.lang = :lang', { lang: filter.lang });
     }
 
-    const ids = (await idQuery
+    const ids = await idQuery
       .select('DISTINCT post.id', 'id')
       .addOrderBy(orderBy, 'DESC')
       .limit(limit)
-      .getRawMany()) as { id: string }[];
+      .getRawMany();
 
     if (ids.length === 0) return [];
 

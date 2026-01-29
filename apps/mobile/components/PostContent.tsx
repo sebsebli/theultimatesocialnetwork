@@ -169,10 +169,9 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
         disabled={disableNavigation}
         style={({ pressed }: { pressed: boolean }) => [styles.content, pressed && !disableNavigation && { opacity: 0.9 }]}
       >
-        {post.title && (
+        {post.title != null && post.title !== '' ? (
           <Text style={styles.title}>{post.title}</Text>
-        )}
-        <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
+        ) : null}
         {imageSource && (
           <Image
             source={imageSource}
@@ -184,6 +183,7 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
             cachePolicy="memory-disk"
           />
         )}
+        <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
       </Pressable>
 
       {/* Sources Section */}

@@ -24,10 +24,12 @@ export default function NewMessageScreen() {
       }
       setLoading(true);
       try {
-        const res = await api.get(`/search/users?q=${encodeURIComponent(query)}`);
-        setResults(res.hits || []);
+        const res = await api.get(`/search/users?q=${encodeURIComponent(query.trim())}&limit=20`);
+        const hits = res.hits || [];
+        setResults(hits);
       } catch (error) {
         console.error(error);
+        setResults([]);
       } finally {
         setLoading(false);
       }
@@ -78,16 +80,16 @@ export default function NewMessageScreen() {
           data={results}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <PersonCard 
-                item={item} 
-                onPress={() => handleSelectUser(item)} 
-                showWhy={false} 
+            <PersonCard
+              item={item}
+              onPress={() => handleSelectUser(item)}
+              showWhy={false}
             />
           )}
           contentContainerStyle={{ paddingBottom: 40 }}
           ListEmptyComponent={
             query.length > 0 ? (
-                <Text style={styles.emptyText}>{t('common.noResults')}</Text>
+              <Text style={styles.emptyText}>{t('common.noResults')}</Text>
             ) : null
           }
         />

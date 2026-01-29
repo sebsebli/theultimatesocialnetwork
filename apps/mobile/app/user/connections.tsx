@@ -16,7 +16,7 @@ export default function ConnectionsScreen() {
   const params = useLocalSearchParams();
   const initialTab = params.tab as 'followers' | 'following' | 'topics' || 'following';
   const handle = params.handle as string | undefined;
-  
+
   const [activeTab, setActiveTab] = useState<'followers' | 'following' | 'topics'>(initialTab);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,34 +35,34 @@ export default function ConnectionsScreen() {
     try {
       let data;
       const baseUrl = handle ? `/users/${handle}` : '/users/me';
-      
+
       if (activeTab === 'followers') {
         data = await api.get(`${baseUrl}/followers`);
       } else if (activeTab === 'following') {
         data = await api.get(`${baseUrl}/following`);
       } else {
         if (handle) {
-             try {
-                data = await api.get(`${baseUrl}/topics`);
-             } catch {
-                data = [];
-             }
+          try {
+            data = await api.get(`${baseUrl}/topics`);
+          } catch {
+            data = [];
+          }
         } else {
-            data = await api.get('/topics/me/following');
+          data = await api.get('/topics/me/following');
         }
       }
-      
+
       const itemList = data || [];
       setItems(itemList);
 
       // Load suggestions if empty and viewing self
       if (itemList.length === 0 && !handle) {
         if (activeTab === 'topics') {
-            const res = await api.get('/explore/topics?limit=4');
-            setSuggestions(Array.isArray(res) ? res : (res.items || []));
+          const res = await api.get('/explore/topics?limit=4');
+          setSuggestions(Array.isArray(res) ? res : (res.items || []));
         } else {
-            const res = await api.get('/users/suggested?limit=4');
-            setSuggestions(Array.isArray(res) ? res : []);
+          const res = await api.get('/users/suggested?limit=4');
+          setSuggestions(Array.isArray(res) ? res : []);
         }
       }
 
@@ -79,23 +79,23 @@ export default function ConnectionsScreen() {
 
   const handleAction = async (item: any) => {
     if (handle) return; // Cannot modify others' lists
-    
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-        if (activeTab === 'followers') {
-            // Remove follower
-            await api.delete(`/users/me/followers/${item.id}`);
-        } else if (activeTab === 'following') {
-            // Unfollow user
-            await api.delete(`/users/${item.id}/follow`);
-        } else if (activeTab === 'topics') {
-            // Unfollow topic
-            await api.delete(`/topics/${item.slug}/follow`);
-        }
-        // Remove from list
-        setItems(prev => prev.filter(i => i.id !== item.id));
+      if (activeTab === 'followers') {
+        // Remove follower
+        await api.delete(`/users/me/followers/${item.id}`);
+      } else if (activeTab === 'following') {
+        // Unfollow user
+        await api.delete(`/users/${item.id}/follow`);
+      } else if (activeTab === 'topics') {
+        // Unfollow topic
+        await api.delete(`/topics/${item.slug}/follow`);
+      }
+      // Remove from list
+      setItems(prev => prev.filter(i => i.id !== item.id));
     } catch (error) {
-        Alert.alert(t('common.error'), t('common.actionFailed'));
+      Alert.alert(t('common.error'), t('common.actionFailed'));
     }
   };
 
@@ -103,146 +103,146 @@ export default function ConnectionsScreen() {
     if (!searchQuery) return items;
     const q = searchQuery.toLowerCase();
     return items.filter(item => {
-        const title = item.displayName || item.title || item.handle || '';
-        return title.toLowerCase().includes(q);
+      const title = item.displayName || item.title || item.handle || '';
+      return title.toLowerCase().includes(q);
     });
   }, [items, searchQuery]);
 
   const renderItem = ({ item }: { item: any }) => {
     if (activeTab === 'topics') {
-        return (
-          <View style={styles.itemWrapper}>
-             <View style={{ flex: 1 }}>
-                <TopicCard 
-                    item={{...item, isFollowing: true}} 
-                    onPress={() => router.push(`/topic/${item.slug || item.id}`)}
-                    showWhy={false}
-                />
-             </View>
-             {!handle && (
-                 <Pressable style={styles.removeBtn} onPress={() => handleAction(item)}>
-                    <MaterialIcons name="close" size={20} color={COLORS.secondary} />
-                 </Pressable>
-             )}
+      return (
+        <View style={styles.itemWrapper}>
+          <View style={{ flex: 1 }}>
+            <TopicCard
+              item={{ ...item, isFollowing: true }}
+              onPress={() => router.push(`/topic/${item.slug || item.id}`)}
+              showWhy={false}
+            />
           </View>
-        );
+          {!handle && (
+            <Pressable style={styles.removeBtn} onPress={() => handleAction(item)}>
+              <MaterialIcons name="close" size={20} color={COLORS.secondary} />
+            </Pressable>
+          )}
+        </View>
+      );
     } else {
-        return (
-          <View style={styles.itemWrapper}>
-             <View style={{ flex: 1 }}>
-                <PersonCard 
-                    item={item} 
-                    onPress={() => router.push(`/user/${item.handle}`)} 
-                    showWhy={false}
-                />
-             </View>
-             {!handle && (
-                 <Pressable style={styles.removeBtn} onPress={() => handleAction(item)}>
-                    <MaterialIcons name="close" size={20} color={COLORS.secondary} />
-                 </Pressable>
-             )}
+      return (
+        <View style={styles.itemWrapper}>
+          <View style={{ flex: 1 }}>
+            <PersonCard
+              item={item}
+              onPress={() => router.push(`/user/${item.handle}`)}
+              showWhy={false}
+            />
           </View>
-        );
+          {!handle && (
+            <Pressable style={styles.removeBtn} onPress={() => handleAction(item)}>
+              <MaterialIcons name="close" size={20} color={COLORS.secondary} />
+            </Pressable>
+          )}
+        </View>
+      );
     }
   };
 
   const EmptyComponent = () => (
     <View style={styles.emptyState}>
-       <Text style={styles.emptyText}>{t('common.noResults', 'Nothing here.')}</Text>
-       
-       {suggestions.length > 0 && (
-         <View style={styles.suggestionsContainer}>
-            <Text style={styles.suggestionsHeader}>{t('home.suggestedPeople', 'Suggested for you')}</Text>
-            {suggestions.map(item => (
-                <View key={item.id} style={styles.suggestionItem}>
-                    {activeTab === 'topics' ? (
-                        <TopicCard 
-                            item={item} 
-                            onPress={() => router.push(`/topic/${item.slug || item.id}`)}
-                            showWhy={false}
-                        />
-                    ) : (
-                        <PersonCard 
-                            item={item} 
-                            onPress={() => router.push(`/user/${item.handle}`)} 
-                            showWhy={false}
-                        />
-                    )}
-                </View>
-            ))}
-         </View>
-       )}
+      <Text style={styles.emptyText}>{t('common.noResults', 'Nothing here.')}</Text>
+
+      {suggestions.length > 0 && (
+        <View style={styles.suggestionsContainer}>
+          <Text style={styles.suggestionsHeader}>{activeTab === 'topics' ? (t('profile.topicsToFollow', 'TOPICS TO FOLLOW') || 'TOPICS TO FOLLOW') : t('home.suggestedPeople', 'Suggested for you')}</Text>
+          {suggestions.map(item => (
+            <View key={item.id} style={styles.suggestionItem}>
+              {activeTab === 'topics' ? (
+                <TopicCard
+                  item={item}
+                  onPress={() => router.push(`/topic/${item.slug || item.id}`)}
+                  showWhy={false}
+                />
+              ) : (
+                <PersonCard
+                  item={item}
+                  onPress={() => router.push(`/user/${item.handle}`)}
+                  showWhy={false}
+                />
+              )}
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 
   if (isPrivate) {
-      return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-           <View style={styles.header}>
-             <Pressable onPress={() => router.back()} style={styles.backButton}>
-               <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-             </Pressable>
-             <Text style={styles.title}>{t('profile.connections')}</Text>
-             <View style={{ width: 24 }} />
-           </View>
-           <View style={styles.privateState}>
-                <MaterialIcons name="lock" size={48} color={COLORS.secondary} />
-                <Text style={styles.privateText}>This account is private</Text>
-                <Text style={styles.privateSubText}>Follow this account to see their connections.</Text>
-           </View>
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
+          </Pressable>
+          <Text style={styles.title}>{t('profile.connections')}</Text>
+          <View style={{ width: 24 }} />
         </View>
-      );
+        <View style={styles.privateState}>
+          <MaterialIcons name="lock" size={48} color={COLORS.secondary} />
+          <Text style={styles.privateText}>This account is private</Text>
+          <Text style={styles.privateSubText}>Follow this account to see their connections.</Text>
+        </View>
+      </View>
+    );
   }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-       <View style={styles.header}>
-         <Pressable onPress={() => router.back()} style={styles.backButton}>
-           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-         </Pressable>
-         <Text style={styles.title}>{t('profile.connections', 'Connections')}</Text>
-         <View style={{ width: 24 }} />
-       </View>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
+        </Pressable>
+        <Text style={styles.title}>{t('profile.connections', 'Connections')}</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
-       <View style={styles.tabs}>
-         {['followers', 'following', 'topics'].map((tab) => (
-             <Pressable 
-                key={tab}
-                style={[styles.tab, activeTab === tab && styles.tabActive]}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setActiveTab(tab as any);
-                }}
-             >
-               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                 {t(`profile.${tab}`, tab.charAt(0).toUpperCase() + tab.slice(1))}
-               </Text>
-             </Pressable>
-         ))}
-       </View>
+      <View style={styles.tabs}>
+        {['followers', 'following', 'topics'].map((tab) => (
+          <Pressable
+            key={tab}
+            style={[styles.tab, activeTab === tab && styles.tabActive]}
+            onPress={() => {
+              Haptics.selectionAsync();
+              setActiveTab(tab as any);
+            }}
+          >
+            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+              {t(`profile.${tab}`, tab.charAt(0).toUpperCase() + tab.slice(1))}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
-       <View style={styles.searchContainer}>
-            <MaterialIcons name="search" size={20} color={COLORS.tertiary} style={styles.searchIcon} />
-            <TextInput
-                style={styles.searchInput}
-                placeholder={t('common.search', 'Search...')}
-                placeholderTextColor={COLORS.tertiary}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-            />
-       </View>
+      <View style={styles.searchContainer}>
+        <MaterialIcons name="search" size={20} color={COLORS.tertiary} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={t('common.search', 'Search...')}
+          placeholderTextColor={COLORS.tertiary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
 
-       {loading ? (
-         <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
-       ) : (
-         <FlatList
-           data={filteredItems}
-           renderItem={renderItem}
-           keyExtractor={(item) => item.id}
-           contentContainerStyle={{ paddingBottom: SPACING.l }}
-           ListEmptyComponent={EmptyComponent}
-         />
-       )}
+      {loading ? (
+        <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
+      ) : (
+        <FlatList
+          data={filteredItems}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: SPACING.l }}
+          ListEmptyComponent={EmptyComponent}
+        />
+      )}
     </View>
   );
 }

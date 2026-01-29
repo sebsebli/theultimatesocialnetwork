@@ -51,9 +51,28 @@ export class MeilisearchService implements OnModuleInit {
         },
       });
     } catch (error) {
-      // Index might already exist or feature already enabled
       const message = error instanceof Error ? error.message : String(error);
-      console.log('Meilisearch index setup:', message);
+      console.log('Meilisearch posts index setup:', message);
+    }
+    try {
+      await this.client.createIndex('users', { primaryKey: 'id' });
+      const usersIndex = this.client.index('users');
+      await usersIndex.updateSearchableAttributes([
+        'handle',
+        'displayName',
+        'bio',
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log('Meilisearch users index setup:', message);
+    }
+    try {
+      await this.client.createIndex('topics', { primaryKey: 'id' });
+      const topicsIndex = this.client.index('topics');
+      await topicsIndex.updateSearchableAttributes(['slug', 'title']);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log('Meilisearch topics index setup:', message);
     }
   }
 
@@ -183,15 +202,34 @@ export class MeilisearchService implements OnModuleInit {
     }
   }
 
-  async searchUsers(query: string, limit = 10) {
+  async searchUsers(query: string, limit = 20) {
     try {
-      // In a real app, ensure 'users' index exists
       const index = this.client.index('users');
-      return await index.search(query, { limit });
+      const res = await index.search(query, { limit });
+      return res;
     } catch (error) {
       console.error('Meilisearch user search error', error);
-      return { hits: [] };
+      return { hits: [], estimatedTotalHits: 0 };
     }
+  }
+
+  async searchAll(query: string, limitPerType = 15) {
+    const [postsRes, usersRes, topicsRes] = await Promise.all([
+      this.searchPosts(query, { limit: limitPerType, offset: 0 }).catch(() => ({
+        hits: [],
+      })),
+      this.searchUsers(query, limitPerType).then((r) => ({
+        hits: r.hits || [],
+      })),
+      this.searchTopics(query, limitPerType).then((r) => ({
+        hits: r.hits || [],
+      })),
+    ]);
+    return {
+      posts: postsRes.hits || [],
+      users: usersRes.hits || [],
+      topics: topicsRes.hits || [],
+    };
   }
 
   async searchTopics(query: string, limit = 10) {

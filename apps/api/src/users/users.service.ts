@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, In } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
@@ -10,6 +10,7 @@ import { Keep } from '../entities/keep.entity';
 import { Follow } from '../entities/follow.entity';
 import { PostRead } from '../entities/post-read.entity';
 import { Notification } from '../entities/notification.entity';
+import { Collection } from '../entities/collection.entity';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { postToPlain, replyToPlain } from '../shared/post-serializer';
 
@@ -25,6 +26,8 @@ export class UsersService {
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
     @InjectRepository(PostRead) private readRepo: Repository<PostRead>,
     @InjectRepository(Notification) private notifRepo: Repository<Notification>,
+    @InjectRepository(Collection)
+    private collectionRepo: Repository<Collection>,
     private meilisearch: MeilisearchService,
   ) {}
 
@@ -101,7 +104,47 @@ export class UsersService {
     return updatedUser;
   }
 
+  /**
+   * Suggested users to follow.
+   * When userId is provided: returns people that the user's followers follow (second-degree),
+   * ordered by how many of the user's followers follow them. Excludes self and people already followed.
+   * When userId is not provided: returns globally popular users (by follower count).
+   */
   async getSuggested(userId?: string, limit = 10) {
+    if (userId) {
+      const qb = this.followRepo
+        .createQueryBuilder('f')
+        .select('f.followee_id', 'id')
+        .addSelect('COUNT(*)', 'cnt')
+        .where(
+          `f.follower_id IN (SELECT follower_id FROM follows WHERE followee_id = :userId)`,
+          { userId },
+        )
+        .andWhere('f.followee_id != :userId', { userId })
+        .andWhere(
+          `f.followee_id NOT IN (SELECT followee_id FROM follows WHERE follower_id = :userId)`,
+          { userId },
+        )
+        .groupBy('f.followee_id')
+        .orderBy('cnt', 'DESC')
+        .limit(limit);
+      const rawRows = await qb.getRawMany<{ id: string; cnt: string }>();
+      const rows = rawRows ?? [];
+      if (rows.length === 0) {
+        return this.getSuggestedFallback(limit);
+      }
+      const ids: string[] = rows.map((r) => r.id);
+      const users = await this.userRepo.find({ where: { id: In(ids) } });
+      const byId = new Map<string, User>(users.map((u) => [u.id, u]));
+      const ordered = ids
+        .map((id) => byId.get(id))
+        .filter((u): u is User => u != null);
+      return ordered;
+    }
+    return this.getSuggestedFallback(limit);
+  }
+
+  private async getSuggestedFallback(limit: number) {
     return this.userRepo.find({
       order: { followerCount: 'DESC' },
       take: limit,
@@ -223,6 +266,40 @@ export class UsersService {
       notifications,
       exportedAt: new Date(),
     };
+  }
+
+  /** Resolve handle or UUID to user id. Returns null if not found. */
+  async resolveUserId(idOrHandle: string): Promise<string | null> {
+    if (!idOrHandle) return null;
+    const user = await this.userRepo.findOne({
+      where: [{ id: idOrHandle }, { handle: idOrHandle }],
+      select: ['id'],
+    });
+    return user?.id ?? null;
+  }
+
+  /** Public collections by owner (isPublic = true), paginated. */
+  async getUserPublicCollections(
+    ownerId: string,
+    page: number,
+    limit: number,
+  ): Promise<{ items: Partial<Collection>[]; hasMore: boolean }> {
+    const skip = (page - 1) * limit;
+    const [collections] = await this.collectionRepo.findAndCount({
+      where: { ownerId, isPublic: true },
+      order: { createdAt: 'DESC' },
+      skip,
+      take: limit + 1,
+    });
+    const items = collections.slice(0, limit).map((c) => ({
+      id: c.id,
+      title: c.title,
+      description: c.description,
+      isPublic: c.isPublic,
+      createdAt: c.createdAt,
+      ownerId: c.ownerId,
+    }));
+    return { items, hasMore: collections.length > limit };
   }
 
   async getFollowing(userId: string) {

@@ -87,14 +87,14 @@ export function MarkdownText({ children, referenceMetadata = {} }: MarkdownTextP
       // 2. Parse inline styles (Bold, Italic, Wikilinks)
       // This is a naive parser. For production, use a tokenizer/lexer approach.
       // We'll iterate through the string and match patterns.
-      
+
       const parts: any[] = [];
       let lastIndex = 0;
-      
+
       // Combine patterns: Bold (**), Italic (_), Wikilink ([[...]]), Standard Link [...]((...)), Mention (@...)
       // Note: This regex is simple and might fail on nested/complex cases
       const regex = /(\*\*(.*?)\*\*)|(_(.*?)_)|(\[\[(.*?)(?:\|(.*?))?\]\])|(\[(.*?)\]\((.*?)\))|(@[a-zA-Z0-9_]+)/g;
-      
+
       let match;
       while ((match = regex.exec(content)) !== null) {
         // Text before match
@@ -115,14 +115,14 @@ export function MarkdownText({ children, referenceMetadata = {} }: MarkdownTextP
           const linkContent = match[6];
           let linkDisplay = match[7] || linkContent;
           const linkAlias = match[7];
-          
+
           if (!linkAlias && linkContent.startsWith('post:')) {
-             const id = linkContent.split(':')[1];
-             if (referenceMetadata[id]?.title) {
-                 linkDisplay = referenceMetadata[id].title;
-             }
+            const id = linkContent.split(':')[1];
+            if (referenceMetadata[id]?.title) {
+              linkDisplay = referenceMetadata[id].title;
+            }
           }
-          
+
           parts.push(
             <Text
               key={match.index}
@@ -137,7 +137,7 @@ export function MarkdownText({ children, referenceMetadata = {} }: MarkdownTextP
         else if (match[8]) {
           const linkText = match[9];
           const linkUrl = match[10];
-          
+
           parts.push(
             <Text
               key={match.index}
@@ -175,12 +175,12 @@ export function MarkdownText({ children, referenceMetadata = {} }: MarkdownTextP
         nodes.push(<View key={lineIndex} style={{ height: SPACING.m }} />);
       } else {
         nodes.push(
-          <View 
-            key={lineIndex} 
+          <View
+            key={lineIndex}
             style={{
-              flexDirection: 'row', 
+              flexDirection: 'row',
               alignItems: 'flex-start',
-              marginBottom: (lineStyle === styles.h1 || lineStyle === styles.h2 || lineStyle === styles.h3) ? SPACING.m : 0 
+              marginBottom: (lineStyle === styles.h1 || lineStyle === styles.h2 || lineStyle === styles.h3) ? SPACING.m : 0
             }}
           >
             {prefix}
@@ -244,13 +244,13 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.serifRegular,
   },
   h1: {
-    fontSize: 26,
-    lineHeight: 34,
+    fontSize: 28,
+    lineHeight: 36,
     fontWeight: '700',
     color: COLORS.paper,
-    fontFamily: FONTS.serifSemiBold,
+    fontFamily: FONTS.semiBold,
     marginTop: SPACING.l,
-    marginBottom: SPACING.m, 
+    marginBottom: SPACING.m,
   },
   h2: {
     fontSize: 22,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     color: COLORS.paper,
     fontFamily: FONTS.serifSemiBold,
     marginTop: SPACING.l,
-    marginBottom: SPACING.m, 
+    marginBottom: SPACING.m,
   },
   h3: {
     fontSize: 18,

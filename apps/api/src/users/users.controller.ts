@@ -16,13 +16,10 @@ import { AuthGuard } from '@nestjs/passport';
 import { SkipThrottle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { CurrentUser } from '../shared/current-user.decorator';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { Queue } from 'bullmq';
 import { User } from '../entities/user.entity';
-import {
-  postToPlain,
-  replyToPlain,
-  userToPlain,
-} from '../shared/post-serializer';
+import { postToPlain, userToPlain } from '../shared/post-serializer';
 
 @Controller('users')
 @SkipThrottle() // GET /users/me is hit on every app load; avoid 429 on cold start
@@ -138,8 +135,24 @@ export class UsersController {
   }
 
   @Get('suggested')
-  async getSuggested() {
-    return this.usersService.getSuggested();
+  @UseGuards(OptionalJwtAuthGuard)
+  async getSuggested(
+    @CurrentUser() user?: { id: string },
+    @Query('limit') limit?: string,
+  ) {
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const list = await this.usersService.getSuggested(user?.id, limitNum);
+    return list.map((u) => userToPlain(u));
+  }
+
+  @Get('me/suggested')
+  @UseGuards(AuthGuard('jwt'))
+  async getMySuggested(
+    @CurrentUser() user: { id: string },
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    const list = await this.usersService.getSuggested(user.id, limit);
+    return list.map((u) => userToPlain(u));
   }
 
   @Get('me/posts')
@@ -160,23 +173,73 @@ export class UsersController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('type') type: 'posts' | 'replies' | 'quotes' = 'posts',
   ) {
-    const userId = id === 'me' ? undefined : id;
-    if (!userId) {
+    if (id === 'me') {
       throw new NotFoundException('Use GET /users/me/posts for current user');
     }
+    const userId = await this.usersService.resolveUserId(id);
+    if (!userId) throw new NotFoundException('User not found');
     return this.usersService.getUserPosts(userId, page, limit, type);
   }
 
   @Get(':id/replies')
-  async getReplies(@Param('id') id: string) {
-    const replies = await this.usersService.getReplies(id);
-    return replies.map(replyToPlain);
+  async getReplies(
+    @Param('id') id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    const userId = await this.usersService.resolveUserId(id);
+    if (!userId) throw new NotFoundException('User not found');
+    const result = await this.usersService.getUserPosts(
+      userId,
+      page,
+      limit,
+      'replies',
+    );
+    return result;
   }
 
   @Get(':id/quotes')
-  async getQuotes(@Param('id') id: string) {
-    const quotes = await this.usersService.getQuotes(id);
-    return quotes.map(postToPlain);
+  async getQuotes(
+    @Param('id') id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    const userId = await this.usersService.resolveUserId(id);
+    if (!userId) throw new NotFoundException('User not found');
+    const result = await this.usersService.getUserPosts(
+      userId,
+      page,
+      limit,
+      'quotes',
+    );
+    return result;
+  }
+
+  @Get(':id/collections')
+  async getUserCollections(
+    @Param('id') id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    const userId = await this.usersService.resolveUserId(id);
+    if (!userId) throw new NotFoundException('User not found');
+    return this.usersService.getUserPublicCollections(userId, page, limit);
+  }
+
+  @Get(':idOrHandle/following')
+  async getFollowingByUser(@Param('idOrHandle') idOrHandle: string) {
+    const userId = await this.usersService.resolveUserId(idOrHandle);
+    if (!userId) throw new NotFoundException('User not found');
+    const following = await this.usersService.getFollowing(userId);
+    return following.map(userToPlain);
+  }
+
+  @Get(':idOrHandle/followers')
+  async getFollowersByUser(@Param('idOrHandle') idOrHandle: string) {
+    const userId = await this.usersService.resolveUserId(idOrHandle);
+    if (!userId) throw new NotFoundException('User not found');
+    const followers = await this.usersService.getFollowers(userId);
+    return followers.map(userToPlain);
   }
 
   @Get(':handle')

@@ -7,7 +7,8 @@ import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 /**
  * Shown when ErrorBoundary catches an error. Provides "Go to Home" so the user
- * is never stuck without navigation.
+ * is never stuck without navigation. We do NOT sign the user out on app error —
+ * auth state is preserved so they can go home and retry.
  */
 export function ErrorFallbackWithNav() {
   const router = useRouter();

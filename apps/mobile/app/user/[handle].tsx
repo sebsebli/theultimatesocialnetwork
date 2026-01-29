@@ -22,6 +22,24 @@ export default function UserProfileScreen() {
   const [following, setFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'collections'>('posts');
 
+  useEffect(() => {
+    const h = typeof handle === 'string' ? handle : handle?.[0];
+    if (h) loadProfile(1, true);
+  }, [handle]);
+
+  // Refetch list when tab changes (posts / replies / quotes / collections), not on initial mount
+  const isFirstTabMount = React.useRef(true);
+  useEffect(() => {
+    if (!user) return;
+    if (isFirstTabMount.current) {
+      isFirstTabMount.current = false;
+      return;
+    }
+    setPosts([]);
+    setPage(1);
+    loadProfile(1, true);
+  }, [activeTab]);
+
   const loadProfile = async (pageNum: number, reset = false) => {
     if (reset) {
       setLoading(true);
@@ -34,7 +52,8 @@ export default function UserProfileScreen() {
 
     try {
       // Parallelize user fetch and content fetch for first load
-      const userPromise = reset ? api.get(`/users/${handle}`) : Promise.resolve(user);
+      const handleStr = typeof handle === 'string' ? handle : handle?.[0] ?? '';
+      const userPromise = reset ? api.get(`/users/${handleStr}`) : Promise.resolve(user);
 
       let endpoint = '';
       if (activeTab === 'replies') endpoint = `/users/${user?.id || handle}/replies`; // Use handle if user not yet loaded (API supports handle lookup?) 
@@ -47,7 +66,7 @@ export default function UserProfileScreen() {
         if (activeTab === 'replies') path = `/users/${userId}/replies?page=${pageNum}&limit=20`;
         else if (activeTab === 'quotes') path = `/users/${userId}/quotes?page=${pageNum}&limit=20`;
         else if (activeTab === 'collections') path = `/users/${userId}/collections?page=${pageNum}&limit=20`;
-        else path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=${activeTab}`;
+        else path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=posts`;
         return api.get(path);
       };
 
@@ -63,7 +82,8 @@ export default function UserProfileScreen() {
         contentData = await fetchContent(user.id);
       }
 
-      const items = Array.isArray(contentData.items || contentData) ? (contentData.items || contentData) : [];
+      // API may return { items, hasMore } or plain array for replies/quotes
+      const items = Array.isArray(contentData) ? contentData : (Array.isArray(contentData?.items) ? contentData.items : contentData?.items ?? []);
 
       if (reset) {
         setPosts(items);
@@ -71,13 +91,13 @@ export default function UserProfileScreen() {
         setPosts(prev => [...prev, ...items]);
       }
 
-      const hasMoreData = items.length === 20 && (contentData.hasMore !== false);
+      const hasMoreData = items.length >= 20 && (contentData?.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
       console.error('Failed to load profile', error);
-      if (reset && !user) {
-        // ... error alert
-      }
+      if (reset && activeTab === 'posts') setUser(null);
+      if (reset) setPosts([]);
+      setHasMore(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -172,11 +192,11 @@ export default function UserProfileScreen() {
 
   const handleUserMenu = () => {
     Alert.alert(
-      t('profile.options', 'User Options'),
+      t('profile.options', 'Options for @' + user.handle),
       undefined,
       [
-        { text: t('safety.block', 'Block User'), onPress: handleBlock, style: 'destructive' },
         { text: t('safety.mute', 'Mute User'), onPress: handleMute },
+        { text: t('safety.block', 'Block User'), onPress: handleBlock, style: 'destructive' },
         { text: t('safety.report', 'Report User'), onPress: () => handleReport(user.id, 'USER'), style: 'destructive' },
         { text: t('common.cancel'), style: 'cancel' },
       ]
@@ -210,9 +230,11 @@ export default function UserProfileScreen() {
     );
   };
 
+  const bottomPadding = 80;
+
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingBottom: bottomPadding }]}>
         <View style={styles.headerBar} />
         <ProfileSkeleton />
         <PostSkeleton />
@@ -232,6 +254,7 @@ export default function UserProfileScreen() {
   return (
     <FlatList
       style={styles.container}
+      contentContainerStyle={{ paddingBottom: bottomPadding }}
       data={posts}
       keyExtractor={(item: any) => item.id}
       renderItem={({ item }: { item: any }) => <PostItem post={item} />}
@@ -298,14 +321,14 @@ export default function UserProfileScreen() {
           </View>
 
           <View style={styles.statsRow}>
-            <Pressable 
+            <Pressable
               style={styles.statItem}
               onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
             >
               <Text style={styles.statNumber}>{user.followerCount}</Text>
               <Text style={styles.statLabel}>{t('profile.followers')}</Text>
             </Pressable>
-            <Pressable 
+            <Pressable
               style={styles.statItem}
               onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
             >
@@ -341,7 +364,12 @@ export default function UserProfileScreen() {
       }
       ListEmptyComponent={
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>{t('profile.noPosts')}</Text>
+          <Text style={styles.emptyText}>
+            {activeTab === 'collections' ? (t('profile.noCollections', 'No public collections') || 'No public collections')
+              : activeTab === 'replies' ? (t('profile.noReplies', 'No replies yet') || 'No replies yet')
+                : activeTab === 'quotes' ? (t('profile.noQuotes', 'No quotes yet') || 'No quotes yet')
+                  : t('profile.noPosts')}
+          </Text>
         </View>
       }
       ListFooterComponent={<View style={styles.footerLoader}>

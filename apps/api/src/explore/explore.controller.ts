@@ -12,17 +12,26 @@ export class ExploreController {
   ) {}
 
   @Get('topics')
-  async getTopics(@CurrentUser() user?: { id: string }) {
-    return this.exploreService.getTopics(user?.id);
+  async getTopics(
+    @CurrentUser() user?: { id: string },
+    @Query('sort') sort?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.exploreService.getTopics(user?.id, { sort, page, limit });
   }
 
   @Get('people')
-  async getPeople(@CurrentUser() user?: { id: string }) {
-    // Use AI-powered recommendations if user is logged in
-    if (user?.id) {
-      return this.recommendationService.getRecommendedPeople(user.id, 20);
+  async getPeople(
+    @CurrentUser() user?: { id: string },
+    @Query('sort') sort?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+    if (user?.id && (!sort || sort === 'recommended')) {
+      return this.recommendationService.getRecommendedPeople(user.id, limitNum);
     }
-    return this.exploreService.getPeople(user?.id);
+    return this.exploreService.getPeople(user?.id, limitNum, { sort });
   }
 
   @Get('quoted-now')

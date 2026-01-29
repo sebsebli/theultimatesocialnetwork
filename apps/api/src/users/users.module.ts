@@ -11,6 +11,7 @@ import { Keep } from '../entities/keep.entity';
 import { Follow } from '../entities/follow.entity';
 import { PostRead } from '../entities/post-read.entity';
 import { Notification } from '../entities/notification.entity';
+import { Collection } from '../entities/collection.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { ExportWorker } from './export.worker';
@@ -32,6 +33,7 @@ import { defaultQueueConfig } from '../common/queue-config';
       Follow,
       PostRead,
       Notification,
+      Collection,
     ]),
     ConfigModule,
     SharedModule,

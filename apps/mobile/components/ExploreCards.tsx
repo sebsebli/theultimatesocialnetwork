@@ -48,8 +48,8 @@ export const DeepDiveCard = ({ item, onPress, showWhy = true }: { item: any; onP
   </Pressable>
 );
 
-export const PersonCard = ({ item, onPress, showWhy = true }: { item: any; onPress: () => void; showWhy?: boolean }) => (
-  <Pressable onPress={onPress} style={styles.personCard}>
+export const PersonCard = ({ item, onPress, showWhy = true, fullWidth }: { item: any; onPress: () => void; showWhy?: boolean; fullWidth?: boolean }) => (
+  <Pressable onPress={onPress} style={[styles.personCard, fullWidth && styles.personCardFullWidth]}>
     <View style={styles.personRow}>
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>
@@ -73,12 +73,12 @@ import { PostContent } from './PostContent';
 export const QuoteCard = ({ item, onPress, showWhy = true }: { item: any; onPress: () => void; showWhy?: boolean }) => (
   <View style={styles.quoteWrapper}>
     <Pressable onPress={onPress} style={styles.quoteCard}>
-        {/* If it looks like a post object (has author/title), use PostContent logic, else fallback */}
-        {item.author ? (
-            <PostContent post={item} disableNavigation={true} />
-        ) : (
-            <Text style={styles.quoteBody} numberOfLines={3}>{item.body}</Text>
-        )}
+      {/* If it looks like a post object (has author/title), use PostContent logic, else fallback */}
+      {item.author ? (
+        <PostContent post={item} disableNavigation={true} />
+      ) : (
+        <Text style={styles.quoteBody} numberOfLines={3}>{item.body}</Text>
+      )}
     </Pressable>
     {showWhy && item.reasons && (
       <View style={styles.quoteWhy}>
@@ -204,6 +204,10 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.l,
     borderWidth: 1,
     borderColor: COLORS.divider, // border-white/10
+  },
+  personCardFullWidth: {
+    marginHorizontal: 0,
+    width: '100%',
   },
   personRow: {
     flexDirection: 'row',
