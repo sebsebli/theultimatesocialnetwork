@@ -70,10 +70,25 @@ export default function HomeScreen() {
       setLoadingMore(true);
     }
     setError(false);
+    
+    const startTime = Date.now();
     try {
       const limit = 20;
       const offset = (pageNum - 1) * limit;
+      
+      // Add rudimentary request ID tracking if API supports it or generates it
+      const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log(`[Feed] Loading page ${pageNum} (offset ${offset}) - ID: ${requestId}`);
+
       const data = await api.get(`/feed?limit=${limit}&offset=${offset}`);
+      
+      // Validate payload shape
+      if (!data || (!Array.isArray(data) && !Array.isArray(data.items))) {
+         console.error(`[Feed] Payload shape mismatch. ID: ${requestId}`, { keys: Object.keys(data || {}) });
+         throw new Error('Invalid feed payload');
+      }
+
       // Handle feed items...
       const feedItems = Array.isArray(data.items || data) ? (data.items || data) : [];
       const processedPosts = feedItems.map((item: any) => {
@@ -112,16 +127,23 @@ export default function HomeScreen() {
       const hasMoreData = processedPosts.length === 20 && (data.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
+      const duration = Date.now() - startTime;
+      console.error('[Feed] Load failed', {
+        status: error?.status,
+        message: error?.message,
+        duration,
+        user: isAuthenticated ? 'auth' : 'guest',
+      });
+
       if (error?.status === 401) {
         setLoading(false);
         setRefreshing(false);
         setLoadingMore(false);
         return;
       }
-      console.error('Failed to load feed', error);
       setError(true);
       if (posts.length === 0 && !loading) {
-        showError(t('feed.loadError', 'Failed to load feed. Please check your connection and try again.'));
+        showError(t('feed.loadError', 'Failed to load feed. Please check your connection.'));
       }
     } finally {
       setLoading(false);
@@ -172,16 +194,21 @@ export default function HomeScreen() {
     );
   }, [hasMore, loadingMore]);
 
-  const BetaNudge = () => (
-    <View style={styles.betaNudge}>
-      <View style={styles.betaContent}>
-        <Text style={styles.betaTitle}>{t('beta.inviteTitle', 'Invite Friends')}</Text>
-        <Text style={styles.betaDesc}>{t('beta.inviteDesc', 'Help us grow the community during beta.')}</Text>
+  // Updated Empty State Components
+  const InviteNudge = () => (
+    <Pressable 
+      style={styles.inviteNudgeContainer} 
+      onPress={() => router.push('/invites')}
+    >
+      <View style={styles.inviteIconCircle}>
+        <MaterialIcons name="person-add" size={24} color={COLORS.ink} />
       </View>
-      <Pressable style={styles.betaButton} onPress={() => router.push('/invites')}>
-        <Text style={styles.betaButtonText}>{t('beta.inviteAction', 'Invite')}</Text>
-      </Pressable>
-    </View>
+      <View style={styles.inviteTextContainer}>
+        <Text style={styles.inviteTitle}>{t('home.inviteFriends', 'Invite Friends')}</Text>
+        <Text style={styles.inviteDesc}>{t('home.inviteDesc', 'Build your network. CITE is better with friends.')}</Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={24} color={COLORS.tertiary} />
+    </Pressable>
   );
 
   return (
@@ -220,37 +247,24 @@ export default function HomeScreen() {
         <FlatList
           data={posts}
           keyExtractor={keyExtractor}
-          ListHeaderComponent={posts.length > 0 ? <BetaNudge /> : null}
+          // BetaNudge removed from header, using specialized empty state
           renderItem={renderItem}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>
-                {loading ? t('common.loading') : t('home.empty', 'Your feed is quiet.')}
-              </Text>
+              <Text style={styles.emptyHeadline}>{t('home.emptyHeadline', 'Your timeline is quiet.')}</Text>
+              <Text style={styles.emptySubtext}>{t('home.emptySubtext', 'Follow people and topics to see posts here.')}</Text>
+              
               {!loading && (
-                <>
-                  {suggestions.length > 0 && (
-                    <View style={styles.suggestionsBox}>
-                        <Text style={styles.suggestionsTitle}>{t('home.suggestedPeople', 'People to follow')}</Text>
-                        {suggestions.map(u => (
-                            <View key={u.id} style={{ marginBottom: 12 }}>
-                                <PersonCard item={u} onPress={() => router.push(`/user/${u.handle}`)} showWhy={false} />
-                            </View>
-                        ))}
-                    </View>
-                  )}
-                  <View style={{ marginTop: 24, width: '100%' }}>
-                    <BetaNudge />
-                  </View>
-                  <View style={styles.emptyButtons}>
-                    <Pressable
-                        style={styles.emptyButton}
-                        onPress={() => router.push('/explore')}
-                    >
-                        <Text style={styles.emptyButtonText}>{t('home.exploreTopics')}</Text>
-                    </Pressable>
-                  </View>
-                </>
+                <View style={styles.emptyActions}>
+                  <InviteNudge />
+                  
+                  <Pressable
+                      style={styles.secondaryButton}
+                      onPress={() => router.push('/explore')}
+                  >
+                      <Text style={styles.secondaryButtonText}>{t('home.exploreTopics', 'Explore Topics')}</Text>
+                  </Pressable>
+                </View>
               )}
             </View>
           }
@@ -314,6 +328,15 @@ const styles = StyleSheet.create({
   headerActionButton: {
     padding: SPACING.s,
   },
+  badge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.error,
+  },
   savedByItem: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
@@ -336,39 +359,68 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: SPACING.xxxl,
     alignItems: 'center',
-    marginTop: SPACING.xxxl,
+    marginTop: SPACING.xxl,
   },
-  emptyText: {
-    fontSize: 16,
-    color: COLORS.secondary,
-    marginBottom: SPACING.xl,
-    fontFamily: FONTS.regular,
-  },
-  emptyButtons: {
-    flexDirection: 'row',
-    gap: SPACING.m,
-    marginTop: SPACING.l,
-  },
-  suggestionsBox: {
-    width: '100%',
-    marginVertical: SPACING.l,
-  },
-  suggestionsTitle: {
-    fontSize: 16,
+  emptyHeadline: {
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.paper,
-    marginBottom: SPACING.m,
+    marginBottom: SPACING.s,
+    fontFamily: FONTS.semiBold,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 15,
+    color: COLORS.secondary,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+    fontFamily: FONTS.regular,
+    lineHeight: 22,
+  },
+  emptyActions: {
+    width: '100%',
+    gap: SPACING.l,
+    alignItems: 'center',
+  },
+  inviteNudgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    padding: SPACING.l,
+    borderRadius: SIZES.borderRadius,
+    width: '100%',
+  },
+  inviteIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.m,
+  },
+  inviteTextContainer: {
+    flex: 1,
+  },
+  inviteTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.ink,
+    marginBottom: 2,
     fontFamily: FONTS.semiBold,
   },
-  emptyButton: {
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.m,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: SIZES.borderRadiusPill,
+  inviteDesc: {
+    fontSize: 13,
+    color: COLORS.ink,
+    opacity: 0.8,
+    fontFamily: FONTS.medium,
   },
-  emptyButtonText: {
-    fontSize: 14,
+  secondaryButton: {
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.xl,
+  },
+  secondaryButtonText: {
+    fontSize: 15,
     fontWeight: '600',
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
@@ -376,44 +428,5 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: SPACING.l,
     alignItems: 'center',
-  },
-  betaNudge: {
-    margin: SPACING.l,
-    padding: SPACING.l,
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  betaContent: {
-    flex: 1,
-    marginRight: SPACING.m,
-  },
-  betaTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.paper,
-    marginBottom: 4,
-    fontFamily: FONTS.semiBold,
-  },
-  betaDesc: {
-    fontSize: 13,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-  },
-  betaButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.m,
-    paddingVertical: 8,
-    borderRadius: SIZES.borderRadiusPill,
-  },
-  betaButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FFF',
-    fontFamily: FONTS.semiBold,
   },
 });

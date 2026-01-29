@@ -58,23 +58,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsAuthenticated(true);
           const complete = await getOnboardingComplete();
           setOnboardingComplete(complete);
-          
+
           // Re-register push token on launch
           registerForPush(token).catch(err => console.warn('Push registration failed', err));
         } catch (apiError: any) {
-          if (apiError?.message === 'Auth check timeout' || apiError?.status === 0) {
-            if (__DEV__) {
-              console.warn('Auth check failed (timeout/network), assuming not authenticated');
-            }
-            setIsAuthenticated(false);
-            setOnboardingComplete(null);
-          } else if (apiError?.status === 401 || apiError?.status === 403) {
+          const status = apiError?.status;
+          // Log out when auth is invalid (401/403) or user no longer exists (404). Network/5xx/other → stay logged in (offline).
+          if (status === 401 || status === 403 || status === 404) {
             await clearApiToken();
             setIsAuthenticated(false);
             setOnboardingComplete(null);
           } else {
-            setIsAuthenticated(false);
-            setOnboardingComplete(null);
+            // Stored session valid; treat as offline but logged in
+            if (__DEV__) {
+              console.warn('Auth check failed (network/server error), staying logged in (offline mode)', apiError?.message ?? apiError);
+            }
+            setIsAuthenticated(true);
+            const complete = await getOnboardingComplete();
+            setOnboardingComplete(complete);
           }
         }
       } catch (error) {
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthenticated(true);
     const complete = await getOnboardingComplete();
     setOnboardingComplete(complete);
-    
+
     // Register push token
     registerForPush(token).catch(err => console.warn('Push registration failed', err));
 

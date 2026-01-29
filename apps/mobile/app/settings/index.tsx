@@ -76,7 +76,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="person-outline"
             label={t('settings.editProfile')}
-            onPress={() => router.push('/settings/edit-profile')}
+            onPress={() => router.push('/settings/profile')}
           />
           <SettingItem
             icon="language"

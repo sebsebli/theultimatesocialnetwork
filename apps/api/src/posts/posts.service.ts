@@ -67,6 +67,31 @@ export class PostsService {
       );
     }
 
+    // Rate Limit: Topic References (Anti-Spam)
+    // Check how many topic references this user has made in the last hour
+    type CountRow = { count: string };
+    const rawRefs = await this.dataSource.query(
+      `SELECT COUNT(*) as count 
+       FROM post_topics pt
+       JOIN posts p ON pt.post_id = p.id
+       WHERE p.author_id = $1 AND p.created_at > NOW() - INTERVAL '1 hour'`,
+      [userId],
+    );
+    const recentTopicRefs: CountRow[] = Array.isArray(rawRefs)
+      ? (rawRefs as CountRow[])
+      : [];
+    const recentCount =
+      recentTopicRefs.length > 0 ? recentTopicRefs[0].count : '0';
+    if (parseInt(recentCount, 10) >= 20) {
+      // Check if this post HAS topic references
+      const hasTopics = /\[\[(?!post:)(.*?)\]\]/.test(sanitizedBody);
+      if (hasTopics) {
+        throw new BadRequestException(
+          'You have reached the limit for topic references this hour.',
+        );
+      }
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -330,10 +355,56 @@ export class PostsService {
   }
 
   async getSources(postId: string) {
-    return this.externalSourceRepo.find({
-      where: { postId },
-      order: { createdAt: 'ASC' },
-    });
+    const [external, edges, mentions, topics] = await Promise.all([
+      this.externalSourceRepo.find({ where: { postId } }),
+      this.dataSource.getRepository(PostEdge).find({
+        where: { fromPostId: postId, edgeType: EdgeType.LINK },
+        relations: ['toPost'],
+      }),
+      this.mentionRepo.find({
+        where: { postId },
+        relations: ['mentionedUser'],
+      }),
+      this.dataSource.getRepository(PostTopic).find({
+        where: { postId },
+        relations: ['topic'],
+      }),
+    ]);
+
+    const results = [
+      ...external.map((e) => ({
+        type: 'external',
+        id: e.id,
+        title: e.title,
+        url: e.url,
+        createdAt: e.createdAt,
+      })),
+      ...edges.map((e) => ({
+        type: 'post',
+        id: e.toPostId,
+        title: e.toPost?.title || 'Post',
+        anchor: e.anchorText,
+        createdAt: e.createdAt,
+      })),
+      ...mentions.map((m) => ({
+        type: 'user',
+        id: m.mentionedUserId,
+        handle: m.mentionedUser?.handle,
+        title: m.mentionedUser?.displayName || m.mentionedUser?.handle,
+        createdAt: m.createdAt,
+      })),
+      ...topics.map((t) => ({
+        type: 'topic',
+        id: t.topicId,
+        slug: t.topic?.slug,
+        title: t.topic?.title,
+        createdAt: new Date(), // PostTopic does not have createdAt
+      })),
+    ];
+
+    // Sort by creation or strictly by order if we tracked it (we don't fully).
+    // Just returning combined list is fine.
+    return results;
   }
 
   async getReferencedBy(postId: string) {

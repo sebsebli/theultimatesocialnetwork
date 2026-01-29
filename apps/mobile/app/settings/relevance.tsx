@@ -53,7 +53,7 @@ export default function RelevanceSettingsScreen() {
     likes: 30,
     networkProximity: 40,
   });
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     // Fetch initial settings
@@ -66,26 +66,24 @@ export default function RelevanceSettingsScreen() {
     });
   }, []);
 
-  const savePreferences = (explorePrefs: any) => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      api.patch('/users/me', {
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.patch('/users/me', {
         preferences: {
-          explore: explorePrefs
+          explore: { ...sliders, showWhy }
         }
-      }).catch(console.error);
-    }, 1000); // Debounce 1s
+      });
+      router.back();
+    } catch (error) {
+      console.error('Failed to save relevance settings', error);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSliderChange = (key: string, value: number) => {
-    const newSliders = { ...sliders, [key]: value };
-    setSliders(newSliders);
-    savePreferences({ ...newSliders, showWhy });
-  };
-
-  const handleShowWhyChange = (val: boolean) => {
-    setShowWhy(val);
-    savePreferences({ ...sliders, showWhy: val });
+    setSliders(prev => ({ ...prev, [key]: value }));
   };
 
   const handleReset = () => {
@@ -99,7 +97,6 @@ export default function RelevanceSettingsScreen() {
     };
     setSliders(defaults);
     setShowWhy(true);
-    savePreferences({ ...defaults, showWhy: true });
   };
 
   return (
@@ -109,7 +106,13 @@ export default function RelevanceSettingsScreen() {
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
         </Pressable>
         <Text style={styles.headerTitle}>{t('settings.relevance')}</Text>
-        <View style={{ width: 24 }} />
+        <Pressable 
+          onPress={handleSave}
+          disabled={saving}
+          style={({ pressed }) => ({ opacity: pressed || saving ? 0.5 : 1 })}
+        >
+          <Text style={styles.headerSaveText}>{t('common.save')}</Text>
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -172,7 +175,7 @@ export default function RelevanceSettingsScreen() {
               </View>
               <Switch
                 value={showWhy}
-                onValueChange={handleShowWhyChange}
+                onValueChange={setShowWhy}
                 trackColor={{ false: COLORS.divider, true: COLORS.primary }}
                 thumbColor={COLORS.paper}
               />
@@ -209,6 +212,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  headerSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
   content: {

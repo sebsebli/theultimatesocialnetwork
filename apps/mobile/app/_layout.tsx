@@ -94,7 +94,7 @@ function AppContent({ onReady }: { onReady?: () => void }) {
       <Stack.Screen
         name="post/compose"
         options={{
-          presentation: 'modal',
+          presentation: 'fullScreenModal',
           animation: 'slide_from_bottom',
         }}
       />

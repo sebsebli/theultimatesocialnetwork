@@ -1,5 +1,5 @@
 import React, { useEffect, useState, forwardRef, useImperativeHandle } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, FlatList, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, FlatList, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
@@ -99,103 +99,108 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
       visible={visible}
       onRequestClose={() => setVisible(false)}
     >
-      <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
-        <Pressable style={styles.sheet} onPress={(e: any) => e.stopPropagation()}>
-          <View style={styles.header}>
-            <Text style={styles.title}>{t('post.addToCollection', 'Add to collection')}</Text>
-            <Pressable onPress={() => setVisible(false)} hitSlop={10}>
-              <MaterialIcons name="close" size={24} color={COLORS.secondary} />
-            </Pressable>
-          </View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={{ flex: 1 }}
+      >
+        <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
+          <Pressable style={styles.sheet} onPress={(e: any) => e.stopPropagation()}>
+            <View style={styles.header}>
+              <Text style={styles.title}>{t('post.addToCollection', 'Add to collection')}</Text>
+              <Pressable onPress={() => setVisible(false)} hitSlop={10}>
+                <MaterialIcons name="close" size={24} color={COLORS.secondary} />
+              </Pressable>
+            </View>
 
-          {loading ? (
-            <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />
-          ) : (
-            <FlatList
-              data={collections}
-              keyExtractor={(item: any) => item.id}
-              contentContainerStyle={styles.list}
-              renderItem={({ item }: { item: any }) => (
-                <Pressable
-                  style={styles.item}
-                  onPress={() => handleToggle(item.id, !!item.hasPost)}
-                >
-                  <View style={styles.itemContent}>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
-                    <View style={styles.itemMeta}>
-                      <Text style={styles.itemPrivacy}>
-                        {item.isPublic ? t('common.public') : t('common.private')}
-                      </Text>
-                      {item.itemCount > 0 && (
-                        <Text style={styles.itemCount}>• {t('collections.itemsCount', { count: item.itemCount })}</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />
+            ) : (
+              <FlatList
+                data={collections}
+                keyExtractor={(item: any) => item.id}
+                contentContainerStyle={styles.list}
+                renderItem={({ item }: { item: any }) => (
+                  <Pressable
+                    style={styles.item}
+                    onPress={() => handleToggle(item.id, !!item.hasPost)}
+                  >
+                    <View style={styles.itemContent}>
+                      <Text style={styles.itemTitle}>{item.title}</Text>
+                      <View style={styles.itemMeta}>
+                        <Text style={styles.itemPrivacy}>
+                          {item.isPublic ? t('common.public') : t('common.private')}
+                        </Text>
+                        {item.itemCount > 0 && (
+                          <Text style={styles.itemCount}>• {t('collections.itemsCount', { count: item.itemCount })}</Text>
+                        )}
+                      </View>
+                    </View>
+                    <View style={[
+                      styles.checkbox,
+                      item.hasPost && styles.checkboxChecked
+                    ]}>
+                      {item.hasPost && (
+                        <MaterialIcons name="check" size={16} color="#FFF" />
                       )}
                     </View>
-                  </View>
-                  <View style={[
-                    styles.checkbox,
-                    item.hasPost && styles.checkboxChecked
-                  ]}>
-                    {item.hasPost && (
-                      <MaterialIcons name="check" size={16} color="#FFF" />
-                    )}
-                  </View>
-                </Pressable>
-              )}
-              ListEmptyComponent={!creating ? (
-                <Text style={styles.emptyText}>{t('collections.empty')}</Text>
-              ) : null}
-            />
-          )}
-
-          <View style={styles.footer}>
-            {creating ? (
-              <View style={styles.createForm}>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('collections.titlePlaceholder')}
-                  placeholderTextColor={COLORS.secondary}
-                  value={newTitle}
-                  onChangeText={setNewTitle}
-                  autoFocus
-                />
-                <View style={styles.createActions}>
-                  <Pressable
-                    style={styles.privacyToggle}
-                    onPress={() => setNewIsPublic(!newIsPublic)}
-                  >
-                    <View style={[styles.switch, newIsPublic && styles.switchActive]}>
-                      <View style={[styles.thumb, newIsPublic && styles.thumbActive]} />
-                    </View>
-                    <Text style={styles.privacyText}>
-                      {newIsPublic ? t('common.public') : t('common.private')}
-                    </Text>
                   </Pressable>
-                  <View style={styles.buttons}>
-                    <Pressable onPress={() => setCreating(false)} style={styles.cancelButton}>
-                      <Text style={styles.cancelText}>{t('common.cancel')}</Text>
-                    </Pressable>
+                )}
+                ListEmptyComponent={!creating ? (
+                  <Text style={styles.emptyText}>{t('collections.empty')}</Text>
+                ) : null}
+              />
+            )}
+
+            <View style={styles.footer}>
+              {creating ? (
+                <View style={styles.createForm}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t('collections.titlePlaceholder')}
+                    placeholderTextColor={COLORS.secondary}
+                    value={newTitle}
+                    onChangeText={setNewTitle}
+                    autoFocus
+                  />
+                  <View style={styles.createActions}>
                     <Pressable
-                      onPress={handleCreate}
-                      disabled={!newTitle.trim()}
-                      style={[styles.createButton, !newTitle.trim() && styles.disabledButton]}
+                      style={styles.privacyToggle}
+                      onPress={() => setNewIsPublic(!newIsPublic)}
                     >
-                      <Text style={styles.createText}>{t('common.create')}</Text>
+                      <View style={[styles.switch, newIsPublic && styles.switchActive]}>
+                        <View style={[styles.thumb, newIsPublic && styles.thumbActive]} />
+                      </View>
+                      <Text style={styles.privacyText}>
+                        {newIsPublic ? t('common.public') : t('common.private')}
+                      </Text>
                     </Pressable>
+                    <View style={styles.buttons}>
+                      <Pressable onPress={() => setCreating(false)} style={styles.cancelButton}>
+                        <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={handleCreate}
+                        disabled={!newTitle.trim()}
+                        style={[styles.createButton, !newTitle.trim() && styles.disabledButton]}
+                      >
+                        <Text style={styles.createText}>{t('common.create')}</Text>
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
-              </View>
-            ) : (
-              <Pressable
-                style={styles.newButton}
-                onPress={() => setCreating(true)}
-              >
-                <MaterialIcons name="add" size={24} color={COLORS.primary} />
-                <Text style={styles.newButtonText}>{t('collections.new', 'New Collection')}</Text>
-              </Pressable>
-            )}
-          </View>
+              ) : (
+                <Pressable
+                  style={styles.newButton}
+                  onPress={() => setCreating(true)}
+                >
+                  <MaterialIcons name="add" size={24} color={COLORS.primary} />
+                  <Text style={styles.newButtonText}>{t('collections.new', 'New Collection')}</Text>
+                </Pressable>
+              )}
+            </View>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   ) as React.ReactElement;
 });
@@ -216,6 +221,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.divider,
     maxHeight: '80%',
     paddingBottom: SPACING.xxl,
+    flexShrink: 1,
   },
   header: {
     flexDirection: 'row',

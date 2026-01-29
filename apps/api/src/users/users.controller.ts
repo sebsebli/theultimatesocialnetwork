@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   Inject,
+  NotFoundException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -79,7 +80,9 @@ export class UsersController {
   @UseGuards(AuthGuard('jwt'))
   async getMe(@CurrentUser() user: { id: string }) {
     const me = await this.usersService.findById(user.id);
-    if (!me) return null;
+    if (!me) {
+      throw new NotFoundException('User no longer exists');
+    }
     // Keep email/preferences for self, but serialize posts
     return {
       ...me,

@@ -4,7 +4,9 @@ import {
   Post,
   Delete,
   Param,
+  Query,
   UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { TopicsService } from './topics.service';
@@ -33,7 +35,7 @@ export class TopicsController {
     if (!topic) {
       throw new Error('Topic not found');
     }
-    const posts = await this.topicsService.getPosts(topic.id);
+    // Mobile app now fetches posts separately via /posts endpoint
     let isFollowing = false;
     if (user) {
       isFollowing = await this.topicFollowsService.isFollowing(
@@ -41,7 +43,72 @@ export class TopicsController {
         topic.id,
       );
     }
-    return { ...topic, posts, isFollowing };
+    return { ...topic, isFollowing };
+  }
+
+  @Get(':slug/posts')
+  async getPosts(
+    @Param('slug') slug: string,
+    @Query('page', ParseIntPipe) page = 1,
+    @Query('limit', ParseIntPipe) limit = 20,
+    @Query('sort') sort: 'ranked' | 'recent' = 'recent',
+  ) {
+    const topic = await this.topicsService.findOne(slug);
+    if (!topic) throw new Error('Topic not found');
+
+    const offset = (page - 1) * limit;
+    const posts = await this.topicsService.getTopicPosts(
+      topic.id,
+      sort,
+      limit,
+      offset,
+    );
+    return {
+      items: posts,
+      hasMore: posts.length === limit,
+    };
+  }
+
+  @Get(':slug/people')
+  async getPeople(
+    @Param('slug') slug: string,
+    @Query('page', ParseIntPipe) page = 1,
+    @Query('limit', ParseIntPipe) limit = 20,
+  ) {
+    const topic = await this.topicsService.findOne(slug);
+    if (!topic) throw new Error('Topic not found');
+
+    const offset = (page - 1) * limit;
+    const people = await this.topicsService.getTopicPeople(
+      topic.id,
+      limit,
+      offset,
+    );
+    return {
+      items: people,
+      hasMore: people.length === limit,
+    };
+  }
+
+  @Get(':slug/sources')
+  async getSources(
+    @Param('slug') slug: string,
+    @Query('page', ParseIntPipe) page = 1,
+    @Query('limit', ParseIntPipe) limit = 20,
+  ) {
+    const topic = await this.topicsService.findOne(slug);
+    if (!topic) throw new Error('Topic not found');
+
+    const offset = (page - 1) * limit;
+    const sources = await this.topicsService.getTopicSources(
+      topic.id,
+      limit,
+      offset,
+    );
+    return {
+      items: sources,
+      hasMore: sources.length === limit,
+    };
   }
 
   @Post(':slug/follow')

@@ -298,14 +298,20 @@ export default function UserProfileScreen() {
           </View>
 
           <View style={styles.statsRow}>
-            <View style={styles.statItem}>
+            <Pressable 
+              style={styles.statItem}
+              onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
+            >
               <Text style={styles.statNumber}>{user.followerCount}</Text>
               <Text style={styles.statLabel}>{t('profile.followers')}</Text>
-            </View>
-            <View style={styles.statItem}>
+            </Pressable>
+            <Pressable 
+              style={styles.statItem}
+              onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
+            >
               <Text style={styles.statNumber}>{user.followingCount}</Text>
               <Text style={styles.statLabel}>{t('profile.following')}</Text>
-            </View>
+            </Pressable>
             <View style={styles.statItem}>
               <View style={styles.verifiedBadge}>
                 <MaterialIcons name="verified" size={16} color={COLORS.tertiary} />

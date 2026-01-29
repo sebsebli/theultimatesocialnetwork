@@ -67,7 +67,13 @@ export default function SettingsLanguagesScreen() {
           <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
         </Pressable>
         <Text style={styles.headerTitle}>{t('settings.languages')}</Text>
-        <View style={{ width: 24 }} />
+        <Pressable 
+          onPress={handleSave}
+          disabled={saving}
+          style={({ pressed }) => ({ opacity: pressed || saving ? 0.5 : 1 })}
+        >
+          <Text style={styles.headerSaveText}>{t('common.save')}</Text>
+        </Pressable>
       </View>
 
       <View style={styles.searchContainer}>
@@ -101,18 +107,6 @@ export default function SettingsLanguagesScreen() {
           ))}
         </View>
       </ScrollView>
-
-      <View style={styles.footer}>
-        <Pressable 
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? t('common.loading') : t('common.save')}
-          </Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -136,6 +130,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  headerSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
   searchContainer: {

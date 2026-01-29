@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { MarkdownText } from '../../components/MarkdownText';
+import { PostContent } from '../../components/PostContent';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -29,11 +30,15 @@ export default function ComposeScreen() {
   const [suggestionType, setSuggestionType] = useState<'none' | 'topic' | 'mention'>('none');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const searchRequestId = useRef(0);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Link Input State (Inline, no modal)
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  
+  const [referenceMetadata, setReferenceMetadata] = useState<Record<string, { title?: string }>>({});
 
   const textInputRef = useRef<TextInput>(null);
   const [quotedPost, setQuotedPost] = useState<any>(null);
@@ -42,6 +47,31 @@ export default function ComposeScreen() {
     if (quotePostId) loadQuotedPost(quotePostId);
     else if (replyToPostId) loadQuotedPost(replyToPostId);
   }, [quotePostId, replyToPostId]);
+
+  // Load referenced post metadata when entering preview
+  useEffect(() => {
+    if (previewMode) {
+        const loadRefs = async () => {
+            const matches = body.matchAll(/\[\[post:([^\]|]+)(?:\|[^\]]+)?\]\]/g);
+            const ids = new Set<string>();
+            for (const m of matches) ids.add(m[1]);
+            
+            if (ids.size > 0) {
+                const metadata: Record<string, { title?: string }> = {};
+                await Promise.all(Array.from(ids).map(async (id) => {
+                    try {
+                        const p = await api.get(`/posts/${id}`);
+                        metadata[id] = { title: p.title };
+                    } catch (e) {
+                        // ignore
+                    }
+                }));
+                setReferenceMetadata(metadata);
+            }
+        };
+        loadRefs();
+    }
+  }, [previewMode, body]);
 
   const loadQuotedPost = async (id: string) => {
     try {
@@ -56,6 +86,10 @@ export default function ComposeScreen() {
     const { start, end } = selection;
     const newBody = body.substring(0, start) + text + body.substring(end);
     setBody(newBody);
+    
+    // Update cursor position
+    const newPos = start + text.length;
+    setSelection({ start: newPos, end: newPos });
   };
 
   const formatSelection = (type: 'bold' | 'italic' | 'quote' | 'list' | 'ordered-list') => {
@@ -71,12 +105,35 @@ export default function ComposeScreen() {
 
     const newBody = body.substring(0, start) + newText + body.substring(end);
     setBody(newBody);
+    
+    // Select the wrapped text or cursor at end
+    const newEnd = start + newText.length;
+    setSelection({ start: newEnd, end: newEnd });
+  };
+
+  const openLinkInput = () => {
+    const { start, end } = selection;
+    if (start !== end) {
+      setLinkText(body.substring(start, end));
+    } else {
+      setLinkText('');
+    }
+    setLinkUrl('');
+    setShowLinkInput(true);
   };
 
   const addLink = () => {
     if (linkUrl) {
-      const text = linkText || linkUrl;
-      insertText(`[${text}](${linkUrl})`);
+      const { start, end } = selection;
+      const textToDisplay = linkText || (start !== end ? body.substring(start, end) : linkUrl);
+      
+      const newText = `[${textToDisplay}](${linkUrl})`;
+      const newBody = body.substring(0, start) + newText + body.substring(end);
+      setBody(newBody);
+      
+      const newPos = start + newText.length;
+      setSelection({ start: newPos, end: newPos });
+
       setShowLinkInput(false);
       setLinkText('');
       setLinkUrl('');
@@ -136,65 +193,131 @@ export default function ComposeScreen() {
   // --- Suggestions Logic ---
   const checkTriggers = (text: string, cursorIndex: number) => {
     const beforeCursor = text.slice(0, cursorIndex);
-    const words = beforeCursor.split(/\s+/);
-    const currentWord = words[words.length - 1] || '';
+    
+    // Check for Mention (@Name Surname)
+    const lastAt = beforeCursor.lastIndexOf('@');
+    // Ensure @ is preceded by space or start of line
+    const isAtValid = lastAt === 0 || /\s/.test(beforeCursor[lastAt - 1]);
 
-    if (currentWord.startsWith('[[')) {
-      const query = currentWord.slice(2);
-      if (suggestionType !== 'topic') setSuggestionType('topic');
-      loadTopicSuggestions(query);
-    } else if (currentWord.startsWith('@')) {
-      const query = currentWord.slice(1);
-      if (suggestionType !== 'mention') setSuggestionType('mention');
-      loadMentionSuggestions(query);
-    } else {
-      if (suggestionType !== 'none') setSuggestionType('none');
+    if (lastAt !== -1 && isAtValid) {
+        const query = beforeCursor.slice(lastAt + 1);
+        // Allow spaces in mentions, but stop at newline or reasonable length
+        if (!query.includes('\n') && query.length < 50) {
+            // Check if we typed another trigger character that invalidates this one
+            if (!query.includes('[[')) {
+                if (suggestionType !== 'mention') setSuggestionType('mention');
+                loadMentionSuggestions(query);
+                return;
+            }
+        }
+    }
+
+    // Check for Topic ([[Topic]])
+    const lastBracket = beforeCursor.lastIndexOf('[[');
+    if (lastBracket !== -1) {
+        const query = beforeCursor.slice(lastBracket + 2);
+        if (!query.includes(']]') && !query.includes('\n')) {
+             if (suggestionType !== 'topic') setSuggestionType('topic');
+             loadTopicSuggestions(query);
+             return;
+        }
+    }
+
+    if (suggestionType !== 'none') {
+        setSuggestionType('none');
+        setSuggestions([]);
     }
   };
 
-  const loadTopicSuggestions = async (q: string) => {
-    try {
-        let res;
-        if (!q) {
-           res = await api.get('/explore/topics?limit=5');
-           setSuggestions(Array.isArray(res) ? res : (res.items || []));
-        } else {
-           res = await api.get(`/search/topics?q=${encodeURIComponent(q)}`);
-           setSuggestions(res.hits || []);
+  const loadTopicSuggestions = (q: string) => {
+    const requestId = ++searchRequestId.current;
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    
+    // Telemetry: Request Queued
+    // console.log(`[Search Telemetry] Queueing topic search for '${q}' (ID: ${requestId})`);
+
+    searchTimeout.current = setTimeout(async () => {
+        if (searchRequestId.current !== requestId) {
+            console.log(`[Search Telemetry] Cancelled topic search (ID: ${requestId})`);
+            return;
         }
-    } catch (e) {
-        // Fallback
-    }
+        
+        const startTime = Date.now();
+        console.log(`[Search Telemetry] Executing topic search for '${q}' (ID: ${requestId})`);
+
+        try {
+            let results = [];
+            const trimmedQ = q.trim();
+            if (!trimmedQ) {
+               setSuggestions([]); 
+            } else {
+               const [topicRes, postRes] = await Promise.all([
+                 api.get(`/search/topics?q=${encodeURIComponent(trimmedQ)}`),
+                 api.get(`/search/posts?q=${encodeURIComponent(trimmedQ)}`)
+               ]);
+               
+               if (searchRequestId.current !== requestId) {
+                   console.log(`[Search Telemetry] Stale response ignored (ID: ${requestId})`);
+                   return;
+               }
+
+               const topics = (topicRes.hits || []).map((t: any) => ({ ...t, type: 'topic' }));
+               const posts = (postRes.hits || []).map((p: any) => ({ ...p, type: 'post', displayName: p.title || 'Untitled Post' }));
+               
+               results = [...topics, ...posts];
+               setSuggestions(results);
+               console.log(`[Search Telemetry] Success (ID: ${requestId}) - ${results.length} results in ${Date.now() - startTime}ms`);
+            }
+        } catch (e) {
+            console.error(`[Search Telemetry] Failed (ID: ${requestId})`, e);
+        }
+    }, 150); // Debounce
   };
 
-  const loadMentionSuggestions = async (q: string) => {
-    try {
-        let res;
-        if (!q) {
-           res = await api.get('/users/suggested?limit=5');
-           setSuggestions(Array.isArray(res) ? res : []);
-        } else {
-           res = await api.get(`/search/users?q=${encodeURIComponent(q)}`);
-           setSuggestions(res.hits || []);
+  const loadMentionSuggestions = (q: string) => {
+    const requestId = ++searchRequestId.current;
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    
+    searchTimeout.current = setTimeout(async () => {
+        if (searchRequestId.current !== requestId) return;
+        try {
+            const trimmedQ = q.trim();
+            let res;
+            if (!trimmedQ) {
+               setSuggestions([]);
+            } else {
+               res = await api.get(`/search/users?q=${encodeURIComponent(trimmedQ)}`);
+               setSuggestions(res.hits || []);
+            }
+        } catch (e) {
+            // Fallback
         }
-    } catch (e) {
-        // Fallback
-    }
+    }, 150);
   };
 
   const handleSuggestionSelect = (item: any) => {
     const beforeCursor = body.slice(0, selection.start);
     const afterCursor = body.slice(selection.start);
-    const words = beforeCursor.split(/\s+/);
-    const lastWord = words[words.length - 1];
-    const triggerIndex = beforeCursor.lastIndexOf(lastWord);
-
+    
+    let triggerIndex = -1;
     let insertion = '';
-    if (suggestionType === 'topic') insertion = `[[${item.slug || item.title}]] `;
-    else if (suggestionType === 'mention') insertion = `@${item.handle} `;
 
-    const newBody = beforeCursor.substring(0, triggerIndex) + insertion + afterCursor;
-    setBody(newBody);
+    if (suggestionType === 'mention') {
+        triggerIndex = beforeCursor.lastIndexOf('@');
+        insertion = `@${item.handle} `;
+    } else if (suggestionType === 'topic') {
+        triggerIndex = beforeCursor.lastIndexOf('[[');
+        if (item.type === 'post') {
+             insertion = `[[post:${item.id}|${item.displayName || item.title}]] `;
+        } else {
+             insertion = `[[${item.slug || item.title}]] `;
+        }
+    }
+
+    if (triggerIndex !== -1) {
+        const newBody = beforeCursor.substring(0, triggerIndex) + insertion + afterCursor;
+        setBody(newBody);
+    }
     setSuggestionType('none');
   };
 
@@ -267,15 +390,35 @@ export default function ComposeScreen() {
       <Pressable style={styles.toolBtn} onPress={() => formatSelection('quote')}><MaterialIcons name="format-quote" size={20} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => formatSelection('list')}><MaterialIcons name="format-list-bulleted" size={20} color={COLORS.primary} /></Pressable>
       <View style={styles.divider} />
-      <Pressable style={styles.toolBtn} onPress={() => setShowLinkInput(true)}><MaterialIcons name="link" size={20} color={COLORS.primary} /></Pressable>
+      <Pressable style={styles.toolBtn} onPress={openLinkInput}><MaterialIcons name="link" size={20} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => insertText('[[')}><Text style={styles.toolText}>[[ ]]</Text></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => insertText('@')}><MaterialIcons name="alternate-email" size={20} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={pickImage}><MaterialIcons name="image" size={20} color={COLORS.primary} /></Pressable>
     </ScrollView>
   );
 
+  useEffect(() => {
+    checkTriggers(body, selection.start);
+  }, [body, selection]);
+
+  const previewPost = {
+    id: 'preview',
+    title: body.startsWith('# ') ? body.split('\n')[0].substring(2) : undefined,
+    body: body,
+    createdAt: new Date().toISOString(),
+    author: {
+      id: 'me',
+      handle: 'me',
+      displayName: 'Me',
+    },
+    headerImageKey: null,
+  };
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={[styles.container, { paddingTop: insets.top }]}
+    >
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.closeBtn}>
           <Text style={styles.closeText}>{t('common.cancel')}</Text>
@@ -297,59 +440,61 @@ export default function ComposeScreen() {
         </Pressable>
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <Pressable style={{ flex: 1 }} onPress={() => !previewMode && textInputRef.current?.focus()}>
-            <ScrollView style={styles.editorContainer} contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-                {quotedPost && (
-                    <View style={styles.quoteBox}>
-                        <Text style={styles.quoteTitle}>{quotedPost.title || 'Post'}</Text>
-                        <Text numberOfLines={2} style={styles.quoteBody}>{quotedPost.body}</Text>
-                    </View>
-                )}
-                
-                {headerImage && (
-                    <View style={styles.imageContainer}>
-                        <Image source={{ uri: headerImage }} style={styles.headerImg} />
-                        {!previewMode && (
-                            <Pressable style={styles.removeImgBtn} onPress={() => { setHeaderImage(null); setHeaderImageAsset(null); }}>
-                                <MaterialIcons name="close" size={16} color="white" />
-                            </Pressable>
-                        )}
-                    </View>
-                )}
+      <Pressable style={{ flex: 1 }} onPress={() => !previewMode && textInputRef.current?.focus()}>
+          <ScrollView 
+            style={styles.editorContainer} 
+            contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }} 
+            keyboardShouldPersistTaps="handled"
+          >
+              {quotedPost && (
+                  <View style={styles.quoteBox}>
+                      <Text style={styles.quoteTitle}>{quotedPost.title || 'Post'}</Text>
+                      <Text numberOfLines={2} style={styles.quoteBody}>{quotedPost.body}</Text>
+                  </View>
+              )}
+              
+              {headerImage && !previewMode && (
+                  <View style={styles.imageContainer}>
+                      <Image source={{ uri: headerImage }} style={styles.headerImg} />
+                      <Pressable style={styles.removeImgBtn} onPress={() => { setHeaderImage(null); setHeaderImageAsset(null); }}>
+                          <MaterialIcons name="close" size={16} color="white" />
+                      </Pressable>
+                  </View>
+              )}
 
-                {previewMode ? (
-                    <MarkdownText>{body}</MarkdownText>
-                ) : (
-                    <TextInput
-                        ref={textInputRef}
-                        style={styles.input}
-                        placeholder={t('compose.placeholderWithMarkdown', 'Start writing...')}
-                        placeholderTextColor={COLORS.tertiary}
-                        multiline
-                        scrollEnabled={false} 
-                        value={body}
-                        onChangeText={(text) => { setBody(text); checkTriggers(text, selection.start); }}
-                        onSelectionChange={(e) => {
-                            const sel = e.nativeEvent.selection;
-                            setSelection(sel);
-                            checkTriggers(body, sel.start);
-                        }}
-                        autoFocus
-                    />
-                )}
-            </ScrollView>
-        </Pressable>
+              {previewMode ? (
+                  <PostContent 
+                    post={previewPost} 
+                    headerImageUri={headerImage}
+                    disableNavigation
+                    showSources={true}
+                    referenceMetadata={referenceMetadata}
+                  />
+              ) : (
+                  <TextInput
+                      ref={textInputRef}
+                      style={styles.input}
+                      placeholder={t('compose.placeholderWithMarkdown', 'Start writing...')}
+                      placeholderTextColor={COLORS.tertiary}
+                      multiline
+                      scrollEnabled={false} 
+                      value={body}
+                      onChangeText={setBody}
+                      onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+                      autoFocus
+                  />
+              )}
+          </ScrollView>
+      </Pressable>
 
-        {/* Footer Area */}
-        {!previewMode && (
-            <View style={styles.footer}>
-                <SuggestionsView />
-                {showLinkInput ? <LinkInput /> : <Toolbar />}
-            </View>
-        )}
-      </KeyboardAvoidingView>
-    </View>
+      {/* Footer Area */}
+      {!previewMode && (
+          <View style={styles.footer}>
+              <SuggestionsView />
+              {showLinkInput ? <LinkInput /> : <Toolbar />}
+          </View>
+      )}
+    </KeyboardAvoidingView>
   );
 }
 

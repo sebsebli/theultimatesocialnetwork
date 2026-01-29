@@ -179,13 +179,8 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       DB_SSL: "false"
       PORT: 3000
-      # SMTP Email Configuration
-      SMTP_HOST: ${SMTP_HOST:-smtp-relay.brevo.com}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-"Cite System" <noreply@cite.com>}
+      # SMTP, FRONTEND_URL, CITE_ADMIN_SECRET: loaded from env_file (.env) only
+      # so infra/docker/.env is the single source of truth (path is relative to this compose file)
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
       CITE_ADMIN_SECRET: ${CITE_ADMIN_SECRET:-dev-admin-change-me}
     depends_on:

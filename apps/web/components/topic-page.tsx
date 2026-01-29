@@ -1,16 +1,19 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { PostItem } from './post-item';
+import { useState } from "react";
+import Image from "next/image";
+import { PostItem, Post } from "./post-item";
 
 interface TopicPageProps {
   topic: {
     id: string;
     slug: string;
     title: string;
-    posts?: any[];
-    startHere?: any[];
+    description?: string;
+    postCount?: number;
+    contributorCount?: number;
+    posts?: Post[];
+    startHere?: Post[];
     isFollowing?: boolean;
   };
 }
@@ -23,30 +26,62 @@ export function TopicPage({ topic }: TopicPageProps) {
     setIsFollowing(!previous);
     try {
       // API call would go here
-    } catch (error) {
+    } catch {
       setIsFollowing(previous);
     }
   };
 
+  const headerImagePost = topic.posts?.find((p) => p.headerImageKey);
+  const headerImageUrl = headerImagePost
+    ? `http://localhost:9000/cite-images/${headerImagePost.headerImageKey}`
+    : null;
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <div className="bg-ink border-b border-divider">
-        <div className="max-w-[680px] mx-auto px-6 py-8">
-          <div className="flex items-start justify-between">
+      <div className="relative bg-ink border-b border-divider overflow-hidden min-h-[200px] flex items-end">
+        {headerImageUrl && (
+          <div className="absolute inset-0 z-0">
+            <Image
+              src={headerImageUrl}
+              alt="Topic header"
+              fill
+              className="object-cover opacity-30"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/80 to-transparent" />
+          </div>
+        )}
+
+        <div className="relative z-10 max-w-[680px] mx-auto px-6 py-8 w-full">
+          <div className="flex items-end justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-paper mb-2">{topic.title}</h1>
-              <p className="text-secondary">Topic</p>
+              <h1 className="text-4xl font-bold text-paper mb-2">
+                {topic.title}
+              </h1>
+              <div className="flex items-center gap-2 text-secondary text-sm">
+                <span>Topic</span>
+                <span>•</span>
+                <span>{(topic.postCount || 0).toLocaleString()} posts</span>
+                <span>•</span>
+                <span>
+                  {(topic.contributorCount || 0).toLocaleString()} contributors
+                </span>
+              </div>
+              {topic.description && (
+                <p className="mt-4 text-paper/90 max-w-xl text-lg leading-relaxed">
+                  {topic.description}
+                </p>
+              )}
             </div>
             <button
               onClick={handleFollow}
-              className={`px-6 py-2.5 rounded-full font-semibold transition-colors ${
+              className={`px-6 py-2.5 rounded-full font-semibold transition-colors shrink-0 ${
                 isFollowing
-                  ? 'bg-transparent border border-primary text-primary hover:bg-primary/10'
-                  : 'bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20'
+                  ? "bg-white/10 border border-white/20 text-paper hover:bg-white/20"
+                  : "bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
               }`}
             >
-              {isFollowing ? 'Following' : 'Follow Topic'}
+              {isFollowing ? "Following" : "Follow Topic"}
             </button>
           </div>
         </div>
@@ -57,9 +92,11 @@ export function TopicPage({ topic }: TopicPageProps) {
         {/* Start here (most cited) */}
         {topic.startHere && topic.startHere.length > 0 && (
           <section>
-            <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">Start here</h2>
+            <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">
+              Start here
+            </h2>
             <div className="space-y-0">
-              {topic.startHere.map((post: any) => (
+              {topic.startHere.map((post) => (
                 <PostItem key={post.id} post={post} />
               ))}
             </div>
@@ -68,12 +105,12 @@ export function TopicPage({ topic }: TopicPageProps) {
 
         {/* New */}
         <section>
-          <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">Latest Discussion</h2>
+          <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">
+            Latest Discussion
+          </h2>
           <div className="space-y-0">
             {topic.posts && topic.posts.length > 0 ? (
-              topic.posts.map((post: any) => (
-                <PostItem key={post.id} post={post} />
-              ))
+              topic.posts.map((post) => <PostItem key={post.id} post={post} />)
             ) : (
               <p className="text-secondary text-sm py-12 text-center bg-white/5 rounded-lg border border-dashed border-divider">
                 No discussions in this topic yet.
@@ -85,7 +122,9 @@ export function TopicPage({ topic }: TopicPageProps) {
         {/* People */}
         <section>
           <h2 className="text-lg font-semibold mb-4 text-paper">People</h2>
-          <p className="text-secondary text-sm">Top authors in this topic coming soon...</p>
+          <p className="text-secondary text-sm">
+            Top authors in this topic coming soon...
+          </p>
         </section>
 
         {/* Sources */}

@@ -66,11 +66,19 @@ export const PersonCard = ({ item, onPress, showWhy = true }: { item: any; onPre
   </Pressable>
 );
 
+import { PostContent } from './PostContent';
+
+// ... (existing imports)
+
 export const QuoteCard = ({ item, onPress, showWhy = true }: { item: any; onPress: () => void; showWhy?: boolean }) => (
   <View style={styles.quoteWrapper}>
-    {/* Re-use PostItem here usually, but if custom: */}
     <Pressable onPress={onPress} style={styles.quoteCard}>
-      <Text style={styles.quoteBody} numberOfLines={3}>{item.body}</Text>
+        {/* If it looks like a post object (has author/title), use PostContent logic, else fallback */}
+        {item.author ? (
+            <PostContent post={item} disableNavigation={true} />
+        ) : (
+            <Text style={styles.quoteBody} numberOfLines={3}>{item.body}</Text>
+        )}
     </Pressable>
     {showWhy && item.reasons && (
       <View style={styles.quoteWhy}>

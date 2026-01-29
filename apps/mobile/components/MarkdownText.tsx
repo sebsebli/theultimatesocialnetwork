@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, Linking, Modal, Pressable } from 'react-native';
+import { StyleSheet, Text, View, Modal, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 interface MarkdownTextProps {
@@ -13,15 +14,23 @@ export function MarkdownText({ children }: MarkdownTextProps) {
   const [targets, setTargets] = useState<string[]>([]);
   const [alias, setAlias] = useState('');
 
-  const handleLinkPress = (url: string) => {
+  const handleLinkPress = async (url: string) => {
     if (url.startsWith('http')) {
-      Linking.openURL(url);
+      await WebBrowser.openBrowserAsync(url, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        toolbarColor: COLORS.ink,
+        controlsColor: COLORS.primary,
+      });
     } else if (url.startsWith('post:')) {
       const id = url.split(':')[1];
       router.push(`/post/${id}`);
     } else {
-      // Topic
-      router.push(`/explore?tab=topics&q=${url}`);
+      // Topic - Route to topic page
+      // Url is likely the topic name or slug. 
+      // We assume simple slugification or passing raw if the route handles it.
+      // Ideally we should slugify.
+      const slug = url.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      router.push(`/topic/${slug}`);
     }
   };
 
@@ -153,15 +162,26 @@ export function MarkdownText({ children }: MarkdownTextProps) {
         parts.push(<Text key={`${lineIndex}-end`} style={lineStyle}>{content.substring(lastIndex)}</Text>);
       }
 
-      nodes.push(
-        <View key={lineIndex} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-          {prefix}
-          <Text style={lineStyle}>
-            {parts.length > 0 ? parts : content}
-            {lineIndex < lines.length - 1 ? '\n' : ''}
-          </Text>
-        </View>
-      );
+      // Empty line -> Paragraph spacing
+      if (content.trim() === '') {
+        nodes.push(<View key={lineIndex} style={{ height: SPACING.m }} />);
+      } else {
+        nodes.push(
+          <View 
+            key={lineIndex} 
+            style={{
+              flexDirection: 'row', 
+              alignItems: 'flex-start',
+              marginBottom: (lineStyle === styles.h1 || lineStyle === styles.h2 || lineStyle === styles.h3) ? SPACING.m : 0 
+            }}
+          >
+            {prefix}
+            <Text style={lineStyle}>
+              {parts.length > 0 ? parts : content}
+            </Text>
+          </View>
+        );
+      }
     });
 
     return nodes;
@@ -210,28 +230,28 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.m,
   },
   text: {
-    fontSize: 17,
-    lineHeight: 26,
+    fontSize: 18,
+    lineHeight: 28,
     color: COLORS.paper,
     fontFamily: FONTS.serifRegular,
   },
   h1: {
-    fontSize: 24,
-    lineHeight: 32,
+    fontSize: 26,
+    lineHeight: 34,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.serifSemiBold,
-    marginTop: SPACING.m,
-    marginBottom: SPACING.s,
+    marginTop: SPACING.l,
+    marginBottom: SPACING.m, 
   },
   h2: {
-    fontSize: 20,
-    lineHeight: 28,
+    fontSize: 22,
+    lineHeight: 30,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.serifSemiBold,
-    marginTop: SPACING.m,
-    marginBottom: SPACING.s,
+    marginTop: SPACING.l,
+    marginBottom: SPACING.m, 
   },
   h3: {
     fontSize: 18,
@@ -240,7 +260,7 @@ const styles = StyleSheet.create({
     color: COLORS.paper,
     fontFamily: FONTS.serifSemiBold,
     marginTop: SPACING.s,
-    marginBottom: SPACING.s,
+    marginBottom: SPACING.m,
   },
   blockquote: {
     fontSize: 17,
@@ -281,7 +301,9 @@ const styles = StyleSheet.create({
   },
   link: {
     color: COLORS.primary,
+    fontWeight: '500',
     textDecorationLine: 'underline',
+    textDecorationColor: 'rgba(110, 122, 138, 0.5)',
   },
   modalOverlay: {
     flex: 1,

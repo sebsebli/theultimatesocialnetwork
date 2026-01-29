@@ -1,19 +1,17 @@
 import React, { useRef, memo } from 'react';
-import { StyleSheet, Text, View, Pressable, Share, Platform, Animated, Alert } from 'react-native';
+import { StyleSheet, Text, View, Pressable, Platform, Animated, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { api } from '../utils/api';
 import { queueAction } from '../utils/offlineQueue';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useToast } from '../context/ToastContext';
-import { MarkdownText } from './MarkdownText';
 import AddToCollectionSheet, { AddToCollectionSheetRef } from './AddToCollectionSheet';
 import ShareSheet, { ShareSheetRef } from './ShareSheet';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
-import { Avatar } from './Avatar';
+import { PostContent } from './PostContent';
 
 interface PostItemProps {
   post: {
@@ -58,21 +56,6 @@ function PostItemComponent({
   const scaleValue = useRef(new Animated.Value(1)).current;
   const collectionSheetRef = useRef<AddToCollectionSheetRef>(null);
   const shareSheetRef = useRef<ShareSheetRef>(null);
-
-  const formatTime = (date: string) => {
-    const d = new Date(date);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (minutes < 1) return t('common.time.now', 'now');
-    if (minutes < 60) return `${minutes}${t('common.time.minutes', 'm')}`;
-    if (hours < 24) return `${hours}${t('common.time.hours', 'h')}`;
-    if (days < 7) return `${days}${t('common.time.days', 'd')}`;
-    return d.toLocaleDateString();
-  };
 
   const animateLike = () => {
     Animated.sequence([
@@ -199,64 +182,10 @@ function PostItemComponent({
     ) as React.JSX.Element;
   }
 
-  const authorInitial = post.author.displayName
-    ? post.author.displayName.charAt(0).toUpperCase()
-    : '?';
-
   return (
     <View style={styles.container}>
-      {/* Author Header */}
-      <Pressable
-        style={({ pressed }: { pressed: boolean }) => [styles.authorRow, pressed && { opacity: 0.7 }]}
-        onPress={() => post.author?.handle && router.push(`/user/${post.author.handle}`)}
-      >
-        <Avatar name={post.author.displayName} size={40} />
-        <View style={styles.authorInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.authorName}>{post.author.displayName || t('post.unknownUser', 'Unknown')}</Text>
-            <MaterialIcons name="circle" size={4} color={COLORS.tertiary} style={styles.dotIcon} />
-            <Text style={styles.metaText}>{formatTime(post.createdAt)}</Text>
-          </View>
-        </View>
-        <Pressable
-          onPress={handleMenu}
-          hitSlop={12}
-          style={({ pressed }: { pressed: boolean }) => [{ padding: 4 }, pressed && { opacity: 0.5 }]}
-        >
-          <MaterialIcons name="more-horiz" size={20} color={COLORS.tertiary} />
-        </Pressable>
-      </Pressable>
-
-      {/* Content */}
-      <Pressable
-        onPress={() => {
-          if (post.title) {
-            router.push(`/post/${post.id}/reading`);
-          } else {
-            router.push(`/post/${post.id}`);
-          }
-        }}
-        style={({ pressed }: { pressed: boolean }) => [styles.content, pressed && { opacity: 0.9 }]}
-        accessibilityRole="button"
-        accessibilityLabel={post.title || post.body.substring(0, 50)}
-      >
-        {post.title && (
-          <Text style={styles.title}>{post.title}</Text>
-        )}
-        <MarkdownText>{post.body}</MarkdownText>
-        {post.headerImageKey && (
-          <Image
-            source={{ uri: `${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'}/images/${post.headerImageKey}` }}
-            style={styles.headerImage}
-            contentFit="cover"
-            transition={300}
-            placeholder={post.headerImageBlurhash}
-            placeholderContentFit="cover"
-            cachePolicy="memory-disk"
-            accessibilityLabel={t('post.headerImage')}
-          />
-        )}
-      </Pressable>
+      
+      <PostContent post={post} onMenuPress={handleMenu} />
 
       {/* Private Feedback Line (Author Only) */}
       {post.privateLikeCount !== undefined && post.privateLikeCount > 0 && (
@@ -360,69 +289,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.ink,
     gap: SPACING.m, // gap-3
   },
-  authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.m, // gap-3
-  },
-  avatar: {
-    width: 40, // h-10 w-10
-    height: 40,
-    borderRadius: 20, // rounded-full
-    backgroundColor: 'rgba(110, 122, 138, 0.2)', // bg-primary/20
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Optional: Add image support here later
-  },
-  avatarText: {
-    fontSize: 14, // text-sm
-    fontWeight: '600',
-    color: COLORS.primary, // text-primary
-    fontFamily: FONTS.semiBold,
-  },
-  authorInfo: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  authorName: {
-    fontSize: 14, // text-sm
-    fontWeight: '600',
-    color: COLORS.paper, // text-paper
-    fontFamily: FONTS.semiBold,
-  },
-  dotIcon: {
-    marginHorizontal: 6, // gap-1.5
-  },
   metaText: {
     fontSize: 12, // text-xs
     color: COLORS.tertiary, // text-tertiary
     fontFamily: FONTS.regular,
-  },
-  handle: {
-    fontSize: 12, // text-xs (if shown)
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
-  content: {
-    gap: SPACING.s, // gap-2
-  },
-  title: {
-    fontSize: 18, // text-lg
-    fontWeight: '700', // font-bold
-    color: COLORS.paper, // text-paper
-    lineHeight: 24, // leading-snug
-    fontFamily: FONTS.semiBold, // Inter for feed consistency
-    letterSpacing: -0.5, // tracking-tight
-  },
-  headerImage: {
-    width: '100%',
-    height: 200,
-    backgroundColor: COLORS.divider,
-    borderRadius: SIZES.borderRadius,
-    marginTop: SPACING.m,
   },
   privateFeedback: {
     flexDirection: 'row',

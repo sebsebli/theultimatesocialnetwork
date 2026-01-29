@@ -106,7 +106,7 @@ export default function ProfileScreen() {
 
   const handleFollow = async () => {
     if (isSelf) {
-      router.push('/onboarding/profile');
+      router.push('/settings/profile');
       return;
     }
 

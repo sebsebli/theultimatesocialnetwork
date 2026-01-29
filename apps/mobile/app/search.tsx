@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../utils/api';
 import { PostItem } from '../components/PostItem';
+import { PersonCard, TopicCard } from '../components/ExploreCards';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
 export default function SearchScreen() {
@@ -54,7 +55,7 @@ export default function SearchScreen() {
         }, 300);
       };
     },
-    [activeType] // Re-create if type changes to ensure correct context
+    [activeType]
   );
 
   return (
@@ -109,34 +110,19 @@ export default function SearchScreen() {
             return <PostItem post={item} />;
           } else if (activeType === 'people') {
             return (
-              <Pressable
-                style={styles.personCard}
-                onPress={() => router.push(`/user/${item.handle}`)}
-                accessibilityRole="button"
-              >
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {(item.displayName ?? item.handle ?? '?').charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.personInfo}>
-                  <Text style={styles.personName}>{item.displayName || item.handle || '—'}</Text>
-                  <Text style={styles.personHandle}>@{item.handle ?? '—'}</Text>
-                  {item.bio && (
-                    <Text style={styles.personBio} numberOfLines={2}>{item.bio}</Text>
-                  )}
-                </View>
-              </Pressable>
+              <PersonCard 
+                item={item} 
+                onPress={() => router.push(`/user/${item.handle}`)} 
+                showWhy={false} 
+              />
             );
           } else {
             return (
-              <Pressable
-                style={styles.topicCard}
-                onPress={() => router.push(`/topic/${item.slug}`)}
-                accessibilityRole="button"
-              >
-                <Text style={styles.topicTitle}>{item.title}</Text>
-              </Pressable>
+              <TopicCard 
+                item={item} 
+                onPress={() => router.push(`/topic/${item.slug}`)} 
+                showWhy={false} 
+              />
             );
           }
         }, [activeType, router])}
@@ -207,60 +193,6 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: COLORS.paper,
-  },
-  personCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    gap: SPACING.m,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.primary, // text-primary
-    fontFamily: FONTS.semiBold,
-  },
-  personInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  personName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  personHandle: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
-  personBio: {
-    fontSize: 14,
-    color: COLORS.secondary,
-    marginTop: 4,
-    fontFamily: FONTS.regular,
-  },
-  topicCard: {
-    padding: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  topicTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   emptyState: {
     padding: SPACING.xxxl,

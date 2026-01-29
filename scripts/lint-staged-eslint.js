@@ -24,7 +24,7 @@ for (const [app, list] of Object.entries(byApp)) {
   const r = spawnSync('npx', ['eslint', '--fix', ...list], {
     cwd,
     stdio: 'inherit',
-    shell: true,
+    shell: false,
   });
   if (r.status !== 0) exitCode = r.status;
 }

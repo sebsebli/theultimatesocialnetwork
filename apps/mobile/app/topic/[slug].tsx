@@ -3,12 +3,16 @@ import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIn
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
+import { PersonCard } from '../../components/ExploreCards';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import * as WebBrowser from 'expo-web-browser';
 
 export default function TopicScreen() {
   const router = useRouter();
+  // ... existing hooks ...
   const { slug } = useLocalSearchParams();
   const slugStr = (Array.isArray(slug) ? slug?.[0] : slug) ?? '';
   const { t } = useTranslation();
@@ -20,7 +24,10 @@ export default function TopicScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'start-here' | 'new' | 'people' | 'source'>('start-here');
+  const [activeTab, setActiveTab] = useState<'start-here' | 'new' | 'people' | 'source'>('new');
+  const [stickyHeaderImageKey, setStickyHeaderImageKey] = useState<string | null>(null);
+
+  // ... loadTopic ...
 
   const loadTopic = async (pageNum: number, reset = false) => {
     if (!slugStr) return;
@@ -36,17 +43,15 @@ export default function TopicScreen() {
       setTopic(data);
       setIsFollowing((data as any).isFollowing || false);
 
-      // Load data with pagination based on active tab
       let endpoint = `/topics/${slugStr}/posts`;
       if (activeTab === 'start-here') {
-        // The main topic endpoint already includes startHere, but for consistency 
-        // we might want a paginated list of top cited posts.
-        // For now, if reset we use topic.startHere, if not we fall back to posts.
         if (reset && data.startHere) {
           setPosts(data.startHere);
-          setHasMore(false); // startHere is usually limited
+          updateStickyImage(data.startHere);
+          setHasMore(false); 
           return;
         }
+        endpoint = `/topics/${slugStr}/posts?sort=ranked`;
       }
 
       if (activeTab === 'people') endpoint = `/topics/${slugStr}/people`;
@@ -57,6 +62,7 @@ export default function TopicScreen() {
 
       if (reset) {
         setPosts(items);
+        if (activeTab === 'new' || activeTab === 'start-here') updateStickyImage(items);
       } else {
         setPosts(prev => [...prev, ...items]);
       }
@@ -72,9 +78,17 @@ export default function TopicScreen() {
     }
   };
 
+  const updateStickyImage = (items: any[]) => {
+    // Only set if not already set to ensure stability (deterministic per session)
+    setStickyHeaderImageKey(prev => {
+        if (prev) return prev;
+        const found = items.find(p => p.headerImageKey)?.headerImageKey;
+        return found || null;
+    });
+  };
+
   useEffect(() => {
     setPage(1);
-    setPosts([]);
     loadTopic(1, true);
   }, [slugStr, activeTab]);
 
@@ -91,9 +105,43 @@ export default function TopicScreen() {
     }
   }, [refreshing, loadingMore, hasMore, page, slugStr]);
 
-  const renderItem = useCallback(({ item }: { item: any }) => (
-    <PostItem post={item} />
-  ), []);
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    if (activeTab === 'people') {
+      return (
+        <PersonCard 
+          item={item} 
+          onPress={() => router.push(`/user/${item.handle}`)} 
+          showWhy={false} 
+        />
+      );
+    }
+    if (activeTab === 'source') {
+      return (
+        <Pressable 
+          style={styles.sourceItem}
+          onPress={async () => {
+             if (item.url) await WebBrowser.openBrowserAsync(item.url);
+          }}
+        >
+          <View style={styles.sourceIcon}>
+            <Text style={styles.sourceIconText}>{(item.title || '?').charAt(0).toUpperCase()}</Text>
+          </View>
+          <View style={styles.sourceContent}>
+            <Text style={styles.sourceDomain}>{item.url ? new URL(item.url).hostname : 'External'}</Text>
+            <Text style={styles.sourceText} numberOfLines={1}>{item.title || item.url}</Text>
+          </View>
+          <MaterialIcons name="open-in-new" size={16} color={COLORS.tertiary} />
+        </Pressable>
+      );
+    }
+    return <PostItem post={item} />;
+  }, [activeTab]);
+
+  // ... rest of component ...
+
+  // Styles needed for SourceItem (copied from PostContent to match)
+  // Add these to styles object at bottom
+
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
@@ -120,6 +168,11 @@ export default function TopicScreen() {
     }
   };
 
+  // Find a header image from the posts if available
+  // const headerImageKey = useMemo(() => {
+  //   return posts.find(p => p.headerImageKey)?.headerImageKey;
+  // }, [posts]);
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -145,33 +198,54 @@ export default function TopicScreen() {
       ListHeaderComponent={
         <>
           <View style={styles.header}>
+            {stickyHeaderImageKey ? (
+                <Image
+                    source={{ uri: `${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'}/images/${stickyHeaderImageKey}` }}
+                    style={styles.topicHeaderImage}
+                    contentFit="cover"
+                    transition={300}
+                />
+            ) : (
+                <View style={styles.topicHeaderPlaceholder} />
+            )}
+            
             <Pressable
               onPress={() => router.back()}
               accessibilityLabel="Go back"
               accessibilityRole="button"
+              style={styles.backButtonAbsolute}
             >
-              <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
+              <View style={styles.iconCircle}>
+                 <MaterialIcons name="arrow-back" size={24} color="#FFF" />
+              </View>
             </Pressable>
-            <Text style={styles.headerTitle}>{topic.title}</Text>
-            <View style={styles.headerRight}>
+            
+            <View style={styles.headerRightAbsolute}>
               <Pressable
-                style={styles.headerIconButton}
+                style={styles.iconCircle}
                 onPress={() => router.push('/search')}
-                accessibilityLabel={t('home.search')}
-                accessibilityRole="button"
               >
-                <MaterialIcons name="search" size={20} color={COLORS.tertiary} />
+                <MaterialIcons name="search" size={20} color="#FFF" />
               </Pressable>
-              <Pressable
-                style={[styles.followButton, isFollowing && styles.followButtonActive]}
-                onPress={handleFollow}
-                accessibilityLabel={isFollowing ? t('profile.following') : t('profile.follow')}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
-                  {isFollowing ? t('profile.following') : t('profile.follow')}
-                </Text>
-              </Pressable>
+            </View>
+
+            <View style={styles.headerOverlay}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.headerTitle}>{topic.title}</Text>
+                  <View style={styles.metricsRow}>
+                    <Text style={styles.metricText}>{(topic.postCount || 0).toLocaleString()} posts</Text>
+                    <Text style={styles.metricText}>•</Text>
+                    <Text style={styles.metricText}>{(topic.contributorCount || 0).toLocaleString()} contributors</Text>
+                  </View>
+                </View>
+                <Pressable
+                    style={[styles.followButton, isFollowing && styles.followButtonActive]}
+                    onPress={handleFollow}
+                >
+                    <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextActive]}>
+                    {isFollowing ? t('profile.following') : t('profile.follow')}
+                    </Text>
+                </Pressable>
             </View>
           </View>
 
@@ -239,30 +313,75 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
   },
   header: {
+    height: 200,
+    backgroundColor: COLORS.ink,
+    position: 'relative',
+    marginBottom: SPACING.m,
+  },
+  topicHeaderImage: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.6,
+  },
+  topicHeaderPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: COLORS.hover,
+  },
+  headerOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: SPACING.l,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingTop: SPACING.header,
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    backgroundColor: 'rgba(0,0,0,0.4)', // Simple scrim
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
-    color: COLORS.paper,
+    color: '#FFFFFF',
     fontFamily: FONTS.semiBold,
     flex: 1,
-    textAlign: 'center',
+    marginRight: SPACING.m,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
-  headerRight: {
+  metricsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
+    gap: 6,
+    marginTop: 4,
   },
-  headerIconButton: {
-    padding: SPACING.xs,
+  metricText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  backButtonAbsolute: {
+    position: 'absolute',
+    top: SPACING.header,
+    left: SPACING.l,
+    zIndex: 10,
+  },
+  headerRightAbsolute: {
+    position: 'absolute',
+    top: SPACING.header,
+    right: SPACING.l,
+    zIndex: 10,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   topicDescription: {
     flexDirection: 'row',
@@ -322,7 +441,7 @@ const styles = StyleSheet.create({
   followButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: '#FFFFFF', // White text for overlay
     fontFamily: FONTS.semiBold,
   },
   followButtonTextActive: {
@@ -331,5 +450,45 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: SPACING.l,
     alignItems: 'center',
+  },
+  sourceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.m,
+    marginHorizontal: SPACING.l,
+    marginBottom: SPACING.s,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    gap: SPACING.m,
+  },
+  sourceIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.divider,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sourceIconText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  sourceContent: {
+    flex: 1,
+    gap: 2,
+  },
+  sourceDomain: {
+    fontSize: 12,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+  },
+  sourceText: {
+    fontSize: 14,
+    color: COLORS.paper,
+    fontFamily: FONTS.medium,
   },
 });

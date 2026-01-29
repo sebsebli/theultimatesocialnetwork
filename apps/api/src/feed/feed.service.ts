@@ -157,13 +157,12 @@ export class FeedService {
         new Brackets((qb) => {
           // Posts by followed users (or self)
           qb.where('post.author_id = :userId', { userId }).orWhere(
-            'post.author_id IN (:...followingIds) AND post.visibility = :visVal',
+            'post.author_id IN (:...followingIds)',
             {
               followingIds:
                 followingIds.length > 0
                   ? followingIds
                   : ['00000000-0000-0000-0000-000000000000'],
-              visVal: 'PUBLIC',
             },
           );
 
