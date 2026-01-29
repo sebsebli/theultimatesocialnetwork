@@ -20,6 +20,7 @@ function SearchContent() {
       title?: string;
       body?: string;
       postCount?: number;
+      author?: { handle: string; displayName: string };
     }[]
   >([]);
   const [loading, setLoading] = useState(false);
@@ -163,11 +164,11 @@ function SearchContent() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
-                      {user.displayName.charAt(0)}
+                      {(user.displayName || user.handle || '?').charAt(0)}
                     </div>
                     <div className="flex-1">
                       <div className="font-semibold text-paper">
-                        {user.displayName}
+                        {user.displayName || user.handle || 'Unknown'}
                       </div>
                       <div className="text-tertiary text-sm">
                         @{user.handle}
@@ -217,7 +218,7 @@ function SearchContent() {
                     {post.body}
                   </p>
                   <div className="text-tertiary text-xs mt-2">
-                    @{post.author.handle}
+                    @{post.author?.handle}
                   </div>
                 </Link>
               ))}

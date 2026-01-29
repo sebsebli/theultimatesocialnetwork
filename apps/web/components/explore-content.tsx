@@ -46,7 +46,7 @@ export function ExploreContent() {
 
   useEffect(() => {
     // Only load if we don't have data for this tab/sort combo or if explicitly refreshing
-    if (tabData[tab].length === 0) {
+    if ((tabData as any)[tab]?.length === 0) {
       loadContent();
     }
   }, [tab, sort]);

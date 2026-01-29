@@ -290,11 +290,11 @@ function ComposeContent() {
     },
     replyCount: 0,
     quoteCount: 0,
-    headerImageKey, // Note: PostItem expects key to be fetched from storage.
+    headerImageKey: headerImageKey || undefined, // Note: PostItem expects key to be fetched from storage.
     // If it's a new upload (blob), PostItem might fail to load it from STORAGE_URL.
     // Ideally we should pass a blob URL for preview, but PostItem needs adjustment.
     // For now, we assume user uploads real image and gets a key.
-    headerImageBlurhash,
+    headerImageBlurhash: headerImageBlurhash || undefined,
   };
 
   return (
