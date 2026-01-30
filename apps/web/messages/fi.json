@@ -409,5 +409,19 @@
     "info": "Vain ilmoituksia varten.",
     "acceptTermsRequired": "Hyväksy ehdot.",
     "goBack": "Takaisin"
+  },
+  "cookieConsent": {
+    "message": "Käytämme evästeitä kirjautumiseen ja asetusten muistamiseen. Ei mainontaa tai kolmannen osapuolen seurantaa. Voit hyväksyä kaikki tai vain välttämättömät evästeet.",
+    "privacyLink": "Tietosuojakäytäntö",
+    "essentialOnly": "Vain välttämättömät",
+    "acceptAll": "Hyväksy kaikki"
+  },
+  "signupOverlay": {
+    "title": "Liity CITEen",
+    "description": "Luo tili seurataksesi käyttäjiä, tallentaaksesi julkaisuja ja osallistuaksesi keskusteluun linkitettyjen ideoiden ja lähteiden kautta.",
+    "signInUp": "Kirjaudu / Rekisteröidy",
+    "joinWaitlist": "Liity odotuslistalle",
+    "notNow": "Ei nyt",
+    "closeAria": "Sulje"
   }
 }

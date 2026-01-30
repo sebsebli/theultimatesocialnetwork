@@ -149,7 +149,7 @@ export default function MessagesScreen() {
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : error && threads.length === 0 ? (
-        <ErrorState onRetry={fetchThreads} />
+        <ErrorState onRetry={fetchThreads} onDismiss={() => setError(false)} />
       ) : (
         <FlatList
           data={threads}
@@ -180,6 +180,7 @@ const styles = StyleSheet.create({
   },
   headerAction: {
     padding: SPACING.s,
+    margin: -SPACING.s,
   },
   searchContainer: {
     padding: SPACING.m,

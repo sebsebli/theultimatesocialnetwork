@@ -136,23 +136,23 @@ export class AuthService {
         throw new BadRequestException('Registration requires invite code');
       }
 
-      // Create new user
-      const handle = email.split('@')[0] + Math.floor(Math.random() * 1000);
+      // Create new user with placeholder profile; real handle/displayName set in onboarding
+      const id = uuidv4();
+      const placeholderHandle = `__pending_${id.replace(/-/g, '').slice(0, 12)}`;
       user = this.userRepo.create({
-        id: uuidv4(),
+        id,
         email,
-        handle,
-        displayName: handle,
+        handle: placeholderHandle,
+        displayName: 'Pending',
         createdAt: new Date(),
         updatedAt: new Date(),
-        invitesRemaining: 3, // Give 3 invites
+        invitesRemaining: 3,
+        onboardingCompletedAt: null,
       });
       user = await this.userRepo.save(user);
 
-      // Index user in search
-      this.meilisearch
-        .indexUser(user)
-        .catch((err) => console.error('Failed to index new user', err));
+      // Index user in search only after they complete onboarding (real handle)
+      // Placeholder users (__pending_*) are not indexed
 
       // Consume invite code
       if (inviteCode) {

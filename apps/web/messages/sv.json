@@ -409,5 +409,19 @@
     "info": "Endast för notis.",
     "acceptTermsRequired": "Acceptera.",
     "goBack": "Tillbaka"
+  },
+  "cookieConsent": {
+    "message": "Vi använder cookies för inloggning och preferenser. Ingen reklam eller tredjepartsspårning. Du kan acceptera alla eller endast nödvändiga.",
+    "privacyLink": "Integritetspolicy",
+    "essentialOnly": "Endast nödvändiga",
+    "acceptAll": "Acceptera alla"
+  },
+  "signupOverlay": {
+    "title": "Gå med i CITE",
+    "description": "Skapa ett konto för att följa personer, spara inlägg och delta i samtalet med kopplade idéer och källor.",
+    "signInUp": "Logga in / Registrera",
+    "joinWaitlist": "Väntelista",
+    "notNow": "Inte nu",
+    "closeAria": "Stäng"
   }
 }

@@ -24,6 +24,12 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
+
+/** Base URL of the API (e.g. for RSS feed links). */
+export function getApiBaseUrl(): string {
+  return API_URL;
+}
+
 const TOKEN_KEY = 'jwt';
 const ONBOARDING_KEY = 'onboarding_complete';
 const ONBOARDING_STAGE_KEY = 'onboarding_stage';

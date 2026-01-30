@@ -409,5 +409,19 @@
     "info": "Csak értesítésre.",
     "acceptTermsRequired": "Fogadd el.",
     "goBack": "Vissza"
+  },
+  "cookieConsent": {
+    "message": "Sütiket használunk a bejelentkezéshez és a beállításokhoz. Nincs reklám vagy harmadik féltől származó nyomkövetés. Elfogadhatja az összeset vagy csak a szükségeseket.",
+    "privacyLink": "Adatvédelmi irányelvek",
+    "essentialOnly": "Csak szükséges",
+    "acceptAll": "Összes elfogadása"
+  },
+  "signupOverlay": {
+    "title": "Csatlakozz a CITE-hez",
+    "description": "Hozz létre fiókot, hogy követhess embereket, mentsd a bejegyzéseket és csatlakozz a beszélgetéshez összekapcsolt ötletekkel és forrásokkal.",
+    "signInUp": "Bejelentkezés / Regisztráció",
+    "joinWaitlist": "Várólista",
+    "notNow": "Most nem",
+    "closeAria": "Bezárás"
   }
 }

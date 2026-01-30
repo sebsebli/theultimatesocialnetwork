@@ -2,6 +2,7 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ExploreService } from './explore.service';
 import { RecommendationService } from './recommendation.service';
 import { AuthGuard } from '@nestjs/passport';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 
 @Controller('explore')
@@ -12,6 +13,7 @@ export class ExploreController {
   ) {}
 
   @Get('topics')
+  @UseGuards(OptionalJwtAuthGuard)
   async getTopics(
     @CurrentUser() user?: { id: string },
     @Query('sort') sort?: string,
@@ -22,6 +24,7 @@ export class ExploreController {
   }
 
   @Get('people')
+  @UseGuards(OptionalJwtAuthGuard)
   async getPeople(
     @CurrentUser() user?: { id: string },
     @Query('sort') sort?: string,
@@ -35,6 +38,7 @@ export class ExploreController {
   }
 
   @Get('quoted-now')
+  @UseGuards(OptionalJwtAuthGuard)
   async getQuotedNow(
     @CurrentUser() user?: { id: string },
     @Query('lang') lang?: string,
@@ -44,6 +48,7 @@ export class ExploreController {
   }
 
   @Get('deep-dives')
+  @UseGuards(OptionalJwtAuthGuard)
   async getDeepDives(
     @CurrentUser() user?: { id: string },
     @Query('lang') lang?: string,
@@ -53,6 +58,7 @@ export class ExploreController {
   }
 
   @Get('newsroom')
+  @UseGuards(OptionalJwtAuthGuard)
   async getNewsroom(
     @CurrentUser() user?: { id: string },
     @Query('lang') lang?: string,

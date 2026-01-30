@@ -170,12 +170,13 @@ const styles = StyleSheet.create({
   },
   headerAction: {
     padding: SPACING.s,
+    margin: -SPACING.s,
   },
   markAllRead: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: COLORS.primary,
-    fontFamily: FONTS.medium,
+    fontSize: 16,
+    fontWeight: '600',
+    color: HEADER.saveColor,
+    fontFamily: FONTS.semiBold,
   },
   notification: {
     padding: SPACING.l,

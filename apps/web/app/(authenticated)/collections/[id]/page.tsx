@@ -8,7 +8,6 @@ interface Collection {
   id: string;
   title: string;
   description?: string;
-  isPublic: boolean;
   items?: Array<{
     id: string;
     post: Post;
@@ -106,18 +105,7 @@ export default function CollectionDetailPage(props: {
               {collection.description}
             </p>
           )}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span
-                className={`px-2 py-1 rounded text-xs font-medium ${
-                  collection.isPublic
-                    ? "bg-primary/20 text-primary"
-                    : "bg-white/10 text-tertiary"
-                }`}
-              >
-                {collection.isPublic ? "Public" : "Private"}
-              </span>
-            </div>
+          <div className="flex items-center justify-end">
             <button
               onClick={handleShareSavesToggle}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${

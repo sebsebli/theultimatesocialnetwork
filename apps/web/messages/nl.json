@@ -409,5 +409,19 @@
     "info": "Alleen voor notificatie.",
     "acceptTermsRequired": "Accepteer voorwaarden.",
     "goBack": "Terug"
+  },
+  "cookieConsent": {
+    "message": "We gebruiken cookies voor inloggen en voorkeuren. Geen advertenties of tracking door derden. U kunt alle of alleen essentiële cookies accepteren.",
+    "privacyLink": "Privacybeleid",
+    "essentialOnly": "Alleen essentieel",
+    "acceptAll": "Alles accepteren"
+  },
+  "signupOverlay": {
+    "title": "Word lid van CITE",
+    "description": "Maak een account om mensen te volgen, berichten op te slaan en deel te nemen aan het gesprek met gekoppelde ideeën en bronnen.",
+    "signInUp": "Inloggen / Registreren",
+    "joinWaitlist": "Wachtlijst",
+    "notNow": "Nu niet",
+    "closeAria": "Sluiten"
   }
 }

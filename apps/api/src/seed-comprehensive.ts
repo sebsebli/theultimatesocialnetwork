@@ -39,7 +39,10 @@ import {
   FollowRequestStatus,
 } from './entities/follow-request.entity';
 import { PushToken, PushProvider } from './entities/push-token.entity';
+import { ConfigService } from '@nestjs/config';
+import * as MinIO from 'minio';
 import { Neo4jService } from './database/neo4j.service';
+import { MeilisearchService } from './search/meilisearch.service';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- PERSONAS: mix of public/private, custom recommendation prefs, languages ---
@@ -814,6 +817,42 @@ async function bootstrap() {
     await mentionUser(mentionRepo, neo4jService, postA3, alex);
     await mentionUser(mentionRepo, neo4jService, postA3, mike);
 
+    // --- 7b. HEADER IMAGES (random images for first 8 posts) ---
+    console.log('🖼️ Adding header images to posts...');
+    try {
+      const config = app.get(ConfigService);
+      const minio = new MinIO.Client({
+        endPoint: config.get('MINIO_ENDPOINT') || 'localhost',
+        port: parseInt(config.get('MINIO_PORT') || '9000', 10),
+        useSSL: config.get('MINIO_USE_SSL') === 'true',
+        accessKey: config.get('MINIO_ACCESS_KEY') || 'minioadmin',
+        secretKey: config.get('MINIO_SECRET_KEY') || 'minioadmin',
+      });
+      const bucket = config.get('MINIO_BUCKET') || 'cite-images';
+      const bucketExists = await minio.bucketExists(bucket);
+      if (!bucketExists) {
+        await minio.makeBucket(bucket, 'us-east-1');
+      }
+      const count = Math.min(8, savedPosts.length);
+      for (let i = 0; i < count; i++) {
+        const post = savedPosts[i];
+        const url = `https://picsum.photos/seed/${post.id}/1200/600`;
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'CITE-Seed/1.0' },
+        });
+        if (!res.ok) continue;
+        const buf = Buffer.from(await res.arrayBuffer());
+        const key = `seed/header-${i}.jpg`;
+        await minio.putObject(bucket, key, buf, buf.length, {
+          'Content-Type': 'image/jpeg',
+        });
+        await postRepo.update({ id: post.id }, { headerImageKey: key });
+      }
+      console.log('   Added header images to', count, 'posts.');
+    } catch (e) {
+      console.warn('Header images skipped:', (e as Error).message);
+    }
+
     // --- 8. REPLIES (comment threads) ---
     console.log('💬 Replies...');
     await addReply(
@@ -1088,6 +1127,65 @@ async function bootstrap() {
         where: { followerId: userId },
       });
       await userRepo.update({ id: userId }, { followerCount, followingCount });
+    }
+
+    // --- 16. MEILISEARCH: index all users, topics, posts ---
+    console.log('🔍 Indexing Meilisearch...');
+    try {
+      const meilisearch = app.get(MeilisearchService);
+      const userById = new Map<string, User>(
+        Array.from(userMap.values()).map((u) => [u.id, u]),
+      );
+
+      for (const user of userMap.values()) {
+        await meilisearch
+          .indexUser({
+            id: user.id,
+            handle: user.handle,
+            displayName: user.displayName,
+            bio: user.bio ?? '',
+          })
+          .catch((e) =>
+            console.warn('Meilisearch user', user.handle, (e as Error).message),
+          );
+      }
+      for (const topic of topicMap.values()) {
+        await meilisearch
+          .indexTopic({
+            id: topic.id,
+            slug: topic.slug,
+            title: topic.title,
+          })
+          .catch((e) =>
+            console.warn('Meilisearch topic', topic.slug, (e as Error).message),
+          );
+      }
+      for (const post of savedPosts) {
+        const author = userById.get(post.authorId);
+        await meilisearch
+          .indexPost({
+            id: post.id,
+            title: post.title ?? undefined,
+            body: post.body,
+            authorId: post.authorId,
+            author: author
+              ? {
+                  displayName: author.displayName,
+                  handle: author.handle,
+                }
+              : undefined,
+            lang: post.lang ?? undefined,
+            createdAt: post.createdAt,
+            quoteCount: post.quoteCount ?? 0,
+            replyCount: post.replyCount ?? 0,
+          })
+          .catch((e) =>
+            console.warn('Meilisearch post', post.id, (e as Error).message),
+          );
+      }
+      console.log('   Meilisearch: users, topics, posts indexed.');
+    } catch (e) {
+      console.warn('Meilisearch indexing skipped:', (e as Error).message);
     }
 
     console.log('\n✅ SEEDING COMPLETE');

@@ -409,5 +409,19 @@
     "info": "Wir nutzen deine E-Mail nur für die Benachrichtigung.",
     "acceptTermsRequired": "Bitte akzeptiere die AGB und Datenschutzerklärung",
     "goBack": "Zurück"
+  },
+  "cookieConsent": {
+    "message": "Wir verwenden Cookies für Anmeldung und Einstellungen. Keine Werbe- oder Drittanbieter-Tracking. Sie können alle oder nur notwendige Cookies akzeptieren.",
+    "privacyLink": "Datenschutz",
+    "essentialOnly": "Nur notwendige",
+    "acceptAll": "Alle akzeptieren"
+  },
+  "signupOverlay": {
+    "title": "CITE beitreten",
+    "description": "Erstelle ein Konto, um Menschen zu folgen, Beiträge zu speichern und an verknüpften Ideen und Quellen teilzunehmen.",
+    "signInUp": "Anmelden / Registrieren",
+    "joinWaitlist": "Warteliste",
+    "notNow": "Nicht jetzt",
+    "closeAria": "Schließen"
   }
 }

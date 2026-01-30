@@ -40,6 +40,10 @@ export class Report {
   @Column('text')
   reason: string;
 
+  /** Optional details from the reporter (all languages). */
+  @Column({ name: 'comment', type: 'text', nullable: true })
+  comment: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

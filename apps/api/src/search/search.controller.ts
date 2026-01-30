@@ -6,39 +6,55 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Topic } from '../entities/topic.entity';
 import { MeilisearchService } from './meilisearch.service';
 import { CurrentUser } from '../shared/current-user.decorator';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 
 @Controller('search')
 export class SearchController {
-  constructor(private readonly meilisearch: MeilisearchService) {}
+  constructor(
+    private readonly meilisearch: MeilisearchService,
+    @InjectRepository(Topic) private topicRepo: Repository<Topic>,
+  ) {}
 
   @Get('posts')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(OptionalJwtAuthGuard)
   async searchPosts(
-    @CurrentUser() user: { id: string },
+    @CurrentUser() _user: { id: string } | null,
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
     @Query('lang') lang?: string,
+    @Query('topicSlug') topicSlug?: string,
   ) {
     if (!query || query.trim().length === 0) {
       return { hits: [], estimatedTotalHits: 0 };
     }
-
+    let topicId: string | undefined;
+    if (topicSlug?.trim()) {
+      const topic = await this.topicRepo.findOne({
+        where: { slug: topicSlug.trim() },
+        select: ['id'],
+      });
+      topicId = topic?.id;
+      if (!topicId) return { hits: [], estimatedTotalHits: 0 };
+    }
     const results = await this.meilisearch.searchPosts(query, {
       limit,
       offset,
       lang,
+      topicId,
     });
-
     return results;
   }
 
   @Get('users')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(OptionalJwtAuthGuard)
   async searchUsers(
+    @CurrentUser() _user: { id: string } | null,
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
   ) {
@@ -49,9 +65,9 @@ export class SearchController {
   }
 
   @Get('all')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(OptionalJwtAuthGuard)
   async searchAll(
-    @CurrentUser() user: { id: string },
+    @CurrentUser() _user: { id: string } | null,
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(15), ParseIntPipe) limit: number,
   ) {
@@ -62,16 +78,15 @@ export class SearchController {
   }
 
   @Get('topics')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(OptionalJwtAuthGuard)
   async searchTopics(
+    @CurrentUser() _user: { id: string } | null,
     @Query('q') query: string,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
     if (!query || query.trim().length === 0) {
       return { hits: [] };
     }
-    // Assuming topics are indexed in Meilisearch 'topics' index
-    // If not, this needs to be implemented in MeilisearchService
     return this.meilisearch.searchTopics(query, limit);
   }
 }

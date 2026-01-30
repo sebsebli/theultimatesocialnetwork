@@ -64,7 +64,7 @@ export function DesktopRightSidebar() {
                 {topics.map((topic) => (
                   <Link
                     key={topic.id}
-                    href={`/topic/${topic.slug}`}
+                    href={`/topic/${encodeURIComponent(topic.slug)}`}
                     className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group"
                   >
                     <div className="flex-1 min-w-0">

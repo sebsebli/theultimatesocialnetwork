@@ -13,7 +13,7 @@ import AddToCollectionSheet, { AddToCollectionSheetRef } from './AddToCollection
 import ShareSheet, { ShareSheetRef } from './ShareSheet';
 import { ConfirmModal } from './ConfirmModal';
 import { OptionsActionSheet } from './OptionsActionSheet';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
 import { PostContent } from './PostContent';
 
 import { Post } from '../types';
@@ -191,6 +191,7 @@ function PostItemComponent({
         headerImageUri={headerImageUri}
         showSources={isPreview}
         referenceMetadata={isPreview ? (post as any).referenceMetadata : undefined}
+        maxBodyLines={isPreview ? undefined : 5}
       />
 
       {isPreview ? null : (
@@ -234,7 +235,7 @@ function PostItemComponent({
             <Pressable
               style={styles.actionButton}
               onPress={() => {
-                router.push(`/compose?quote=${post.id}`);
+                router.push({ pathname: '/post/compose', params: { quote: post.id } });
                 onQuote?.();
               }}
             >
@@ -321,13 +322,13 @@ export const PostItem = MemoizedPostItem;
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: SPACING.xl, // px-5 (20px)
-    paddingTop: SPACING.xxl, // py-6 (24px)
-    paddingBottom: SPACING.xxl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: SPACING.l,
+    paddingBottom: SPACING.l,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     backgroundColor: COLORS.ink,
-    gap: SPACING.m, // gap-3
+    gap: SPACING.m,
   },
   metaText: {
     fontSize: 12, // text-xs

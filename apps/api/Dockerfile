@@ -44,7 +44,11 @@ RUN npm rebuild sharp || true
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
 
-# Use existing node user
+# Entrypoint: run migrations then start app (ensures migrations run on every deploy/restart)
+COPY apps/api/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Use existing node user (after chmod so entrypoint is executable)
 RUN chown -R node:node /app
 USER node
 
@@ -55,6 +59,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start
 WORKDIR /app
-CMD ["node", "dist/main.js"]
+ENTRYPOINT ["/app/entrypoint.sh"]

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, MODAL } from '../constants/theme';
 
 export interface OptionItem {
   label: string;
@@ -38,7 +38,8 @@ export function OptionsActionSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <Pressable style={styles.overlay} onPress={onCancel}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onCancel} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
           <View style={styles.handle} />
           {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -64,7 +65,7 @@ export function OptionsActionSheet({
             <Text style={styles.cancelText}>{cancelLabel}</Text>
           </Pressable>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
@@ -72,26 +73,30 @@ export function OptionsActionSheet({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.ink,
     justifyContent: 'flex-end',
   },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: MODAL.backdropBackgroundColor,
+  },
   sheet: {
-    backgroundColor: COLORS.ink,
-    borderTopLeftRadius: SIZES.borderRadius,
-    borderTopRightRadius: SIZES.borderRadius,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: COLORS.divider,
-    paddingHorizontal: SPACING.l,
+    backgroundColor: MODAL.sheetBackgroundColor,
+    borderTopLeftRadius: MODAL.sheetBorderRadius,
+    borderTopRightRadius: MODAL.sheetBorderRadius,
+    borderWidth: MODAL.sheetBorderWidth,
+    borderBottomWidth: MODAL.sheetBorderBottomWidth,
+    borderColor: MODAL.sheetBorderColor,
+    paddingHorizontal: MODAL.sheetPaddingHorizontal,
     paddingTop: SPACING.m,
   },
   handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.tertiary,
+    width: MODAL.handleWidth,
+    height: MODAL.handleHeight,
+    borderRadius: MODAL.handleBorderRadius,
+    backgroundColor: MODAL.handleBackgroundColor,
     alignSelf: 'center',
-    marginBottom: SPACING.m,
+    marginTop: MODAL.handleMarginTop,
+    marginBottom: MODAL.handleMarginBottom,
   },
   title: {
     fontSize: 13,
@@ -100,29 +105,36 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.s,
   },
   option: {
-    paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.s,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
     borderRadius: SIZES.borderRadius,
     marginBottom: 2,
+    justifyContent: 'center',
   },
   optionPressed: { backgroundColor: 'rgba(255,255,255,0.08)' },
   optionDestructive: {},
   optionText: {
-    fontSize: 16,
+    fontSize: MODAL.buttonFontSize,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
   },
   optionTextDestructive: { color: COLORS.error },
   cancel: {
-    paddingVertical: SPACING.m,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
     marginTop: SPACING.s,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: MODAL.buttonBorderRadius,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: MODAL.secondaryButtonBackgroundColor,
+    borderWidth: MODAL.secondaryButtonBorderWidth,
+    borderColor: MODAL.secondaryButtonBorderColor,
   },
   cancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.secondary,
+    fontSize: MODAL.buttonFontSize,
+    fontWeight: MODAL.buttonFontWeight,
+    color: MODAL.secondaryButtonTextColor,
     fontFamily: FONTS.semiBold,
   },
 });

@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Body,
+  Param,
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
@@ -15,30 +16,57 @@ import { AdminKeyGuard } from './admin-key.guard';
 export class InvitesController {
   constructor(private readonly invitesService: InvitesService) {}
 
-  @Post('generate') // User generating invite
+  /** Send invitation by email (beta only). Email required; code generated and sent. */
+  @Post('send')
   @UseGuards(AuthGuard('jwt'))
-  async generate(@CurrentUser() user: { id: string }) {
-    const isBeta = await this.invitesService.isBetaMode();
-    if (!isBeta) {
-      throw new BadRequestException(
-        'Invite generation is disabled (Beta Over)',
-      );
-    }
+  async send(
+    @CurrentUser() user: { id: string },
+    @Body() body: { email: string; lang?: string },
+  ) {
+    const email = body?.email?.trim();
+    if (!email) throw new BadRequestException('Email is required');
+    return this.invitesService.sendByEmail(user.id, email, body.lang ?? 'en');
+  }
 
-    // Check remaining
-    const status = await this.invitesService.getMyInvites(user.id);
-    if (status.remaining <= 0) {
-      throw new BadRequestException('No invites remaining');
-    }
+  /** Beta mode: when true, email invite codes are used; when false, referral links only. */
+  @Get('beta-mode')
+  @UseGuards(AuthGuard('jwt'))
+  async getBetaMode() {
+    const betaMode = await this.invitesService.isBetaMode();
+    return { betaMode };
+  }
 
-    const code = await this.invitesService.generateCode(user.id);
-    return { code };
+  /** Referral link for sharing (post-beta). Uses app base URL and user handle. */
+  @Get('referral-link')
+  @UseGuards(AuthGuard('jwt'))
+  async getReferralLink(@CurrentUser() user: { id: string }) {
+    return this.invitesService.getReferralLink(user.id);
   }
 
   @Get('my')
   @UseGuards(AuthGuard('jwt'))
   async getMy(@CurrentUser() user: { id: string }) {
     return this.invitesService.getMyInvites(user.id);
+  }
+
+  @Post(':code/resend')
+  @UseGuards(AuthGuard('jwt'))
+  async resend(
+    @CurrentUser() user: { id: string },
+    @Param('code') code: string,
+    @Body() body: { lang?: string },
+  ) {
+    return this.invitesService.resend(user.id, code, body?.lang ?? 'en');
+  }
+
+  @Post(':code/revoke')
+  @UseGuards(AuthGuard('jwt'))
+  async revoke(
+    @CurrentUser() user: { id: string },
+    @Param('code') code: string,
+  ) {
+    await this.invitesService.revoke(user.id, code);
+    return { success: true };
   }
 }
 

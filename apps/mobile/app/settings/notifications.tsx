@@ -21,6 +21,7 @@ export default function NotificationsSettingsScreen() {
     replies: true,
     quotes: true,
     mentions: true,
+    dms: true,
     follows: true,
     saves: false,
   });
@@ -39,6 +40,7 @@ export default function NotificationsSettingsScreen() {
           replies: data.replies ?? prev.replies,
           quotes: data.quotes ?? prev.quotes,
           mentions: data.mentions ?? prev.mentions,
+          dms: data.dms ?? prev.dms,
           follows: data.follows ?? prev.follows,
           saves: data.saves ?? prev.saves,
         }));
@@ -108,6 +110,12 @@ export default function NotificationsSettingsScreen() {
               label={t('notifications.mentions', 'Mentions')}
               value={prefs.mentions}
               onValueChange={() => togglePref('mentions')}
+            />
+            <NotificationItem
+              label={t('notifications.dms', 'Direct messages')}
+              description={t('notifications.dmsDesc', 'When someone sends you a direct message')}
+              value={prefs.dms}
+              onValueChange={() => togglePref('dms')}
             />
             <NotificationItem
               label={t('notifications.follows', 'New Followers')}

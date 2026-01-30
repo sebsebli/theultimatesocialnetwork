@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,6 +13,7 @@ import {
   Modal,
   Keyboard,
   useWindowDimensions,
+  Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -24,8 +25,10 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/auth';
 import { useComposerSearch } from '../../hooks/useComposerSearch';
 import { MarkdownText } from '../../components/MarkdownText';
+import { PostArticleBlock } from '../../components/PostArticleBlock';
 import { Post } from '../../types';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, LAYOUT } from '../../constants/theme';
+import { Image as ExpoImage } from 'expo-image';
 
 /** Stable component so typing in link fields does not remount and dismiss keyboard */
 function LinkInputFields({
@@ -36,6 +39,7 @@ function LinkInputFields({
   onAdd,
   onClose,
   styles: linkStyles,
+  maxDisplayLength = 40,
 }: {
   linkUrl: string;
   setLinkUrl: (s: string) => void;
@@ -44,6 +48,7 @@ function LinkInputFields({
   onAdd: () => void;
   onClose: () => void;
   styles: Record<string, any>;
+  maxDisplayLength?: number;
 }) {
   const { t } = useTranslation();
   return (
@@ -72,7 +77,8 @@ function LinkInputFields({
         placeholder={t('compose.linkDisplayTextPlaceholder', 'Display Text (optional)')}
         placeholderTextColor={COLORS.tertiary}
         value={linkText}
-        onChangeText={setLinkText}
+        onChangeText={(s) => setLinkText(s.length <= maxDisplayLength ? s : s.slice(0, maxDisplayLength))}
+        maxLength={maxDisplayLength}
         blurOnSubmit={false}
       />
     </View>
@@ -86,8 +92,7 @@ export default function ComposeScreen() {
   const { showError, showSuccess } = useToast();
   const { userId } = useAuth();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
-  const headerImageHeight = Math.round(screenWidth * (3 / 4));
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const quotePostId = params.quote as string | undefined;
   const replyToPostId = params.replyTo as string | undefined;
 
@@ -98,7 +103,8 @@ export default function ComposeScreen() {
   }, []);
 
   const BODY_MAX_LENGTH = 10000;
-  const TITLE_MAX_LENGTH = 200;
+  const BODY_MIN_LENGTH = 3; // Short minimum (e.g. "Yes." or "ok")
+  const TITLE_MAX_LENGTH = 40; // Headlines (H1/H2/H3) and link/wikilink aliases
   const MAX_TOPIC_REFS = 15;
   const [body, setBody] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
@@ -119,6 +125,8 @@ export default function ComposeScreen() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const [referenceMetadata, setReferenceMetadata] = useState<Record<string, { title?: string }>>({});
+  /** Handles that were selected from the mention dropdown — only these render as @ mentions in preview. */
+  const [confirmedMentionHandles, setConfirmedMentionHandles] = useState<Set<string>>(() => new Set());
 
   const textInputRef = useRef<TextInput>(null);
   const [quotedPost, setQuotedPost] = useState<Post | null>(null);
@@ -174,18 +182,94 @@ export default function ComposeScreen() {
     }
   };
 
+  /** Ranges that must not receive headings, bold or italic: wikilinks [[...]] and markdown links [text](url). */
+  const getProtectedRanges = (text: string): { start: number; end: number }[] => {
+    const ranges: { start: number; end: number }[] = [];
+    // Wikilinks: [[...]] (articles, topic tags)
+    const wikiRe = /\[\[[^\]]*\]\]/g;
+    let m: RegExpExecArray | null;
+    while ((m = wikiRe.exec(text)) !== null) {
+      ranges.push({ start: m.index, end: m.index + m[0].length });
+    }
+    // Markdown links: [text](url) (sources)
+    const linkRe = /\[[^\]]*\]\([^)]+\)/g;
+    while ((m = linkRe.exec(text)) !== null) {
+      ranges.push({ start: m.index, end: m.index + m[0].length });
+    }
+    return ranges;
+  };
+
+  const selectionOverlapsProtected = (sel: { start: number; end: number }, ranges: { start: number; end: number }[]): boolean => {
+    return ranges.some((r) => sel.start < r.end && sel.end > r.start);
+  };
+
+  /** Enforce max length for headline lines (H1/H2/H3) and for wikilink/link aliases. Stops new letters when limits are hit. */
+  const enforceTitleAndAliasLimits = (text: string, maxLen: number): string => {
+    let out = text.length <= BODY_MAX_LENGTH ? text : text.slice(0, BODY_MAX_LENGTH);
+    const lines = out.split('\n');
+    const trimmed: string[] = [];
+    for (const line of lines) {
+      if (line.startsWith('### ')) {
+        trimmed.push('### ' + line.slice(4).slice(0, maxLen));
+      } else if (line.startsWith('## ')) {
+        trimmed.push('## ' + line.slice(3).slice(0, maxLen));
+      } else if (line.startsWith('# ')) {
+        trimmed.push('# ' + line.slice(2).slice(0, maxLen));
+      } else {
+        trimmed.push(line);
+      }
+    }
+    out = trimmed.join('\n');
+    // Wikilinks: [[x|alias]] or [[x]] – truncate alias or single part to maxLen
+    out = out.replace(/\[\[([^\]]+)\]\]/g, (match, content) => {
+      const pipeIdx = content.indexOf('|');
+      if (pipeIdx >= 0) {
+        const before = content.slice(0, pipeIdx);
+        const alias = content.slice(pipeIdx + 1).slice(0, maxLen);
+        return `[[${before}|${alias}]]`;
+      }
+      return `[[${content.slice(0, maxLen)}]]`;
+    });
+    // Markdown links: [text](url) – truncate text to maxLen
+    out = out.replace(/\[([^\]]*)\]\(([^)]+)\)/g, (_, linkText, url) => `[${linkText.slice(0, maxLen)}](${url})`);
+    return out;
+  };
+
   const insertText = (text: string) => {
     const { start, end } = selection;
-    const newBody = body.substring(0, start) + text + body.substring(end);
+    const isHeading = text === '# ' || text === '## ' || text === '### ';
+    let toInsert = text;
+    let cursorOffset = text.length;
+    if (isHeading) {
+      const ranges = getProtectedRanges(body);
+      const cursorInside = ranges.some((r) => start >= r.start && start <= r.end);
+      const selectionOverlaps = selectionOverlapsProtected({ start, end }, ranges);
+      if (cursorInside || selectionOverlaps) {
+        showError(t('compose.formatNotAllowedOnRefs', 'Articles, topic tags and links cannot use headings, bold or italic.'));
+        return;
+      }
+      // Ensure heading is on its own line: newline before # if not already at line start; cursor stays on same line after #
+      const atLineStart = start === 0 || body[start - 1] === '\n';
+      toInsert = (atLineStart ? '' : '\n') + text;
+      cursorOffset = toInsert.length;
+    }
+    const newBody = body.substring(0, start) + toInsert + body.substring(end);
     setBody(newBody);
 
-    // Update cursor position
-    const newPos = start + text.length;
+    const newPos = start + cursorOffset;
     setSelection({ start: newPos, end: newPos });
   };
 
-  const formatSelection = (type: 'bold' | 'italic' | 'quote' | 'list' | 'ordered-list') => {
+  const formatSelection = (type: 'bold' | 'italic' | 'quote' | 'list' | 'ordered-list' | 'code') => {
     const { start, end } = selection;
+    if (type === 'bold' || type === 'italic') {
+      const ranges = getProtectedRanges(body);
+      const sel = { start, end: end || start };
+      if (selectionOverlapsProtected(sel, ranges)) {
+        showError(t('compose.formatNotAllowedOnRefs', 'Articles, topic tags and links cannot use headings, bold or italic.'));
+        return;
+      }
+    }
     const selectedText = body.substring(start, end);
     let newText = '';
 
@@ -194,6 +278,7 @@ export default function ComposeScreen() {
     else if (type === 'quote') newText = `> ${selectedText || 'quote'}`;
     else if (type === 'list') newText = `- ${selectedText || 'item'}`;
     else if (type === 'ordered-list') newText = `1. ${selectedText || 'item'}`;
+    else if (type === 'code') newText = `\`${selectedText || 'code'}\``;
 
     const newBody = body.substring(0, start) + newText + body.substring(end);
     setBody(newBody);
@@ -225,6 +310,34 @@ export default function ComposeScreen() {
     }
   };
 
+  /** Returns true if any heading line (# / ## / ### ) has content longer than TITLE_MAX_LENGTH. */
+  const hasOverlongHeading = (text: string): boolean => {
+    const lines = text.split('\n');
+    for (const line of lines) {
+      let content = '';
+      if (line.startsWith('### ')) content = line.slice(4).trim();
+      else if (line.startsWith('## ')) content = line.slice(3).trim();
+      else if (line.startsWith('# ')) content = line.slice(2).trim();
+      if (content.length > 0 && content.length > TITLE_MAX_LENGTH) return true;
+    }
+    return false;
+  };
+
+  /** Returns true if body contains a tag or link title longer than TITLE_MAX_LENGTH. */
+  const hasOverlongRefTitle = (text: string): boolean => {
+    const wikiRegex = /\[\[([^\]]+)(?:\|([^\]]*))?\]\]/g;
+    let m;
+    while ((m = wikiRegex.exec(text)) !== null) {
+      const displayPart = m[2] !== undefined ? m[2] : m[1];
+      if (displayPart.length > TITLE_MAX_LENGTH) return true;
+    }
+    const linkRegex = /\[([^\]]*)\]\([^)]+\)/g;
+    while ((m = linkRegex.exec(text)) !== null) {
+      if (m[1].length > TITLE_MAX_LENGTH) return true;
+    }
+    return false;
+  };
+
   const addLink = () => {
     const trimmed = linkUrl.trim();
     if (!trimmed) return;
@@ -234,7 +347,11 @@ export default function ComposeScreen() {
       return;
     }
     const { start, end } = selection;
-    const textToDisplay = linkText.trim() || (start !== end ? body.substring(start, end) : new URL(urlToUse).hostname);
+    let textToDisplay = linkText.trim() || (start !== end ? body.substring(start, end) : new URL(urlToUse).hostname);
+    if (textToDisplay.length > TITLE_MAX_LENGTH) {
+      showError(t('compose.linkTagTitleTooLong', 'Link and tag titles must be at most {{max}} characters.', { max: TITLE_MAX_LENGTH }));
+      return;
+    }
 
     const newText = `[${textToDisplay}](${urlToUse})`;
     const newBody = body.substring(0, start) + newText + body.substring(end);
@@ -271,6 +388,10 @@ export default function ComposeScreen() {
       showError(t('compose.bodyRequired', 'Post body is required'));
       return;
     }
+    if (trimmedBody.length < BODY_MIN_LENGTH) {
+      showError(t('compose.bodyTooShort', 'Post must be at least {{min}} characters.', { min: BODY_MIN_LENGTH }));
+      return;
+    }
     if (trimmedBody.length > BODY_MAX_LENGTH) {
       showError(t('compose.bodyTooLong', 'Post is too long. Please shorten it.'));
       return;
@@ -283,10 +404,23 @@ export default function ComposeScreen() {
       showError(t('compose.tooManyRefs', 'Too many topic/post references. Maximum {{max}}.', { max: MAX_TOPIC_REFS }));
       return;
     }
+    if (hasOverlongHeading(trimmedBody)) {
+      showError(t('compose.headingTooLong', 'Headings (H1, H2, H3) must be at most {{max}} characters.', { max: TITLE_MAX_LENGTH }));
+      return;
+    }
+    if (hasOverlongRefTitle(trimmedBody)) {
+      showError(t('compose.linkTagTitleTooLong', 'Link and tag titles must be at most {{max}} characters.', { max: TITLE_MAX_LENGTH }));
+      return;
+    }
     setIsPublishing(true);
     setPendingPublish(false);
     setPreviewMode(false);
     try {
+      // Strip @ from any mention that wasn't selected from dropdown (invalid) so stored post only has real mentions
+      const bodyToPublish = trimmedBody.replace(/@([a-zA-Z0-9_.]+)/g, (_, handle) =>
+        confirmedMentionHandles.has(handle) ? `@${handle}` : handle
+      );
+
       let imageKey = null;
       let imageBlurhash = null;
       if (headerImageAsset) {
@@ -296,14 +430,16 @@ export default function ComposeScreen() {
       }
 
       if (quotePostId) {
-        await api.post('/posts/quote', { postId: quotePostId, body: trimmedBody });
+        await api.post('/posts/quote', { postId: quotePostId, body: bodyToPublish });
       } else if (replyToPostId) {
-        await api.post(`/posts/${replyToPostId}/replies`, { body: trimmedBody });
+        await api.post(`/posts/${replyToPostId}/replies`, { body: bodyToPublish });
       } else {
-        await api.post('/posts', { body: trimmedBody, headerImageKey: imageKey, headerImageBlurhash: imageBlurhash });
+        await api.post('/posts', { body: bodyToPublish, headerImageKey: imageKey, headerImageBlurhash: imageBlurhash });
       }
       showSuccess(t('compose.publishedSuccess', 'Published successfully'));
-      router.back();
+      if (quotePostId) router.replace(`/post/${quotePostId}/reading`);
+      else if (replyToPostId) router.replace(`/post/${replyToPostId}`);
+      else router.back();
     } catch (error: any) {
       console.error('Failed to publish', error);
       showError(t('compose.error'));
@@ -325,8 +461,15 @@ export default function ComposeScreen() {
       const query = beforeCursor.slice(lastAt + 1);
       // Allow spaces in mentions, but stop at newline or reasonable length
       if (!query.includes('\n') && query.length < 50) {
-        // Check if we typed another trigger character that invalidates this one
         if (!query.includes('[[')) {
+          // Trailing space = mention complete (e.g. after selecting a user), close and don't re-open
+          if (query.endsWith(' ')) {
+            if (suggestionType !== 'none') {
+              setSuggestionType('none');
+              clearSearch();
+            }
+            return;
+          }
           if (suggestionType !== 'mention') setSuggestionType('mention');
           search(query, 'mention');
           return;
@@ -338,11 +481,17 @@ export default function ComposeScreen() {
     const lastBracket = beforeCursor.lastIndexOf('[[');
     if (lastBracket !== -1) {
       const query = beforeCursor.slice(lastBracket + 2);
-      if (!query.includes(']]') && !query.includes('\n')) {
-        if (suggestionType !== 'topic') setSuggestionType('topic');
-        search(query, 'topic');
+      // ]] or newline = reference complete (e.g. after selecting), close and don't re-open
+      if (query.includes(']]') || query.includes('\n')) {
+        if (suggestionType !== 'none') {
+          setSuggestionType('none');
+          clearSearch();
+        }
         return;
       }
+      if (suggestionType !== 'topic') setSuggestionType('topic');
+      search(query, 'topic');
+      return;
     }
 
     if (suggestionType !== 'none') {
@@ -363,16 +512,24 @@ export default function ComposeScreen() {
       insertion = `@${item.handle} `;
     } else if (suggestionType === 'topic') {
       triggerIndex = beforeCursor.lastIndexOf('[[');
+      const truncateAlias = (s: string) => (s || '').slice(0, TITLE_MAX_LENGTH).replace(/\]/g, '');
       if (item.type === 'post') {
-        insertion = `[[post:${item.id}|${item.displayName || item.title}]] `;
+        const alias = truncateAlias(item.displayName || item.title || 'Post');
+        insertion = `[[post:${item.id}|${alias}]] `;
       } else {
-        insertion = `[[${item.slug || item.title}]] `;
+        const alias = truncateAlias(item.slug || item.title || '');
+        insertion = `[[${alias}]] `;
       }
     }
 
     if (triggerIndex !== -1) {
       const newBody = beforeCursor.substring(0, triggerIndex) + insertion + afterCursor;
+      const newCursorPos = triggerIndex + insertion.length;
       setBody(newBody);
+      setSelection({ start: newCursorPos, end: newCursorPos });
+      if (suggestionType === 'mention' && item.handle) {
+        setConfirmedMentionHandles((prev) => new Set(prev).add(item.handle));
+      }
     }
     setSuggestionType('none');
     clearSearch();
@@ -462,6 +619,7 @@ export default function ComposeScreen() {
       <Pressable style={styles.toolBtn} onPress={() => formatSelection('quote')}><MaterialIcons name="format-quote" size={HEADER.iconSize} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => formatSelection('list')}><MaterialIcons name="format-list-bulleted" size={HEADER.iconSize} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => formatSelection('ordered-list')}><MaterialIcons name="format-list-numbered" size={HEADER.iconSize} color={COLORS.primary} /></Pressable>
+      <Pressable style={styles.toolBtn} onPress={() => formatSelection('code')}><MaterialIcons name="code" size={HEADER.iconSize} color={COLORS.primary} /></Pressable>
       <View style={styles.divider} />
       <Pressable style={styles.toolBtn} onPress={openLinkInput}><MaterialIcons name="link" size={HEADER.iconSize} color={COLORS.primary} /></Pressable>
       <Pressable style={styles.toolBtn} onPress={() => insertText('[[')}><Text style={styles.toolText}>[[ ]]</Text></Pressable>
@@ -480,6 +638,7 @@ export default function ComposeScreen() {
         onAdd={addLink}
         onClose={() => setShowLinkInput(false)}
         styles={styles}
+        maxDisplayLength={TITLE_MAX_LENGTH}
       />
     </View>
   ) : suggestionType !== 'none' ? null : (
@@ -509,8 +668,120 @@ export default function ComposeScreen() {
     .replace(/\s*\[[^\]]*\]\([^)]*\)\s*/g, '')
     .replace(/\s*>\s*/g, '')
     .trim()).length;
+
+  /** Heading (H1/H2/H3) count only for the line currently being edited (cursor position). */
+  const currentLineHeadingInfo = useMemo(() => {
+    const textBeforeCursor = body.slice(0, selection.start);
+    const lines = body.split('\n');
+    const lineIndex = Math.min(textBeforeCursor.split('\n').length - 1, lines.length - 1);
+    if (lineIndex < 0) return null;
+    const currentLine = lines[lineIndex] ?? '';
+    let level: 'h1' | 'h2' | 'h3' | null = null;
+    let content = '';
+    if (currentLine.startsWith('### ')) {
+      level = 'h3';
+      content = currentLine.slice(4);
+    } else if (currentLine.startsWith('## ')) {
+      level = 'h2';
+      content = currentLine.slice(3);
+    } else if (currentLine.startsWith('# ')) {
+      level = 'h1';
+      content = currentLine.slice(2);
+    }
+    if (level == null) return null;
+    const stripped = content
+      .replace(/\s*\[\[[^\]]*\]\]\s*/g, '')
+      .replace(/\s*@\S+\s*/g, '')
+      .replace(/\s*\[[^\]]*\]\([^)]*\)\s*/g, '')
+      .trim();
+    return { level, length: stripped.length };
+  }, [body, selection.start]);
+
   const topicRefMatches = body.match(/\[\[[^\]]*\]\]/g) || [];
   const topicRefCount = topicRefMatches.length;
+
+  /** Longest heading (H1/H2/H3) content length and longest link/tag alias length; max of both for "titles" limit. */
+  const { maxTitleLength } = useMemo(() => {
+    let maxHeading = 0;
+    const lines = body.split('\n');
+    for (const line of lines) {
+      let content = '';
+      if (line.startsWith('### ')) content = line.slice(4).trim();
+      else if (line.startsWith('## ')) content = line.slice(3).trim();
+      else if (line.startsWith('# ')) content = line.slice(2).trim();
+      if (content.length > maxHeading) maxHeading = content.length;
+    }
+    let maxAlias = 0;
+    const wikiRegex = /\[\[([^\]]+)(?:\|([^\]]*))?\]\]/g;
+    let m;
+    while ((m = wikiRegex.exec(body)) !== null) {
+      const displayPart = m[2] !== undefined ? m[2] : m[1];
+      if (displayPart.length > maxAlias) maxAlias = displayPart.length;
+    }
+    const linkRegex = /\[([^\]]*)\]\([^)]+\)/g;
+    while ((m = linkRegex.exec(body)) !== null) {
+      if (m[1].length > maxAlias) maxAlias = m[1].length;
+    }
+    const maxTitleLength = Math.max(maxHeading, maxAlias);
+    return { maxHeading, maxAlias, maxTitleLength };
+  }, [body]);
+
+  const previewPost = useMemo(() => {
+    const p: Post = {
+      id: 'preview',
+      body,
+      title: sanitizedTitle || undefined,
+      author: {
+        id: userId ?? 'preview',
+        handle: 'me',
+        displayName: t('compose.previewAuthor', 'Me'),
+      },
+      createdAt: new Date().toISOString(),
+      replyCount: 0,
+      quoteCount: 0,
+      visibility: 'PUBLIC',
+    };
+    (p as any).referenceMetadata = referenceMetadata;
+    return p;
+  }, [body, sanitizedTitle, referenceMetadata, userId, t]);
+
+  /** Sources derived from body for preview: [[post:id]], [[topic]], [text](url). Same shape as API getSources. */
+  const previewSources = useMemo(() => {
+    const list: Array<{ type: 'post' | 'topic' | 'external'; id?: string; title?: string; url?: string; slug?: string }> = [];
+    const seenPost = new Set<string>();
+    const seenTopic = new Set<string>();
+    const seenUrl = new Set<string>();
+
+    // [[post:id|alias]]
+    for (const m of body.matchAll(/\[\[post:([^\]|]+)(?:\|([^\]]*))?\]\]/g)) {
+      const id = m[1];
+      if (seenPost.has(id)) continue;
+      seenPost.add(id);
+      const alias = m[2]?.trim();
+      const title = referenceMetadata[id]?.title || alias || 'Post';
+      list.push({ type: 'post', id, title });
+    }
+
+    // [[Topic]] or [[Topic|alias]] (not post:)
+    for (const m of body.matchAll(/\[\[(?!post:)([^\]|]+)(?:\|([^\]]*))?\]\]/g)) {
+      const slug = m[1].trim();
+      if (seenTopic.has(slug)) continue;
+      seenTopic.add(slug);
+      const title = m[2]?.trim() || slug;
+      list.push({ type: 'topic', slug, title });
+    }
+
+    // [text](url)
+    for (const m of body.matchAll(/\[([^\]]*)\]\(([^)]+)\)/g)) {
+      const url = m[2].trim();
+      if (seenUrl.has(url)) continue;
+      seenUrl.add(url);
+      const title = m[1]?.trim() || url;
+      list.push({ type: 'external', title, url });
+    }
+
+    return list;
+  }, [body, referenceMetadata]);
 
   return (
     <KeyboardAvoidingView
@@ -518,40 +789,67 @@ export default function ComposeScreen() {
       style={[styles.container, { paddingTop: insets.top }]}
     >
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.closeBtn}>
-          <Text style={[styles.closeText, { color: HEADER.cancelColor }]}>{t('common.cancel')}</Text>
-        </Pressable>
-        <View style={styles.modeToggle}>
-          <Pressable onPress={() => { setPreviewMode(false); setPendingPublish(false); }} style={[styles.modeBtn, !previewMode && styles.modeBtnActive]}>
-            <Text style={[styles.modeText, !previewMode && styles.modeTextActive]}>Edit</Text>
-          </Pressable>
-          <Pressable onPress={() => setPreviewMode(true)} style={[styles.modeBtn, previewMode && styles.modeBtnActive]}>
-            <Text style={[styles.modeText, previewMode && styles.modeTextActive]}>Preview</Text>
-          </Pressable>
-        </View>
         <Pressable
           onPress={() => {
-            if (!body.trim()) return;
-            if (body.trim().length > BODY_MAX_LENGTH) {
-              showError(t('compose.bodyTooLong', 'Post is too long. Please shorten it.'));
-              return;
-            }
-            if (titleLength > TITLE_MAX_LENGTH) {
-              showError(t('compose.headlineTooLong', 'Headline is too long. Please keep it under {{max}} characters.', { max: TITLE_MAX_LENGTH }));
-              return;
-            }
-            if (topicRefCount > MAX_TOPIC_REFS) {
-              showError(t('compose.tooManyRefs', 'Too many topic/post references. Maximum {{max}}.', { max: MAX_TOPIC_REFS }));
-              return;
-            }
-            setPreviewMode(true);
-            setPendingPublish(true);
+            if (quotePostId) router.replace(`/post/${quotePostId}/reading`);
+            else if (replyToPostId) router.replace(`/post/${replyToPostId}`);
+            else router.back();
           }}
-          disabled={!body.trim() || isPublishing}
-          style={[styles.publishBtn, (!body.trim() || isPublishing) && styles.publishBtnDisabled]}
+          style={styles.closeBtn}
         >
-          <Text style={styles.publishText}>{isPublishing ? 'Posting...' : t('compose.publish')}</Text>
+          <Text style={[styles.closeText, { color: HEADER.cancelColor }]}>{t('common.cancel')}</Text>
         </Pressable>
+        <View style={styles.headerRight}>
+          <Pressable
+            onPress={() => setPreviewMode(true)}
+            style={[styles.previewBtn, (!body.trim() || body.trim().length < BODY_MIN_LENGTH) && styles.previewBtnDisabled]}
+            disabled={!body.trim() || body.trim().length < BODY_MIN_LENGTH}
+            accessibilityLabel={t('compose.preview')}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.previewBtnText, (!body.trim() || body.trim().length < BODY_MIN_LENGTH) && styles.previewBtnTextDisabled]}>
+              {t('compose.preview', 'Preview')}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              const trimmed = body.trim();
+              if (!trimmed) return;
+              if (trimmed.length < BODY_MIN_LENGTH) {
+                showError(t('compose.bodyTooShort', 'Post must be at least {{min}} characters.', { min: BODY_MIN_LENGTH }));
+                return;
+              }
+              if (trimmed.length > BODY_MAX_LENGTH) {
+                showError(t('compose.bodyTooLong', 'Post is too long. Please shorten it.'));
+                return;
+              }
+              if (titleLength > TITLE_MAX_LENGTH) {
+                showError(t('compose.headlineTooLong', 'Headline is too long. Please keep it under {{max}} characters.', { max: TITLE_MAX_LENGTH }));
+                return;
+              }
+              if (topicRefCount > MAX_TOPIC_REFS) {
+                showError(t('compose.tooManyRefs', 'Too many topic/post references. Maximum {{max}}.', { max: MAX_TOPIC_REFS }));
+                return;
+              }
+              if (hasOverlongHeading(body.trim())) {
+                showError(t('compose.headingTooLong', 'Headings (H1, H2, H3) must be at most {{max}} characters.', { max: TITLE_MAX_LENGTH }));
+                return;
+              }
+              if (hasOverlongRefTitle(body.trim())) {
+                showError(t('compose.linkTagTitleTooLong', 'Link and tag titles must be at most {{max}} characters.', { max: TITLE_MAX_LENGTH }));
+                return;
+              }
+              setPreviewMode(true);
+              setPendingPublish(true);
+            }}
+            disabled={!body.trim() || body.trim().length < BODY_MIN_LENGTH || isPublishing}
+            style={[styles.publishBtn, (!body.trim() || body.trim().length < BODY_MIN_LENGTH || isPublishing) && styles.publishBtnDisabled]}
+          >
+            <Text style={styles.publishText}>
+              {isPublishing ? t('compose.publishing', 'Posting...') : t('compose.publish', 'Publish')}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <Pressable style={{ flex: 1 }} onPress={() => !previewMode && !showLinkInput && textInputRef.current?.focus()}>
@@ -573,64 +871,15 @@ export default function ComposeScreen() {
           )}
 
           {headerImage && !previewMode && (
-            <View style={[styles.imageContainer, { height: headerImageHeight }]}>
-              <Image source={{ uri: headerImage }} style={[styles.headerImg, { height: headerImageHeight }]} resizeMode="cover" />
+            <View style={styles.headerImagePreviewRow}>
+              <Image source={{ uri: headerImage }} style={styles.headerImageThumb} resizeMode="cover" />
+              <Text style={styles.headerImageLabel} numberOfLines={1}>{t('compose.headerImageAttached', 'Header image attached')}</Text>
               <Pressable style={styles.removeImgBtn} onPress={() => { setHeaderImage(null); setHeaderImageAsset(null); }}>
-                <MaterialIcons name="close" size={HEADER.iconSize} color="white" />
+                <MaterialIcons name="close" size={18} color="white" />
               </Pressable>
             </View>
           )}
 
-          {previewMode ? (
-            <Modal visible={true} animationType="slide" presentationStyle="fullScreen">
-              <View style={[styles.previewFullscreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-                <View style={styles.previewHeaderRow}>
-                  <Pressable style={styles.previewCloseBar} onPress={() => { setPreviewMode(false); setPendingPublish(false); }}>
-                    <Text style={styles.previewCloseText}>{t('common.close', 'Close')}</Text>
-                  </Pressable>
-                  {pendingPublish ? (
-                    <Pressable
-                      style={[styles.publishBtn, styles.publishBtnInPreview]}
-                      onPress={handlePublish}
-                      disabled={isPublishing}
-                    >
-                      <Text style={styles.publishText}>{isPublishing ? 'Posting...' : t('compose.confirmPublish', 'Confirm & Publish')}</Text>
-                    </Pressable>
-                  ) : null}
-                </View>
-                <ScrollView style={styles.previewScroll} contentContainerStyle={styles.previewScrollContent} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
-                  {/* Same layout as post reading screen: hero (if image) then article */}
-                  {headerImage && (
-                    <View style={[styles.previewHeroWrap, { height: headerImageHeight }]}>
-                      <Image source={{ uri: headerImage }} style={[styles.previewHeroImage, { height: headerImageHeight }]} resizeMode="cover" />
-                      {sanitizedTitle ? (
-                        <View style={styles.previewHeroTitleOverlay}>
-                          <Text style={styles.previewHeroTitleText} numberOfLines={2}>{sanitizedTitle}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                  )}
-                  <View style={styles.previewArticle}>
-                    <View style={styles.previewAuthorLine}>
-                      <View style={styles.previewAuthorAvatar}>
-                        <Text style={styles.previewAvatarText}>M</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.previewAuthorName}>{t('compose.previewAuthor', 'Me')}</Text>
-                        <Text style={styles.previewReadTime}>
-                          {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                        </Text>
-                      </View>
-                    </View>
-                    {!headerImage && sanitizedTitle ? (
-                      <Text style={styles.previewTitle}>{sanitizedTitle}</Text>
-                    ) : null}
-                    <MarkdownText referenceMetadata={referenceMetadata}>{body}</MarkdownText>
-                  </View>
-                </ScrollView>
-              </View>
-            </Modal>
-          ) : null}
           {!previewMode && (
             <TextInput
               ref={textInputRef}
@@ -640,7 +889,7 @@ export default function ComposeScreen() {
               multiline
               scrollEnabled={false}
               value={body}
-              onChangeText={(text: string) => setBody(text.length <= BODY_MAX_LENGTH ? text : text.slice(0, BODY_MAX_LENGTH))}
+              onChangeText={(text: string) => setBody(enforceTitleAndAliasLimits(text, TITLE_MAX_LENGTH))}
               onSelectionChange={(e: { nativeEvent: { selection: { start: number; end: number } } }) => setSelection(e.nativeEvent.selection)}
               autoFocus
             />
@@ -648,18 +897,157 @@ export default function ComposeScreen() {
         </ScrollView>
       </Pressable>
 
+      {/* Preview modal: rendered outside ScrollView so layout is correct */}
+      {previewMode && (
+        <Modal visible={true} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent>
+          <View
+            style={[
+              styles.previewFullscreen,
+              {
+                paddingTop: insets.top,
+                paddingBottom: insets.bottom,
+                width: screenWidth,
+                minHeight: screenHeight,
+              },
+            ]}
+          >
+            {/* Handle bar + header */}
+            <View style={styles.previewHeader}>
+              <View style={styles.previewHandle} />
+              <View style={styles.previewHeaderRow}>
+                <Pressable
+                  style={styles.previewCloseBar}
+                  onPress={() => { setPreviewMode(false); setPendingPublish(false); }}
+                  accessibilityLabel={t('common.close')}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.previewCloseText}>{t('common.close', 'Close')}</Text>
+                </Pressable>
+                <Text style={styles.previewTitle} numberOfLines={1}>
+                  {pendingPublish ? t('compose.confirmPublish', 'Confirm & Publish') : t('compose.preview', 'Preview')}
+                </Text>
+                {pendingPublish ? (
+                  <Pressable
+                    style={[styles.previewPublishBtn, isPublishing && styles.previewPublishBtnDisabled]}
+                    onPress={handlePublish}
+                    disabled={isPublishing}
+                    accessibilityLabel={t('compose.confirmPublish')}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.previewPublishText}>
+                      {isPublishing ? t('compose.publishing', 'Publishing...') : t('compose.publish')}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View style={styles.previewHeaderSpacer} />
+                )}
+              </View>
+            </View>
+            {/* Article preview: same layout as post/[id]/reading.tsx */}
+            <ScrollView
+              style={styles.previewScroll}
+              contentContainerStyle={[styles.previewScrollContent, styles.previewReadingContent]}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+            >
+              {headerImage ? (
+                <View style={[styles.previewHeroWrap, { height: screenWidth * (3 / 4) }]}>
+                  <ExpoImage
+                    source={{ uri: headerImage }}
+                    style={[styles.previewHeroImage, { width: screenWidth, height: screenWidth * (3 / 4) }]}
+                    contentFit="cover"
+                  />
+                  {sanitizedTitle ? (
+                    <View style={styles.previewHeroTitleOverlay}>
+                      <Text style={styles.previewHeroTitleText} numberOfLines={2}>{sanitizedTitle}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+              <PostArticleBlock
+                post={previewPost}
+                hasHero={!!headerImage}
+                authorSubtitle={t('compose.preview', 'Preview')}
+                referenceMetadata={referenceMetadata}
+                validMentionHandles={confirmedMentionHandles}
+              />
+              {/* Sources / Quoted by: same section as reading page */}
+              <View style={styles.previewSection}>
+                <View style={styles.previewTabsRow}>
+                  <View style={[styles.previewTabBtn, styles.previewTabBtnActive]}>
+                    <Text style={[styles.previewTabBtnText, styles.previewTabBtnTextActive]}>
+                      {t('post.sources', 'Sources')}
+                    </Text>
+                  </View>
+                  <View style={styles.previewTabBtn}>
+                    <Text style={styles.previewTabBtnText}>
+                      {t('post.quotedBy', 'Quoted by')} (0)
+                    </Text>
+                  </View>
+                </View>
+                {previewSources.length === 0 ? (
+                  <Text style={styles.previewEmptyText}>
+                    {t('post.noSources', 'No tagged sources in this post.')}
+                  </Text>
+                ) : (
+                  <View style={styles.previewSourcesList}>
+                    {previewSources.map((source: any, index: number) => {
+                      const onPress = () => {
+                        if (source.type === 'external' && source.url) {
+                          Linking.openURL(source.url).catch(() => { });
+                        } else if (source.type === 'post' && source.id) {
+                          setPreviewMode(false);
+                          router.push(`/post/${source.id}`);
+                        } else if (source.type === 'topic' && source.slug) {
+                          setPreviewMode(false);
+                          router.push(`/topic/${encodeURIComponent(source.slug)}`);
+                        }
+                      };
+                      const title = source.title || source.url || source.slug || '';
+                      const subtitle = source.type === 'external' && source.url
+                        ? (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })()
+                        : source.type === 'topic' ? t('post.topic', 'Topic') : '';
+                      return (
+                        <Pressable key={`${source.type}-${source.id ?? source.slug ?? source.url ?? index}`} style={styles.previewSourceCard} onPress={onPress}>
+                          <View style={styles.previewSourceCardLeft}>
+                            <View style={styles.previewSourceIconWrap}>
+                              <MaterialIcons
+                                name={source.type === 'post' ? 'article' : source.type === 'topic' ? 'tag' : 'link'}
+                                size={HEADER.iconSize}
+                                color={COLORS.primary}
+                              />
+                            </View>
+                            <View style={styles.previewSourceCardText}>
+                              <Text style={styles.previewSourceCardTitle} numberOfLines={1}>{title}</Text>
+                              {subtitle ? <Text style={styles.previewSourceCardSubtitle} numberOfLines={1}>{subtitle}</Text> : null}
+                            </View>
+                          </View>
+                          <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </Modal>
+      )}
+
       {/* Footer: char count (bottom right) then context bar (toolbar or link overlay) */}
       {!previewMode && (
         <View style={styles.footer} pointerEvents="box-none">
           <SuggestionsView />
           <View style={styles.charCountRow}>
-            {h1AtStart ? (
+            {currentLineHeadingInfo ? (
               <Text style={styles.charCount}>
-                {t('compose.headline', 'Headline')}: {titleLength} / {TITLE_MAX_LENGTH}
+                {currentLineHeadingInfo.level === 'h1' ? t('compose.headline', 'Headline') : currentLineHeadingInfo.level.toUpperCase()}: {currentLineHeadingInfo.length} / {TITLE_MAX_LENGTH}
               </Text>
             ) : <View />}
-            <Text style={[styles.charCount, styles.charCountRight]}>
-              {body.length} / {BODY_MAX_LENGTH}
+            <Text style={[styles.charCount, styles.charCountRight]} numberOfLines={1}>
+              {body.trim().length < BODY_MIN_LENGTH
+                ? t('compose.charCountMinMax', '{{current}} / {{min}}–{{max}}', { current: body.trim().length, min: BODY_MIN_LENGTH, max: BODY_MAX_LENGTH.toLocaleString() })
+                : t('compose.charCount', '{{current}} / {{max}}', { current: body.trim().length, max: BODY_MAX_LENGTH.toLocaleString() })}
               {topicRefCount > 0 ? ` · ${t('compose.refs', 'Refs')} ${topicRefCount}/${MAX_TOPIC_REFS}` : ''}
             </Text>
           </View>
@@ -680,18 +1068,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: HEADER.barPaddingHorizontal,
-    paddingBottom: HEADER.barPaddingBottom,
+    paddingTop: SPACING.m,
+    paddingBottom: SPACING.m,
+    minHeight: 52,
   },
-  closeBtn: { padding: SPACING.s },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.m,
+  },
+  closeBtn: {
+    minHeight: 44,
+    minWidth: 44,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.m,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   closeText: { fontSize: 16, fontFamily: FONTS.medium },
-  modeToggle: { flexDirection: 'row', backgroundColor: COLORS.hover, borderRadius: 8, padding: 2 },
-  modeBtn: { paddingVertical: 4, paddingHorizontal: 12, borderRadius: 6 },
-  modeBtnActive: { backgroundColor: COLORS.ink, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 2 },
-  modeText: { color: COLORS.tertiary, fontSize: 13, fontWeight: '500' },
-  modeTextActive: { color: COLORS.paper, fontWeight: '600' },
-  publishBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 16 },
+  previewBtn: {
+    minHeight: 44,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewBtnDisabled: { opacity: 0.5 },
+  previewBtnText: { color: COLORS.secondary, fontSize: 16, fontFamily: FONTS.medium },
+  previewBtnTextDisabled: { color: COLORS.tertiary },
+  publishBtn: {
+    backgroundColor: COLORS.primary,
+    minHeight: 44,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   publishBtnDisabled: { opacity: 0.5 },
-  publishText: { color: COLORS.ink, fontWeight: '600', fontSize: 14 },
+  publishText: { color: COLORS.ink, fontWeight: '600', fontSize: 16 },
 
   editorContainer: { flex: 1, padding: SPACING.l },
   input: { fontSize: 18, color: COLORS.paper, lineHeight: 26, textAlignVertical: 'top', minHeight: 200 },
@@ -701,9 +1116,33 @@ const styles = StyleSheet.create({
   quoteBody: { color: COLORS.secondary },
   quoteHint: { fontSize: 12, color: COLORS.tertiary, marginBottom: SPACING.m, fontStyle: 'italic' },
 
-  imageContainer: { marginBottom: SPACING.m, borderRadius: SIZES.borderRadius, overflow: 'hidden', width: '100%' },
-  headerImg: { width: '100%' },
-  removeImgBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', padding: 4, borderRadius: 12 },
+  headerImagePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.m,
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    gap: SPACING.m,
+  },
+  headerImageThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: COLORS.divider,
+  },
+  headerImageLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.medium,
+  },
+  removeImgBtn: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 6,
+    borderRadius: 12,
+  },
 
   footer: { backgroundColor: COLORS.ink, borderTopWidth: 1, borderTopColor: COLORS.divider, paddingTop: SPACING.s },
 
@@ -734,22 +1173,170 @@ const styles = StyleSheet.create({
   linkCloseButton: { backgroundColor: COLORS.hover, padding: 12, borderRadius: 8, justifyContent: 'center' },
 
   previewFullscreen: { flex: 1, backgroundColor: COLORS.ink },
-  previewHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: COLORS.divider },
-  previewCloseBar: { padding: SPACING.l },
-  previewCloseText: { color: COLORS.primary, fontSize: 16, fontWeight: '600' },
-  publishBtnInPreview: { marginRight: SPACING.l },
+  previewHeader: {
+    paddingHorizontal: HEADER.barPaddingHorizontal,
+    paddingBottom: SPACING.m,
+    backgroundColor: COLORS.ink,
+  },
+  previewHandle: {
+    width: MODAL.handleWidth,
+    height: MODAL.handleHeight,
+    borderRadius: MODAL.handleBorderRadius,
+    backgroundColor: MODAL.handleBackgroundColor,
+    alignSelf: 'center',
+    marginTop: SPACING.m,
+    marginBottom: SPACING.m,
+  },
+  previewHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 44,
+    gap: SPACING.m,
+  },
+  previewCloseBar: {
+    minHeight: 44,
+    minWidth: 80,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  previewCloseText: {
+    color: HEADER.cancelColor,
+    fontSize: HEADER.titleSize,
+    fontFamily: FONTS.medium,
+  },
+  previewTitle: {
+    flex: 1,
+    fontSize: HEADER.titleSize,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.paper,
+    textAlign: 'center',
+  },
+  previewHeaderSpacer: { minWidth: 80 },
+  previewPublishBtn: {
+    backgroundColor: COLORS.primary,
+    minHeight: 44,
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.l,
+    borderRadius: SIZES.borderRadius,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  previewPublishBtnDisabled: { opacity: 0.6 },
+  previewPublishText: {
+    color: COLORS.ink,
+    fontSize: HEADER.titleSize,
+    fontFamily: FONTS.semiBold,
+  },
   previewScroll: { flex: 1 },
   previewScrollContent: { paddingBottom: 40 },
-  /* Reading-format layout: same as post/[id]/reading.tsx */
-  previewHeroWrap: { width: '100%', marginBottom: SPACING.l, position: 'relative', overflow: 'hidden' },
-  previewHeroImage: { width: '100%', backgroundColor: COLORS.divider },
-  previewHeroTitleOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: SPACING.l, backgroundColor: 'rgba(0,0,0,0.5)' },
-  previewHeroTitleText: { fontSize: 28, fontWeight: '700', color: COLORS.paper, fontFamily: FONTS.semiBold, lineHeight: 34 },
-  previewArticle: { paddingHorizontal: SPACING.l, marginBottom: SPACING.l },
-  previewAuthorLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING.m, marginBottom: SPACING.l },
-  previewAuthorAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(110, 122, 138, 0.2)', justifyContent: 'center', alignItems: 'center' },
-  previewAvatarText: { color: COLORS.primary, fontWeight: '600', fontSize: 16, fontFamily: FONTS.semiBold },
-  previewAuthorName: { fontSize: 15, color: COLORS.paper, fontFamily: FONTS.medium },
-  previewReadTime: { fontSize: 13, color: COLORS.tertiary, fontFamily: FONTS.regular },
-  previewTitle: { fontSize: 28, fontWeight: '700', color: COLORS.paper, fontFamily: FONTS.semiBold, lineHeight: 34, marginBottom: SPACING.xl },
+  previewReadingContent: { paddingTop: SPACING.xl, paddingBottom: 80 },
+  /* Reading-page layout: hero (full width) */
+  previewHeroWrap: {
+    width: '100%',
+    alignSelf: 'center',
+    marginBottom: SPACING.l,
+    position: 'relative' as const,
+    overflow: 'hidden',
+  },
+  previewHeroImage: {
+    width: '100%',
+    backgroundColor: COLORS.divider,
+  },
+  previewHeroTitleOverlay: {
+    position: 'absolute' as const,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: SPACING.l,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  previewHeroTitleText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 34,
+  },
+  previewSection: {
+    marginTop: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    paddingTop: SPACING.l,
+  },
+  previewTabsRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    marginBottom: SPACING.m,
+  },
+  previewTabBtn: {
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    marginRight: SPACING.m,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  previewTabBtnActive: {
+    borderBottomColor: COLORS.primary,
+  },
+  previewTabBtnText: {
+    fontSize: 15,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.medium,
+  },
+  previewTabBtnTextActive: {
+    color: COLORS.paper,
+    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
+  },
+  previewEmptyText: {
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    fontStyle: 'italic',
+  },
+  previewSourcesList: {
+    gap: 0,
+  },
+  previewSourceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.m,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  previewSourceCardLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.m,
+    minWidth: 0,
+  },
+  previewSourceIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.hover,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewSourceCardText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  previewSourceCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  previewSourceCardSubtitle: {
+    fontSize: 13,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: 2,
+  },
 });

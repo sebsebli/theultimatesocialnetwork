@@ -26,6 +26,7 @@ export default function EditProfileScreen() {
   const [isProtected, setIsProtected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialHandle, setInitialHandle] = useState('');
+  const [initialDisplayName, setInitialDisplayName] = useState('');
   const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [confirmUpdateVisible, setConfirmUpdateVisible] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,6 +39,7 @@ export default function EditProfileScreen() {
           setDisplayName(user.displayName || '');
           setHandle(user.handle || '');
           setInitialHandle(user.handle || '');
+          setInitialDisplayName(user.displayName || '');
           setBio(user.bio || '');
           setIsProtected(user.isProtected || false);
           // If handle exists, mark as available/valid so we don't force re-check unless changed
@@ -57,6 +59,9 @@ export default function EditProfileScreen() {
   const handleTooShort = handleLen > 0 && handleLen < HANDLE_MIN;
   const handleTooLong = handleLen > HANDLE_MAX;
   const isHandleChanged = normalizedHandle !== initialHandle;
+  const isDisplayNameChanged = displayName.trim() !== initialDisplayName;
+  /** Only show 14-day warning modal when user actually changed name or handle; bio/private can save without confirmation. */
+  const nameOrHandleChanged = isDisplayNameChanged || isHandleChanged;
 
   const checkAvailability = useCallback(async (h: string) => {
     if (!isHandleChanged) {
@@ -102,7 +107,11 @@ export default function EditProfileScreen() {
       showError(t('onboarding.fieldsRequired'));
       return;
     }
-    setConfirmUpdateVisible(true);
+    if (nameOrHandleChanged) {
+      setConfirmUpdateVisible(true);
+    } else {
+      confirmUpdate();
+    }
   };
 
   const confirmUpdate = async () => {
@@ -129,7 +138,7 @@ export default function EditProfileScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScreenHeader
@@ -177,8 +186,8 @@ export default function EditProfileScreen() {
                 style={[
                   styles.input,
                   styles.inputWithPrefix,
-                  handleStatus === 'taken' && styles.inputError,
-                  handleStatus === 'available' && styles.inputSuccess,
+                  isHandleChanged && handleStatus === 'taken' && styles.inputError,
+                  isHandleChanged && handleStatus === 'available' && styles.inputSuccess,
                 ]}
                 value={handle}
                 onChangeText={(text: string) => setHandle(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
@@ -307,17 +316,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: SPACING.s,
-    backgroundColor: 'rgba(234, 179, 8, 0.15)', // darker yellow/orange tint
+    backgroundColor: COLORS.hover,
     padding: SPACING.m,
     borderRadius: SIZES.borderRadius,
     marginBottom: SPACING.xl,
     borderWidth: 1,
-    borderColor: '#EAB308', // yellow-500 solid border
+    borderColor: COLORS.divider,
   },
   warningText: {
     flex: 1,
     fontSize: 13,
-    color: '#EAB308', // yellow-500 text
+    color: COLORS.secondary,
     fontFamily: FONTS.medium,
     lineHeight: 18,
   },

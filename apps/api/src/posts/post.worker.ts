@@ -115,6 +115,7 @@ export class PostWorker
       const embedding =
         await this.embeddingService.generateEmbedding(embeddingText);
 
+      const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
       await this.meilisearchService.indexPost({
         id: post.id,
         title: post.title,
@@ -128,6 +129,7 @@ export class PostWorker
         createdAt: post.createdAt,
         quoteCount: post.quoteCount,
         replyCount: post.replyCount,
+        topicIds,
         embedding: embedding || undefined,
       });
 

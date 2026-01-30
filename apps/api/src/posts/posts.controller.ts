@@ -16,10 +16,14 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { postToPlain } from '../shared/post-serializer';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
+import { UploadService } from '../upload/upload.service';
 
 @Controller('posts')
 export class PostsController {
-  constructor(private readonly postsService: PostsService) {}
+  constructor(
+    private readonly postsService: PostsService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
@@ -38,7 +42,8 @@ export class PostsController {
     @CurrentUser() user?: { id: string },
   ) {
     const post = await this.postsService.findOne(id, user?.id);
-    const plain = postToPlain(post);
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+    const plain = postToPlain(post, getImageUrl);
     return plain ?? {};
   }
 
@@ -50,6 +55,11 @@ export class PostsController {
   @Get(':id/referenced-by')
   async getReferencedBy(@Param('id', ParseUUIDPipe) id: string) {
     return this.postsService.getReferencedBy(id);
+  }
+
+  @Get(':id/quotes')
+  async getQuotes(@Param('id', ParseUUIDPipe) id: string) {
+    return this.postsService.getQuotes(id);
   }
 
   @Delete(':id')

@@ -409,5 +409,19 @@
     "info": "We only use your email to notify you about invite availability.",
     "acceptTermsRequired": "Please accept Terms of Service and Privacy Policy to continue",
     "goBack": "Go back"
+  },
+  "cookieConsent": {
+    "message": "We use cookies to keep you signed in and to remember your preferences. We do not use advertising or third-party tracking. You can accept all cookies or only those essential for the site.",
+    "privacyLink": "Privacy policy",
+    "essentialOnly": "Essential only",
+    "acceptAll": "Accept all"
+  },
+  "signupOverlay": {
+    "title": "Join CITE",
+    "description": "Create an account to follow people, save posts, and join the conversation with linked ideas and sources.",
+    "signInUp": "Sign in / Sign up",
+    "joinWaitlist": "Join the waitlist",
+    "notNow": "Not now",
+    "closeAria": "Close"
   }
 }

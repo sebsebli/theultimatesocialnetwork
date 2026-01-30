@@ -409,5 +409,19 @@
     "info": "Kun for varsling.",
     "acceptTermsRequired": "Godta.",
     "goBack": "Tilbake"
+  },
+  "cookieConsent": {
+    "message": "Vi bruker informasjonskapsler for innlogging og preferanser. Ingen reklame eller tredjepartssporing. Du kan godta alle eller kun nødvendige.",
+    "privacyLink": "Personvernregler",
+    "essentialOnly": "Kun nødvendige",
+    "acceptAll": "Godta alle"
+  },
+  "signupOverlay": {
+    "title": "Bli med i CITE",
+    "description": "Opprett en konto for å følge folk, lagre innlegg og delta i samtalen med koblede ideer og kilder.",
+    "signInUp": "Logg inn / Registrer",
+    "joinWaitlist": "Bli med på ventelisten",
+    "notNow": "Ikke nå",
+    "closeAria": "Lukk"
   }
 }

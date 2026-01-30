@@ -10,7 +10,7 @@ import { PostVisibility } from '../../entities/post.entity';
 export class CreatePostDto {
   @IsNotEmpty()
   @IsString()
-  @MaxLength(5000) // Reasonable limit
+  @MaxLength(10000) // Matches mobile composer BODY_MAX_LENGTH
   body: string;
 
   @IsOptional()

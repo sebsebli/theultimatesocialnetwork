@@ -27,6 +27,14 @@ export class User {
   @Column({ type: 'text', nullable: true })
   bio: string;
 
+  /** Storage key for profile picture (e.g. MinIO). Null = no avatar. */
+  @Column({ name: 'avatar_key', type: 'text', nullable: true })
+  avatarKey: string | null;
+
+  /** Storage key for profile header/cover image (e.g. drawn or uploaded). Null = no header. */
+  @Column({ name: 'profile_header_key', type: 'text', nullable: true })
+  profileHeaderKey: string | null;
+
   @Column({ name: 'is_protected', default: false })
   isProtected: boolean;
 
@@ -65,4 +73,20 @@ export class User {
     nullable: true,
   })
   lastUsernameChangeAt: Date | null;
+
+  /** Set when user completes onboarding (profile step). Null = needs onboarding. */
+  @Column({
+    name: 'onboarding_completed_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  onboardingCompletedAt: Date | null;
+
+  /** Last time the user requested a data export (rate limit: once per 24h). */
+  @Column({
+    name: 'last_export_requested_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  lastExportRequestedAt: Date | null;
 }

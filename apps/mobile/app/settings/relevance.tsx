@@ -59,8 +59,9 @@ export default function RelevanceSettingsScreen() {
     // Fetch initial settings
     api.get('/users/me').then((user: any) => {
       if (user.preferences?.explore) {
-        const { showWhy: _omit, ...fetchedSliders } = user.preferences.explore;
+        const { showWhy: _omit, recommendationsEnabled, ...fetchedSliders } = user.preferences.explore;
         setSliders(prev => ({ ...prev, ...fetchedSliders }));
+        setEnabled(recommendationsEnabled !== false);
       }
     });
   }, []);
@@ -70,7 +71,7 @@ export default function RelevanceSettingsScreen() {
     try {
       await api.patch('/users/me', {
         preferences: {
-          explore: { ...sliders }
+          explore: { recommendationsEnabled: enabled, ...sliders }
         }
       });
       router.back();
@@ -98,7 +99,7 @@ export default function RelevanceSettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <ScreenHeader
         title={t('settings.relevance')}
         paddingTop={insets.top}

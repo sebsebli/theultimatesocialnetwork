@@ -31,9 +31,11 @@ export function TopicPage({ topic }: TopicPageProps) {
     }
   };
 
+  const storageBase =
+    process.env.NEXT_PUBLIC_STORAGE_URL || "http://localhost:9000/cite-images";
   const headerImagePost = topic.posts?.find((p) => p.headerImageKey);
   const headerImageUrl = headerImagePost
-    ? `http://localhost:9000/cite-images/${headerImagePost.headerImageKey}`
+    ? `${storageBase}/${headerImagePost.headerImageKey}`
     : null;
 
   return (

@@ -73,21 +73,21 @@ export function TopicCollectionHeader({
           accessibilityRole="button"
         >
           <View style={styles.iconCircle}>
-            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
+            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
           </View>
         </Pressable>
 
         {rightAction === 'search' && onRightAction && (
           <Pressable style={styles.rightButton} onPress={onRightAction}>
             <View style={styles.iconCircle}>
-              <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.paper} />
+              <MaterialIcons name="search" size={HEADER.iconSize} color={HEADER.iconColor} />
             </View>
           </Pressable>
         )}
         {rightAction === 'more' && onRightAction && (
           <Pressable style={styles.rightButton} onPress={onRightAction} accessibilityLabel="More options">
             <View style={styles.iconCircle}>
-              <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.paper} />
+              <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
             </View>
           </Pressable>
         )}

@@ -1,20 +1,22 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Image, Modal } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Image, Modal, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
+import { CollectionCard } from '../../components/CollectionCard';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, PROFILE_TOP_HEIGHT } from '../../constants/theme';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { DrawBackgroundModal } from '../../components/DrawBackgroundModal';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PROFILE_TOP_HEIGHT } from '../../constants/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -31,13 +33,21 @@ export default function ProfileScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [isSelf, setIsSelf] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'collections'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'saved' | 'collections'>('posts');
   const [profileLoading, setProfileLoading] = useState(true);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [avatarActionModalVisible, setAvatarActionModalVisible] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [headerEditModalVisible, setHeaderEditModalVisible] = useState(false);
   const [drawModalVisible, setDrawModalVisible] = useState(false);
+  // Collections tab: options sheet, edit modal, delete confirm
+  const [collectionOptionsVisible, setCollectionOptionsVisible] = useState(false);
+  const [selectedCollection, setSelectedCollection] = useState<any>(null);
+  const [editCollectionModalVisible, setEditCollectionModalVisible] = useState(false);
+  const [editingCollection, setEditingCollection] = useState<any>(null);
+  const [editCollectionTitle, setEditCollectionTitle] = useState('');
+  const [editCollectionDescription, setEditCollectionDescription] = useState('');
+  const [deleteCollectionConfirmVisible, setDeleteCollectionConfirmVisible] = useState(false);
 
   const userIdRef = useRef<string | null>(null);
 
@@ -60,6 +70,18 @@ export default function ProfileScreen() {
 
       const uid = data?.id ?? 'me';
       let postsData: any;
+      if (activeTab === 'saved') {
+        postsData = await api.get(`/keeps?page=${pageNum}&limit=20`);
+        const rawItems = Array.isArray(postsData?.items) ? postsData.items : [];
+        const items = rawItems.map((k: any) => k.post).filter(Boolean);
+        if (reset) {
+          setPosts(items);
+        } else {
+          setPosts(prev => [...prev, ...items]);
+        }
+        setHasMore(items.length === 20 && (postsData?.hasMore !== false));
+        return;
+      }
       if (activeTab === 'replies') {
         postsData = await api.get(`/users/${uid}/replies?page=${pageNum}&limit=20`);
       } else if (activeTab === 'quotes') {
@@ -158,6 +180,83 @@ export default function ProfileScreen() {
     />
   ), [isSelf]);
 
+  const openCollectionOptions = useCallback((collection: any) => {
+    Haptics.selectionAsync();
+    setSelectedCollection(collection);
+    setCollectionOptionsVisible(true);
+  }, []);
+
+  const handleOpenCollection = useCallback(() => {
+    if (selectedCollection) router.push(`/collections/${selectedCollection.id}`);
+    setCollectionOptionsVisible(false);
+    setSelectedCollection(null);
+  }, [selectedCollection, router]);
+
+  const handleEditCollectionPress = useCallback(() => {
+    if (!selectedCollection) return;
+    setEditingCollection(selectedCollection);
+    setEditCollectionTitle(selectedCollection.title);
+    setEditCollectionDescription(selectedCollection.description ?? '');
+    setEditCollectionModalVisible(true);
+    setCollectionOptionsVisible(false);
+    setSelectedCollection(null);
+  }, [selectedCollection]);
+
+  const handleSaveEditCollection = useCallback(async () => {
+    const c = editingCollection;
+    if (!c?.id || !editCollectionTitle.trim()) return;
+    try {
+      await api.patch(`/collections/${c.id}`, {
+        title: editCollectionTitle.trim(),
+        description: editCollectionDescription.trim() || undefined,
+      });
+      setPosts((prev) => prev.map((p: any) => (p.id === c.id ? { ...p, title: editCollectionTitle.trim(), description: editCollectionDescription.trim() || undefined } : p)));
+      setEditCollectionModalVisible(false);
+      setEditingCollection(null);
+      setEditCollectionTitle('');
+      setEditCollectionDescription('');
+    } catch (e) {
+      showError(t('collections.updateFailed', 'Failed to update collection'));
+    }
+  }, [editingCollection, editCollectionTitle, editCollectionDescription, showError, t]);
+
+  const handleDeleteCollectionPress = useCallback(() => {
+    setDeleteCollectionConfirmVisible(true);
+    setCollectionOptionsVisible(false);
+  }, []);
+
+  const handleDeleteCollectionConfirm = useCallback(async () => {
+    const c = selectedCollection;
+    if (!c) return;
+    try {
+      await api.delete(`/collections/${c.id}`);
+      setPosts((prev) => prev.filter((p: any) => p.id !== c.id));
+      setDeleteCollectionConfirmVisible(false);
+      setSelectedCollection(null);
+    } catch (e) {
+      showError(t('collections.deleteFailed', 'Failed to delete collection'));
+    }
+  }, [selectedCollection, showError, t]);
+
+  const renderCollectionItem = useCallback(({ item }: { item: any }) => (
+    <CollectionCard
+      item={{
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        itemCount: item.itemCount ?? 0,
+        previewImageKey: item.previewImageKey,
+      }}
+      onPress={() => {
+        Haptics.selectionAsync();
+        router.push(`/collections/${item.id}`);
+      }}
+      onLongPress={isSelf ? () => openCollectionOptions(item) : undefined}
+      onMenuPress={isSelf ? () => openCollectionOptions(item) : undefined}
+      showMenu={isSelf}
+    />
+  ), [isSelf, router, openCollectionOptions]);
+
   const keyExtractor = useCallback((item: any) => item.id, []);
 
   const removeAvatar = useCallback(async () => {
@@ -248,11 +347,11 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           keyExtractor={keyExtractor}
-          renderItem={renderItem}
+          renderItem={activeTab === 'collections' ? renderCollectionItem : renderItem}
           ListHeaderComponent={
             <>
               {/* Single profile top area: hand-drawing or dark black background behind avatar, name, stats. No separate header strip. */}
-              <View style={[styles.profileTopSection, { minHeight: PROFILE_TOP_HEIGHT }]}>
+              <View style={[styles.profileTopSection, { height: PROFILE_TOP_HEIGHT }]}>
                 {/* Full-area background: saved drawing image or dark black */}
                 {user.profileHeaderUrl ? (
                   <Image source={{ uri: user.profileHeaderUrl }} style={styles.profileTopBackground} resizeMode="cover" />
@@ -300,12 +399,16 @@ export default function ProfileScreen() {
                           {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
                         </Text>
                       )}
-                      {isSelf && !avatarUploading && (
-                        <View style={styles.avatarEditBadge}>
-                          <MaterialIcons name="edit" size={HEADER.iconSize} color={COLORS.ink} />
-                        </View>
-                      )}
                     </Pressable>
+                    {isSelf && !avatarUploading && (
+                      <Pressable
+                        onPress={onAvatarPress}
+                        style={styles.avatarEditBadge}
+                        accessibilityLabel={t('profile.editHeader', 'Edit profile photo')}
+                      >
+                        <MaterialIcons name="edit" size={14} color={COLORS.ink} />
+                      </Pressable>
+                    )}
                   </View>
 
                   <View style={styles.identityBlock}>
@@ -359,9 +462,12 @@ export default function ProfileScreen() {
               </View>
               {/* End profile top section (full-area background) */}
 
-              {/* Tabs */}
+              {/* Tabs: Posts, Replies, Quotes, Saved (own only), Collections */}
               <View style={styles.tabsContainer}>
-                {(['posts', 'replies', 'quotes', 'collections'] as const).map((tab) => (
+                {(isSelf
+                  ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
+                  : (['posts', 'replies', 'quotes', 'collections'] as const)
+                ).map((tab) => (
                   <Pressable
                     key={tab}
                     style={[styles.tab, activeTab === tab && styles.tabActive]}
@@ -376,13 +482,57 @@ export default function ProfileScreen() {
                   </Pressable>
                 ))}
               </View>
+              {isSelf && activeTab === 'saved' && (
+                <Pressable
+                  style={styles.keepsLibraryRow}
+                  onPress={() => router.push('/keeps')}
+                  accessibilityLabel={t('profile.keepsLibraryDesc', 'Open Keeps library to search and add to collections')}
+                >
+                  <MaterialIcons name="library-books" size={SIZES.iconMedium} color={COLORS.primary} />
+                  <Text style={styles.keepsLibraryText}>{t('profile.keepsLibrary', 'Keeps library')}</Text>
+                  <Text style={styles.keepsLibrarySubtext}>{t('profile.keepsLibraryDesc', 'Search & add to collections')}</Text>
+                  <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+                </Pressable>
+              )}
+              {isSelf && activeTab === 'collections' && (
+                <Pressable
+                  style={styles.keepsLibraryRow}
+                  onPress={() => router.push('/collections')}
+                  accessibilityLabel={t('collections.create', 'Create or manage collections')}
+                >
+                  <MaterialIcons name="add-circle-outline" size={SIZES.iconMedium} color={COLORS.primary} />
+                  <Text style={styles.keepsLibraryText}>{t('collections.createManage', 'Create & manage collections')}</Text>
+                  <Text style={styles.keepsLibrarySubtext}>{t('collections.createManageDesc', 'Add new collection or open full list')}</Text>
+                  <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+                </Pressable>
+              )}
             </>
           }
           ListEmptyComponent={
             <EmptyState
-              icon="article"
-              headline={t('profile.noPosts', 'No posts yet')}
-              subtext={t('profile.noPostsHint', 'Share your first post or quote someone.')}
+              icon={activeTab === 'saved' ? 'bookmark-outline' : activeTab === 'collections' ? 'folder-open' : 'article'}
+              headline={
+                activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
+                  : activeTab === 'collections' ? (isSelf ? t('profile.noCollectionsOwn', 'No collections') : t('profile.noCollections', 'No public collections'))
+                    : activeTab === 'replies' ? t('profile.noReplies', 'No replies yet')
+                      : activeTab === 'quotes' ? t('profile.noQuotes', 'No quotes yet')
+                        : t('profile.noPosts', 'No posts yet')
+              }
+              subtext={
+                activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
+                  : activeTab === 'posts' ? t('profile.noPostsHint', 'Share your first post or quote someone.')
+                    : undefined
+              }
+              secondaryLabel={
+                activeTab === 'saved' ? t('profile.keepsLibrary', 'Keeps library')
+                  : isSelf && activeTab === 'collections' ? t('collections.create', 'Create collection')
+                  : undefined
+              }
+              onSecondary={
+                activeTab === 'saved' ? () => router.push('/keeps')
+                  : isSelf && activeTab === 'collections' ? () => router.push('/collections')
+                  : undefined
+              }
             />
           }
           refreshControl={
@@ -416,9 +566,10 @@ export default function ProfileScreen() {
         </Pressable>
       </Modal>
 
-      <Modal visible={avatarActionModalVisible} transparent animationType="fade">
-        <Pressable style={styles.actionModalOverlay} onPress={closeAvatarAction}>
-          <View style={[styles.actionModalCard, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
+      <Modal visible={avatarActionModalVisible} transparent animationType="slide">
+        <View style={styles.actionModalOverlay}>
+          <Pressable style={styles.actionModalBackdrop} onPress={closeAvatarAction} />
+          <View style={[styles.actionModalCard, { paddingBottom: insets.bottom + SPACING.xl }]} onStartShouldSetResponder={() => true}>
             <View style={styles.actionModalHandle} />
             <Text style={styles.actionModalTitle}>{t('profile.avatar', 'Profile photo')}</Text>
             {hasAvatar && (
@@ -453,8 +604,64 @@ export default function ProfileScreen() {
               <Text style={styles.actionModalCancelText}>{t('common.cancel')}</Text>
             </Pressable>
           </View>
+        </View>
+      </Modal>
+
+      <OptionsActionSheet
+        visible={collectionOptionsVisible}
+        title={selectedCollection?.title ?? t('collections.options', 'Collection')}
+        options={[
+          { label: t('collections.open', 'Open'), onPress: handleOpenCollection },
+          { label: t('collections.edit', 'Edit'), onPress: handleEditCollectionPress },
+          { label: t('collections.delete', 'Delete Collection'), onPress: handleDeleteCollectionPress, destructive: true },
+        ]}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => { setCollectionOptionsVisible(false); setSelectedCollection(null); }}
+      />
+
+      <Modal visible={editCollectionModalVisible} transparent animationType="slide">
+        <Pressable style={styles.editCollectionModalOverlay} onPress={() => setEditCollectionModalVisible(false)}>
+          <View style={[styles.editCollectionModalContent, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
+            <View style={styles.editCollectionModalHandle} />
+            <Text style={styles.editCollectionModalTitle}>{t('collections.edit', 'Edit collection')}</Text>
+            <TextInput
+              style={styles.editCollectionInput}
+              placeholder={t('collections.titlePlaceholder', 'Title')}
+              placeholderTextColor={COLORS.tertiary}
+              value={editCollectionTitle}
+              onChangeText={setEditCollectionTitle}
+            />
+            <TextInput
+              style={[styles.editCollectionInput, styles.editCollectionInputMultiline]}
+              placeholder={t('collections.descPlaceholder', 'Description (optional)')}
+              placeholderTextColor={COLORS.tertiary}
+              value={editCollectionDescription}
+              onChangeText={setEditCollectionDescription}
+              multiline
+              numberOfLines={2}
+            />
+            <View style={styles.editCollectionModalButtons}>
+              <Pressable style={styles.editCollectionModalButtonCancel} onPress={() => { setEditCollectionModalVisible(false); setEditingCollection(null); setEditCollectionTitle(''); setEditCollectionDescription(''); }}>
+                <Text style={styles.editCollectionModalButtonTextCancel}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable style={[styles.editCollectionModalButtonSave, !editCollectionTitle.trim() && styles.editCollectionModalButtonDisabled]} onPress={handleSaveEditCollection} disabled={!editCollectionTitle.trim()}>
+                <Text style={styles.editCollectionModalButtonTextSave}>{t('common.save', 'Save')}</Text>
+              </Pressable>
+            </View>
+          </View>
         </Pressable>
       </Modal>
+
+      <ConfirmModal
+        visible={deleteCollectionConfirmVisible}
+        title={t('collections.delete', 'Delete Collection')}
+        message={t('collections.deleteConfirm', 'Are you sure you want to delete this collection? All items will be removed. This cannot be undone.')}
+        confirmLabel={t('collections.delete', 'Delete Collection')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={handleDeleteCollectionConfirm}
+        onCancel={() => { setDeleteCollectionConfirmVisible(false); setSelectedCollection(null); }}
+      />
 
       <OptionsActionSheet
         visible={headerEditModalVisible}
@@ -531,14 +738,20 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    paddingHorizontal: SPACING.xxl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
     gap: SPACING.l,
   },
   avatarContainer: {
+    position: 'relative',
+    width: 96,
+    height: 96,
     marginBottom: SPACING.xs,
   },
   avatar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
     width: 96,
     height: 96,
     borderRadius: 48,
@@ -569,27 +782,30 @@ const styles = StyleSheet.create({
   },
   actionModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
+  actionModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: MODAL.backdropBackgroundColor,
+  },
   actionModalCard: {
-    backgroundColor: COLORS.ink,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.s,
-    paddingBottom: SPACING.xl,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: COLORS.divider,
+    backgroundColor: MODAL.sheetBackgroundColor,
+    borderTopLeftRadius: MODAL.sheetBorderRadius,
+    borderTopRightRadius: MODAL.sheetBorderRadius,
+    paddingHorizontal: MODAL.sheetPaddingHorizontal,
+    paddingTop: MODAL.sheetPaddingTop,
+    borderWidth: MODAL.sheetBorderWidth,
+    borderBottomWidth: MODAL.sheetBorderBottomWidth,
+    borderColor: MODAL.sheetBorderColor,
   },
   actionModalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.tertiary,
+    width: MODAL.handleWidth,
+    height: MODAL.handleHeight,
+    borderRadius: MODAL.handleBorderRadius,
+    backgroundColor: MODAL.handleBackgroundColor,
     alignSelf: 'center',
-    marginBottom: SPACING.m,
+    marginTop: MODAL.handleMarginTop,
+    marginBottom: MODAL.handleMarginBottom,
   },
   actionModalTitle: {
     fontSize: 13,
@@ -603,9 +819,10 @@ const styles = StyleSheet.create({
   actionModalOption: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
     gap: SPACING.m,
-    paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.s,
     borderRadius: SIZES.borderRadius,
     marginBottom: 2,
   },
@@ -614,7 +831,7 @@ const styles = StyleSheet.create({
   },
   actionModalOptionDestructive: {},
   actionModalOptionText: {
-    fontSize: 17,
+    fontSize: MODAL.buttonFontSize,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
   },
@@ -623,13 +840,20 @@ const styles = StyleSheet.create({
   },
   actionModalCancel: {
     marginTop: SPACING.m,
-    paddingVertical: SPACING.m,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
     alignItems: 'center',
-    borderRadius: SIZES.borderRadius,
+    justifyContent: 'center',
+    borderRadius: MODAL.buttonBorderRadius,
+    backgroundColor: MODAL.secondaryButtonBackgroundColor,
+    borderWidth: MODAL.secondaryButtonBorderWidth,
+    borderColor: MODAL.secondaryButtonBorderColor,
   },
   actionModalCancelText: {
-    fontSize: 17,
-    color: COLORS.primary,
+    fontSize: MODAL.buttonFontSize,
+    fontWeight: MODAL.buttonFontWeight,
+    color: MODAL.secondaryButtonTextColor,
     fontFamily: FONTS.semiBold,
   },
   avatarText: {
@@ -658,7 +882,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 48,
     paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   avatarModalCloseText: {
     color: COLORS.paper,
@@ -699,7 +923,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: SPACING.xs,
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   actionButtonFilled: {
     backgroundColor: COLORS.tertiary,
@@ -772,6 +996,102 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: COLORS.paper,
     fontWeight: '600',
+  },
+  keepsLibraryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.m,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    gap: SPACING.s,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    backgroundColor: COLORS.ink,
+  },
+  keepsLibraryText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  keepsLibrarySubtext: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  editCollectionModalOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.overlay,
+    justifyContent: 'flex-end',
+  },
+  editCollectionModalContent: {
+    backgroundColor: COLORS.ink,
+    borderTopLeftRadius: SIZES.borderRadius * 2,
+    borderTopRightRadius: SIZES.borderRadius * 2,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: SPACING.m,
+  },
+  editCollectionModalHandle: {
+    width: MODAL.handleWidth,
+    height: MODAL.handleHeight,
+    borderRadius: MODAL.handleBorderRadius,
+    backgroundColor: MODAL.handleBackgroundColor,
+    alignSelf: 'center',
+    marginBottom: SPACING.m,
+  },
+  editCollectionModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.paper,
+    marginBottom: SPACING.l,
+    fontFamily: FONTS.semiBold,
+  },
+  editCollectionInput: {
+    backgroundColor: COLORS.hover,
+    color: COLORS.paper,
+    padding: SPACING.m,
+    borderRadius: SIZES.borderRadius,
+    marginBottom: SPACING.m,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    fontFamily: FONTS.regular,
+  },
+  editCollectionInputMultiline: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  editCollectionModalButtons: {
+    flexDirection: 'row',
+    gap: SPACING.m,
+    marginTop: SPACING.s,
+  },
+  editCollectionModalButtonCancel: {
+    flex: 1,
+    padding: SPACING.m,
+    borderRadius: SIZES.borderRadius,
+    backgroundColor: COLORS.hover,
+    alignItems: 'center',
+  },
+  editCollectionModalButtonSave: {
+    flex: 1,
+    padding: SPACING.m,
+    borderRadius: SIZES.borderRadius,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+  },
+  editCollectionModalButtonDisabled: {
+    opacity: 0.5,
+  },
+  editCollectionModalButtonTextCancel: {
+    color: COLORS.paper,
+    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
+  },
+  editCollectionModalButtonTextSave: {
+    color: COLORS.ink,
+    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   emptyState: {
     padding: SPACING.xxxl,

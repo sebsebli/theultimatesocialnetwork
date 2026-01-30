@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
 import { UserCard } from '../../components/UserCard';
+import { EmptyState } from '../../components/EmptyState';
 import { TopicCollectionHeader, pickRandomHeaderImageKey } from '../../components/TopicCollectionHeader';
 import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 import * as WebBrowser from 'expo-web-browser';
@@ -32,6 +33,7 @@ export default function TopicScreen() {
 
   const loadTopic = async (pageNum: number, reset = false) => {
     if (!slugStr) return;
+    const slugEnc = encodeURIComponent(slugStr);
     if (reset) {
       setLoading(true);
       setPage(1);
@@ -40,11 +42,11 @@ export default function TopicScreen() {
       setLoadingMore(true);
     }
     try {
-      const data = await api.get(`/topics/${slugStr}`);
+      const data = await api.get(`/topics/${slugEnc}`);
       setTopic(data);
       setIsFollowing((data as any).isFollowing || false);
 
-      let endpoint = `/topics/${slugStr}/posts`;
+      let endpoint = `/topics/${slugEnc}/posts`;
       if (activeTab === 'start-here') {
         if (reset && data.startHere) {
           setPosts(data.startHere);
@@ -52,11 +54,11 @@ export default function TopicScreen() {
           setHasMore(false);
           return;
         }
-        endpoint = `/topics/${slugStr}/posts?sort=ranked`;
+        endpoint = `/topics/${slugEnc}/posts?sort=ranked`;
       }
 
-      if (activeTab === 'people') endpoint = `/topics/${slugStr}/people`;
-      if (activeTab === 'source') endpoint = `/topics/${slugStr}/sources`;
+      if (activeTab === 'people') endpoint = `/topics/${slugEnc}/people`;
+      if (activeTab === 'source') endpoint = `/topics/${slugEnc}/sources`;
 
       const sep = endpoint.includes('?') ? '&' : '?';
       const postsData = await api.get(`${endpoint}${sep}page=${pageNum}&limit=20`);
@@ -173,13 +175,43 @@ export default function TopicScreen() {
     );
   }, [hasMore, loadingMore]);
 
+  const ListEmptyComponent = useMemo(() => {
+    if (loading) return null;
+    if (activeTab === 'people') {
+      return (
+        <EmptyState
+          icon="people-outline"
+          headline={t('topic.emptyPeople')}
+          subtext={t('topic.emptyPeopleSubtext')}
+        />
+      );
+    }
+    if (activeTab === 'source') {
+      return (
+        <EmptyState
+          icon="link"
+          headline={t('topic.emptySources')}
+          subtext={t('topic.emptySourcesSubtext')}
+        />
+      );
+    }
+    return (
+      <EmptyState
+        icon="article"
+        headline={t('topic.emptyPosts')}
+        subtext={t('topic.emptyPostsSubtext')}
+      />
+    );
+  }, [loading, activeTab, t]);
+
   const handleFollow = async () => {
     if (!slugStr) return;
     try {
+      const slugEnc = encodeURIComponent(slugStr);
       if (isFollowing) {
-        await api.delete(`/topics/${slugStr}/follow`);
+        await api.delete(`/topics/${slugEnc}/follow`);
       } else {
-        await api.post(`/topics/${slugStr}/follow`);
+        await api.post(`/topics/${slugEnc}/follow`);
       }
       setIsFollowing(!isFollowing);
     } catch (error) {
@@ -250,6 +282,7 @@ export default function TopicScreen() {
         data={posts}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
+        ListEmptyComponent={ListEmptyComponent}
         ListFooterComponent={ListFooterComponent}
         refreshControl={
           <RefreshControl

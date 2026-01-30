@@ -5,11 +5,13 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { RepliesService } from './replies.service';
 import { CurrentUser } from '../shared/current-user.decorator';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 
 @Controller('posts/:postId/replies')
 export class RepliesController {
@@ -31,8 +33,49 @@ export class RepliesController {
   }
 
   @Get()
-  async findAll(@Param('postId') postId: string) {
-    return this.repliesService.findByPost(postId);
+  @UseGuards(OptionalJwtAuthGuard)
+  async findAll(
+    @Param('postId') postId: string,
+    @Query('parentReplyId') parentReplyId: string | undefined,
+    @CurrentUser() user?: { id: string },
+  ) {
+    return this.repliesService.findByPost(
+      postId,
+      50,
+      0,
+      user?.id,
+      parentReplyId || undefined,
+    );
+  }
+
+  @Get(':replyId')
+  @UseGuards(OptionalJwtAuthGuard)
+  async findOne(
+    @Param('postId') postId: string,
+    @Param('replyId') replyId: string,
+    @CurrentUser() user?: { id: string },
+  ) {
+    return this.repliesService.findOne(postId, replyId, user?.id);
+  }
+
+  @Post(':replyId/like')
+  @UseGuards(AuthGuard('jwt'))
+  async like(
+    @CurrentUser() user: { id: string },
+    @Param('postId') _postId: string,
+    @Param('replyId') replyId: string,
+  ) {
+    return this.repliesService.likeReply(replyId, user.id);
+  }
+
+  @Delete(':replyId/like')
+  @UseGuards(AuthGuard('jwt'))
+  async unlike(
+    @CurrentUser() user: { id: string },
+    @Param('postId') _postId: string,
+    @Param('replyId') replyId: string,
+  ) {
+    return this.repliesService.unlikeReply(replyId, user.id);
   }
 
   @Delete(':id')

@@ -56,13 +56,20 @@ export class SafetyController {
   @UseGuards(AuthGuard('jwt'))
   async report(
     @CurrentUser() user: { id: string },
-    @Body() dto: { targetId: string; targetType: string; reason: string },
+    @Body()
+    dto: {
+      targetId: string;
+      targetType: string;
+      reason: string;
+      comment?: string;
+    },
   ) {
     return this.safetyService.report(
       user.id,
       dto.targetId,
       dto.targetType,
       dto.reason,
+      dto.comment,
     );
   }
 

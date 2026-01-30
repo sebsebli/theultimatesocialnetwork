@@ -164,11 +164,11 @@ function SearchContent() {
                 >
                   <div className="flex items-center gap-4">
                     <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold">
-                      {(user.displayName || user.handle || '?').charAt(0)}
+                      {(user.displayName || user.handle || "?").charAt(0)}
                     </div>
                     <div className="flex-1">
                       <div className="font-semibold text-paper">
-                        {user.displayName || user.handle || 'Unknown'}
+                        {user.displayName || user.handle || "Unknown"}
                       </div>
                       <div className="text-tertiary text-sm">
                         @{user.handle}
@@ -190,7 +190,7 @@ function SearchContent() {
               results.map((topic) => (
                 <Link
                   key={topic.id}
-                  href={`/topic/${topic.slug}`}
+                  href={`/topic/${encodeURIComponent(topic.slug)}`}
                   className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
                 >
                   <div className="font-semibold text-paper mb-1">

@@ -14,7 +14,7 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, PROFILE_TOP_HEIGHT, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, PROFILE_TOP_HEIGHT, HEADER, MODAL } from '../constants/theme';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -22,7 +22,8 @@ type Point = { x: number; y: number };
 type Stroke = Point[];
 
 const STROKE_WIDTH = 3;
-const STROKE_COLOR = COLORS.paper;
+/** Marker/stroke color: app grey (primary steel) so it matches the design, not white */
+const STROKE_COLOR = COLORS.primary;
 /** Semi-transparent so the profile shows through the drawing header area */
 const DRAW_HEADER_BG = 'rgba(11, 11, 12, 0.3)';
 
@@ -120,9 +121,11 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-      <View style={[styles.overlay, { paddingTop: insets.top }]}>
-        {/* Top: drawable area only — semi-transparent so profile shows through */}
-        <View style={styles.canvasWrap}>
+      <View style={styles.overlay}>
+        {/* Dimmed backdrop like other modals */}
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t('common.close')} />
+        {/* Draw area: exact same rect as profile top section (screenWidth × PROFILE_TOP_HEIGHT) so drawing overlays where the image will show */}
+        <View style={[styles.canvasWrap, { width: canvasWidth, height: canvasHeight }]}>
           <View
             ref={canvasRef}
             style={[styles.canvas, { width: canvasWidth, height: canvasHeight }]}
@@ -145,16 +148,18 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
             </Svg>
           </View>
           <Pressable
-            style={styles.closeOverlay}
+            style={[styles.closeOverlay, { top: insets.top + SPACING.s }]}
             onPress={onClose}
             accessibilityLabel={t('common.close')}
           >
             <MaterialIcons name="close" size={HEADER.iconSize} color={COLORS.paper} />
           </Pressable>
         </View>
-        {/* Lower: solid (no opacity) so tab bar is fully covered — 100% height modal */}
-        <View style={[styles.lowerSolid, { paddingBottom: insets.bottom + SPACING.l }]}>
-          <View style={styles.actions}>
+        {/* Lower part: fully opaque (no transparency), only the drawable area above is the canvas */}
+        <View style={styles.lowerPanel}>
+          <View style={[styles.card, { paddingBottom: insets.bottom + SPACING.xl }]}>
+            <View style={styles.handle} />
+            <View style={styles.actions}>
             <Pressable style={styles.btnSecondary} onPress={clear} disabled={saving}>
               <MaterialIcons name="delete-outline" size={HEADER.iconSize} color={COLORS.paper} />
               <Text style={styles.btnSecondaryText}>{t('common.clear', 'Clear')}</Text>
@@ -174,6 +179,7 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
               )}
             </Pressable>
           </View>
+          </View>
         </View>
       </View>
     </Modal>
@@ -184,12 +190,14 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-start',
-    backgroundColor: 'transparent',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: MODAL.backdropBackgroundColor,
   },
   canvasWrap: {
     position: 'relative',
-    width: '100%',
-    alignItems: 'center',
+    alignSelf: 'stretch',
     backgroundColor: 'transparent',
   },
   canvas: {
@@ -197,21 +205,37 @@ const styles = StyleSheet.create({
   },
   closeOverlay: {
     position: 'absolute',
-    top: SPACING.m,
     right: SPACING.l,
     padding: SPACING.s,
     zIndex: 1,
   },
-  lowerSolid: {
+  lowerPanel: {
     flex: 1,
     backgroundColor: COLORS.ink,
-    justifyContent: 'flex-end',
+  },
+  card: {
+    backgroundColor: COLORS.ink,
+    borderTopLeftRadius: MODAL.sheetBorderRadius,
+    borderTopRightRadius: MODAL.sheetBorderRadius,
+    borderWidth: MODAL.sheetBorderWidth,
+    borderBottomWidth: MODAL.sheetBorderBottomWidth,
+    borderColor: MODAL.sheetBorderColor,
+    paddingHorizontal: MODAL.sheetPaddingHorizontal,
+    paddingTop: MODAL.sheetPaddingTop,
+    overflow: 'hidden',
+  },
+  handle: {
+    width: MODAL.handleWidth,
+    height: MODAL.handleHeight,
+    borderRadius: MODAL.handleBorderRadius,
+    backgroundColor: MODAL.handleBackgroundColor,
+    alignSelf: 'center',
+    marginTop: MODAL.handleMarginTop,
+    marginBottom: MODAL.handleMarginBottom,
   },
   actions: {
     flexDirection: 'row',
     gap: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.l,
   },
   btnSecondary: {
     flex: 1,
@@ -219,14 +243,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.s,
-    paddingVertical: SPACING.m,
-    borderRadius: 12,
-    backgroundColor: COLORS.hover,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
+    borderRadius: MODAL.buttonBorderRadius,
+    backgroundColor: MODAL.secondaryButtonBackgroundColor,
+    borderWidth: MODAL.secondaryButtonBorderWidth,
+    borderColor: MODAL.secondaryButtonBorderColor,
   },
   btnSecondaryText: {
-    color: COLORS.paper,
-    fontSize: 16,
-    fontWeight: '600',
+    color: MODAL.secondaryButtonTextColor,
+    fontSize: MODAL.buttonFontSize,
+    fontWeight: MODAL.buttonFontWeight,
   },
   btnPrimary: {
     flex: 1,
@@ -234,14 +262,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.s,
-    paddingVertical: SPACING.m,
-    borderRadius: 12,
-    backgroundColor: COLORS.primary,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
+    borderRadius: MODAL.buttonBorderRadius,
+    backgroundColor: MODAL.primaryButtonBackgroundColor,
   },
   btnPrimaryText: {
-    color: COLORS.ink,
-    fontSize: 16,
-    fontWeight: '600',
+    color: MODAL.primaryButtonTextColor,
+    fontSize: MODAL.buttonFontSize,
+    fontWeight: MODAL.buttonFontWeight,
   },
   btnDisabled: {
     opacity: 0.6,

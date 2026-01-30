@@ -23,7 +23,8 @@
     "migration:run:prod": "typeorm migration:run -d dist/database/data-source.js",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "seed": "ts-node src/seed.ts",
-    "seed:comprehensive": "ts-node src/seed-comprehensive.ts"
+    "seed:comprehensive": "ts-node src/seed-comprehensive.ts",
+    "seed:comprehensive:prod": "node dist/seed-comprehensive.js"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^3.1.0",

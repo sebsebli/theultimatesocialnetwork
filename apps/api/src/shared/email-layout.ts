@@ -49,9 +49,10 @@ const STYLES = {
 };
 
 const RESPONSIVE_STYLES = `
-  :root { color-scheme: dark; supported-color-schemes: dark; }
-  .email-wrapper-table { width: 100% !important; min-width: 0 !important; }
-  .email-inner { box-sizing: border-box !important; }
+  :root { color-scheme: dark; supported-color-schemes: dark; background: ${BG_DARK}; }
+  body { background: ${BG_DARK} !important; -webkit-text-size-adjust: 100%; }
+  .email-wrapper-table { width: 100% !important; min-width: 0 !important; background: ${BG_DARK} !important; }
+  .email-inner { box-sizing: border-box !important; background: ${BG_DARK} !important; }
   @media only screen and (max-width: 620px) {
     .email-inner { padding: 20px 16px !important; max-width: 100% !important; }
     .email-card { padding: 24px 20px !important; margin: 20px 0 !important; border-radius: 12px !important; }

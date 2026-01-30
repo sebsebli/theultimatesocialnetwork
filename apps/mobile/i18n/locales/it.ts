@@ -163,6 +163,7 @@ export default {
     posts: 'Posts',
     invalidUrl: 'Please enter a valid URL (e.g. https://example.com)',
     headlineTooLong: 'Headline is too long. Please keep it under {{max}} characters.',
+    linkTagTitleTooLong: 'Link or tag display text must be at most {{max}} characters.',
     tooManyRefs: 'Too many topic/post references. Maximum {{max}}.',
     linkUrlPlaceholder: 'URL (https://...)',
     linkDisplayTextPlaceholder: 'Display Text (optional)',

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api, setOnboardingStage } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HANDLE_MIN = 3;
@@ -137,7 +137,7 @@ export default function OnboardingProfileScreen() {
           <View style={styles.stepDot} />
         </View>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.secondary} />
+          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
         </Pressable>
       </View>
 
@@ -199,7 +199,7 @@ export default function OnboardingProfileScreen() {
                 )}
                 {handleStatus === 'available' && (
                   <View style={styles.availabilityRow}>
-                    <MaterialIcons name="check-circle" size={HEADER.iconSize} color="#22c55e" style={styles.availabilityIcon} />
+                    <MaterialIcons name="check-circle" size={HEADER.iconSize} color={COLORS.primary} style={styles.availabilityIcon} />
                     <Text style={styles.availabilityAvailable}>{t('onboarding.profile.handleAvailable')}</Text>
                   </View>
                 )}
@@ -265,7 +265,7 @@ export default function OnboardingProfileScreen() {
           <Text style={styles.buttonText}>
             {loading ? t('common.loading') : t('common.continue')}
           </Text>
-          <MaterialIcons name="arrow-forward" size={HEADER.iconSize} color="#FFF" />
+          <MaterialIcons name="arrow-forward" size={HEADER.iconSize} color={COLORS.ink} />
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.ink,
   },
   header: {
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
     alignItems: 'center',
     position: 'relative',
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    left: SPACING.l,
+    left: LAYOUT.contentPaddingHorizontal,
     top: 0,
     bottom: 0,
     justifyContent: 'center',
@@ -307,11 +307,11 @@ const styles = StyleSheet.create({
     width: 24,
   },
   content: {
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: 100,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
@@ -319,14 +319,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
     textAlign: 'center',
-    marginBottom: SPACING.xxl,
+    marginBottom: SPACING.xl,
   },
   form: {
-    gap: SPACING.xl,
+    gap: SPACING.l,
   },
   inputGroup: {
     gap: SPACING.s,
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.error,
   },
   inputSuccess: {
-    borderColor: '#22c55e',
+    borderColor: COLORS.primary,
   },
   handleMeta: {
     flexDirection: 'row',
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   },
   availabilityAvailable: {
     fontSize: 13,
-    color: '#22c55e',
+    color: COLORS.primary,
     fontFamily: FONTS.medium,
   },
   availabilityTaken: {
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.paper,
   },
   thumbActive: {
     alignSelf: 'flex-end',
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     backgroundColor: COLORS.ink,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
@@ -485,17 +485,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.s,
-    backgroundColor: COLORS.primary,
-    height: 56,
-    borderRadius: SIZES.borderRadius,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
+    backgroundColor: MODAL.primaryButtonBackgroundColor,
+    borderRadius: MODAL.buttonBorderRadius,
   },
   buttonDisabled: {
     opacity: 0.5,
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
+    fontSize: MODAL.buttonFontSize,
+    fontWeight: MODAL.buttonFontWeight,
+    color: MODAL.primaryButtonTextColor,
     fontFamily: FONTS.semiBold,
   },
 });

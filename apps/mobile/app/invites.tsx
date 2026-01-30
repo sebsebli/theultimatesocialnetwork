@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
@@ -187,10 +187,18 @@ export default function InvitesScreen() {
               </Text>
             </View>
 
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>{t('invites.remaining', 'INVITES REMAINING')}</Text>
-              <Text style={styles.count}>{loading ? '...' : data?.remaining ?? 0}</Text>
+            {/* Invites remaining: compact row, then send form */}
+            <View style={styles.remainingRow}>
+              <MaterialIcons name="mail-outline" size={20} color={COLORS.tertiary} style={styles.remainingIcon} />
+              <Text style={styles.remainingLabel}>
+                {t('invites.remainingLabel', 'Invites remaining')}
+              </Text>
+              <Text style={styles.remainingCount}>
+                {loading ? '…' : String(data?.remaining ?? 0)}
+              </Text>
+            </View>
 
+            <View style={styles.sendCard}>
               <TextInput
                 style={styles.input}
                 placeholder={t('invites.emailPlaceholder', 'Friend\'s email address')}
@@ -244,59 +252,56 @@ export default function InvitesScreen() {
         {betaMode && data?.invites && data.invites.length > 0 && (
           <View style={styles.list}>
             <Text style={styles.listTitle}>{t('invites.sentInvites', 'Sent invitations')}</Text>
-            {data.invites.map((inv) => (
-              <View key={inv.code} style={styles.inviteCard}>
-                <View style={styles.inviteCardHeader}>
-                  <View style={styles.inviteEmailRow}>
-                    <MaterialIcons name="email" size={HEADER.iconSize} color={COLORS.primary} style={styles.inviteEmailIcon} />
-                    <Text style={styles.inviteEmail} numberOfLines={1} selectable>
-                      {inv.email || t('invites.noEmail', 'No email')}
-                    </Text>
-                  </View>
-                  <View style={[styles.statusBadge, inv.status === 'PENDING' && styles.statusBadgePending, inv.status === 'ACTIVATED' && styles.statusBadgeActivated]}>
-                    <Text style={[styles.statusBadgeText, inv.status === 'PENDING' && styles.statusBadgeTextPending]}>
-                      {statusLabel(inv.status)}
-                    </Text>
+            <View style={styles.inviteList}>
+              {data.invites.map((inv) => (
+                <View key={inv.code} style={styles.inviteCard}>
+                  <View style={styles.inviteCardMain}>
+                    <View style={styles.inviteIconWrap}>
+                      <MaterialIcons name="mail-outline" size={18} color={COLORS.primary} />
+                    </View>
+                    <View style={styles.inviteCardText}>
+                      <Text style={styles.inviteEmail} numberOfLines={1} selectable>
+                        {inv.email || t('invites.noEmail', 'No email')}
+                      </Text>
+                      <Text style={styles.inviteMeta}>
+                        {t('invites.sent', 'Sent')} {formatDate(inv.sentAt)}
+                        {inv.expiresAt ? ` · ${t('invites.expires', 'Expires')} ${formatDate(inv.expiresAt)}` : ''}
+                      </Text>
+                      {inv.status === 'PENDING' && (
+                        <View style={styles.inviteActionsInline}>
+                          <Pressable
+                            style={styles.inviteActionLink}
+                            onPress={() => handleResend(inv.code)}
+                            disabled={resendingCode === inv.code}
+                          >
+                            {resendingCode === inv.code ? (
+                              <ActivityIndicator size="small" color={COLORS.primary} />
+                            ) : (
+                              <Text style={styles.inviteActionLinkText}>{t('invites.resend', 'Resend')}</Text>
+                            )}
+                          </Pressable>
+                          <Text style={styles.inviteActionDot}>·</Text>
+                          <Pressable
+                            style={styles.inviteActionLink}
+                            onPress={() => handleRevoke(inv.code)}
+                            disabled={revokingCode === inv.code}
+                          >
+                            {revokingCode === inv.code ? (
+                              <ActivityIndicator size="small" color={COLORS.error} />
+                            ) : (
+                              <Text style={styles.inviteActionLinkRevoke}>{t('invites.revoke', 'Revoke')}</Text>
+                            )}
+                          </Pressable>
+                        </View>
+                      )}
+                    </View>
+                    <View style={[styles.statusPill, inv.status === 'PENDING' && styles.statusPillPending, inv.status === 'ACTIVATED' && styles.statusPillActivated, inv.status === 'EXPIRED' && styles.statusPillExpired, inv.status === 'REVOKED' && styles.statusPillRevoked]}>
+                      <Text style={[styles.statusPillText, inv.status === 'PENDING' && styles.statusPillTextPending, inv.status === 'ACTIVATED' && styles.statusPillTextActivated]}>{statusLabel(inv.status)}</Text>
+                    </View>
                   </View>
                 </View>
-                <Text style={styles.inviteMeta}>
-                  {t('invites.sent', 'Sent')} {formatDate(inv.sentAt)}
-                  {inv.expiresAt ? ` · ${t('invites.expires', 'Expires')} ${formatDate(inv.expiresAt)}` : ''}
-                </Text>
-                {inv.status === 'PENDING' && (
-                  <View style={styles.inviteActions}>
-                    <Pressable
-                      style={styles.actionBtn}
-                      onPress={() => handleResend(inv.code)}
-                      disabled={resendingCode === inv.code}
-                    >
-                      {resendingCode === inv.code ? (
-                        <ActivityIndicator size="small" color={COLORS.paper} />
-                      ) : (
-                        <>
-                          <MaterialIcons name="refresh" size={HEADER.iconSize} color={COLORS.primary} style={{ marginRight: 6 }} />
-                          <Text style={styles.actionBtnText}>{t('invites.resend', 'Resend')}</Text>
-                        </>
-                      )}
-                    </Pressable>
-                    <Pressable
-                      style={[styles.actionBtn, styles.actionBtnRevoke]}
-                      onPress={() => handleRevoke(inv.code)}
-                      disabled={revokingCode === inv.code}
-                    >
-                      {revokingCode === inv.code ? (
-                        <ActivityIndicator size="small" color={COLORS.error} />
-                      ) : (
-                        <>
-                          <MaterialIcons name="block" size={HEADER.iconSize} color={COLORS.error} style={{ marginRight: 6 }} />
-                          <Text style={styles.actionBtnTextRevoke}>{t('invites.revoke', 'Revoke')}</Text>
-                        </>
-                      )}
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         )}
       </ScrollView>
@@ -320,26 +325,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  content: { padding: SPACING.l, paddingBottom: 80 },
+  content: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: LAYOUT.contentPaddingVertical,
+    paddingBottom: 80,
+  },
   hero: {
     alignItems: 'center',
     marginBottom: SPACING.xl,
-    paddingHorizontal: SPACING.s,
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: COLORS.hover,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING.m,
   },
   heroTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.paper,
-    marginBottom: SPACING.s,
+    marginBottom: SPACING.xs,
     fontFamily: FONTS.semiBold,
   },
   heroText: {
@@ -347,30 +355,42 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     textAlign: 'center',
     lineHeight: 22,
+    paddingHorizontal: SPACING.s,
     fontFamily: FONTS.regular,
   },
-  card: {
+  /* Invites remaining: single compact row */
+  remainingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.l,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.m,
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
-    padding: SPACING.xl,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+  },
+  remainingIcon: { marginRight: SPACING.s },
+  remainingLabel: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.medium,
+    flex: 1,
+  },
+  remainingCount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  /* Send form card */
+  sendCard: {
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.l,
     borderWidth: 1,
     borderColor: COLORS.divider,
     marginBottom: SPACING.xl,
-  },
-  cardLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.tertiary,
-    letterSpacing: 1,
-    marginBottom: SPACING.s,
-    fontFamily: FONTS.semiBold,
-  },
-  count: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: SPACING.m,
-    fontFamily: FONTS.semiBold,
   },
   input: {
     backgroundColor: COLORS.ink,
@@ -386,7 +406,7 @@ const styles = StyleSheet.create({
   button: {
     height: 48,
     backgroundColor: COLORS.primary,
-    borderRadius: SIZES.borderRadiusPill,
+    borderRadius: SIZES.borderRadius,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -401,77 +421,109 @@ const styles = StyleSheet.create({
     color: COLORS.ink,
     fontFamily: FONTS.semiBold,
   },
-  list: { gap: SPACING.l },
+  /* Sent invitations list – compact cards */
+  list: { marginTop: SPACING.l },
   listTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
-    color: COLORS.paper,
-    marginBottom: SPACING.s,
+    color: COLORS.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: SPACING.m,
     fontFamily: FONTS.semiBold,
   },
+  inviteList: { gap: SPACING.s },
   inviteCard: {
-    backgroundColor: COLORS.ink,
-    padding: SPACING.l,
+    backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
     borderWidth: 1,
     borderColor: COLORS.divider,
   },
-  inviteCardHeader: {
+  inviteCardMain: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.xs,
   },
-  inviteEmailRow: {
-    flexDirection: 'row',
+  inviteIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
+    marginRight: SPACING.s,
+  },
+  inviteCardText: {
     flex: 1,
     minWidth: 0,
   },
-  inviteEmailIcon: { marginRight: SPACING.s },
   inviteEmail: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
-    flex: 1,
   },
-  statusBadge: {
-    paddingHorizontal: SPACING.s,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: COLORS.hover,
-  },
-  statusBadgePending: { backgroundColor: 'rgba(110, 122, 138, 0.25)' },
-  statusBadgeActivated: { backgroundColor: 'rgba(110, 122, 138, 0.2)' },
-  statusBadgeText: { fontSize: 12, fontWeight: '600', color: COLORS.tertiary, fontFamily: FONTS.semiBold },
-  statusBadgeTextPending: { color: COLORS.primary },
   inviteMeta: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.tertiary,
     fontFamily: FONTS.regular,
-    marginBottom: SPACING.s,
+    marginTop: 2,
   },
-  inviteActions: {
-    flexDirection: 'row',
-    gap: SPACING.m,
-    paddingTop: SPACING.m,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-  },
-  actionBtn: {
-    flex: 1,
+  inviteActionsInline: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.m,
-    borderRadius: SIZES.borderRadius,
-    backgroundColor: COLORS.hover,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
+    marginTop: SPACING.xs,
+    gap: SPACING.xs,
   },
-  actionBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.primary, fontFamily: FONTS.semiBold },
-  actionBtnRevoke: { backgroundColor: 'transparent' },
-  actionBtnTextRevoke: { fontSize: 14, fontWeight: '600', color: COLORS.error, fontFamily: FONTS.semiBold },
+  inviteActionLink: {
+    paddingVertical: 2,
+    paddingHorizontal: 0,
+    minHeight: 24,
+    justifyContent: 'center',
+  },
+  inviteActionLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  inviteActionLinkRevoke: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.error,
+    fontFamily: FONTS.semiBold,
+  },
+  inviteActionDot: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  statusPill: {
+    paddingHorizontal: SPACING.s,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: COLORS.divider,
+    marginLeft: SPACING.s,
+  },
+  statusPillPending: {
+    backgroundColor: 'rgba(110, 122, 138, 0.3)',
+  },
+  statusPillActivated: {
+    backgroundColor: 'rgba(110, 122, 138, 0.25)',
+  },
+  statusPillExpired: {
+    backgroundColor: COLORS.hover,
+  },
+  statusPillRevoked: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.tertiary,
+    fontFamily: FONTS.semiBold,
+  },
+  statusPillTextPending: { color: COLORS.primary },
+  statusPillTextActivated: { color: COLORS.secondary },
 });

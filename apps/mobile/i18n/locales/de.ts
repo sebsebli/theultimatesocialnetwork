@@ -163,6 +163,7 @@ export default {
     posts: 'Beiträge',
     invalidUrl: 'Bitte eine gültige URL eingeben (z. B. https://...)',
     headlineTooLong: 'Überschrift zu lang. Maximal {{max}} Zeichen.',
+    linkTagTitleTooLong: 'Link- oder Tag-Anzeigetext darf maximal {{max}} Zeichen haben.',
     tooManyRefs: 'Zu viele Themen-/Beitragsverweise. Maximal {{max}}.',
     linkUrlPlaceholder: 'URL (https://...)',
     linkDisplayTextPlaceholder: 'Anzeigetext (optional)',

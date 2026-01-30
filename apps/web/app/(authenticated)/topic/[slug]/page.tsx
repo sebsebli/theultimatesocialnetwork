@@ -11,7 +11,7 @@ async function getTopic(slug: string) {
   }
 
   try {
-    const res = await fetch(`${API_URL}/topics/${slug}`, {
+    const res = await fetch(`${API_URL}/topics/${encodeURIComponent(slug)}`, {
       cache: "no-store",
       headers: {
         Authorization: `Bearer ${token}`,

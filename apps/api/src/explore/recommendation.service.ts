@@ -141,6 +141,17 @@ export class RecommendationService {
    * Get personalized post recommendations for user
    */
   async getRecommendedPosts(userId: string, limit = 20): Promise<Post[]> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['id', 'preferences'],
+    });
+    const explore = user?.preferences?.explore as
+      | Record<string, unknown>
+      | undefined;
+    if (explore?.recommendationsEnabled === false) {
+      return this.getTrendingPosts(limit);
+    }
+
     // Check cache for recommendations
     const cacheKey = `recs:posts:${userId}:${limit}`;
     let cachedRecs: Post[] | undefined;
@@ -153,7 +164,6 @@ export class RecommendationService {
       return cachedRecs;
     }
 
-    const user = await this.userRepo.findOne({ where: { id: userId } });
     const prefs = (user?.preferences?.explore || {
       topicsYouFollow: 80,
       languageMatch: 70,
@@ -355,6 +365,22 @@ export class RecommendationService {
    * Get personalized people recommendations
    */
   async getRecommendedPeople(userId: string, limit = 20): Promise<User[]> {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['id', 'preferences'],
+    });
+    const explore = user?.preferences?.explore as
+      | Record<string, unknown>
+      | undefined;
+    if (explore?.recommendationsEnabled === false) {
+      return this.userRepo
+        .createQueryBuilder('user')
+        .where('user.id != :userId', { userId })
+        .orderBy('user.follower_count', 'DESC')
+        .take(limit)
+        .getMany();
+    }
+
     // Check cache
     const cacheKey = `recs:people:${userId}:${limit}`;
     let cachedRecs: User[] | undefined;

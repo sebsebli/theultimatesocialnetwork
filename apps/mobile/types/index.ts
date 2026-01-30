@@ -7,6 +7,8 @@ export interface User {
   followerCount?: number;
   followingCount?: number;
   quoteReceivedCount?: number;
+  /** True when user is in the top 10% by quote_received_count (shows quotes verified badge). */
+  quotesBadgeEligible?: boolean;
 }
 
 export interface Post {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     position: 'relative',
   },
   topicPreviewImage: {
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     padding: SPACING.xl, // p-5
     backgroundColor: COLORS.hover, // bg-white/5
     borderRadius: SIZES.borderRadius,
-    marginHorizontal: SPACING.l,
+    marginHorizontal: LAYOUT.contentPaddingHorizontal,
     marginBottom: SPACING.l,
     borderWidth: 1,
     borderColor: COLORS.divider, // border-white/10

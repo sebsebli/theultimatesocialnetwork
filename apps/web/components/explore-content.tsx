@@ -112,7 +112,10 @@ export function ExploreContent() {
         <div className="space-y-4">
           {tab === "topics" &&
             (activeItems as Topic[]).map((topic) => (
-              <Link key={topic.id} href={`/topic/${topic.slug}`}>
+              <Link
+                key={topic.id}
+                href={`/topic/${encodeURIComponent(topic.slug)}`}
+              >
                 <div className="relative bg-white/[0.02] hover:bg-white/[0.05] flex flex-col items-stretch justify-end rounded-xl p-6 shadow-sm overflow-hidden border border-white/5 hover:border-primary/40 transition-all duration-300 group">
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="text-paper text-2xl font-bold tracking-tight group-hover:text-primary transition-colors">

@@ -1,8 +1,8 @@
-import { StyleSheet, Text, View, FlatList, Pressable, TextInput, ScrollView, RefreshControl, ActivityIndicator, Modal } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
 import { TopicCard } from '../../components/ExploreCards';
@@ -23,8 +23,6 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('quoted');
-  const [sort, setSort] = useState<'recommended' | 'newest' | 'cited'>('recommended');
-  const [filter, setFilter] = useState<'all' | 'languages'>('languages'); // Default to my languages
 
   const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<any[]>([]);
@@ -34,10 +32,6 @@ export default function ExploreScreen() {
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-
-  // Modals
-  const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [sortModalVisible, setSortModalVisible] = useState(false);
 
   useEffect(() => {
     if (params.tab) {
@@ -59,7 +53,7 @@ export default function ExploreScreen() {
       loadContent(1, true);
 
     }
-  }, [activeTab, sort, filter, isAuthenticated]);
+  }, [activeTab, isAuthenticated]);
 
   const loadContent = async (pageNum: number, reset = false) => {
     if (!reset && (loading || loadingMore)) return;
@@ -79,9 +73,8 @@ export default function ExploreScreen() {
       else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
       else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
 
-      // Append sort/filter params (API expects sort, lang; lang must be a code like "en" or "all", not "preferred")
-      const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort };
-      if (filter === 'all') params.lang = 'all';
+      // Always recommended; language follows user preferences from settings
+      const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort: 'recommended' };
       const query = new URLSearchParams(params).toString();
       const res = await api.get(`${endpoint}?${query}`);
       const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
@@ -138,9 +131,9 @@ export default function ExploreScreen() {
       ));
 
       if (topic.isFollowing) {
-        await api.delete(`/topics/${topic.slug}/follow`);
+        await api.delete(`/topics/${encodeURIComponent(topic.slug)}/follow`);
       } else {
-        await api.post(`/topics/${topic.slug}/follow`);
+        await api.post(`/topics/${encodeURIComponent(topic.slug)}/follow`);
       }
     } catch (err) {
       console.error('Follow failed', err);
@@ -176,22 +169,12 @@ export default function ExploreScreen() {
       setPage(nextPage);
       loadContent(nextPage, false);
     }
-  }, [loading, refreshing, loadingMore, hasMore, page, activeTab, sort, filter]);
+  }, [loading, refreshing, loadingMore, hasMore, page, activeTab]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadContent(1, true);
-  }, [activeTab, sort, filter]);
-
-  const applyFilter = (newFilter: 'all' | 'languages') => {
-    setFilter(newFilter);
-    setFilterModalVisible(false);
-  };
-
-  const applySort = (newSort: 'recommended' | 'newest' | 'cited') => {
-    setSort(newSort);
-    setSortModalVisible(false);
-  };
+  }, [activeTab]);
 
   const renderItem = useCallback(({ item }: { item: any }) => {
     if (activeTab === 'deep-dives') {
@@ -216,7 +199,7 @@ export default function ExploreScreen() {
       return (
         <TopicCard
           item={item}
-          onPress={() => router.push(`/topic/${item.slug || item.id}`)}
+          onPress={() => router.push(`/topic/${encodeURIComponent(item.slug || item.id)}`)}
           onFollow={() => handleFollow(item)}
         />
       );
@@ -234,20 +217,8 @@ export default function ExploreScreen() {
     );
   }, [hasMore, loadingMore]);
 
-  const sectionDescription = useMemo(() => {
-    if (activeTab === 'quoted') return t('explore.quotedDesc', 'Posts getting quoted right now — high citation velocity.');
-    if (activeTab === 'deep-dives') return t('explore.deepDivesDesc', 'In-depth articles with many references and backlinks.');
-    if (activeTab === 'newsroom') return t('explore.newsroomDesc', 'Recent posts that cite external sources.');
-    return null;
-  }, [activeTab, t]);
-
   const listHeader = useMemo(() => (
     <View key="explore-list-header" style={[styles.headerContainer, { paddingTop: insets.top }]}>
-      <View key="explore-titleRow" style={styles.titleRow}>
-        <MaterialCommunityIcons name="compass-outline" size={HEADER.iconSize} color={COLORS.paper} />
-        <Text style={styles.headerTitle}>{t('explore.title', 'Discover')}</Text>
-      </View>
-
       <View key="explore-search" style={styles.searchWrapper}>
         <Pressable
           style={styles.searchBar}
@@ -260,14 +231,6 @@ export default function ExploreScreen() {
             {t('explore.searchPlaceholder')}
           </Text>
         </Pressable>
-        <View style={styles.headerActions}>
-          <Pressable
-            style={styles.iconButton}
-            onPress={() => setSortModalVisible(true)}
-          >
-            <MaterialIcons name="sort" size={HEADER.iconSize} color={sort !== 'recommended' ? COLORS.primary : HEADER.iconColor} />
-          </Pressable>
-        </View>
       </View>
 
       <View key="explore-tabs" style={styles.tabsContainer}>
@@ -277,6 +240,8 @@ export default function ExploreScreen() {
               key={tab}
               onPress={() => setActiveTab(tab)}
               style={[styles.tab, activeTab === tab && styles.tabActive]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === tab }}
             >
               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
                 {tab === 'deep-dives' ? t('explore.deepDives') :
@@ -288,19 +253,14 @@ export default function ExploreScreen() {
           ))}
         </ScrollView>
       </View>
-      {sectionDescription ? (
-        <View key="explore-desc" style={styles.sectionDesc}>
-          <Text style={styles.sectionDescText}>{sectionDescription}</Text>
-        </View>
-      ) : null}
-      <View key="explore-spacer" style={{ height: SPACING.l }} />
+      <View key="explore-spacer" style={{ height: SPACING.m }} />
     </View>
-  ), [insets.top, sort, activeTab, t, sectionDescription]);
+  ), [insets.top, activeTab, t]);
 
   return (
     <View style={styles.container}>
       {error && data.length === 0 ? (
-        <ErrorState onRetry={() => loadContent(1, true)} />
+        <ErrorState onRetry={() => loadContent(1, true)} onDismiss={() => setError(false)} />
       ) : (
         <FlatList
           data={data}
@@ -336,76 +296,6 @@ export default function ExploreScreen() {
         />
       )}
 
-      {/* Filter Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={filterModalVisible}
-        onRequestClose={() => setFilterModalVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setFilterModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('explore.filter', 'Filter Content')}</Text>
-
-            <Pressable style={styles.filterOption} onPress={() => applyFilter('languages')}>
-              <Text style={[styles.filterOptionText, filter === 'languages' && styles.optionSelected]}>
-                {t('explore.filterByLanguage', 'My Languages')}
-              </Text>
-              {filter === 'languages' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
-            </Pressable>
-
-            <Pressable style={styles.filterOption} onPress={() => applyFilter('all')}>
-              <Text style={[styles.filterOptionText, filter === 'all' && styles.optionSelected]}>
-                {t('explore.filterAll', 'All Languages')}
-              </Text>
-              {filter === 'all' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
-            </Pressable>
-
-            <Pressable style={styles.closeButton} onPress={() => setFilterModalVisible(false)}>
-              <Text style={styles.closeButtonText}>{t('common.close')}</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Sort Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={sortModalVisible}
-        onRequestClose={() => setSortModalVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setSortModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('explore.sortOptions', 'Sort By')}</Text>
-
-            <Pressable style={styles.filterOption} onPress={() => applySort('recommended')}>
-              <Text style={[styles.filterOptionText, sort === 'recommended' && styles.optionSelected]}>
-                {t('explore.sortRecommended', 'Recommended')}
-              </Text>
-              {sort === 'recommended' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
-            </Pressable>
-
-            <Pressable style={styles.filterOption} onPress={() => applySort('newest')}>
-              <Text style={[styles.filterOptionText, sort === 'newest' && styles.optionSelected]}>
-                {t('explore.sortNewest', 'Newest')}
-              </Text>
-              {sort === 'newest' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
-            </Pressable>
-
-            <Pressable style={styles.filterOption} onPress={() => applySort('cited')}>
-              <Text style={[styles.filterOptionText, sort === 'cited' && styles.optionSelected]}>
-                {t('explore.sortMostCited', 'Most Cited')}
-              </Text>
-              {sort === 'cited' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
-            </Pressable>
-
-            <Pressable style={styles.closeButton} onPress={() => setSortModalVisible(false)}>
-              <Text style={styles.closeButtonText}>{t('common.close')}</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -419,28 +309,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.ink,
     paddingHorizontal: HEADER.barPaddingHorizontal,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 0,
-    paddingBottom: SPACING.s,
-    paddingTop: SPACING.s,
-    gap: SPACING.m,
-    borderBottomWidth: 0,
-  },
-  headerTitle: {
-    fontSize: HEADER.titleSize,
-    fontWeight: '600',
-    fontFamily: FONTS.semiBold,
-    color: COLORS.paper,
-  },
   searchWrapper: {
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.m,
-    backgroundColor: COLORS.ink,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.m,
+    paddingVertical: SPACING.m,
   },
   searchBar: {
     flex: 1,
@@ -454,18 +327,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.l,
     gap: SPACING.m,
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-  },
-  iconButton: {
-    padding: SPACING.s,
-    borderRadius: 8,
-    backgroundColor: COLORS.hover,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-  },
   searchInputPlaceholder: {
     flex: 1,
     color: COLORS.tertiary,
@@ -477,11 +338,12 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.divider,
   },
   tabsContent: {
-    paddingHorizontal: SPACING.l,
     gap: SPACING.xl,
+    paddingRight: SPACING.l,
   },
   tab: {
-    paddingBottom: SPACING.m,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.xs,
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',
   },
@@ -489,24 +351,13 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.primary,
   },
   tabText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     color: COLORS.tertiary,
     fontFamily: FONTS.semiBold,
-    letterSpacing: -0.5,
   },
   tabTextActive: {
     color: COLORS.paper,
-  },
-  sectionDesc: {
-    paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.s,
-    paddingBottom: SPACING.xs,
-  },
-  sectionDescText: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
   },
   emptyState: {
     padding: SPACING.xxxl,
@@ -520,53 +371,5 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: SPACING.l,
     alignItems: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end', // Bottom sheet style
-  },
-  modalContent: {
-    backgroundColor: COLORS.ink,
-    borderTopLeftRadius: SIZES.borderRadius,
-    borderTopRightRadius: SIZES.borderRadius,
-    padding: SPACING.xl,
-    borderTopWidth: 1,
-    borderColor: COLORS.divider,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.paper,
-    marginBottom: SPACING.l,
-    textAlign: 'center',
-  },
-  filterOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.hover,
-  },
-  filterOptionText: {
-    fontSize: 16,
-    color: COLORS.paper,
-    fontFamily: FONTS.medium,
-  },
-  optionSelected: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  closeButton: {
-    marginTop: SPACING.l,
-    alignItems: 'center',
-    padding: SPACING.m,
-  },
-  closeButtonText: {
-    color: COLORS.secondary,
-    fontSize: 16,
-    fontFamily: FONTS.medium,
   },
 });

@@ -174,15 +174,16 @@ export class PostsService {
             });
             fetch(`https://web.archive.org/save/${target}`).catch(() => {});
           } else {
-            // Topic Link
-            const slug = this.slugify(target);
+            // Topic Link: use exact wikilink text as topic ID/name (no slugification).
+            // [[Artificial Intelligence]] → topic slug/title "Artificial Intelligence"; [[AI]] → "AI".
+            const slug = target.trim();
             let topic = await queryRunner.manager.findOne(Topic, {
               where: { slug },
             });
             if (!topic) {
               topic = queryRunner.manager.create(Topic, {
                 slug,
-                title: target,
+                title: slug,
                 createdBy: userId,
               });
               topic = await queryRunner.manager.save(Topic, topic);
@@ -227,7 +228,7 @@ export class PostsService {
       await queryRunner.release();
     }
 
-    // Offload side effects to background queue
+    // Indexing happens in the background via post queue (post.worker)
     if (!skipQueue) {
       await this.postQueue.add('process', { postId: savedPost.id, userId });
     }
@@ -348,6 +349,36 @@ export class PostsService {
       });
 
       await this.postRepo.increment({ id: quotedPostId }, 'quoteCount', 1);
+      // Re-index quoted post so search has fresh quoteCount
+      const quotedUpdated = await this.postRepo.findOne({
+        where: { id: quotedPostId },
+        relations: ['author', 'postTopics'],
+      });
+      if (quotedUpdated) {
+        const topicIds =
+          quotedUpdated.postTopics?.map((pt) => pt.topicId) ?? [];
+        this.meilisearch
+          .indexPost({
+            id: quotedUpdated.id,
+            title: quotedUpdated.title,
+            body: quotedUpdated.body,
+            authorId: quotedUpdated.authorId,
+            author: quotedUpdated.author
+              ? {
+                  displayName:
+                    quotedUpdated.author.displayName ||
+                    quotedUpdated.author.handle,
+                  handle: quotedUpdated.author.handle,
+                }
+              : undefined,
+            lang: quotedUpdated.lang,
+            createdAt: quotedUpdated.createdAt,
+            quoteCount: quotedUpdated.quoteCount,
+            replyCount: quotedUpdated.replyCount,
+            topicIds,
+          })
+          .catch((err) => console.error('Failed to re-index quoted post', err));
+      }
     } finally {
       await queryRunner.release();
     }
@@ -422,6 +453,20 @@ export class PostsService {
       order: { createdAt: 'DESC' },
     });
 
+    return edges
+      .filter((edge) => edge.fromPost && !edge.fromPost.deletedAt)
+      .map((edge) => edge.fromPost)
+      .filter((post): post is Post => post !== null);
+  }
+
+  /** Posts that quote this post (for "Quoted by" tab). */
+  async getQuotes(postId: string) {
+    const edges = await this.dataSource.getRepository(PostEdge).find({
+      where: { toPostId: postId, edgeType: EdgeType.QUOTE },
+      relations: ['fromPost', 'fromPost.author'],
+      take: 50,
+      order: { createdAt: 'DESC' },
+    });
     return edges
       .filter((edge) => edge.fromPost && !edge.fromPost.deletedAt)
       .map((edge) => edge.fromPost)

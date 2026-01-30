@@ -8,7 +8,6 @@ import { Repository } from 'typeorm';
 import { DmThread } from '../entities/dm-thread.entity';
 import { DmMessage } from '../entities/dm-message.entity';
 import { User } from '../entities/user.entity';
-import { Follow } from '../entities/follow.entity';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationType } from '../entities/notification.entity';
@@ -30,7 +29,6 @@ export class MessagesService {
     @InjectRepository(DmThread) private threadRepo: Repository<DmThread>,
     @InjectRepository(DmMessage) private messageRepo: Repository<DmMessage>,
     @InjectRepository(User) private userRepo: Repository<User>,
-    @InjectRepository(Follow) private followRepo: Repository<Follow>,
     private notificationHelper: NotificationHelperService,
     private realtimeGateway: RealtimeGateway,
   ) {}
@@ -40,31 +38,7 @@ export class MessagesService {
       throw new Error('Cannot message yourself');
     }
 
-    // Check if mutual follow or prior interaction
-    const isMutualFollow = await this.followRepo.findOne({
-      where: [
-        { followerId: userId, followeeId: otherUserId },
-        { followerId: otherUserId, followeeId: userId },
-      ],
-    });
-
-    // For now, allow if either follows the other
-    // In production, you might want stricter rules
-    if (!isMutualFollow) {
-      // Check if there's an existing thread (prior interaction)
-      const existingThread = await this.threadRepo.findOne({
-        where: [
-          { userA: userId, userB: otherUserId },
-          { userA: otherUserId, userB: userId },
-        ],
-      });
-      if (!existingThread) {
-        throw new ForbiddenException(
-          'Must follow each other or have prior interaction',
-        );
-      }
-    }
-
+    // Allow starting a conversation with any user; no follow or prior-interaction required
     let thread = await this.threadRepo.findOne({
       where: [
         { userA: userId, userB: otherUserId },

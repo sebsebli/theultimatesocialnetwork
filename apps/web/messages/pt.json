@@ -409,5 +409,19 @@
     "info": "Apenas para notificação.",
     "acceptTermsRequired": "Aceite termos.",
     "goBack": "Voltar"
+  },
+  "cookieConsent": {
+    "message": "Usamos cookies para login e preferências. Sem publicidade ou rastreamento de terceiros. Pode aceitar todos ou apenas os essenciais.",
+    "privacyLink": "Política de privacidade",
+    "essentialOnly": "Apenas essenciais",
+    "acceptAll": "Aceitar todos"
+  },
+  "signupOverlay": {
+    "title": "Junte-se ao CITE",
+    "description": "Crie uma conta para seguir pessoas, guardar publicações e participar na conversa com ideias e fontes ligadas.",
+    "signInUp": "Entrar / Registar",
+    "joinWaitlist": "Lista de espera",
+    "notNow": "Agora não",
+    "closeAria": "Fechar"
   }
 }

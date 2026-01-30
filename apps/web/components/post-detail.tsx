@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-// import Image from 'next/image';
+import Image from "next/image";
 import { useToast } from "./ui/toast";
 import { renderMarkdown } from "@/utils/markdown";
 import { ReplySection } from "./reply-section";
@@ -262,10 +262,12 @@ export function PostDetail({ post }: PostDetailProps) {
           />
           {post.headerImageKey && (
             <div className="relative w-full aspect-video rounded-2xl bg-white/5 mt-4 overflow-hidden shadow-2xl">
-              <img
-                src={`http://localhost:9000/cite-images/${post.headerImageKey}`}
+              <Image
+                src={`${process.env.NEXT_PUBLIC_STORAGE_URL || "http://localhost:9000/cite-images"}/${post.headerImageKey}`}
                 alt="Post header"
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 672px"
               />
             </div>
           )}

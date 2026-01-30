@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Collection } from '../entities/collection.entity';
 import { CollectionItem } from '../entities/collection-item.entity';
 import { Post } from '../entities/post.entity';
@@ -21,14 +21,13 @@ export class CollectionsService {
     userId: string,
     title: string,
     description?: string,
-    isPublic = false,
     shareSaves = false,
   ) {
     const col = this.collectionRepo.create({
       ownerId: userId,
       title,
       description,
-      isPublic,
+      isPublic: true, // visibility follows user profile; column kept for compatibility
       shareSaves,
     });
     return this.collectionRepo.save(col);
@@ -42,7 +41,43 @@ export class CollectionsService {
       .orderBy('collection.createdAt', 'DESC')
       .getMany();
 
-    return collections;
+    const ids = collections.map((c) => c.id);
+    const previewMap = await this.getPreviewImageKeys(ids);
+    return collections.map((c) => ({
+      ...c,
+      previewImageKey: previewMap[c.id] ?? null,
+    }));
+  }
+
+  /** One random post header image key per collection (for list previews). */
+  async getPreviewImageKeys(
+    collectionIds: string[],
+  ): Promise<Record<string, string>> {
+    if (collectionIds.length === 0) return {};
+    const items = await this.itemRepo.find({
+      where: { collectionId: In(collectionIds) },
+      relations: ['post'],
+      select: ['id', 'collectionId'],
+    });
+    const byCollection = new Map<
+      string,
+      { postId: string; headerImageKey: string | null }[]
+    >();
+    for (const item of items) {
+      const key = item.post?.headerImageKey ?? null;
+      if (!key) continue;
+      const list = byCollection.get(item.collectionId) ?? [];
+      list.push({ postId: item.post?.id, headerImageKey: key });
+      byCollection.set(item.collectionId, list);
+    }
+    const out: Record<string, string> = {};
+    for (const [cid, list] of byCollection) {
+      if (list.length > 0) {
+        const random = list[Math.floor(Math.random() * list.length)];
+        if (random?.headerImageKey) out[cid] = random.headerImageKey;
+      }
+    }
+    return out;
   }
 
   async findOne(id: string, userId: string) {
@@ -74,7 +109,6 @@ export class CollectionsService {
       shareSaves?: boolean;
       title?: string;
       description?: string;
-      isPublic?: boolean;
     },
   ) {
     const collection = await this.collectionRepo.findOne({
@@ -93,11 +127,23 @@ export class CollectionsService {
     if (dto.description !== undefined) {
       collection.description = dto.description;
     }
-    if (dto.isPublic !== undefined) {
-      collection.isPublic = dto.isPublic;
-    }
 
     return this.collectionRepo.save(collection);
+  }
+
+  /** Remove the collection item that links this post to this collection (by postId). */
+  async removeItemByPostId(
+    collectionId: string,
+    postId: string,
+    userId: string,
+  ): Promise<void> {
+    const collection = await this.collectionRepo.findOne({
+      where: { id: collectionId, ownerId: userId },
+    });
+    if (!collection) {
+      throw new Error('Collection not found');
+    }
+    await this.itemRepo.delete({ collectionId, postId });
   }
 
   async removeItem(collectionId: string, itemId: string, userId: string) {
@@ -109,5 +155,16 @@ export class CollectionsService {
     }
 
     await this.itemRepo.delete({ id: itemId, collectionId });
+  }
+
+  async delete(collectionId: string, userId: string): Promise<void> {
+    const collection = await this.collectionRepo.findOne({
+      where: { id: collectionId, ownerId: userId },
+    });
+    if (!collection) {
+      throw new Error('Collection not found');
+    }
+    await this.itemRepo.delete({ collectionId });
+    await this.collectionRepo.delete(collectionId);
   }
 }

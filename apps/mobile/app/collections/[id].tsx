@@ -4,6 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
@@ -29,6 +30,7 @@ export default function CollectionDetailScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const insets = useSafeAreaInsets();
 
   const handleShare = async () => {
     Haptics.selectionAsync();
@@ -39,23 +41,6 @@ export default function CollectionDetailScreen() {
     } catch (error) {
       // console.error(error);
     }
-  };
-
-  const handleTogglePublic = async () => {
-    if (!collection) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const newValue = !collection.isPublic;
-    setCollection((prev) => prev ? ({ ...prev, isPublic: newValue }) : null);
-    try {
-      await api.patch(`/collections/${id}`, { isPublic: newValue });
-    } catch (error) {
-      setCollection((prev) => prev ? ({ ...prev, isPublic: !newValue }) : null);
-      // console.error(error);
-    }
-  };
-
-  const handleAddCitation = () => {
-    showToast("To add items, browse posts and tap the 'Keep' or 'Add to Collection' button.");
   };
 
   const handleDeleteCollection = async () => {
@@ -88,27 +73,20 @@ export default function CollectionDetailScreen() {
       setLoadingMore(true);
     }
     try {
-      // Step 1: Load collection metadata first
       const collectionData = await api.get(`/collections/${id}`);
       setCollection(collectionData);
-      setLoading(false); // Show metadata instantly
-
-      // Step 2: Load items in background
-      const itemsData = await api.get(`/collections/${id}/items?page=${pageNum}&limit=20`);
-      const itemsList = Array.isArray(itemsData.items || itemsData) ? (itemsData.items || itemsData) : [];
-
+      const itemsList = Array.isArray(collectionData?.items) ? collectionData.items : [];
       if (reset) {
         setItems(itemsList);
       } else {
         setItems(prev => [...prev, ...itemsList]);
       }
-
-      const hasMoreData = itemsList.length === 20 && (itemsData.hasMore !== false);
-      setHasMore(hasMoreData);
+      setHasMore(false); // API returns all items in one response; no pagination for items
     } catch (error) {
       // console.error('Failed to load collection', error);
-      setLoading(false);
+      setCollection(null);
     } finally {
+      setLoading(false);
       setRefreshing(false);
       setLoadingMore(false);
     }
@@ -127,16 +105,6 @@ export default function CollectionDetailScreen() {
     loadCollection(1, true);
   }, [id]);
 
-  const contributors = useMemo(() => {
-    const authors = new Map();
-    items.forEach(item => {
-      if (item.post?.author) {
-        authors.set(item.post.author.id, item.post.author);
-      }
-    });
-    return Array.from(authors.values());
-  }, [items]);
-
   useEffect(() => {
     if (items.length === 0) return;
     const key = pickRandomHeaderImageKey(
@@ -146,17 +114,20 @@ export default function CollectionDetailScreen() {
     setHeaderImageKey(prev => prev ?? key);
   }, [items, id]);
 
-  const renderItem = useCallback(({ item }: { item: CollectionItem }) => (
-    <View style={styles.itemContainer}>
-      <PostItem post={item.post} />
-      {item.curatorNote && (
-        <View style={styles.noteContainer}>
-          <Text style={styles.noteLabel}>CURATOR NOTE</Text>
-          <Text style={styles.noteText}>{item.curatorNote}</Text>
-        </View>
-      )}
-    </View>
-  ), [t]);
+  const renderItem = useCallback(({ item }: { item: CollectionItem }) => {
+    if (!item?.post) return null;
+    return (
+      <View style={styles.itemContainer}>
+        <PostItem post={item.post} />
+        {item.curatorNote && (
+          <View style={styles.noteContainer}>
+            <Text style={styles.noteLabel}>{t('collections.curatorNote', 'CURATOR NOTE')}</Text>
+            <Text style={styles.noteText}>{item.curatorNote}</Text>
+          </View>
+        )}
+      </View>
+    );
+  }, [t]);
 
   const keyExtractor = useCallback((item: CollectionItem) => item.id, []);
 
@@ -169,24 +140,70 @@ export default function CollectionDetailScreen() {
     );
   }, [hasMore, loadingMore]);
 
+  const handleAddCitationStable = useCallback(() => {
+    showToast(t('collections.addCitationHint', "To add items, browse posts and tap 'Keep' or 'Add to Collection'."));
+  }, [showToast, t]);
+
+  const ListEmptyComponent = useMemo(() => (
+    <View style={styles.emptyWrapper}>
+      <EmptyState
+        icon="folder-open"
+        headline={t('collections.emptyDetail', 'No items in this collection')}
+        subtext={t('collections.emptyDetailHint', 'Add posts from the reading screen.')}
+      />
+      <Pressable
+        style={styles.addCitationButton}
+        onPress={handleAddCitationStable}
+        accessibilityLabel={t('collections.addCitation')}
+        accessibilityRole="button"
+      >
+        <MaterialIcons name="add" size={HEADER.iconSize} color={COLORS.primary} />
+        <Text style={styles.addCitationText}>{t('collections.addCitation')}</Text>
+      </Pressable>
+    </View>
+  ), [t, handleAddCitationStable]);
+
+  const headerBar = (
+    <View style={[styles.headerBar, { paddingTop: insets.top }]}>
+      <Pressable
+        onPress={() => router.back()}
+        style={({ pressed }: { pressed: boolean }) => [styles.backButtonBar, pressed && { opacity: 0.7 }]}
+        accessibilityLabel={t('common.back', 'Go back')}
+        accessibilityRole="button"
+      >
+        <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
+      </Pressable>
+      <Text style={styles.headerBarTitle} numberOfLines={1}>{collection?.title ?? t('collections.title', 'Collection')}</Text>
+      <View style={styles.headerBarSpacer} />
+    </View>
+  );
+
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        {headerBar}
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!collection) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{t('collections.notFound')}</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        {headerBar}
+        <View style={styles.centered}>
+          <MaterialIcons name="error-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <Text style={styles.errorText}>{t('collections.notFound', 'Collection not found')}</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <TopicCollectionHeader
         type="collection"
         title={collection.title}
@@ -220,53 +237,15 @@ export default function CollectionDetailScreen() {
         onCancel={() => setDeleteConfirmVisible(false)}
       />
 
-      <View style={styles.shareSavesSection}>
-        <View style={styles.shareSavesContent}>
-          <View>
-            <Text style={styles.shareSavesLabel}>{t('collections.shareSaves')}</Text>
-            <Text style={styles.shareSavesDesc}>{t('collections.shareSavesDesc')}</Text>
-          </View>
-          <View style={styles.toggleContainer}>
-            {/* Toggle switch - using a simple Pressable for now */}
-            <Pressable
-              style={[styles.toggle, collection.isPublic && styles.toggleActive]}
-              onPress={handleTogglePublic}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: collection.isPublic }}
-            >
-              <View style={[styles.toggleThumb, collection.isPublic && styles.toggleThumbActive]} />
-            </Pressable>
-          </View>
-        </View>
-      </View>
-
       <FlatList
+        style={styles.list}
         data={items}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        ListEmptyComponent={
-          <EmptyState
-            icon="folder-open"
-            headline={t('collections.emptyDetail', 'No items in this collection')}
-            subtext={t('collections.emptyDetailHint', 'Add posts from the reading screen.')}
-          />
-        }
-        ListFooterComponent={
-          <View>
-            {ListFooterComponent}
-            <Pressable
-              style={styles.addCitationButton}
-              onPress={handleAddCitation}
-              accessibilityLabel={t('collections.addCitation')}
-              accessibilityRole="button"
-            >
-              <MaterialIcons name="add" size={HEADER.iconSize} color={COLORS.primary} />
-              <Text style={styles.addCitationText}>{t('collections.addCitation')}</Text>
-            </Pressable>
-          </View>
-        }
+        ListEmptyComponent={ListEmptyComponent}
+        ListFooterComponent={ListFooterComponent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -282,7 +261,7 @@ export default function CollectionDetailScreen() {
         initialNumToRender={10}
         windowSize={10}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -290,6 +269,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
+  },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.l,
+    paddingBottom: SPACING.m,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    backgroundColor: COLORS.ink,
+  },
+  backButtonBar: {
+    padding: SPACING.s,
+    marginLeft: -SPACING.s,
+  },
+  headerBarTitle: {
+    flex: 1,
+    fontSize: HEADER.titleSize,
+    fontWeight: '600',
+    color: COLORS.paper,
+    marginLeft: SPACING.s,
+    fontFamily: FONTS.semiBold,
+  },
+  headerBarSpacer: {
+    width: 40,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  list: {
+    flex: 1,
   },
   loadingText: {
     color: COLORS.secondary,
@@ -303,68 +315,8 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontFamily: FONTS.regular,
   },
-  badge: {
-    backgroundColor: COLORS.hover,
-    paddingHorizontal: SPACING.m,
-    paddingVertical: 4,
-    borderRadius: SIZES.borderRadius,
-    borderWidth: 1,
-    borderColor: COLORS.pressed,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: COLORS.secondary,
-    fontFamily: FONTS.medium,
-  },
-  shareSavesSection: {
-    padding: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  shareSavesContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  shareSavesLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.paper,
-    marginBottom: SPACING.xs,
-    fontFamily: FONTS.semiBold,
-  },
-  shareSavesDesc: {
-    fontSize: 13,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-  },
-  toggleContainer: {
-    marginLeft: SPACING.l,
-  },
-  toggle: {
-    width: 44,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: COLORS.hover,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-    justifyContent: 'center',
-    paddingHorizontal: 2,
-  },
-  toggleActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: COLORS.tertiary,
-  },
-  toggleThumbActive: {
-    backgroundColor: '#FFFFFF',
-    marginLeft: 'auto',
+  emptyWrapper: {
+    paddingVertical: SPACING.xxxl,
   },
   itemContainer: {
     borderBottomWidth: 1,

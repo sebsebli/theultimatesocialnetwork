@@ -33,7 +33,12 @@ export class MeilisearchService implements OnModuleInit {
         'author.displayName',
         'author.handle',
       ]);
-      await index.updateFilterableAttributes(['authorId', 'lang', 'createdAt']);
+      await index.updateFilterableAttributes([
+        'authorId',
+        'lang',
+        'createdAt',
+        'topicIds',
+      ]);
       await index.updateSortableAttributes([
         'createdAt',
         'quoteCount',
@@ -132,6 +137,7 @@ export class MeilisearchService implements OnModuleInit {
     quoteCount: number;
     replyCount: number;
     embedding?: number[];
+    topicIds?: string[];
   }) {
     try {
       const index = this.client.index(this.indexName);
@@ -155,6 +161,7 @@ export class MeilisearchService implements OnModuleInit {
           createdAt: post.createdAt.toISOString(),
           quoteCount: post.quoteCount,
           replyCount: post.replyCount,
+          topicIds: post.topicIds ?? [],
           _vectors: post.embedding ? { default: post.embedding } : undefined,
         },
       ]);
@@ -169,14 +176,19 @@ export class MeilisearchService implements OnModuleInit {
       limit?: number;
       offset?: number;
       lang?: string;
+      topicId?: string;
     },
   ) {
     try {
       const index = this.client.index(this.indexName);
+      const filters: string[] = [];
+      if (options?.lang) filters.push(`lang = "${options.lang}"`);
+      if (options?.topicId) filters.push(`topicIds IN ["${options.topicId}"]`);
+      const filter = filters.length > 0 ? filters.join(' AND ') : undefined;
       const results = await index.search(query, {
         limit: options?.limit || 20,
         offset: options?.offset || 0,
-        filter: options?.lang ? `lang = ${options.lang}` : undefined,
+        filter: filter || undefined,
         sort: ['quoteCount:desc', 'createdAt:desc'],
       });
       return results;
@@ -213,6 +225,17 @@ export class MeilisearchService implements OnModuleInit {
     }
   }
 
+  /** Dedupe by id (first occurrence wins). */
+  private dedupeById<T extends { id?: string }>(items: T[]): T[] {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      const id = item?.id;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }
+
   async searchAll(query: string, limitPerType = 15) {
     const [postsRes, usersRes, topicsRes] = await Promise.all([
       this.searchPosts(query, { limit: limitPerType, offset: 0 }).catch(() => ({
@@ -226,9 +249,9 @@ export class MeilisearchService implements OnModuleInit {
       })),
     ]);
     return {
-      posts: postsRes.hits || [],
-      users: usersRes.hits || [],
-      topics: topicsRes.hits || [],
+      posts: this.dedupeById((postsRes.hits || []) as { id?: string }[]),
+      users: this.dedupeById((usersRes.hits || []) as { id?: string }[]),
+      topics: this.dedupeById((topicsRes.hits || []) as { id?: string }[]),
     };
   }
 

@@ -12,7 +12,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../../utils/api';
-import { COLORS, SPACING, FONTS } from '../../../constants/theme';
+import { COLORS, SPACING, FONTS, LAYOUT } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { PostItem } from '../../../components/PostItem';
@@ -112,6 +112,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontStyle: 'italic',
     paddingVertical: SPACING.xxl,
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
 });

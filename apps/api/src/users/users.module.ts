@@ -3,14 +3,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { User } from '../entities/user.entity';
+import { AccountDeletionRequest } from '../entities/account-deletion-request.entity';
+import { DataExport } from '../entities/data-export.entity';
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
 import { PostEdge } from '../entities/post-edge.entity';
 import { Like } from '../entities/like.entity';
+import { ReplyLike } from '../entities/reply-like.entity';
 import { Keep } from '../entities/keep.entity';
 import { Follow } from '../entities/follow.entity';
 import { PostRead } from '../entities/post-read.entity';
 import { Notification } from '../entities/notification.entity';
+import { NotificationPref } from '../entities/notification-pref.entity';
 import { Collection } from '../entities/collection.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
@@ -19,25 +23,33 @@ import { Queue } from 'bullmq';
 
 import { SharedModule } from '../shared/shared.module';
 import { SearchModule } from '../search/search.module';
+import { UploadModule } from '../upload/upload.module';
+import { CollectionsModule } from '../collections/collections.module';
 import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       User,
+      AccountDeletionRequest,
+      DataExport,
       Post,
       Reply,
       PostEdge,
       Like,
+      ReplyLike,
       Keep,
       Follow,
       PostRead,
       Notification,
+      NotificationPref,
       Collection,
     ]),
     ConfigModule,
     SharedModule,
     SearchModule,
+    UploadModule,
+    CollectionsModule,
   ],
   controllers: [UsersController],
   providers: [

@@ -5,9 +5,10 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In, IsNull } from 'typeorm';
 import { Queue } from 'bullmq';
 import { Reply } from '../entities/reply.entity';
+import { ReplyLike } from '../entities/reply-like.entity';
 import { Post } from '../entities/post.entity';
 import { Mention } from '../entities/mention.entity';
 import { User } from '../entities/user.entity';
@@ -15,11 +16,16 @@ import { LanguageDetectionService } from '../shared/language-detection.service';
 import { Neo4jService } from '../database/neo4j.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 import { SafetyService } from '../safety/safety.service';
+import { MeilisearchService } from '../search/meilisearch.service';
+
+const REPLY_BODY_MIN = 2;
+const REPLY_BODY_MAX = 1000;
 
 @Injectable()
 export class RepliesService {
   constructor(
     @InjectRepository(Reply) private replyRepo: Repository<Reply>,
+    @InjectRepository(ReplyLike) private replyLikeRepo: Repository<ReplyLike>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(Mention) private mentionRepo: Repository<Mention>,
     @InjectRepository(User) private userRepo: Repository<User>,
@@ -28,6 +34,7 @@ export class RepliesService {
     private neo4jService: Neo4jService,
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
+    private meilisearch: MeilisearchService,
     @Inject('REPLY_QUEUE') private replyQueue: Queue,
   ) {}
 
@@ -37,9 +44,21 @@ export class RepliesService {
     body: string,
     parentReplyId?: string,
   ) {
+    const trimmed = (body ?? '').trim();
+    if (trimmed.length < REPLY_BODY_MIN) {
+      throw new BadRequestException(
+        `Comment must be at least ${REPLY_BODY_MIN} characters`,
+      );
+    }
+    if (trimmed.length > REPLY_BODY_MAX) {
+      throw new BadRequestException(
+        `Comment must be at most ${REPLY_BODY_MAX} characters`,
+      );
+    }
+
     // AI Safety Check (Fast Stage 1 only)
     const safety = await this.safetyService.checkContent(
-      body,
+      trimmed,
       userId,
       'reply',
       { onlyFast: true },
@@ -61,8 +80,13 @@ export class RepliesService {
         where: { id: parentReplyId },
         relations: ['parentReply'],
       });
-      if (parentReply?.parentReplyId) {
-        throw new Error('Maximum reply depth exceeded');
+      if (!parentReply || parentReply.postId !== postId) {
+        throw new BadRequestException(
+          'Parent reply not found or does not belong to this post',
+        );
+      }
+      if (parentReply.parentReplyId) {
+        throw new BadRequestException('Maximum reply depth exceeded');
       }
     }
 
@@ -72,7 +96,7 @@ export class RepliesService {
       select: ['languages'],
     });
     const { lang, confidence } = await this.languageDetection.detectLanguage(
-      body,
+      trimmed,
       userId,
       user?.languages || [],
     );
@@ -88,7 +112,7 @@ export class RepliesService {
       const reply = this.replyRepo.create({
         postId,
         authorId: userId,
-        body,
+        body: trimmed,
         parentReplyId: parentReplyId || undefined,
         lang,
         langConfidence: confidence,
@@ -140,17 +164,143 @@ export class RepliesService {
       postId,
     });
 
+    // Re-index parent post so search has fresh replyCount
+    const postWithAuthor = await this.postRepo.findOne({
+      where: { id: postId },
+      relations: ['author'],
+    });
+    if (postWithAuthor) {
+      this.meilisearch
+        .indexPost({
+          id: postWithAuthor.id,
+          title: postWithAuthor.title,
+          body: postWithAuthor.body,
+          authorId: postWithAuthor.authorId,
+          author: postWithAuthor.author
+            ? {
+                displayName:
+                  postWithAuthor.author.displayName ||
+                  postWithAuthor.author.handle,
+                handle: postWithAuthor.author.handle,
+              }
+            : undefined,
+          lang: postWithAuthor.lang,
+          createdAt: postWithAuthor.createdAt,
+          quoteCount: postWithAuthor.quoteCount,
+          replyCount: postWithAuthor.replyCount,
+        })
+        .catch((err) =>
+          console.error('Failed to re-index post after reply', err),
+        );
+    }
+
     return savedReply;
   }
 
-  async findByPost(postId: string, limit = 50, offset = 0) {
-    return this.replyRepo.find({
-      where: { postId },
+  async findByPost(
+    postId: string,
+    limit = 50,
+    offset = 0,
+    currentUserId?: string,
+    parentReplyId?: string,
+  ) {
+    const where: { postId: string; parentReplyId?: null | string } = { postId };
+    if (parentReplyId != null && parentReplyId !== '') {
+      where.parentReplyId = parentReplyId;
+    } else {
+      where.parentReplyId = IsNull();
+    }
+
+    const replies = await this.replyRepo.find({
+      where,
       relations: ['author', 'parentReply', 'parentReply.author'],
       order: { createdAt: 'ASC' },
       take: limit,
       skip: offset,
     });
+
+    let withMeta = replies.map((r) => ({ ...r, subreplyCount: 0 }));
+
+    if (parentReplyId == null || parentReplyId === '') {
+      const topLevelIds = replies.map((r) => r.id);
+      if (topLevelIds.length > 0) {
+        const counts = await this.replyRepo
+          .createQueryBuilder('r')
+          .select('r.parent_reply_id', 'parentId')
+          .addSelect('COUNT(*)', 'count')
+          .where('r.post_id = :postId', { postId })
+          .andWhere('r.parent_reply_id IN (:...ids)', { ids: topLevelIds })
+          .groupBy('r.parent_reply_id')
+          .getRawMany<{ parentId: string; count: string }>();
+        const countMap = new Map(
+          counts.map((c) => [c.parentId, Number(c.count)]),
+        );
+        withMeta = replies.map((r) => ({
+          ...r,
+          subreplyCount: countMap.get(r.id) ?? 0,
+        }));
+      }
+    }
+
+    if (!currentUserId) {
+      return withMeta.map((r) => ({
+        ...r,
+        privateLikeCount: undefined,
+        isLiked: false,
+      }));
+    }
+    const replyIds = withMeta.map((r) => r.id);
+    const likedByMe = await this.replyLikeRepo.find({
+      where: { userId: currentUserId, replyId: In(replyIds) },
+    });
+    const likedSet = new Set(likedByMe.map((l) => l.replyId));
+    return withMeta.map((r) => ({
+      ...r,
+      privateLikeCount: r.authorId === currentUserId ? r.likeCount : undefined,
+      isLiked: likedSet.has(r.id),
+    }));
+  }
+
+  async findOne(postId: string, replyId: string, currentUserId?: string) {
+    const reply = await this.replyRepo.findOne({
+      where: { id: replyId, postId },
+      relations: ['author', 'parentReply', 'parentReply.author'],
+    });
+    if (!reply) throw new NotFoundException('Reply not found');
+    if (!currentUserId) {
+      return { ...reply, privateLikeCount: undefined, isLiked: false };
+    }
+    const liked = await this.replyLikeRepo.findOne({
+      where: { userId: currentUserId, replyId: reply.id },
+    });
+    return {
+      ...reply,
+      privateLikeCount:
+        reply.authorId === currentUserId ? reply.likeCount : undefined,
+      isLiked: !!liked,
+    };
+  }
+
+  async likeReply(replyId: string, userId: string) {
+    const reply = await this.replyRepo.findOne({ where: { id: replyId } });
+    if (!reply) throw new NotFoundException('Reply not found');
+    const existing = await this.replyLikeRepo.findOne({
+      where: { userId, replyId },
+    });
+    if (existing) return { liked: true };
+    await this.replyLikeRepo.save({ userId, replyId });
+    await this.replyRepo.increment({ id: replyId }, 'likeCount', 1);
+    return { liked: true };
+  }
+
+  async unlikeReply(replyId: string, userId: string) {
+    const existing = await this.replyLikeRepo.findOne({
+      where: { userId, replyId },
+    });
+    if (!existing) return { liked: false };
+    await this.replyLikeRepo.remove(existing);
+    await this.replyRepo.decrement({ id: replyId }, 'likeCount', 1);
+    return { liked: false };
   }
 
   async delete(userId: string, replyId: string) {

@@ -229,6 +229,34 @@ html {
   border-radius: 0 4px 4px 0;
 }
 
+/* Inline code and fenced code blocks */
+.prose code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  color: #E8E8E8;
+}
+
+.prose pre {
+  margin: 1em 0 1.5em;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.06);
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.prose pre code {
+  padding: 0;
+  background: none;
+  color: #E8E8E8;
+  font-size: 1em;
+}
+
 @media print {
   @page {
     margin: 2cm;

@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, LayoutAnimation, UIManager, Platform, AppState } from 'react-native';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { COLORS, FONTS, SIZES, SPACING, HEADER } from '../../constants/theme';
+import { COLORS, FONTS, SIZES, SPACING, HEADER, LAYOUT } from '../../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { PostItem } from '../../components/PostItem';
 import { useRouter } from 'expo-router';
@@ -93,7 +93,7 @@ export default function HomeScreen() {
 
     const startTime = Date.now();
     try {
-      const limit = 20;
+      const limit = 40;
       const offset = (pageNum - 1) * limit;
 
       // Add rudimentary request ID tracking if API supports it or generates it
@@ -141,7 +141,7 @@ export default function HomeScreen() {
         setPosts(prev => [...prev, ...processedPosts]);
       }
 
-      const hasMoreData = processedPosts.length === 20 && (data.hasMore !== false);
+      const hasMoreData = processedPosts.length === limit && (data.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
       const duration = Date.now() - startTime;
@@ -226,7 +226,7 @@ export default function HomeScreen() {
       onPress={() => router.push('/invites')}
     >
       <View style={styles.inviteIconCircle}>
-        <MaterialIcons name="person-add" size={HEADER.iconSize} color={COLORS.ink} />
+        <MaterialIcons name="person-add" size={HEADER.iconSize} color={COLORS.primary} />
       </View>
       <View style={styles.inviteTextContainer}>
         <Text style={styles.inviteTitle}>{t('home.inviteFriends', 'Invite Friends')}</Text>
@@ -249,7 +249,7 @@ export default function HomeScreen() {
             accessibilityRole="button"
           >
             <View>
-              <MaterialIcons name="notifications-none" size={HEADER.iconSize} color={COLORS.paper} />
+              <MaterialIcons name="notifications-none" size={HEADER.iconSize} color={HEADER.iconColor} />
               {unreadNotifications > 0 && <View style={styles.badge} />}
             </View>
           </Pressable>
@@ -257,7 +257,7 @@ export default function HomeScreen() {
       </View>
 
       {error && posts.length === 0 ? (
-        <ErrorState onRetry={handleRefresh} />
+        <ErrorState onRetry={handleRefresh} onDismiss={() => setError(false)} />
       ) : (
         <FlatList
           data={posts}
@@ -265,19 +265,16 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           keyExtractor={keyExtractor}
           contentContainerStyle={{ paddingBottom: 80 }}
-          renderItem={({ item }: { item: Post }) => (
-            <View style={{ paddingHorizontal: SPACING.l }}>
-              {renderItem({ item })}
-            </View>
-          )}
+          renderItem={({ item }: { item: Post }) => renderItem({ item })}
           ListEmptyComponent={
             <EmptyState
-              icon="home"
-              headline={t('home.emptyHeadline', 'Your timeline is quiet.')}
-              subtext={t('home.emptySubtext', 'Follow people and topics to see posts here.')}
-              secondaryLabel={t('home.exploreTopics', 'Explore Topics')}
-              onSecondary={() => router.push('/(tabs)/explore')}
-            >
+                icon="home"
+                headline={t('home.emptyHeadline', 'Your timeline is quiet.')}
+                subtext={t('home.emptySubtext', 'Follow people and topics to see posts here.')}
+                secondaryLabel={t('home.exploreTopics', 'Explore Topics')}
+                onSecondary={() => router.push('/(tabs)/explore')}
+                compact
+              >
               {!loading && (
                 <View style={styles.emptyActions}>
                   <InviteNudge />
@@ -331,7 +328,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingBottom: HEADER.barPaddingBottom,
-    paddingHorizontal: HEADER.barPaddingHorizontal,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     backgroundColor: COLORS.ink,
   },
   profileButton: {
@@ -385,9 +382,9 @@ const styles = StyleSheet.create({
     color: COLORS.paper,
   },
   emptyState: {
-    paddingVertical: SPACING.xxl,
+    paddingVertical: SPACING.l,
     alignItems: 'center',
-    marginTop: SPACING.l,
+    marginTop: SPACING.m,
   },
   emptyHeadline: {
     fontSize: 20,
@@ -401,28 +398,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.secondary,
     textAlign: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.l,
     fontFamily: FONTS.regular,
     lineHeight: 22,
   },
   emptyActions: {
     width: '100%',
-    gap: SPACING.l,
+    gap: SPACING.m,
     alignItems: 'center',
   },
   suggestionsBlock: {
     width: '100%',
-    marginBottom: SPACING.m,
+    marginBottom: SPACING.s,
   },
   suggestionsHeader: {
     fontSize: 15,
     fontWeight: '600',
     color: COLORS.paper,
-    marginBottom: SPACING.s,
+    marginBottom: SPACING.xs,
     fontFamily: FONTS.semiBold,
   },
   suggestionRow: {
-    marginBottom: SPACING.s,
+    marginBottom: SPACING.xs,
   },
   inviteNudgeContainer: {
     flexDirection: 'row',
@@ -436,7 +433,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.paper,
+    backgroundColor: COLORS.ink,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.m,

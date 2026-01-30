@@ -133,12 +133,14 @@ export class SafetyService {
     targetId: string,
     targetType: string,
     reason: string,
+    comment?: string,
   ) {
     const report = this.reportRepo.create({
       reporterId,
       targetId,
       targetType: targetType as ReportTargetType,
       reason,
+      comment: comment?.trim() || null,
       status: ReportStatus.OPEN,
     });
 

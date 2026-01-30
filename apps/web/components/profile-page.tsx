@@ -28,6 +28,7 @@ interface ProfilePageProps {
     handle: string;
     displayName: string;
     bio?: string;
+    isProtected?: boolean;
     followerCount: number;
     followingCount: number;
     quoteReceivedCount: number;
@@ -173,21 +174,23 @@ export function ProfilePage({ user, isSelf = false }: ProfilePageProps) {
             </h1>
             <div className="flex items-center justify-center gap-2">
               <p className="text-tertiary text-sm">@{user.handle}</p>
-              <a
-                href={`/api/rss/${user.handle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-tertiary hover:text-primary transition-colors"
-                title="RSS Feed"
-              >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
+              {!user.isProtected && (
+                <a
+                  href={`/api/rss/${user.handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-tertiary hover:text-primary transition-colors"
+                  title="RSS Feed"
                 >
-                  <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248-1.796 0-3.252-1.454-3.252-3.248 0-1.794 1.456-3.248 3.252-3.248 1.795.001 3.251 1.454 3.251 3.248zm-6.503-12.572v4.811c6.05.062 10.96 4.966 11.022 11.009h4.817c-.062-8.71-7.118-15.758-15.839-15.82zm0-8.18v4.812c10.559.062 19.121 8.611 19.183 19.168h4.817c-.062-13.21-10.776-23.911-24-23.98z" />
-                </svg>
-              </a>
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248-1.796 0-3.252-1.454-3.252-3.248 0-1.794 1.456-3.248 3.252-3.248 1.795.001 3.251 1.454 3.251 3.248zm-6.503-12.572v4.811c6.05.062 10.96 4.966 11.022 11.009h4.817c-.062-8.71-7.118-15.758-15.839-15.82zm0-8.18v4.812c10.559.062 19.121 8.611 19.183 19.168h4.817c-.062-13.21-10.776-23.911-24-23.98z" />
+                  </svg>
+                </a>
+              )}
             </div>
           </div>
 

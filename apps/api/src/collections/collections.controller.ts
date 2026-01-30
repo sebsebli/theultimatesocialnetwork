@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -30,7 +31,6 @@ export class CollectionsController {
       user.id,
       dto.title,
       dto.description,
-      dto.isPublic ?? false,
       dto.shareSaves ?? false,
     );
   }
@@ -64,6 +64,30 @@ export class CollectionsController {
     @Body() dto: UpdateCollectionDto,
   ) {
     return this.collectionsService.update(id, user.id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'))
+  delete(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.collectionsService.delete(id, user.id);
+  }
+
+  /** Remove a post from a collection by postId (e.g. from Add to Collection sheet when on a post). */
+  @Delete(':id/items')
+  @UseGuards(AuthGuard('jwt'))
+  removeItemByPostId(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) collectionId: string,
+    @Query('postId', ParseUUIDPipe) postId: string,
+  ) {
+    return this.collectionsService.removeItemByPostId(
+      collectionId,
+      postId,
+      user.id,
+    );
   }
 
   @Delete(':id/items/:itemId')

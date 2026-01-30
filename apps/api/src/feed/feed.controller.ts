@@ -33,16 +33,15 @@ export class FeedController {
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
     @Query('includeSavedBy') includeSavedBy?: string,
   ) {
-    // Require completed onboarding (profile with handle + displayName) before allowing feed access
+    // Require completed onboarding (no placeholder profile) before allowing feed access
     const me = await this.userRepo.findOne({
       where: { id: user.id },
-      select: ['id', 'handle', 'displayName'],
+      select: ['id', 'handle', 'displayName', 'onboardingCompletedAt'],
     });
-    if (
+    const hasPlaceholder =
       !me ||
-      !String(me.handle ?? '').trim() ||
-      !String(me.displayName ?? '').trim()
-    ) {
+      (typeof me.handle === 'string' && me.handle.startsWith('__pending_'));
+    if (hasPlaceholder) {
       throw new ForbiddenException('Complete onboarding first');
     }
     try {

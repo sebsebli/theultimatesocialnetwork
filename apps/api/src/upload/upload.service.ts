@@ -56,6 +56,16 @@ export class UploadService {
     return result.key;
   }
 
+  /** Profile header/cover image (e.g. from draw or upload). Wide aspect. */
+  async uploadProfileHeader(file: UploadedImageFile): Promise<string> {
+    const result = await this.processAndUpload(
+      file,
+      { width: 1200, height: 300, fit: 'cover' },
+      false,
+    );
+    return result.key;
+  }
+
   private async processAndUpload(
     file: UploadedImageFile,
     resizeOptions: ResizeSpec,
@@ -140,5 +150,26 @@ export class UploadService {
       ? publicUrl.slice(0, -1)
       : publicUrl;
     return `${baseUrl}/${this.bucketName}/${key}`;
+  }
+
+  /** Upload a data export zip buffer to storage. Returns the storage key. */
+  async uploadExportZip(buffer: Buffer): Promise<string> {
+    const key = `exports/${uuidv4()}.zip`;
+    await this.minioClient.putObject(
+      this.bucketName,
+      key,
+      buffer,
+      buffer.length,
+      { 'Content-Type': 'application/zip' },
+    );
+    return key;
+  }
+
+  /** Get a readable stream for an export file by key (for download). */
+  getExportStream(key: string): Promise<NodeJS.ReadableStream> {
+    return this.minioClient.getObject(
+      this.bucketName,
+      key,
+    ) as Promise<NodeJS.ReadableStream>;
   }
 }

@@ -82,7 +82,11 @@ export default function NewMessageScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('messages.newMessage', 'New Message')} paddingTop={insets.top} />
+      <ScreenHeader
+        title={t('messages.newMessage', 'New Message')}
+        paddingTop={insets.top}
+        onBack={() => router.replace('/(tabs)/messages')}
+      />
 
       <View style={styles.searchContainer}>
         <TextInput

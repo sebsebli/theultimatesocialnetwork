@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 
 interface Collection {
   id: string;
   title: string;
-  isPublic: boolean;
   itemCount: number;
   hasPost?: boolean;
 }
@@ -26,18 +25,32 @@ export function AddToCollectionModal({
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [newIsPublic, setNewIsPublic] = useState(true);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  const loadCollections = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/collections?postId=${postId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCollections(data);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [postId]);
+
   useEffect(() => {
     if (isOpen) {
       loadCollections();
     }
-  }, [isOpen]);
+  }, [isOpen, loadCollections]);
 
   // Prevent scrolling when modal is open
   useEffect(() => {
@@ -51,21 +64,6 @@ export function AddToCollectionModal({
     };
   }, [isOpen]);
 
-  const loadCollections = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/collections?postId=${postId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCollections(data);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
 
@@ -75,7 +73,6 @@ export function AddToCollectionModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newTitle,
-          isPublic: newIsPublic,
         }),
       });
 
@@ -112,14 +109,13 @@ export function AddToCollectionModal({
       });
 
       if (!res.ok) throw new Error("Failed to update");
-    } catch (error) {
+    } catch {
       // Revert
       setCollections((cols) =>
         cols.map((c) =>
           c.id === collectionId ? { ...c, hasPost: currentHasPost } : c,
         ),
       );
-      // ignore
     }
   };
 
@@ -176,9 +172,6 @@ export function AddToCollectionModal({
                     <span className="text-paper font-medium group-hover:text-white transition-colors">
                       {collection.title}
                     </span>
-                    <span className="text-xs text-tertiary flex items-center gap-1.5">
-                      {collection.isPublic ? "Public" : "Private"}
-                    </span>
                   </div>
 
                   <div
@@ -228,35 +221,20 @@ export function AddToCollectionModal({
                 className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-paper placeholder-secondary focus:outline-none focus:border-primary transition-colors"
                 autoFocus
               />
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-end gap-2">
                 <button
-                  onClick={() => setNewIsPublic(!newIsPublic)}
-                  className="flex items-center gap-2 text-sm text-secondary hover:text-paper transition-colors"
+                  onClick={() => setCreating(false)}
+                  className="px-3 py-1.5 text-sm text-secondary hover:text-paper transition-colors"
                 >
-                  <div
-                    className={`w-9 h-5 rounded-full relative transition-colors ${newIsPublic ? "bg-primary" : "bg-white/20"}`}
-                  >
-                    <div
-                      className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-transform ${newIsPublic ? "left-5" : "left-1"}`}
-                    />
-                  </div>
-                  {newIsPublic ? "Public" : "Private"}
+                  Cancel
                 </button>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCreating(false)}
-                    className="px-3 py-1.5 text-sm text-secondary hover:text-paper transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleCreate}
-                    disabled={!newTitle.trim()}
-                    className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                  >
-                    Create
-                  </button>
-                </div>
+                <button
+                  onClick={handleCreate}
+                  disabled={!newTitle.trim()}
+                  className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  Create
+                </button>
               </div>
             </div>
           ) : (

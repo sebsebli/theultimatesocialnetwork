@@ -14,13 +14,17 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/auth';
 import { useToast } from '../../../context/ToastContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { MarkdownText } from '../../../components/MarkdownText';
 import { ReportModal } from '../../../components/ReportModal';
+import { EmptyState } from '../../../components/EmptyState';
+
+const COMMENT_MIN_LENGTH = 2;
+const COMMENT_MAX_LENGTH = 1000;
 
 interface Reply {
   id: string;
@@ -31,6 +35,7 @@ interface Reply {
   parentReplyId?: string | null;
   privateLikeCount?: number;
   isLiked?: boolean;
+  subreplyCount?: number;
 }
 
 export default function PostCommentsScreen() {
@@ -93,6 +98,14 @@ export default function PostCommentsScreen() {
   const submitComment = async () => {
     const body = commentDraft.trim();
     if (!body || !isAuthenticated) return;
+    if (body.length < COMMENT_MIN_LENGTH) {
+      showError(t('post.commentTooShort', 'Comment must be at least {{min}} characters.', { min: COMMENT_MIN_LENGTH }));
+      return;
+    }
+    if (body.length > COMMENT_MAX_LENGTH) {
+      showError(t('post.commentTooLong', 'Comment must be at most {{max}} characters.', { max: COMMENT_MAX_LENGTH }));
+      return;
+    }
     setSubmittingComment(true);
     try {
       await api.post(`/posts/${postId}/replies`, { body });
@@ -180,12 +193,15 @@ export default function PostCommentsScreen() {
           </Text>
         ) : null}
 
-        {replies.length === 0 && !isAuthenticated && (
-          <Text style={styles.emptyText}>{t('post.signInToComment')}</Text>
-        )}
-        {replies.length === 0 && isAuthenticated && (
-          <Text style={styles.emptyText}>{t('post.noComments')}</Text>
-        )}
+        {replies.length === 0 ? (
+          <EmptyState
+            icon="chat-bubble-outline"
+            headline={isAuthenticated ? t('post.noComments', 'No comments yet. Be the first.') : t('post.signInToComment', 'Sign in to comment')}
+            subtext={isAuthenticated ? t('post.noCommentsSubtext', 'Add a comment below to start the discussion.') : t('post.signInToCommentSubtext', 'Sign in to join the discussion and add a comment.')}
+            actionLabel={!isAuthenticated ? t('common.signIn', 'Sign in') : undefined}
+            onAction={!isAuthenticated ? () => router.push('/(tabs)/profile') : undefined}
+          />
+        ) : null}
         {replies.map((reply) => (
           <View key={reply.id} style={styles.commentRow}>
             <View style={styles.commentAuthorRow}>
@@ -222,60 +238,95 @@ export default function PostCommentsScreen() {
             </View>
             <View style={styles.commentBodyWrap}>
               <MarkdownText>{reply.body}</MarkdownText>
-              {/* Any user can like any comment; like count is visible only to the comment author */}
-              {userId && (
-                <View style={styles.commentLikeRow}>
-                  <Pressable
-                    style={styles.commentLikeBtn}
-                    onPress={() => handleLikeReply(reply.id, likedReplies.has(reply.id))}
-                  >
-                    <MaterialIcons
-                      name={likedReplies.has(reply.id) ? 'favorite' : 'favorite-border'}
-                      size={HEADER.iconSize}
-                      color={likedReplies.has(reply.id) ? COLORS.like : COLORS.tertiary}
-                    />
-                    <Text style={styles.commentLikeLabel}>
-                      {(reply.authorId === userId || reply.author?.id === userId) &&
-                        reply.privateLikeCount !== undefined &&
-                        reply.privateLikeCount > 0
-                        ? t('post.privateLikedBy', { count: reply.privateLikeCount, defaultValue: `Liked by ${reply.privateLikeCount}` })
-                        : t('post.like')}
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
+              <View style={styles.commentActionsRow}>
+                {userId && (
+                  <View style={styles.commentLikeRow}>
+                    <Pressable
+                      style={styles.commentLikeBtn}
+                      onPress={() => handleLikeReply(reply.id, likedReplies.has(reply.id))}
+                    >
+                      <MaterialIcons
+                        name={likedReplies.has(reply.id) ? 'favorite' : 'favorite-border'}
+                        size={HEADER.iconSize}
+                        color={likedReplies.has(reply.id) ? COLORS.like : COLORS.tertiary}
+                      />
+                      <Text style={styles.commentLikeLabel}>
+                        {(reply.authorId === userId || reply.author?.id === userId) &&
+                          reply.privateLikeCount !== undefined &&
+                          reply.privateLikeCount > 0
+                          ? t('post.privateLikedBy', { count: reply.privateLikeCount, defaultValue: `Liked by ${reply.privateLikeCount}` })
+                          : t('post.like')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+                <Pressable
+                  style={styles.repliesLink}
+                  onPress={() => router.push(`/post/${postId}/comments/${reply.id}`)}
+                  accessibilityLabel={
+                    (reply.subreplyCount ?? 0) > 0
+                      ? t('post.viewReplies', 'View {{count}} replies', { count: reply.subreplyCount })
+                      : t('post.reply', 'Reply')
+                  }
+                >
+                  <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.primary} />
+                  <Text style={styles.repliesLinkText}>
+                    {(reply.subreplyCount ?? 0) > 0
+                      ? t('post.replyCountLabel', '{{count}} replies', { count: reply.subreplyCount })
+                      : t('post.reply', 'Reply')}
+                  </Text>
+                  <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+                </Pressable>
+              </View>
             </View>
           </View>
         ))}
       </ScrollView>
 
-      {/* Add comment - fixed at bottom */}
-      {isAuthenticated && (
-        <View style={[styles.commentInputBar, { paddingBottom: insets.bottom + SPACING.m }]}>
-          <TextInput
-            style={styles.commentInput}
-            placeholder={t('post.addComment')}
-            placeholderTextColor={COLORS.tertiary}
-            value={commentDraft}
-            onChangeText={setCommentDraft}
-            multiline
-            maxLength={2000}
-            editable={!submittingComment}
-          />
+      {/* Add comment - fixed at bottom; always visible so users see where to comment */}
+      <View style={[styles.commentInputBar, { paddingBottom: insets.bottom + SPACING.m }]}>
+        {isAuthenticated ? (
+          <>
+            <View style={styles.commentInputWrap}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder={t('post.addComment')}
+                placeholderTextColor={COLORS.tertiary}
+                value={commentDraft}
+                onChangeText={setCommentDraft}
+                multiline
+                maxLength={COMMENT_MAX_LENGTH}
+                editable={!submittingComment}
+              />
+              <Text style={styles.commentCharCount}>
+                {commentDraft.length}/{COMMENT_MAX_LENGTH}
+              </Text>
+            </View>
+            <Pressable
+              style={[
+                styles.commentPostBtn,
+                (commentDraft.trim().length < COMMENT_MIN_LENGTH || commentDraft.length > COMMENT_MAX_LENGTH || submittingComment) && styles.commentPostBtnDisabled,
+              ]}
+              onPress={submitComment}
+              disabled={commentDraft.trim().length < COMMENT_MIN_LENGTH || commentDraft.length > COMMENT_MAX_LENGTH || submittingComment}
+            >
+              <Text style={styles.commentPostBtnText}>
+                {submittingComment ? t('common.loading') : t('post.postComment')}
+              </Text>
+            </Pressable>
+          </>
+        ) : (
           <Pressable
-            style={[
-              styles.commentPostBtn,
-              (!commentDraft.trim() || submittingComment) && styles.commentPostBtnDisabled,
-            ]}
-            onPress={submitComment}
-            disabled={!commentDraft.trim() || submittingComment}
+            style={styles.commentInputPlaceholder}
+            onPress={() => router.push('/(tabs)/profile')}
+            accessibilityLabel={t('post.signInToComment')}
+            accessibilityRole="button"
           >
-            <Text style={styles.commentPostBtnText}>
-              {submittingComment ? t('common.loading') : t('post.postComment')}
-            </Text>
+            <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} style={styles.commentPlaceholderIcon} />
+            <Text style={styles.commentInputPlaceholderText}>{t('post.signInToComment')}</Text>
           </Pressable>
-        </View>
-      )}
+        )}
+      </View>
 
       <ReportModal
         visible={!!reportReplyId}
@@ -296,18 +347,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.ink },
   center: { justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: SPACING.l, paddingTop: SPACING.l },
+  scrollContent: { paddingHorizontal: LAYOUT.contentPaddingHorizontal, paddingTop: SPACING.l },
   postTitleLabel: {
     fontSize: 13,
     color: COLORS.tertiary,
     marginBottom: SPACING.m,
     fontFamily: FONTS.regular,
-  },
-  emptyText: {
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-    fontStyle: 'italic',
-    paddingVertical: SPACING.xl,
   },
   commentRow: {
     paddingVertical: SPACING.m,
@@ -374,33 +419,81 @@ const styles = StyleSheet.create({
     color: COLORS.tertiary,
     fontFamily: FONTS.regular,
   },
+  commentActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: SPACING.m,
+    marginTop: SPACING.s,
+  },
+  repliesLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+    paddingRight: SPACING.s,
+  },
+  repliesLinkText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontFamily: FONTS.medium,
+  },
   commentInputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: SPACING.m,
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingTop: SPACING.m,
     backgroundColor: COLORS.ink,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
   },
-  commentInput: {
+  commentInputWrap: {
     flex: 1,
+    position: 'relative',
+  },
+  commentInput: {
     minHeight: 44,
     maxHeight: 120,
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
     paddingHorizontal: SPACING.m,
     paddingVertical: SPACING.m,
+    paddingBottom: 28,
     fontSize: 15,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
     borderWidth: 1,
     borderColor: COLORS.divider,
   },
+  commentCharCount: {
+    position: 'absolute',
+    bottom: 6,
+    right: SPACING.m,
+    fontSize: 11,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  commentInputPlaceholder: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    paddingHorizontal: SPACING.m,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+  },
+  commentPlaceholderIcon: { marginRight: SPACING.s },
+  commentInputPlaceholderText: {
+    fontSize: 15,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
   commentPostBtn: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingVertical: SPACING.m,
     borderRadius: SIZES.borderRadius,
     justifyContent: 'center',

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { PostItem } from '../components/PostItem';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { EmptyState } from '../components/EmptyState';
 import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
@@ -148,11 +149,6 @@ export default function KeepsScreen() {
       <ScreenHeader
         title={t('keeps.title')}
         paddingTop={insets.top}
-        right={
-          <Pressable onPress={() => router.push('/search')} style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.paper} />
-          </Pressable>
-        }
       />
 
       <View style={styles.filters}>
@@ -198,11 +194,19 @@ export default function KeepsScreen() {
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>
-              {loading ? t('common.loading') : t('keeps.empty')}
-            </Text>
-          </View>
+          loading ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>{t('common.loading')}</Text>
+            </View>
+          ) : (
+            <EmptyState
+              icon="bookmark-border"
+              headline={t('keeps.empty')}
+              subtext={t('keeps.emptyHint')}
+              secondaryLabel={t('keeps.explorePosts')}
+              onSecondary={() => router.push('/(tabs)/explore')}
+            />
+          )
         }
         ListFooterComponent={ListFooterComponent}
         refreshControl={

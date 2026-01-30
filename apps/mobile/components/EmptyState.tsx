@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
 
 export interface EmptyStateProps {
   /** Icon name from MaterialIcons, or 'none' to hide */
@@ -16,6 +16,8 @@ export interface EmptyStateProps {
   onSecondary?: () => void;
   /** Extra content below (e.g. suggestion list) */
   children?: React.ReactNode;
+  /** Tighter padding (e.g. home feed empty state) */
+  compact?: boolean;
 }
 
 /**
@@ -31,9 +33,10 @@ export function EmptyState({
   secondaryLabel,
   onSecondary,
   children,
+  compact = false,
 }: EmptyStateProps) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, compact && styles.containerCompact]}>
       {icon !== 'none' && (
         <View style={styles.iconWrap}>
           <MaterialIcons name={icon} size={HEADER.iconSize} color={COLORS.tertiary} />
@@ -61,7 +64,7 @@ export function EmptyState({
           )}
         </View>
       )}
-      {children ? <View style={styles.extra}>{children}</View> : null}
+      {children ? <View style={[styles.extra, compact && styles.extraCompact]}>{children}</View> : null}
     </View>
   );
 }
@@ -69,10 +72,14 @@ export function EmptyState({
 const styles = StyleSheet.create({
   container: {
     paddingVertical: SPACING.xxl,
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 200,
+  },
+  containerCompact: {
+    paddingVertical: SPACING.l,
+    minHeight: 120,
   },
   iconWrap: {
     width: 72,
@@ -137,5 +144,8 @@ const styles = StyleSheet.create({
   extra: {
     width: '100%',
     marginTop: SPACING.l,
+  },
+  extraCompact: {
+    marginTop: SPACING.m,
   },
 });

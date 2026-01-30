@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Image, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '../../utils/api';
+import { api, getApiBaseUrl } from '../../utils/api';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
@@ -13,7 +13,7 @@ import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { PostItem } from '../../components/PostItem';
 import { ProfileSkeleton, PostSkeleton } from '../../components/LoadingSkeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../constants/theme';
 
 const TAB_BAR_HEIGHT = 50;
 
@@ -40,6 +40,7 @@ export default function UserProfileScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [following, setFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'saved' | 'collections'>('posts');
+  const loadingMoreRef = React.useRef(false);
 
   useEffect(() => {
     const h = typeof handle === 'string' ? handle : handle?.[0];
@@ -63,9 +64,12 @@ export default function UserProfileScreen() {
     if (reset) {
       setLoading(true);
       setPage(1);
+      loadingMoreRef.current = false;
       // Don't clear posts immediately to avoid flash, unless explicitly needed
-      // setPosts([]); 
+      // setPosts([]);
     } else {
+      if (loadingMoreRef.current) return;
+      loadingMoreRef.current = true;
       setLoadingMore(true);
     }
 
@@ -119,6 +123,7 @@ export default function UserProfileScreen() {
       // Saved tab: use raw keeps length for hasMore
       const hasMoreSaved = activeTab === 'saved' ? (contentData?.hasMore === true) : hasMoreData;
       setHasMore(activeTab === 'saved' ? hasMoreSaved : hasMoreData);
+      if (!reset) setPage(pageNum);
     } catch (error: any) {
       console.error('Failed to load profile', error);
       if (reset && activeTab === 'posts') setUser(null);
@@ -220,6 +225,12 @@ export default function UserProfileScreen() {
     showSuccess(t('safety.reportSuccess', 'Report submitted successfully'));
   };
 
+  const handleLoadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore || !user || loadingMoreRef.current) return;
+    const nextPage = page + 1;
+    loadProfile(nextPage, false);
+  }, [loading, loadingMore, hasMore, page, user]);
+
   const bottomPadding = TAB_BAR_HEIGHT + insets.bottom + 24;
 
   if (loading && !user) {
@@ -288,7 +299,31 @@ export default function UserProfileScreen() {
 
               <View style={styles.identityBlock}>
                 <Text style={styles.name}>{user.displayName}</Text>
-                <Text style={styles.handle}>@{user.handle}</Text>
+                <View style={styles.handleRow}>
+                  <Text style={styles.handle}>@{user.handle}</Text>
+                  {!user.isProtected && (
+                    <Pressable
+                      onPress={() => Linking.openURL(`${getApiBaseUrl()}/rss/${encodeURIComponent(user.handle)}`)}
+                      style={styles.rssIconButton}
+                      accessibilityLabel={t('profile.rssFeed', 'RSS Feed')}
+                      accessibilityRole="button"
+                    >
+                      <MaterialIcons name="rss-feed" size={20} color={COLORS.primary} />
+                    </Pressable>
+                  )}
+                </View>
+                {!user.isProtected && (
+                  <Pressable
+                    style={styles.rssRow}
+                    onPress={() => Linking.openURL(`${getApiBaseUrl()}/rss/${encodeURIComponent(user.handle)}`)}
+                    accessibilityLabel={t('profile.rssFeed', 'RSS Feed')}
+                    accessibilityRole="button"
+                  >
+                    <MaterialIcons name="rss-feed" size={HEADER.iconSize} color={COLORS.primary} />
+                    <Text style={styles.rssRowText}>{t('profile.rssFeed', 'RSS Feed')}</Text>
+                    <MaterialIcons name="open-in-new" size={16} color={COLORS.tertiary} />
+                  </Pressable>
+                )}
               </View>
 
               {user.bio && (
@@ -334,9 +369,11 @@ export default function UserProfileScreen() {
                 <Text style={styles.statLabel}>{t('profile.following')}</Text>
               </Pressable>
               <View style={styles.statItem}>
-                <View style={styles.verifiedBadge}>
-                  <MaterialIcons name="verified" size={HEADER.iconSize} color={COLORS.tertiary} />
-                </View>
+                {user.quotesBadgeEligible && (
+                  <View style={styles.verifiedBadge}>
+                    <MaterialIcons name="verified" size={HEADER.iconSize} color={COLORS.tertiary} />
+                  </View>
+                )}
                 <Text style={styles.statNumber}>{user.quoteReceivedCount}</Text>
                 <Text style={[styles.statLabel, { color: COLORS.primary }]}>{t('profile.quotes')}</Text>
               </View>
@@ -378,7 +415,7 @@ export default function UserProfileScreen() {
             }
           />
         }
-        ListFooterComponent={loadingMore ? (
+        ListFooterComponent={hasMore && loadingMore ? (
           <View style={styles.footerLoader}>
             <ActivityIndicator size="small" color={COLORS.primary} />
           </View>
@@ -389,13 +426,12 @@ export default function UserProfileScreen() {
             onRefresh={() => {
               setRefreshing(true);
               loadProfile(1, true);
-              setRefreshing(false);
             }}
             tintColor={COLORS.primary}
           />
         }
-        onEndReached={() => loadProfile(page + 1, false).finally(() => setLoadingMore(false))}
-        onEndReachedThreshold={0.5}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
         removeClippedSubviews={true}
         maxToRenderPerBatch={10}
         updateCellsBatchingPeriod={50}
@@ -427,7 +463,6 @@ export default function UserProfileScreen() {
         title={t('profile.options', 'Options for @' + (user?.handle ?? ''))}
         cancelLabel={t('common.cancel')}
         options={[
-          { label: t('profile.message'), onPress: handleMessage },
           { label: t('safety.mute', 'Mute User'), onPress: handleMute },
           { label: t('safety.block', 'Block User'), onPress: handleBlock, destructive: true },
           { label: t('safety.report', 'Report User'), onPress: () => openReportModal(user.id, 'USER'), destructive: true },
@@ -467,7 +502,7 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    paddingHorizontal: SPACING.xxl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
     gap: SPACING.l,
   },
@@ -511,6 +546,34 @@ const styles = StyleSheet.create({
     color: COLORS.tertiary,
     fontFamily: FONTS.medium,
   },
+  handleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  rssIconButton: {
+    padding: SPACING.xs,
+  },
+  rssRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.s,
+    marginTop: SPACING.m,
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    alignSelf: 'center',
+  },
+  rssRowText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
   bio: {
     fontSize: 15,
     color: COLORS.paper,
@@ -534,7 +597,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.tertiary,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   actionButtonActive: {
     backgroundColor: COLORS.primary,

@@ -55,12 +55,25 @@ export const SIZES = {
   borderRadiusPill: 20,
 };
 
+/**
+ * Single source of truth for screen layout. Use for all main content so screens align.
+ * One main view with this padding; headers and content share the same horizontal inset.
+ */
+export const LAYOUT = {
+  /** Horizontal padding for the main content area (lists, cards, headers). Use everywhere for a coherent edge. */
+  contentPaddingHorizontal: SPACING.l,
+  /** Vertical padding for scroll content (top of first item / bottom of list). */
+  contentPaddingVertical: SPACING.m,
+  /** Extra bottom padding for scroll areas (above tab bar or safe area). */
+  scrollPaddingBottom: SPACING.xxl,
+} as const;
+
 /** Use these for all screen headers so headers look consistent app-wide. */
 export const HEADER = {
   iconSize: 24,
   titleSize: 17,
-  /** Horizontal padding for header bar (left/right). */
-  barPaddingHorizontal: SPACING.l,
+  /** Horizontal padding for header bar (left/right). Matches LAYOUT so headers align with content. */
+  barPaddingHorizontal: LAYOUT.contentPaddingHorizontal,
   /** Bottom padding for header bar. */
   barPaddingBottom: SPACING.m,
   /** Icon color for all header bar icons (back, more, search, settings). Use paper (light) on ink background. */
@@ -74,10 +87,55 @@ export const HEADER = {
 /** Height of profile top section (avatar + name + stats). Draw canvas uses same height so saved image matches. */
 export const PROFILE_TOP_HEIGHT = 380;
 
+/** Shared styles for all card/sheet modals so they look and behave the same. */
+export const MODAL = {
+  /** Backdrop behind modal (dimmed overlay). */
+  backdropBackgroundColor: COLORS.overlay,
+  /** Bottom sheet / card container. */
+  sheetBackgroundColor: COLORS.ink,
+  sheetBorderRadius: SIZES.borderRadius,
+  sheetBorderWidth: 1,
+  sheetBorderBottomWidth: 0,
+  sheetBorderColor: COLORS.divider,
+  sheetPaddingHorizontal: SPACING.l,
+  sheetPaddingTop: SPACING.s,
+  /** Handle bar at top of sheet. */
+  handleWidth: 36,
+  handleHeight: 4,
+  handleBorderRadius: 2,
+  handleBackgroundColor: COLORS.tertiary,
+  handleMarginTop: SPACING.m,
+  handleMarginBottom: SPACING.l,
+  /** Sheet title (e.g. "Report", "Share"). */
+  sheetTitleFontSize: 18,
+  sheetTitleFontWeight: '600' as const,
+  sheetTitleColor: COLORS.paper,
+  /** Action buttons: same min height, padding, radius, font. */
+  buttonMinHeight: 44,
+  buttonPaddingVertical: SPACING.m,
+  buttonPaddingHorizontal: SPACING.l,
+  buttonBorderRadius: SIZES.borderRadius,
+  buttonFontSize: 16,
+  buttonFontWeight: '600' as const,
+  /** Primary (e.g. Submit, Save). */
+  primaryButtonBackgroundColor: COLORS.primary,
+  primaryButtonTextColor: COLORS.ink,
+  /** Secondary / Cancel. */
+  secondaryButtonBackgroundColor: COLORS.hover,
+  secondaryButtonBorderWidth: 1,
+  secondaryButtonBorderColor: COLORS.divider,
+  secondaryButtonTextColor: COLORS.paper,
+  /** Destructive (e.g. Report, Remove). */
+  destructiveButtonBackgroundColor: COLORS.error,
+  destructiveButtonTextColor: COLORS.paper,
+} as const;
+
 export default {
   COLORS,
   SPACING,
   FONTS,
   SIZES,
+  LAYOUT,
   HEADER,
+  MODAL,
 };

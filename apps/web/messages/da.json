@@ -409,5 +409,19 @@
     "info": "Kun til notifikation.",
     "acceptTermsRequired": "Accepter.",
     "goBack": "Tilbage"
+  },
+  "cookieConsent": {
+    "message": "Vi bruger cookies til login og præferencer. Ingen reklamer eller tredjepartssporing. Du kan acceptere alle eller kun nødvendige cookies.",
+    "privacyLink": "Privatlivspolitik",
+    "essentialOnly": "Kun nødvendige",
+    "acceptAll": "Accepter alle"
+  },
+  "signupOverlay": {
+    "title": "Tilmeld dig CITE",
+    "description": "Opret en konto for at følge folk, gemme opslag og deltage i samtalen med linkede ideer og kilder.",
+    "signInUp": "Log ind / Tilmeld",
+    "joinWaitlist": "Tilmeld venteliste",
+    "notNow": "Ikke nu",
+    "closeAria": "Luk"
   }
 }

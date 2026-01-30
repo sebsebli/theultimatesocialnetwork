@@ -16,8 +16,17 @@ export class KeepsService {
 
   async getAll(
     userId: string,
-    filters?: { search?: string; inCollection?: boolean },
-  ) {
+    filters?: {
+      search?: string;
+      inCollection?: boolean;
+      page?: number;
+      limit?: number;
+    },
+  ): Promise<{ items: Keep[]; hasMore: boolean }> {
+    const page = Math.max(1, filters?.page ?? 1);
+    const limit = Math.min(100, Math.max(1, filters?.limit ?? 50));
+    const skip = (page - 1) * limit;
+
     let query = this.keepRepo
       .createQueryBuilder('keep')
       .leftJoinAndSelect('keep.post', 'post')
@@ -44,6 +53,10 @@ export class KeepsService {
       }
     }
 
-    return query.getMany();
+    query = query.skip(skip).take(limit + 1);
+    const keeps = await query.getMany();
+    const items = keeps.slice(0, limit);
+    const hasMore = keeps.length > limit;
+    return { items, hasMore };
   }
 }

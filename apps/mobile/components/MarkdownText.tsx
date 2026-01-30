@@ -1,15 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, Modal, Pressable } from 'react-native';
+import { StyleSheet, Text, View, Modal, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 
+const CODE_FONT = Platform.select({ ios: 'Menlo', android: 'monospace' }) ?? 'monospace';
+
 interface MarkdownTextProps {
   children: string;
   referenceMetadata?: Record<string, { title?: string }>;
+  /** When set, only @handle that are in this set render as mention chips; others render as plain text (no @). Omit for published content to render all @ as mentions. */
+  validMentionHandles?: Set<string> | null;
 }
 
-export function MarkdownText({ children, referenceMetadata = {} }: MarkdownTextProps) {
+export function MarkdownText({ children, referenceMetadata = {}, validMentionHandles }: MarkdownTextProps) {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [targets, setTargets] = useState<string[]>([]);
@@ -26,12 +30,9 @@ export function MarkdownText({ children, referenceMetadata = {} }: MarkdownTextP
       const id = url.split(':')[1];
       router.push(`/post/${id}`);
     } else {
-      // Topic - Route to topic page
-      // Url is likely the topic name or slug. 
-      // We assume simple slugification or passing raw if the route handles it.
-      // Ideally we should slugify.
-      const slug = url.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      router.push(`/topic/${slug}`);
+      // Topic: use exact wikilink target as topic ID (no slugification).
+      // [[Artificial Intelligence]] → /topic/Artificial%20Intelligence, [[AI]] → /topic/AI
+      router.push(`/topic/${encodeURIComponent(url)}`);
     }
   };
 
@@ -46,158 +47,189 @@ export function MarkdownText({ children, referenceMetadata = {} }: MarkdownTextP
     }
   };
 
-  // Improved markdown parser: headings, bold, italic, wikilinks
+  // Supported: H1/H2/H3, bold **, italic _, blockquote > , list - , ordered 1. , inline code `, fenced code ```...```, [[wikilink]], [link](url), @mention
   const parseText = useMemo(() => {
     if (!children) return null;
 
-    const lines = children.split('\n');
-    const nodes: any[] = [];
-
-    lines.forEach((line, lineIndex) => {
-      // 1. Headings & Block Styles
-      let lineStyle = styles.text;
-      let content = line;
-      let prefix = null;
-
-      if (line.startsWith('# ')) {
-        lineStyle = styles.h1;
-        content = line.substring(2);
-      } else if (line.startsWith('## ')) {
-        lineStyle = styles.h2;
-        content = line.substring(3);
-      } else if (line.startsWith('### ')) {
-        lineStyle = styles.h3;
-        content = line.substring(4);
-      } else if (line.startsWith('> ')) {
-        lineStyle = styles.blockquote;
-        content = line.substring(2);
-        prefix = <View style={styles.blockquoteBar} />;
-      } else if (line.startsWith('- ')) {
-        lineStyle = styles.listItem;
-        content = line.substring(2);
-        prefix = <Text style={styles.bullet}>• </Text>;
-      } else if (/^\d+\. /.test(line)) {
-        lineStyle = styles.listItem;
-        const match = line.match(/^(\d+)\. /);
-        const num = match ? match[1] : '1';
-        content = line.substring(match ? match[0].length : 3);
-        prefix = <Text style={styles.number}>{num}. </Text>;
-      }
-
-      // 2. Parse inline styles (Bold, Italic, Wikilinks)
-      // This is a naive parser. For production, use a tokenizer/lexer approach.
-      // We'll iterate through the string and match patterns.
-
+    const parseLineContent = (content: string, lineStyle: any, lineKey: string): any[] => {
       const parts: any[] = [];
       let lastIndex = 0;
-
-      // Combine patterns: Bold (**), Italic (_), Wikilink ([[...]]), Standard Link [...]((...)), Mention (@...)
-      // Note: This regex is simple and might fail on nested/complex cases
-      const regex = /(\*\*(.*?)\*\*)|(_(.*?)_)|(\[\[(.*?)(?:\|(.*?))?\]\])|(\[(.*?)\]\((.*?)\))|(@[a-zA-Z0-9_]+)/g;
-
+      // Only composer-supported inline: Bold (**), Italic (_), Inline code (`), Wikilink ([[...]]), Link [...](...), Mention (@...)
+      // Inline code is intentionally matched inside bold/italic by recursing on bold/italic content.
+      const regex = /(\*\*(.*?)\*\*)|(_(.*?)_)|(`([^`]+)`)|(\[\[(.*?)(?:\|(.*?))?\]\])|(\[(.*?)\]\((.*?)\))|(@[a-zA-Z0-9_.]+)/g;
       let match;
       while ((match = regex.exec(content)) !== null) {
-        // Text before match
         if (match.index > lastIndex) {
-          parts.push(<Text key={`${lineIndex}-${lastIndex}`} style={lineStyle}>{content.substring(lastIndex, match.index)}</Text>);
+          parts.push(<Text key={`${lineKey}-${lastIndex}`} style={lineStyle}>{content.substring(lastIndex, match.index)}</Text>);
         }
-
-        // Bold (Group 1, 2)
         if (match[1]) {
-          parts.push(<Text key={match.index} style={[lineStyle, styles.bold]}>{match[2]}</Text>);
-        }
-        // Italic (Group 3, 4)
-        else if (match[3]) {
-          parts.push(<Text key={match.index} style={[lineStyle, styles.italic]}>{match[4]}</Text>);
-        }
-        // Wikilink (Group 5, 6, 7)
-        else if (match[5]) {
-          const linkContent = match[6];
-          let linkDisplay = match[7] || linkContent;
-          const linkAlias = match[7];
-
-          if (!linkAlias && linkContent.startsWith('post:')) {
-            const id = linkContent.split(':')[1];
-            if (referenceMetadata[id]?.title) {
-              linkDisplay = referenceMetadata[id].title;
-            }
+          // Recursively parse bold content so inline code (and other markdown) inside renders correctly
+          parts.push(...parseLineContent(match[2], [lineStyle, styles.bold], `${lineKey}-${match.index}-b`));
+        } else if (match[3]) {
+          // Recursively parse italic content so inline code (and other markdown) inside renders correctly
+          parts.push(...parseLineContent(match[4], [lineStyle, styles.italic], `${lineKey}-${match.index}-i`));
+        } else if (match[5]) {
+          const codeContent = match[6];
+          const isMultiLine = codeContent.includes('\n');
+          if (isMultiLine) {
+            parts.push(
+              <View key={`${lineKey}-${match.index}`} style={styles.inlineCodeBlockWrap}>
+                {codeContent.split('\n').map((codeLine, idx) => (
+                  <Text key={`${lineKey}-${match.index}-${idx}`} style={[lineStyle, styles.inlineCodeBlockLine]} selectable>
+                    {codeLine || ' '}
+                  </Text>
+                ))}
+              </View>
+            );
+          } else {
+            parts.push(<Text key={`${lineKey}-${match.index}`} style={[lineStyle, styles.inlineCode]}>{codeContent}</Text>);
           }
-
+        } else if (match[7]) {
+          const linkContent = match[8];
+          let linkDisplay = match[9] || linkContent;
+          if (!match[9] && linkContent.startsWith('post:')) {
+            const id = linkContent.split(':')[1];
+            if (referenceMetadata[id]?.title) linkDisplay = referenceMetadata[id].title;
+          }
           parts.push(
-            <Text
-              key={match.index}
-              style={[lineStyle, styles.link]}
-              onPress={() => handleWikiLinkPress(linkContent, linkAlias)}
-            >
-              {linkDisplay}
-            </Text>
+            <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.tagChip, pressed && styles.tagChipPressed]} onPress={() => handleWikiLinkPress(linkContent, match[9])}>
+              <Text style={[lineStyle, styles.tagChipText]} numberOfLines={1}>{linkDisplay}</Text>
+            </Pressable>
           );
-        }
-        // Standard Link (Group 8, 9, 10)
-        else if (match[8]) {
-          const linkText = match[9];
-          const linkUrl = match[10];
-
+        } else if (match[10]) {
           parts.push(
-            <Text
-              key={match.index}
-              style={[lineStyle, styles.link]}
-              onPress={() => handleLinkPress(linkUrl)}
-            >
-              {linkText}
-            </Text>
+            <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.linkChip, pressed && styles.linkChipPressed]} onPress={() => handleLinkPress(match[12])}>
+              <Text style={[lineStyle, styles.linkChipText]} numberOfLines={1}>{match[11]}</Text>
+            </Pressable>
           );
+        } else if (match[13]) {
+          const handle = match[13].substring(1);
+          const isValidMention = validMentionHandles == null || validMentionHandles.has(handle);
+          if (isValidMention) {
+            parts.push(
+              <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.mentionChip, pressed && styles.mentionChipPressed]} onPress={() => router.push(`/user/${handle}`)}>
+                <Text style={[lineStyle, styles.mentionChipText]}>{match[13]}</Text>
+              </Pressable>
+            );
+          } else {
+            // Don't render @ when user wasn't selected from suggestions / doesn't exist — show handle only (no @)
+            parts.push(<Text key={`${lineKey}-${match.index}`} style={lineStyle}>{handle}</Text>);
+          }
         }
-        // Mention (Group 11)
-        else if (match[11]) {
-          const handle = match[11];
-          parts.push(
-            <Text
-              key={match.index}
-              style={[lineStyle, styles.link]}
-              onPress={() => router.push(`/user/${handle.substring(1)}`)}
-            >
-              {handle}
-            </Text>
-          );
-        }
-
-        lastIndex = match.index + match[0].length;
+        lastIndex = regex.lastIndex;
       }
-
-      // Remaining text
       if (lastIndex < content.length) {
-        parts.push(<Text key={`${lineIndex}-end`} style={lineStyle}>{content.substring(lastIndex)}</Text>);
+        parts.push(<Text key={`${lineKey}-end`} style={lineStyle}>{content.substring(lastIndex)}</Text>);
       }
+      return parts;
+    };
 
-      // Empty line -> Paragraph spacing
-      if (content.trim() === '') {
-        nodes.push(<View key={lineIndex} style={{ height: SPACING.m }} />);
+    const lines = children.split('\n');
+    type Segment = { type: 'normal'; lines: string[] } | { type: 'code'; lines: string[] };
+    const segments: Segment[] = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      const isFence = line.trim().startsWith('```');
+      if (isFence) {
+        i += 1; // skip opening ``` or ```lang
+        const codeLines: string[] = [];
+        while (i < lines.length) {
+          if (lines[i].trim().startsWith('```')) {
+            i += 1; // skip closing ```
+            break;
+          }
+          codeLines.push(lines[i]);
+          i += 1;
+        }
+        segments.push({ type: 'code', lines: codeLines });
       } else {
+        const normalLines: string[] = [];
+        while (i < lines.length) {
+          const l = lines[i];
+          if (l.trim().startsWith('```')) break;
+          normalLines.push(l);
+          i += 1;
+        }
+        segments.push({ type: 'normal', lines: normalLines });
+      }
+    }
+
+    const nodes: any[] = [];
+    let nodeKey = 0;
+
+    segments.forEach((seg) => {
+      if (seg.type === 'code') {
+        const blockKey = `code-${nodeKey++}`;
         nodes.push(
-          <View
-            key={lineIndex}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'flex-start',
-              marginBottom: (lineStyle === styles.h1 || lineStyle === styles.h2 || lineStyle === styles.h3) ? SPACING.m : 0
-            }}
-          >
-            {prefix}
-            <Text style={lineStyle}>
-              {parts.length > 0 ? parts : content}
-            </Text>
+          <View key={blockKey} style={styles.codeBlockContainer}>
+            {seg.lines.map((codeLine, idx) => (
+              <Text key={`${blockKey}-${idx}`} style={styles.codeBlockLine} selectable>
+                {codeLine || ' '}
+              </Text>
+            ))}
           </View>
         );
+        return;
       }
+
+      seg.lines.forEach((line, lineIndex) => {
+        let lineStyle = styles.text;
+        let content = line;
+        let prefix = null;
+        if (line.startsWith('### ')) {
+          lineStyle = styles.h3;
+          content = line.substring(4);
+        } else if (line.startsWith('## ')) {
+          lineStyle = styles.h2;
+          content = line.substring(3);
+        } else if (line.startsWith('# ') && !line.startsWith('## ')) {
+          lineStyle = styles.h1;
+          content = line.substring(2);
+        } else if (line.startsWith('> ')) {
+          lineStyle = styles.blockquote;
+          content = line.substring(2);
+          prefix = <View style={styles.blockquoteBar} />;
+        } else if (line.startsWith('- ')) {
+          lineStyle = styles.listItem;
+          content = line.substring(2);
+          prefix = <Text style={styles.bullet}>• </Text>;
+        } else if (/^\d+\. /.test(line)) {
+          lineStyle = styles.listItem;
+          const m = line.match(/^(\d+)\. /);
+          const num = m ? m[1] : '1';
+          content = line.substring(m ? m[0].length : 3);
+          prefix = <Text style={styles.number}>{num}. </Text>;
+        }
+        const lineKey = `l-${nodeKey}-${lineIndex}`;
+        if (content.trim() === '') {
+          nodes.push(<View key={lineKey} style={{ height: SPACING.m }} />);
+        } else {
+          const parts = parseLineContent(content, lineStyle, lineKey);
+          nodes.push(
+            <View
+              key={lineKey}
+              style={[
+                styles.lineRow,
+                (lineStyle === styles.h1 || lineStyle === styles.h2 || lineStyle === styles.h3) && styles.lineRowHeading,
+                lineStyle === styles.blockquote && styles.lineRowBlockquote
+              ]}
+            >
+              {prefix}
+              {parts.length > 0 ? parts : <Text style={lineStyle}>{content}</Text>}
+            </View>
+          );
+        }
+      });
+      nodeKey += 1;
     });
 
     return nodes;
-  }, [children]);
+  }, [children, referenceMetadata, validMentionHandles]);
 
   return (
     <>
-      <Text style={styles.container}>{parseText}</Text>
+      <View style={styles.container}>{parseText}</View>
 
       <Modal
         animationType="slide"
@@ -276,16 +308,18 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: COLORS.secondary,
     fontFamily: FONTS.serifRegular,
-    paddingLeft: SPACING.m,
   },
   blockquoteBar: {
-    position: 'absolute',
-    left: 0,
-    top: 4,
-    bottom: 4,
     width: 4,
-    backgroundColor: COLORS.divider,
+    marginRight: SPACING.m,
     borderRadius: 2,
+    backgroundColor: COLORS.primary,
+    opacity: 0.6,
+    alignSelf: 'stretch',
+    minHeight: 20,
+  },
+  lineRowBlockquote: {
+    paddingLeft: 0,
   },
   listItem: {
     fontSize: 17,
@@ -308,11 +342,115 @@ const styles = StyleSheet.create({
   italic: {
     fontStyle: 'italic',
   },
-  link: {
+  /* Inline code `code` – Slack-like: monospace, code container, distinct bg */
+  inlineCode: {
+    fontFamily: CODE_FONT,
+    fontSize: 14,
+    backgroundColor: 'rgba(30, 32, 36, 0.85)',
+    color: 'rgba(230, 232, 235, 1)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  /* Multi-line inline code (backticks with newlines) – same container as block */
+  inlineCodeBlockWrap: {
+    backgroundColor: 'rgba(30, 32, 36, 0.9)',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: 'rgba(110, 122, 138, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    marginVertical: SPACING.xs,
+    overflow: 'hidden',
+  },
+  inlineCodeBlockLine: {
+    fontFamily: CODE_FONT,
+    fontSize: 13,
+    color: 'rgba(230, 232, 235, 1)',
+    lineHeight: 20,
+  },
+  /* Fenced code block ```...``` – Slack-like: monospace, code container, accent bar */
+  codeBlockContainer: {
+    backgroundColor: 'rgba(30, 32, 36, 0.9)',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: 'rgba(110, 122, 138, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.l,
+    marginVertical: SPACING.m,
+    overflow: 'hidden',
+  },
+  codeBlockLine: {
+    fontFamily: CODE_FONT,
+    fontSize: 13,
+    color: 'rgba(230, 232, 235, 1)',
+    lineHeight: 20,
+  },
+  lineRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginBottom: 0,
+    position: 'relative',
+  },
+  lineRowHeading: {
+    marginBottom: SPACING.m,
+  },
+  /* [[Topic]] / [[post:id|title]] – tag pill (minimal vertical padding for compact batches) */
+  tagChip: {
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+    borderRadius: 4,
+    marginHorizontal: 1,
+  },
+  tagChipPressed: {
+    opacity: 0.8,
+  },
+  tagChipText: {
     color: COLORS.primary,
-    fontWeight: '500',
-    textDecorationLine: 'underline',
-    textDecorationColor: 'rgba(110, 122, 138, 0.5)',
+    fontFamily: FONTS.medium,
+    lineHeight: 20,
+  },
+  /* [text](url) – link pill (minimal vertical padding for compact batches) */
+  linkChip: {
+    backgroundColor: 'rgba(110, 122, 138, 0.15)',
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+    borderRadius: 4,
+    marginHorizontal: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(110, 122, 138, 0.3)',
+  },
+  linkChipPressed: {
+    opacity: 0.8,
+  },
+  linkChipText: {
+    color: COLORS.primary,
+    fontFamily: FONTS.medium,
+    lineHeight: 20,
+  },
+  /* @handle – mention pill (minimal vertical padding for compact batches) */
+  mentionChip: {
+    backgroundColor: 'rgba(110, 122, 138, 0.18)',
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+    borderRadius: 4,
+    marginHorizontal: 1,
+  },
+  mentionChipPressed: {
+    opacity: 0.8,
+  },
+  mentionChipText: {
+    color: COLORS.secondary,
+    fontFamily: FONTS.medium,
+    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,

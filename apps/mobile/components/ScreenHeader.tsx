@@ -11,8 +11,10 @@ const HEADER_TITLE_SIZE = HEADER.titleSize;
 export interface ScreenHeaderProps {
   /** Title (centered when back + right are balanced) */
   title: string;
-  /** Show back button (uses router.back()) */
+  /** Show back button (uses router.back() or onBack if provided) */
   showBack?: boolean;
+  /** Custom back handler; when provided, used instead of router.back() (e.g. to return to a specific route) */
+  onBack?: () => void;
   /** Custom left element; ignored if showBack is true */
   left?: React.ReactNode;
   /** Right element (e.g. save, more). Use empty <View style={{ width: 40 }} /> for balance. */
@@ -30,6 +32,7 @@ export interface ScreenHeaderProps {
 export function ScreenHeader({
   title,
   showBack = true,
+  onBack,
   left,
   right,
   paddingTop,
@@ -38,13 +41,14 @@ export function ScreenHeader({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const top = paddingTop ?? insets.top;
+  const handleBack = onBack ?? (() => router.back());
 
   return (
     <View style={[styles.container, { paddingTop: top }, style]}>
       <View style={styles.side}>
         {showBack ? (
           <Pressable
-            onPress={() => router.back()}
+            onPress={handleBack}
             style={({ pressed }: { pressed: boolean }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
             accessibilityLabel="Go back"
             accessibilityRole="button"

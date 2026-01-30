@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Modal, Pressable, Platform, Share as NativeShar
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL } from '../constants/theme';
 import * as Clipboard from 'expo-clipboard';
 import { useToast } from '../context/ToastContext';
 import { api } from '../utils/api';
@@ -27,6 +28,7 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
   const [threads, setThreads] = useState<ThreadItem[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { showSuccess } = useToast();
 
@@ -108,11 +110,13 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={() => setVisible(false)}
     >
-      <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
-        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={() => setVisible(false)} />
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.xl }]} onStartShouldSetResponder={() => true}>
+          <View style={styles.handle} />
           <Text style={styles.title}>{t('post.shareTitle', 'Share')}</Text>
 
           <Text style={styles.sectionLabel}>{t('post.sendDm', 'Send as DM')}</Text>
@@ -162,7 +166,7 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
             <Text style={styles.cancelText}>{t('common.cancel', 'Cancel')}</Text>
           </Pressable>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   ) as unknown as React.JSX.Element;
 });
@@ -170,23 +174,36 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: MODAL.backdropBackgroundColor,
+  },
   sheet: {
-    backgroundColor: COLORS.ink,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: SPACING.l,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-    borderBottomWidth: 0,
+    backgroundColor: MODAL.sheetBackgroundColor,
+    borderTopLeftRadius: MODAL.sheetBorderRadius,
+    borderTopRightRadius: MODAL.sheetBorderRadius,
+    paddingHorizontal: MODAL.sheetPaddingHorizontal,
+    paddingTop: MODAL.sheetPaddingTop,
+    borderWidth: MODAL.sheetBorderWidth,
+    borderBottomWidth: MODAL.sheetBorderBottomWidth,
+    borderColor: MODAL.sheetBorderColor,
     maxHeight: '70%',
   },
+  handle: {
+    width: MODAL.handleWidth,
+    height: MODAL.handleHeight,
+    borderRadius: MODAL.handleBorderRadius,
+    backgroundColor: MODAL.handleBackgroundColor,
+    alignSelf: 'center',
+    marginTop: MODAL.handleMarginTop,
+    marginBottom: MODAL.handleMarginBottom,
+  },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.paper,
+    fontSize: MODAL.sheetTitleFontSize,
+    fontWeight: MODAL.sheetTitleFontWeight,
+    color: MODAL.sheetTitleColor,
     textAlign: 'center',
     marginBottom: SPACING.l,
     fontFamily: FONTS.semiBold,
@@ -251,15 +268,20 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     marginTop: SPACING.l,
-    paddingVertical: SPACING.m,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
     alignItems: 'center',
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
+    justifyContent: 'center',
+    backgroundColor: MODAL.secondaryButtonBackgroundColor,
+    borderRadius: MODAL.buttonBorderRadius,
+    borderWidth: MODAL.secondaryButtonBorderWidth,
+    borderColor: MODAL.secondaryButtonBorderColor,
   },
   cancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.paper,
+    fontSize: MODAL.buttonFontSize,
+    fontWeight: MODAL.buttonFontWeight,
+    color: MODAL.secondaryButtonTextColor,
     fontFamily: FONTS.semiBold,
   },
 });

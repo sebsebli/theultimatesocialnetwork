@@ -8,7 +8,7 @@ import { api } from '../../utils/api';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HANDLE_MIN = 3;
@@ -61,6 +61,7 @@ export default function EditProfileScreen() {
   const handleLen = normalizedHandle.length;
   const handleTooShort = handleLen > 0 && handleLen < HANDLE_MIN;
   const handleTooLong = handleLen > HANDLE_MAX;
+  const isHandleChanged = normalizedHandle !== initialHandle.toLowerCase();
 
   const checkAvailability = useCallback(async (h: string) => {
     const norm = h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -245,8 +246,8 @@ export default function EditProfileScreen() {
                   style={[
                     styles.input,
                     styles.inputWithPrefix,
-                    handleStatus === 'taken' && styles.inputError,
-                    handleStatus === 'available' && styles.inputSuccess,
+                    isHandleChanged && handleStatus === 'taken' && styles.inputError,
+                    isHandleChanged && handleStatus === 'available' && styles.inputSuccess,
                   ]}
                   value={handle}
                   onChangeText={(text: string) => setHandle(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
@@ -373,11 +374,12 @@ const styles = StyleSheet.create({
     marginLeft: -SPACING.s,
   },
   content: {
-    padding: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: LAYOUT.contentPaddingVertical,
     paddingBottom: 100,
   },
   form: {
-    gap: SPACING.xl,
+    gap: SPACING.l,
   },
   avatarSection: {
     alignItems: 'center',
@@ -387,8 +389,8 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: COLORS.hover,
-    borderWidth: 3,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    borderWidth: 2,
     borderColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
@@ -406,7 +408,7 @@ const styles = StyleSheet.create({
   },
   avatarOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -547,14 +549,13 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.paper,
   },
   thumbActive: {
     alignSelf: 'flex-end',
-    backgroundColor: COLORS.paper,
   },
   footer: {
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingTop: SPACING.l,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
@@ -563,17 +564,19 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    height: 56,
-    borderRadius: SIZES.borderRadius,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
+    backgroundColor: MODAL.primaryButtonBackgroundColor,
+    borderRadius: MODAL.buttonBorderRadius,
   },
   buttonDisabled: {
     opacity: 0.5,
   },
   buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.ink,
+    fontSize: MODAL.buttonFontSize,
+    fontWeight: MODAL.buttonFontWeight,
+    color: MODAL.primaryButtonTextColor,
     fontFamily: FONTS.semiBold,
   },
 });

@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, MODAL } from '../constants/theme';
 
 export interface ConfirmModalProps {
   visible: boolean;
@@ -56,7 +56,8 @@ export function ConfirmModal({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Pressable style={styles.overlay} onPress={onCancel}>
-        <View style={[styles.card, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
+        <View style={[styles.card, { paddingBottom: insets.bottom + SPACING.xl }]} onStartShouldSetResponder={() => true}>
+          <View style={styles.handleBar} />
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
@@ -95,26 +96,41 @@ export function ConfirmModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: MODAL.backdropBackgroundColor,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING.l,
+    padding: SPACING.xl,
   },
   card: {
-    backgroundColor: COLORS.ink,
+    backgroundColor: MODAL.sheetBackgroundColor,
     borderRadius: SIZES.borderRadius,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    padding: SPACING.xl,
-    minWidth: 280,
-    maxWidth: 340,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.m,
+    width: '100%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  handleBar: {
+    width: MODAL.handleWidth,
+    height: MODAL.handleHeight,
+    borderRadius: MODAL.handleBorderRadius,
+    backgroundColor: MODAL.handleBackgroundColor,
+    alignSelf: 'center',
+    marginBottom: SPACING.l,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
-    marginBottom: SPACING.s,
+    marginBottom: SPACING.m,
+    textAlign: 'center',
   },
   message: {
     fontSize: 15,
@@ -122,46 +138,50 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     lineHeight: 22,
     marginBottom: SPACING.xl,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.xs,
   },
   actions: {
     flexDirection: 'row',
     gap: SPACING.m,
-    justifyContent: 'flex-end',
+    justifyContent: 'stretch',
   },
   button: {
-    minHeight: 44,
-    paddingHorizontal: SPACING.l,
-    borderRadius: SIZES.borderRadiusPill,
+    flex: 1,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
+    borderRadius: MODAL.buttonBorderRadius,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 88,
   },
   buttonPressed: { opacity: 0.8 },
   buttonDisabled: { opacity: 0.6 },
   cancelButton: {
-    backgroundColor: COLORS.hover,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
+    backgroundColor: MODAL.secondaryButtonBackgroundColor,
+    borderWidth: MODAL.secondaryButtonBorderWidth,
+    borderColor: MODAL.secondaryButtonBorderColor,
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.paper,
+    fontSize: MODAL.buttonFontSize,
+    fontWeight: MODAL.buttonFontWeight,
+    color: MODAL.secondaryButtonTextColor,
     fontFamily: FONTS.semiBold,
   },
   confirmButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: MODAL.primaryButtonBackgroundColor,
   },
   confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.ink,
+    fontSize: MODAL.buttonFontSize,
+    fontWeight: MODAL.buttonFontWeight,
+    color: MODAL.primaryButtonTextColor,
     fontFamily: FONTS.semiBold,
   },
   destructiveButton: {
-    backgroundColor: COLORS.error,
+    backgroundColor: MODAL.destructiveButtonBackgroundColor,
   },
   destructiveButtonText: {
-    color: COLORS.paper,
+    color: MODAL.destructiveButtonTextColor,
+    fontFamily: FONTS.semiBold,
   },
 });

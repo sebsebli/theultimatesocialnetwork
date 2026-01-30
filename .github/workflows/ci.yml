@@ -37,6 +37,9 @@ jobs:
     - name: Build Web
       run: cd apps/web && npm run build
 
+    - name: Type-check (Mobile)
+      run: cd apps/mobile && npm run type-check
+
     - name: Run Unit Tests (API)
       run: cd apps/api && npm run test
 

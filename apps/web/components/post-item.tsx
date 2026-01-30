@@ -39,8 +39,8 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
   const [kept, setKept] = useState(post.isKept ?? false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
 
-  // Base URL for MinIO (should be in env, using localhost for dev)
-  const STORAGE_URL = "http://localhost:9000/cite-images";
+  const STORAGE_URL =
+    process.env.NEXT_PUBLIC_STORAGE_URL || "http://localhost:9000/cite-images";
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -250,7 +250,7 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
                     ? (source.url ?? "#")
                     : source.type === "post"
                       ? `/post/${source.id ?? ""}`
-                      : `/topic/${source.slug ?? ""}`
+                      : `/topic/${encodeURIComponent(source.slug ?? "")}`
                 }
                 target={source.type === "external" ? "_blank" : undefined}
                 rel={

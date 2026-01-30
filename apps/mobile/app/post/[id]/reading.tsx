@@ -17,7 +17,8 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { api } from '../../../utils/api';
 import { MarkdownText } from '../../../components/MarkdownText';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../../constants/theme';
+const ACTION_ICON_SIZE = HEADER.iconSize;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/auth';
 import AddToCollectionSheet, { AddToCollectionSheetRef } from '../../../components/AddToCollectionSheet';
@@ -226,7 +227,7 @@ export default function ReadingModeScreen() {
       {/* Overlay header: back + more over hero or at top (no home button) */}
       <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
         <Pressable onPress={() => router.back()} style={styles.overlayIconCircle} accessibilityLabel={t('common.back')}>
-          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
+          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
         </Pressable>
         <View style={{ flex: 1 }} />
         <Pressable
@@ -236,7 +237,7 @@ export default function ReadingModeScreen() {
           }}
           style={styles.overlayIconCircle}
         >
-          <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.paper} />
+          <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
         </Pressable>
       </View>
 
@@ -294,7 +295,7 @@ export default function ReadingModeScreen() {
 
           <MarkdownText>{post.body}</MarkdownText>
 
-          {/* Action row: same as explore posts - like, comments, quote, keep, add to collection, share */}
+          {/* Action row: subtle meta bar with smaller icons so it doesn't compete with the article */}
           <View style={styles.actionsRow}>
             <Pressable
               style={styles.actionBtn}
@@ -307,7 +308,7 @@ export default function ReadingModeScreen() {
               <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
                 <MaterialIcons
                   name={liked ? 'favorite' : 'favorite-border'}
-                  size={HEADER.iconSize}
+                  size={ACTION_ICON_SIZE}
                   color={liked ? COLORS.like : COLORS.tertiary}
                 />
               </Animated.View>
@@ -317,7 +318,7 @@ export default function ReadingModeScreen() {
               style={styles.actionBtn}
               onPress={() => router.push(`/post/${postId}/comments`)}
             >
-              <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons name="chat-bubble-outline" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
               {replyCount > 0 && <Text style={styles.actionCount}>{replyCount}</Text>}
             </Pressable>
 
@@ -325,14 +326,13 @@ export default function ReadingModeScreen() {
               style={styles.actionBtn}
               onPress={() => router.push({ pathname: '/post/compose', params: { quote: postId } })}
             >
-              <MaterialIcons name="format-quote" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons name="format-quote" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
             </Pressable>
 
-            {/* Save = quick bookmark to your single "Saved" list. Collection = add to a named folder. */}
             <Pressable style={styles.actionBtn} onPress={handleKeep} accessibilityLabel={t('post.save')}>
               <MaterialIcons
                 name={kept ? 'bookmark' : 'bookmark-border'}
-                size={HEADER.iconSize}
+                size={ACTION_ICON_SIZE}
                 color={kept ? COLORS.primary : COLORS.tertiary}
               />
             </Pressable>
@@ -342,14 +342,14 @@ export default function ReadingModeScreen() {
               onPress={() => collectionSheetRef.current?.open(postId)}
               accessibilityLabel={t('post.addToCollection')}
             >
-              <MaterialIcons name="add-circle-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons name="add-circle-outline" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
             </Pressable>
 
             <Pressable
               style={styles.actionBtn}
               onPress={() => shareSheetRef.current?.open(postId)}
             >
-              <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons name="ios-share" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
             </Pressable>
 
             {offlineEnabled && (
@@ -360,7 +360,7 @@ export default function ReadingModeScreen() {
               >
                 <MaterialIcons
                   name="offline-pin"
-                  size={HEADER.iconSize}
+                  size={ACTION_ICON_SIZE}
                   color={isDownloaded ? COLORS.primary : COLORS.tertiary}
                 />
               </Pressable>
@@ -399,7 +399,7 @@ export default function ReadingModeScreen() {
                     if (source.type === 'external' && source.url) Linking.openURL(source.url).catch(() => { });
                     else if (source.type === 'post' && source.id) router.push(`/post/${source.id}`);
                     else if (source.type === 'user' && source.handle) router.push(`/user/${source.handle}`);
-                    else if (source.type === 'topic' && source.slug) router.push(`/topic/${source.slug}`);
+                    else if (source.type === 'topic' && source.slug) router.push(`/topic/${encodeURIComponent(source.slug)}`);
                   };
                   const title = source.title || source.url || source.handle || source.slug || '';
                   const subtitle = source.type === 'external' && source.url
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   },
 
   article: {
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     marginBottom: SPACING.l,
   },
   authorLine: {
@@ -582,26 +582,26 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.l,
-    paddingTop: SPACING.l,
-    paddingBottom: SPACING.m,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
+    justifyContent: 'space-between',
+    paddingTop: SPACING.s,
+    paddingRight: SPACING.l,
+    paddingBottom: SPACING.s,
+    marginTop: SPACING.xl,
   },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    padding: SPACING.s,
+    padding: SPACING.xs,
   },
   actionCount: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.tertiary,
     fontFamily: FONTS.regular,
   },
   section: {
     marginTop: SPACING.l,
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
     paddingTop: SPACING.l,

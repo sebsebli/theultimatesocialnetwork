@@ -409,5 +409,19 @@
     "info": "Jen pro notifikaci.",
     "acceptTermsRequired": "Přijměte.",
     "goBack": "Zpět"
+  },
+  "cookieConsent": {
+    "message": "Používáme cookies pro přihlášení a preference. Žádná reklama ani sledování třetími stranami. Můžete přijmout všechny nebo jen nezbytné cookies.",
+    "privacyLink": "Zásady ochrany osobních údajů",
+    "essentialOnly": "Pouze nezbytné",
+    "acceptAll": "Přijmout vše"
+  },
+  "signupOverlay": {
+    "title": "Připojte se k CITE",
+    "description": "Vytvořte si účet pro sledování lidí, ukládání příspěvků a účast v konverzaci s propojenými nápady a zdroji.",
+    "signInUp": "Přihlásit / Registrovat",
+    "joinWaitlist": "Připojit se k čekací listině",
+    "notNow": "Teď ne",
+    "closeAria": "Zavřít"
   }
 }

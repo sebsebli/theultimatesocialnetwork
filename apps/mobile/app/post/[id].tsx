@@ -14,7 +14,7 @@ import { PostContent } from '../../components/PostContent';
 import { MarkdownText } from '../../components/MarkdownText';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Post } from '../../types';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../constants/theme';
 
 export default function PostDetailScreen() {
   const { id, highlightReplyId } = useLocalSearchParams();
@@ -226,7 +226,7 @@ export default function PostDetailScreen() {
         paddingTop={insets.top}
         right={
           <Pressable onPress={handlePostMenu} hitSlop={10} style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.paper} />
+            <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
           </Pressable>
         }
       />
@@ -285,7 +285,7 @@ export default function PostDetailScreen() {
                 } else if (source.type === 'post') {
                   router.push(`/post/${source.id}`);
                 } else if (source.type === 'topic') {
-                  router.push(`/topic/${source.slug}`);
+                  router.push(`/topic/${encodeURIComponent(source.slug)}`);
                 } else if (source.type === 'user') {
                   router.push(`/user/${source.handle}`);
                 }
@@ -432,7 +432,7 @@ export default function PostDetailScreen() {
           accessibilityLabel={t('post.share')}
           accessibilityRole="button"
         >
-          <MaterialIcons name="share" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.tertiary} />
           <Text style={styles.bottomActionText}>{t('post.share')}</Text>
         </Pressable>
       </View>
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   sectionTitle: {
     fontSize: 13,
@@ -649,9 +649,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     backgroundColor: COLORS.ink,
   },
   bottomActionButton: {
@@ -718,7 +716,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.l,
     alignSelf: 'center',
     paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   backButtonText: {
     color: COLORS.primary,

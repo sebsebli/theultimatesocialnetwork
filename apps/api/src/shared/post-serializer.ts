@@ -2,31 +2,47 @@ import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
 import { User } from '../entities/user.entity';
 
-/** Author shape for JSON (avoids TypeORM/circular refs). */
+/** Author shape for JSON (avoids TypeORM/circular refs). Optionally add avatarUrl from avatarKey. */
 export function authorPlain(
-  a: { id?: string; handle?: string; displayName?: string } | null | undefined,
+  a:
+    | {
+        id?: string;
+        handle?: string;
+        displayName?: string;
+        avatarKey?: string | null;
+      }
+    | null
+    | undefined,
+  getImageUrl?: (key: string) => string,
 ) {
   if (!a || typeof a !== 'object') return undefined;
-  return {
+  const base: Record<string, unknown> = {
     id: a.id ?? '',
     handle: a.handle ?? '',
     displayName: a.displayName ?? '',
   };
+  if (a.avatarKey != null && a.avatarKey !== '') base.avatarKey = a.avatarKey;
+  if (a.avatarKey && getImageUrl) base.avatarUrl = getImageUrl(a.avatarKey);
+  return base;
 }
 
-/** Post as plain object so response is always JSON-serializable. */
+/** Post as plain object so response is always JSON-serializable. getImageUrl for author.avatarUrl and post.headerImageUrl. */
 export function postToPlain(
   p: Post | null | undefined,
+  getImageUrl?: (key: string) => string,
 ): Record<string, unknown> | null {
   if (!p || typeof p !== 'object') return null;
+  const headerImageUrl =
+    p.headerImageKey && getImageUrl ? getImageUrl(p.headerImageKey) : undefined;
   return {
     id: p.id ?? '',
     authorId: p.authorId ?? '',
-    author: authorPlain(p.author ?? null),
+    author: authorPlain(p.author ?? null, getImageUrl),
     visibility: p.visibility ?? 'PUBLIC',
     body: p.body ?? '',
     title: p.title ?? null,
     headerImageKey: p.headerImageKey ?? null,
+    headerImageUrl: headerImageUrl ?? null,
     headerImageBlurhash: p.headerImageBlurhash ?? null,
     lang: p.lang ?? null,
     createdAt:
@@ -70,6 +86,8 @@ export function userToPlain(
     createdAt:
       u.createdAt != null ? new Date(u.createdAt).toISOString() : undefined,
     // eslint-disable-next-line
-    posts: Array.isArray((u as any).posts) ? (u as any).posts.map(postToPlain) : undefined,
+    posts: Array.isArray((u as any).posts)
+      ? (u as any).posts.map(postToPlain)
+      : undefined,
   };
 }

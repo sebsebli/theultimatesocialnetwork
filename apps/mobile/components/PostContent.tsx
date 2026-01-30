@@ -18,11 +18,13 @@ interface PostContentProps {
   headerImageUri?: string | null;
   showSources?: boolean;
   referenceMetadata?: Record<string, { title?: string }>;
+  /** When set, body is truncated to this many lines and "..." is shown to indicate more content when pressed. */
+  maxBodyLines?: number;
 }
 
 const HEADER_IMAGE_ASPECT = 4 / 3;
 
-export function PostContent({ post, onMenuPress, disableNavigation = false, headerImageUri, showSources = false, referenceMetadata = {} }: PostContentProps) {
+export function PostContent({ post, onMenuPress, disableNavigation = false, headerImageUri, showSources = false, referenceMetadata = {}, maxBodyLines }: PostContentProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
@@ -70,9 +72,8 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
     } else if (source.type === 'post') {
       router.push(`/post/${source.id}`);
     } else if (source.type === 'topic') {
-      // Slugify
-      const slug = source.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      router.push(`/topic/${slug}`);
+      // Use exact topic name/ID from wikilink (no slugification)
+      router.push(`/topic/${encodeURIComponent(source.title)}`);
     } else if (source.type === 'user') {
       router.push(`/user/${source.handle}`);
     }
@@ -80,9 +81,15 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
 
   // Strip title from body if it matches the header (guard: body can be undefined from API)
   const body = post.body ?? '';
-  const displayBody = (post.title && body.startsWith(`# ${post.title}`))
+  const fullDisplayBody = (post.title && body.startsWith(`# ${post.title}`))
     ? body.substring(body.indexOf('\n') + 1).trim()
     : body;
+
+  const lines = fullDisplayBody.split('\n');
+  const hasMoreLines = maxBodyLines != null && lines.length > maxBodyLines;
+  const displayBody = hasMoreLines
+    ? lines.slice(0, maxBodyLines).join('\n')
+    : fullDisplayBody;
 
   // Determine image source: prefer API-returned URL (full MinIO URL), then local uri, then API redirect /images/:key
   const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
@@ -133,7 +140,7 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
     }
 
     // Mentions @handle
-    const mentionRegex = /@([a-zA-Z0-9_]+)/g;
+    const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
     while ((match = mentionRegex.exec(post.body)) !== null) {
       list.push({ type: 'user', handle: match[1], title: `@${match[1]}`, icon: 'person' });
     }
@@ -197,6 +204,9 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
           <Text style={styles.title}>{post.title}</Text>
         ) : null}
         <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
+        {hasMoreLines ? (
+          <Text style={styles.moreIndicator}>{t('post.moreContent', '...')}</Text>
+        ) : null}
       </Pressable>
 
       {/* Sources Section */}
@@ -269,11 +279,17 @@ const styles = StyleSheet.create({
   content: {
     gap: SPACING.s,
   },
-  title: {
+  moreIndicator: {
     fontSize: 18,
+    lineHeight: 28,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  title: {
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.paper,
-    lineHeight: 24,
+    lineHeight: 26,
     fontFamily: FONTS.semiBold,
     letterSpacing: -0.5,
   },
@@ -293,14 +309,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    padding: SPACING.m,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: 0,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   headerImageTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
+    lineHeight: 26,
   },
   sourcesSection: {
     marginTop: SPACING.m,

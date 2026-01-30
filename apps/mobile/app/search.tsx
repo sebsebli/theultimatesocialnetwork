@@ -114,7 +114,7 @@ export default function SearchScreen() {
       return (
         <TopicCard
           item={item}
-          onPress={() => router.push(`/topic/${item.slug}`)}
+          onPress={() => router.push(`/topic/${encodeURIComponent(item.slug)}`)}
         />
       );
     }
@@ -134,7 +134,7 @@ export default function SearchScreen() {
           accessibilityLabel={t('common.goBack', 'Go back')}
           accessibilityRole="button"
         >
-          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
+          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
         </Pressable>
         <TextInput
           style={styles.searchInput}

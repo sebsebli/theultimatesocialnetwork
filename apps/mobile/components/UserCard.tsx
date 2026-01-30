@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, LAYOUT } from '../constants/theme';
 
 /**
  * Shared user profile card used everywhere: followers, following, suggestions, explore, search.
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   row: {
     flexDirection: 'row',

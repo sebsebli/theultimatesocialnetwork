@@ -5,12 +5,11 @@ import { MessagesService } from './messages.service';
 import { DmThread } from '../entities/dm-thread.entity';
 import { DmMessage } from '../entities/dm-message.entity';
 import { User } from '../entities/user.entity';
-import { Follow } from '../entities/follow.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([DmThread, DmMessage, User, Follow]),
+    TypeOrmModule.forFeature([DmThread, DmMessage, User]),
     NotificationsModule,
   ],
   controllers: [MessagesController],

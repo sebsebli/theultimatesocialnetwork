@@ -16,6 +16,7 @@ import { SearchModule } from '../search/search.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SharedModule } from '../shared/shared.module';
 import { SafetyModule } from '../safety/safety.module';
+import { UploadModule } from '../upload/upload.module';
 import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
@@ -27,6 +28,7 @@ import { defaultQueueConfig } from '../common/queue-config';
     NotificationsModule,
     SharedModule,
     SafetyModule,
+    UploadModule,
   ],
   controllers: [PostsController],
   providers: [

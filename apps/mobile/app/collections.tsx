@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, Modal, TextInput, Alert, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, Modal, TextInput, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
@@ -7,6 +7,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { CollectionCard } from '../components/CollectionCard';
 import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
@@ -15,6 +16,7 @@ interface Collection {
   title: string;
   description?: string;
   itemCount: number;
+  previewImageKey?: string | null;
 }
 
 export default function CollectionsScreen() {
@@ -27,7 +29,6 @@ export default function CollectionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newDescription, setNewDescription] = useState('');
 
   useEffect(() => {
     loadCollections();
@@ -51,22 +52,19 @@ export default function CollectionsScreen() {
   }, []);
 
   const renderItem = useCallback(({ item }: { item: Collection }) => (
-    <Pressable
-      style={({ pressed }: { pressed: boolean }) => [styles.item, pressed && { backgroundColor: COLORS.hover }]}
+    <CollectionCard
+      item={{
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        itemCount: item.itemCount,
+        previewImageKey: item.previewImageKey,
+      }}
       onPress={() => {
         Haptics.selectionAsync();
         router.push(`/collections/${item.id}`);
       }}
-      accessibilityRole="button"
-    >
-      <Text style={styles.itemTitle}>{item.title}</Text>
-      {item.description && (
-        <Text style={styles.itemDescription}>{item.description}</Text>
-      )}
-      <Text style={styles.itemCount}>
-        {t('collections.itemCount', { count: item.itemCount })}
-      </Text>
-    </Pressable>
+    />
   ), [router]);
 
   const keyExtractor = useCallback((item: Collection) => item.id, []);
@@ -75,10 +73,9 @@ export default function CollectionsScreen() {
     if (!newTitle.trim()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await api.post('/collections', { title: newTitle.trim(), description: newDescription.trim() });
+      await api.post('/collections', { title: newTitle.trim() });
       setModalVisible(false);
       setNewTitle('');
-      setNewDescription('');
       loadCollections();
     } catch (error) {
       console.error('Failed to create collection', error);
@@ -130,6 +127,7 @@ export default function CollectionsScreen() {
           showsHorizontalScrollIndicator={false}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: SPACING.xxxl }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -151,33 +149,36 @@ export default function CollectionsScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('collections.newTitle')}</Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setModalVisible(false)} />
+          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + SPACING.l }]}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalSheetTitle}>{t('collections.newTitle', 'New Collection')}</Text>
             <TextInput
-              style={styles.input}
-              placeholder={t('collections.titlePlaceholder')}
+              style={styles.createInput}
+              placeholder={t('collections.titlePlaceholder', 'Collection name')}
               placeholderTextColor={COLORS.tertiary}
               value={newTitle}
               onChangeText={setNewTitle}
+              autoFocus
             />
-            <TextInput
-              style={styles.input}
-              placeholder={t('collections.descPlaceholder')}
-              placeholderTextColor={COLORS.tertiary}
-              value={newDescription}
-              onChangeText={setNewDescription}
-            />
-            <View style={styles.modalButtons}>
+            <View style={styles.modalActions}>
               <Pressable style={styles.modalButtonCancel} onPress={() => setModalVisible(false)}>
                 <Text style={styles.modalButtonTextCancel}>{t('common.cancel')}</Text>
               </Pressable>
-              <Pressable style={styles.modalButtonCreate} onPress={createCollection}>
+              <Pressable
+                style={[styles.modalButtonCreate, !newTitle.trim() && styles.modalButtonCreateDisabled]}
+                onPress={createCollection}
+                disabled={!newTitle.trim()}
+              >
                 <Text style={styles.modalButtonTextCreate}>{t('common.create')}</Text>
               </Pressable>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -223,81 +224,114 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: FONTS.semiBold,
   },
-  item: {
-    padding: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.paper,
-    marginBottom: 4,
-    fontFamily: FONTS.semiBold,
-  },
-  itemDescription: {
-    fontSize: 14,
-    color: COLORS.secondary,
-    marginBottom: SPACING.s,
-    fontFamily: FONTS.regular,
-  },
-  itemCount: {
-    fontSize: 12,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay,
-    justifyContent: 'center',
-    padding: SPACING.xl,
+    justifyContent: 'flex-end',
   },
-  modalContent: {
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  modalSheet: {
     backgroundColor: COLORS.ink,
-    borderRadius: SIZES.borderRadius,
-    padding: SPACING.xl,
+    borderTopLeftRadius: SIZES.borderRadius * 2,
+    borderTopRightRadius: SIZES.borderRadius * 2,
     borderWidth: 1,
+    borderBottomWidth: 0,
     borderColor: COLORS.divider,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.m,
   },
-  modalTitle: {
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.tertiary,
+    alignSelf: 'center',
+    marginBottom: SPACING.l,
+  },
+  modalSheetTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: COLORS.paper,
     marginBottom: SPACING.l,
-    textAlign: 'center',
     fontFamily: FONTS.semiBold,
   },
-  input: {
+  createInput: {
+    minHeight: 48,
     backgroundColor: COLORS.hover,
-    color: COLORS.paper,
-    padding: SPACING.m,
     borderRadius: SIZES.borderRadius,
-    marginBottom: SPACING.m,
-    fontSize: 16,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.m,
+    fontSize: 15,
+    color: COLORS.paper,
+    fontFamily: FONTS.regular,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    fontFamily: FONTS.regular,
+    marginBottom: SPACING.m,
   },
-  modalButtons: {
+  privacyLabel: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    marginBottom: SPACING.xs,
+  },
+  privacyRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: SPACING.s,
+    marginBottom: SPACING.l,
+  },
+  privacyOption: {
+    flex: 1,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.m,
+    borderRadius: SIZES.borderRadius,
+    backgroundColor: COLORS.hover,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    alignItems: 'center',
+  },
+  privacyOptionActive: {
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    borderColor: COLORS.primary,
+  },
+  privacyOptionText: {
+    fontSize: 14,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.medium,
+  },
+  privacyOptionTextActive: {
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  modalActions: {
+    flexDirection: 'row',
     gap: SPACING.m,
   },
   modalButtonCancel: {
     flex: 1,
-    padding: SPACING.m,
+    minHeight: 44,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.l,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: SIZES.borderRadius,
     backgroundColor: COLORS.hover,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    alignItems: 'center',
   },
   modalButtonCreate: {
     flex: 1,
-    padding: SPACING.m,
+    minHeight: 44,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.l,
     borderRadius: SIZES.borderRadius,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonCreateDisabled: {
+    opacity: 0.5,
   },
   modalButtonTextCancel: {
     color: COLORS.paper,
@@ -305,7 +339,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
   },
   modalButtonTextCreate: {
-    color: '#FFFFFF',
+    color: COLORS.ink,
     fontWeight: '600',
     fontFamily: FONTS.semiBold,
   },

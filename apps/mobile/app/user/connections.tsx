@@ -95,7 +95,7 @@ export default function ConnectionsScreen() {
         await api.delete(`/users/${item.id}/follow`);
       } else if (activeTab === 'topics') {
         // Unfollow topic
-        await api.delete(`/topics/${item.slug}/follow`);
+        await api.delete(`/topics/${encodeURIComponent(item.slug)}/follow`);
       }
       // Remove from list
       setItems(prev => prev.filter(i => i.id !== item.id));
@@ -108,7 +108,7 @@ export default function ConnectionsScreen() {
     if (handle) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      await api.post(`/topics/${item.slug}/follow`);
+      await api.post(`/topics/${encodeURIComponent(item.slug)}/follow`);
       setItems(prev => [{ ...item, isFollowing: true }, ...prev]);
       setSuggestions(prev => prev.filter((s: any) => s.slug !== item.slug && s.id !== item.id));
     } catch (e) {
@@ -147,7 +147,7 @@ export default function ConnectionsScreen() {
           <View style={styles.itemContent}>
             <TopicCard
               item={{ ...item, isFollowing: true }}
-              onPress={() => router.push(`/topic/${item.slug || item.id}`)}
+              onPress={() => router.push(`/topic/${encodeURIComponent(item.slug || item.id)}`)}
             />
           </View>
           {!handle && (
@@ -191,7 +191,7 @@ export default function ConnectionsScreen() {
               {activeTab === 'topics' ? (
                 <TopicCard
                   item={item}
-                  onPress={() => router.push(`/topic/${item.slug || item.id}`)}
+                  onPress={() => router.push(`/topic/${encodeURIComponent(item.slug || item.id)}`)}
                   onFollow={() => handleFollowTopic(item)}
                 />
               ) : (

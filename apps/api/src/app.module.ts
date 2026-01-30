@@ -30,6 +30,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { CleanupService } from './cleanup/cleanup.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RssModule } from './rss/rss.module';
+import { MetadataModule } from './metadata/metadata.module';
 import { Post } from './entities/post.entity';
 import { User } from './entities/user.entity';
 import { Notification } from './entities/notification.entity';
@@ -118,6 +119,7 @@ import * as Joi from 'joi';
     KeepsModule,
     RealtimeModule,
     RssModule,
+    MetadataModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

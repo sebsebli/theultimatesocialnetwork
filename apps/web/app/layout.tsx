@@ -6,8 +6,9 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { AuthProvider } from "@/components/auth-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { RealtimeProvider } from "@/context/realtime-provider";
-import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages } from 'next-intl/server';
+import { ConsentAndSignup } from "@/components/consent-and-signup";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -16,7 +17,7 @@ const inter = Inter({
 
 const ibmPlexSerif = IBM_Plex_Serif({
   variable: "--font-serif",
-  weight: ['300', '400', '500', '600', '700'],
+  weight: ["300", "400", "500", "600", "700"],
   subsets: ["latin"],
 });
 
@@ -34,7 +35,10 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`dark ${inter.variable} ${ibmPlexSerif.variable}`}>
+    <html
+      lang={locale}
+      className={`dark ${inter.variable} ${ibmPlexSerif.variable}`}
+    >
       <body className={inter.className}>
         <NextIntlClientProvider messages={messages}>
           <ErrorBoundary>
@@ -42,6 +46,7 @@ export default async function RootLayout({
               <AuthProvider>
                 <RealtimeProvider>
                   {children}
+                  <ConsentAndSignup />
                 </RealtimeProvider>
               </AuthProvider>
             </ToastProvider>

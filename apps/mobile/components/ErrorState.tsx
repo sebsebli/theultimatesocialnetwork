@@ -1,13 +1,17 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONTS, SIZES, HEADER } from '../constants/theme';
+import { useTranslation } from 'react-i18next';
+import { COLORS, SPACING, FONTS, SIZES, HEADER, LAYOUT } from '../constants/theme';
 
 interface ErrorStateProps {
   message?: string;
   onRetry?: () => void;
+  /** Dismiss the error screen (e.g. show empty state or go back). */
+  onDismiss?: () => void;
 }
 
-export function ErrorState({ message = 'Something went wrong', onRetry }: ErrorStateProps) {
+export function ErrorState({ message = 'Something went wrong', onRetry, onDismiss }: ErrorStateProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
@@ -15,17 +19,32 @@ export function ErrorState({ message = 'Something went wrong', onRetry }: ErrorS
       </View>
       <Text style={styles.title}>Oops!</Text>
       <Text style={styles.text}>{message}</Text>
-      {onRetry && (
-        <Pressable
-          style={({ pressed }: { pressed: boolean }) => [
-            styles.button,
-            pressed && styles.buttonPressed
-          ]}
-          onPress={onRetry}
-        >
-          <Text style={styles.buttonText}>Try Again</Text>
-        </Pressable>
-      )}
+      <View style={styles.actions}>
+        {onRetry && (
+          <Pressable
+            style={({ pressed }: { pressed: boolean }) => [
+              styles.button,
+              styles.buttonPrimary,
+              pressed && styles.buttonPressed
+            ]}
+            onPress={onRetry}
+          >
+            <Text style={styles.buttonText}>{t('common.tryAgain')}</Text>
+          </Pressable>
+        )}
+        {onDismiss && (
+          <Pressable
+            style={({ pressed }: { pressed: boolean }) => [
+              styles.button,
+              styles.buttonSecondary,
+              pressed && styles.buttonPressed
+            ]}
+            onPress={onDismiss}
+          >
+            <Text style={styles.buttonTextSecondary}>{t('common.dismiss', 'Dismiss')}</Text>
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
@@ -57,13 +76,26 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     maxWidth: 280,
   },
+  actions: {
+    flexDirection: 'row',
+    gap: SPACING.m,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
   button: {
-    paddingHorizontal: SPACING.xl,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingVertical: SPACING.m,
-    backgroundColor: COLORS.primary,
     borderRadius: SIZES.borderRadiusPill,
     minWidth: 120,
     alignItems: 'center',
+  },
+  buttonPrimary: {
+    backgroundColor: COLORS.primary,
+  },
+  buttonSecondary: {
+    backgroundColor: COLORS.hover,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
   },
   buttonPressed: {
     opacity: 0.8,
@@ -71,6 +103,12 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#FFFFFF',
+    fontFamily: FONTS.semiBold,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  buttonTextSecondary: {
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     fontSize: 15,
     fontWeight: '600',
