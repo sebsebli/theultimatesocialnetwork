@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, LayoutAnimation, UIManager, Platform, AppState } from 'react-native';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { COLORS, FONTS, SIZES, SPACING } from '../../constants/theme';
+import { COLORS, FONTS, SIZES, SPACING, HEADER } from '../../constants/theme';
 import { MaterialIcons } from '@expo/vector-icons';
 import { PostItem } from '../../components/PostItem';
 import { useRouter } from 'expo-router';
@@ -10,9 +10,11 @@ import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorState } from '../../components/ErrorState';
+import { EmptyState } from '../../components/EmptyState';
 import { Avatar } from '../../components/Avatar';
 import { useSocket } from '../../context/SocketContext';
-import { PersonCard } from '../../components/ExploreCards';
+import { UserCard } from '../../components/UserCard';
+import type { Post } from '../../types';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -61,6 +63,24 @@ export default function HomeScreen() {
       api.get('/users/suggested?limit=5').then(res => setSuggestions(Array.isArray(res) ? res : [])).catch(() => { });
     }
   }, [loading, posts.length]);
+
+  const handleFollowSuggestion = useCallback(async (item: any) => {
+    const prev = item.isFollowing;
+    setSuggestions((prevList) =>
+      prevList.map((u: any) => (u.id === item.id ? { ...u, isFollowing: !prev } : u))
+    );
+    try {
+      if (prev) {
+        await api.delete(`/users/${item.id}/follow`);
+      } else {
+        await api.post(`/users/${item.id}/follow`);
+      }
+    } catch {
+      setSuggestions((prevList) =>
+        prevList.map((u: any) => (u.id === item.id ? { ...u, isFollowing: prev } : u))
+      );
+    }
+  }, []);
 
   const loadFeed = async (pageNum: number, reset = false) => {
     if (reset) {
@@ -176,7 +196,7 @@ export default function HomeScreen() {
       return (
         <View style={styles.savedByItem}>
           <View style={styles.savedByHeader}>
-            <MaterialIcons name="bookmark" size={14} color={COLORS.tertiary} />
+            <MaterialIcons name="bookmark" size={HEADER.iconSize} color={COLORS.tertiary} />
             <Text style={styles.savedByText}>
               {t('home.savedByPrefix')} <Text style={styles.savedByHighlight}>{item._savedBy.userName}</Text> {t('home.savedBySuffix')} {item._savedBy.collectionName}
             </Text>
@@ -206,23 +226,21 @@ export default function HomeScreen() {
       onPress={() => router.push('/invites')}
     >
       <View style={styles.inviteIconCircle}>
-        <MaterialIcons name="person-add" size={24} color={COLORS.ink} />
+        <MaterialIcons name="person-add" size={HEADER.iconSize} color={COLORS.ink} />
       </View>
       <View style={styles.inviteTextContainer}>
         <Text style={styles.inviteTitle}>{t('home.inviteFriends', 'Invite Friends')}</Text>
         <Text style={styles.inviteDesc}>{t('home.inviteDesc', 'Build your network. CITE is better with friends.')}</Text>
       </View>
-      <MaterialIcons name="chevron-right" size={24} color={COLORS.tertiary} />
+      <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
     </Pressable>
   );
 
   return (
-    <View style={[styles.container, { paddingBottom: 56 + insets.bottom }]}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <View style={styles.headerLeft}>
-          {/* Logo or nothing */}
-        </View>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: 56 + insets.bottom }]}>
+      {/* Header - same padding as explore */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft} />
         <View style={styles.headerActions}>
           <Pressable
             onPress={() => router.push('/notifications')}
@@ -231,17 +249,9 @@ export default function HomeScreen() {
             accessibilityRole="button"
           >
             <View>
-              <MaterialIcons name="notifications-none" size={24} color={COLORS.tertiary} />
+              <MaterialIcons name="notifications-none" size={HEADER.iconSize} color={COLORS.paper} />
               {unreadNotifications > 0 && <View style={styles.badge} />}
             </View>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/settings')}
-            style={styles.headerActionButton}
-            accessibilityLabel={t('settings.title')}
-            accessibilityRole="button"
-          >
-            <MaterialIcons name="settings" size={24} color={COLORS.tertiary} />
           </Pressable>
         </View>
       </View>
@@ -251,14 +261,23 @@ export default function HomeScreen() {
       ) : (
         <FlatList
           data={posts}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           keyExtractor={keyExtractor}
-          contentContainerStyle={{ paddingBottom: 56 + insets.bottom }}
-          renderItem={renderItem}
+          contentContainerStyle={{ paddingBottom: 80 }}
+          renderItem={({ item }: { item: Post }) => (
+            <View style={{ paddingHorizontal: SPACING.l }}>
+              {renderItem({ item })}
+            </View>
+          )}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyHeadline}>{t('home.emptyHeadline', 'Your timeline is quiet.')}</Text>
-              <Text style={styles.emptySubtext}>{t('home.emptySubtext', 'Follow people and topics to see posts here.')}</Text>
-
+            <EmptyState
+              icon="home"
+              headline={t('home.emptyHeadline', 'Your timeline is quiet.')}
+              subtext={t('home.emptySubtext', 'Follow people and topics to see posts here.')}
+              secondaryLabel={t('home.exploreTopics', 'Explore Topics')}
+              onSecondary={() => router.push('/(tabs)/explore')}
+            >
               {!loading && (
                 <View style={styles.emptyActions}>
                   <InviteNudge />
@@ -267,20 +286,18 @@ export default function HomeScreen() {
                       <Text style={styles.suggestionsHeader}>{t('home.suggestedPeople', 'People to follow')}</Text>
                       {suggestions.map((item: any) => (
                         <View key={item.id} style={styles.suggestionRow}>
-                          <PersonCard item={item} onPress={() => router.push(`/user/${item.handle}`)} showWhy={false} fullWidth />
+                          <UserCard
+                            item={item}
+                            onPress={() => router.push(`/user/${item.handle}`)}
+                            onFollow={() => handleFollowSuggestion(item)}
+                          />
                         </View>
                       ))}
                     </View>
                   )}
-                  <Pressable
-                    style={styles.secondaryButton}
-                    onPress={() => router.push('/(tabs)/explore')}
-                  >
-                    <Text style={styles.secondaryButtonText}>{t('home.exploreTopics', 'Explore Topics')}</Text>
-                  </Pressable>
                 </View>
               )}
-            </View>
+            </EmptyState>
           }
           ListFooterComponent={ListFooterComponent}
           refreshControl={
@@ -313,10 +330,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    paddingBottom: HEADER.barPaddingBottom,
+    paddingHorizontal: HEADER.barPaddingHorizontal,
     backgroundColor: COLORS.ink,
   },
   profileButton: {
@@ -358,7 +373,6 @@ const styles = StyleSheet.create({
   savedByHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.l,
     paddingTop: SPACING.m,
     gap: 6,
   },
@@ -371,9 +385,9 @@ const styles = StyleSheet.create({
     color: COLORS.paper,
   },
   emptyState: {
-    padding: SPACING.xxxl,
+    paddingVertical: SPACING.xxl,
     alignItems: 'center',
-    marginTop: SPACING.xxl,
+    marginTop: SPACING.l,
   },
   emptyHeadline: {
     fontSize: 20,

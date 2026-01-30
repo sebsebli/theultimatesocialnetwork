@@ -1,30 +1,54 @@
-import React from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Alert, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, Pressable, ScrollView, Platform, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/auth';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { useToast } from '../../context/ToastContext';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import * as WebBrowser from 'expo-web-browser';
 import { registerForPush } from '../../utils/push-notifications';
 import { getAuthToken } from '../../utils/api';
+import {
+  getDownloadSavedForOffline,
+  setDownloadSavedForOffline,
+  getOfflineStorageInfo,
+  clearAllOfflinePosts,
+} from '../../utils/offlineStorage';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { signOut } = useAuth();
+  const { showSuccess, showError } = useToast();
   const insets = useSafeAreaInsets();
+  const [downloadSaved, setDownloadSaved] = useState(false);
+  const [offlineCount, setOfflineCount] = useState(0);
+  const [signOutModalVisible, setSignOutModalVisible] = useState(false);
 
-  const handleSignOut = () => {
-    Alert.alert(
-      t('settings.signOut'),
-      t('settings.signOutConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        { text: t('settings.signOut'), onPress: signOut, style: 'destructive' },
-      ]
-    );
+  useEffect(() => {
+    getDownloadSavedForOffline().then(setDownloadSaved);
+    getOfflineStorageInfo().then(({ count }) => setOfflineCount(count));
+  }, []);
+
+  const onDownloadSavedToggle = async (value: boolean) => {
+    await setDownloadSavedForOffline(value);
+    setDownloadSaved(value);
+    if (value) {
+      getOfflineStorageInfo().then(({ count }) => setOfflineCount(count));
+    } else {
+      await clearAllOfflinePosts();
+      setOfflineCount(0);
+    }
+  };
+
+  const handleSignOut = () => setSignOutModalVisible(true);
+
+  const confirmSignOut = async () => {
+    await signOut();
   };
 
   const openLink = async (url: string) => {
@@ -36,11 +60,11 @@ export default function SettingsScreen() {
       const token = await getAuthToken();
       if (token) {
         await registerForPush(token);
-        Alert.alert(t('common.success'), t('settings.pushEnabled', 'Push notifications enabled'));
+        showSuccess(t('settings.pushEnabled', 'Push notifications enabled'));
       }
     } catch (error) {
       console.error('Failed to enable push', error);
-      Alert.alert(t('common.error'), t('settings.pushEnableError', 'Failed to enable push notifications'));
+      showError(t('settings.pushEnableError', 'Failed to enable push notifications'));
     }
   };
 
@@ -50,33 +74,32 @@ export default function SettingsScreen() {
       onPress={onPress}
     >
       <View style={styles.itemLeft}>
-        <MaterialIcons name={icon} size={24} color={destructive ? COLORS.error : COLORS.secondary} />
+        <MaterialIcons name={icon} size={HEADER.iconSize} color={destructive ? COLORS.error : COLORS.secondary} />
         <Text style={[styles.itemLabel, destructive && styles.itemLabelDestructive]}>{label}</Text>
       </View>
       <View style={styles.itemRight}>
         {value && <Text style={styles.itemValue}>{value}</Text>}
-        <MaterialIcons name="chevron-right" size={24} color={COLORS.tertiary} />
+        <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
       </View>
     </Pressable>
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.title}>{t('settings.title')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title={t('settings.title')} paddingTop={insets.top} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
           <SettingItem
             icon="person-outline"
             label={t('settings.editProfile')}
             onPress={() => router.push('/settings/profile')}
+          />
+          <SettingItem
+            icon="person-add"
+            label={t('settings.inviteFriends', 'Invite Friends')}
+            onPress={() => router.push('/invites')}
           />
           <SettingItem
             icon="language"
@@ -96,6 +119,31 @@ export default function SettingsScreen() {
             icon="notifications-none"
             label={t('settings.notifications')}
             onPress={() => router.push('/settings/notifications')}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('settings.offlineReading', 'Offline reading')}</Text>
+          <View style={styles.switchRow}>
+            <View style={styles.itemLeft}>
+              <MaterialIcons name="offline-pin" size={HEADER.iconSize} color={COLORS.secondary} />
+              <View>
+                <Text style={styles.itemLabel}>{t('settings.downloadSavedOffline', 'Download saved for offline')}</Text>
+                <Text style={styles.itemHint}>{t('settings.downloadSavedOfflineHint', 'When on, you can read bookmarked posts without internet. Manage storage below.')}</Text>
+              </View>
+            </View>
+            <Switch
+              value={downloadSaved}
+              onValueChange={onDownloadSavedToggle}
+              trackColor={{ false: COLORS.divider, true: COLORS.primary }}
+              thumbColor={COLORS.paper}
+            />
+          </View>
+          <SettingItem
+            icon="folder-open"
+            label={t('settings.manageOfflineStorage', 'Manage offline storage')}
+            value={offlineCount > 0 ? t('settings.offlineCount', '{{count}} articles', { count: offlineCount }) : undefined}
+            onPress={() => router.push('/settings/offline-storage')}
           />
         </View>
 
@@ -143,6 +191,17 @@ export default function SettingsScreen() {
 
         <Text style={styles.version}>{t('settings.version', { version: '1.0.0', build: '100', defaultValue: 'Version 1.0.0 (Build 100)' })}</Text>
       </ScrollView>
+
+      <ConfirmModal
+        visible={signOutModalVisible}
+        title={t('settings.signOut')}
+        message={t('settings.signOutConfirm')}
+        confirmLabel={t('settings.signOut')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={confirmSignOut}
+        onCancel={() => setSignOutModalVisible(false)}
+      />
     </View>
   );
 }
@@ -151,21 +210,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   content: {
     paddingBottom: 100,
@@ -200,6 +244,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.m,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.l,
+  },
+  itemHint: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    marginTop: 2,
+    maxWidth: 260,
+    fontFamily: FONTS.regular,
   },
   itemLabel: {
     fontSize: 16,

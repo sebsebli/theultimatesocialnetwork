@@ -26,6 +26,9 @@ const getApiUrl = () => {
 const API_URL = getApiUrl();
 const TOKEN_KEY = 'jwt';
 const ONBOARDING_KEY = 'onboarding_complete';
+const ONBOARDING_STAGE_KEY = 'onboarding_stage';
+
+export type OnboardingStage = 'languages' | 'profile' | 'starter-packs';
 
 export const setAuthToken = async (token: string) => {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -46,10 +49,22 @@ export const getOnboardingComplete = async (): Promise<boolean> => {
 
 export const setOnboardingComplete = async () => {
   await SecureStore.setItemAsync(ONBOARDING_KEY, 'true');
+  await SecureStore.deleteItemAsync(ONBOARDING_STAGE_KEY);
 };
 
 export const clearOnboardingComplete = async () => {
   await SecureStore.deleteItemAsync(ONBOARDING_KEY);
+  await SecureStore.deleteItemAsync(ONBOARDING_STAGE_KEY);
+};
+
+export const getOnboardingStage = async (): Promise<OnboardingStage | null> => {
+  const v = await SecureStore.getItemAsync(ONBOARDING_STAGE_KEY);
+  if (v === 'languages' || v === 'profile' || v === 'starter-packs') return v;
+  return null;
+};
+
+export const setOnboardingStage = async (stage: OnboardingStage) => {
+  await SecureStore.setItemAsync(ONBOARDING_STAGE_KEY, stage);
 };
 
 class ApiError extends Error {
@@ -124,12 +139,16 @@ class ApiClient {
         // Do NOT treat "Complete onboarding first" (403) as sign-out — user stays logged in and is sent back to onboarding
         const isOnboardingRequired =
           response.status === 403 && /complete onboarding first/i.test(errorMessage);
+        // Do NOT treat "Must follow each other or have prior interaction" (403) as sign-out — messaging restriction only
+        const isMessagingRestriction =
+          response.status === 403 && /must follow each other|prior interaction/i.test(errorMessage);
         // 404 "Cannot GET" = route not found (e.g. API missing endpoint) — do NOT sign out
         const isRouteNotFound =
           response.status === 404 && /cannot get|not found/i.test(errorMessage) && !/user no longer exists|user not found/i.test(errorMessage);
         // Treat only real auth/session errors: 401, 403, or 404 with user-not-found message
         const isAuthError =
           !isOnboardingRequired &&
+          !isMessagingRestriction &&
           !isRouteNotFound &&
           (response.status === 401 ||
             response.status === 403 ||

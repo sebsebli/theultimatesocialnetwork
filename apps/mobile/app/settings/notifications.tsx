@@ -6,12 +6,15 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 export default function NotificationsSettingsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { showSuccess, showError } = useToast();
-  
+
   const [loading, setLoading] = useState(true);
   const [prefs, setPrefs] = useState({
     push_enabled: true,
@@ -28,12 +31,21 @@ export default function NotificationsSettingsScreen() {
 
   const loadPrefs = async () => {
     try {
-      // Mock loading - replace with actual API call
-      // const data = await api.get('/me/notification-prefs');
-      // setPrefs(data);
-      setLoading(false);
+      const data = await api.get<Record<string, boolean>>('/users/me/notification-prefs');
+      if (data && typeof data === 'object') {
+        setPrefs(prev => ({
+          ...prev,
+          push_enabled: data.push_enabled ?? prev.push_enabled,
+          replies: data.replies ?? prev.replies,
+          quotes: data.quotes ?? prev.quotes,
+          mentions: data.mentions ?? prev.mentions,
+          follows: data.follows ?? prev.follows,
+          saves: data.saves ?? prev.saves,
+        }));
+      }
     } catch (error) {
       console.error('Failed to load notification prefs', error);
+    } finally {
       setLoading(false);
     }
   };
@@ -41,11 +53,9 @@ export default function NotificationsSettingsScreen() {
   const togglePref = async (key: keyof typeof prefs) => {
     const newVal = !prefs[key];
     setPrefs(prev => ({ ...prev, [key]: newVal }));
-    
     try {
-      // await api.patch('/me/notification-prefs', { [key]: newVal });
+      await api.patch('/users/me/notification-prefs', { [key]: newVal });
     } catch (error) {
-      // Revert on error
       setPrefs(prev => ({ ...prev, [key]: !newVal }));
       showError(t('common.error'));
     }
@@ -69,15 +79,9 @@ export default function NotificationsSettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('settings.notifications')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title={t('settings.notifications')} paddingTop={insets.top} />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('notifications.push')}</Text>
           <NotificationItem
@@ -127,22 +131,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: SPACING.header,
-    paddingBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   content: {
     padding: SPACING.l,

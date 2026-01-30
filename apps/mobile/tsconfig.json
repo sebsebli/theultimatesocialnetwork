@@ -23,5 +23,6 @@
     "**/*.d.ts",
     "types/**/*.d.ts",
     "react-native-types.d.ts"
-  ]
+  ],
+  "exclude": ["**/*.spec.ts", "**/*.spec.tsx"]
 }

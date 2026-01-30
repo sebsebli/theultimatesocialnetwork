@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../utils/api';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { OptionsActionSheet } from '../../components/OptionsActionSheet';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HANDLE_MIN = 3;
@@ -22,11 +25,15 @@ export default function EditProfileScreen() {
   const [handle, setHandle] = useState('');
   const [bio, setBio] = useState('');
   const [isProtected, setIsProtected] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarLocalUri, setAvatarLocalUri] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('available'); // Assume available initially if unchanged
+  const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('available');
   const [initialHandle, setInitialHandle] = useState('');
-  
+  const [avatarActionSheetVisible, setAvatarActionSheetVisible] = useState(false);
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -39,6 +46,7 @@ export default function EditProfileScreen() {
           setInitialHandle(user.handle || '');
           setBio(user.bio || '');
           setIsProtected(user.isProtected || false);
+          setAvatarUrl(user.avatarUrl || null);
         }
       } catch (e) {
         showError(t('common.error'));
@@ -76,7 +84,7 @@ export default function EditProfileScreen() {
   useEffect(() => {
     if (initialLoading) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    
+
     if (normalizedHandle === initialHandle.toLowerCase()) {
       setHandleStatus('available');
       return;
@@ -126,6 +134,57 @@ export default function EditProfileScreen() {
 
   const canSubmit = Boolean(displayName.trim() && normalizedHandle.length >= HANDLE_MIN && normalizedHandle.length <= HANDLE_MAX && handleStatus === 'available' && !loading);
 
+  const showAvatarActions = () => setAvatarActionSheetVisible(true);
+
+  const removeAvatar = async () => {
+    try {
+      setAvatarUploading(true);
+      await api.patch('/users/me', { avatarKey: null });
+      setAvatarUrl(null);
+      setAvatarLocalUri(null);
+      showSuccess(t('settings.photoRemoved', 'Profile photo removed.'));
+    } catch (err: any) {
+      showError(err?.message || t('common.error'));
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const avatarOptions = [
+    { label: t('settings.takePhoto', 'Take photo'), onPress: () => pickImage('camera') },
+    { label: t('settings.choosePhoto', 'Choose from library'), onPress: () => pickImage('library') },
+    ...(avatarUrl || avatarLocalUri ? [{ label: t('settings.removePhoto', 'Remove photo'), onPress: removeAvatar, destructive: true as const }] : []),
+  ];
+
+  const pickImage = async (source: 'camera' | 'library') => {
+    try {
+      const permission =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        showError(t('settings.photoPermissionDenied', 'Permission to access photos is required.'));
+        return;
+      }
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 })
+          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      setAvatarUploading(true);
+      const uploadRes = await api.upload<{ key: string; url: string }>('/upload/profile-picture', asset);
+      await api.patch('/users/me', { avatarKey: uploadRes.key });
+      setAvatarUrl(uploadRes.url);
+      setAvatarLocalUri(asset.uri);
+      showSuccess(t('settings.photoUpdated', 'Profile photo updated.'));
+    } catch (err: any) {
+      showError(err?.message || t('common.error'));
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   if (initialLoading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -136,21 +195,36 @@ export default function EditProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('settings.editProfile')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title={t('settings.editProfile')} paddingTop={insets.top} />
 
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={90}
       >
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
           <View style={styles.form}>
+            <Pressable style={styles.avatarSection} onPress={avatarUploading ? undefined : showAvatarActions} disabled={avatarUploading}>
+              <View style={styles.avatarRing}>
+                {(avatarUrl || avatarLocalUri) ? (
+                  <Image source={{ uri: avatarLocalUri || avatarUrl || '' }} style={styles.avatarImage} />
+                ) : (
+                  <Text style={styles.avatarPlaceholder}>
+                    {(displayName || handle || '?').charAt(0).toUpperCase()}
+                  </Text>
+                )}
+                {avatarUploading && (
+                  <View style={styles.avatarOverlay}>
+                    <ActivityIndicator size="small" color={COLORS.ink} />
+                  </View>
+                )}
+                <View style={styles.avatarEditBadge}>
+                  <MaterialIcons name="camera-alt" size={HEADER.iconSize} color={COLORS.ink} />
+                </View>
+              </View>
+              <Text style={styles.avatarHint}>{t('settings.tapToChangePhoto', 'Tap to change photo')}</Text>
+            </Pressable>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>{t('onboarding.profile.displayName')}</Text>
               <TextInput
@@ -196,9 +270,11 @@ export default function EditProfileScreen() {
                   )}
                 </View>
               )}
-              <Text style={styles.handleCount}>
-                You can change your username once every 14 days.
-              </Text>
+              {handle !== initialHandle && (
+                <Text style={styles.handleCount}>
+                  {t('settings.handleChangeHint', 'You can change your username once every 14 days.')}
+                </Text>
+              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -224,7 +300,7 @@ export default function EditProfileScreen() {
                 <View style={styles.privacyHeader}>
                   <MaterialIcons
                     name={isProtected ? "lock" : "public"}
-                    size={20}
+                    size={HEADER.iconSize}
                     color={isProtected ? COLORS.primary : COLORS.secondary}
                   />
                   <Text style={styles.privacyLabel}>
@@ -256,6 +332,14 @@ export default function EditProfileScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <OptionsActionSheet
+        visible={avatarActionSheetVisible}
+        title={t('settings.profilePhoto', 'Profile photo')}
+        options={avatarOptions}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setAvatarActionSheetVisible(false)}
+      />
     </View>
   );
 }
@@ -295,6 +379,54 @@ const styles = StyleSheet.create({
   form: {
     gap: SPACING.xl,
   },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: SPACING.m,
+  },
+  avatarRing: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.hover,
+    borderWidth: 3,
+    borderColor: COLORS.divider,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    fontSize: 40,
+    fontWeight: '700',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarHint: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    marginTop: SPACING.s,
+    fontFamily: FONTS.regular,
+  },
   inputGroup: {
     gap: SPACING.s,
   },
@@ -333,7 +465,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.error,
   },
   inputSuccess: {
-    borderColor: '#22c55e',
+    borderColor: COLORS.primary,
   },
   availabilityRow: {
     flexDirection: 'row',
@@ -345,13 +477,19 @@ const styles = StyleSheet.create({
   },
   availabilityAvailable: {
     fontSize: 13,
-    color: '#22c55e',
+    color: COLORS.primary,
     fontFamily: FONTS.medium,
   },
   availabilityTaken: {
     fontSize: 13,
     color: COLORS.error,
     fontFamily: FONTS.medium,
+  },
+  handleCount: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    marginTop: 4,
+    fontFamily: FONTS.regular,
   },
   textArea: {
     height: 100,
@@ -409,10 +547,11 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.secondary,
   },
   thumbActive: {
     alignSelf: 'flex-end',
+    backgroundColor: COLORS.paper,
   },
   footer: {
     paddingHorizontal: SPACING.xl,
@@ -434,7 +573,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFF',
+    color: COLORS.ink,
     fontFamily: FONTS.semiBold,
   },
 });

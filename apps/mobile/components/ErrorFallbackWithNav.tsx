@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
 /**
  * Shown when ErrorBoundary catches an error. Provides "Go to Home" so the user
@@ -22,7 +22,7 @@ export function ErrorFallbackWithNav() {
     <View style={styles.container}>
       <View style={styles.iconContainer}>
         <View style={styles.iconCircle}>
-          <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
+          <MaterialIcons name="error-outline" size={HEADER.iconSize} color={COLORS.error} />
         </View>
       </View>
       <Text style={styles.title}>Something went wrong</Text>
@@ -30,10 +30,10 @@ export function ErrorFallbackWithNav() {
         An unexpected error occurred. You can go back to Home and try again.
       </Text>
       <Pressable
-        style={({ pressed }) => [styles.button, pressed && { opacity: 0.8 }]}
+        style={({ pressed }: { pressed: boolean }) => [styles.button, pressed && { opacity: 0.8 }]}
         onPress={goHome}
       >
-        <MaterialIcons name="home" size={20} color={COLORS.ink} />
+        <MaterialIcons name="home" size={HEADER.iconSize} color={COLORS.ink} />
         <Text style={styles.buttonText}>Go to Home</Text>
       </Pressable>
     </View>

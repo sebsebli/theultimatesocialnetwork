@@ -3,9 +3,9 @@ import { StyleSheet, Text, View, Pressable, ScrollView, Alert } from 'react-nati
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../utils/api';
+import { api, setOnboardingStage } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LANGUAGES = [
@@ -61,6 +61,7 @@ export default function OnboardingLanguagesScreen() {
       await api.patch('/users/me', {
         languages: selectedLanguages,
       });
+      await setOnboardingStage('profile');
       router.push('/onboarding/profile');
     } catch (error: any) {
       console.error('Failed to update languages', error);
@@ -79,11 +80,11 @@ export default function OnboardingLanguagesScreen() {
           <View style={styles.stepDot} />
         </View>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.secondary} />
+          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.secondary} />
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
         <Text style={styles.title}>{t('onboarding.languages.languagesTitle')}</Text>
         <Text style={styles.subtitle}>{t('onboarding.languages.languagesSubtitle')}</Text>
 
@@ -104,7 +105,7 @@ export default function OnboardingLanguagesScreen() {
                 </Text>
                 {isSelected && (
                   <View style={styles.checkBadge}>
-                    <MaterialIcons name="check" size={12} color="#FFF" />
+                    <MaterialIcons name="check" size={HEADER.iconSize} color="#FFF" />
                   </View>
                 )}
               </Pressable>
@@ -128,14 +129,14 @@ export default function OnboardingLanguagesScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.l }]}>
         <Pressable
-          style={[styles.button, loading && styles.buttonDisabled]}
+          style={[styles.button, (loading || selectedLanguages.length < 1) && styles.buttonDisabled]}
           onPress={handleSubmit}
-          disabled={loading}
+          disabled={loading || selectedLanguages.length < 1}
         >
           <Text style={styles.buttonText}>
             {loading ? t('common.loading') : t('common.continue')}
           </Text>
-          <MaterialIcons name="arrow-forward" size={20} color="#FFF" />
+          <MaterialIcons name="arrow-forward" size={HEADER.iconSize} color="#FFF" />
         </Pressable>
       </View>
     </View>

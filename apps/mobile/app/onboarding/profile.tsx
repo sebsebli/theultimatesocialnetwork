@@ -3,9 +3,9 @@ import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Pla
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../utils/api';
+import { api, setOnboardingStage } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HANDLE_MIN = 3;
@@ -31,14 +31,18 @@ export default function OnboardingProfileScreen() {
       try {
         const user = await api.get<any>('/users/me');
         if (user) {
-          setDisplayName(user.displayName || '');
-          setHandle(user.handle || '');
+          const isPlaceholder =
+            typeof user.handle === 'string' && user.handle.startsWith('__pending_');
+          if (isPlaceholder) {
+            setDisplayName('');
+            setHandle('');
+          } else {
+            setDisplayName(user.displayName || '');
+            setHandle(user.handle || '');
+            if (user.handle) setHandleStatus('available');
+          }
           setBio(user.bio || '');
           setIsProtected(user.isProtected || false);
-          // If handle exists, mark as available/valid so we don't force re-check unless changed
-          if (user.handle) {
-             setHandleStatus('available'); 
-          }
         }
       } catch (e) {
         // Ignore error if new user
@@ -109,6 +113,7 @@ export default function OnboardingProfileScreen() {
         bio: bio.trim(),
         isProtected,
       });
+      await setOnboardingStage('starter-packs');
       router.push('/onboarding/starter-packs');
     } catch (error: any) {
       console.error('Failed to update profile', error);
@@ -132,11 +137,11 @@ export default function OnboardingProfileScreen() {
           <View style={styles.stepDot} />
         </View>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.secondary} />
+          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.secondary} />
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
         <Text style={styles.title}>{t('onboarding.profile.title')}</Text>
         <Text style={styles.subtitle}>{t('onboarding.profile.subtitle')}</Text>
 
@@ -194,13 +199,13 @@ export default function OnboardingProfileScreen() {
                 )}
                 {handleStatus === 'available' && (
                   <View style={styles.availabilityRow}>
-                    <MaterialIcons name="check-circle" size={16} color="#22c55e" style={styles.availabilityIcon} />
+                    <MaterialIcons name="check-circle" size={HEADER.iconSize} color="#22c55e" style={styles.availabilityIcon} />
                     <Text style={styles.availabilityAvailable}>{t('onboarding.profile.handleAvailable')}</Text>
                   </View>
                 )}
                 {handleStatus === 'taken' && (
                   <View style={styles.availabilityRow}>
-                    <MaterialIcons name="cancel" size={16} color={COLORS.error} style={styles.availabilityIcon} />
+                    <MaterialIcons name="cancel" size={HEADER.iconSize} color={COLORS.error} style={styles.availabilityIcon} />
                     <Text style={styles.availabilityTaken}>{t('onboarding.profile.handleTaken')}</Text>
                   </View>
                 )}
@@ -231,7 +236,7 @@ export default function OnboardingProfileScreen() {
               <View style={styles.privacyHeader}>
                 <MaterialIcons
                   name={isProtected ? "lock" : "public"}
-                  size={20}
+                  size={HEADER.iconSize}
                   color={isProtected ? COLORS.primary : COLORS.secondary}
                 />
                 <Text style={styles.privacyLabel}>
@@ -260,7 +265,7 @@ export default function OnboardingProfileScreen() {
           <Text style={styles.buttonText}>
             {loading ? t('common.loading') : t('common.continue')}
           </Text>
-          <MaterialIcons name="arrow-forward" size={20} color="#FFF" />
+          <MaterialIcons name="arrow-forward" size={HEADER.iconSize} color="#FFF" />
         </Pressable>
       </View>
     </KeyboardAvoidingView>

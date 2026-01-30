@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
 import { Collection } from '../types';
 
@@ -98,8 +98,8 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
       visible={visible}
       onRequestClose={() => setVisible(false)}
     >
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
@@ -107,7 +107,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
             <View style={styles.header}>
               <Text style={styles.title}>{t('post.addToCollection', 'Add to collection')}</Text>
               <Pressable onPress={() => setVisible(false)} hitSlop={10}>
-                <MaterialIcons name="close" size={24} color={COLORS.secondary} />
+                <MaterialIcons name="close" size={HEADER.iconSize} color={COLORS.secondary} />
               </Pressable>
             </View>
 
@@ -116,13 +116,18 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
             ) : (
               <FlatList
                 data={collections}
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
                 keyExtractor={(item: Collection) => item.id}
                 contentContainerStyle={styles.list}
                 renderItem={({ item }: { item: Collection }) => (
                   <Pressable
-                    style={styles.item}
+                    style={({ pressed }: { pressed: boolean }) => [styles.item, pressed && styles.itemPressed]}
                     onPress={() => handleToggle(item.id, !!item.hasPost)}
                   >
+                    <View style={styles.itemIconWrap}>
+                      <MaterialIcons name="folder" size={HEADER.iconSize} color={item.hasPost ? COLORS.primary : COLORS.tertiary} />
+                    </View>
                     <View style={styles.itemContent}>
                       <Text style={styles.itemTitle}>{item.title}</Text>
                       <View style={styles.itemMeta}>
@@ -130,7 +135,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
                           {item.isPublic ? t('common.public') : t('common.private')}
                         </Text>
                         {item.itemCount > 0 && (
-                          <Text style={styles.itemCount}>• {t('collections.itemsCount', { count: item.itemCount })}</Text>
+                          <Text style={styles.itemCount}>· {item.itemCount} {item.itemCount === 1 ? t('collections.item', 'item') : t('collections.items', 'items')}</Text>
                         )}
                       </View>
                     </View>
@@ -139,13 +144,17 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
                       item.hasPost && styles.checkboxChecked
                     ]}>
                       {item.hasPost && (
-                        <MaterialIcons name="check" size={16} color="#FFF" />
+                        <MaterialIcons name="check" size={HEADER.iconSize} color="#FFF" />
                       )}
                     </View>
                   </Pressable>
                 )}
                 ListEmptyComponent={!creating ? (
-                  <Text style={styles.emptyText}>{t('collections.empty')}</Text>
+                  <View style={styles.emptyWrap}>
+                    <MaterialIcons name="folder-open" size={HEADER.iconSize} color={COLORS.tertiary} />
+                    <Text style={styles.emptyText}>{t('collections.empty', 'No collections yet')}</Text>
+                    <Text style={styles.emptyHint}>{t('collections.emptyHint', 'Create one below.')}</Text>
+                  </View>
                 ) : null}
               />
             )}
@@ -192,7 +201,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
                   style={styles.newButton}
                   onPress={() => setCreating(true)}
                 >
-                  <MaterialIcons name="add" size={24} color={COLORS.primary} />
+                  <MaterialIcons name="add" size={HEADER.iconSize} color={COLORS.primary} />
                   <Text style={styles.newButtonText}>{t('collections.new', 'New Collection')}</Text>
                 </Pressable>
               )}
@@ -214,8 +223,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: COLORS.ink,
-    borderTopLeftRadius: SIZES.borderRadius,
-    borderTopRightRadius: SIZES.borderRadius,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderWidth: 1,
     borderColor: COLORS.divider,
     maxHeight: '80%',
@@ -226,61 +235,90 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: SPACING.l,
+    paddingVertical: SPACING.l,
+    paddingHorizontal: SPACING.xl,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   list: {
-    padding: SPACING.l,
+    paddingHorizontal: SPACING.l,
+    paddingVertical: SPACING.s,
   },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: COLORS.hover,
+    borderRadius: 12,
     paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.m,
+    marginBottom: SPACING.s,
+  },
+  itemPressed: {
+    opacity: 0.85,
+  },
+  itemIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.m,
   },
   itemContent: {
     flex: 1,
+    minWidth: 0,
   },
   itemTitle: {
     fontSize: 16,
     color: COLORS.paper,
-    fontWeight: '500',
-    fontFamily: FONTS.medium,
+    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   itemMeta: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 6,
     marginTop: 2,
   },
   itemPrivacy: {
-    fontSize: 13,
-    color: COLORS.secondary,
+    fontSize: 12,
+    color: COLORS.tertiary,
     fontFamily: FONTS.regular,
   },
   itemCount: {
-    fontSize: 13,
-    color: COLORS.secondary,
+    fontSize: 12,
+    color: COLORS.tertiary,
     fontFamily: FONTS.regular,
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
-    borderColor: COLORS.secondary,
+    borderColor: COLORS.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: SPACING.s,
   },
   checkboxChecked: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
+  },
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xxl,
+    gap: SPACING.s,
+  },
+  emptyHint: {
+    fontSize: 14,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
   },
   footer: {
     borderTopWidth: 1,
@@ -381,8 +419,7 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     color: COLORS.secondary,
-    paddingVertical: SPACING.l,
-    fontFamily: FONTS.regular,
+    fontFamily: FONTS.medium,
   },
 });
 

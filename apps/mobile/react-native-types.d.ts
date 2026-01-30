@@ -4,14 +4,36 @@
 
 import 'react';
 import type { ComponentType, ReactElement } from 'react';
-import type { PressableProps } from 'react-native';
+import type { PressableProps, ViewStyle } from 'react-native';
 
-// Override Pressable to return JSX.Element | null instead of ReactNode
+// Override Pressable and Animated to return JSX.Element | null instead of ReactNode
 declare module 'react-native' {
+  import type { ViewProps } from 'react-native';
   interface PressableComponent extends ComponentType<PressableProps> {
     (props: PressableProps): ReactElement | null;
   }
   export const Pressable: PressableComponent;
+  export namespace Animated {
+    export const View: (props: ViewProps) => ReactElement | null;
+  }
+}
+
+declare module 'react-native-safe-area-context' {
+  import type { ReactElement } from 'react';
+  import type { ViewProps } from 'react-native';
+  interface SafeAreaViewProps extends ViewProps {
+    edges?: ('top' | 'bottom' | 'left' | 'right')[];
+    style?: ViewStyle;
+  }
+  export const SafeAreaView: (props: SafeAreaViewProps) => ReactElement | null;
+}
+
+declare module 'react-native-reanimated' {
+  import type { ReactElement } from 'react';
+  import type { ViewProps } from 'react-native';
+  export const Animated: {
+    View: (props: ViewProps) => ReactElement | null;
+  };
 }
 
 // Override the global JSX namespace to allow undefined in Element type

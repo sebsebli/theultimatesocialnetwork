@@ -1,23 +1,33 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, FlatList, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../utils/api';
 import { PostItem } from '../components/PostItem';
-import { PersonCard, TopicCard } from '../components/ExploreCards';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { TopicCard } from '../components/ExploreCards';
+import { UserCard } from '../components/UserCard';
+import { EmptyState } from '../components/EmptyState';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
 type SearchType = 'all' | 'posts' | 'people' | 'topics';
 
 export default function SearchScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ topicSlug?: string }>();
+  const topicSlug = typeof params.topicSlug === 'string' ? params.topicSlug : undefined;
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
-  const [activeType, setActiveType] = useState<SearchType>('all');
+  const [activeType, setActiveType] = useState<SearchType>(topicSlug ? 'posts' : 'all');
   const [results, setResults] = useState<any[]>([]);
   const [allResults, setAllResults] = useState<{ posts: any[]; users: any[]; topics: any[] }>({ posts: [], users: [], topics: [] });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (topicSlug) setActiveType('posts');
+  }, [topicSlug]);
 
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -28,7 +38,7 @@ export default function SearchScreen() {
 
     setLoading(true);
     try {
-      if (activeType === 'all') {
+      if (activeType === 'all' && !topicSlug) {
         const res = await api.get<{ posts: any[]; users: any[]; topics: any[] }>(`/search/all?q=${encodeURIComponent(searchQuery)}&limit=15`);
         setAllResults({
           posts: res.posts || [],
@@ -37,7 +47,8 @@ export default function SearchScreen() {
         });
         setResults([]);
       } else if (activeType === 'posts') {
-        const res = await api.get<{ hits: any[] }>(`/search/posts?q=${encodeURIComponent(searchQuery)}`);
+        const topicParam = topicSlug ? `&topicSlug=${encodeURIComponent(topicSlug)}` : '';
+        const res = await api.get<{ hits: any[] }>(`/search/posts?q=${encodeURIComponent(searchQuery)}${topicParam}`);
         setResults(res.hits || []);
       } else if (activeType === 'people') {
         const res = await api.get<{ hits: any[] }>(`/search/users?q=${encodeURIComponent(searchQuery)}`);
@@ -65,18 +76,65 @@ export default function SearchScreen() {
         }, 300);
       };
     },
-    [activeType]
+    [activeType, topicSlug]
   );
+
+  const flatListData = useMemo(() => {
+    if (activeType === 'all' && !topicSlug) {
+      return [
+        ...(allResults.posts.length ? [{ type: 'section', key: 'posts', title: t('search.posts', 'Posts') }] : []),
+        ...allResults.posts.map((p: any) => ({ type: 'post', ...p, key: p.id })),
+        ...(allResults.users.length ? [{ type: 'section', key: 'people', title: t('search.people', 'People') }] : []),
+        ...allResults.users.map((u: any) => ({ type: 'user', ...u, key: u.id })),
+        ...(allResults.topics.length ? [{ type: 'section', key: 'topics', title: t('search.topics', 'Topics') }] : []),
+        ...allResults.topics.map((tpc: any) => ({ type: 'topic', ...tpc, key: tpc.id })),
+      ];
+    }
+    return results.map((r: any) => ({ ...r, type: activeType === 'posts' ? 'post' : activeType === 'people' ? 'user' : 'topic' }));
+  }, [activeType, allResults, results, t, topicSlug]);
+
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    if (item.type === 'section') {
+      return (
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionHeaderText}>{item.title}</Text>
+        </View>
+      );
+    }
+    if (item.type === 'post') return <PostItem post={item} />;
+    if (item.type === 'user') {
+      return (
+        <UserCard
+          item={item}
+          onPress={() => router.push(`/user/${item.handle}`)}
+        />
+      );
+    }
+    if (item.type === 'topic') {
+      return (
+        <TopicCard
+          item={item}
+          onPress={() => router.push(`/topic/${item.slug}`)}
+        />
+      );
+    }
+    return null;
+  }, [router]);
+
+  const keyExtractor = useCallback((item: any, index: number) => {
+    if (item.type === 'section') return `search-section-${index}-${item.key}`;
+    return `search-${item.type}-${index}-${item.id ?? item.slug ?? item.key ?? index}`;
+  }, []);
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top, paddingHorizontal: HEADER.barPaddingHorizontal, paddingBottom: HEADER.barPaddingBottom }]}>
         <Pressable
           onPress={() => router.back()}
           accessibilityLabel={t('common.goBack', 'Go back')}
           accessibilityRole="button"
         >
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
+          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
         </Pressable>
         <TextInput
           style={styles.searchInput}
@@ -92,117 +150,59 @@ export default function SearchScreen() {
         />
       </View>
 
-      <View style={styles.tabs}>
-        {(['all', 'posts', 'people', 'topics'] as const).map((type) => (
-          <Pressable
-            key={type}
-            style={[styles.tab, activeType === type && styles.tabActive]}
-            onPress={() => {
-              setActiveType(type);
-              if (query) handleSearch(query);
-            }}
-            accessibilityLabel={t(`search.${type}`, type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1))}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeType === type }}
-          >
-            <Text style={[styles.tabText, activeType === type && styles.tabTextActive]}>
-              {t(`search.${type}`, type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1))}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {activeType === 'all' ? (
-        <FlatList
-          data={[
-            ...(allResults.posts.length ? [{ type: 'section', key: 'posts', title: t('search.posts', 'Posts') }] : []),
-            ...allResults.posts.map((p: any) => ({ type: 'post', ...p, key: p.id })),
-            ...(allResults.users.length ? [{ type: 'section', key: 'people', title: t('search.people', 'People') }] : []),
-            ...allResults.users.map((u: any) => ({ type: 'user', ...u, key: u.id })),
-            ...(allResults.topics.length ? [{ type: 'section', key: 'topics', title: t('search.topics', 'Topics') }] : []),
-            ...allResults.topics.map((tpc: any) => ({ type: 'topic', ...tpc, key: tpc.id })),
-          ]}
-          keyExtractor={(item: any) => item.key || item.id}
-          renderItem={({ item }: { item: any }) => {
-            if (item.type === 'section') {
-              return (
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionHeaderText}>{item.title}</Text>
-                </View>
-              );
-            }
-            if (item.type === 'post') return <PostItem post={item} />;
-            if (item.type === 'user') {
-              return (
-                <PersonCard
-                  item={item}
-                  onPress={() => router.push(`/user/${item.handle}`)}
-                  showWhy={false}
-                />
-              );
-            }
-            if (item.type === 'topic') {
-              return (
-                <TopicCard
-                  item={item}
-                  onPress={() => router.push(`/topic/${item.slug}`)}
-                  showWhy={false}
-                />
-              );
-            }
-            return null;
-          }}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>
-                {loading ? t('common.loading') : query ? t('search.noResults') : t('search.startTyping')}
+      {!topicSlug && (
+        <View style={styles.tabs}>
+          {(['all', 'posts', 'people', 'topics'] as const).map((type) => (
+            <Pressable
+              key={type}
+              style={[styles.tab, activeType === type && styles.tabActive]}
+              onPress={() => {
+                setActiveType(type);
+                if (query) handleSearch(query);
+              }}
+              accessibilityLabel={t(`search.${type}`, type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1))}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeType === type }}
+            >
+              <Text style={[styles.tabText, activeType === type && styles.tabTextActive]}>
+                {t(`search.${type}`, type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1))}
               </Text>
-            </View>
-          }
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          initialNumToRender={10}
-          windowSize={10}
-        />
-      ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item: any) => item.id}
-          renderItem={useCallback(({ item }: { item: any }) => {
-            if (activeType === 'posts') {
-              return <PostItem post={item} />;
-            } else if (activeType === 'people') {
-              return (
-                <PersonCard
-                  item={item}
-                  onPress={() => router.push(`/user/${item.handle}`)}
-                  showWhy={false}
-                />
-              );
-            } else {
-              return (
-                <TopicCard
-                  item={item}
-                  onPress={() => router.push(`/topic/${item.slug}`)}
-                  showWhy={false}
-                />
-              );
-            }
-          }, [activeType, router])}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>
-                {loading ? t('common.loading') : query ? t('search.noResults') : t('search.startTyping')}
-              </Text>
-            </View>
-          }
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
-          windowSize={10}
-        />
+            </Pressable>
+          ))}
+        </View>
       )}
+      {topicSlug ? (
+        <View style={styles.topicScopeBar}>
+          <Text style={styles.topicScopeText} numberOfLines={1}>
+            {t('search.withinTopic', 'Searching within this topic')}
+          </Text>
+        </View>
+      ) : null}
+
+      <FlatList
+        data={flatListData}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>{t('common.loading')}</Text>
+            </View>
+          ) : (
+            <EmptyState
+              icon="search"
+              headline={query ? t('search.noResults', 'No results') : (topicSlug ? t('search.typeToSearchInTopic', 'Type to search in this topic') : t('search.startTyping', 'Search posts, people, topics'))}
+              subtext={query ? t('search.noResultsHint', 'Try different keywords.') : undefined}
+            />
+          )
+        }
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        initialNumToRender={10}
+        windowSize={10}
+      />
     </View>
   );
 }
@@ -215,12 +215,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: SPACING.header,
-    paddingBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
     gap: SPACING.m,
+    backgroundColor: COLORS.ink,
   },
   searchInput: {
     flex: 1,
@@ -280,5 +276,17 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  topicScopeBar: {
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.l,
+    backgroundColor: COLORS.hover,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  topicScopeText: {
+    fontSize: 13,
+    color: COLORS.secondary,
+    fontFamily: FONTS.medium,
   },
 });

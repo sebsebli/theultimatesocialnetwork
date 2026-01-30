@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
 export function ComposeEditor() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export function ComposeEditor() {
           style={styles.collapsedButton}
         >
           <View style={styles.collapsedContent}>
-            <MaterialIcons name="edit" size={20} color={COLORS.tertiary} />
+            <MaterialIcons name="edit" size={HEADER.iconSize} color={COLORS.tertiary} />
             <Text style={styles.collapsedText}>{t('compose.placeholder')}</Text>
           </View>
         </Pressable>

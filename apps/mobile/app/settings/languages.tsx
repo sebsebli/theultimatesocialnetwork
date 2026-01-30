@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, Pressable, ScrollView, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { useToast } from '../../context/ToastContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -26,55 +29,74 @@ const LANGUAGES = [
 
 export default function SettingsLanguagesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const [selected, setSelected] = useState<string[]>(['en']); // Should load from user profile
+  const { showError, showSuccess } = useToast();
+  const [selected, setSelected] = useState<string[]>(['en']);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/users/me').then((u: any) => {
+      if (u?.languages?.length) setSelected(u.languages);
+    }).catch(() => { }).finally(() => setLoading(false));
+  }, []);
 
   const toggleLanguage = (code: string) => {
     if (selected.includes(code)) {
+      if (selected.length <= 1) return;
       setSelected(selected.filter(c => c !== code));
     } else {
-      if (selected.length < 3) {
-        setSelected([...selected, code]);
-      }
+      if (selected.length >= 3) return;
+      setSelected([...selected, code]);
     }
   };
 
   const handleSave = async () => {
+    if (selected.length < 1) {
+      showError(t('settings.languagesMinOne', 'Select at least one content language.'));
+      return;
+    }
     setSaving(true);
     try {
-      // API call to save languages
-      // await api.patch('/users/me/languages', { languages: selected });
-      Alert.alert(t('keeps.success'), t('settings.languagesUpdated'));
+      await api.patch('/users/me', { languages: selected });
+      showSuccess(t('settings.languagesUpdated'));
       router.back();
     } catch (error) {
       console.error('Failed to save languages', error);
-      Alert.alert(t('common.error'), t('settings.failedSaveLanguages'));
+      showError(t('settings.failedSaveLanguages'));
     } finally {
       setSaving(false);
     }
   };
 
-  const filteredLanguages = LANGUAGES.filter(l => 
+  const filteredLanguages = LANGUAGES.filter(l =>
     l.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('settings.languages')}</Text>
-        <Pressable 
-          onPress={handleSave}
-          disabled={saving}
-          style={({ pressed }) => ({ opacity: pressed || saving ? 0.5 : 1 })}
-        >
-          <Text style={styles.headerSaveText}>{t('common.save')}</Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title={t('settings.languages')}
+        paddingTop={insets.top}
+        right={
+          <Pressable
+            onPress={handleSave}
+            disabled={saving || selected.length < 1}
+            style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, (pressed || saving || selected.length < 1) && { opacity: 0.5 }]}
+          >
+            <Text style={styles.headerSaveText}>{t('common.save')}</Text>
+          </Pressable>
+        }
+      />
+
+      <Text style={styles.hint}>
+        {t('settings.contentLanguagesHint', 'Content languages: which languages you want in Explore and recommendations. App language follows your device.')}
+      </Text>
+      <Text style={styles.minMaxHint}>
+        {t('settings.languagesMinMax', 'Select 1–3 languages.')}
+      </Text>
 
       <View style={styles.searchContainer}>
         <TextInput
@@ -86,7 +108,7 @@ export default function SettingsLanguagesScreen() {
         />
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
         <View style={styles.grid}>
           {filteredLanguages.map((lang) => (
             <Pressable
@@ -116,26 +138,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: SPACING.header,
-    paddingBottom: SPACING.m,
+  hint: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
     paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    paddingTop: SPACING.s,
+    lineHeight: 20,
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
+  minMaxHint: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.medium,
+    paddingHorizontal: SPACING.l,
+    paddingTop: 4,
+    marginBottom: SPACING.s,
   },
   headerSaveText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: HEADER.saveColor,
     fontFamily: FONTS.semiBold,
   },
   searchContainer: {

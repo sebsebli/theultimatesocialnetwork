@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, Text, Animated, ViewStyle, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, SIZES } from '../constants/theme';
+import { COLORS, FONTS, SPACING, SIZES, HEADER } from '../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -63,8 +63,8 @@ export function Toast({ message, type, onHide, duration = 3000 }: ToastProps) {
   const getColors = () => {
     switch (type) {
       case 'success': return { bg: COLORS.ink, border: COLORS.primary, text: COLORS.paper, icon: COLORS.primary };
-      case 'error': return { bg: COLORS.ink, border: 'rgba(239, 68, 68, 0.5)', text: '#FCA5A5', icon: '#EF4444' }; // red-400
-      default: return { bg: COLORS.ink, border: 'rgba(255, 255, 255, 0.1)', text: COLORS.paper, icon: COLORS.secondary };
+      case 'error': return { bg: COLORS.ink, border: COLORS.error, text: COLORS.paper, icon: COLORS.error };
+      default: return { bg: COLORS.ink, border: COLORS.divider, text: COLORS.paper, icon: COLORS.secondary };
     }
   };
 
@@ -84,7 +84,7 @@ export function Toast({ message, type, onHide, duration = 3000 }: ToastProps) {
         }
       ]}
     >
-      <MaterialIcons name={getIcon()} size={20} color={colors.icon} />
+      <MaterialIcons name={getIcon()} size={HEADER.iconSize} color={colors.icon} />
       <Text style={[styles.message, { color: colors.text }]}>{message}</Text>
     </AnimatedView>
   );

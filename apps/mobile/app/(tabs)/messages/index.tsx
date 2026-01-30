@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, Image, ActivityIndicator, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONTS, SIZES } from '../../../constants/theme';
+import { COLORS, SPACING, FONTS, SIZES, HEADER } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../utils/api';
 import { useToast } from '../../../context/ToastContext';
 import { ErrorState } from '../../../components/ErrorState';
 import { useSocket } from '../../../context/SocketContext';
+import { ScreenHeader } from '../../../components/ScreenHeader';
 
 interface ThreadItem {
   id: string;
@@ -121,13 +122,17 @@ export default function MessagesScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('inbox.messages')}</Text>
-        <Pressable style={styles.headerAction} onPress={() => router.push('/(tabs)/messages/new')}>
-          <MaterialIcons name="edit" size={24} color={COLORS.primary} />
-        </Pressable>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader
+        showBack={false}
+        title={t('inbox.messages')}
+        paddingTop={insets.top}
+        right={
+          <Pressable style={styles.headerAction} onPress={() => router.push('/(tabs)/messages/new')} accessibilityLabel={t('messages.new', 'New message')} accessibilityRole="button">
+            <MaterialIcons name="edit" size={HEADER.iconSize} color={HEADER.iconColor} />
+          </Pressable>
+        }
+      />
 
       <View style={styles.searchContainer}>
         <TextInput
@@ -148,6 +153,8 @@ export default function MessagesScreen() {
       ) : (
         <FlatList
           data={threads}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           renderItem={renderItem}
           keyExtractor={(item: ThreadItem) => item.id}
           contentContainerStyle={styles.listContent}
@@ -156,7 +163,7 @@ export default function MessagesScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <MaterialIcons name="chat-bubble-outline" size={48} color={COLORS.tertiary} />
+              <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
               <Text style={styles.emptyText}>{t('inbox.noMessages')}</Text>
             </View>
           }
@@ -170,21 +177,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   headerAction: {
     padding: SPACING.s,
@@ -200,6 +192,7 @@ const styles = StyleSheet.create({
     color: COLORS.paper,
     fontSize: 16,
     fontFamily: FONTS.regular,
+    letterSpacing: 0,
   },
   listContent: {
     paddingBottom: 100,

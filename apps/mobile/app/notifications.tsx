@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 import { useSocket } from '../context/SocketContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '../components/ScreenHeader';
 
 /** Notifications-only screen (bell). Messages are in the Messages tab. */
 export default function NotificationsScreen() {
@@ -105,31 +106,34 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Go back" accessibilityRole="button">
-          <MaterialIcons name="arrow-back-ios" size={22} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1}>{t('notifications.title', 'Notifications')}</Text>
-        {notifications.length > 0 ? (
-          <Pressable
-            onPress={async () => {
-              try {
-                await api.post('/notifications/read-all');
-                loadContent(1, true);
-              } catch (error) {
-                console.error('Failed to mark all read', error);
-              }
-            }}
-            accessibilityLabel={t('notifications.markAllRead', 'Mark all read')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.markAllRead}>{t('notifications.markAllRead', 'Mark all read')}</Text>
-          </Pressable>
-        ) : <View style={{ width: 80 }} />}
-      </View>
+      <ScreenHeader
+        title={t('notifications.title', 'Notifications')}
+        paddingTop={insets.top}
+        right={
+          notifications.length > 0 ? (
+            <Pressable
+              onPress={async () => {
+                try {
+                  await api.post('/notifications/read-all');
+                  loadContent(1, true);
+                } catch (error) {
+                  console.error('Failed to mark all read', error);
+                }
+              }}
+              style={styles.headerAction}
+              accessibilityLabel={t('notifications.markAllRead', 'Mark all read')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.markAllRead}>{t('notifications.markAllRead', 'Mark all read')}</Text>
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       <FlatList
         data={notifications}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
         keyExtractor={(item: any) => item.id}
         renderItem={renderNotification}
         ListEmptyComponent={
@@ -164,25 +168,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  header: {
-    paddingBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    padding: SPACING.xs,
-    marginRight: SPACING.xs,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
+  headerAction: {
+    padding: SPACING.s,
   },
   markAllRead: {
     fontSize: 15,

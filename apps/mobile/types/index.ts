@@ -20,6 +20,7 @@ export interface Post {
   quoteCount: number;
   isLiked?: boolean;
   isKept?: boolean;
+  privateLikeCount?: number;
   headerImageKey?: string;
   headerImageBlurhash?: string;
   readingTimeMinutes?: number;

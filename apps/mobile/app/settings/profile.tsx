@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { ConfirmModal } from '../../components/ConfirmModal';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 const HANDLE_MIN = 3;
 const HANDLE_MAX = 30;
@@ -25,6 +27,7 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [initialHandle, setInitialHandle] = useState('');
   const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [confirmUpdateVisible, setConfirmUpdateVisible] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -94,41 +97,32 @@ export default function EditProfileScreen() {
     };
   }, [handle, handleLen, handleTooShort, handleTooLong, checkAvailability, isHandleChanged]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!displayName.trim() || !handle.trim()) {
       showError(t('onboarding.fieldsRequired'));
       return;
     }
-    // ... (validations)
+    setConfirmUpdateVisible(true);
+  };
 
-    Alert.alert(
-      t('settings.confirmUpdate', 'Update Profile?'),
-      t('settings.updateWarning', 'You will not be able to change your name or handle again for 14 days.'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.save'),
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await api.patch('/users/me', {
-                displayName: displayName.trim(),
-                handle: normalizedHandle,
-                bio: bio.trim(),
-                isProtected,
-              });
-              showSuccess(t('settings.profileUpdated', 'Profile updated successfully'));
-              router.back();
-            } catch (error: any) {
-              console.error('Failed to update profile', error);
-              showError(error?.message || t('onboarding.profile.updateFailed'));
-            } finally {
-              setLoading(false);
-            }
-          }
-        }
-      ]
-    );
+  const confirmUpdate = async () => {
+    setLoading(true);
+    try {
+      await api.patch('/users/me', {
+        displayName: displayName.trim(),
+        handle: normalizedHandle,
+        bio: bio.trim(),
+        isProtected,
+      });
+      showSuccess(t('settings.profileUpdated', 'Profile updated successfully'));
+      router.back();
+    } catch (error: any) {
+      console.error('Failed to update profile', error);
+      showError(error?.message || t('onboarding.profile.updateFailed'));
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const canSubmit = Boolean(displayName.trim() && normalizedHandle.length >= HANDLE_MIN && normalizedHandle.length <= HANDLE_MAX && handleStatus === 'available' && !loading);
@@ -138,25 +132,25 @@ export default function EditProfileScreen() {
       style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('profile.editProfile', 'Edit Profile')}</Text>
-        <Pressable 
-            onPress={handleSubmit} 
+      <ScreenHeader
+        title={t('profile.editProfile', 'Edit Profile')}
+        paddingTop={insets.top}
+        right={
+          <Pressable
+            onPress={handleSubmit}
             disabled={!canSubmit || loading}
             style={[styles.saveButton, (!canSubmit || loading) && styles.saveButtonDisabled]}
-        >
+          >
             <Text style={styles.saveButtonText}>{t('common.save', 'Save')}</Text>
-        </Pressable>
-      </View>
+          </Pressable>
+        }
+      />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
         
         {/* Warning Banner */}
         <View style={styles.warningBanner}>
-            <MaterialIcons name="info-outline" size={20} color={COLORS.tertiary} />
+            <MaterialIcons name="info-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
             <Text style={styles.warningText}>
                 You can only change your name and handle once every 14 days.
             </Text>
@@ -216,13 +210,13 @@ export default function EditProfileScreen() {
                 )}
                 {handleStatus === 'available' && (
                   <View style={styles.availabilityRow}>
-                    <MaterialIcons name="check-circle" size={16} color="#22c55e" style={styles.availabilityIcon} />
+                    <MaterialIcons name="check-circle" size={HEADER.iconSize} color="#22c55e" style={styles.availabilityIcon} />
                     <Text style={styles.availabilityAvailable}>{t('onboarding.profile.handleAvailable')}</Text>
                   </View>
                 )}
                 {handleStatus === 'taken' && (
                   <View style={styles.availabilityRow}>
-                    <MaterialIcons name="cancel" size={16} color={COLORS.error} style={styles.availabilityIcon} />
+                    <MaterialIcons name="cancel" size={HEADER.iconSize} color={COLORS.error} style={styles.availabilityIcon} />
                     <Text style={styles.availabilityTaken}>{t('onboarding.profile.handleTaken')}</Text>
                   </View>
                 )}
@@ -253,7 +247,7 @@ export default function EditProfileScreen() {
               <View style={styles.privacyHeader}>
                 <MaterialIcons
                   name={isProtected ? "lock" : "public"}
-                  size={20}
+                  size={HEADER.iconSize}
                   color={isProtected ? COLORS.primary : COLORS.secondary}
                 />
                 <Text style={styles.privacyLabel}>
@@ -272,6 +266,16 @@ export default function EditProfileScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        visible={confirmUpdateVisible}
+        title={t('settings.confirmUpdate', 'Update Profile?')}
+        message={t('settings.updateWarning', 'You will not be able to change your name or handle again for 14 days.')}
+        confirmLabel={t('common.save')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmUpdate}
+        onCancel={() => setConfirmUpdateVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -281,28 +285,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  header: {
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    height: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  backButton: {
-    padding: SPACING.s,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
   saveButton: {
-    paddingHorizontal: SPACING.m,
-    paddingVertical: SPACING.xs,
+    padding: SPACING.s,
+    margin: -SPACING.s,
   },
   saveButtonDisabled: {
     opacity: 0.5,
@@ -310,7 +295,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: HEADER.saveColor,
     fontFamily: FONTS.semiBold,
   },
   content: {

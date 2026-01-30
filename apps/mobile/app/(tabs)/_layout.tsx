@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs, Redirect, useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONTS } from '../../constants/theme';
+import { COLORS, SPACING, FONTS, HEADER } from '../../constants/theme';
 import { Text, View, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/auth';
@@ -26,7 +26,7 @@ export default function TabLayout() {
   }
 
   if (onboardingComplete !== true) {
-    return <Redirect href="/onboarding/languages" />;
+    return <Redirect href="/onboarding" />;
   }
 
   return (
@@ -35,8 +35,6 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: COLORS.ink,
-          borderTopColor: COLORS.divider,
-          borderTopWidth: 1,
           height: 50 + insets.bottom,
           paddingTop: 5,
           paddingBottom: insets.bottom,
@@ -45,6 +43,7 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
+          borderTopWidth: 0,
         },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.tertiary,
@@ -60,7 +59,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <MaterialIcons
               name="home"
-              size={28}
+              size={HEADER.iconSize}
               color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),
@@ -73,7 +72,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <MaterialIcons
               name="search"
-              size={28}
+              size={HEADER.iconSize}
               color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),
@@ -108,7 +107,7 @@ export default function TabLayout() {
             }}>
               <MaterialIcons
                 name="edit"
-                size={28}
+                size={HEADER.iconSize}
                 color={COLORS.ink}
               />
             </View>
@@ -123,7 +122,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <MaterialIcons
               name="chat-bubble-outline"
-              size={28}
+              size={HEADER.iconSize}
               color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),
@@ -136,7 +135,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <MaterialIcons
               name="person"
-              size={28}
+              size={HEADER.iconSize}
               color={focused ? COLORS.primary : COLORS.tertiary}
             />
           ),

@@ -5,16 +5,40 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
 import { api } from '../../../utils/api';
-import { PersonCard } from '../../../components/ExploreCards';
+import { UserCard } from '../../../components/UserCard';
+import { useAuth } from '../../../context/auth';
+import { useToast } from '../../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '../../../components/ScreenHeader';
 
 export default function NewMessageScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { userId: currentUserId } = useAuth();
+  const { showError } = useToast();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
+  const [suggested, setSuggested] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [suggestedLoading, setSuggestedLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      setSuggestedLoading(true);
+      try {
+        const res = await api.get('/users/me/suggested?limit=20');
+        const list = Array.isArray(res) ? res : [];
+        setSuggested(list.filter((u: any) => u.id && u.id !== currentUserId));
+      } catch (error) {
+        console.error(error);
+        setSuggested([]);
+      } finally {
+        setSuggestedLoading(false);
+      }
+    };
+    load();
+  }, [currentUserId]);
 
   useEffect(() => {
     const search = async () => {
@@ -26,7 +50,7 @@ export default function NewMessageScreen() {
       try {
         const res = await api.get(`/search/users?q=${encodeURIComponent(query.trim())}&limit=20`);
         const hits = res.hits || [];
-        setResults(hits);
+        setResults(hits.filter((u: any) => u.id !== currentUserId));
       } catch (error) {
         console.error(error);
         setResults([]);
@@ -37,30 +61,28 @@ export default function NewMessageScreen() {
 
     const timeout = setTimeout(search, 300);
     return () => clearTimeout(timeout);
-  }, [query]);
+  }, [query, currentUserId]);
 
   const handleSelectUser = async (user: any) => {
     try {
-      // Find or create thread
       const thread = await api.post('/messages/threads', { userId: user.id });
       if (thread && thread.id) {
-        // Replace current screen with thread to avoid back stack loop
         router.replace(`/(tabs)/messages/${thread.id}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create thread', error);
+      const msg = error?.message ?? '';
+      if (error?.status === 403 && /follow each other|prior interaction/i.test(msg)) {
+        showError(t('messages.mustFollowOrPrior', 'You can only message people who follow you back or who you\'ve messaged before.'));
+      } else {
+        showError(t('messages.createThreadFailed', 'Could not start conversation. Try again.'));
+      }
     }
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.title}>{t('messages.newMessage', 'New Message')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title={t('messages.newMessage', 'New Message')} paddingTop={insets.top} />
 
       <View style={styles.searchContainer}>
         <TextInput
@@ -77,20 +99,32 @@ export default function NewMessageScreen() {
         <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
       ) : (
         <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <PersonCard
-              item={item}
+          data={query.trim() ? results : suggested}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item: { id: string }) => item.id}
+          renderItem={({ item }: { item: { id: string; handle: string; displayName: string; bio?: string; avatarUrl?: string; isFollowing?: boolean } }) => (
+            <UserCard
+              item={{
+                id: item.id,
+                handle: item.handle,
+                displayName: item.displayName,
+                bio: item.bio,
+                avatarUrl: item.avatarUrl,
+                isFollowing: item.isFollowing,
+              }}
               onPress={() => handleSelectUser(item)}
-              showWhy={false}
             />
           )}
           contentContainerStyle={{ paddingBottom: 40 }}
           ListEmptyComponent={
             query.length > 0 ? (
               <Text style={styles.emptyText}>{t('common.noResults')}</Text>
-            ) : null
+            ) : suggestedLoading ? (
+              <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
+            ) : (
+              <Text style={styles.emptyText}>{t('messages.noSuggested', 'No suggested people to message.')}</Text>
+            )
           }
         />
       )}
@@ -102,24 +136,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  backButton: {
-    padding: SPACING.xs,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   searchContainer: {
     padding: SPACING.m,

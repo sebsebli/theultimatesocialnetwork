@@ -4,9 +4,11 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
 interface Collection {
   id: string;
@@ -17,6 +19,7 @@ interface Collection {
 
 export default function CollectionsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { showError } = useToast();
   const [collections, setCollections] = useState<any[]>([]);
@@ -93,16 +96,20 @@ export default function CollectionsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('collections.title')}</Text>
-        <Pressable
-          onPress={() => setModalVisible(true)}
-          accessibilityLabel={t('collections.create')}
-          accessibilityRole="button"
-        >
-          <Text style={styles.createButton}>{t('common.create')}</Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title={t('collections.title')}
+        paddingTop={insets.top}
+        right={
+          <Pressable
+            onPress={() => setModalVisible(true)}
+            style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, pressed && { opacity: 0.7 }]}
+            accessibilityLabel={t('collections.create')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.createButton}>{t('common.create')}</Text>
+          </Pressable>
+        }
+      />
 
       {collections.length === 0 ? (
         <View style={styles.emptyState}>
@@ -119,6 +126,8 @@ export default function CollectionsScreen() {
       ) : (
         <FlatList
           data={collections}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           refreshControl={
@@ -178,22 +187,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: SPACING.header,
-    paddingBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   createButton: {
     fontSize: 16,

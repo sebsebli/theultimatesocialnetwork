@@ -1,26 +1,45 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Image } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/auth';
+import { useToast } from '../../context/ToastContext';
+import { ConfirmModal } from '../../components/ConfirmModal';
+import { ReportModal } from '../../components/ReportModal';
+import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { PostItem } from '../../components/PostItem';
 import { ProfileSkeleton, PostSkeleton } from '../../components/LoadingSkeleton';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { EmptyState } from '../../components/EmptyState';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+
+const TAB_BAR_HEIGHT = 50;
 
 export default function UserProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { handle } = useLocalSearchParams();
   const { t } = useTranslation();
+  const { userId: authUserId } = useAuth();
+  const { showError, showSuccess } = useToast();
+  const [blockConfirmVisible, setBlockConfirmVisible] = useState(false);
+  const [muteConfirmVisible, setMuteConfirmVisible] = useState(false);
+  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportTargetId, setReportTargetId] = useState<string | null>(null);
+  const [reportTargetType, setReportTargetType] = useState<'POST' | 'REPLY' | 'USER' | 'DM'>('USER');
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
+  const isOwnProfile = !!user && !!authUserId && user.id === authUserId;
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [following, setFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'collections'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'saved' | 'collections'>('posts');
 
   useEffect(() => {
     const h = typeof handle === 'string' ? handle : handle?.[0];
@@ -63,7 +82,8 @@ export default function UserProfileScreen() {
 
       const fetchContent = async (userId: string) => {
         let path;
-        if (activeTab === 'replies') path = `/users/${userId}/replies?page=${pageNum}&limit=20`;
+        if (activeTab === 'saved') path = `/keeps?page=${pageNum}&limit=20`;
+        else if (activeTab === 'replies') path = `/users/${userId}/replies?page=${pageNum}&limit=20`;
         else if (activeTab === 'quotes') path = `/users/${userId}/quotes?page=${pageNum}&limit=20`;
         else if (activeTab === 'collections') path = `/users/${userId}/collections?page=${pageNum}&limit=20`;
         else path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=posts`;
@@ -83,7 +103,11 @@ export default function UserProfileScreen() {
       }
 
       // API may return { items, hasMore } or plain array for replies/quotes
-      const items = Array.isArray(contentData) ? contentData : (Array.isArray(contentData?.items) ? contentData.items : contentData?.items ?? []);
+      let rawItems = Array.isArray(contentData) ? contentData : (Array.isArray(contentData?.items) ? contentData.items : contentData?.items ?? []);
+      // Saved tab: items are keeps with .post; normalize to posts for list
+      const items = activeTab === 'saved'
+        ? (rawItems as any[]).map((k: any) => k.post).filter(Boolean)
+        : rawItems;
 
       if (reset) {
         setPosts(items);
@@ -92,7 +116,9 @@ export default function UserProfileScreen() {
       }
 
       const hasMoreData = items.length >= 20 && (contentData?.hasMore !== false);
-      setHasMore(hasMoreData);
+      // Saved tab: use raw keeps length for hasMore
+      const hasMoreSaved = activeTab === 'saved' ? (contentData?.hasMore === true) : hasMoreData;
+      setHasMore(activeTab === 'saved' ? hasMoreSaved : hasMoreData);
     } catch (error: any) {
       console.error('Failed to load profile', error);
       if (reset && activeTab === 'posts') setUser(null);
@@ -135,104 +161,68 @@ export default function UserProfileScreen() {
     try {
       const thread = await api.post('/messages/threads', { userId: user.id });
       if (thread && thread.id) {
-        router.push(`/messages/${thread.id}`);
+        router.push(`/(tabs)/messages/${thread.id}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create thread', error);
-      // Fallback: just go to inbox if fails
-      router.push('/(tabs)/inbox');
+      const msg = error?.message ?? '';
+      if (error?.status === 403 && /follow each other|prior interaction/i.test(msg)) {
+        showError(t('messages.mustFollowOrPrior', 'You can only message people who follow you back or who you\'ve messaged before.'));
+      } else {
+        showError(t('messages.createThreadFailed', 'Could not start conversation. Try again.'));
+      }
     }
   };
 
-  const handleBlock = async () => {
-    Alert.alert(
-      t('safety.blockUser', 'Block User'),
-      t('safety.blockConfirm', `Are you sure you want to block @${user.handle}? You won't see their posts or messages.`),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('safety.block', 'Block'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.post(`/safety/block/${user.id}`);
-              Alert.alert(t('safety.blocked', 'User Blocked'), t('safety.blockedMessage', 'This user has been blocked.'));
-              router.back();
-            } catch (error) {
-              console.error('Failed to block user', error);
-              Alert.alert(t('common.error', 'Error'), t('safety.failedBlock', 'Failed to block user.'));
-            }
-          }
-        }
-      ]
-    );
+  const handleBlock = () => setBlockConfirmVisible(true);
+
+  const confirmBlock = async () => {
+    try {
+      await api.post(`/safety/block/${user.id}`);
+      showSuccess(t('safety.blockedMessage', 'This user has been blocked.'));
+      router.back();
+    } catch (error) {
+      console.error('Failed to block user', error);
+      showError(t('safety.failedBlock', 'Failed to block user.'));
+      throw error;
+    }
   };
 
-  const handleMute = async () => {
-    Alert.alert(
-      t('safety.muteUser', 'Mute User'),
-      t('safety.muteConfirm', `Are you sure you want to mute @${user.handle}? You won't see their posts in your feed.`),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('safety.mute', 'Mute'),
-          onPress: async () => {
-            try {
-              await api.post(`/safety/mute/${user.id}`);
-              Alert.alert(t('safety.muted', 'User Muted'), t('safety.mutedMessage', 'This user has been muted.'));
-            } catch (error) {
-              console.error('Failed to mute user', error);
-              Alert.alert(t('common.error', 'Error'), t('safety.failedMute', 'Failed to mute user.'));
-            }
-          }
-        }
-      ]
-    );
+  const handleMute = () => setMuteConfirmVisible(true);
+
+  const confirmMute = async () => {
+    try {
+      await api.post(`/safety/mute/${user.id}`);
+      showSuccess(t('safety.mutedMessage', 'This user has been muted.'));
+    } catch (error) {
+      console.error('Failed to mute user', error);
+      showError(t('safety.failedMute', 'Failed to mute user.'));
+      throw error;
+    }
   };
 
-  const handleUserMenu = () => {
-    Alert.alert(
-      t('profile.options', 'Options for @' + user.handle),
-      undefined,
-      [
-        { text: t('safety.mute', 'Mute User'), onPress: handleMute },
-        { text: t('safety.block', 'Block User'), onPress: handleBlock, style: 'destructive' },
-        { text: t('safety.report', 'Report User'), onPress: () => handleReport(user.id, 'USER'), style: 'destructive' },
-        { text: t('common.cancel'), style: 'cancel' },
-      ]
-    );
+  const handleUserMenu = () => setOptionsModalVisible(true);
+
+  const openReportModal = (targetId: string, type: 'POST' | 'REPLY' | 'USER') => {
+    setReportTargetId(targetId);
+    setReportTargetType(type);
+    setReportModalVisible(true);
   };
 
-  const handleReport = async (targetId: string, type: 'POST' | 'REPLY' | 'USER') => {
-    Alert.alert(
-      t('safety.reportTitle', 'Report'),
-      t('safety.reportMessage', 'Are you sure you want to report this?'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('safety.report', 'Report'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.post('/safety/report', {
-                targetId,
-                targetType: type,
-                reason: 'Reported via mobile app',
-              });
-              Alert.alert(t('common.success', 'Success'), t('safety.reportSuccess', 'Report submitted successfully'));
-            } catch (error) {
-              console.error('Failed to report', error);
-              Alert.alert(t('common.error', 'Error'), t('safety.reportError', 'Failed to submit report'));
-            }
-          }
-        }
-      ]
-    );
+  const handleReportSubmit = async (reason: string, comment?: string) => {
+    if (!reportTargetId) return;
+    await api.post('/safety/report', {
+      targetId: reportTargetId,
+      targetType: reportTargetType,
+      reason,
+      comment,
+    });
+    showSuccess(t('safety.reportSuccess', 'Report submitted successfully'));
   };
 
-  const bottomPadding = 80;
+  const bottomPadding = TAB_BAR_HEIGHT + insets.bottom + 24;
 
-  if (loading) {
+  if (loading && !user) {
     return (
       <View style={[styles.container, { paddingBottom: bottomPadding }]}>
         <View style={styles.headerBar} />
@@ -252,148 +242,206 @@ export default function UserProfileScreen() {
   }
 
   return (
-    <FlatList
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: bottomPadding }}
-      data={posts}
-      keyExtractor={(item: any) => item.id}
-      renderItem={({ item }: { item: any }) => <PostItem post={item} />}
-      ListHeaderComponent={
-        <>
-          <View style={styles.headerBar}>
-            <Pressable
-              onPress={() => router.back()}
-              style={styles.iconButton}
-              accessibilityLabel="Go back"
-              accessibilityRole="button"
-            >
-              <MaterialIcons name="arrow-back-ios" size={24} color={COLORS.paper} />
-            </Pressable>
-            <Pressable
-              style={styles.iconButton}
-              onPress={() => handleUserMenu()}
-              accessibilityLabel="More options"
-              accessibilityRole="button"
-            >
-              <MaterialIcons name="more-horiz" size={24} color={COLORS.paper} />
-            </Pressable>
-          </View>
+    <View style={styles.container}>
+      {/* Sticky header: back + more – stays on top while content scrolls */}
+      <View style={[styles.headerBar, { paddingTop: insets.top + SPACING.s }]}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.iconButton}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
+        </Pressable>
+        <Pressable
+          style={styles.iconButton}
+          onPress={() => handleUserMenu()}
+          accessibilityLabel="More options"
+          accessibilityRole="button"
+        >
+          <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
+        </Pressable>
+      </View>
 
-          <View style={styles.profileHeader}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
-                </Text>
+      <FlatList
+        style={styles.list}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: bottomPadding }}
+        data={posts}
+        keyExtractor={(item: any) => item.id}
+        renderItem={({ item }: { item: any }) => <PostItem post={item} />}
+        ListHeaderComponent={
+          <>
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatar}>
+                  {user.avatarUrl ? (
+                    <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarText}>
+                      {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.identityBlock}>
+                <Text style={styles.name}>{user.displayName}</Text>
+                <Text style={styles.handle}>@{user.handle}</Text>
+              </View>
+
+              {user.bio && (
+                <Text style={styles.bio}>{user.bio}</Text>
+              )}
+
+              <View style={styles.actions}>
+                <Pressable
+                  style={[styles.actionButtonOutline, following && styles.actionButtonActive]}
+                  onPress={handleFollow}
+                  accessibilityLabel={following ? t('profile.following') : t('profile.follow')}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.actionButtonText, following && styles.actionButtonTextActive]}>
+                    {following ? t('profile.following') : t('profile.follow')}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.messageButton}
+                  onPress={handleMessage}
+                  accessibilityLabel={t('profile.message')}
+                  accessibilityRole="button"
+                >
+                  <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
+                </Pressable>
               </View>
             </View>
 
-            <View style={styles.identityBlock}>
-              <Text style={styles.name}>{user.displayName}</Text>
-              <Text style={styles.handle}>@{user.handle}</Text>
-            </View>
-
-            {user.bio && (
-              <Text style={styles.bio}>{user.bio}</Text>
-            )}
-
-            <View style={styles.actions}>
+            <View style={styles.statsRow}>
               <Pressable
-                style={[styles.actionButtonOutline, following && styles.actionButtonActive]}
-                onPress={handleFollow}
-                accessibilityLabel={following ? t('profile.following') : t('profile.follow')}
-                accessibilityRole="button"
+                style={styles.statItem}
+                onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
               >
-                <Text style={[styles.actionButtonText, following && styles.actionButtonTextActive]}>
-                  {following ? t('profile.following') : t('profile.follow')}
-                </Text>
+                <Text style={styles.statNumber}>{user.followerCount}</Text>
+                <Text style={styles.statLabel}>{t('profile.followers')}</Text>
               </Pressable>
-
               <Pressable
-                style={styles.messageButton}
-                onPress={handleMessage}
-                accessibilityLabel={t('profile.message')}
-                accessibilityRole="button"
+                style={styles.statItem}
+                onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
               >
-                <MaterialIcons name="mail-outline" size={20} color={COLORS.paper} />
+                <Text style={styles.statNumber}>{user.followingCount}</Text>
+                <Text style={styles.statLabel}>{t('profile.following')}</Text>
               </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.statsRow}>
-            <Pressable
-              style={styles.statItem}
-              onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
-            >
-              <Text style={styles.statNumber}>{user.followerCount}</Text>
-              <Text style={styles.statLabel}>{t('profile.followers')}</Text>
-            </Pressable>
-            <Pressable
-              style={styles.statItem}
-              onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
-            >
-              <Text style={styles.statNumber}>{user.followingCount}</Text>
-              <Text style={styles.statLabel}>{t('profile.following')}</Text>
-            </Pressable>
-            <View style={styles.statItem}>
-              <View style={styles.verifiedBadge}>
-                <MaterialIcons name="verified" size={16} color={COLORS.tertiary} />
+              <View style={styles.statItem}>
+                <View style={styles.verifiedBadge}>
+                  <MaterialIcons name="verified" size={HEADER.iconSize} color={COLORS.tertiary} />
+                </View>
+                <Text style={styles.statNumber}>{user.quoteReceivedCount}</Text>
+                <Text style={[styles.statLabel, { color: COLORS.primary }]}>{t('profile.quotes')}</Text>
               </View>
-              <Text style={styles.statNumber}>{user.quoteReceivedCount}</Text>
-              <Text style={[styles.statLabel, { color: COLORS.primary }]}>{t('profile.quotes')}</Text>
             </View>
-          </View>
 
-          <View style={styles.tabsContainer}>
-            {(['posts', 'replies', 'quotes', 'collections'] as const).map((tab) => (
-              <Pressable
-                key={tab}
-                style={[styles.tab, activeTab === tab && styles.tabActive]}
-                onPress={() => setActiveTab(tab)}
-                accessibilityLabel={t(`profile.${tab}`)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: activeTab === tab }}
-              >
-                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                  {t(`profile.${tab}`)}
-                </Text>
-              </Pressable>
-            ))}
+            <View style={styles.tabsContainer}>
+              {(isOwnProfile
+                ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
+                : (['posts', 'replies', 'quotes', 'collections'] as const)
+              ).map((tab) => (
+                <Pressable
+                  key={tab}
+                  style={[styles.tab, activeTab === tab && styles.tabActive]}
+                  onPress={() => setActiveTab(tab)}
+                  accessibilityLabel={t(`profile.${tab}`)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeTab === tab }}
+                >
+                  <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                    {t(`profile.${tab}`)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          <EmptyState
+            icon="inbox"
+            headline={
+              activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
+                : activeTab === 'collections' ? t('profile.noCollections', 'No public collections')
+                  : activeTab === 'replies' ? t('profile.noReplies', 'No replies yet')
+                    : activeTab === 'quotes' ? t('profile.noQuotes', 'No quotes yet')
+                      : t('profile.noPosts', 'No posts yet')
+            }
+            subtext={
+              activeTab === 'posts' ? t('profile.noPostsHint', 'Posts will appear here.') : undefined
+            }
+          />
+        }
+        ListFooterComponent={loadingMore ? (
+          <View style={styles.footerLoader}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
           </View>
-        </>
-      }
-      ListEmptyComponent={
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>
-            {activeTab === 'collections' ? (t('profile.noCollections', 'No public collections') || 'No public collections')
-              : activeTab === 'replies' ? (t('profile.noReplies', 'No replies yet') || 'No replies yet')
-                : activeTab === 'quotes' ? (t('profile.noQuotes', 'No quotes yet') || 'No quotes yet')
-                  : t('profile.noPosts')}
-          </Text>
-        </View>
-      }
-      ListFooterComponent={<View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-      </View>}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => {
-            setRefreshing(true);
-            loadProfile(1, true);
-            setRefreshing(false);
-          }}
-          tintColor={COLORS.primary}
-        />
-      }
-      onEndReached={() => loadProfile(page + 1, false).finally(() => setLoadingMore(false))}
-      onEndReachedThreshold={0.5}
-      removeClippedSubviews={true}
-      maxToRenderPerBatch={10}
-      updateCellsBatchingPeriod={50}
-      initialNumToRender={10}
-      windowSize={10}
-    />
+        ) : null}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadProfile(1, true);
+              setRefreshing(false);
+            }}
+            tintColor={COLORS.primary}
+          />
+        }
+        onEndReached={() => loadProfile(page + 1, false).finally(() => setLoadingMore(false))}
+        onEndReachedThreshold={0.5}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
+      />
+
+      <ConfirmModal
+        visible={blockConfirmVisible}
+        title={t('safety.blockUser', 'Block User')}
+        message={t('safety.blockConfirm', `Are you sure you want to block @${user?.handle ?? ''}? You won't see their posts or messages.`)}
+        confirmLabel={t('safety.block', 'Block')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={confirmBlock}
+        onCancel={() => setBlockConfirmVisible(false)}
+      />
+      <ConfirmModal
+        visible={muteConfirmVisible}
+        title={t('safety.muteUser', 'Mute User')}
+        message={t('safety.muteConfirm', `Are you sure you want to mute @${user?.handle ?? ''}? You won't see their posts in your feed.`)}
+        confirmLabel={t('safety.mute', 'Mute')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmMute}
+        onCancel={() => setMuteConfirmVisible(false)}
+      />
+      <OptionsActionSheet
+        visible={optionsModalVisible}
+        title={t('profile.options', 'Options for @' + (user?.handle ?? ''))}
+        cancelLabel={t('common.cancel')}
+        options={[
+          { label: t('profile.message'), onPress: handleMessage },
+          { label: t('safety.mute', 'Mute User'), onPress: handleMute },
+          { label: t('safety.block', 'Block User'), onPress: handleBlock, destructive: true },
+          { label: t('safety.report', 'Report User'), onPress: () => openReportModal(user.id, 'USER'), destructive: true },
+        ]}
+        onCancel={() => setOptionsModalVisible(false)}
+      />
+      <ReportModal
+        visible={reportModalVisible}
+        targetType={reportTargetType}
+        onClose={() => { setReportModalVisible(false); setReportTargetId(null); }}
+        onReport={handleReportSubmit}
+        title={t('safety.reportTitle', 'Report')}
+      />
+    </View>
   );
 }
 
@@ -406,14 +454,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.header + 10,
-    paddingBottom: SPACING.s,
+    paddingHorizontal: HEADER.barPaddingHorizontal,
+    paddingBottom: HEADER.barPaddingBottom,
+    backgroundColor: COLORS.ink,
+  },
+  list: {
+    flex: 1,
   },
   iconButton: {
     padding: SPACING.s,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    margin: -SPACING.s,
   },
   profileHeader: {
     alignItems: 'center',
@@ -434,10 +484,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.divider,
   },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 48,
+  },
   avatarText: {
     fontSize: 32,
     fontWeight: '600',
-    color: COLORS.primary, // text-primary
+    color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
   identityBlock: {

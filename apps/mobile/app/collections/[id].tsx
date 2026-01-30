@@ -1,22 +1,29 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Share, Alert } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Share } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
+import { OptionsActionSheet } from '../../components/OptionsActionSheet';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { PostItem } from '../../components/PostItem';
+import { TopicCollectionHeader, pickRandomHeaderImageKey } from '../../components/TopicCollectionHeader';
+import { EmptyState } from '../../components/EmptyState';
 import { Collection, CollectionItem } from '../../types';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 
 export default function CollectionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { t } = useTranslation();
-  const { showToast } = useToast();
+  const { showToast, showSuccess, showError } = useToast();
   const [collection, setCollection] = useState<Collection | null>(null);
+  const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [items, setItems] = useState<CollectionItem[]>([]);
+  const [headerImageKey, setHeaderImageKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -49,6 +56,19 @@ export default function CollectionDetailScreen() {
 
   const handleAddCitation = () => {
     showToast("To add items, browse posts and tap the 'Keep' or 'Add to Collection' button.");
+  };
+
+  const handleDeleteCollection = async () => {
+    try {
+      await api.delete(`/collections/${id}`);
+      showSuccess(t('collections.deleted', 'Collection deleted'));
+      setDeleteConfirmVisible(false);
+      setMoreOptionsVisible(false);
+      router.back();
+    } catch (error) {
+      showError(t('collections.deleteFailed', 'Failed to delete collection'));
+      throw error;
+    }
   };
 
   useEffect(() => {
@@ -117,6 +137,15 @@ export default function CollectionDetailScreen() {
     return Array.from(authors.values());
   }, [items]);
 
+  useEffect(() => {
+    if (items.length === 0) return;
+    const key = pickRandomHeaderImageKey(
+      items.map(i => i.post).filter(Boolean),
+      typeof id === 'string' ? id : (id?.[0] ?? '')
+    );
+    setHeaderImageKey(prev => prev ?? key);
+  }, [items, id]);
+
   const renderItem = useCallback(({ item }: { item: CollectionItem }) => (
     <View style={styles.itemContainer}>
       <PostItem post={item.post} />
@@ -158,71 +187,38 @@ export default function CollectionDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <View style={styles.placeholder} />
-        <Pressable
-          onPress={handleShare}
-          accessibilityLabel={t('common.share')}
-          accessibilityRole="button"
-        >
-          <Text style={styles.shareButton}>{t('common.share')}</Text>
-        </Pressable>
-      </View>
+      <TopicCollectionHeader
+        type="collection"
+        title={collection.title}
+        description={collection.description}
+        headerImageKey={headerImageKey}
+        onBack={() => router.back()}
+        onAction={handleShare}
+        actionLabel={t('common.share')}
+        rightAction="more"
+        onRightAction={() => setMoreOptionsVisible(true)}
+        metrics={{ itemCount: items.length }}
+      />
 
-      <View style={styles.info}>
-        <Text style={styles.collectionLabel}>COLLECTION</Text>
-        <Text style={styles.collectionTitle}>{collection.title}</Text>
-        {collection.description && (
-          <Text style={styles.description}>{collection.description}</Text>
-        )}
-        <View style={styles.metaRow}>
-          <View style={styles.avatarStack}>
-            {contributors.length === 0 ? (
-              <View style={[styles.avatarSmall, { backgroundColor: COLORS.hover }]} />
-            ) : (
-              <>
-                {contributors.slice(0, 3).map((author: any, index) => (
-                  <View
-                    key={author.id}
-                    style={[
-                      styles.avatarSmall,
-                      index > 0 && styles.avatarOverlay,
-                      {
-                        backgroundColor: COLORS.hover,
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }
-                    ]}
-                  >
-                    <Text style={{ fontSize: 10, fontWeight: '600', color: COLORS.primary }}>
-                      {author.displayName?.charAt(0)}
-                    </Text>
-                  </View>
-                ))}
-                {contributors.length > 3 && (
-                  <View style={[styles.avatarSmall, styles.avatarOverlay]}>
-                    <Text style={styles.avatarOverlayText}>+{contributors.length - 3}</Text>
-                  </View>
-                )}
-              </>
-            )}
-          </View>
-          <Text style={styles.count}>
-            {items.length} {items.length === 1 ? t('collections.post') : t('collections.posts')}
-          </Text>
-          <Text style={styles.separator}>•</Text>
-          <Text style={styles.updated}>
-            {t('collections.updated')} 2h {t('common.ago')}
-          </Text>
-        </View>
-      </View>
+      <OptionsActionSheet
+        visible={moreOptionsVisible}
+        title={t('collections.options', 'Collection Options')}
+        options={[
+          { label: t('collections.delete', 'Delete Collection'), onPress: () => { setMoreOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true },
+        ]}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setMoreOptionsVisible(false)}
+      />
+      <ConfirmModal
+        visible={deleteConfirmVisible}
+        title={t('collections.delete', 'Delete Collection')}
+        message={t('collections.deleteConfirm', 'Are you sure you want to delete this collection? All items will be removed. This cannot be undone.')}
+        confirmLabel={t('collections.delete', 'Delete Collection')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={handleDeleteCollection}
+        onCancel={() => setDeleteConfirmVisible(false)}
+      />
 
       <View style={styles.shareSavesSection}>
         <View style={styles.shareSavesContent}>
@@ -246,12 +242,16 @@ export default function CollectionDetailScreen() {
 
       <FlatList
         data={items}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>{t('collections.emptyDetail')}</Text>
-          </View>
+          <EmptyState
+            icon="folder-open"
+            headline={t('collections.emptyDetail', 'No items in this collection')}
+            subtext={t('collections.emptyDetailHint', 'Add posts from the reading screen.')}
+          />
         }
         ListFooterComponent={
           <View>
@@ -262,7 +262,7 @@ export default function CollectionDetailScreen() {
               accessibilityLabel={t('collections.addCitation')}
               accessibilityRole="button"
             >
-              <MaterialIcons name="add" size={24} color={COLORS.primary} />
+              <MaterialIcons name="add" size={HEADER.iconSize} color={COLORS.primary} />
               <Text style={styles.addCitationText}>{t('collections.addCitation')}</Text>
             </Pressable>
           </View>
@@ -291,25 +291,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: SPACING.header,
-    paddingBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  placeholder: {
-    flex: 1,
-  },
-  shareButton: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
-    fontFamily: FONTS.semiBold,
-  },
   loadingText: {
     color: COLORS.secondary,
     textAlign: 'center',
@@ -321,64 +302,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     fontFamily: FONTS.regular,
-  },
-  info: {
-    padding: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  collectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: SPACING.xs,
-    fontFamily: FONTS.semiBold,
-  },
-  collectionTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: COLORS.paper,
-    marginBottom: SPACING.m,
-    fontFamily: FONTS.semiBold,
-    letterSpacing: -0.5,
-  },
-  description: {
-    fontSize: 15,
-    color: COLORS.secondary,
-    marginBottom: SPACING.m,
-    lineHeight: 22,
-    fontFamily: FONTS.regular,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-  },
-  avatarStack: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarSmall: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: COLORS.divider,
-    borderWidth: 2,
-    borderColor: COLORS.ink,
-  },
-  avatarOverlay: {
-    marginLeft: -8,
-    backgroundColor: COLORS.hover,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarOverlayText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   badge: {
     backgroundColor: COLORS.hover,
@@ -393,21 +316,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.secondary,
     fontFamily: FONTS.medium,
-  },
-  count: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
-  separator: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    marginHorizontal: SPACING.xs,
-  },
-  updated: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
   },
   shareSavesSection: {
     padding: SPACING.l,

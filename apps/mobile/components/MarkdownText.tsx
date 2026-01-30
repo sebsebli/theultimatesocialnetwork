@@ -272,6 +272,7 @@ const styles = StyleSheet.create({
   },
   blockquote: {
     fontSize: 17,
+    lineHeight: 26,
     fontStyle: 'italic',
     color: COLORS.secondary,
     fontFamily: FONTS.serifRegular,

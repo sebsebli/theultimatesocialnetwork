@@ -8,6 +8,8 @@ export type SearchResult = {
   title?: string;
   slug?: string;
   handle?: string;
+  authorHandle?: string;
+  authorDisplayName?: string;
 };
 
 export function useComposerSearch() {
@@ -38,7 +40,7 @@ export function useComposerSearch() {
 
       try {
         let newResults: SearchResult[] = [];
-        const encodedQ = encodeURIComponent(query.trim());
+        const encodedQ = encodeURIComponent(query);
 
         if (type === 'topic') {
           const [topicRes, postRes] = await Promise.all([
@@ -53,8 +55,28 @@ export function useComposerSearch() {
           const topicHits = Array.isArray(topicRes?.hits) ? topicRes.hits : [];
           const postHits = Array.isArray(postRes?.hits) ? postRes.hits : [];
           const topics = topicHits.map((t: any) => ({ ...t, type: 'topic', id: t.id || t.slug }));
-          const posts = postHits.map((p: any) => ({ ...p, type: 'post', id: p.id, displayName: p.title || 'Untitled Post' }));
-          newResults = [...topics, ...posts];
+          const posts = postHits.map((p: any) => ({
+            ...p,
+            type: 'post',
+            id: p.id,
+            displayName: p.title || 'Untitled Post',
+            authorHandle: p.author?.handle,
+            authorDisplayName: p.author?.displayName,
+          }));
+          const seen = new Set<string>();
+          const dedupedTopics = topics.filter((x: any) => {
+            const key = `topic:${x.id ?? x.slug}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          const dedupedPosts = posts.filter((x: any) => {
+            const key = `post:${x.id}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          newResults = [...dedupedTopics, ...dedupedPosts];
         } else if (type === 'mention') {
           const res = await api.get(`/search/users?q=${encodedQ}`);
 

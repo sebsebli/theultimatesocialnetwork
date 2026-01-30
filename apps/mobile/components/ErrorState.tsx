@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONTS, SIZES } from '../constants/theme';
+import { COLORS, SPACING, FONTS, SIZES, HEADER } from '../constants/theme';
 
 interface ErrorStateProps {
   message?: string;
@@ -11,7 +11,7 @@ export function ErrorState({ message = 'Something went wrong', onRetry }: ErrorS
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
+        <MaterialIcons name="error-outline" size={HEADER.iconSize} color={COLORS.error} />
       </View>
       <Text style={styles.title}>Oops!</Text>
       <Text style={styles.text}>{message}</Text>

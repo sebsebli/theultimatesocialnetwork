@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONTS } from '../constants/theme';
+import { COLORS, SPACING, FONTS, HEADER } from '../constants/theme';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 export function OfflineBanner() {
@@ -13,7 +13,7 @@ export function OfflineBanner() {
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, SPACING.s) }]}>
-      <MaterialIcons name="wifi-off" size={16} color={COLORS.paper} />
+      <MaterialIcons name="wifi-off" size={HEADER.iconSize} color={COLORS.paper} />
       <Text style={styles.text}>No internet connection</Text>
     </View>
   );

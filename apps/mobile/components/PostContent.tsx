@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View, Pressable, Linking } from 'react-native';
+import { StyleSheet, Text, View, Pressable, Linking, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { MarkdownText } from './MarkdownText';
 import { Avatar } from './Avatar';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
 import { Post } from '../types';
 
@@ -20,9 +20,13 @@ interface PostContentProps {
   referenceMetadata?: Record<string, { title?: string }>;
 }
 
+const HEADER_IMAGE_ASPECT = 4 / 3;
+
 export function PostContent({ post, onMenuPress, disableNavigation = false, headerImageUri, showSources = false, referenceMetadata = {} }: PostContentProps) {
   const router = useRouter();
   const { t } = useTranslation();
+  const { width: screenWidth } = useWindowDimensions();
+  const headerImageHeight = Math.round(screenWidth * (1 / HEADER_IMAGE_ASPECT));
 
   const formatTime = (date: string) => {
     const d = new Date(date);
@@ -80,12 +84,15 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
     ? body.substring(body.indexOf('\n') + 1).trim()
     : body;
 
-  // Determine image source
+  // Determine image source: prefer API-returned URL (full MinIO URL), then local uri, then API redirect /images/:key
+  const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
   const imageSource = headerImageUri
     ? { uri: headerImageUri }
-    : post.headerImageKey
-      ? { uri: `${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000'}/images/${post.headerImageKey}` }
-      : null;
+    : (post as any).headerImageUrl
+      ? { uri: (post as any).headerImageUrl }
+      : post.headerImageKey
+        ? { uri: `${apiBase}/images/${encodeURIComponent(post.headerImageKey)}` }
+        : null;
 
   // Extract sources
   const sources = useMemo(() => {
@@ -158,7 +165,7 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
             hitSlop={12}
             style={({ pressed }: { pressed: boolean }) => [{ padding: 4 }, pressed && { opacity: 0.5 }]}
           >
-            <MaterialIcons name="more-horiz" size={20} color={COLORS.tertiary} />
+            <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
           </Pressable>
         )}
       </Pressable>
@@ -169,20 +176,26 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
         disabled={disableNavigation}
         style={({ pressed }: { pressed: boolean }) => [styles.content, pressed && !disableNavigation && { opacity: 0.9 }]}
       >
-        {post.title != null && post.title !== '' ? (
+        {imageSource ? (
+          <View style={[styles.headerImageWrap, { height: headerImageHeight }]}>
+            <Image
+              source={imageSource}
+              style={[styles.headerImage, { height: headerImageHeight }]}
+              contentFit="cover"
+              transition={300}
+              placeholder={post.headerImageBlurhash}
+              placeholderContentFit="cover"
+              cachePolicy="memory-disk"
+            />
+            {(post.title != null && post.title !== '') && (
+              <View style={styles.headerImageOverlay}>
+                <Text style={styles.headerImageTitle} numberOfLines={2}>{post.title}</Text>
+              </View>
+            )}
+          </View>
+        ) : post.title != null && post.title !== '' ? (
           <Text style={styles.title}>{post.title}</Text>
         ) : null}
-        {imageSource && (
-          <Image
-            source={imageSource}
-            style={styles.headerImage}
-            contentFit="cover"
-            transition={300}
-            placeholder={post.headerImageBlurhash}
-            placeholderContentFit="cover"
-            cachePolicy="memory-disk"
-          />
-        )}
         <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
       </Pressable>
 
@@ -193,7 +206,7 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
           {sources.map((source, index) => (
             <Pressable
               key={index}
-              style={({ pressed }) => [styles.sourceItem, pressed && { backgroundColor: COLORS.hover }]}
+              style={({ pressed }: { pressed: boolean }) => [styles.sourceItem, pressed && { backgroundColor: COLORS.hover }]}
               onPress={() => handleSourcePress(source)}
             >
               <Text style={styles.sourceNumber}>{index + 1}</Text>
@@ -214,7 +227,7 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
                   {source.alias || source.title || source.handle}
                 </Text>
               </View>
-              <MaterialIcons name="open-in-new" size={16} color={COLORS.tertiary} />
+              <MaterialIcons name="open-in-new" size={HEADER.iconSize} color={COLORS.tertiary} />
             </Pressable>
           ))}
         </View>
@@ -264,12 +277,30 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     letterSpacing: -0.5,
   },
+  headerImageWrap: {
+    width: '100%',
+    marginTop: SPACING.m,
+    borderRadius: SIZES.borderRadius,
+    overflow: 'hidden',
+    position: 'relative',
+  },
   headerImage: {
     width: '100%',
-    height: 200,
     backgroundColor: COLORS.divider,
-    borderRadius: SIZES.borderRadius,
-    marginTop: SPACING.m,
+  },
+  headerImageOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: SPACING.m,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  headerImageTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
   },
   sourcesSection: {
     marginTop: SPACING.m,

@@ -2,7 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
 interface Props {
   children: ReactNode;
@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return <View style={styles.container}>
         <View style={styles.iconContainer}>
           <View style={styles.iconCircle}>
-            <MaterialIcons name="error-outline" size={48} color={COLORS.error} />
+            <MaterialIcons name="error-outline" size={HEADER.iconSize} color={COLORS.error} />
           </View>
         </View>
         <Text style={styles.title}>System Interrupt</Text>

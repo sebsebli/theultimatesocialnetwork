@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable, Alert, TextInput } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { COLORS, SPACING, FONTS, SIZES } from '../../constants/theme';
+import { COLORS, SPACING, FONTS, SIZES, HEADER } from '../../constants/theme';
 import { api } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TopicCard, PersonCard } from '../../components/ExploreCards';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { TopicCard } from '../../components/ExploreCards';
+import { UserCard } from '../../components/UserCard';
+import { EmptyState } from '../../components/EmptyState';
 
 export default function ConnectionsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { showError } = useToast();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const initialTab = params.tab as 'followers' | 'following' | 'topics' || 'following';
@@ -95,7 +100,19 @@ export default function ConnectionsScreen() {
       // Remove from list
       setItems(prev => prev.filter(i => i.id !== item.id));
     } catch (error) {
-      Alert.alert(t('common.error'), t('common.actionFailed'));
+      showError(t('common.actionFailed'));
+    }
+  };
+
+  const handleFollowTopic = async (item: any) => {
+    if (handle) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await api.post(`/topics/${item.slug}/follow`);
+      setItems(prev => [{ ...item, isFollowing: true }, ...prev]);
+      setSuggestions(prev => prev.filter((s: any) => s.slug !== item.slug && s.id !== item.id));
+    } catch (e) {
+      showError(t('common.actionFailed'));
     }
   };
 
@@ -108,20 +125,34 @@ export default function ConnectionsScreen() {
     });
   }, [items, searchQuery]);
 
+  const handleFollowUser = async (user: any) => {
+    if (!user?.id) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      if (user.isFollowing) {
+        await api.delete(`/users/${user.id}/follow`);
+      } else {
+        await api.post(`/users/${user.id}/follow`);
+      }
+      setItems(prev => prev.map(i => i.id === user.id ? { ...i, isFollowing: !i.isFollowing } : i));
+    } catch (err) {
+      showError(t('common.actionFailed'));
+    }
+  };
+
   const renderItem = ({ item }: { item: any }) => {
     if (activeTab === 'topics') {
       return (
         <View style={styles.itemWrapper}>
-          <View style={{ flex: 1 }}>
+          <View style={styles.itemContent}>
             <TopicCard
               item={{ ...item, isFollowing: true }}
               onPress={() => router.push(`/topic/${item.slug || item.id}`)}
-              showWhy={false}
             />
           </View>
           {!handle && (
             <Pressable style={styles.removeBtn} onPress={() => handleAction(item)}>
-              <MaterialIcons name="close" size={20} color={COLORS.secondary} />
+              <MaterialIcons name="close" size={HEADER.iconSize} color={COLORS.secondary} />
             </Pressable>
           )}
         </View>
@@ -129,16 +160,16 @@ export default function ConnectionsScreen() {
     } else {
       return (
         <View style={styles.itemWrapper}>
-          <View style={{ flex: 1 }}>
-            <PersonCard
+          <View style={styles.itemContent}>
+            <UserCard
               item={item}
               onPress={() => router.push(`/user/${item.handle}`)}
-              showWhy={false}
+              onFollow={handle ? () => handleFollowUser(item) : undefined}
             />
           </View>
           {!handle && (
             <Pressable style={styles.removeBtn} onPress={() => handleAction(item)}>
-              <MaterialIcons name="close" size={20} color={COLORS.secondary} />
+              <MaterialIcons name="close" size={HEADER.iconSize} color={COLORS.secondary} />
             </Pressable>
           )}
         </View>
@@ -147,46 +178,42 @@ export default function ConnectionsScreen() {
   };
 
   const EmptyComponent = () => (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyText}>{t('common.noResults', 'Nothing here.')}</Text>
-
+    <EmptyState
+      icon="people"
+      headline={t('common.noResults', 'Nothing here.')}
+      subtext={activeTab === 'topics' ? t('profile.noTopicsHint', 'Follow topics to see them here.') : t('profile.noConnectionsHint', 'Connections will appear here.')}
+    >
       {suggestions.length > 0 && (
         <View style={styles.suggestionsContainer}>
-          <Text style={styles.suggestionsHeader}>{activeTab === 'topics' ? (t('profile.topicsToFollow', 'TOPICS TO FOLLOW') || 'TOPICS TO FOLLOW') : t('home.suggestedPeople', 'Suggested for you')}</Text>
+          <Text style={styles.suggestionsHeader}>{activeTab === 'topics' ? t('profile.topicsToFollow', 'Topics to follow') : t('home.suggestedPeople', 'Suggested for you')}</Text>
           {suggestions.map(item => (
             <View key={item.id} style={styles.suggestionItem}>
               {activeTab === 'topics' ? (
                 <TopicCard
                   item={item}
                   onPress={() => router.push(`/topic/${item.slug || item.id}`)}
-                  showWhy={false}
+                  onFollow={() => handleFollowTopic(item)}
                 />
               ) : (
-                <PersonCard
+                <UserCard
                   item={item}
                   onPress={() => router.push(`/user/${item.handle}`)}
-                  showWhy={false}
+                  onFollow={() => handleFollowUser(item)}
                 />
               )}
             </View>
           ))}
         </View>
       )}
-    </View>
+    </EmptyState>
   );
 
   if (isPrivate) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-          </Pressable>
-          <Text style={styles.title}>{t('profile.connections')}</Text>
-          <View style={{ width: 24 }} />
-        </View>
+        <ScreenHeader title={t('profile.connections')} paddingTop={insets.top} />
         <View style={styles.privateState}>
-          <MaterialIcons name="lock" size={48} color={COLORS.secondary} />
+          <MaterialIcons name="lock" size={HEADER.iconSize} color={COLORS.secondary} />
           <Text style={styles.privateText}>This account is private</Text>
           <Text style={styles.privateSubText}>Follow this account to see their connections.</Text>
         </View>
@@ -196,13 +223,7 @@ export default function ConnectionsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.title}>{t('profile.connections', 'Connections')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title={t('profile.connections', 'Connections')} paddingTop={insets.top} />
 
       <View style={styles.tabs}>
         {['followers', 'following', 'topics'].map((tab) => (
@@ -222,7 +243,7 @@ export default function ConnectionsScreen() {
       </View>
 
       <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={20} color={COLORS.tertiary} style={styles.searchIcon} />
+        <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder={t('common.search', 'Search...')}
@@ -235,10 +256,12 @@ export default function ConnectionsScreen() {
       {loading ? (
         <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
       ) : (
-        <FlatList
-          data={filteredItems}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
+<FlatList
+        data={filteredItems}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        renderItem={renderItem}
+          keyExtractor={(item: { id: string }) => item.id}
           contentContainerStyle={{ paddingBottom: SPACING.l }}
           ListEmptyComponent={EmptyComponent}
         />
@@ -251,22 +274,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
-  },
-  backButton: {
-    padding: SPACING.xs,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   tabs: {
     flexDirection: 'row',
@@ -305,7 +312,9 @@ const styles = StyleSheet.create({
   itemWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: SPACING.l,
+  },
+  itemContent: {
+    flex: 1,
   },
   removeBtn: {
     padding: SPACING.m,

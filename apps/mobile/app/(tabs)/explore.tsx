@@ -5,9 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
-import { DeepDiveCard, PersonCard, QuoteCard, TopicCard } from '../../components/ExploreCards';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { TopicCard } from '../../components/ExploreCards';
+import { UserCard } from '../../components/UserCard';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 import { ErrorState } from '../../components/ErrorState';
+import { EmptyState } from '../../components/EmptyState';
 import { useAuth } from '../../context/auth';
 import * as Haptics from 'expo-haptics';
 
@@ -20,10 +22,9 @@ export default function ExploreScreen() {
   const { isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('topics');
+  const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('quoted');
   const [sort, setSort] = useState<'recommended' | 'newest' | 'cited'>('recommended');
   const [filter, setFilter] = useState<'all' | 'languages'>('languages'); // Default to my languages
-  const [showWhy, setShowWhy] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<any[]>([]);
@@ -57,12 +58,6 @@ export default function ExploreScreen() {
       setData([]);
       loadContent(1, true);
 
-      // Fetch preferences
-      api.get('/users/me').then((user: any) => {
-        if (user.preferences?.explore?.showWhy !== undefined) {
-          setShowWhy(user.preferences.explore.showWhy);
-        }
-      }).catch(console.error);
     }
   }, [activeTab, sort, filter, isAuthenticated]);
 
@@ -84,13 +79,13 @@ export default function ExploreScreen() {
       else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
       else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
 
-      // Append sort/filter params (API expects sort, lang; avoid sending filter as body key)
+      // Append sort/filter params (API expects sort, lang; lang must be a code like "en" or "all", not "preferred")
       const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort };
-      if (filter === 'languages') params.lang = 'preferred';
+      if (filter === 'all') params.lang = 'all';
       const query = new URLSearchParams(params).toString();
       const res = await api.get(`${endpoint}?${query}`);
       const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
-      const items = rawItems.map((item: any) => ({
+      const normalized = rawItems.map((item: any) => ({
         ...item,
         author: item.author || {
           id: item.authorId || '',
@@ -98,11 +93,22 @@ export default function ExploreScreen() {
           displayName: item.displayName || t('post.unknownUser', 'Unknown')
         },
       }));
+      const seen = new Set<string>();
+      const items = normalized.filter((item: any) => {
+        const k = item.id ?? item.slug ?? '';
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
 
       if (reset) {
         setData(items);
       } else {
-        setData(prev => [...prev, ...items]);
+        setData(prev => {
+          const prevSeen = new Set(prev.map((p: any) => p.id ?? p.slug).filter(Boolean));
+          const appended = items.filter((item: any) => !prevSeen.has(item.id ?? item.slug));
+          return prev.concat(appended);
+        });
       }
 
       const hasMoreData = items.length === 20 && (res.hasMore !== false);
@@ -140,7 +146,26 @@ export default function ExploreScreen() {
       console.error('Follow failed', err);
       // Revert on failure
       setData(prev => prev.map(item =>
-        item.id === topic.id ? { ...item, isFollowing: !item.isFollowing } : item
+        item.id === topic.id ? { ...item, isFollowing: topic.isFollowing } : item
+      ));
+    }
+  };
+
+  const handleFollowUser = async (user: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      setData(prev => prev.map(item =>
+        item.id === user.id ? { ...item, isFollowing: !item.isFollowing } : item
+      ));
+      if (user.isFollowing) {
+        await api.delete(`/users/${user.id}/follow`);
+      } else {
+        await api.post(`/users/${user.id}/follow`);
+      }
+    } catch (err) {
+      console.error('Follow user failed', err);
+      setData(prev => prev.map(item =>
+        item.id === user.id ? { ...item, isFollowing: user.isFollowing } : item
       ));
     }
   };
@@ -170,14 +195,21 @@ export default function ExploreScreen() {
 
   const renderItem = useCallback(({ item }: { item: any }) => {
     if (activeTab === 'deep-dives') {
-      return <DeepDiveCard item={item} onPress={() => router.push(`/post/${item.id}`)} showWhy={showWhy} />;
+      if (!item || !item.id) return null;
+      return <PostItem post={item} />;
     } else if (activeTab === 'people') {
-      return <PersonCard item={item} onPress={() => router.push(`/user/${item.handle}`)} showWhy={showWhy} />;
+      return (
+        <UserCard
+          item={item}
+          onPress={() => router.push(`/user/${item.handle}`)}
+          onFollow={() => handleFollowUser(item)}
+        />
+      );
     } else if (activeTab === 'quoted') {
-      return <QuoteCard item={item} onPress={() => router.push(`/post/${item.id}`)} showWhy={showWhy} />;
+      if (!item || !item.id) return null;
+      return <PostItem post={item} />;
     } else if (activeTab === 'newsroom') {
       if (!item || !item.id) return null;
-      // PostItem doesn't support showWhy yet, but maybe irrelevant for newsroom
       return <PostItem post={item} />;
     } else {
       if (!item || !item.id) return null;
@@ -186,13 +218,12 @@ export default function ExploreScreen() {
           item={item}
           onPress={() => router.push(`/topic/${item.slug || item.id}`)}
           onFollow={() => handleFollow(item)}
-          showWhy={showWhy}
         />
       );
     }
-  }, [activeTab, router, showWhy]);
+  }, [activeTab, router, handleFollowUser]);
 
-  const keyExtractor = useCallback((item: any) => item.id, []);
+  const keyExtractor = useCallback((item: any, index: number) => `explore-${activeTab}-${index}-${String(item?.id ?? item?.slug ?? index)}`, [activeTab]);
 
   const ListFooterComponent = useMemo(() => {
     if (!hasMore || !loadingMore) return null;
@@ -203,10 +234,17 @@ export default function ExploreScreen() {
     );
   }, [hasMore, loadingMore]);
 
+  const sectionDescription = useMemo(() => {
+    if (activeTab === 'quoted') return t('explore.quotedDesc', 'Posts getting quoted right now — high citation velocity.');
+    if (activeTab === 'deep-dives') return t('explore.deepDivesDesc', 'In-depth articles with many references and backlinks.');
+    if (activeTab === 'newsroom') return t('explore.newsroomDesc', 'Recent posts that cite external sources.');
+    return null;
+  }, [activeTab, t]);
+
   const listHeader = useMemo(() => (
     <View key="explore-list-header" style={[styles.headerContainer, { paddingTop: insets.top }]}>
       <View key="explore-titleRow" style={styles.titleRow}>
-        <MaterialCommunityIcons name="compass-outline" size={24} color={COLORS.paper} />
+        <MaterialCommunityIcons name="compass-outline" size={HEADER.iconSize} color={COLORS.paper} />
         <Text style={styles.headerTitle}>{t('explore.title', 'Discover')}</Text>
       </View>
 
@@ -217,7 +255,7 @@ export default function ExploreScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('explore.searchPlaceholder')}
         >
-          <MaterialIcons name="search" size={24} color={COLORS.tertiary} />
+          <MaterialIcons name="search" size={HEADER.iconSize} color={HEADER.iconColor} />
           <Text style={styles.searchInputPlaceholder}>
             {t('explore.searchPlaceholder')}
           </Text>
@@ -227,14 +265,14 @@ export default function ExploreScreen() {
             style={styles.iconButton}
             onPress={() => setSortModalVisible(true)}
           >
-            <MaterialIcons name="sort" size={24} color={sort !== 'recommended' ? COLORS.primary : COLORS.tertiary} />
+            <MaterialIcons name="sort" size={HEADER.iconSize} color={sort !== 'recommended' ? COLORS.primary : HEADER.iconColor} />
           </Pressable>
         </View>
       </View>
 
       <View key="explore-tabs" style={styles.tabsContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent}>
-          {(['topics', 'people', 'quoted', 'deep-dives', 'newsroom'] as const).map((tab) => (
+        <ScrollView horizontal showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent}>
+          {(['quoted', 'deep-dives', 'newsroom', 'topics', 'people'] as const).map((tab) => (
             <Pressable
               key={tab}
               onPress={() => setActiveTab(tab)}
@@ -250,9 +288,14 @@ export default function ExploreScreen() {
           ))}
         </ScrollView>
       </View>
+      {sectionDescription ? (
+        <View key="explore-desc" style={styles.sectionDesc}>
+          <Text style={styles.sectionDescText}>{sectionDescription}</Text>
+        </View>
+      ) : null}
       <View key="explore-spacer" style={{ height: SPACING.l }} />
     </View>
-  ), [insets.top, sort, activeTab, t]);
+  ), [insets.top, sort, activeTab, t, sectionDescription]);
 
   return (
     <View style={styles.container}>
@@ -261,15 +304,23 @@ export default function ExploreScreen() {
       ) : (
         <FlatList
           data={data}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           keyExtractor={keyExtractor}
           ListHeaderComponent={listHeader}
           renderItem={renderItem}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>
-                {loading ? t('common.loading') : t('explore.noContent')}
-              </Text>
-            </View>
+            loading ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>{t('common.loading')}</Text>
+              </View>
+            ) : (
+              <EmptyState
+                icon="explore"
+                headline={t('explore.noContent', 'No content yet')}
+                subtext={t('explore.noContentHint', 'Try another filter or check back later.')}
+              />
+            )
           }
           ListFooterComponent={ListFooterComponent}
           refreshControl={
@@ -300,14 +351,14 @@ export default function ExploreScreen() {
               <Text style={[styles.filterOptionText, filter === 'languages' && styles.optionSelected]}>
                 {t('explore.filterByLanguage', 'My Languages')}
               </Text>
-              {filter === 'languages' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+              {filter === 'languages' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
             </Pressable>
 
             <Pressable style={styles.filterOption} onPress={() => applyFilter('all')}>
               <Text style={[styles.filterOptionText, filter === 'all' && styles.optionSelected]}>
                 {t('explore.filterAll', 'All Languages')}
               </Text>
-              {filter === 'all' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+              {filter === 'all' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
             </Pressable>
 
             <Pressable style={styles.closeButton} onPress={() => setFilterModalVisible(false)}>
@@ -332,21 +383,21 @@ export default function ExploreScreen() {
               <Text style={[styles.filterOptionText, sort === 'recommended' && styles.optionSelected]}>
                 {t('explore.sortRecommended', 'Recommended')}
               </Text>
-              {sort === 'recommended' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+              {sort === 'recommended' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
             </Pressable>
 
             <Pressable style={styles.filterOption} onPress={() => applySort('newest')}>
               <Text style={[styles.filterOptionText, sort === 'newest' && styles.optionSelected]}>
                 {t('explore.sortNewest', 'Newest')}
               </Text>
-              {sort === 'newest' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+              {sort === 'newest' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
             </Pressable>
 
             <Pressable style={styles.filterOption} onPress={() => applySort('cited')}>
               <Text style={[styles.filterOptionText, sort === 'cited' && styles.optionSelected]}>
                 {t('explore.sortMostCited', 'Most Cited')}
               </Text>
-              {sort === 'cited' && <MaterialIcons name="check" size={20} color={COLORS.primary} />}
+              {sort === 'cited' && <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.primary} />}
             </Pressable>
 
             <Pressable style={styles.closeButton} onPress={() => setSortModalVisible(false)}>
@@ -366,20 +417,22 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     backgroundColor: COLORS.ink,
+    paddingHorizontal: HEADER.barPaddingHorizontal,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: 0,
     paddingBottom: SPACING.s,
     paddingTop: SPACING.s,
     gap: SPACING.m,
+    borderBottomWidth: 0,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.paper,
+    fontSize: HEADER.titleSize,
+    fontWeight: '600',
     fontFamily: FONTS.semiBold,
+    color: COLORS.paper,
   },
   searchWrapper: {
     paddingHorizontal: SPACING.l,
@@ -444,6 +497,16 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: COLORS.paper,
+  },
+  sectionDesc: {
+    paddingHorizontal: SPACING.l,
+    paddingTop: SPACING.s,
+    paddingBottom: SPACING.xs,
+  },
+  sectionDescText: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
   },
   emptyState: {
     padding: SPACING.xxxl,

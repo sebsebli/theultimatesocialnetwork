@@ -61,20 +61,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Auth check timeout')), 3000)
           );
-          const me = await Promise.race([api.get('/users/me'), timeoutPromise]) as { id?: string; handle?: string; displayName?: string } | null;
+          const me = await Promise.race([api.get('/users/me'), timeoutPromise]) as { id?: string; needsOnboarding?: boolean } | null;
           setIsAuthenticated(true);
           setUserId(me?.id ?? null);
-          // Onboarding complete only if server has profile AND user completed onboarding in this app (storage)
-          const serverComplete = !!(me?.handle && String(me.handle).trim() && me?.displayName && String(me.displayName).trim());
+          // Server tells us if user still needs onboarding (placeholder profile); also respect local completion
+          const needsOnboarding = me?.needsOnboarding === true;
           const storedComplete = await getOnboardingComplete();
-          setOnboardingComplete(serverComplete && storedComplete);
+          setOnboardingComplete(!needsOnboarding && storedComplete);
 
           // Re-register push token on launch
           registerForPush(token).catch(err => console.warn('Push registration failed', err));
         } catch (apiError: any) {
           const status = apiError?.status;
-          // Log out when auth is invalid (401/403) or user no longer exists (404). Network/5xx/other → stay logged in (offline).
-          if (status === 401 || status === 403 || status === 404) {
+          // Only sign out on 401 (invalid/expired token). 403/404 (e.g. onboarding, route not found) must NOT sign out the user.
+          if (status === 401) {
             await clearApiToken();
             setIsAuthenticated(false);
             setOnboardingComplete(null);
@@ -110,11 +110,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (token: string) => {
     await setApiToken(token);
     setIsAuthenticated(true);
-    // Always show onboarding after sign-in. Never skip to tabs — user must complete languages → profile → starter-packs.
-    // (Returning users who already completed get tabs on next app open via checkAuth.)
-    setOnboardingComplete(false);
-    router.replace('/onboarding/languages');
     registerForPush(token).catch(err => console.warn('Push registration failed', err));
+
+    // If server says profile complete (not placeholder), treat as returning user and go to home
+    try {
+      const me = await api.get('/users/me') as { id?: string; needsOnboarding?: boolean } | null;
+      setUserId(me?.id ?? null);
+      if (me?.needsOnboarding !== true) {
+        await persistOnboardingComplete();
+        setOnboardingComplete(true);
+        router.replace('/(tabs)/');
+        return;
+      }
+    } catch (_) {
+      // Network or auth error: continue to onboarding
+    }
+    setOnboardingComplete(false);
+    // Onboarding index will redirect to the correct stage (languages / profile / starter-packs)
+    router.replace('/onboarding');
   };
 
   const signOut = async () => {
@@ -135,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetOnboarding = async () => {
     await clearOnboardingCompleteStorage();
     setOnboardingComplete(null);
-    router.replace('/onboarding/languages');
+    router.replace('/onboarding');
   };
 
   return (

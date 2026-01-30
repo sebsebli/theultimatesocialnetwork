@@ -1,54 +1,70 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
-import { WhyLabel } from './WhyLabel';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
-export const TopicCard = ({ item, onPress, onFollow, showWhy = true }: { item: any; onPress: () => void; onFollow?: () => void; showWhy?: boolean }) => (
-  <Pressable onPress={onPress} style={styles.topicCard}>
-    <View style={styles.topicHeader}>
-      <Text style={styles.topicTitle}>{item.title}</Text>
-      <Pressable
-        style={[styles.followButton, item.isFollowing && styles.followingButton]}
-        onPress={onFollow}
-      >
-        <Text style={[styles.followButtonText, item.isFollowing && styles.followingButtonText]}>
-          {item.isFollowing ? 'FOLLOWING' : 'FOLLOW'}
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+
+/** Topic card: row with most recent article image (or icon) + title + follow; description; optional recent excerpt. */
+export const TopicCard = ({ item, onPress, onFollow }: { item: any; onPress: () => void; onFollow?: () => void }) => {
+  const imageUrl =
+    (item as any).headerImageUrl ||
+    (item.headerImageKey ? `${API_BASE}/images/${item.headerImageKey}` : null) ||
+    (item.recentPostImageKey ? `${API_BASE}/images/${item.recentPostImageKey}` : null) ||
+    (item.latestPostImageKey ? `${API_BASE}/images/${item.latestPostImageKey}` : null) ||
+    (item.recentPost?.headerImageKey ? `${API_BASE}/images/${item.recentPost.headerImageKey}` : null) ||
+    (item.recentPost?.headerImageUrl ? item.recentPost.headerImageUrl : null);
+  return (
+    <Pressable onPress={onPress} style={styles.topicCard}>
+      <View style={styles.topicRow}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.topicPreviewImage} />
+        ) : (
+          <View style={styles.topicIcon}>
+            <MaterialIcons name="topic" size={HEADER.iconSize} color={COLORS.primary} />
+          </View>
+        )}
+        <View style={styles.topicInfo}>
+          <Text style={styles.topicTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.topicStatsInline}>
+            {item.postCount ?? 0} posts
+            {(item.followerCount != null && item.followerCount > 0) ? ` · ${item.followerCount} followers` : ''}
+          </Text>
+          {item.recentPostExcerpt ? (
+            <Text style={styles.topicRecentExcerpt} numberOfLines={2}>{item.recentPostExcerpt}</Text>
+          ) : null}
+        </View>
+        {onFollow != null && (
+          <Pressable
+            style={[styles.topicFollowBtn, item.isFollowing && styles.followingButton]}
+            onPress={(e: { stopPropagation?: () => void }) => { e?.stopPropagation?.(); onFollow(); }}
+          >
+            <Text style={[styles.followButtonText, item.isFollowing && styles.followingButtonText]}>
+              {item.isFollowing ? 'Following' : 'Follow'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+      {item.description ? (
+        <Text style={styles.topicDescription} numberOfLines={2}>
+          {item.description}
         </Text>
-      </Pressable>
-    </View>
-    <View style={styles.topicStats}>
-      <Text style={styles.topicStatText}>{item.postCount || 0} posts</Text>
-      <View style={styles.dot} />
-      <Text style={styles.topicStatText}>{item.followerCount || 0} followers</Text>
-    </View>
-    {item.description && (
-      <Text style={styles.topicDescription} numberOfLines={2}>
-        {item.description}
-      </Text>
-    )}
-    {showWhy && item.reasons && <View style={{ marginTop: SPACING.s }}><WhyLabel reasons={item.reasons} /></View>}
-  </Pressable>
-);
+      ) : null}
+    </Pressable>
+  );
+};
 
-export const DeepDiveCard = ({ item, onPress, showWhy = true }: { item: any; onPress: () => void; showWhy?: boolean }) => (
-  <Pressable onPress={onPress} style={styles.deepDiveCard}>
-    <View style={styles.deepDiveHeader}>
-      <Text style={styles.deepDiveTitle}>{item.title}</Text>
-      {showWhy && item.reasons && <WhyLabel reasons={item.reasons} />}
-    </View>
-    <Text style={styles.deepDiveDescription} numberOfLines={2}>
-      {/* Fallback to simple concatenation if t() fails or for simple cases, but ideally use translation */}
-      Explore verified discussions and citations about {item.title?.toLowerCase()}.
-    </Text>
-    <View style={styles.viewTopicRow}>
-      <Text style={styles.viewTopicText}>VIEW TOPIC</Text>
-      <MaterialIcons name="arrow-forward" size={12} color={COLORS.primary} />
-    </View>
-  </Pressable>
-);
-
-export const PersonCard = ({ item, onPress, showWhy = true, fullWidth }: { item: any; onPress: () => void; showWhy?: boolean; fullWidth?: boolean }) => (
+export const PersonCard = ({
+  item,
+  onPress,
+  onFollow,
+  fullWidth,
+}: {
+  item: any;
+  onPress: () => void;
+  onFollow?: () => void;
+  fullWidth?: boolean;
+}) => (
   <Pressable onPress={onPress} style={[styles.personCard, fullWidth && styles.personCardFullWidth]}>
     <View style={styles.personRow}>
       <View style={styles.avatar}>
@@ -57,70 +73,93 @@ export const PersonCard = ({ item, onPress, showWhy = true, fullWidth }: { item:
         </Text>
       </View>
       <View style={styles.personInfo}>
-        <Text style={styles.personName}>{item.displayName || item.handle}</Text>
+        <Text style={styles.personName} numberOfLines={1}>{item.displayName || item.handle}</Text>
         <Text style={styles.personHandle}>@{item.handle}</Text>
-        {item.bio && <Text style={styles.personBio} numberOfLines={1}>{item.bio}</Text>}
+        {item.bio ? <Text style={styles.personBio} numberOfLines={2}>{item.bio}</Text> : null}
       </View>
-      {showWhy && item.reasons && <WhyLabel reasons={item.reasons} />}
     </View>
-  </Pressable>
-);
-
-import { PostContent } from './PostContent';
-
-// ... (existing imports)
-
-export const QuoteCard = ({ item, onPress, showWhy = true }: { item: any; onPress: () => void; showWhy?: boolean }) => (
-  <View style={styles.quoteWrapper}>
-    <Pressable onPress={onPress} style={styles.quoteCard}>
-      {/* If it looks like a post object (has author/title), use PostContent logic, else fallback */}
-      {item.author ? (
-        <PostContent post={item} disableNavigation={true} />
-      ) : (
-        <Text style={styles.quoteBody} numberOfLines={3}>{item.body}</Text>
-      )}
-    </Pressable>
-    {showWhy && item.reasons && (
-      <View style={styles.quoteWhy}>
-        <WhyLabel reasons={item.reasons} />
+    {onFollow != null ? (
+      <View style={styles.personSecondRow}>
+        <Pressable
+          style={[styles.personFollowButton, item.isFollowing && styles.followingButton]}
+          onPress={(e: { stopPropagation: () => void }) => {
+            e.stopPropagation();
+            onFollow();
+          }}
+        >
+          <Text style={[styles.personFollowButtonText, item.isFollowing && styles.followingButtonText]}>
+            {item.isFollowing ? 'FOLLOWING' : 'FOLLOW'}
+          </Text>
+        </Pressable>
       </View>
-    )}
-  </View>
+    ) : null}
+  </Pressable>
 );
 
 const styles = StyleSheet.create({
   topicCard: {
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    padding: SPACING.l,
-    marginHorizontal: SPACING.l,
-    marginBottom: SPACING.l,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
+    backgroundColor: COLORS.ink,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.l,
+    position: 'relative',
   },
-  topicHeader: {
+  topicPreviewImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.divider,
+    marginRight: SPACING.m,
+  },
+  topicRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.s,
+  },
+  topicIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.hover,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.m,
+  },
+  topicInfo: {
+    flex: 1,
+    minWidth: 0,
   },
   topicTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
-    flex: 1,
   },
-  followButton: {
-    paddingHorizontal: SPACING.m,
-    paddingVertical: 4,
-    borderRadius: SIZES.borderRadiusPill,
+  topicStatsInline: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    marginTop: 2,
+  },
+  topicRecentExcerpt: {
+    fontSize: 12,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  topicFollowBtn: {
+    marginLeft: SPACING.m,
+    paddingHorizontal: SPACING.l,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: COLORS.primary,
+    flexShrink: 0,
   },
   followButtonText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
@@ -131,70 +170,13 @@ const styles = StyleSheet.create({
   followingButtonText: {
     color: COLORS.ink,
   },
-  topicStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-    marginBottom: SPACING.s,
-  },
-  topicStatText: {
-    fontSize: 12,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-  },
-  dot: {
-    width: 2,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: COLORS.secondary,
-  },
   topicDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    lineHeight: 20,
-  },
-  deepDiveCard: {
-    backgroundColor: COLORS.hover, // bg-white/[0.02] -> hover
-    borderRadius: SIZES.borderRadius,
-    padding: SPACING.xl, // p-6
-    marginHorizontal: SPACING.l,
-    marginBottom: SPACING.l,
-    borderWidth: 1,
-    borderColor: COLORS.divider, // border-white/5 -> divider
-    gap: SPACING.m,
-  },
-  deepDiveHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  deepDiveTitle: {
-    fontSize: 24, // text-2xl
-    fontWeight: '700', // font-bold
-    color: COLORS.paper, // text-paper
-    fontFamily: FONTS.semiBold,
-    letterSpacing: -0.5,
-    flex: 1,
-    marginRight: SPACING.s,
-  },
-  deepDiveDescription: {
-    fontSize: 14, // text-sm
-    color: COLORS.secondary, // text-secondary
-    fontFamily: FONTS.regular,
-  },
-  viewTopicRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-  },
-  viewTopicText: {
-    fontSize: 10, // text-xs
-    fontWeight: '700', // font-bold
-    color: COLORS.primary, // text-primary
-    textTransform: 'uppercase',
-    letterSpacing: 1.5, // tracking-widest
-    fontFamily: FONTS.semiBold,
+    lineHeight: 18,
+    marginTop: SPACING.s,
+    marginLeft: 48 + SPACING.m,
   },
   personCard: {
     padding: SPACING.xl, // p-5
@@ -230,38 +212,51 @@ const styles = StyleSheet.create({
   },
   personInfo: {
     flex: 1,
+    minWidth: 0,
+  },
+  personSecondRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.s,
+    paddingTop: SPACING.s,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
+  personWhy: {
+    flex: 1,
   },
   personName: {
-    fontSize: 18, // text-lg
-    fontWeight: '700', // font-bold
-    color: COLORS.paper, // text-paper
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   personHandle: {
-    fontSize: 14, // text-sm
-    color: COLORS.tertiary, // text-tertiary
+    fontSize: 14,
+    color: COLORS.tertiary,
     fontFamily: FONTS.regular,
   },
   personBio: {
-    fontSize: 14, // text-sm
-    color: COLORS.secondary, // text-secondary
-    marginTop: 4, // mt-1
+    fontSize: 14,
+    color: COLORS.secondary,
+    marginTop: 6,
     fontFamily: FONTS.regular,
+    lineHeight: 20,
+    opacity: 0.95,
   },
-  quoteWrapper: {
-    position: 'relative',
-    marginHorizontal: SPACING.l,
-    marginBottom: SPACING.l,
+  personFollowButton: {
+    paddingHorizontal: SPACING.m,
+    paddingVertical: 6,
+    borderRadius: SIZES.borderRadiusPill,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    alignSelf: 'center',
   },
-  quoteCard: {
-    // Basic fallback styling
+  personFollowButtonText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
   },
-  quoteBody: {
-    color: COLORS.paper,
-  },
-  quoteWhy: {
-    position: 'absolute',
-    top: SPACING.m,
-    right: SPACING.m,
-  }
 });

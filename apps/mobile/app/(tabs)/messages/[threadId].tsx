@@ -5,11 +5,12 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../utils/api';
 import { useSocket } from '../../../context/SocketContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenHeader } from '../../../components/ScreenHeader';
 
 export default function ChatScreen() {
-  const { threadId } = useLocalSearchParams();
+  const { threadId, initialMessage } = useLocalSearchParams<{ threadId: string; initialMessage?: string }>();
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -22,8 +23,14 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    api.get('/users/me').then(u => setCurrentUserId(u.id)).catch(() => {});
+    api.get('/users/me').then(u => setCurrentUserId(u.id)).catch(() => { });
   }, []);
+
+  useEffect(() => {
+    if (initialMessage && typeof initialMessage === 'string') {
+      setInputText(initialMessage);
+    }
+  }, [initialMessage]);
 
   const loadMessages = async () => {
     try {
@@ -78,20 +85,16 @@ export default function ChatScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('inbox.chat', 'Chat')}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title={t('inbox.chat', 'Chat')} paddingTop={insets.top} />
 
       <FlatList
         ref={flatListRef}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
         data={messages}
         renderItem={renderItem}
-        keyExtractor={item => item.id}
+        keyExtractor={(item: { id: string }) => item.id}
         inverted
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={!loading && <Text style={styles.emptyText}>No messages yet.</Text>}
@@ -103,12 +106,12 @@ export default function ChatScreen() {
             style={styles.input}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Type a message..."
+            placeholder={t('messages.typeMessage', 'Type a message...')}
             placeholderTextColor={COLORS.tertiary}
             multiline
           />
           <Pressable onPress={handleSend} disabled={!inputText.trim() || sending} style={styles.sendButton}>
-            <MaterialIcons name="send" size={24} color={inputText.trim() ? COLORS.primary : COLORS.tertiary} />
+            <MaterialIcons name="send" size={HEADER.iconSize} color={inputText.trim() ? COLORS.primary : COLORS.tertiary} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -121,17 +124,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  backButton: { padding: SPACING.xs },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.paper, fontFamily: FONTS.semiBold },
   listContent: { padding: SPACING.m },
   messageBubble: {
     maxWidth: '80%',

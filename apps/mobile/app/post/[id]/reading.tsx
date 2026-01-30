@@ -1,18 +1,42 @@
-import { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, Platform, Alert, ActivityIndicator, Linking, TextInput, KeyboardAvoidingView } from 'react-native';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  Pressable,
+  ActivityIndicator,
+  Linking,
+  Dimensions,
+  Animated,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
+import * as Haptics from 'expo-haptics';
 import { api } from '../../../utils/api';
 import { MarkdownText } from '../../../components/MarkdownText';
-import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/auth';
+import AddToCollectionSheet, { AddToCollectionSheetRef } from '../../../components/AddToCollectionSheet';
+import ShareSheet, { ShareSheetRef } from '../../../components/ShareSheet';
+import { ReportModal } from '../../../components/ReportModal';
+import { OptionsActionSheet } from '../../../components/OptionsActionSheet';
+import { ConfirmModal } from '../../../components/ConfirmModal';
+import { PostPreviewRow } from '../../../components/PostPreviewRow';
+import { useToast } from '../../../context/ToastContext';
+import {
+  savePostForOffline,
+  removeOfflinePost,
+  isPostDownloaded,
+  getDownloadSavedForOffline,
+  type OfflinePost,
+} from '../../../utils/offlineStorage';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Post {
   id: string;
@@ -20,18 +44,12 @@ interface Post {
   body: string;
   createdAt: string;
   headerImageKey?: string | null;
-  author?: {
-    displayName?: string;
-    handle?: string;
-  };
-}
-
-interface Reply {
-  id: string;
-  body: string;
-  createdAt: string;
-  author?: { id: string; handle?: string; displayName?: string };
-  parentReplyId?: string | null;
+  replyCount?: number;
+  quoteCount?: number;
+  author?: { id?: string; displayName?: string; handle?: string; avatarUrl?: string | null };
+  isLiked?: boolean;
+  isKept?: boolean;
+  lang?: string | null;
 }
 
 export default function ReadingModeScreen() {
@@ -39,109 +57,147 @@ export default function ReadingModeScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userId } = useAuth();
+  const { showSuccess, showError } = useToast();
   const postId = params.id as string;
   const [post, setPost] = useState<Post | null>(null);
   const [sources, setSources] = useState<any[]>([]);
-  const [replies, setReplies] = useState<Reply[]>([]);
-  const [commentDraft, setCommentDraft] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
+  const [quotedBy, setQuotedBy] = useState<any[]>([]);
+  const [sourcesTab, setSourcesTab] = useState<'sources' | 'quoted'>('sources');
   const [loading, setLoading] = useState(true);
+  const [liked, setLiked] = useState(false);
+  const [kept, setKept] = useState(false);
+  const scaleValue = useRef(new Animated.Value(1)).current;
+  const collectionSheetRef = useRef<AddToCollectionSheetRef>(null);
+  const shareSheetRef = useRef<ShareSheetRef>(null);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const [offlineEnabled, setOfflineEnabled] = useState(false);
 
-  const loadReplies = useCallback(async () => {
+  const loadPost = useCallback(async () => {
+    if (!postId) return;
+    setLoading(true);
     try {
-      const list = await api.get<Reply[]>(`/posts/${postId}/replies`);
-      setReplies(Array.isArray(list) ? list : []);
-    } catch (e) {
-      console.error('Failed to load comments', e);
-      setReplies([]);
-    }
-  }, [postId]);
-
-  useEffect(() => {
-    loadPost();
-  }, [postId]);
-
-  const loadPost = async () => {
-    try {
-      const [postData, sourcesData, repliesData] = await Promise.all([
-        api.get(`/posts/${postId}`),
-        api.get(`/posts/${postId}/sources`).catch(() => []),
-        api.get(`/posts/${postId}/replies`).catch(() => []),
-      ]);
+      const postData = await api.get(`/posts/${postId}`);
       setPost(postData);
-      setSources(sourcesData);
-      setReplies(Array.isArray(repliesData) ? repliesData : []);
-    } catch (error) {
-      console.error('Failed to load post', error);
-      Alert.alert(t('common.error'), t('post.loadFailed'));
+      setLiked(!!postData?.isLiked);
+      setKept(!!postData?.isKept);
+      const [sourcesData, quotesData, downloaded, enabled] = await Promise.all([
+        api.get(`/posts/${postId}/sources`).catch(() => []),
+        api.get(`/posts/${postId}/quotes`).catch(() => []),
+        isPostDownloaded(postId),
+        getDownloadSavedForOffline(),
+      ]);
+      setSources(Array.isArray(sourcesData) ? sourcesData : []);
+      setQuotedBy(Array.isArray(quotesData) ? quotesData : quotesData?.items ?? []);
+      setIsDownloaded(downloaded);
+      setOfflineEnabled(enabled);
+    } catch (error: any) {
+      setPost(null);
+      if (error?.status === 404) {
+        showError(t('post.notFoundMessage', "This post doesn't exist anymore."));
+        router.back();
+      } else {
+        showError(t('post.loadFailed'));
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [postId, t]);
 
-  const submitComment = async () => {
-    const body = commentDraft.trim();
-    if (!body || !isAuthenticated) return;
-    setSubmittingComment(true);
+  useEffect(() => {
+    loadPost();
+  }, [loadPost]);
+
+  const handleLike = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const prev = liked;
+    setLiked(!prev);
     try {
-      await api.post(`/posts/${postId}/replies`, { body });
-      setCommentDraft('');
-      await loadReplies();
-    } catch (error) {
-      console.error('Failed to post comment', error);
-      Alert.alert(t('common.error'), t('post.commentFailed'));
-    } finally {
-      setSubmittingComment(false);
+      if (prev) await api.delete(`/posts/${postId}/like`);
+      else await api.post(`/posts/${postId}/like`);
+    } catch {
+      setLiked(prev);
     }
   };
 
+  const handleKeep = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const prev = kept;
+    setKept(!prev);
+    try {
+      if (prev) await api.delete(`/posts/${postId}/keep`);
+      else await api.post(`/posts/${postId}/keep`);
+    } catch {
+      setKept(prev);
+    }
+  };
 
-  const printToPdf = async () => {
+  const handleDownloadOffline = async () => {
     if (!post) return;
-
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const html = `
-        <html>
-          <head>
-            <style>
-              @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;600&display=swap');
-              body { 
-                font-family: 'IBM Plex Serif', serif; 
-                padding: 40px; 
-                color: #1a1a1a; 
-                line-height: 1.6; 
-                max-width: 800px; 
-                margin: 0 auto; 
-              }
-              h1 { font-size: 32px; margin-bottom: 8px; font-weight: 600; line-height: 1.2; }
-              .meta { font-size: 14px; color: #666; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee; font-family: sans-serif; }
-              .content { font-size: 18px; color: #333; }
-              .content p { margin-bottom: 1.4em; }
-              .footer { margin-top: 50px; font-size: 12px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 20px; font-family: sans-serif; }
-            </style>
-          </head>
-          <body>
-            <h1>${post.title || 'Untitled Post'}</h1>
-            <div class="meta">
-              By ${post.author?.displayName || post.author?.handle} • ${new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-            </div>
-            <div class="content">
-              ${post.body.split('\n').map((p: string) => p.trim() ? `<p>${p}</p>` : '').join('')}
-            </div>
-            <div class="footer">
-              Archived via CITE (https://cite.app/post/${post.id})
-            </div>
-          </body>
-        </html>
-      `;
-
-      const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
-    } catch (error) {
-      console.error('PDF generation failed', error);
-      Alert.alert(t('common.error'), 'Failed to generate PDF');
+      if (isDownloaded) {
+        await removeOfflinePost(post.id);
+        setIsDownloaded(false);
+        showSuccess(t('post.removedFromDevice', 'Removed from device'));
+      } else {
+        const payload: OfflinePost = {
+          id: post.id,
+          title: post.title ?? null,
+          body: post.body,
+          createdAt: post.createdAt,
+          headerImageKey: post.headerImageKey ?? null,
+          author: post.author,
+          lang: post.lang ?? null,
+          savedAt: Date.now(),
+        };
+        await savePostForOffline(payload);
+        setIsDownloaded(true);
+        showSuccess(t('post.downloadedForOffline', 'Saved for offline reading'));
+      }
+    } catch (e) {
+      showError(t('post.downloadFailed', 'Download failed'));
     }
+  };
+
+  const handleReportSubmit = async (reason: string, comment?: string) => {
+    try {
+      await api.post('/safety/report', {
+        targetId: post!.id,
+        targetType: 'POST',
+        reason,
+        comment,
+      });
+      showSuccess(t('post.reportSuccess', 'Post reported successfully'));
+    } catch (e) {
+      showError(t('post.reportError', 'Failed to report post'));
+      throw e;
+    }
+  };
+
+  const handleDeletePost = async () => {
+    try {
+      await api.delete(`/posts/${postId}`);
+      showSuccess(t('post.deleted', 'Post deleted'));
+      setDeleteConfirmVisible(false);
+      setMoreOptionsVisible(false);
+      router.back();
+    } catch (e: any) {
+      showError(e?.message || t('post.deleteFailed', 'Failed to delete post'));
+      throw e;
+    }
+  };
+
+  const isOwnPost = !!post && !!userId && post.author?.id === userId;
+
+  const animateLike = () => {
+    Animated.sequence([
+      Animated.timing(scaleValue, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+      Animated.timing(scaleValue, { toValue: 1, duration: 100, useNativeDriver: true }),
+    ]).start();
   };
 
   if (loading) {
@@ -160,201 +216,264 @@ export default function ReadingModeScreen() {
     );
   }
 
+  const replyCount = post.replyCount ?? 0;
+  const quoteCount = post.quoteCount ?? 0;
+
+  const hasHero = post.headerImageKey != null && post.headerImageKey !== '';
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Pressable onPress={() => router.back()} style={styles.iconButton}>
-          <MaterialIcons name="close" size={24} color={COLORS.secondary} />
+      {/* Overlay header: back + more over hero or at top (no home button) */}
+      <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
+        <Pressable onPress={() => router.back()} style={styles.overlayIconCircle} accessibilityLabel={t('common.back')}>
+          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
         </Pressable>
-        <View style={styles.headerRight}>
-          <Pressable onPress={toggleTextSize} style={styles.iconButton}>
-            <MaterialIcons name="format-size" size={22} color={COLORS.secondary} />
-          </Pressable>
-          <Pressable onPress={printToPdf} style={styles.iconButton}>
-            <MaterialIcons name="print" size={22} color={COLORS.secondary} />
-          </Pressable>
-          <Pressable
-            style={styles.iconButton}
-            onPress={() => {
-              Alert.alert(
-                t('post.reportTitle', 'Report Post'),
-                t('post.reportMessage', 'Are you sure you want to report this post?'),
-                [
-                  { text: t('common.cancel'), style: 'cancel' },
-                  {
-                    text: t('post.report', 'Report'),
-                    style: 'destructive',
-                    onPress: async () => {
-                      try {
-                        await api.post('/safety/report', { targetId: post.id, targetType: 'POST', reason: 'Reported from reading view' });
-                        Alert.alert(t('common.success', 'Done'), t('post.reportSuccess', 'Post reported successfully'));
-                      } catch (e) {
-                        console.error(e);
-                        Alert.alert(t('common.error'), t('post.reportError', 'Failed to report post'));
-                      }
-                    },
-                  },
-                ]
-              );
-            }}
-          >
-            <MaterialIcons name="flag" size={22} color={COLORS.secondary} />
-          </Pressable>
-        </View>
+        <View style={{ flex: 1 }} />
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setMoreOptionsVisible(true);
+          }}
+          style={styles.overlayIconCircle}
+        >
+          <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.paper} />
+        </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          !hasHero && { paddingTop: insets.top },
+        ]}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+      >
+        {/* Cover: full width, edge-to-edge (overlay header sits on top) */}
+        {hasHero && (
+          <View style={[styles.heroImageWrap, { height: SCREEN_WIDTH * (3 / 4) }]}>
+            <Image
+              source={{ uri: (post as any).headerImageUrl || `${API_BASE}/images/${post.headerImageKey}` }}
+              style={[styles.heroImage, { width: SCREEN_WIDTH, height: SCREEN_WIDTH * (3 / 4) }]}
+              contentFit="cover"
+            />
+            {post.title ? (
+              <View style={styles.heroTitleOverlay}>
+                <Text style={styles.heroTitleText} numberOfLines={2}>{post.title}</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+
         <View style={styles.article}>
-          {/* Hero image first (full width) */}
-          {(post.headerImageKey != null && post.headerImageKey !== '') && (
-            <View style={styles.heroImageWrap}>
-              <Image
-                source={{ uri: `${API_BASE}/images/${post.headerImageKey}` }}
-                style={styles.heroImage}
-                contentFit="cover"
-              />
-            </View>
-          )}
-          {/* Title below image */}
-          {post.title != null && post.title !== '' ? (
-            <Text style={styles.title}>{post.title}</Text>
-          ) : null}
-          {/* Author line */}
+          {/* Author above title */}
           <Pressable
             style={styles.authorLine}
             onPress={() => post.author?.handle && router.push(`/user/${post.author.handle}`)}
           >
-            <View style={styles.authorAvatar}>
-              <Text style={styles.avatarText}>{post.author?.displayName?.charAt(0) || '?'}</Text>
-            </View>
+            {post.author?.avatarUrl ? (
+              <Image source={{ uri: post.author.avatarUrl }} style={styles.authorAvatarImage} />
+            ) : (
+              <View style={styles.authorAvatar}>
+                <Text style={styles.avatarText}>
+                  {post.author?.displayName?.charAt(0) || post.author?.handle?.charAt(0) || '?'}
+                </Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
-              <Text style={styles.authorName}>{post.author?.displayName || post.author?.handle}</Text>
-              <Text style={styles.readTime}>{new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</Text>
+              <Text style={styles.authorName}>{post.author?.displayName || post.author?.handle || t('post.unknownUser')}</Text>
+              <Text style={styles.readTime}>
+                {new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+              </Text>
             </View>
           </Pressable>
 
+          {/* Title only when no hero overlay (hero already shows title) */}
+          {(!hasHero && post.title != null && post.title !== '') ? (
+            <Text style={styles.title}>{post.title}</Text>
+          ) : null}
+
           <MarkdownText>{post.body}</MarkdownText>
 
+          {/* Action row: same as explore posts - like, comments, quote, keep, add to collection, share */}
           <View style={styles.actionsRow}>
-            <Pressable style={styles.actionBtn} onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}>
-              <MaterialIcons name="chat-bubble-outline" size={22} color={COLORS.tertiary} />
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => {
+                animateLike();
+                handleLike();
+              }}
+            >
+              {/* @ts-expect-error React 19 JSX: Animated.View return type compatibility */}
+              <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
+                <MaterialIcons
+                  name={liked ? 'favorite' : 'favorite-border'}
+                  size={HEADER.iconSize}
+                  color={liked ? COLORS.like : COLORS.tertiary}
+                />
+              </Animated.View>
             </Pressable>
-            <Pressable style={styles.actionBtn} onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}>
-              <MaterialIcons name="format-quote" size={22} color={COLORS.tertiary} />
+
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => router.push(`/post/${postId}/comments`)}
+            >
+              <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+              {replyCount > 0 && <Text style={styles.actionCount}>{replyCount}</Text>}
             </Pressable>
-            <Pressable style={styles.actionBtn} onPress={() => { }}>
-              <MaterialIcons name="bookmark-border" size={22} color={COLORS.tertiary} />
+
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => router.push({ pathname: '/post/compose', params: { quote: postId } })}
+            >
+              <MaterialIcons name="format-quote" size={HEADER.iconSize} color={COLORS.tertiary} />
             </Pressable>
-            <Pressable style={styles.actionBtn} onPress={() => Linking.openURL(`https://cite.app/post/${post.id}`).catch(() => { })}>
-              <MaterialIcons name="share" size={22} color={COLORS.tertiary} />
+
+            {/* Save = quick bookmark to your single "Saved" list. Collection = add to a named folder. */}
+            <Pressable style={styles.actionBtn} onPress={handleKeep} accessibilityLabel={t('post.save')}>
+              <MaterialIcons
+                name={kept ? 'bookmark' : 'bookmark-border'}
+                size={HEADER.iconSize}
+                color={kept ? COLORS.primary : COLORS.tertiary}
+              />
+            </Pressable>
+
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => collectionSheetRef.current?.open(postId)}
+              accessibilityLabel={t('post.addToCollection')}
+            >
+              <MaterialIcons name="add-circle-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+            </Pressable>
+
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => shareSheetRef.current?.open(postId)}
+            >
+              <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.tertiary} />
+            </Pressable>
+
+            {offlineEnabled && (
+              <Pressable
+                style={styles.actionBtn}
+                onPress={handleDownloadOffline}
+                accessibilityLabel={isDownloaded ? t('post.removeFromDevice', 'Remove from device') : t('post.downloadForOffline', 'Download for offline')}
+              >
+                <MaterialIcons
+                  name="offline-pin"
+                  size={HEADER.iconSize}
+                  color={isDownloaded ? COLORS.primary : COLORS.tertiary}
+                />
+              </Pressable>
+            )}
+          </View>
+
+        </View>
+
+        {/* Tabs: Sources (tagged content) | Quoted by */}
+        <View style={styles.section}>
+          <View style={styles.tabsRow}>
+            <Pressable
+              style={[styles.tabBtn, sourcesTab === 'sources' && styles.tabBtnActive]}
+              onPress={() => setSourcesTab('sources')}
+            >
+              <Text style={[styles.tabBtnText, sourcesTab === 'sources' && styles.tabBtnTextActive]}>
+                {t('post.sources', 'Sources')}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.tabBtn, sourcesTab === 'quoted' && styles.tabBtnActive]}
+              onPress={() => setSourcesTab('quoted')}
+            >
+              <Text style={[styles.tabBtnText, sourcesTab === 'quoted' && styles.tabBtnTextActive]}>
+                {t('post.quotedBy', 'Quoted by')} {quoteCount > 0 ? `(${quoteCount})` : ''}
+              </Text>
             </Pressable>
           </View>
-        </View>
-
-        {/* Comments Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t('post.comments')} {replies.length > 0 ? `(${replies.length})` : ''}
-          </Text>
-          {replies.length === 0 && !isAuthenticated && (
-            <Text style={styles.emptyText}>{t('post.signInToComment')}</Text>
-          )}
-          {replies.length === 0 && isAuthenticated && (
-            <Text style={styles.emptyText}>{t('post.noComments')}</Text>
-          )}
-          {replies.map((reply) => (
-            <View key={reply.id} style={styles.commentRow}>
-              <View style={styles.commentAuthorRow}>
-                <Pressable
-                  onPress={() => reply.author?.handle && router.push(`/user/${reply.author.handle}`)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.s, flex: 1 }}
-                >
-                  <View style={styles.commentAvatar}>
-                    <Text style={styles.avatarTextSmall}>
-                      {reply.author?.displayName?.charAt(0) || reply.author?.handle?.charAt(0) || '?'}
-                    </Text>
-                  </View>
-                  <Text style={styles.commentAuthorName} numberOfLines={1}>
-                    {reply.author?.displayName || reply.author?.handle || t('post.unknownUser')}
-                  </Text>
-                </Pressable>
-                <Text style={styles.commentTime}>
-                  {new Date(reply.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </Text>
+          {sourcesTab === 'sources' ? (
+            sources.length === 0 ? (
+              <Text style={styles.emptyText}>{t('post.noSources', 'No tagged sources in this post.')}</Text>
+            ) : (
+              <View style={styles.sourcesList}>
+                {sources.map((source: any, index: number) => {
+                  const handleSourcePress = () => {
+                    if (source.type === 'external' && source.url) Linking.openURL(source.url).catch(() => { });
+                    else if (source.type === 'post' && source.id) router.push(`/post/${source.id}`);
+                    else if (source.type === 'user' && source.handle) router.push(`/user/${source.handle}`);
+                    else if (source.type === 'topic' && source.slug) router.push(`/topic/${source.slug}`);
+                  };
+                  const title = source.title || source.url || source.handle || source.slug || '';
+                  const subtitle = source.type === 'external' && source.url
+                    ? (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })()
+                    : source.type === 'user' ? `@${source.handle}` : source.type === 'topic' ? t('post.topic', 'Topic') : '';
+                  return (
+                    <Pressable key={source.id || index} style={styles.sourceCard} onPress={handleSourcePress}>
+                      <View style={styles.sourceCardLeft}>
+                        {source.type === 'user' ? (
+                          <View style={styles.sourceAvatar}>
+                            <Text style={styles.sourceAvatarText}>
+                              {(source.title || source.handle || '?').charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View style={styles.sourceIconWrap}>
+                            <MaterialIcons
+                              name={source.type === 'post' ? 'article' : source.type === 'topic' ? 'tag' : 'link'}
+                              size={HEADER.iconSize}
+                              color={COLORS.primary}
+                            />
+                          </View>
+                        )}
+                        <View style={styles.sourceCardText}>
+                          <Text style={styles.sourceCardTitle} numberOfLines={1}>{title}</Text>
+                          {subtitle ? <Text style={styles.sourceCardSubtitle} numberOfLines={1}>{subtitle}</Text> : null}
+                        </View>
+                      </View>
+                      <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+                    </Pressable>
+                  );
+                })}
               </View>
-              <Text style={styles.commentBody}>{reply.body}</Text>
-            </View>
-          ))}
-          {isAuthenticated && (
-            <View style={styles.commentInputRow}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder={t('post.addComment')}
-                placeholderTextColor={COLORS.tertiary}
-                value={commentDraft}
-                onChangeText={setCommentDraft}
-                multiline
-                maxLength={2000}
-                editable={!submittingComment}
-              />
-              <Pressable
-                style={[styles.commentPostBtn, (!commentDraft.trim() || submittingComment) && styles.commentPostBtnDisabled]}
-                onPress={submitComment}
-                disabled={!commentDraft.trim() || submittingComment}
-              >
-                <Text style={styles.commentPostBtnText}>
-                  {submittingComment ? t('common.loading') : t('post.postComment')}
-                </Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-
-        {/* Sources Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sources</Text>
-          {sources.length === 0 ? (
-            <Text style={styles.emptyText}>No external sources found.</Text>
+            )
+          ) : quotedBy.length === 0 ? (
+            <Text style={styles.emptyText}>{t('post.noQuotes', 'No one has quoted this post yet.')}</Text>
           ) : (
-            <View style={{ gap: 12 }}>
-              {sources.map((source: any, index: number) => {
-                const handleSourcePress = () => {
-                  if (source.type === 'external' && source.url) Linking.openURL(source.url).catch(() => { });
-                  else if (source.type === 'post' && source.id) router.push(`/post/${source.id}`);
-                  else if (source.type === 'user' && source.handle) router.push(`/user/${source.handle}`);
-                  else if (source.type === 'topic' && source.slug) router.push(`/topic/${source.slug}`);
-                };
-                let label = 'Source';
-                if (source.type === 'external' && source.url) {
-                  try { label = new URL(source.url).hostname.replace('www.', ''); } catch { label = 'Link'; }
-                } else if (source.type === 'post') label = 'Post';
-                else if (source.type === 'user') label = 'User';
-                else if (source.type === 'topic') label = 'Topic';
-                return (
-                  <Pressable key={source.id || index} style={styles.sourceItem} onPress={handleSourcePress}>
-                    <Text style={styles.sourceIndex}>{index + 1}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.sourceDomain}>{label}</Text>
-                      <Text style={styles.sourceTitle} numberOfLines={2}>
-                        {source.title || source.url || source.handle || source.slug || ''}
-                      </Text>
-                    </View>
-                    <MaterialIcons name="north-east" size={16} color={COLORS.tertiary} />
-                  </Pressable>
-                );
-              })}
+            <View style={{ gap: 0 }}>
+              {quotedBy.map((p: any) => (
+                <PostPreviewRow key={p.id} post={p} />
+              ))}
             </View>
           )}
         </View>
       </ScrollView>
 
-      {/* Bottom bar: share */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 10 }]}>
-        <Pressable style={styles.bottomBarButton} onPress={() => Linking.openURL(`https://cite.app/post/${post.id}`).catch(() => { })}>
-          <MaterialIcons name="share" size={24} color={COLORS.tertiary} />
-        </Pressable>
-      </View>
+      <AddToCollectionSheet ref={collectionSheetRef} />
+      <ShareSheet ref={shareSheetRef} />
+      <OptionsActionSheet
+        visible={moreOptionsVisible}
+        title={t('post.options', 'Post Options')}
+        options={[
+          ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setMoreOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const }] : []),
+          { label: t('post.report', 'Report Post'), onPress: () => { setMoreOptionsVisible(false); setReportVisible(true); }, destructive: true },
+        ]}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setMoreOptionsVisible(false)}
+      />
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        onReport={handleReportSubmit}
+        targetType="POST"
+      />
+      <ConfirmModal
+        visible={deleteConfirmVisible}
+        title={t('post.delete', 'Delete Post')}
+        message={t('post.deleteConfirm', 'Are you sure you want to delete this post? This cannot be undone.')}
+        confirmLabel={t('post.delete', 'Delete Post')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={handleDeletePost}
+        onCancel={() => setDeleteConfirmVisible(false)}
+      />
     </View>
   );
 }
@@ -362,49 +481,66 @@ export default function ReadingModeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.ink },
   center: { justifyContent: 'center', alignItems: 'center' },
-  content: { paddingHorizontal: SPACING.l, paddingBottom: 100 },
+  scrollContent: { paddingBottom: 80 },
+  overlayHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: HEADER.barPaddingHorizontal,
+    paddingBottom: HEADER.barPaddingBottom,
+    zIndex: 10,
+  },
+  overlayIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  iconButton: { padding: SPACING.xs },
+
+  /* Full-width hero: 4:3 aspect, title overlay */
   heroImageWrap: {
-    width: '100%',
-    marginHorizontal: -SPACING.l,
-    marginBottom: SPACING.m,
+    width: SCREEN_WIDTH,
+    alignSelf: 'center',
+    marginBottom: SPACING.l,
+    position: 'relative',
+    overflow: 'hidden',
   },
   heroImage: {
     width: '100%',
-    height: 220,
     backgroundColor: COLORS.divider,
   },
-  article: {
-    marginTop: SPACING.l,
-    marginBottom: SPACING.xxl,
+  heroTitleOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: SPACING.l,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider
-  },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.l },
-  iconButton: { padding: SPACING.xs },
-
-  title: {
+  heroTitleText: {
     fontSize: 28,
     fontWeight: '700',
     color: COLORS.paper,
-    marginBottom: SPACING.l,
-    fontFamily: FONTS.serifSemiBold,
+    fontFamily: FONTS.semiBold,
     lineHeight: 34,
+  },
+
+  article: {
+    paddingHorizontal: SPACING.l,
+    marginBottom: SPACING.l,
   },
   authorLine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.m,
-    marginBottom: SPACING.xl,
-    paddingBottom: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    marginBottom: SPACING.l,
   },
   authorAvatar: {
     width: 40,
@@ -413,6 +549,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(110, 122, 138, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  authorAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   avatarText: {
     color: COLORS.primary,
@@ -423,19 +564,47 @@ const styles = StyleSheet.create({
   authorName: {
     fontSize: 15,
     color: COLORS.paper,
-    fontFamily: FONTS.medium
+    fontFamily: FONTS.medium,
   },
   readTime: {
     fontSize: 13,
     color: COLORS.tertiary,
-    fontFamily: FONTS.regular
+    fontFamily: FONTS.regular,
   },
-
-  section: {
-    marginTop: SPACING.xl,
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 34,
+    marginBottom: SPACING.xl,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.l,
+    paddingTop: SPACING.l,
+    paddingBottom: SPACING.m,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
-    paddingTop: SPACING.xl,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: SPACING.s,
+  },
+  actionCount: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  section: {
+    marginTop: SPACING.l,
+    paddingHorizontal: SPACING.l,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    paddingTop: SPACING.l,
   },
   sectionTitle: {
     fontSize: 18,
@@ -444,142 +613,95 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.m,
     fontFamily: FONTS.semiBold,
   },
+  tabsRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    marginBottom: SPACING.m,
+  },
+  tabBtn: {
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    marginRight: SPACING.m,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabBtnActive: {
+    borderBottomColor: COLORS.primary,
+  },
+  tabBtnText: {
+    fontSize: 15,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.medium,
+  },
+  tabBtnTextActive: {
+    color: COLORS.paper,
+    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
+  },
   emptyText: {
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
     fontStyle: 'italic',
   },
-  commentRow: {
-    paddingVertical: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  commentAuthorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  sourcesList: {
     gap: SPACING.s,
-    marginBottom: SPACING.xs,
   },
-  commentAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.hover,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarTextSmall: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
-    fontFamily: FONTS.semiBold,
-  },
-  commentAuthorName: {
-    fontSize: 14,
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-    flex: 1,
-  },
-  commentTime: {
-    fontSize: 12,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
-  commentBody: {
-    fontSize: 15,
-    color: COLORS.paper,
-    fontFamily: FONTS.regular,
-    lineHeight: 22,
-    paddingLeft: 36,
-  },
-  commentInputRow: {
+  sourceCard: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: SPACING.m,
-    marginTop: SPACING.l,
-  },
-  commentInput: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: 120,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
-    paddingHorizontal: SPACING.m,
-    paddingVertical: SPACING.m,
-    fontSize: 15,
-    color: COLORS.paper,
-    fontFamily: FONTS.regular,
+    padding: SPACING.m,
     borderWidth: 1,
     borderColor: COLORS.divider,
   },
-  commentPostBtn: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.m,
-    borderRadius: SIZES.borderRadius,
-    justifyContent: 'center',
-    minHeight: 44,
-  },
-  commentPostBtnDisabled: {
-    opacity: 0.5,
-  },
-  commentPostBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.ink,
-    fontFamily: FONTS.semiBold,
-  },
-  sourceItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    paddingVertical: 8,
-  },
-  sourceIndex: {
-    color: COLORS.tertiary,
-    fontSize: 14,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginTop: 2,
-  },
-  sourceDomain: {
-    color: COLORS.primary,
-    fontSize: 12,
-    marginBottom: 2,
-    fontFamily: FONTS.medium,
-    textTransform: 'uppercase',
-  },
-  sourceTitle: {
-    color: COLORS.secondary,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    lineHeight: 22,
-  },
-
-  actionsRow: {
+  sourceCardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.xl,
-    paddingTop: SPACING.l,
-    paddingBottom: SPACING.m,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    flex: 1,
+    minWidth: 0,
   },
-  actionBtn: { padding: SPACING.s },
-
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
+  sourceAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.divider,
     justifyContent: 'center',
-    gap: SPACING.xxxl,
-    paddingTop: SPACING.l,
-    backgroundColor: COLORS.ink,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider
+    alignItems: 'center',
+    marginRight: SPACING.m,
   },
-  bottomBarButton: { alignItems: 'center', padding: SPACING.s },
-  bottomBarLabel: { color: COLORS.tertiary, fontSize: 12, marginTop: 2 },
+  sourceAvatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  sourceIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.m,
+  },
+  sourceCardText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sourceCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  sourceCardSubtitle: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    marginTop: 2,
+  },
   errorText: { color: COLORS.error, fontSize: 16, fontFamily: FONTS.medium },
 });

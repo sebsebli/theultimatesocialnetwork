@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, ScrollView, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -7,12 +7,15 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { useToast } from '../context/ToastContext';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 export default function WaitingListScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { showError, showSuccess } = useToast();
   const insets = useSafeAreaInsets();
   const { isOffline } = useNetworkStatus();
   const [email, setEmail] = useState('');
@@ -65,17 +68,17 @@ export default function WaitingListScreen() {
     const sanitizedEmail = email.trim().toLowerCase();
 
     if (!sanitizedEmail) {
-      Alert.alert(t('common.error', 'Error'), t('waitingList.emailRequired', 'Email is required'));
+      showError(t('waitingList.emailRequired', 'Email is required'));
       return;
     }
 
     if (!isValidEmail(sanitizedEmail)) {
-      Alert.alert(t('common.error', 'Error'), t('waitingList.invalidEmail', 'Please enter a valid email address'));
+      showError(t('waitingList.invalidEmail', 'Please enter a valid email address'));
       return;
     }
 
     if (!acceptedTerms) {
-      Alert.alert(t('common.error', 'Error'), t('waitingList.acceptTermsRequired'));
+      showError(t('waitingList.acceptTermsRequired'));
       return;
     }
 
@@ -83,16 +86,8 @@ export default function WaitingListScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await api.post('/waiting-list', { email: sanitizedEmail });
-      Alert.alert(
-        t('waitingList.success', 'Success'),
-        t('waitingList.successMessage', 'You\'ve been added to the waiting list! We\'ll notify you when invites are available.'),
-        [
-          {
-            text: t('common.ok', 'OK'),
-            onPress: () => router.back(),
-          }
-        ]
-      );
+      showSuccess(t('waitingList.successMessage', "You've been added to the waiting list! We'll notify you when invites are available."));
+      router.back();
     } catch (error: any) {
       console.error('Failed to join waiting list', error);
       const errorMessage = error?.status === 429
@@ -100,7 +95,7 @@ export default function WaitingListScreen() {
         : error?.status === 403
           ? t('waitingList.tooManyRequests', 'Too many requests from this IP address.')
           : t('waitingList.failed', 'Failed to join waiting list. Please try again.');
-      Alert.alert(t('common.error', 'Error'), errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -108,18 +103,7 @@ export default function WaitingListScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, SPACING.m) }]}>
-        <Pressable 
-          onPress={() => router.back()} 
-          accessibilityLabel={t('common.goBack', 'Go back')} 
-          accessibilityRole="button"
-          style={styles.backButton}
-        >
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('waitingList.title', 'Join Waiting List')}</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <ScreenHeader title={t('waitingList.title', 'Join Waiting List')} paddingTop={Math.max(insets.top, SPACING.m)} />
 
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
@@ -128,12 +112,13 @@ export default function WaitingListScreen() {
       >
         <ScrollView
           style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
             keyboardVisible && styles.scrollContentKeyboardVisible,
           ]}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
             <View style={styles.textGroup}>
@@ -166,7 +151,7 @@ export default function WaitingListScreen() {
                   >
                     <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
                       {acceptedTerms && (
-                        <MaterialCommunityIcons name="check" size={14} color={COLORS.ink} />
+                        <MaterialCommunityIcons name="check" size={HEADER.iconSize} color={COLORS.ink} />
                       )}
                     </View>
                   </Pressable>

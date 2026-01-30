@@ -3,13 +3,16 @@ import { StyleSheet, Text, View, FlatList, TextInput, Pressable, Modal, Alert, R
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { PostItem } from '../components/PostItem';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
 export default function KeepsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { showSuccess, showError } = useToast();
   const [keeps, setKeeps] = useState<any[]>([]);
@@ -100,7 +103,7 @@ export default function KeepsScreen() {
           accessibilityLabel={t('keeps.addToCollection')}
           accessibilityRole="button"
         >
-          <MaterialIcons name="playlist-add" size={18} color={COLORS.primary} />
+          <MaterialIcons name="playlist-add" size={HEADER.iconSize} color={COLORS.primary} />
           <Text style={styles.addButtonText}>{t('keeps.addToCollection')}</Text>
         </Pressable>
       </View>
@@ -142,12 +145,15 @@ export default function KeepsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('keeps.title')}</Text>
-        <Pressable onPress={() => router.push('/search')}>
-          <MaterialIcons name="search" size={24} color={COLORS.paper} />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title={t('keeps.title')}
+        paddingTop={insets.top}
+        right={
+          <Pressable onPress={() => router.push('/search')} style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, pressed && { opacity: 0.7 }]}>
+            <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.paper} />
+          </Pressable>
+        }
+      />
 
       <View style={styles.filters}>
         <TextInput
@@ -187,6 +193,8 @@ export default function KeepsScreen() {
 
       <FlatList
         data={keeps}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListEmptyComponent={
@@ -231,6 +239,8 @@ export default function KeepsScreen() {
               data={collections}
               keyExtractor={(item: any) => item.id}
               style={{ maxHeight: 300 }}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
               renderItem={({ item }: { item: any }) => (
                 <Pressable
                   style={styles.collectionItem}
@@ -255,22 +265,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: SPACING.header,
-    paddingBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   filters: {
     padding: SPACING.l,

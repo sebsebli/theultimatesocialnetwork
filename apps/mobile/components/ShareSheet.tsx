@@ -1,21 +1,31 @@
-import React, { forwardRef, useImperativeHandle, useState } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, Platform, Share as NativeShare } from 'react-native';
+import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, Pressable, Platform, Share as NativeShare, ScrollView, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 import * as Clipboard from 'expo-clipboard';
 import { useToast } from '../context/ToastContext';
+import { api } from '../utils/api';
 
 export interface ShareSheetRef {
   open: (postId: string) => void;
   close: () => void;
 }
 
+interface ThreadItem {
+  id: string;
+  otherUser: { id: string; handle: string; displayName: string };
+  lastMessage?: { body: string; createdAt: string } | null;
+  unreadCount: number;
+}
+
 // @ts-ignore
 const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>) => {
   const [visible, setVisible] = useState(false);
   const [postId, setPostId] = useState<string | null>(null);
+  const [threads, setThreads] = useState<ThreadItem[]>([]);
+  const [threadsLoading, setThreadsLoading] = useState(false);
   const router = useRouter();
   const { t } = useTranslation();
   const { showSuccess } = useToast();
@@ -28,13 +38,34 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
     close: () => setVisible(false),
   }));
 
-  const handleSendDM = () => {
+  useEffect(() => {
+    if (visible && postId) {
+      setThreadsLoading(true);
+      api.get<ThreadItem[]>('/messages/threads')
+        .then((data) => setThreads(Array.isArray(data) ? data.slice(0, 8) : []))
+        .catch(() => setThreads([]))
+        .finally(() => setThreadsLoading(false));
+    }
+  }, [visible, postId]);
+
+  const url = postId ? `https://cite.app/post/${postId}` : '';
+
+  const handleSendToThread = (threadId: string) => {
     setVisible(false);
     if (postId) {
-      const url = `https://cite.app/post/${postId}`;
+      router.push({
+        pathname: `/(tabs)/messages/${threadId}`,
+        params: { initialMessage: url },
+      });
+    }
+  };
+
+  const handleNewMessage = () => {
+    setVisible(false);
+    if (postId) {
       router.push({
         pathname: '/(tabs)/messages/new',
-        params: { initialMessage: url }
+        params: { initialMessage: url },
       });
     }
   };
@@ -81,26 +112,48 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
       onRequestClose={() => setVisible(false)}
     >
       <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
-        <View style={styles.sheet}>
+        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
           <Text style={styles.title}>{t('post.shareTitle', 'Share')}</Text>
-          
-          <Pressable style={styles.option} onPress={handleSendDM}>
+
+          <Text style={styles.sectionLabel}>{t('post.sendDm', 'Send as DM')}</Text>
+          {threadsLoading ? (
+            <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: SPACING.m }} />
+          ) : threads.length > 0 ? (
+            <ScrollView horizontal showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.recentScroll} contentContainerStyle={styles.recentRow}>
+              {threads.map((thread) => (
+                <Pressable
+                  key={thread.id}
+                  style={styles.recentContact}
+                  onPress={() => handleSendToThread(thread.id)}
+                >
+                  <View style={styles.recentAvatar}>
+                    <Text style={styles.recentAvatarText}>
+                      {(thread.otherUser.displayName || thread.otherUser.handle || '?').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.recentName} numberOfLines={1}>{thread.otherUser.displayName || thread.otherUser.handle}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : null}
+          <Pressable style={styles.option} onPress={handleNewMessage}>
             <View style={styles.iconContainer}>
-              <MaterialIcons name="mail-outline" size={24} color={COLORS.primary} />
+              <MaterialIcons name="add-circle-outline" size={HEADER.iconSize} color={COLORS.primary} />
             </View>
-            <Text style={styles.optionText}>{t('post.sendDm', 'Send as DM')}</Text>
+            <Text style={styles.optionText}>{t('messages.newMessage', 'New message')}</Text>
           </Pressable>
 
+          <Text style={styles.sectionLabel}>{t('post.otherWays', 'Other ways')}</Text>
           <Pressable style={styles.option} onPress={handleCopyLink}>
-             <View style={styles.iconContainer}>
-              <MaterialIcons name="content-copy" size={24} color={COLORS.primary} />
+            <View style={styles.iconContainer}>
+              <MaterialIcons name="content-copy" size={HEADER.iconSize} color={COLORS.primary} />
             </View>
             <Text style={styles.optionText}>{t('post.copyLink', 'Copy Link')}</Text>
           </Pressable>
 
           <Pressable style={styles.option} onPress={handleShareSystem}>
-             <View style={styles.iconContainer}>
-              <MaterialIcons name="ios-share" size={24} color={COLORS.primary} />
+            <View style={styles.iconContainer}>
+              <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.primary} />
             </View>
             <Text style={styles.optionText}>{t('post.shareSystem', 'Share via...')}</Text>
           </Pressable>
@@ -122,20 +175,62 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: COLORS.ink,
-    borderTopLeftRadius: SIZES.borderRadius,
-    borderTopRightRadius: SIZES.borderRadius,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: SPACING.l,
     borderWidth: 1,
     borderColor: COLORS.divider,
     borderBottomWidth: 0,
+    maxHeight: '70%',
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.secondary,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.paper,
     textAlign: 'center',
     marginBottom: SPACING.l,
     fontFamily: FONTS.semiBold,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: SPACING.s,
+    fontFamily: FONTS.semiBold,
+  },
+  recentScroll: {
+    marginBottom: SPACING.m,
+  },
+  recentRow: {
+    flexDirection: 'row',
+    gap: SPACING.m,
+    paddingVertical: SPACING.s,
+  },
+  recentContact: {
+    alignItems: 'center',
+    width: 64,
+  },
+  recentAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.hover,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  recentAvatarText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  recentName: {
+    fontSize: 12,
+    color: COLORS.paper,
+    fontFamily: FONTS.regular,
   },
   option: {
     flexDirection: 'row',

@@ -1,20 +1,27 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, RefreshControl, Alert, Platform, Share, Linking } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, Pressable, RefreshControl, Platform, Share, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../utils/api';
+import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
+import { ConfirmModal } from '../../components/ConfirmModal';
+import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { PostItem } from '../../components/PostItem';
 import { PostContent } from '../../components/PostContent';
 import { MarkdownText } from '../../components/MarkdownText';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { Post } from '../../types';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 
 export default function PostDetailScreen() {
   const { id, highlightReplyId } = useLocalSearchParams();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { userId } = useAuth();
   const { showSuccess, showError } = useToast();
   const [post, setPost] = useState<Post | null>(null);
   const [replies, setReplies] = useState<Post[]>([]);
@@ -26,6 +33,11 @@ export default function PostDetailScreen() {
   // Interaction state
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ targetId: string; type: 'POST' | 'REPLY' } | null>(null);
+  const [postOptionsVisible, setPostOptionsVisible] = useState(false);
+  const [replyOptionsVisible, setReplyOptionsVisible] = useState(false);
+  const [replyOptionsReplyId, setReplyOptionsReplyId] = useState<string | null>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   // Scroll ref for deep linking (basic implementation)
 
@@ -82,9 +94,13 @@ export default function PostDetailScreen() {
         setReferencedBy(Array.isArray(referencedRes) ? referencedRes : []);
         setSources(Array.isArray(sourcesRes) ? sourcesRes : []);
       });
-    } catch (error) {
-      // console.error('Failed to load post', error);
+    } catch (error: any) {
       setLoading(false);
+      if (error?.status === 404) {
+        showError(t('post.notFoundMessage', "This post doesn't exist anymore."));
+        router.back();
+        return;
+      }
     }
   };
 
@@ -118,34 +134,25 @@ export default function PostDetailScreen() {
     }
   };
 
-  const handleReport = async (targetId: string, type: 'POST' | 'REPLY') => {
-    Alert.alert(
-      t('post.reportTitle', 'Report Content'),
-      t('post.reportMessage', 'Are you sure you want to report this content?'),
-      [
-        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
-        {
-          text: t('post.report', 'Report'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.post(`/reports`, {
-                targetId,
-                targetType: type,
-                reason: 'Reported via mobile app detail view',
-              });
-              showSuccess(t('post.reportSuccess', 'Content reported successfully'));
-            } catch (error) {
-              // console.error('Failed to report', error);
-              showError(t('post.reportError', 'Failed to report content'));
-            }
-          },
-        },
-      ]
-    );
+  const handleReport = (targetId: string, type: 'POST' | 'REPLY') => setReportTarget({ targetId, type });
+
+  const confirmReport = async () => {
+    if (!reportTarget) return;
+    try {
+      await api.post('/safety/report', {
+        targetId: reportTarget.targetId,
+        targetType: reportTarget.type,
+        reason: 'Reported via mobile app detail view',
+      });
+      showSuccess(t('post.reportSuccess', 'Content reported successfully'));
+    } catch (error) {
+      showError(t('post.reportError', 'Failed to report content'));
+      throw error;
+    }
   };
 
   const handleShare = async () => {
+    if (!post) return;
     try {
       await Share.share({
         message: `Check out this post by @${post.author.handle}: https://cite.app/post/${post.id}`,
@@ -156,26 +163,26 @@ export default function PostDetailScreen() {
     }
   };
 
-  const handlePostMenu = () => {
-    Alert.alert(
-      t('post.options', 'Post Options'),
-      undefined,
-      [
-        { text: t('post.report', 'Report Post'), onPress: () => handleReport(id as string, 'POST'), style: 'destructive' },
-        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
-      ]
-    );
+  const handlePostMenu = () => setPostOptionsVisible(true);
+
+  const handleDeletePost = async () => {
+    try {
+      await api.delete(`/posts/${id}`);
+      showSuccess(t('post.deleted', 'Post deleted'));
+      setDeleteConfirmVisible(false);
+      setPostOptionsVisible(false);
+      router.back();
+    } catch (error: any) {
+      showError(error?.message || t('post.deleteFailed', 'Failed to delete post'));
+      throw error;
+    }
   };
 
+  const isOwnPost = !!post && !!userId && post.author?.id === userId;
+
   const handleReplyMenu = (replyId: string) => {
-    Alert.alert(
-      t('post.options', 'Reply Options'),
-      undefined,
-      [
-        { text: t('post.report', 'Report Reply'), onPress: () => handleReport(replyId, 'REPLY'), style: 'destructive' },
-        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
-      ]
-    );
+    setReplyOptionsReplyId(replyId);
+    setReplyOptionsVisible(true);
   };
 
   const onRefresh = async () => {
@@ -196,31 +203,33 @@ export default function PostDetailScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>{t('post.noPost')}</Text>
+        <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>{t('common.goBack')}</Text>
+        </Pressable>
       </View>
     );
   }
 
   return (
+    <>
     <ScrollView
       ref={scrollViewRef}
+      showsVerticalScrollIndicator={false}
+      showsHorizontalScrollIndicator={false}
       style={styles.container}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
       }
     >
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityLabel={t('common.goBack', 'Go back')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('post.thread')}</Text>
-        <Pressable onPress={handlePostMenu} hitSlop={10} style={{ padding: 4 }}>
-          <MaterialIcons name="more-horiz" size={24} color={COLORS.paper} />
-        </Pressable>
-      </View>
+      <ScreenHeader
+        title={t('post.thread')}
+        paddingTop={insets.top}
+        right={
+          <Pressable onPress={handlePostMenu} hitSlop={10} style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, pressed && { opacity: 0.7 }]}>
+            <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.paper} />
+          </Pressable>
+        }
+      />
 
       <View style={styles.postContent}>
         <PostContent post={post} disableNavigation />
@@ -238,7 +247,7 @@ export default function PostDetailScreen() {
             accessibilityLabel={t('post.readArticle', 'Read article')}
             accessibilityRole="button"
           >
-            <MaterialIcons name="menu-book" size={20} color={COLORS.primary} />
+            <MaterialIcons name="menu-book" size={HEADER.iconSize} color={COLORS.primary} />
             <Text style={styles.actionButtonText}>{t('post.readArticle', 'Read')}</Text>
           </Pressable>
           <Pressable
@@ -304,7 +313,7 @@ export default function PostDetailScreen() {
                   {source.alias || source.title || source.handle || source.url}
                 </Text>
               </View>
-              <MaterialIcons name="open-in-new" size={16} color={COLORS.tertiary} />
+              <MaterialIcons name="open-in-new" size={HEADER.iconSize} color={COLORS.tertiary} />
             </Pressable>
           ))}
         </View>
@@ -329,7 +338,7 @@ export default function PostDetailScreen() {
 
       <View
         style={styles.section}
-        onLayout={(event) => {
+        onLayout={(event: { nativeEvent: { layout: { y: number } } }) => {
           repliesSectionY.current = event.nativeEvent.layout.y;
         }}
       >
@@ -337,7 +346,7 @@ export default function PostDetailScreen() {
         {replies.map((reply) => (
           <View
             key={reply.id}
-            onLayout={(event) => {
+            onLayout={(event: { nativeEvent: { layout: { y: number } } }) => {
               if (highlightReplyId === reply.id) {
                 const itemY = event.nativeEvent.layout.y;
                 const totalY = repliesSectionY.current + itemY;
@@ -358,7 +367,7 @@ export default function PostDetailScreen() {
                 <Text style={styles.handleSmall}>@{reply.author.handle}</Text>
               </View>
               <Pressable onPress={() => handleReplyMenu(reply.id)} hitSlop={10}>
-                <MaterialIcons name="more-horiz" size={20} color={COLORS.tertiary} />
+                <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
               </Pressable>
             </View>
             <View style={{ marginTop: 4 }}>
@@ -375,7 +384,7 @@ export default function PostDetailScreen() {
           accessibilityLabel={t('post.reply')}
           accessibilityRole="button"
         >
-          <MaterialIcons name="chat-bubble-outline" size={20} color={COLORS.tertiary} />
+          <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
           <Text style={styles.bottomActionText}>{t('post.reply')}</Text>
         </Pressable>
         <Pressable
@@ -384,7 +393,7 @@ export default function PostDetailScreen() {
           accessibilityLabel={t('post.quote')}
           accessibilityRole="button"
         >
-          <MaterialIcons name="format-quote" size={20} color={COLORS.tertiary} />
+          <MaterialIcons name="format-quote" size={HEADER.iconSize} color={COLORS.tertiary} />
           <Text style={styles.bottomActionText}>{t('post.quote')}</Text>
         </Pressable>
         <Pressable
@@ -395,7 +404,7 @@ export default function PostDetailScreen() {
         >
           <MaterialIcons
             name={liked ? "favorite" : "favorite-border"}
-            size={20}
+            size={HEADER.iconSize}
             color={liked ? (COLORS.like || COLORS.primary) : COLORS.tertiary}
           />
           <Text style={[styles.bottomActionText, liked && { color: (COLORS.like || COLORS.primary) }]}>
@@ -410,7 +419,7 @@ export default function PostDetailScreen() {
         >
           <MaterialIcons
             name={kept ? "bookmark" : "bookmark-border"}
-            size={20}
+            size={HEADER.iconSize}
             color={kept ? COLORS.primary : COLORS.tertiary}
           />
           <Text style={[styles.bottomActionText, kept && { color: COLORS.primary }]}>
@@ -423,11 +432,52 @@ export default function PostDetailScreen() {
           accessibilityLabel={t('post.share')}
           accessibilityRole="button"
         >
-          <MaterialIcons name="share" size={20} color={COLORS.tertiary} />
+          <MaterialIcons name="share" size={HEADER.iconSize} color={COLORS.tertiary} />
           <Text style={styles.bottomActionText}>{t('post.share')}</Text>
         </Pressable>
       </View>
     </ScrollView>
+
+    <ConfirmModal
+      visible={!!reportTarget}
+      title={t('post.reportTitle', 'Report Content')}
+      message={t('post.reportMessage', 'Are you sure you want to report this content?')}
+      confirmLabel={t('post.report', 'Report')}
+      cancelLabel={t('common.cancel')}
+      destructive
+      onConfirm={confirmReport}
+      onCancel={() => setReportTarget(null)}
+    />
+    <OptionsActionSheet
+      visible={postOptionsVisible}
+      title={t('post.options', 'Post Options')}
+      options={[
+        ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setPostOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const }] : []),
+        { label: t('post.report', 'Report Post'), onPress: () => { setPostOptionsVisible(false); handleReport(id as string, 'POST'); }, destructive: true },
+      ]}
+      cancelLabel={t('common.cancel')}
+      onCancel={() => setPostOptionsVisible(false)}
+    />
+    <ConfirmModal
+      visible={deleteConfirmVisible}
+      title={t('post.delete', 'Delete Post')}
+      message={t('post.deleteConfirm', 'Are you sure you want to delete this post? This cannot be undone.')}
+      confirmLabel={t('post.delete', 'Delete Post')}
+      cancelLabel={t('common.cancel')}
+      destructive
+      onConfirm={handleDeletePost}
+      onCancel={() => setDeleteConfirmVisible(false)}
+    />
+    <OptionsActionSheet
+      visible={replyOptionsVisible}
+      title={t('post.options', 'Reply Options')}
+      options={replyOptionsReplyId ? [
+        { label: t('post.report', 'Report Reply'), onPress: () => { setReplyOptionsVisible(false); setReplyOptionsReplyId(null); handleReport(replyOptionsReplyId, 'REPLY'); }, destructive: true },
+      ] : []}
+      cancelLabel={t('common.cancel')}
+      onCancel={() => { setReplyOptionsVisible(false); setReplyOptionsReplyId(null); }}
+    />
+    </>
   );
 }
 
@@ -435,22 +485,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: SPACING.header,
-    paddingBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
   },
   placeholder: {
     width: SIZES.iconLarge,
@@ -679,5 +713,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.xl,
     fontFamily: FONTS.regular,
+  },
+  backButton: {
+    marginTop: SPACING.l,
+    alignSelf: 'center',
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.xl,
+  },
+  backButtonText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
   },
 });

@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, FlatList, TextInput, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../utils/api';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { ScreenHeader } from '../../components/ScreenHeader';
 
 export default function MessageThreadScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { threadId } = useLocalSearchParams();
   const { t } = useTranslation();
   const [messages, setMessages] = useState<any[]>([]);
@@ -72,21 +74,13 @@ export default function MessageThreadScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityLabel={t('common.goBack', 'Go back')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('inbox.messages')}</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <ScreenHeader title={t('inbox.messages')} paddingTop={insets.top} />
 
       <FlatList
         ref={flatListRef}
         data={messages}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
         keyExtractor={(item: any) => item.id}
         renderItem={({ item }: { item: any }) => {
           const isMe = item.senderId === 'me' || (currentUser && item.senderId === currentUser.id);
@@ -135,25 +129,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: SPACING.header,
-    paddingBottom: SPACING.m,
-    paddingHorizontal: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  placeholder: {
-    width: SIZES.iconLarge,
   },
   messageList: {
     padding: SPACING.l,

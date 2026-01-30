@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Alert, Linking, useWindowDimensions, Dimensions, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Linking, useWindowDimensions, Dimensions, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,7 +8,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { api } from '../utils/api';
 import { useAuth } from '../context/auth';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 import { IntroModal, shouldShowIntro } from '../components/IntroModal';
 
 export default function IndexScreen() {
@@ -19,13 +19,13 @@ export default function IndexScreen() {
   const { height: windowHeight } = useWindowDimensions();
   const screenHeight = Dimensions.get('window').height;
 
-  // Redirect if authenticated
+  // Redirect if authenticated: home if onboarding done, else onboarding (index redirects to correct stage)
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       if (onboardingComplete) {
         router.replace('/(tabs)/');
       } else {
-        router.replace('/onboarding/languages');
+        router.replace('/onboarding');
       }
     }
   }, [isLoading, isAuthenticated, onboardingComplete]);
@@ -104,10 +104,7 @@ export default function IndexScreen() {
       // Check for specific beta invite requirement
       if (error?.status === 400 && error.message === 'Invite code required for registration') {
         setShowInviteInput(true);
-        Alert.alert(
-          t('signIn.inviteCodeRequiredTitle', 'Invite Code Required'),
-          t('signIn.inviteCodeRequiredMessage', 'You are new here! Please enter your invite code to join the beta.')
-        );
+        showError(t('signIn.inviteCodeRequiredMessage', 'You are new here! Please enter your invite code to join the beta.'));
         setLoading(false);
         return;
       }
@@ -254,7 +251,7 @@ export default function IndexScreen() {
                       >
                         <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
                           {acceptedTerms && (
-                            <MaterialCommunityIcons name="check" size={14} color={COLORS.ink} />
+                            <MaterialCommunityIcons name="check" size={HEADER.iconSize} color={COLORS.ink} />
                           )}
                         </View>
                       </Pressable>
@@ -320,7 +317,7 @@ export default function IndexScreen() {
               <>
                 <TextInput
                   style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontWeight: 'bold', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }]}
-                  placeholder="000000"
+                  placeholder={t('signIn.codePlaceholder', '000000')}
                   placeholderTextColor={COLORS.tertiary}
                   value={token}
                   onChangeText={(val: string) => setToken(val.replace(/\D/g, '').slice(0, 6))}

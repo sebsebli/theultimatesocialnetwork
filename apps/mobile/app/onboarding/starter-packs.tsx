@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useAuth } from '../../context/auth';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface User {
@@ -75,11 +75,11 @@ export default function OnboardingStarterPacksScreen() {
           <View style={[styles.stepDot, styles.stepDotActive]} />
         </View>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.secondary} />
+          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.secondary} />
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
         <Text style={styles.title}>{t('onboarding.starterPacks.starterPackTitle')}</Text>
         <Text style={styles.subtitle}>{t('onboarding.starterPacks.starterPackSubtitle')}</Text>
 
@@ -124,7 +124,7 @@ export default function OnboardingStarterPacksScreen() {
           <Text style={styles.buttonText}>
             {finishing ? t('common.loading') : t('onboarding.finish')}
           </Text>
-          <MaterialIcons name="check" size={20} color="#FFF" />
+          <MaterialIcons name="check" size={HEADER.iconSize} color="#FFF" />
         </Pressable>
       </View>
     </View>

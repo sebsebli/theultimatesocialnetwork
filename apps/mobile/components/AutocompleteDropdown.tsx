@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
 interface AutocompleteItem {
   id: string;
@@ -57,8 +57,9 @@ export function AutocompleteDropdown({
           // Fallback if topics API is different, but assuming Meilisearch consistency
           const topics = (res.hits || []).map((t: any) => ({
             id: t.id,
-            title: t.title,
+            title: t.title || t.slug || '',
             slug: t.slug,
+            subtitle: t.description ? t.description.substring(0, 50) : undefined,
             type: 'topic',
           }));
           results = [...results, ...topics];
@@ -69,14 +70,22 @@ export function AutocompleteDropdown({
           const res = await api.get<{ hits: any[] }>(`/search/posts?q=${query}`);
           const posts = (res.hits || []).map((p: any) => ({
             id: p.id,
-            title: p.title || 'Untitled',
-            subtitle: p.body ? p.body.substring(0, 50) : '',
+            title: p.title || p.body?.substring(0, 40) || 'Untitled',
+            subtitle: p.author ? `@${p.author.handle || p.author.displayName}` : (p.body ? p.body.substring(0, 50) : ''),
             type: 'post',
           }));
           results = [...results, ...posts];
         }
 
-        setItems(results);
+        // Dedupe by type-id (same id can exist as topic vs post)
+        const seen = new Set<string>();
+        const deduped = results.filter((r: any) => {
+          const key = `${r.type}-${r.id}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setItems(deduped);
       } catch (error) {
         console.error('Search failed', error);
       } finally {
@@ -102,6 +111,8 @@ export function AutocompleteDropdown({
       ) : (
         <FlatList
           data={items}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           keyExtractor={(item: any) => `${item.type}-${item.id}`}
           renderItem={({ item }: { item: any }) => (
             <Pressable
@@ -113,11 +124,11 @@ export function AutocompleteDropdown({
             >
               <View style={styles.itemIcon}>
                 {item.type === 'user' ? (
-                  <MaterialIcons name="person" size={16} color={COLORS.primary} />
+                  <MaterialIcons name="person" size={HEADER.iconSize} color={COLORS.primary} />
                 ) : item.type === 'topic' ? (
-                  <MaterialIcons name="tag" size={16} color={COLORS.primary} />
+                  <MaterialIcons name="tag" size={HEADER.iconSize} color={COLORS.primary} />
                 ) : (
-                  <MaterialIcons name="description" size={16} color={COLORS.primary} />
+                  <MaterialIcons name="description" size={HEADER.iconSize} color={COLORS.primary} />
                 )}
               </View>
               <View style={styles.itemContent}>

@@ -1,17 +1,23 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../utils/api';
+import { useToast } from '../../context/ToastContext';
+import { ConfirmModal } from '../../components/ConfirmModal';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
 
 export default function MutedUsersScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { showError, showSuccess } = useToast();
   const [muted, setMuted] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [unmuteTarget, setUnmuteTarget] = useState<{ id: string; displayName: string } | null>(null);
 
   const loadMuted = async () => {
     try {
@@ -29,27 +35,19 @@ export default function MutedUsersScreen() {
     loadMuted();
   }, []);
 
-  const handleUnmute = async (userId: string, displayName: string) => {
-    Alert.alert(
-      t('safety.unmuteUser', 'Unmute User'),
-      t('safety.unmuteConfirm', `Are you sure you want to unmute ${displayName}?`),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('safety.unmute', 'Unmute'),
-          onPress: async () => {
-            try {
-              await api.delete(`/safety/mute/${userId}`);
-              setMuted(prev => prev.filter(u => u.id !== userId));
-              Alert.alert(t('safety.unmuted', 'User Unmuted'), t('safety.unmutedMessage', 'This user has been unmuted.'));
-            } catch (error) {
-              console.error('Failed to unmute user', error);
-              Alert.alert(t('common.error', 'Error'), t('safety.failedUnmute', 'Failed to unmute user.'));
-            }
-          }
-        }
-      ]
-    );
+  const handleUnmute = (userId: string, displayName: string) => setUnmuteTarget({ id: userId, displayName });
+
+  const confirmUnmute = async () => {
+    if (!unmuteTarget) return;
+    try {
+      await api.delete(`/safety/mute/${unmuteTarget.id}`);
+      setMuted(prev => prev.filter(u => u.id !== unmuteTarget.id));
+      showSuccess(t('safety.unmutedMessage', 'This user has been unmuted.'));
+    } catch (error) {
+      console.error('Failed to unmute user', error);
+      showError(t('safety.failedUnmute', 'Failed to unmute user.'));
+      throw error;
+    }
   };
 
   const renderItem = useCallback(({ item }: { item: any }) => (
@@ -82,13 +80,7 @@ export default function MutedUsersScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-          </Pressable>
-          <Text style={styles.headerTitle}>{t('settings.mutedAccounts', 'Muted Accounts')}</Text>
-          <View style={styles.placeholder} />
-        </View>
+        <ScreenHeader title={t('settings.mutedAccounts', 'Muted Accounts')} paddingTop={insets.top} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
@@ -98,16 +90,12 @@ export default function MutedUsersScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Go back" accessibilityRole="button">
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.paper} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('settings.mutedAccounts', 'Muted Accounts')}</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <ScreenHeader title={t('settings.mutedAccounts', 'Muted Accounts')} paddingTop={insets.top} />
 
       <FlatList
         data={muted}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
         keyExtractor={(item: any) => item.id}
         renderItem={renderItem}
         refreshControl={
@@ -120,6 +108,16 @@ export default function MutedUsersScreen() {
         }
         contentContainerStyle={styles.listContent}
       />
+
+      <ConfirmModal
+        visible={!!unmuteTarget}
+        title={t('safety.unmuteUser', 'Unmute User')}
+        message={unmuteTarget ? t('safety.unmuteConfirm', `Are you sure you want to unmute ${unmuteTarget.displayName}?`) : ''}
+        confirmLabel={t('safety.unmute', 'Unmute')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmUnmute}
+        onCancel={() => setUnmuteTarget(null)}
+      />
     </View>
   );
 }
@@ -128,23 +126,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.header + 10,
-    paddingBottom: SPACING.m,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  placeholder: {
-    width: 24,
   },
   loadingContainer: {
     flex: 1,

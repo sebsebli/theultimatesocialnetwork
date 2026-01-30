@@ -314,6 +314,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
           ref={scrollViewRef}
           horizontal
           pagingEnabled
+          showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
