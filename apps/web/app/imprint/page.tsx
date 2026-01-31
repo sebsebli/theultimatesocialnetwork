@@ -31,7 +31,7 @@ export default function ImprintPage() {
 
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4">Contact</h2>
-          <p>Email: legal@citewalk.com</p>
+          <p>Email: hello@citewalk.com</p>
           <p>Web: citewalk.com</p>
         </section>
 

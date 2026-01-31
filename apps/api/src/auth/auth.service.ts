@@ -10,7 +10,7 @@ import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { v4 as uuidv4 } from 'uuid';
 import Redis from 'ioredis';
-import { randomInt } from 'crypto';
+import { randomInt, randomBytes } from 'crypto';
 
 import { InvitesService } from '../invites/invites.service';
 import { EmailService } from '../shared/email.service';
@@ -138,10 +138,17 @@ export class AuthService {
 
       // Create new user with placeholder profile; real handle/displayName set in onboarding
       const id = uuidv4();
+      const publicId = randomBytes(9)
+        .toString('base64')
+        .replace(/\+/g, '.')
+        .replace(/\//g, '_')
+        .replace(/=/g, '')
+        .substring(0, 12);
       const placeholderHandle = `__pending_${id.replace(/-/g, '').slice(0, 12)}`;
       user = this.userRepo.create({
         id,
         email,
+        publicId,
         handle: placeholderHandle,
         displayName: 'Pending',
         createdAt: new Date(),

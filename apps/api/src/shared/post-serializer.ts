@@ -81,9 +81,12 @@ export function userToPlain(
   u: UserWithPosts | User | null | undefined,
 ): Record<string, unknown> | null {
   if (!u || typeof u !== 'object') return null;
-  // Strip email and other sensitive internal fields
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { email, preferences, ...safe } = u;
+  // Strip email, preferences, publicId; keep rest for safe serialization
+  const uRecord = u as Record<string, unknown>;
+  const safe: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(uRecord)) {
+    if (k !== 'email' && k !== 'preferences' && k !== 'publicId') safe[k] = v;
+  }
   const userWithPosts = u as UserWithPosts;
   return {
     ...safe,

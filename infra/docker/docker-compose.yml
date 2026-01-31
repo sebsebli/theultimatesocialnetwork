@@ -190,6 +190,7 @@ services:
       OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
       NODE_ENV: development
       DB_SSL: "false"
+      DB_SYNCHRONIZE: "false"
       PORT: 3000
       # CORS, SMTP, FRONTEND_URL, CITE_ADMIN_SECRET, METRICS_SECRET: from .env
       CORS_ORIGINS: ${CORS_ORIGINS:-}

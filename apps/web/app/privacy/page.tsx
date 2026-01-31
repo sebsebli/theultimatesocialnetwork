@@ -34,7 +34,7 @@ export default function PrivacyPage() {
             <br />
             10115 Berlin, Germany
             <br />
-            Email: legal@citewalk.com
+            Email: hello@citewalk.com
           </p>
         </section>
 
@@ -119,7 +119,7 @@ export default function PrivacyPage() {
           <p>
             Users have rights under Arts. 15–21 GDPR (Access, Rectification,
             Erasure, Portability). Requests may be submitted via
-            legal@citewalk.com.
+            hello@citewalk.com.
           </p>
         </section>
 

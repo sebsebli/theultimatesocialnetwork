@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/auth-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { RealtimeProvider } from "@/context/realtime-provider";
 import { ConsentAndSignup } from "@/components/consent-and-signup";
+import { NotificationManager } from "@/components/notification-manager";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
@@ -37,6 +38,18 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Dr. Sebastian Lindner", url: "https://citewalk.com" }],
   creator: "Dr. Sebastian Lindner",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export default async function RootLayout({
@@ -58,6 +71,7 @@ export default async function RootLayout({
             <ToastProvider>
               <AuthProvider>
                 <RealtimeProvider>
+                  <NotificationManager />
                   {children}
                   <ConsentAndSignup />
                 </RealtimeProvider>

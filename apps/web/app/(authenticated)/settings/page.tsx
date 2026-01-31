@@ -4,16 +4,21 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/components/auth-provider";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { error: toastError } = useToast();
+  const { user } = useAuth();
   const [pushEnabled, setPushEnabled] = useState(true);
   const [showSaves, setShowSaves] = useState(true);
   const [enableRecommendations, setEnableRecommendations] = useState(true);
   const [emailMarketing, setEmailMarketing] = useState(false);
   const [emailProductUpdates, setEmailProductUpdates] = useState(false);
   const [emailPrefsLoading, setEmailPrefsLoading] = useState(true);
+
+  // Email to display (fallback if not loaded yet)
+  const userEmail = (user as { email?: string } | null)?.email ?? "Loading...";
 
   useEffect(() => {
     fetch("/api/me/notification-prefs")
@@ -95,7 +100,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
               <div>
                 <div className="text-paper font-medium">Email</div>
-                <div className="text-secondary text-sm">dev@Citewalk.local</div>
+                <div className="text-secondary text-sm">{userEmail}</div>
               </div>
               <button className="text-primary text-sm font-medium">
                 Change

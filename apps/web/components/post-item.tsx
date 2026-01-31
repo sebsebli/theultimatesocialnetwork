@@ -39,6 +39,8 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
   const [kept, setKept] = useState(post.isKept ?? false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
 
+  // In production, images are served from MinIO/S3 via a proxy or direct URL.
+  // We use the env var or default to the public bucket URL.
   const STORAGE_URL =
     process.env.NEXT_PUBLIC_STORAGE_URL ||
     "http://localhost:9000/citewalk-images";
@@ -50,31 +52,15 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
     setLiked(!previous);
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const token = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("token="))
-        ?.split("=")[1];
-
-      if (!token) {
-        setLiked(previous);
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/posts/${post.id}/like`, {
+      // Call Next.js API Route (BFF) which handles auth token (HttpOnly cookie)
+      const response = await fetch(`/api/posts/${post.id}/like`, {
         method: previous ? "DELETE" : "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
       });
 
       if (!response.ok) {
         throw new Error("Failed to toggle like");
       }
     } catch {
-      // console.error("Failed to toggle like", error);
       setLiked(previous);
     }
   };
@@ -86,31 +72,14 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
     setKept(!previous);
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const token = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("token="))
-        ?.split("=")[1];
-
-      if (!token) {
-        setKept(previous);
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/posts/${post.id}/keep`, {
+      const response = await fetch(`/api/posts/${post.id}/keep`, {
         method: previous ? "DELETE" : "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
       });
 
       if (!response.ok) {
         throw new Error("Failed to toggle keep");
       }
     } catch {
-      // console.error("Failed to toggle keep", error);
       setKept(previous);
     }
   };
@@ -160,7 +129,6 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
           title: target.alias || "Referenced Post",
         });
       } else if (target.type === "topic") {
-        // Topics included if relevant
         list.push({
           type: "topic",
           title: target.target,

@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useAuth } from "./auth-provider";
 
 export function DesktopSidebar() {
   const t = useTranslations("nav");
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const handle = (user as { handle?: string } | null)?.handle ?? "me";
 
   const isActive = (path: string) => {
     if (path === "/home") {
@@ -134,15 +138,15 @@ export function DesktopSidebar() {
           </Link>
 
           <Link
-            href="/user/dev"
+            href={`/user/${handle}`}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              isActive("/user")
+              isActive(`/user/${handle}`)
                 ? "bg-primary/20 text-primary"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
             }`}
           >
             <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-[10px]">
-              D
+              {handle.charAt(0).toUpperCase()}
             </div>
             <span className="font-medium">{t("profile")}</span>
           </Link>
@@ -155,7 +159,11 @@ export function DesktopSidebar() {
         <div className="flex flex-col gap-1">
           <Link
             href="/collections"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-tertiary hover:bg-white/5 hover:text-paper"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+              isActive("/collections")
+                ? "bg-primary/20 text-primary"
+                : "text-tertiary hover:bg-white/5 hover:text-paper"
+            }`}
           >
             <svg
               className="w-5 h-5"
@@ -175,7 +183,11 @@ export function DesktopSidebar() {
 
           <Link
             href="/keeps"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-tertiary hover:bg-white/5 hover:text-paper"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+              isActive("/keeps")
+                ? "bg-primary/20 text-primary"
+                : "text-tertiary hover:bg-white/5 hover:text-paper"
+            }`}
           >
             <svg
               className="w-5 h-5"
@@ -195,7 +207,11 @@ export function DesktopSidebar() {
 
           <Link
             href="/settings"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-tertiary hover:bg-white/5 hover:text-paper"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+              isActive("/settings")
+                ? "bg-primary/20 text-primary"
+                : "text-tertiary hover:bg-white/5 hover:text-paper"
+            }`}
           >
             <svg
               className="w-5 h-5"

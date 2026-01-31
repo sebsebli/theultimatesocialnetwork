@@ -145,7 +145,7 @@ export default function RoadmapPage() {
         <div className="mt-20 pt-10 border-t border-[#1A1A1D] text-center">
           <p className="text-[#6E6E73] mb-6">Want to help build this?</p>
           <a
-            href="mailto:build@citewalk.com"
+            href="mailto:hello@citewalk.com"
             className="inline-block px-6 py-3 border border-[#333] rounded-full text-[#A8A8AA] hover:text-[#F2F2F2] hover:border-[#666] transition-colors"
           >
             Contact Dr. Lindner

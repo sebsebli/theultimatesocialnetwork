@@ -14,4 +14,14 @@ export class RssController {
     res.set('Content-Type', 'application/rss+xml');
     res.send(xml);
   }
+
+  @Get('u/:publicId')
+  async getRssByPublicId(
+    @Param('publicId') publicId: string,
+    @Res() res: Response,
+  ) {
+    const xml = await this.rssService.generateRssByPublicId(publicId);
+    res.set('Content-Type', 'application/rss+xml');
+    res.send(xml);
+  }
 }

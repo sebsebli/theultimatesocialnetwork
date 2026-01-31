@@ -85,7 +85,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Citewalk" <noreply@Citewalk.com>',
+          '"Citewalk" <noreply@citewalk.com>',
         to: email,
         subject,
         html,
@@ -160,7 +160,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Citewalk" <noreply@Citewalk.com>',
+          '"Citewalk" <noreply@citewalk.com>',
         to,
         subject,
         html,
@@ -231,7 +231,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Citewalk" <noreply@Citewalk.com>',
+          '"Citewalk" <noreply@citewalk.com>',
         to,
         subject,
         html,
@@ -295,7 +295,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Citewalk" <noreply@Citewalk.com>',
+          '"Citewalk" <noreply@citewalk.com>',
         to,
         subject,
         html,
@@ -327,7 +327,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Citewalk System" <noreply@Citewalk.com>',
+          '"Citewalk System" <noreply@citewalk.com>',
         to: to,
         subject: subject,
         html: html,

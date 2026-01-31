@@ -16,7 +16,7 @@ It replaces the "viral algorithm" with a "reputation graph" based on citations.
 - **Mobile:** Native iOS/Android (Expo/React Native). Offline-first.
 - **Backend:** NestJS (Node.js).
 - **Database:** Postgres (Source of Truth), Neo4j (Graph), Meilisearch (Search), Redis (Queue/Cache).
-- **Hosting:** Hetzner (Germany/Finland).
+- **Hosting:** Hetzner (Germany).
 
 ## Navigation
 
@@ -31,4 +31,4 @@ It replaces the "viral algorithm" with a "reputation graph" based on citations.
 ## Operator
 
 Operated by Dr. Sebastian Lindner as a private initiative.
-Contact: legal@citewalk.com
+Contact: hello@citewalk.com

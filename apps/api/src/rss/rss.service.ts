@@ -35,21 +35,41 @@ export class RssService {
     const cached = await this.redis.get(cacheKey).catch(() => null);
     if (cached) return cached;
 
-    const xml = await this.buildRss(handle);
+    const user = await this.usersRepository.findOne({
+      where: { handle },
+      select: ['id', 'handle', 'displayName', 'isProtected', 'publicId'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const xml = await this.buildRss(user, 'handle');
     await this.redis
       .set(cacheKey, xml, 'EX', RSS_CACHE_TTL_SEC)
       .catch(() => {});
     return xml;
   }
 
-  private async buildRss(handle: string): Promise<string> {
+  async generateRssByPublicId(publicId: string): Promise<string> {
+    const cacheKey = `rss:u:${publicId}`;
+    const cached = await this.redis.get(cacheKey).catch(() => null);
+    if (cached) return cached;
+
     const user = await this.usersRepository.findOne({
-      where: { handle },
-      select: ['id', 'handle', 'displayName', 'isProtected'],
+      where: { publicId },
+      select: ['id', 'handle', 'displayName', 'isProtected', 'publicId'],
     });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    if (!user) throw new NotFoundException('User not found');
+
+    const xml = await this.buildRss(user, 'publicId');
+    await this.redis
+      .set(cacheKey, xml, 'EX', RSS_CACHE_TTL_SEC)
+      .catch(() => {});
+    return xml;
+  }
+
+  private async buildRss(
+    user: User,
+    idType: 'handle' | 'publicId',
+  ): Promise<string> {
     if (user.isProtected) {
       throw new NotFoundException('Feed not available for this profile');
     }
@@ -107,7 +127,13 @@ export class RssService {
       `${user.displayName} (@${user.handle}) on Citewalk`,
     );
     const channelLink = `${appBase}/user/${user.handle}`;
-    const selfLink = `${apiBase}/rss/${encodeURIComponent(user.handle)}`;
+
+    // Prefer publicId for self link if available/requested, otherwise handle
+    const selfLinkSuffix =
+      idType === 'publicId'
+        ? `u/${user.publicId}`
+        : encodeURIComponent(user.handle);
+    const selfLink = `${apiBase}/rss/${selfLinkSuffix}`;
 
     return `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">

@@ -28,11 +28,13 @@ async function bootstrap() {
       const path: string = req.path ?? req.url?.split('?')[0] ?? '';
       if (path === '/metrics') {
         const authHeader = req.headers['authorization'];
-        const provided: string | undefined =
-          req.headers['x-metrics-secret'] ??
-          (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
-            ? authHeader.slice(7)
-            : undefined);
+        const secretHeader = req.headers['x-metrics-secret'];
+        const provided = Array.isArray(secretHeader)
+          ? secretHeader[0]
+          : (secretHeader ??
+            (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+              ? authHeader.slice(7)
+              : undefined));
         if (provided !== metricsSecret) {
           res.status(401).json({
             statusCode: 401,

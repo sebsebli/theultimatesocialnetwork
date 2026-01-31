@@ -12,12 +12,13 @@ export function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 inset-x-0 z-50 flex justify-between items-center px-6 py-6 md:px-12 bg-[#0B0B0C]/90 backdrop-blur-md border-b border-[#1A1A1D]">
         <div className="flex items-center gap-2">
-          <span className="text-xl font-serif font-normal tracking-tight text-[#F2F2F2]">
+          {/* Brand Logo - Keep Serif for Identity */}
+          <span className="text-xl font-serif font-bold tracking-tight text-[#F2F2F2]">
             Citewalk
           </span>
         </div>
 
-        <div className="flex items-center gap-6 md:gap-8 text-sm font-medium">
+        <div className="flex items-center gap-6 md:gap-8 text-sm font-medium font-sans">
           <Link
             href="/manifesto"
             className="hidden lg:block text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors"
@@ -50,21 +51,21 @@ export function LandingPage() {
         {/* Hero Section */}
         <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32 md:mb-48">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-normal leading-[1.05] tracking-tight text-[#F2F2F2] mb-12 max-w-5xl whitespace-pre-line">
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-sans font-medium leading-[1.05] tracking-tight text-[#F2F2F2] mb-12 max-w-5xl whitespace-pre-line">
               {t.hero.title}
             </h1>
 
             <div className="flex flex-col md:flex-row gap-12 md:items-start justify-between">
               <div className="max-w-xl space-y-6">
-                <p className="text-lg md:text-xl text-[#A8A8AA] leading-relaxed font-light">
+                <p className="text-lg md:text-xl text-[#A8A8AA] leading-relaxed font-light font-sans">
                   {t.hero.subtitle}
                 </p>
-                <p className="text-lg md:text-xl text-[#A8A8AA] leading-relaxed font-light">
+                <p className="text-lg md:text-xl text-[#A8A8AA] leading-relaxed font-light font-sans">
                   {t.hero.description}
                 </p>
               </div>
 
-              <div className="flex flex-col gap-5 w-full md:w-auto pt-2">
+              <div className="flex flex-col gap-5 w-full md:w-auto pt-2 font-sans">
                 <Link
                   href="/sign-in"
                   className="inline-flex justify-center items-center px-8 py-4 bg-[#F2F2F2] text-[#0B0B0C] font-semibold text-lg rounded-full hover:bg-white transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -90,18 +91,18 @@ export function LandingPage() {
                 <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-4">
                   Mobile First
                 </h2>
-                <h3 className="text-3xl md:text-4xl font-serif font-normal text-[#F2F2F2] mb-6">
+                <h3 className="text-3xl md:text-4xl font-sans font-medium text-[#F2F2F2] mb-6">
                   A Pocket Archive for
                   <br />
                   Real-World Context.
                 </h3>
-                <p className="text-[#A8A8AA] text-lg leading-relaxed mb-8">
+                <p className="text-[#A8A8AA] text-lg leading-relaxed mb-8 font-sans">
                   Citewalk isn&apos;t just a website. It&apos;s a powerful
                   native mobile app designed for onsite reporting and verified
                   observation. Draft offline, cite eyewitnesses, and publish
                   when you reconnect.
                 </p>
-                <ul className="space-y-4 text-[#A8A8AA]">
+                <ul className="space-y-4 text-[#A8A8AA] font-sans">
                   <li className="flex items-center gap-3">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
                     <span>Native iOS & Android Experience</span>
@@ -125,7 +126,7 @@ export function LandingPage() {
                   <h4 className="text-2xl font-serif text-[#F2F2F2] mb-4">
                     Urban Resilience
                   </h4>
-                  <p className="text-[#A8A8AA] text-sm max-w-[250px] mx-auto leading-relaxed">
+                  <p className="text-[#A8A8AA] text-sm max-w-[250px] mx-auto leading-relaxed font-serif">
                     Cities are defined not by their buildings, but by the spaces
                     between them. [[Public Spaces]] act as the lungs of
                     democracy...
@@ -141,38 +142,78 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Core Pillars / Features */}
+        {/* System Features (Icons) */}
         <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32">
           <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-12 border-b border-[#1A1A1D] pb-4">
             System Features
           </h2>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10]">
-              <div className="text-2xl mb-4">🇪🇺</div>
-              <h3 className="text-lg font-serif text-[#F2F2F2] mb-2">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 font-sans">
+            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10] group hover:border-[#333] transition-colors">
+              <div className="text-[#F2F2F2] mb-6">
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-[#F2F2F2] mb-2">
                 European Hosting
               </h3>
               <p className="text-[#A8A8AA] text-sm leading-relaxed">
                 Data sovereignty is non-negotiable. We host strictly in the EU
-                (Hetzner Germany/Finland). GDPR compliance is built-in, not an
-                afterthought.
+                (Hetzner Germany/Finland). GDPR compliance is built-in.
               </p>
             </div>
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10]">
-              <div className="text-2xl mb-4">💾</div>
-              <h3 className="text-lg font-serif text-[#F2F2F2] mb-2">
+            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10] group hover:border-[#333] transition-colors">
+              <div className="text-[#F2F2F2] mb-6">
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-[#F2F2F2] mb-2">
                 Data Export
               </h3>
               <p className="text-[#A8A8AA] text-sm leading-relaxed">
                 You are not locked in. Download your entire archive (posts,
-                connections, profile) in open JSON/CSV formats at any time with
-                one click.
+                connections, profile) in open JSON/CSV formats at any time.
               </p>
             </div>
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10]">
-              <div className="text-2xl mb-4">📡</div>
-              <h3 className="text-lg font-serif text-[#F2F2F2] mb-2">
+            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10] group hover:border-[#333] transition-colors">
+              <div className="text-[#F2F2F2] mb-6">
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M6 5c7.18 0 13 5.82 13 13M6 11a7 7 0 017 7m-6 0a1 1 0 11-2 0 1 1 0 012 0z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-[#F2F2F2] mb-2">
                 RSS Feeds
               </h3>
               <p className="text-[#A8A8AA] text-sm leading-relaxed">
@@ -180,14 +221,28 @@ export function LandingPage() {
                 believe in the open web, not walled gardens.
               </p>
             </div>
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10]">
-              <div className="text-2xl mb-4">🧠</div>
-              <h3 className="text-lg font-serif text-[#F2F2F2] mb-2">
+            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10] group hover:border-[#333] transition-colors">
+              <div className="text-[#F2F2F2] mb-6">
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-[#F2F2F2] mb-2">
                 No AI Dictation
               </h3>
               <p className="text-[#A8A8AA] text-sm leading-relaxed">
                 Your feed is chronological. Recommendations are transparent. We
-                do not use black-box AI to manipulate your attention or mood.
+                do not use black-box AI to manipulate your attention.
               </p>
             </div>
           </div>
@@ -199,11 +254,11 @@ export function LandingPage() {
             Use Cases
           </h2>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8 font-sans">
             {/* Journalism */}
             <div className="group flex flex-col h-full bg-[#0F0F10] border border-[#1A1A1D] rounded-lg overflow-hidden hover:border-[#333] transition-colors">
               <div className="p-8 pb-4">
-                <h3 className="text-xl font-serif text-[#F2F2F2] mb-2">
+                <h3 className="text-xl font-medium text-[#F2F2F2] mb-2">
                   Onsite Reporting
                 </h3>
                 <p className="text-[#A8A8AA] text-sm">
@@ -221,7 +276,7 @@ export function LandingPage() {
             {/* Knowledge */}
             <div className="group flex flex-col h-full bg-[#0F0F10] border border-[#1A1A1D] rounded-lg overflow-hidden hover:border-[#333] transition-colors">
               <div className="p-8 pb-4">
-                <h3 className="text-xl font-serif text-[#F2F2F2] mb-2">
+                <h3 className="text-xl font-medium text-[#F2F2F2] mb-2">
                   Topic Expertise
                 </h3>
                 <p className="text-[#A8A8AA] text-sm">
@@ -238,7 +293,7 @@ export function LandingPage() {
             {/* Lifestyle */}
             <div className="group flex flex-col h-full bg-[#0F0F10] border border-[#1A1A1D] rounded-lg overflow-hidden hover:border-[#333] transition-colors">
               <div className="p-8 pb-4">
-                <h3 className="text-xl font-serif text-[#F2F2F2] mb-2">
+                <h3 className="text-xl font-medium text-[#F2F2F2] mb-2">
                   Personal Curation
                 </h3>
                 <p className="text-[#A8A8AA] text-sm">For everyone</p>
@@ -252,46 +307,12 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* How It Works (Original Mechanics) */}
-        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32">
-          <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-12 border-b border-[#1A1A1D] pb-4">
-            {t.mechanics.label}
-          </h2>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10]">
-              <h3 className="text-xl font-serif text-[#F2F2F2] mb-3">
-                {t.mechanics.card_1_title}
-              </h3>
-              <p className="text-[#A8A8AA] text-sm leading-relaxed">
-                {t.mechanics.card_1_text}
-              </p>
-            </div>
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10]">
-              <h3 className="text-xl font-serif text-[#F2F2F2] mb-3">
-                {t.mechanics.card_2_title}
-              </h3>
-              <p className="text-[#A8A8AA] text-sm leading-relaxed">
-                {t.mechanics.card_2_text}
-              </p>
-            </div>
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10]">
-              <h3 className="text-xl font-serif text-[#F2F2F2] mb-3">
-                {t.mechanics.card_3_title}
-              </h3>
-              <p className="text-[#A8A8AA] text-sm leading-relaxed">
-                {t.mechanics.card_3_text}
-              </p>
-            </div>
-          </div>
-        </section>
-
         {/* Founder Quote */}
         <section className="px-6 md:px-12 max-w-[900px] mx-auto mb-32 text-center">
           <blockquote className="font-serif text-2xl md:text-4xl font-light text-[#F2F2F2] leading-relaxed mb-8">
             {t.quote.text}
           </blockquote>
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex flex-col items-center gap-3 font-sans">
             <span className="text-[#F2F2F2] font-bold tracking-tight text-lg">
               {t.quote.author}
             </span>
@@ -299,6 +320,40 @@ export function LandingPage() {
               {t.quote.role} • 2026
             </span>
           </div>
+        </section>
+
+        {/* Collaborators */}
+        <section className="px-6 md:px-12 max-w-[1000px] mx-auto mb-32 border-t border-[#1A1A1D] pt-24 text-center">
+          <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-6">
+            Open Source
+          </h2>
+          <h3 className="text-3xl md:text-4xl font-sans font-medium text-[#F2F2F2] mb-6">
+            We need architects, not just users.
+          </h3>
+          <p className="text-[#A8A8AA] text-lg leading-relaxed max-w-2xl mx-auto mb-10 font-sans">
+            Citewalk is an independent protocol for discourse. We are looking
+            for engineers, designers, and thinkers who want to build an internet
+            that respects human intelligence.
+          </p>
+          <a
+            href="mailto:build@citewalk.com"
+            className="inline-flex items-center gap-2 text-primary hover:text-[#F2F2F2] transition-colors font-medium border-b border-primary/30 hover:border-primary pb-0.5 font-sans"
+          >
+            <span>Contribute to the Codebase</span>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M14 5l7 7m0 0l-7 7m7-7H3"
+              />
+            </svg>
+          </a>
         </section>
       </main>
     </div>
