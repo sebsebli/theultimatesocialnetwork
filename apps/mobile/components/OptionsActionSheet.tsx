@@ -1,12 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, SIZES, FONTS, MODAL } from '../constants/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import { COLORS, SPACING, SIZES, FONTS, MODAL, HEADER } from '../constants/theme';
 
 export interface OptionItem {
   label: string;
   onPress: () => void;
   destructive?: boolean;
+  /** MaterialIcons name (e.g. 'settings', 'share', 'rss-feed') */
+  icon?: string;
 }
 
 export interface OptionsActionSheetProps {
@@ -28,6 +31,8 @@ export function OptionsActionSheet({
   onCancel,
 }: OptionsActionSheetProps) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const maxOptionsHeight = Math.min(windowHeight * 0.5, 320);
 
   if (!visible) return null;
 
@@ -43,21 +48,35 @@ export function OptionsActionSheet({
         <View style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
           <View style={styles.handle} />
           {title ? <Text style={styles.title}>{title}</Text> : null}
-          {options.map((opt, i) => (
-            <Pressable
-              key={i}
-              style={({ pressed }: { pressed: boolean }) => [
-                styles.option,
-                pressed && styles.optionPressed,
-                opt.destructive && styles.optionDestructive,
-              ]}
-              onPress={() => handleOption(opt.onPress)}
-            >
-              <Text style={[styles.optionText, opt.destructive && styles.optionTextDestructive]}>
-                {opt.label}
-              </Text>
-            </Pressable>
-          ))}
+          <ScrollView
+            style={[styles.optionsScroll, { maxHeight: maxOptionsHeight }]}
+            showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
+          >
+            {options.map((opt, i) => (
+              <Pressable
+                key={i}
+                style={({ pressed }: { pressed: boolean }) => [
+                  styles.option,
+                  pressed && styles.optionPressed,
+                  opt.destructive && styles.optionDestructive,
+                ]}
+                onPress={() => handleOption(opt.onPress)}
+              >
+                {opt.icon ? (
+                  <MaterialIcons
+                    name={opt.icon as any}
+                    size={HEADER.iconSize}
+                    color={opt.destructive ? COLORS.error : COLORS.secondary}
+                    style={styles.optionIcon}
+                  />
+                ) : null}
+                <Text style={[styles.optionText, opt.destructive && styles.optionTextDestructive]}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [styles.cancel, pressed && styles.optionPressed]}
             onPress={onCancel}
@@ -105,13 +124,18 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.s,
   },
   option: {
+    flexDirection: 'row',
+    alignItems: 'center',
     minHeight: MODAL.buttonMinHeight,
     paddingVertical: MODAL.buttonPaddingVertical,
     paddingHorizontal: MODAL.buttonPaddingHorizontal,
     borderRadius: SIZES.borderRadius,
     marginBottom: 2,
-    justifyContent: 'center',
   },
+  optionIcon: {
+    marginRight: SPACING.m,
+  },
+  optionsScroll: {},
   optionPressed: { backgroundColor: 'rgba(255,255,255,0.08)' },
   optionDestructive: {},
   optionText: {

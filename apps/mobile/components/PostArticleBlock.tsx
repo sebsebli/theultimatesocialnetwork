@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { MarkdownText } from './MarkdownText';
+import { getImageUrl } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
 
 const ACTION_ICON_SIZE = HEADER.iconSize;
@@ -18,6 +19,7 @@ export interface PostArticlePost {
     displayName?: string | null;
     handle?: string | null;
     avatarUrl?: string | null;
+    avatarKey?: string | null;
   } | null;
 }
 
@@ -83,8 +85,8 @@ export function PostArticleBlock({
         onPress={onAuthorPress}
         disabled={!onAuthorPress}
       >
-        {post.author?.avatarUrl ? (
-          <Image source={{ uri: post.author.avatarUrl }} style={styles.authorAvatarImage} />
+        {(post.author?.avatarKey || post.author?.avatarUrl) ? (
+          <Image source={{ uri: post.author.avatarKey ? getImageUrl(post.author.avatarKey) : post.author.avatarUrl! }} style={styles.authorAvatarImage} />
         ) : (
           <View style={styles.authorAvatar}>
             <Text style={styles.avatarText}>{authorInitial}</Text>

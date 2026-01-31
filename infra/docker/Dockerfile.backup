@@ -1,0 +1,22 @@
+# Full backup image: PostgreSQL (pg_dump), Neo4j (cypher-shell), MinIO (mc).
+# Base has cypher-shell; we add postgresql-client and MinIO client.
+FROM neo4j:5.15.0-community
+
+USER root
+
+# PostgreSQL client (pg_dump)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# MinIO client (mc)
+RUN wget -q "https://dl.min.io/client/mc/release/linux-amd64/mc" -O /usr/local/bin/mc \
+    && chmod +x /usr/local/bin/mc
+
+# Backup script (copied from context)
+COPY backup-full.sh /usr/local/bin/backup-full.sh
+RUN chmod +x /usr/local/bin/backup-full.sh
+
+USER neo4j
+
+WORKDIR /backups

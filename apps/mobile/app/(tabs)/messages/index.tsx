@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, Image, ActivityIndicator, TextInput } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS, SIZES, HEADER } from '../../../constants/theme';
@@ -22,6 +22,14 @@ interface ThreadItem {
   };
 }
 
+interface ChatSearchHit {
+  id: string;
+  threadId: string;
+  body: string;
+  createdAt: string;
+  otherUser: { id: string; handle: string; displayName: string };
+}
+
 export default function MessagesScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -33,6 +41,9 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<ChatSearchHit[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchThreads = async () => {
     try {
@@ -57,7 +68,7 @@ export default function MessagesScreen() {
 
   useEffect(() => {
     const handleNewMessage = (data: any) => {
-      fetchThreads(); 
+      fetchThreads();
     };
 
     on('message', handleNewMessage);
@@ -65,6 +76,29 @@ export default function MessagesScreen() {
       off('message', handleNewMessage);
     };
   }, [on, off]);
+
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const data = await api.get<ChatSearchHit[]>(`/messages/search?q=${encodeURIComponent(q)}&limit=30`);
+        setSearchResults(Array.isArray(data) ? data : []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [search]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -76,20 +110,21 @@ export default function MessagesScreen() {
     const date = new Date(dateString);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
+
     if (diff < 1000 * 60 * 60 * 24) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     return date.toLocaleDateString();
   };
 
-  const renderItem = ({ item }: { item: ThreadItem }) => {
-    const participant = item.participant || item.participants?.[0]; 
+  const renderThreadItem = ({ item }: { item: ThreadItem }) => {
+    const participant = item.participant || item.participants?.[0];
     if (!participant) return null;
-
-    if (search) {
-      const nameMatch = participant.displayName?.toLowerCase().includes(search.toLowerCase());
-      const msgMatch = item.lastMessage?.body.toLowerCase().includes(search.toLowerCase());
+    const q = search.trim();
+    if (q.length >= 2) return null;
+    if (q.length === 1) {
+      const nameMatch = participant.displayName?.toLowerCase().includes(q.toLowerCase());
+      const msgMatch = item.lastMessage?.body?.toLowerCase().includes(q.toLowerCase());
       if (!nameMatch && !msgMatch) return null;
     }
 
@@ -121,6 +156,24 @@ export default function MessagesScreen() {
     );
   };
 
+  const renderSearchHit = ({ item }: { item: ChatSearchHit }) => (
+    <Pressable
+      style={({ pressed }: { pressed: boolean }) => [styles.threadItem, pressed && styles.threadItemPressed]}
+      onPress={() => router.push(`/(tabs)/messages/${item.threadId}`)}
+    >
+      <View style={styles.avatar}>
+        <Text style={styles.avatarText}>{item.otherUser.displayName?.charAt(0) || '?'}</Text>
+      </View>
+      <View style={styles.threadContent}>
+        <View style={styles.threadHeader}>
+          <Text style={styles.displayName}>{item.otherUser.displayName || item.otherUser.handle}</Text>
+          <Text style={styles.timestamp}>{formatTime(item.createdAt)}</Text>
+        </View>
+        <Text style={styles.lastMessage} numberOfLines={2}>{item.body}</Text>
+      </View>
+    </Pressable>
+  );
+
   return (
     <View style={styles.container}>
       <ScreenHeader
@@ -150,12 +203,32 @@ export default function MessagesScreen() {
         </View>
       ) : error && threads.length === 0 ? (
         <ErrorState onRetry={fetchThreads} onDismiss={() => setError(false)} />
+      ) : search.trim().length >= 2 ? (
+        searchLoading ? (
+          <View style={styles.loader}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={searchResults}
+            showsVerticalScrollIndicator={false}
+            renderItem={renderSearchHit}
+            keyExtractor={(item: ChatSearchHit) => item.id}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <MaterialIcons name="search-off" size={HEADER.iconSize} color={COLORS.tertiary} />
+                <Text style={styles.emptyText}>{t('search.noResults', 'No results')}</Text>
+              </View>
+            }
+          />
+        )
       ) : (
         <FlatList
           data={threads}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
-          renderItem={renderItem}
+          renderItem={renderThreadItem}
           keyExtractor={(item: ThreadItem) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={

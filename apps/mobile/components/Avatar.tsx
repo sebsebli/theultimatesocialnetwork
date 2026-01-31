@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { COLORS, FONTS } from '../constants/theme';
@@ -11,16 +11,19 @@ interface AvatarProps {
 }
 
 export function Avatar({ size = 40, uri, name, style }: AvatarProps) {
+  const [imageError, setImageError] = useState(false);
   const initial = name ? name.charAt(0).toUpperCase() : '?';
   const fontSize = size * 0.4;
+  const showImage = uri && !imageError;
 
-  if (uri) {
+  if (showImage) {
     return (
       <Image
         source={{ uri }}
         style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: COLORS.hover }, style]}
         contentFit="cover"
         cachePolicy="memory-disk"
+        onError={() => setImageError(true)}
       />
     );
   }

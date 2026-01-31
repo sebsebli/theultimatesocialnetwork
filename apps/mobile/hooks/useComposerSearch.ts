@@ -10,6 +10,12 @@ export type SearchResult = {
   handle?: string;
   authorHandle?: string;
   authorDisplayName?: string;
+  /** Post: ISO date string from search index */
+  createdAt?: string;
+  /** Post: number of quotes */
+  quoteCount?: number;
+  /** Post: number of replies */
+  replyCount?: number;
 };
 
 export function useComposerSearch() {
@@ -62,6 +68,9 @@ export function useComposerSearch() {
             displayName: p.title || 'Untitled Post',
             authorHandle: p.author?.handle,
             authorDisplayName: p.author?.displayName,
+            createdAt: p.createdAt,
+            quoteCount: p.quoteCount ?? 0,
+            replyCount: p.replyCount ?? 0,
           }));
           const seen = new Set<string>();
           const dedupedTopics = topics.filter((x: any) => {

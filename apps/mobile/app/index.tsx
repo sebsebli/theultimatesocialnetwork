@@ -8,7 +8,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { api } from '../utils/api';
 import { useAuth } from '../context/auth';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 import { IntroModal, shouldShowIntro } from '../components/IntroModal';
 
 export default function IndexScreen() {
@@ -251,7 +251,7 @@ export default function IndexScreen() {
                       >
                         <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
                           {acceptedTerms && (
-                            <MaterialCommunityIcons name="check" size={HEADER.iconSize} color={COLORS.ink} />
+                            <MaterialCommunityIcons name="check" size={12} color={COLORS.ink} />
                           )}
                         </View>
                       </Pressable>
@@ -527,8 +527,8 @@ const styles = StyleSheet.create({
     marginTop: -SPACING.xs,
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     borderRadius: 6,
     borderWidth: 1.5,
     borderColor: COLORS.tertiary,

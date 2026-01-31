@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Image, Linking } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, getApiBaseUrl } from '../../utils/api';
+import { api, getApiBaseUrl, getWebAppBaseUrl, getImageUrl } from '../../utils/api';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
@@ -13,7 +14,7 @@ import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { PostItem } from '../../components/PostItem';
 import { ProfileSkeleton, PostSkeleton } from '../../components/LoadingSkeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, PROFILE_TOP_HEIGHT } from '../../constants/theme';
 
 const TAB_BAR_HEIGHT = 50;
 
@@ -170,8 +171,7 @@ export default function UserProfileScreen() {
       }
     } catch (error: any) {
       console.error('Failed to create thread', error);
-      const msg = error?.message ?? '';
-      if (error?.status === 403 && /follow each other|prior interaction/i.test(msg)) {
+      if (error?.status === 403) {
         showError(t('messages.mustFollowOrPrior', 'You can only message people who follow you back or who you\'ve messaged before.'));
       } else {
         showError(t('messages.createThreadFailed', 'Could not start conversation. Try again.'));
@@ -207,6 +207,30 @@ export default function UserProfileScreen() {
   };
 
   const handleUserMenu = () => setOptionsModalVisible(true);
+
+  const rssFeedUrl = `${getApiBaseUrl()}/rss/${encodeURIComponent(user?.handle ?? '')}`;
+
+  const handleOpenRssFeed = useCallback(() => {
+    if (!user?.handle) return;
+    setOptionsModalVisible(false);
+    Linking.openURL(rssFeedUrl);
+  }, [user?.handle, rssFeedUrl]);
+
+  const handleShareProfile = useCallback(() => {
+    if (!user?.handle) return;
+    setOptionsModalVisible(false);
+    const profileUrl = `${getWebAppBaseUrl()}/user/${encodeURIComponent(user.handle)}`;
+    const displayName = user.displayName || user.handle;
+    const message = t('profile.shareProfileMessage', { defaultValue: 'Check out {{name}} (@{{handle}}) on Cite', name: displayName, handle: user.handle });
+    const title = t('profile.shareProfileTitle', { defaultValue: 'Share profile', handle: user.handle });
+    // Defer share until modal has fully closed (avoids share sheet not opening)
+    InteractionManager.runAfterInteractions(() => {
+      const sharePayload = Platform.OS === 'android'
+        ? { message: `${message}\n${profileUrl}`, title }
+        : { message: `${message}\n${profileUrl}`, url: profileUrl, title };
+      setTimeout(() => Share.share(sharePayload).catch(() => { }), 350);
+    });
+  }, [user?.handle, user?.displayName, t]);
 
   const openReportModal = (targetId: string, type: 'POST' | 'REPLY' | 'USER') => {
     setReportTargetId(targetId);
@@ -252,28 +276,50 @@ export default function UserProfileScreen() {
     );
   }
 
+  if (user.isBlockedByMe) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.headerBar, { paddingTop: insets.top + SPACING.s }]}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.iconButton}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
+            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
+          </Pressable>
+        </View>
+        <View style={styles.blockedStateContent}>
+          <MaterialIcons name="block" size={64} color={COLORS.tertiary} style={styles.blockedStateIcon} />
+          <Text style={styles.blockedStateTitle}>{t('safety.youBlockedThisAccount', 'You have blocked this account')}</Text>
+          <Text style={styles.blockedStateSubtext}>
+            {t('safety.blockedAccountHint', 'You cannot view this profile while blocked. Unblock to see their posts and profile.')}
+          </Text>
+          <Pressable
+            style={styles.blockedStateUnblockBtn}
+            onPress={async () => {
+              try {
+                await api.delete(`/safety/block/${user.id}`);
+                showSuccess(t('safety.unblockedMessage', 'This user has been unblocked.'));
+                loadProfile(1, true);
+              } catch (e: any) {
+                showError(e?.message ?? t('safety.failedUnblock', 'Failed to unblock user.'));
+              }
+            }}
+            accessibilityLabel={t('safety.unblock', 'Unblock')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.blockedStateUnblockBtnText}>{t('safety.unblock', 'Unblock')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  const profileHeaderImageUrl = (user?.profileHeaderKey ? getImageUrl(user.profileHeaderKey) : null) || user?.profileHeaderUrl || null;
+
   return (
     <View style={styles.container}>
-      {/* Sticky header: back + more – stays on top while content scrolls */}
-      <View style={[styles.headerBar, { paddingTop: insets.top + SPACING.s }]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.iconButton}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-        </Pressable>
-        <Pressable
-          style={styles.iconButton}
-          onPress={() => handleUserMenu()}
-          accessibilityLabel="More options"
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-        </Pressable>
-      </View>
-
       <FlatList
         style={styles.list}
         showsVerticalScrollIndicator={false}
@@ -284,98 +330,112 @@ export default function UserProfileScreen() {
         renderItem={({ item }: { item: any }) => <PostItem post={item} />}
         ListHeaderComponent={
           <>
-            <View style={styles.profileHeader}>
-              <View style={styles.avatarContainer}>
-                <View style={styles.avatar}>
-                  {user.avatarUrl ? (
-                    <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
-                  ) : (
-                    <Text style={styles.avatarText}>
-                      {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
-                    </Text>
-                  )}
-                </View>
+            {/* Profile top: background image or black, then bar + avatar/name */}
+            <View style={[styles.profileTopSection, { height: PROFILE_TOP_HEIGHT }]}>
+              {profileHeaderImageUrl ? (
+                <Image
+                  source={{ uri: profileHeaderImageUrl }}
+                  style={styles.profileTopBackground}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              ) : (
+                <View style={styles.profileTopBackgroundBlack} />
+              )}
+              <View style={[styles.headerBarOverlay, { paddingTop: insets.top + 10 }]}>
+                <Pressable
+                  onPress={() => router.back()}
+                  style={styles.iconButton}
+                  accessibilityLabel="Go back"
+                  accessibilityRole="button"
+                >
+                  <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
+                </Pressable>
+                <Pressable
+                  style={styles.iconButton}
+                  onPress={() => handleUserMenu()}
+                  accessibilityLabel="More options"
+                  accessibilityRole="button"
+                >
+                  <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
+                </Pressable>
               </View>
-
-              <View style={styles.identityBlock}>
-                <Text style={styles.name}>{user.displayName}</Text>
-                <View style={styles.handleRow}>
-                  <Text style={styles.handle}>@{user.handle}</Text>
-                  {!user.isProtected && (
-                    <Pressable
-                      onPress={() => Linking.openURL(`${getApiBaseUrl()}/rss/${encodeURIComponent(user.handle)}`)}
-                      style={styles.rssIconButton}
-                      accessibilityLabel={t('profile.rssFeed', 'RSS Feed')}
-                      accessibilityRole="button"
-                    >
-                      <MaterialIcons name="rss-feed" size={20} color={COLORS.primary} />
-                    </Pressable>
-                  )}
+              <View style={styles.profileHeader}>
+                <View style={styles.avatarContainer}>
+                  <View style={styles.avatar}>
+                    {(user.avatarKey || user.avatarUrl) ? (
+                      <Image
+                        source={{ uri: user.avatarKey ? getImageUrl(user.avatarKey) : user.avatarUrl }}
+                        style={styles.avatarImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                    ) : (
+                      <Text style={styles.avatarText}>
+                        {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
                 </View>
-                {!user.isProtected && (
+
+                <View style={styles.identityBlock}>
+                  <Text style={styles.name}>{user.displayName}</Text>
+                  <Text style={styles.handle}>@{user.handle}</Text>
+                </View>
+
+                {user.bio && (
+                  <Text style={styles.bio}>{user.bio}</Text>
+                )}
+
+                <View style={styles.actions}>
                   <Pressable
-                    style={styles.rssRow}
-                    onPress={() => Linking.openURL(`${getApiBaseUrl()}/rss/${encodeURIComponent(user.handle)}`)}
-                    accessibilityLabel={t('profile.rssFeed', 'RSS Feed')}
+                    style={[styles.actionButtonOutline, following && styles.actionButtonActive]}
+                    onPress={handleFollow}
+                    accessibilityLabel={following ? t('profile.following') : t('profile.follow')}
                     accessibilityRole="button"
                   >
-                    <MaterialIcons name="rss-feed" size={HEADER.iconSize} color={COLORS.primary} />
-                    <Text style={styles.rssRowText}>{t('profile.rssFeed', 'RSS Feed')}</Text>
-                    <MaterialIcons name="open-in-new" size={16} color={COLORS.tertiary} />
+                    <Text style={[styles.actionButtonText, following && styles.actionButtonTextActive]}>
+                      {following ? t('profile.following') : t('profile.follow')}
+                    </Text>
                   </Pressable>
-                )}
+
+                  {user.followsMe ? (
+                    <Pressable
+                      style={styles.messageButton}
+                      onPress={handleMessage}
+                      accessibilityLabel={t('profile.message')}
+                      accessibilityRole="button"
+                    >
+                      <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
 
-              {user.bio && (
-                <Text style={styles.bio}>{user.bio}</Text>
-              )}
-
-              <View style={styles.actions}>
+              <View style={styles.statsRow}>
                 <Pressable
-                  style={[styles.actionButtonOutline, following && styles.actionButtonActive]}
-                  onPress={handleFollow}
-                  accessibilityLabel={following ? t('profile.following') : t('profile.follow')}
-                  accessibilityRole="button"
+                  style={styles.statItem}
+                  onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
                 >
-                  <Text style={[styles.actionButtonText, following && styles.actionButtonTextActive]}>
-                    {following ? t('profile.following') : t('profile.follow')}
-                  </Text>
+                  <Text style={styles.statNumber}>{user.followerCount}</Text>
+                  <Text style={styles.statLabel}>{t('profile.followers')}</Text>
                 </Pressable>
-
                 <Pressable
-                  style={styles.messageButton}
-                  onPress={handleMessage}
-                  accessibilityLabel={t('profile.message')}
-                  accessibilityRole="button"
+                  style={styles.statItem}
+                  onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
                 >
-                  <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
+                  <Text style={styles.statNumber}>{user.followingCount}</Text>
+                  <Text style={styles.statLabel}>{t('profile.following')}</Text>
                 </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.statsRow}>
-              <Pressable
-                style={styles.statItem}
-                onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
-              >
-                <Text style={styles.statNumber}>{user.followerCount}</Text>
-                <Text style={styles.statLabel}>{t('profile.followers')}</Text>
-              </Pressable>
-              <Pressable
-                style={styles.statItem}
-                onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
-              >
-                <Text style={styles.statNumber}>{user.followingCount}</Text>
-                <Text style={styles.statLabel}>{t('profile.following')}</Text>
-              </Pressable>
-              <View style={styles.statItem}>
-                {user.quotesBadgeEligible && (
-                  <View style={styles.verifiedBadge}>
-                    <MaterialIcons name="verified" size={HEADER.iconSize} color={COLORS.tertiary} />
-                  </View>
-                )}
-                <Text style={styles.statNumber}>{user.quoteReceivedCount}</Text>
-                <Text style={[styles.statLabel, { color: COLORS.primary }]}>{t('profile.quotes')}</Text>
+                <View style={styles.statItem}>
+                  {user.quotesBadgeEligible && (
+                    <View style={styles.verifiedBadge}>
+                      <MaterialIcons name="verified" size={HEADER.iconSize} color={COLORS.tertiary} />
+                    </View>
+                  )}
+                  <Text style={styles.statNumber}>{user.quoteReceivedCount}</Text>
+                  <Text style={[styles.statLabel, { color: COLORS.primary }]}>{t('profile.quotes')}</Text>
+                </View>
               </View>
             </View>
 
@@ -402,7 +462,13 @@ export default function UserProfileScreen() {
         }
         ListEmptyComponent={
           <EmptyState
-            icon="inbox"
+            icon={
+              activeTab === 'saved' ? 'bookmark-outline'
+                : activeTab === 'collections' ? 'folder-open'
+                  : activeTab === 'replies' ? 'chat-bubble-outline'
+                    : activeTab === 'quotes' ? 'format-quote'
+                      : 'article'
+            }
             headline={
               activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
                 : activeTab === 'collections' ? t('profile.noCollections', 'No public collections')
@@ -411,7 +477,11 @@ export default function UserProfileScreen() {
                       : t('profile.noPosts', 'No posts yet')
             }
             subtext={
-              activeTab === 'posts' ? t('profile.noPostsHint', 'Posts will appear here.') : undefined
+              activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
+                : activeTab === 'collections' ? t('profile.noCollectionsHint', 'Public collections will appear here.')
+                  : activeTab === 'replies' ? t('profile.noRepliesHint', 'Replies will show here.')
+                    : activeTab === 'quotes' ? t('profile.noQuotesHint', 'Quotes will show here.')
+                      : t('profile.noPostsHintView', 'Posts will appear here.')
             }
           />
         }
@@ -446,6 +516,7 @@ export default function UserProfileScreen() {
         confirmLabel={t('safety.block', 'Block')}
         cancelLabel={t('common.cancel')}
         destructive
+        icon="warning"
         onConfirm={confirmBlock}
         onCancel={() => setBlockConfirmVisible(false)}
       />
@@ -455,6 +526,7 @@ export default function UserProfileScreen() {
         message={t('safety.muteConfirm', `Are you sure you want to mute @${user?.handle ?? ''}? You won't see their posts in your feed.`)}
         confirmLabel={t('safety.mute', 'Mute')}
         cancelLabel={t('common.cancel')}
+        icon="volume-off"
         onConfirm={confirmMute}
         onCancel={() => setMuteConfirmVisible(false)}
       />
@@ -463,9 +535,11 @@ export default function UserProfileScreen() {
         title={t('profile.options', 'Options for @' + (user?.handle ?? ''))}
         cancelLabel={t('common.cancel')}
         options={[
-          { label: t('safety.mute', 'Mute User'), onPress: handleMute },
-          { label: t('safety.block', 'Block User'), onPress: handleBlock, destructive: true },
-          { label: t('safety.report', 'Report User'), onPress: () => openReportModal(user.id, 'USER'), destructive: true },
+          { label: t('safety.mute', 'Mute User'), onPress: handleMute, icon: 'volume-off' },
+          { label: t('safety.block', 'Block User'), onPress: handleBlock, destructive: true, icon: 'block' },
+          { label: t('safety.report', 'Report User'), onPress: () => openReportModal(user.id, 'USER'), destructive: true, icon: 'flag' },
+          { label: t('profile.shareProfile', 'Share profile'), onPress: handleShareProfile, icon: 'share' },
+          { label: t('profile.rssFeed', 'RSS Feed'), onPress: handleOpenRssFeed, icon: 'rss-feed' },
         ]}
         onCancel={() => setOptionsModalVisible(false)}
       />
@@ -493,6 +567,37 @@ const styles = StyleSheet.create({
     paddingBottom: HEADER.barPaddingBottom,
     backgroundColor: COLORS.ink,
   },
+  headerBarOverlay: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: HEADER.barPaddingHorizontal,
+    paddingBottom: HEADER.barPaddingBottom,
+    zIndex: 10,
+    position: 'relative',
+  },
+  profileTopSection: {
+    width: '100%',
+    position: 'relative',
+    paddingBottom: SPACING.l,
+  },
+  profileTopBackground: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  profileTopBackgroundBlack: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.ink,
+  },
   list: {
     flex: 1,
   },
@@ -507,17 +612,24 @@ const styles = StyleSheet.create({
     gap: SPACING.l,
   },
   avatarContainer: {
+    position: 'relative',
+    width: 96,
+    height: 96,
     marginBottom: SPACING.xs,
   },
   avatar: {
-    width: 96, // h-24
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 96,
     height: 96,
-    borderRadius: 48, // rounded-full
-    backgroundColor: 'rgba(110, 122, 138, 0.2)', // bg-primary/20
+    borderRadius: 48,
+    backgroundColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: COLORS.divider,
+    overflow: 'hidden',
   },
   avatarImage: {
     width: '100%',
@@ -546,34 +658,6 @@ const styles = StyleSheet.create({
     color: COLORS.tertiary,
     fontFamily: FONTS.medium,
   },
-  handleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  rssIconButton: {
-    padding: SPACING.xs,
-  },
-  rssRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.s,
-    marginTop: SPACING.m,
-    paddingVertical: SPACING.s,
-    paddingHorizontal: SPACING.m,
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-    alignSelf: 'center',
-  },
-  rssRowText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
-    fontFamily: FONTS.semiBold,
-  },
   bio: {
     fontSize: 15,
     color: COLORS.paper,
@@ -587,7 +671,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.m,
-    marginTop: SPACING.xs,
   },
   actionButtonOutline: {
     height: 38,
@@ -597,6 +680,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.tertiary,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: SPACING.xs,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   actionButtonActive: {
@@ -658,6 +742,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     backgroundColor: COLORS.ink,
+    opacity: 0.95,
   },
   tab: {
     flex: 1,
@@ -693,6 +778,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 50,
     fontFamily: FONTS.medium,
+  },
+  blockedStateContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  blockedStateIcon: {
+    marginBottom: SPACING.l,
+  },
+  blockedStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    textAlign: 'center',
+    marginBottom: SPACING.s,
+  },
+  blockedStateSubtext: {
+    fontSize: 15,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+    lineHeight: 22,
+  },
+  blockedStateUnblockBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.m,
+    borderRadius: SIZES.borderRadius,
+  },
+  blockedStateUnblockBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.ink,
+    fontFamily: FONTS.semiBold,
   },
   footerLoader: {
     paddingVertical: SPACING.l,

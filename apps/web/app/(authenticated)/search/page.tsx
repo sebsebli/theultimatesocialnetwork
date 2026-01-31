@@ -190,7 +190,7 @@ function SearchContent() {
               results.map((topic) => (
                 <Link
                   key={topic.id}
-                  href={`/topic/${encodeURIComponent(topic.slug)}`}
+                  href={`/topic/${encodeURIComponent(topic.slug ?? "")}`}
                   className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
                 >
                   <div className="font-semibold text-paper mb-1">

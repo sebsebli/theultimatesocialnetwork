@@ -556,6 +556,15 @@ export default function ComposeScreen() {
     const posts = suggestionType === 'topic' ? list.filter((i: any) => i.type === 'post') : [];
     const showSections = suggestionType === 'topic' && (topics.length > 0 && posts.length > 0);
 
+    const formatPostSuggestionSubtext = (post: { authorHandle?: string; authorDisplayName?: string; createdAt?: string; quoteCount?: number; replyCount?: number }) => {
+      const author = post.authorDisplayName || (post.authorHandle ? `@${post.authorHandle}` : null);
+      const dateStr = post.createdAt
+        ? new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : null;
+      const quotesLabel = (post.quoteCount ?? 0) > 0 ? t('compose.quotesCount', '{{count}} quotes', { count: post.quoteCount }) : null;
+      return [author, dateStr, quotesLabel].filter(Boolean).join(' · ') || t('compose.post', 'Post');
+    };
+
     const renderSuggestionItem = (item: any) => (
       <Pressable key={`${item.type}-${item.id ?? item.slug}`} style={styles.suggestionItem} onPress={() => handleSuggestionSelect(item)}>
         <View style={styles.suggestionIcon}>
@@ -570,9 +579,11 @@ export default function ComposeScreen() {
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.suggestionText} numberOfLines={1}>{item.displayName || item.title || item.slug}</Text>
           <Text style={styles.suggestionSubText} numberOfLines={1}>
-            {suggestionType === 'mention' ? `@${item.handle}` : item.type === 'post'
-              ? (item.authorDisplayName ? `${item.authorDisplayName}` : item.authorHandle ? `@${item.authorHandle}` : t('compose.post', 'Post'))
-              : t('compose.topic', 'Topic')}
+            {suggestionType === 'mention'
+              ? `@${item.handle}`
+              : item.type === 'post'
+                ? formatPostSuggestionSubtext(item)
+                : t('compose.topic', 'Topic')}
           </Text>
         </View>
       </Pressable>

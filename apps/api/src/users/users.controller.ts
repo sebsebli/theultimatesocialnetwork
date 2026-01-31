@@ -31,6 +31,7 @@ import {
   replyToPlain,
 } from '../shared/post-serializer';
 import { UploadService } from '../upload/upload.service';
+import { SafetyService } from '../safety/safety.service';
 
 @Controller('users')
 @SkipThrottle() // GET /users/me is hit on every app load; avoid 429 on cold start
@@ -39,6 +40,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     @Inject('EXPORT_QUEUE') private exportQueue: Queue,
     private readonly uploadService: UploadService,
+    private readonly safetyService: SafetyService,
   ) {}
 
   @Patch('me')
@@ -115,6 +117,8 @@ export class UsersController {
     const quotesBadgeEligible = (me.quoteReceivedCount ?? 0) >= threshold;
     return {
       ...plain,
+      avatarKey: me.avatarKey ?? undefined,
+      profileHeaderKey: me.profileHeaderKey ?? undefined,
       avatarUrl,
       profileHeaderUrl,
       profileBackgroundColor,
@@ -156,6 +160,8 @@ export class UsersController {
       dms?: boolean;
       follows?: boolean;
       saves?: boolean;
+      email_marketing?: boolean;
+      email_product_updates?: boolean;
     },
   ) {
     return this.usersService.updateNotificationPrefs(user.id, body);
@@ -495,8 +501,12 @@ export class UsersController {
   }
 
   @Get(':handle')
-  async findOne(@Param('handle') handle: string) {
-    const user = await this.usersService.findByHandle(handle);
+  @UseGuards(OptionalJwtAuthGuard)
+  async findOne(
+    @Param('handle') handle: string,
+    @CurrentUser() currentUser?: { id: string },
+  ) {
+    const user = await this.usersService.findByHandle(handle, currentUser?.id);
     const plain = userToPlain(user) as Record<string, unknown>;
     const avatarUrl =
       user?.avatarKey != null
@@ -509,12 +519,24 @@ export class UsersController {
     const profileBackgroundColor = '#0B0B0C';
     const threshold = await this.usersService.getQuotesBadgeThreshold();
     const quotesBadgeEligible = (user?.quoteReceivedCount ?? 0) >= threshold;
+    const followsMe = (user as { followsMe?: boolean })?.followsMe ?? false;
+    let isBlockedByMe = false;
+    if (currentUser?.id && user?.id) {
+      isBlockedByMe = await this.safetyService.isBlocked(
+        currentUser.id,
+        user.id,
+      );
+    }
     return {
       ...plain,
+      avatarKey: user?.avatarKey ?? undefined,
+      profileHeaderKey: user?.profileHeaderKey ?? undefined,
       avatarUrl,
       profileHeaderUrl,
       profileBackgroundColor,
       quotesBadgeEligible,
+      followsMe,
+      isBlockedByMe,
     };
   }
 }

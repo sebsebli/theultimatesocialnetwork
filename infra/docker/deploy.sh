@@ -6,14 +6,17 @@
 set -e
 
 ENVIRONMENT=${1:-dev}
-COMPOSE_FILE="docker-compose.yml"
+COMPOSE_BASE="docker-compose.yml"
+COMPOSE_OVERRIDE=""
 
 if [ "$ENVIRONMENT" = "prod" ]; then
-  COMPOSE_FILE="docker-compose.yml -f docker-compose.prod.yml"
+  COMPOSE_OVERRIDE="-f docker-compose.prod.yml"
   echo "🚀 Deploying to PRODUCTION environment"
 else
   echo "🚀 Deploying to DEVELOPMENT environment"
 fi
+
+COMPOSE_CMD="docker compose -f $COMPOSE_BASE $COMPOSE_OVERRIDE"
 
 # Check if .env exists
 if [ ! -f ".env" ]; then
@@ -29,14 +32,46 @@ if [ ! -f ".env" ]; then
   fi
 fi
 
+# Production: validate required secrets and SSL
+if [ "$ENVIRONMENT" = "prod" ]; then
+  get_env() { grep -E "^${1}=" .env 2>/dev/null | cut -d= -f2- | tr -d '\r' || true; }
+  JWT_SECRET=$(get_env JWT_SECRET)
+  METRICS_SECRET=$(get_env METRICS_SECRET)
+  CITE_ADMIN_SECRET=$(get_env CITE_ADMIN_SECRET)
+  ERR=0
+  if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" = "your-secret-key-change-in-production" ]; then
+    echo "❌ Production requires JWT_SECRET to be set to a strong, non-default value in .env"
+    ERR=1
+  fi
+  if [ -z "$METRICS_SECRET" ]; then
+    echo "❌ Production requires METRICS_SECRET in .env (protects GET /metrics)"
+    ERR=1
+  fi
+  if [ -z "$CITE_ADMIN_SECRET" ] || [ "$CITE_ADMIN_SECRET" = "dev-admin-change-me" ]; then
+    echo "❌ Production requires CITE_ADMIN_SECRET to be set to a strong value in .env"
+    ERR=1
+  fi
+  if [ ! -f "ssl/cert.pem" ] || [ ! -f "ssl/key.pem" ]; then
+    echo "❌ Production requires SSL certs: place cert.pem and key.pem in ./ssl/"
+    ERR=1
+  fi
+  if [ $ERR -eq 1 ]; then
+    echo "Fix the above and run ./deploy.sh prod again."
+    exit 1
+  fi
+  echo "✅ Production checks passed (JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET, SSL)"
+fi
+
 # Create volumes directory if it doesn't exist
 echo "📁 Creating volume directories..."
 mkdir -p volumes/{db,neo4j/{data,logs},redis,meilisearch,minio,ollama,backups}
 
-# Set permissions for backup script
-if [ -f "backup-db.sh" ]; then
-  chmod +x backup-db.sh
-fi
+# Set permissions for backup/restore scripts
+for script in backup-db.sh backup-full.sh restore-full.sh; do
+  if [ -f "$script" ]; then
+    chmod +x "$script"
+  fi
+done
 
 if [ -f "init-ollama.sh" ]; then
   chmod +x init-ollama.sh
@@ -44,11 +79,11 @@ fi
 
 # Build images
 echo "🔨 Building Docker images..."
-docker compose -f $COMPOSE_FILE build
+$COMPOSE_CMD build
 
 # Start services
 echo "🚀 Starting services..."
-docker compose -f $COMPOSE_FILE up -d
+$COMPOSE_CMD up -d
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be healthy..."
@@ -56,15 +91,15 @@ sleep 10
 
 # Run migrations (use compiled dist in container; src/ is not in production image)
 echo "🔄 Running database migrations..."
-docker compose -f $COMPOSE_FILE exec -T api npm run migration:run:prod
+$COMPOSE_CMD exec -T api npm run migration:run:prod
 
 # Check service status
 echo "📊 Service status:"
-docker compose -f $COMPOSE_FILE ps
+$COMPOSE_CMD ps
 
-# Show recent logs (run 'docker compose -f $COMPOSE_FILE logs -f' to follow)
+# Show recent logs (run '$COMPOSE_CMD logs -f' to follow)
 echo ""
 echo "📋 Recent logs:"
-docker compose -f $COMPOSE_FILE logs --tail=50
+$COMPOSE_CMD logs --tail=50
 echo ""
-echo "✅ Deploy complete. Run 'docker compose -f $COMPOSE_FILE logs -f' to follow logs."
+echo "✅ Deploy complete. Run '$COMPOSE_CMD logs -f' to follow logs."

@@ -1,26 +1,24 @@
-# Production Docker Compose with Nginx
+# Production overrides for CITE Docker stack
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Or: ./deploy.sh prod
+#
+# Requires in .env: JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET (strong values),
+# FRONTEND_URL, NEXT_PUBLIC_API_URL, CORS_ORIGINS (HTTPS URLs), and SSL certs in ./ssl/
 
 services:
-  nginx:
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    environment:
-      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx
-
   api:
     environment:
       NODE_ENV: production
-    # Remove volume mounts in production
-    volumes: []
 
   web:
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.cite.app}
-    # Remove volume mounts in production
-    volumes: []
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      API_URL: http://api:3000
+      SKIP_HTTPS_CHECK: "false"
+      DOCKER: "true"
+
+  nginx:
+    volumes:
+      - ./nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro

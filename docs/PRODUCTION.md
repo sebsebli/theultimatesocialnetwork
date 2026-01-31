@@ -2,10 +2,15 @@
 
 Use this checklist before deploying to production.
 
+**Docker production:** See `infra/docker/README-PRODUCTION.md` for step-by-step setup (`.env`, SSL certs, `./deploy.sh prod`, Prometheus).
+
 ## Environment & Secrets
 
-- [ ] **API**: Set `JWT_SECRET` to a long, random value (never use the default).
-- [ ] **API**: Set `CITE_ADMIN_SECRET` for invite generation; do not use `dev-admin-change-me` in production (admin-key guard will reject it).
+### JWT & metrics (required in production)
+
+- [ ] **JWT_SECRET**: Set to a **strong, non-default value** (e.g. 32+ random bytes). The API **fails startup** in production if `JWT_SECRET` is missing or equals `your-secret-key-change-in-production`. Generate with: `openssl rand -base64 32`.
+- [ ] **METRICS_SECRET**: Set in production so `GET /metrics` is protected. When set, scrapers must send either **`X-Metrics-Secret: <value>`** or **`Authorization: Bearer <value>`**. Configure Prometheus (or your scraper) to send this header/token — see `infra/docker/prometheus.example.yml` for a scrape config example.
+- [ ] **CITE_ADMIN_SECRET**: Set for invite generation; do not use `dev-admin-change-me` in production (admin-key guard will reject it).
 - [ ] **API**: Set `CORS_ORIGINS` to your frontend and mobile origins (e.g. `https://cite.app,https://api.cite.app`). If unset, only localhost origins are allowed.
 - [ ] **API**: Configure `MINIO_PUBLIC_URL` (or equivalent) so image URLs in API responses point to your production storage (not `http://localhost:9000`).
 - [ ] **Web**: Set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_STORAGE_URL` (and `API_URL` for server-side). Use HTTPS.

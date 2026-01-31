@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Image, Modal, TextInput } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Modal, TextInput, Linking, Share, InteractionManager, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { api } from '../../utils/api';
+import { api, getImageUrl, getApiBaseUrl, getWebAppBaseUrl } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
 import { CollectionCard } from '../../components/CollectionCard';
 import { EmptyState } from '../../components/EmptyState';
@@ -48,27 +49,13 @@ export default function ProfileScreen() {
   const [editCollectionTitle, setEditCollectionTitle] = useState('');
   const [editCollectionDescription, setEditCollectionDescription] = useState('');
   const [deleteCollectionConfirmVisible, setDeleteCollectionConfirmVisible] = useState(false);
+  const [profileOptionsVisible, setProfileOptionsVisible] = useState(false);
 
   const userIdRef = useRef<string | null>(null);
 
-  const loadProfile = useCallback(async (pageNum: number, reset = false) => {
+  /** Load only the list for the current tab (posts/replies/quotes/saved/collections). Uses existing uid. No GET /users/me. */
+  const loadTabContent = useCallback(async (uid: string, pageNum: number, reset: boolean) => {
     try {
-      let data: any;
-      if (handle) {
-        data = await api.get(`/users/${handle}`);
-        setIsSelf(false);
-      } else {
-        data = await api.get('/users/me');
-        setIsSelf(true);
-      }
-
-      userIdRef.current = data?.id ?? null;
-      setUser(data);
-      if (data?.isFollowing !== undefined) {
-        setIsFollowing(data.isFollowing);
-      }
-
-      const uid = data?.id ?? 'me';
       let postsData: any;
       if (activeTab === 'saved') {
         postsData = await api.get(`/keeps?page=${pageNum}&limit=20`);
@@ -92,14 +79,41 @@ export default function ProfileScreen() {
         postsData = await api.get(`/users/${uid}/posts?page=${pageNum}&limit=20&type=${activeTab}`);
       }
       const items = Array.isArray(postsData?.items ?? postsData) ? (postsData?.items ?? postsData) : [];
-
       if (reset) {
         setPosts(items);
       } else {
         setPosts(prev => [...prev, ...items]);
       }
-
       setHasMore(items.length === 20 && (postsData?.hasMore !== false));
+    } catch (error: any) {
+      if (error?.status === 401) return;
+      console.error('Failed to load tab content', error);
+      setHasMore(false);
+      if (reset && !loadingMore) {
+        showError(t('profile.loadError', 'Failed to load profile. Please try again.'));
+      }
+    }
+  }, [activeTab]);
+
+  const loadProfile = useCallback(async (pageNum: number, reset = false) => {
+    try {
+      let data: any;
+      if (handle) {
+        data = await api.get(`/users/${handle}`);
+        setIsSelf(false);
+      } else {
+        data = await api.get('/users/me');
+        setIsSelf(true);
+      }
+
+      userIdRef.current = data?.id ?? null;
+      setUser(data);
+      if (data?.isFollowing !== undefined) {
+        setIsFollowing(data.isFollowing);
+      }
+
+      const uid = data?.id ?? 'me';
+      await loadTabContent(uid, pageNum, reset);
     } catch (error: any) {
       if (error?.status === 401) return;
       console.error('Failed to load profile', error);
@@ -108,7 +122,7 @@ export default function ProfileScreen() {
         showError(t('profile.loadError', 'Failed to load profile. Please try again.'));
       }
     }
-  }, [handle, activeTab, isAuthenticated]);
+  }, [handle, activeTab, isAuthenticated, loadTabContent]);
 
   const prevTabRef = useRef(activeTab);
 
@@ -126,16 +140,17 @@ export default function ProfileScreen() {
     loadProfile(1, true).finally(() => setProfileLoading(false));
   }, [handle, isAuthenticated]);
 
-  // When only tab changes: refetch list for new tab (do not clear user or show full-screen loading)
+  // When only tab changes: load list for new tab only (no GET /users/me — avoids 401 on quotes/replies tabs)
   useEffect(() => {
     if (activeTab === prevTabRef.current) return;
     prevTabRef.current = activeTab;
-    if (!user?.id && !userIdRef.current) return;
+    const uid = user?.id ?? userIdRef.current;
+    if (!uid) return;
     setPage(1);
     setPosts([]);
     setHasMore(true);
-    loadProfile(1, true);
-  }, [activeTab]);
+    loadTabContent(uid, 1, true);
+  }, [activeTab, user?.id, loadTabContent]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -290,7 +305,7 @@ export default function ProfileScreen() {
       const key = uploadRes?.key;
       if (key) {
         await api.patch('/users/me', { avatarKey: key });
-        setUser((prev: any) => (prev ? { ...prev, avatarUrl: uploadRes?.url ?? `${process.env.EXPO_PUBLIC_API_BASE_URL || ''}/images/${key}` } : prev));
+        setUser((prev: any) => (prev ? { ...prev, avatarUrl: uploadRes?.url ?? getImageUrl(key), avatarKey: key } : prev));
       }
     } catch (e) {
       console.error(e);
@@ -305,14 +320,36 @@ export default function ProfileScreen() {
     setAvatarActionModalVisible(true);
   }, [isSelf]);
 
-  const hasAvatar = !!user?.avatarUrl;
+  const hasAvatar = !!(user?.avatarKey || user?.avatarUrl);
   const closeAvatarAction = useCallback(() => setAvatarActionModalVisible(false), []);
+
+  const rssFeedUrl = user?.handle ? `${getApiBaseUrl()}/rss/${encodeURIComponent(user.handle)}` : '';
+  const handleOpenRssFeed = useCallback(() => {
+    setProfileOptionsVisible(false);
+    if (rssFeedUrl) Linking.openURL(rssFeedUrl);
+  }, [rssFeedUrl]);
+
+  const handleShareProfile = useCallback(() => {
+    if (!user?.handle) return;
+    setProfileOptionsVisible(false);
+    const profileUrl = `${getWebAppBaseUrl()}/user/${encodeURIComponent(user.handle)}`;
+    const displayName = user.displayName || user.handle;
+    const message = t('profile.shareProfileMessage', { defaultValue: 'Check out {{name}} (@{{handle}}) on Cite', name: displayName, handle: user.handle });
+    const title = t('profile.shareProfileTitle', { defaultValue: 'Share profile', handle: user.handle });
+    // Defer share until modal has fully closed (avoids share sheet not opening)
+    InteractionManager.runAfterInteractions(() => {
+      const sharePayload = Platform.OS === 'android'
+        ? { message: `${message}\n${profileUrl}`, title }
+        : { message: `${message}\n${profileUrl}`, url: profileUrl, title };
+      setTimeout(() => Share.share(sharePayload).catch(() => { }), 350);
+    });
+  }, [user?.handle, user?.displayName, t]);
 
   const removeHeaderImage = useCallback(async () => {
     if (!isSelf || !user) return;
     try {
       await api.patch('/users/me', { profileHeaderKey: null });
-      setUser((prev: any) => (prev ? { ...prev, profileHeaderUrl: null } : prev));
+      setUser((prev: any) => (prev ? { ...prev, profileHeaderUrl: null, profileHeaderKey: null } : prev));
     } catch (e) {
       console.error(e);
       showError(t('profile.photoUpdateFailed', 'Failed to remove header.'));
@@ -320,15 +357,36 @@ export default function ProfileScreen() {
     setHeaderEditModalVisible(false);
   }, [isSelf, user, showError, t]);
 
-  const hasHeaderImage = !!user?.profileHeaderUrl;
+  const hasHeaderImage = !!(user?.profileHeaderKey || user?.profileHeaderUrl);
+  const profileHeaderImageUrl = (user?.profileHeaderKey ? getImageUrl(user.profileHeaderKey) : null) || user?.profileHeaderUrl || null;
 
   const openDrawModal = useCallback(() => {
     setHeaderEditModalVisible(false);
     setDrawModalVisible(true);
   }, []);
 
-  const handleDrawSaved = useCallback(() => {
-    api.get('/users/me').then((data) => setUser(data)).catch(() => { });
+  const handleDrawSaved = useCallback((key: string, url?: string) => {
+    setUser((prev: any) =>
+      prev
+        ? {
+          ...prev,
+          profileHeaderKey: key,
+          profileHeaderUrl: url || (prev.profileHeaderUrl ?? undefined),
+        }
+        : prev,
+    );
+    // Refetch to stay in sync; merge so we keep new key/url if server lags
+    api.get('/users/me').then((data: any) => {
+      setUser((prev: any) =>
+        prev
+          ? {
+            ...data,
+            profileHeaderKey: data?.profileHeaderKey ?? prev.profileHeaderKey,
+            profileHeaderUrl: data?.profileHeaderUrl ?? prev.profileHeaderUrl,
+          }
+          : data,
+      );
+    }).catch(() => { });
   }, []);
 
   return (
@@ -353,8 +411,13 @@ export default function ProfileScreen() {
               {/* Single profile top area: hand-drawing or dark black background behind avatar, name, stats. No separate header strip. */}
               <View style={[styles.profileTopSection, { height: PROFILE_TOP_HEIGHT }]}>
                 {/* Full-area background: saved drawing image or dark black */}
-                {user.profileHeaderUrl ? (
-                  <Image source={{ uri: user.profileHeaderUrl }} style={styles.profileTopBackground} resizeMode="cover" />
+                {profileHeaderImageUrl ? (
+                  <Image
+                    source={{ uri: profileHeaderImageUrl }}
+                    style={styles.profileTopBackground}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
                 ) : (
                   <View style={styles.profileTopBackgroundBlack} />
                 )}
@@ -374,12 +437,12 @@ export default function ProfileScreen() {
                     </Pressable>
                   )}
                   <Pressable
-                    onPress={() => router.push('/settings')}
+                    onPress={() => setProfileOptionsVisible(true)}
                     style={styles.iconButton}
-                    accessibilityLabel={t('settings.title')}
+                    accessibilityLabel={t('profile.options', 'Options')}
                     accessibilityRole="button"
                   >
-                    <MaterialIcons name="settings" size={HEADER.iconSize} color={HEADER.iconColor} />
+                    <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
                   </Pressable>
                 </View>
                 {/* Profile Info - Centered (avatar, name, button, stats) */}
@@ -392,8 +455,13 @@ export default function ProfileScreen() {
                     >
                       {avatarUploading ? (
                         <ActivityIndicator color={COLORS.primary} />
-                      ) : user.avatarUrl ? (
-                        <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+                      ) : (user.avatarKey || user.avatarUrl) ? (
+                        <Image
+                          source={{ uri: user.avatarKey ? getImageUrl(user.avatarKey) : user.avatarUrl }}
+                          style={styles.avatarImage}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
                       ) : (
                         <Text style={styles.avatarText}>
                           {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
@@ -510,7 +578,13 @@ export default function ProfileScreen() {
           }
           ListEmptyComponent={
             <EmptyState
-              icon={activeTab === 'saved' ? 'bookmark-outline' : activeTab === 'collections' ? 'folder-open' : 'article'}
+              icon={
+                activeTab === 'saved' ? 'bookmark-outline'
+                  : activeTab === 'collections' ? 'folder-open'
+                    : activeTab === 'replies' ? 'chat-bubble-outline'
+                      : activeTab === 'quotes' ? 'format-quote'
+                        : 'article'
+              }
               headline={
                 activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
                   : activeTab === 'collections' ? (isSelf ? t('profile.noCollectionsOwn', 'No collections') : t('profile.noCollections', 'No public collections'))
@@ -521,17 +595,20 @@ export default function ProfileScreen() {
               subtext={
                 activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
                   : activeTab === 'posts' ? t('profile.noPostsHint', 'Share your first post or quote someone.')
-                    : undefined
+                    : activeTab === 'collections' ? (isSelf ? t('profile.noCollectionsOwnHint', 'Create a collection to organize your posts.') : t('profile.noCollectionsHint', 'Public collections will appear here.'))
+                      : activeTab === 'replies' ? t('profile.noRepliesHint', 'Replies will show here.')
+                        : activeTab === 'quotes' ? t('profile.noQuotesHint', 'Quotes will show here.')
+                          : undefined
               }
               secondaryLabel={
                 activeTab === 'saved' ? t('profile.keepsLibrary', 'Keeps library')
                   : isSelf && activeTab === 'collections' ? t('collections.create', 'Create collection')
-                  : undefined
+                    : undefined
               }
               onSecondary={
                 activeTab === 'saved' ? () => router.push('/keeps')
                   : isSelf && activeTab === 'collections' ? () => router.push('/collections')
-                  : undefined
+                    : undefined
               }
             />
           }
@@ -556,8 +633,13 @@ export default function ProfileScreen() {
       <Modal visible={avatarModalVisible} transparent animationType="fade">
         <Pressable style={styles.avatarModalOverlay} onPress={() => setAvatarModalVisible(false)}>
           <View style={styles.avatarModalContent}>
-            {user?.avatarUrl ? (
-              <Image source={{ uri: user.avatarUrl }} style={styles.avatarModalImage} resizeMode="contain" />
+            {(user?.avatarKey || user?.avatarUrl) ? (
+              <Image
+                source={{ uri: user.avatarKey ? getImageUrl(user.avatarKey) : user.avatarUrl }}
+                style={styles.avatarModalImage}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
             ) : null}
             <Pressable style={styles.avatarModalClose} onPress={() => setAvatarModalVisible(false)}>
               <Text style={styles.avatarModalCloseText}>{t('common.close')}</Text>
@@ -611,9 +693,9 @@ export default function ProfileScreen() {
         visible={collectionOptionsVisible}
         title={selectedCollection?.title ?? t('collections.options', 'Collection')}
         options={[
-          { label: t('collections.open', 'Open'), onPress: handleOpenCollection },
-          { label: t('collections.edit', 'Edit'), onPress: handleEditCollectionPress },
-          { label: t('collections.delete', 'Delete Collection'), onPress: handleDeleteCollectionPress, destructive: true },
+          { label: t('collections.open', 'Open'), onPress: handleOpenCollection, icon: 'folder-open' },
+          { label: t('collections.edit', 'Edit'), onPress: handleEditCollectionPress, icon: 'edit' },
+          { label: t('collections.delete', 'Delete Collection'), onPress: handleDeleteCollectionPress, destructive: true, icon: 'delete-outline' },
         ]}
         cancelLabel={t('common.cancel')}
         onCancel={() => { setCollectionOptionsVisible(false); setSelectedCollection(null); }}
@@ -623,7 +705,10 @@ export default function ProfileScreen() {
         <Pressable style={styles.editCollectionModalOverlay} onPress={() => setEditCollectionModalVisible(false)}>
           <View style={[styles.editCollectionModalContent, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
             <View style={styles.editCollectionModalHandle} />
-            <Text style={styles.editCollectionModalTitle}>{t('collections.edit', 'Edit collection')}</Text>
+            <View style={styles.editCollectionModalTitleRow}>
+              <MaterialIcons name="edit" size={HEADER.iconSize} color={COLORS.primary} style={styles.editCollectionModalTitleIcon} />
+              <Text style={styles.editCollectionModalTitle}>{t('collections.edit', 'Edit collection')}</Text>
+            </View>
             <TextInput
               style={styles.editCollectionInput}
               placeholder={t('collections.titlePlaceholder', 'Title')}
@@ -659,6 +744,7 @@ export default function ProfileScreen() {
         confirmLabel={t('collections.delete', 'Delete Collection')}
         cancelLabel={t('common.cancel')}
         destructive
+        icon="warning"
         onConfirm={handleDeleteCollectionConfirm}
         onCancel={() => { setDeleteCollectionConfirmVisible(false); setSelectedCollection(null); }}
       />
@@ -667,11 +753,23 @@ export default function ProfileScreen() {
         visible={headerEditModalVisible}
         title={t('profile.backgroundDraw', 'Background')}
         options={[
-          { label: t('profile.drawHeader', 'Draw background'), onPress: openDrawModal },
-          ...(hasHeaderImage ? [{ label: t('profile.removePhoto', 'Remove'), onPress: removeHeaderImage, destructive: true as const }] : []),
+          { label: t('profile.drawHeader', 'Draw background'), onPress: openDrawModal, icon: 'brush' },
+          ...(hasHeaderImage ? [{ label: t('profile.removePhoto', 'Remove'), onPress: removeHeaderImage, destructive: true as const, icon: 'delete-outline' as const }] : []),
         ]}
         cancelLabel={t('common.cancel')}
         onCancel={() => setHeaderEditModalVisible(false)}
+      />
+
+      <OptionsActionSheet
+        visible={profileOptionsVisible}
+        title={t('profile.options', 'Options')}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setProfileOptionsVisible(false)}
+        options={[
+          { label: t('profile.shareProfile', 'Share profile'), onPress: handleShareProfile, icon: 'share' },
+          { label: t('profile.rssFeed', 'RSS Feed'), onPress: handleOpenRssFeed, icon: 'rss-feed' },
+          ...(isSelf ? [{ label: t('settings.title', 'Settings'), onPress: () => { setProfileOptionsVisible(false); router.push('/settings'); }, icon: 'settings' as const }] : []),
+        ]}
       />
 
       <DrawBackgroundModal
@@ -1039,11 +1137,19 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: SPACING.m,
   },
+  editCollectionModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.l,
+  },
+  editCollectionModalTitleIcon: {
+    marginRight: SPACING.s,
+  },
   editCollectionModalTitle: {
+    flex: 1,
     fontSize: 18,
     fontWeight: '600',
     color: COLORS.paper,
-    marginBottom: SPACING.l,
     fontFamily: FONTS.semiBold,
   },
   editCollectionInput: {

@@ -26,6 +26,13 @@ import { EmptyState } from '../../../../components/EmptyState';
 const COMMENT_MIN_LENGTH = 2;
 const COMMENT_MAX_LENGTH = 1000;
 
+function normalizeParam(value: unknown): string | undefined {
+  if (value == null) return undefined;
+  if (typeof value === 'string') return value || undefined;
+  if (Array.isArray(value) && value.length > 0) return String(value[0]) || undefined;
+  return undefined;
+}
+
 interface Reply {
   id: string;
   body: string;
@@ -44,8 +51,8 @@ export default function SubcommentsScreen() {
   const { t } = useTranslation();
   const { isAuthenticated, userId } = useAuth();
   const { showSuccess, showError } = useToast();
-  const postId = params.id as string;
-  const parentReplyId = params.replyId as string;
+  const postId = normalizeParam(params.id);
+  const parentReplyId = normalizeParam(params.replyId);
   const [parentReply, setParentReply] = useState<Reply | null>(null);
   const [replies, setReplies] = useState<Reply[]>([]);
   const [commentDraft, setCommentDraft] = useState('');
@@ -55,7 +62,10 @@ export default function SubcommentsScreen() {
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
 
   const loadParentAndReplies = useCallback(async () => {
-    if (!postId || !parentReplyId) return;
+    if (!postId || !parentReplyId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [parentData, repliesData] = await Promise.all([
@@ -161,6 +171,18 @@ export default function SubcommentsScreen() {
     }
   };
 
+  if (!postId || !parentReplyId) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ScreenHeader title={t('post.repliesToComment', 'Replies')} paddingTop={insets.top} />
+        <Text style={styles.errorText}>{t('post.replyNotFound', 'Comment not found')}</Text>
+        <Pressable style={styles.backLink} onPress={() => router.back()}>
+          <Text style={styles.backLinkText}>{t('common.close')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (loading && !parentReply) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -247,7 +269,7 @@ export default function SubcommentsScreen() {
             subtext={isAuthenticated ? t('post.addReplyBelow', 'Add a reply below.') : undefined}
           />
         ) : null}
-        {replies.map((reply) => (
+        {(Array.isArray(replies) ? replies : []).map((reply) => (
           <View key={reply.id} style={styles.commentRow}>
             <View style={styles.commentAuthorRow}>
               <Pressable

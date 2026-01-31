@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { captureRef } from 'react-native-view-shot';
+import ViewShot, { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, SIZES, PROFILE_TOP_HEIGHT, HEADER, MODAL } from '../constants/theme';
@@ -30,7 +30,8 @@ const DRAW_HEADER_BG = 'rgba(11, 11, 12, 0.3)';
 export interface DrawBackgroundModalProps {
   visible: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  /** Called after save; pass key (and optionally url) so parent can update UI immediately */
+  onSaved: (key: string, url?: string) => void;
 }
 
 export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroundModalProps) {
@@ -88,6 +89,8 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
     try {
       const targetWidth = Math.round(screenWidth * 2);
       const targetHeight = Math.round(PROFILE_TOP_HEIGHT * 2);
+      // Delay so SVG is fully painted before capture (view-shot can miss SVG otherwise)
+      await new Promise((r) => setTimeout(r, 150));
       const result = await captureRef(canvasRef, {
         result: 'tmpfile',
         format: 'png',
@@ -104,7 +107,7 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
       if (uploadRes?.key) {
         await api.patch('/users/me', { profileHeaderKey: uploadRes.key });
         showSuccess(t('profile.headerUpdated', 'Header updated.'));
-        onSaved();
+        onSaved(uploadRes.key, uploadRes.url);
         onClose();
       }
     } catch (e) {
@@ -124,29 +127,30 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
       <View style={styles.overlay}>
         {/* Dimmed backdrop like other modals */}
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t('common.close')} />
-        {/* Draw area: exact same rect as profile top section (screenWidth × PROFILE_TOP_HEIGHT) so drawing overlays where the image will show */}
+        {/* Draw area: exact same rect as profile top section (screenWidth × PROFILE_TOP_HEIGHT). ViewShot wraps so captureRef includes SVG. */}
         <View style={[styles.canvasWrap, { width: canvasWidth, height: canvasHeight }]}>
-          <View
+          <ViewShot
             ref={canvasRef}
             style={[styles.canvas, { width: canvasWidth, height: canvasHeight }]}
             collapsable={false}
-            {...panResponder.panHandlers}
           >
-            <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill}>
-              <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill={DRAW_HEADER_BG} />
-              {allPaths.map((stroke, i) => (
-                <Path
-                  key={i}
-                  d={pathD(stroke)}
-                  stroke={STROKE_COLOR}
-                  strokeWidth={STROKE_WIDTH}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              ))}
-            </Svg>
-          </View>
+            <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
+              <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill}>
+                <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill={DRAW_HEADER_BG} />
+                {allPaths.map((stroke, i) => (
+                  <Path
+                    key={i}
+                    d={pathD(stroke)}
+                    stroke={STROKE_COLOR}
+                    strokeWidth={STROKE_WIDTH}
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ))}
+              </Svg>
+            </View>
+          </ViewShot>
           <Pressable
             style={[styles.closeOverlay, { top: insets.top + SPACING.s }]}
             onPress={onClose}

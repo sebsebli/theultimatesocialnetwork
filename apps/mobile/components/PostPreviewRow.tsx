@@ -2,9 +2,9 @@ import React from 'react';
 import { StyleSheet, Text, View, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { getImageUrl } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 const THUMB_ASPECT = 4 / 3;
 const THUMB_WIDTH = 80;
 
@@ -12,8 +12,8 @@ const THUMB_WIDTH = 80;
 export function PostPreviewRow({ post }: { post: any }) {
   const router = useRouter();
   const thumbHeight = Math.round(THUMB_WIDTH / THUMB_ASPECT);
-  const imageUri = (post as any).headerImageUrl
-    || (post.headerImageKey ? `${API_BASE}/images/${post.headerImageKey}` : null);
+  const imageUri = (post.headerImageKey ? getImageUrl(post.headerImageKey) : null)
+    || (post as any).headerImageUrl;
 
   const handlePress = () => {
     if (post.title) router.push(`/post/${post.id}/reading`);

@@ -2,6 +2,8 @@
 
 This guide explains how to deploy the CITE system using Docker and Docker Compose.
 
+For scaling to thousands of users and hundreds of thousands of posts, see [docs/SCALABILITY.md](../docs/SCALABILITY.md).
+
 ## Prerequisites
 
 - Docker Engine 20.10+
@@ -108,18 +110,53 @@ Data is persisted in `infra/docker/volumes/`:
 - `volumes/meilisearch/`: Meilisearch index
 - `volumes/minio/`: MinIO object storage
 - `volumes/ollama/`: Ollama models
-- `volumes/backups/`: Database backups
+- `volumes/backups/`: Full backups (PostgreSQL + Neo4j + MinIO)
 
-## Database Backups
+## Full Backups (PostgreSQL + Neo4j + MinIO)
 
-Automatic backups run every 6 hours and are kept for 7 days by default.
+Automatic **complete** backups run every 6 hours and are kept for 7 days by default.
 
-Backups are stored in `volumes/backups/`.
+Each run creates a timestamped directory under `volumes/backups/`:
+- `full_YYYYMMDD_HHMMSS/postgres_<db>.sql.gz` – PostgreSQL dump
+- `full_YYYYMMDD_HHMMSS/neo4j.cypher` – Neo4j graph (Cypher export)
+- `full_YYYYMMDD_HHMMSS/minio_<bucket>/` – MinIO bucket contents (e.g. images)
+- `full_YYYYMMDD_HHMMSS/manifest.txt` – Backup metadata
 
-To restore a backup:
+The `backup-full` service depends on `db`, `neo4j`, and `minio`. Retention is controlled by `FULL_BACKUP_KEEP_DAYS` (default 7).
+
+### Restore from a full backup
+
+Use this after a failure or compromise to restore everything to a known good state.
+
+1. **Stop the API** (optional but recommended for a clean restore):
+   ```bash
+   cd infra/docker
+   docker compose stop api
+   ```
+
+2. **Run the restore script** with the path to a full backup directory:
+   ```bash
+   ./restore-full.sh volumes/backups/full_20250131_120000
+   ```
+
+3. **Start the API** again:
+   ```bash
+   docker compose start api
+   ```
+
+The script restores:
+- **PostgreSQL**: drops and recreates the `public` schema, then loads the dump
+- **Neo4j**: clears the graph and runs the Cypher export
+- **MinIO**: mirrors the backup directory into the bucket (overwrites)
+
+Credentials are read from `.env`. To list available full backups:
 ```bash
-docker compose exec db psql -U postgres -d postgres < backup_file.sql
+ls -la volumes/backups/
 ```
+
+**Meilisearch:** The restore script **clears** Meilisearch indexes (posts, users, topics) so they are empty. When you start the API again, it **automatically reindexes** all users, topics, and posts from PostgreSQL in the background—no manual step. Reindex is batched and scalable (thousands of users, hundreds of thousands of posts). Optional env: `MEILISEARCH_REINDEX_BATCH_SIZE` (posts/topics batch, default 1000), `MEILISEARCH_REINDEX_USER_BATCH_SIZE` (users batch, default 5000). To force a full reindex on every API start: `MEILISEARCH_REINDEX_ON_STARTUP=true`.
+
+**Redis** (cache) is not backed up and will repopulate from normal usage.
 
 ## Production Deployment
 

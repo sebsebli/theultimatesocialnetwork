@@ -213,11 +213,20 @@ export class SafetyService {
     }
   }
 
-  async getBlocked(userId: string) {
-    return this.blockRepo.find({
+  async getBlocked(
+    userId: string,
+  ): Promise<Array<{ id: string; displayName: string; handle: string }>> {
+    const blocks = await this.blockRepo.find({
       where: { blockerId: userId },
       relations: ['blocked'],
     });
+    return blocks
+      .filter((b) => b.blocked != null)
+      .map((b) => ({
+        id: b.blockedId,
+        displayName: (b.blocked as { displayName?: string }).displayName ?? '',
+        handle: (b.blocked as { handle?: string }).handle ?? '',
+      }));
   }
 
   async getMuted(userId: string) {

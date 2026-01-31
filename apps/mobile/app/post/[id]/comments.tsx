@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  type NativeSyntheticEvent,
+  type TextInputSelectionChangeEventData,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +24,7 @@ import { ScreenHeader } from '../../../components/ScreenHeader';
 import { MarkdownText } from '../../../components/MarkdownText';
 import { ReportModal } from '../../../components/ReportModal';
 import { EmptyState } from '../../../components/EmptyState';
+import { useComposerSearch } from '../../../hooks/useComposerSearch';
 
 const COMMENT_MIN_LENGTH = 2;
 const COMMENT_MAX_LENGTH = 1000;
@@ -38,21 +41,34 @@ interface Reply {
   subreplyCount?: number;
 }
 
+function normalizeParam(value: unknown): string | undefined {
+  if (value == null) return undefined;
+  if (typeof value === 'string') return value || undefined;
+  if (Array.isArray(value) && value.length > 0) return String(value[0]) || undefined;
+  return undefined;
+}
+
 export default function PostCommentsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const replyIdFromParams = typeof params.replyId === 'string' ? params.replyId : Array.isArray(params.replyId) ? params.replyId[0] : undefined;
   const { t } = useTranslation();
   const { isAuthenticated, userId } = useAuth();
   const { showSuccess, showError } = useToast();
-  const postId = params.id as string;
+  const postId = normalizeParam(params.id);
   const [replies, setReplies] = useState<Reply[]>([]);
   const [commentDraft, setCommentDraft] = useState('');
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [submittingComment, setSubmittingComment] = useState(false);
   const [loading, setLoading] = useState(true);
   const [postTitle, setPostTitle] = useState<string | null>(null);
   const [reportReplyId, setReportReplyId] = useState<string | null>(null);
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
+  const scrollRef = useRef<ScrollView>(null);
+  const hasScrolledToReply = useRef(false);
+  const { results: mentionResults, search: searchMentions, isSearching: mentionSearching } = useComposerSearch();
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
 
   const loadReplies = useCallback(async () => {
     try {
@@ -67,7 +83,10 @@ export default function PostCommentsScreen() {
   }, [postId]);
 
   const loadPost = useCallback(async () => {
-    if (!postId) return;
+    if (!postId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [postData, repliesData] = await Promise.all([
@@ -94,6 +113,38 @@ export default function PostCommentsScreen() {
     loadPost();
   }, [loadPost]);
 
+  // Parse @ mention: when user types @ or @query before cursor, show mention dropdown
+  useEffect(() => {
+    const beforeCursor = commentDraft.slice(0, selection.start);
+    const lastAt = beforeCursor.lastIndexOf('@');
+    if (lastAt !== -1 && (lastAt === 0 || /[\s\n]/.test(beforeCursor[lastAt - 1] ?? ''))) {
+      const afterAt = beforeCursor.slice(lastAt + 1);
+      const segment = (afterAt.split(/[\s\n]/)[0] ?? '').slice(0, 50);
+      if (!segment.includes(' ')) {
+        setMentionQuery(segment);
+        searchMentions(segment, 'mention');
+        return;
+      }
+    }
+    setMentionQuery(null);
+  }, [commentDraft, selection.start]);
+
+  const handleMentionSelect = useCallback((item: { handle?: string }) => {
+    if (!item.handle) return;
+    const beforeCursor = commentDraft.slice(0, selection.start);
+    const lastAt = beforeCursor.lastIndexOf('@');
+    if (lastAt === -1) {
+      setMentionQuery(null);
+      return;
+    }
+    const afterAt = beforeCursor.slice(lastAt + 1);
+    const segment = (afterAt.split(/[\s\n]/)[0] ?? '');
+    const insertion = `@${item.handle} `;
+    const newDraft = commentDraft.slice(0, lastAt) + insertion + commentDraft.slice(selection.start);
+    setCommentDraft(newDraft);
+    setMentionQuery(null);
+    setSelection({ start: lastAt + insertion.length, end: lastAt + insertion.length });
+  }, [commentDraft, selection.start]);
 
   const submitComment = async () => {
     const body = commentDraft.trim();
@@ -161,6 +212,18 @@ export default function PostCommentsScreen() {
     }
   };
 
+  if (!postId) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ScreenHeader title={t('post.comments')} paddingTop={insets.top} />
+        <Text style={styles.errorText}>{t('post.postNotFound', 'Post not found')}</Text>
+        <Pressable style={styles.backLink} onPress={() => router.back()}>
+          <Text style={styles.backLinkText}>{t('common.close')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -181,6 +244,7 @@ export default function PostCommentsScreen() {
       />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
@@ -202,8 +266,20 @@ export default function PostCommentsScreen() {
             onAction={!isAuthenticated ? () => router.push('/(tabs)/profile') : undefined}
           />
         ) : null}
-        {replies.map((reply) => (
-          <View key={reply.id} style={styles.commentRow}>
+        {(Array.isArray(replies) ? replies : []).map((reply) => (
+          <View
+            key={reply.id}
+            style={[styles.commentRow, replyIdFromParams === reply.id && styles.commentRowHighlight]}
+            onLayout={
+              replyIdFromParams === reply.id && !hasScrolledToReply.current
+                ? (e) => {
+                    hasScrolledToReply.current = true;
+                    const y = e.nativeEvent.layout.y;
+                    scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+                  }
+                : undefined
+            }
+          >
             <View style={styles.commentAuthorRow}>
               <Pressable
                 onPress={() => reply.author?.handle && router.push(`/user/${reply.author.handle}`)}
@@ -294,10 +370,41 @@ export default function PostCommentsScreen() {
                 placeholderTextColor={COLORS.tertiary}
                 value={commentDraft}
                 onChangeText={setCommentDraft}
+                onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) =>
+                  setSelection(e.nativeEvent.selection)
+                }
                 multiline
                 maxLength={COMMENT_MAX_LENGTH}
                 editable={!submittingComment}
               />
+              {mentionQuery !== null && (
+                <View style={styles.mentionDropdown}>
+                  {mentionSearching ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} style={styles.mentionDropdownLoader} />
+                  ) : (
+                    mentionResults
+                      .filter((r: any) => r.type === 'mention' && r.id !== userId)
+                      .slice(0, 8)
+                      .map((item: any) => (
+                        <Pressable
+                          key={item.id}
+                          style={({ pressed }) => [styles.mentionItem, pressed && styles.mentionItemPressed]}
+                          onPress={() => handleMentionSelect(item)}
+                        >
+                          <View style={styles.mentionItemAvatar}>
+                            <Text style={styles.mentionItemAvatarText} numberOfLines={1}>
+                              {(item.displayName || item.handle)?.charAt(0)}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.mentionItemLabel} numberOfLines={1}>{item.displayName || item.handle}</Text>
+                            <Text style={styles.mentionItemHandle} numberOfLines={1}>@{item.handle}</Text>
+                          </View>
+                        </Pressable>
+                      ))
+                  )}
+                </View>
+              )}
               <Text style={styles.commentCharCount}>
                 {commentDraft.length}/{COMMENT_MAX_LENGTH}
               </Text>
@@ -348,6 +455,9 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: LAYOUT.contentPaddingHorizontal, paddingTop: SPACING.l },
+  errorText: { color: COLORS.tertiary, fontSize: 16, fontFamily: FONTS.medium, textAlign: 'center', marginHorizontal: SPACING.l },
+  backLink: { marginTop: SPACING.m },
+  backLinkText: { color: COLORS.primary, fontSize: 16, fontFamily: FONTS.semiBold },
   postTitleLabel: {
     fontSize: 13,
     color: COLORS.tertiary,
@@ -358,6 +468,55 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.m,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+  },
+  commentRowHighlight: {
+    backgroundColor: COLORS.hover,
+  },
+  mentionDropdown: {
+    marginTop: SPACING.xs,
+    maxHeight: 220,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    overflow: 'hidden',
+  },
+  mentionDropdownLoader: {
+    padding: SPACING.m,
+  },
+  mentionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
+  },
+  mentionItemPressed: {
+    backgroundColor: COLORS.pressed,
+  },
+  mentionItemAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.divider,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mentionItemAvatarText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  mentionItemLabel: {
+    fontSize: 14,
+    color: COLORS.paper,
+    fontFamily: FONTS.medium,
+  },
+  mentionItemHandle: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
   },
   commentAuthorRow: {
     flexDirection: 'row',

@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   ForbiddenException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +21,8 @@ const RESEND_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 
 @Injectable()
 export class InvitesService {
+  private readonly logger = new Logger(InvitesService.name);
+
   constructor(
     @InjectRepository(Invite) private inviteRepo: Repository<Invite>,
     @InjectRepository(User) private userRepo: Repository<User>,
@@ -268,7 +271,15 @@ export class InvitesService {
       throw new BadRequestException('Valid email is required');
     }
     const code = await this.generateCode(undefined);
-    const sent = await this.emailService.sendInviteCode(trimmed, code, lang);
+    let sent = false;
+    try {
+      sent = await this.emailService.sendInviteCode(trimmed, code, lang);
+    } catch (err) {
+      this.logger.warn(
+        `Invite code email failed for ${trimmed} (code ${code} still created):`,
+        err instanceof Error ? err.message : err,
+      );
+    }
     return { code, sent };
   }
 

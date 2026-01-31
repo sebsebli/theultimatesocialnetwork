@@ -29,8 +29,11 @@ for i in $(seq 1 45); do
   sleep 2
 done
 
-echo "🌱 Running comprehensive seed (demo data + Meilisearch indexing + header images)..."
+echo "🌱 Running comprehensive seed (demo data + avatars, header images, Meilisearch, Neo4j)..."
 docker compose -f $COMPOSE_FILE exec -T api npm run seed:comprehensive:prod
 
+echo "🪣 Setting MinIO bucket cite-images to public read (so image URLs work)..."
+docker compose -f $COMPOSE_FILE exec -T minio sh -c 'mc alias set local http://localhost:9000 minioadmin minioadmin 2>/dev/null; mc anonymous set download local/cite-images 2>/dev/null' 2>/dev/null || echo "   (MinIO public policy skipped; images may need auth)"
+
 echo ""
-echo "✅ Reset and seed complete. Demo data is loaded with indexed search and header images on posts."
+echo "✅ Reset and seed complete. Demo data: users with avatars, posts with header images, follows, replies, Neo4j and Meilisearch indexed."

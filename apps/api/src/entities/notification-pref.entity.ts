@@ -31,4 +31,12 @@ export class NotificationPref {
 
   @Column({ name: 'quiet_hours_end', type: 'smallint', nullable: true })
   quietHoursEnd: number;
+
+  /** Email: marketing and promotions. Default off; system messages (sign-in, security, account) are always sent. */
+  @Column({ name: 'email_marketing', default: false })
+  emailMarketing: boolean;
+
+  /** Email: product updates and tips. Default off. */
+  @Column({ name: 'email_product_updates', default: false })
+  emailProductUpdates: boolean;
 }

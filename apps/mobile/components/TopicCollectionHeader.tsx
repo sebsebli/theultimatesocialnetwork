@@ -2,8 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image, useWindowDimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
-
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+import { getImageUrl } from '../utils/api';
 /** Same header image format as collection/topic: 4:3 aspect ratio. */
 const HEADER_ASPECT = 3 / 4;
 
@@ -58,7 +57,7 @@ export function TopicCollectionHeader({
       <View style={[styles.header, { height: headerHeight }]}>
         {headerImageKey ? (
           <Image
-            source={{ uri: `${API_BASE}/images/${headerImageKey}` }}
+            source={{ uri: getImageUrl(headerImageKey) }}
             style={StyleSheet.flatten([styles.heroImage, { height: headerHeight }])}
             resizeMode="cover"
           />

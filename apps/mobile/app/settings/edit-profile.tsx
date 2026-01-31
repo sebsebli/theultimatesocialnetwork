@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { api } from '../../utils/api';
+import { api, getImageUrl } from '../../utils/api';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
@@ -47,6 +47,7 @@ export default function EditProfileScreen() {
           setBio(user.bio || '');
           setIsProtected(user.isProtected || false);
           setAvatarUrl(user.avatarUrl || null);
+          setAvatarKey(user.avatarKey || null);
         }
       } catch (e) {
         showError(t('common.error'));
@@ -152,9 +153,9 @@ export default function EditProfileScreen() {
   };
 
   const avatarOptions = [
-    { label: t('settings.takePhoto', 'Take photo'), onPress: () => pickImage('camera') },
-    { label: t('settings.choosePhoto', 'Choose from library'), onPress: () => pickImage('library') },
-    ...(avatarUrl || avatarLocalUri ? [{ label: t('settings.removePhoto', 'Remove photo'), onPress: removeAvatar, destructive: true as const }] : []),
+    { label: t('settings.takePhoto', 'Take photo'), onPress: () => pickImage('camera'), icon: 'camera-alt' as const },
+    { label: t('settings.choosePhoto', 'Choose from library'), onPress: () => pickImage('library'), icon: 'photo-library' as const },
+    ...(avatarKey || avatarUrl || avatarLocalUri ? [{ label: t('settings.removePhoto', 'Remove photo'), onPress: removeAvatar, destructive: true as const, icon: 'delete-outline' as const }] : []),
   ];
 
   const pickImage = async (source: 'camera' | 'library') => {
@@ -177,6 +178,7 @@ export default function EditProfileScreen() {
       const uploadRes = await api.upload<{ key: string; url: string }>('/upload/profile-picture', asset);
       await api.patch('/users/me', { avatarKey: uploadRes.key });
       setAvatarUrl(uploadRes.url);
+      setAvatarKey(uploadRes.key ?? null);
       setAvatarLocalUri(asset.uri);
       showSuccess(t('settings.photoUpdated', 'Profile photo updated.'));
     } catch (err: any) {

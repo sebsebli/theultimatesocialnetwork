@@ -32,7 +32,17 @@ export class ExploreController {
   ) {
     const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
     if (user?.id && (!sort || sort === 'recommended')) {
-      return this.recommendationService.getRecommendedPeople(user.id, limitNum);
+      try {
+        return await this.recommendationService.getRecommendedPeople(
+          user.id,
+          limitNum,
+        );
+      } catch (err) {
+        console.error('explore/people recommended error', err);
+        return this.exploreService.getPeople(user.id, limitNum, {
+          sort: 'cited',
+        });
+      }
     }
     return this.exploreService.getPeople(user?.id, limitNum, { sort });
   }

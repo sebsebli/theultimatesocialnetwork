@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+  DefaultValuePipe,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { MessagesService } from './messages.service';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -16,6 +26,18 @@ export class MessagesController {
       console.error('messages/threads error', err);
       return [];
     }
+  }
+
+  /** Search current user's chats only. Auth required; filter applied server-side. */
+  @Get('search')
+  @UseGuards(AuthGuard('jwt'))
+  async searchChats(
+    @CurrentUser() user: { id: string },
+    @Query('q') query: string,
+    @Query('limit', new DefaultValuePipe(30), ParseIntPipe) limit: number,
+  ) {
+    const safeLimit = Math.min(Math.max(1, limit), 50);
+    return this.messagesService.searchChats(user.id, query ?? '', safeLimit);
   }
 
   @Post('threads')

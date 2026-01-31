@@ -22,10 +22,13 @@ export default function BlockedUsersScreen() {
 
   const loadBlocked = async () => {
     try {
-      const data = await api.get('/safety/blocked');
-      setBlocked(Array.isArray(data) ? data : []);
+      const data = await api.get<Array<{ id: string; displayName: string; handle: string }>>('/safety/blocked');
+      const list = Array.isArray(data) ? data.filter((u) => u.id) : [];
+      setBlocked(list);
     } catch (error) {
       console.error('Failed to load blocked users', error);
+      showError(t('safety.failedLoadBlocked', 'Failed to load blocked users. Pull to refresh.'));
+      setBlocked([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -39,15 +42,16 @@ export default function BlockedUsersScreen() {
   const handleUnblock = (userId: string, displayName: string) => setUnblockTarget({ id: userId, displayName });
 
   const confirmUnblock = async () => {
-    if (!unblockTarget) return;
+    const targetId = unblockTarget?.id;
+    if (!targetId) return;
+    setUnblockTarget(null);
     try {
-      await api.delete(`/safety/block/${unblockTarget.id}`);
-      setBlocked(prev => prev.filter(u => u.id !== unblockTarget.id));
+      await api.delete(`/safety/block/${targetId}`);
+      setBlocked(prev => prev.filter(u => u.id !== targetId));
       showSuccess(t('safety.unblockedMessage', 'This user has been unblocked.'));
     } catch (error) {
       console.error('Failed to unblock user', error);
       showError(t('safety.failedUnblock', 'Failed to unblock user.'));
-      throw error;
     }
   };
 
@@ -55,12 +59,16 @@ export default function BlockedUsersScreen() {
     <View style={styles.userItem}>
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>
-          {item.displayName?.charAt(0) || item.handle?.charAt(0).toUpperCase() || 'U'}
+          {(item.displayName || item.handle || 'U').charAt(0).toUpperCase()}
         </Text>
       </View>
       <View style={styles.userInfo}>
-        <Text style={styles.displayName}>{item.displayName || item.handle}</Text>
-        <Text style={styles.handle}>@{item.handle}</Text>
+        <Text style={styles.displayName} numberOfLines={1}>
+          {item.displayName || item.handle || t('safety.unknownUser', 'Unknown user')}
+        </Text>
+        {item.handle ? (
+          <Text style={styles.handle} numberOfLines={1}>@{item.handle}</Text>
+        ) : null}
       </View>
       <Pressable
         style={styles.unblockButton}
@@ -113,7 +121,7 @@ export default function BlockedUsersScreen() {
       <ConfirmModal
         visible={!!unblockTarget}
         title={t('safety.unblockUser', 'Unblock User')}
-        message={unblockTarget ? t('safety.unblockConfirm', `Are you sure you want to unblock ${unblockTarget.displayName}?`) : ''}
+        message={unblockTarget ? t('safety.unblockConfirm', `Are you sure you want to unblock ${unblockTarget.displayName || unblockTarget.id || 'this user'}?`) : ''}
         confirmLabel={t('safety.unblock', 'Unblock')}
         cancelLabel={t('common.cancel')}
         onConfirm={confirmUnblock}

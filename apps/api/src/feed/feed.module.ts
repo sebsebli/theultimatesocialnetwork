@@ -11,6 +11,7 @@ import { Block } from '../entities/block.entity';
 import { Mute } from '../entities/mute.entity';
 import { TopicFollow } from '../entities/topic-follow.entity';
 import { SharedModule } from '../shared/shared.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { SharedModule } from '../shared/shared.module';
       TopicFollow,
     ]),
     SharedModule,
+    UploadModule,
   ],
   controllers: [FeedController],
   providers: [FeedService],

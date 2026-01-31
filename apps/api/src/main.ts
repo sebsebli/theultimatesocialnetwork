@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import type { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
@@ -15,6 +16,30 @@ async function bootstrap() {
 
   // Response compression for better performance
   app.use(compression());
+
+  // Protect /metrics when METRICS_SECRET is set (production: require X-Metrics-Secret or Bearer)
+  const metricsSecret = process.env.METRICS_SECRET;
+  if (metricsSecret) {
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      const path = req.path ?? req.url?.split('?')[0] ?? '';
+      if (path === '/metrics') {
+        const authHeader = req.headers['authorization'];
+        const provided =
+          req.headers['x-metrics-secret'] ??
+          (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+            ? authHeader.slice(7)
+            : null);
+        if (provided !== metricsSecret) {
+          res.status(401).json({
+            statusCode: 401,
+            message: 'Unauthorized',
+          });
+          return;
+        }
+      }
+      next();
+    });
+  }
 
   // Security headers with enhanced configuration
   app.use(
@@ -87,6 +112,7 @@ async function bootstrap() {
       'Authorization',
       'X-Requested-With',
       'Accept',
+      'X-Metrics-Secret',
     ],
     exposedHeaders: ['Content-Range', 'X-Content-Range', 'X-Total-Count'],
     maxAge: 86400, // 24 hours

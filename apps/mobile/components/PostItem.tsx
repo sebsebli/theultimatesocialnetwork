@@ -291,8 +291,8 @@ function PostItemComponent({
             visible={optionsModalVisible}
             title={t('post.options', 'Post Options')}
             options={[
-              ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setOptionsModalVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const }] : []),
-              { label: t('post.report', 'Report Post'), onPress: () => { setOptionsModalVisible(false); setReportModalVisible(true); }, destructive: true },
+              ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setOptionsModalVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const, icon: 'delete-outline' as const }] : []),
+              { label: t('post.report', 'Report Post'), onPress: () => { setOptionsModalVisible(false); setReportModalVisible(true); }, destructive: true, icon: 'flag' },
             ]}
             cancelLabel={t('common.cancel')}
             onCancel={() => setOptionsModalVisible(false)}
@@ -304,6 +304,7 @@ function PostItemComponent({
             confirmLabel={t('post.delete', 'Delete Post')}
             cancelLabel={t('common.cancel')}
             destructive
+            icon="warning"
             onConfirm={handleDeletePost}
             onCancel={() => setDeleteConfirmVisible(false)}
           />

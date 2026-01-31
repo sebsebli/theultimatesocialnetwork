@@ -106,7 +106,20 @@ export class EmailService {
     inviterName?: string,
   ): Promise<boolean> {
     const t = inviteCodeTemplates[lang] || inviteCodeTemplates['en'];
-    const subject = t.subject;
+    const subject =
+      t?.subject ?? "You're invited to join Cite — here's your invite code";
+    const title = t?.title ?? "You're invited to Cite";
+    const bodyGeneric =
+      t?.bodyGeneric ??
+      "You've been invited to join Cite as one of the first beta testers.";
+    const bodyWithInviter =
+      t?.bodyWithInviter ?? '{{inviterName}} has invited you to join Cite.';
+    const codeLabel = t?.codeLabel ?? 'Your invitation code';
+    const instructions =
+      t?.instructions ??
+      'Enter this code when you sign up in the Cite app or on the website.';
+    const footer =
+      t?.footer ?? "If you didn't expect this email, you can safely ignore it.";
 
     if (!this.transporter) {
       this.logger.warn(
@@ -116,19 +129,19 @@ export class EmailService {
     }
 
     const bodyLine1 = inviterName
-      ? t.bodyWithInviter.replace(/\{\{inviterName\}\}/g, inviterName)
-      : t.bodyGeneric;
+      ? bodyWithInviter.replace(/\{\{inviterName\}\}/g, inviterName)
+      : bodyGeneric;
     const bodyHtml = [
       `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:16px;line-height:1.6;">${bodyLine1}</p>`,
-      `<p style="margin:0 0 8px 0;color:#6E6E73;font-size:14px;">${t.codeLabel}</p>`,
-      `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:14px;line-height:1.5;">${t.instructions}</p>`,
+      `<p style="margin:0 0 8px 0;color:#6E6E73;font-size:14px;">${codeLabel}</p>`,
+      `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:14px;line-height:1.5;">${instructions}</p>`,
     ].join('');
     const baseUrl = this.configService.get<string>('FRONTEND_URL') || undefined;
     const html = buildEmailHtml({
-      title: t.title,
+      title,
       bodyHtml,
       code,
-      footerText: t.footer,
+      footerText: footer,
       baseUrl,
       companyName:
         this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Cite',
@@ -136,16 +149,12 @@ export class EmailService {
         this.configService.get<string>('EMAIL_COMPANY_ADDRESS') || undefined,
       unsubscribeUrl:
         this.configService.get<string>('EMAIL_PREFERENCES_URL') || undefined,
-      reasonText: 'You received this because someone invited you to join Cite.',
+      reasonText:
+        'You received this email because you were invited to join Cite.',
     });
-    const text = [
-      t.title,
-      bodyLine1,
-      t.codeLabel,
-      code,
-      t.instructions,
-      t.footer,
-    ].join('\n\n');
+    const text = [title, bodyLine1, codeLabel, code, instructions, footer].join(
+      '\n\n',
+    );
 
     try {
       await this.transporter.sendMail({
@@ -197,7 +206,7 @@ export class EmailService {
     const bodyHtml = [
       `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:16px;line-height:1.6;">${t.body}</p>`,
       reasonBlock,
-      `<p style="margin:16px 0 0 0;"><a href="${confirmUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}" style="display:inline-block;background:#6E7A8A;color:#0B0B0C;text-decoration:none;font-size:16px;font-weight:600;padding:14px 24px;border-radius:12px;">${t.buttonLabel}</a></p>`,
+      `<p style="margin:16px 0 0 0;"><a href="${confirmUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}" style="display:inline-block;background:#6E7A8A;color:#F2F2F2;text-decoration:none;font-size:16px;font-weight:600;padding:14px 24px;border-radius:12px;">${t.buttonLabel}</a></p>`,
     ].join('');
     const baseUrl = this.configService.get<string>('FRONTEND_URL') || undefined;
     const html = buildEmailHtml({
@@ -261,7 +270,7 @@ export class EmailService {
       .replace(/>/g, '&gt;');
     const bodyHtml = [
       `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:16px;line-height:1.6;">${t.body}</p>`,
-      `<p style="margin:16px 0 0 0;"><a href="${safeUrl}" style="display:inline-block;background:#6E7A8A;color:#0B0B0C;text-decoration:none;font-size:16px;font-weight:600;padding:14px 24px;border-radius:12px;">${t.buttonLabel}</a></p>`,
+      `<p style="margin:16px 0 0 0;"><a href="${safeUrl}" style="display:inline-block;background:#6E7A8A;color:#F2F2F2;text-decoration:none;font-size:16px;font-weight:600;padding:14px 24px;border-radius:12px;">${t.buttonLabel}</a></p>`,
     ].join('');
     const baseUrl = this.configService.get<string>('FRONTEND_URL') || undefined;
     const html = buildEmailHtml({

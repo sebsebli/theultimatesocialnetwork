@@ -136,9 +136,6 @@ export default function OnboardingProfileScreen() {
           <View style={styles.stepDot} />
           <View style={styles.stepDot} />
         </View>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
@@ -283,13 +280,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     height: 44,
-    justifyContent: 'center',
-  },
-  backButton: {
-    position: 'absolute',
-    left: LAYOUT.contentPaddingHorizontal,
-    top: 0,
-    bottom: 0,
     justifyContent: 'center',
   },
   stepIndicator: {

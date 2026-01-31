@@ -8,6 +8,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { MarkdownText } from './MarkdownText';
 import { Avatar } from './Avatar';
 import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { getImageUrl } from '../utils/api';
 
 import { Post } from '../types';
 
@@ -91,14 +92,13 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
     ? lines.slice(0, maxBodyLines).join('\n')
     : fullDisplayBody;
 
-  // Determine image source: prefer API-returned URL (full MinIO URL), then local uri, then API redirect /images/:key
-  const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+  // Prefer key-based URL via API so images work on device/emulator; fallback to API-returned URL or local uri
   const imageSource = headerImageUri
     ? { uri: headerImageUri }
-    : (post as any).headerImageUrl
-      ? { uri: (post as any).headerImageUrl }
-      : post.headerImageKey
-        ? { uri: `${apiBase}/images/${encodeURIComponent(post.headerImageKey)}` }
+    : post.headerImageKey && getImageUrl(post.headerImageKey)
+      ? { uri: getImageUrl(post.headerImageKey) }
+      : (post as any).headerImageUrl
+        ? { uri: (post as any).headerImageUrl }
         : null;
 
   // Extract sources
@@ -158,7 +158,15 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
         onPress={handleAuthorPress}
         disabled={disableNavigation}
       >
-        <Avatar name={post.author.displayName} size={40} />
+        <Avatar
+          name={post.author.displayName}
+          size={40}
+          uri={
+            (post.author as any)?.avatarKey
+              ? getImageUrl((post.author as any).avatarKey)
+              : (post.author as any)?.avatarUrl
+          }
+        />
         <View style={styles.authorInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.authorName}>{post.author.displayName || t('post.unknownUser', 'Unknown')}</Text>

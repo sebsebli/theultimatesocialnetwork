@@ -8,24 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
-
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'fr', name: 'Français' },
-  { code: 'es', name: 'Español' },
-  { code: 'it', name: 'Italiano' },
-  { code: 'pt', name: 'Português' },
-  { code: 'nl', name: 'Nederlands' },
-  { code: 'pl', name: 'Polski' },
-  { code: 'ru', name: 'Русский' },
-  { code: 'fi', name: 'Suomi' },
-  { code: 'sv', name: 'Svenska' },
-  { code: 'no', name: 'Norsk' },
-  { code: 'da', name: 'Dansk' },
-  { code: 'cs', name: 'Čeština' },
-  { code: 'hu', name: 'Magyar' },
-];
+import { CONTENT_LANGUAGES } from '../../constants/languages';
 
 export default function SettingsLanguagesScreen() {
   const router = useRouter();
@@ -71,8 +54,9 @@ export default function SettingsLanguagesScreen() {
     }
   };
 
-  const filteredLanguages = LANGUAGES.filter(l =>
-    l.name.toLowerCase().includes(search.toLowerCase())
+  const filteredLanguages = CONTENT_LANGUAGES.filter(l =>
+    l.name.toLowerCase().includes(search.toLowerCase()) ||
+    (l.native && l.native.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -110,23 +94,28 @@ export default function SettingsLanguagesScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
         <View style={styles.grid}>
-          {filteredLanguages.map((lang) => (
-            <Pressable
-              key={lang.code}
-              style={[
-                styles.languageButton,
-                selected.includes(lang.code) && styles.languageButtonSelected
-              ]}
-              onPress={() => toggleLanguage(lang.code)}
-            >
-              <Text style={[
-                styles.languageText,
-                selected.includes(lang.code) && styles.languageTextSelected
-              ]}>
-                {lang.name}
-              </Text>
-            </Pressable>
-          ))}
+          {filteredLanguages.map((lang) => {
+            const isSelected = selected.includes(lang.code);
+            return (
+              <Pressable
+                key={lang.code}
+                style={[styles.langCard, isSelected && styles.langCardSelected]}
+                onPress={() => toggleLanguage(lang.code)}
+              >
+                <Text style={[styles.langName, isSelected && styles.langNameSelected]}>
+                  {lang.name}
+                </Text>
+                <Text style={[styles.langNative, isSelected && styles.langNativeSelected]}>
+                  {lang.native}
+                </Text>
+                {isSelected && (
+                  <View style={styles.checkBadge}>
+                    <MaterialIcons name="check" size={12} color="#FFF" />
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
     </View>
@@ -182,28 +171,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.m,
+    justifyContent: 'center',
   },
-  languageButton: {
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.m,
-    borderRadius: SIZES.borderRadiusPill,
+  langCard: {
+    width: '47%',
     backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.l,
     borderWidth: 1,
-    borderColor: COLORS.pressed,
+    borderColor: COLORS.divider,
+    alignItems: 'center',
+    position: 'relative',
   },
-  languageButtonSelected: {
-    backgroundColor: COLORS.primary,
+  langCardSelected: {
+    backgroundColor: 'rgba(110, 122, 138, 0.1)',
     borderColor: COLORS.primary,
   },
-  languageText: {
+  langName: {
     fontSize: 16,
-    color: COLORS.paper,
-    fontFamily: FONTS.medium,
-  },
-  languageTextSelected: {
-    color: '#FFFFFF',
     fontWeight: '600',
+    color: COLORS.paper,
+    marginBottom: 4,
     fontFamily: FONTS.semiBold,
+  },
+  langNameSelected: {
+    color: COLORS.primary,
+  },
+  langNative: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+  },
+  langNativeSelected: {
+    color: COLORS.tertiary,
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   footer: {
     padding: SPACING.l,

@@ -4,10 +4,12 @@ import {
   Inject,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { DataSource } from 'typeorm';
 import Redis from 'ioredis';
 
 @Controller('health')
+@Throttle({ default: { limit: 60, ttl: 60000 } }) // 60/min per IP (enough for LB health checks; limits recon scanning)
 export class HealthController {
   constructor(
     private dataSource: DataSource,

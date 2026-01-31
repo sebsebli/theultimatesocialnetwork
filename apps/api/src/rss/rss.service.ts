@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import Redis from 'ioredis';
 import { User } from '../entities/user.entity';
 import { Post, PostVisibility } from '../entities/post.entity';
 
 /** Max number of items in a profile RSS feed. */
 const RSS_ITEM_LIMIT = 50;
+/** Cache TTL in seconds: feed is regenerated at most every 5 min when requested. */
+const RSS_CACHE_TTL_SEC = 300;
 
 @Injectable()
 export class RssService {
@@ -15,6 +18,7 @@ export class RssService {
     private usersRepository: Repository<User>,
     @InjectRepository(Post)
     private postsRepository: Repository<Post>,
+    @Inject('REDIS_CLIENT') private redis: Redis,
     private configService: ConfigService,
   ) {}
 
@@ -23,8 +27,22 @@ export class RssService {
    * protected (private) profiles return 404 so the feed stops immediately.
    * Items are title + link only (no full content) to support free data and speech
    * while linking to the app's profile and articles.
+   * Feed is cached for a short period (RSS_CACHE_TTL_SEC) so updates happen only
+   * when requested and at reasonable intervals.
    */
   async generateRss(handle: string): Promise<string> {
+    const cacheKey = `rss:${handle}`;
+    const cached = await this.redis.get(cacheKey).catch(() => null);
+    if (cached) return cached;
+
+    const xml = await this.buildRss(handle);
+    await this.redis
+      .set(cacheKey, xml, 'EX', RSS_CACHE_TTL_SEC)
+      .catch(() => {});
+    return xml;
+  }
+
+  private async buildRss(handle: string): Promise<string> {
     const user = await this.usersRepository.findOne({
       where: { handle },
       select: ['id', 'handle', 'displayName', 'isProtected'],

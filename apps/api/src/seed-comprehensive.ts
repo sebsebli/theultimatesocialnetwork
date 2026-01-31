@@ -474,6 +474,43 @@ async function bootstrap() {
       } catch (e) {}
     }
 
+    // --- 1b. USER AVATARS (download from web, store in MinIO, link to users) ---
+    console.log('🖼️ Adding user profile pictures...');
+    try {
+      const config = app.get(ConfigService);
+      const minio = new MinIO.Client({
+        endPoint: config.get('MINIO_ENDPOINT') || 'localhost',
+        port: parseInt(config.get('MINIO_PORT') || '9000', 10),
+        useSSL: config.get('MINIO_USE_SSL') === 'true',
+        accessKey: config.get('MINIO_ACCESS_KEY') || 'minioadmin',
+        secretKey: config.get('MINIO_SECRET_KEY') || 'minioadmin',
+      });
+      const bucket = config.get('MINIO_BUCKET') || 'cite-images';
+      const bucketExists = await minio.bucketExists(bucket);
+      if (!bucketExists) {
+        await minio.makeBucket(bucket, 'us-east-1');
+      }
+      for (const p of PERSONAS) {
+        const user = userMap.get(p.handle);
+        if (!user) continue;
+        const avatarUrl = `https://i.pravatar.cc/400?u=${encodeURIComponent(p.handle)}`;
+        const res = await fetch(avatarUrl, {
+          headers: { 'User-Agent': 'CITE-Seed/1.0' },
+        });
+        if (!res.ok) continue;
+        const buf = Buffer.from(await res.arrayBuffer());
+        const key = `seed/avatar-${p.handle}.jpg`;
+        await minio.putObject(bucket, key, buf, buf.length, {
+          'Content-Type': 'image/jpeg',
+        });
+        await userRepo.update({ id: user.id }, { avatarKey: key });
+        user.avatarKey = key;
+      }
+      console.log('   Added profile pictures for', PERSONAS.length, 'users.');
+    } catch (e) {
+      console.warn('User avatars skipped:', (e as Error).message);
+    }
+
     // --- 2. TOPICS (DB generates UUID) ---
     console.log('📚 Creating topics...');
     const topicMap = new Map<string, Topic>();
@@ -777,6 +814,30 @@ async function bootstrap() {
         topics: ['ai', 'design'],
         daysAgo: 1,
       },
+      {
+        author: 'alex.urban',
+        title: 'Building on What Others Say',
+        body: "Sarah's point about memory safety (see her post on [[rust]]) and Emily's climate data both point to the same thing: we need systems that fail safely. @sarah.tech and @emily.green have been essential to this conversation.",
+        visibility: PostVisibility.PUBLIC,
+        topics: ['technology', 'climate', 'rust'],
+        daysAgo: 2,
+      },
+      {
+        author: 'lisa.journo',
+        title: 'Round-up: Urbanism and Tech',
+        body: "This week's must-reads: Alex on the 15-minute city, Mike's critique, David on design and politics. The debate is exactly what we need. [[urbanism]] [[design]] [[politics]].",
+        visibility: PostVisibility.PUBLIC,
+        topics: ['urbanism', 'design', 'politics'],
+        daysAgo: 1,
+      },
+      {
+        author: 'henry.teacher',
+        title: 'Long-form: Why Recursion Is Hard',
+        body: "Recursion is one of those ideas that clicks only after you've seen it in the wild. I start with the base case, then show how @sarah.tech's Rust examples and @james.dev's TypeScript tips both use the same mental model. Then we build a small interpreter. The key is to reference real code from real people—like Tom's Rust edition notes and Nina's design systems. This post is deliberately long so students can see the full argument. [[technology]] [[writing]]",
+        visibility: PostVisibility.PUBLIC,
+        topics: ['technology', 'writing'],
+        daysAgo: 3,
+      },
     ];
 
     const savedPosts: Post[] = [];
@@ -833,9 +894,9 @@ async function bootstrap() {
       if (!bucketExists) {
         await minio.makeBucket(bucket, 'us-east-1');
       }
-      const count = Math.min(8, savedPosts.length);
+      const count = Math.min(14, savedPosts.length);
       for (let i = 0; i < count; i++) {
-        const post = savedPosts[i];
+        const post = savedPosts[i]!;
         const url = `https://picsum.photos/seed/${post.id}/1200/600`;
         const res = await fetch(url, {
           headers: { 'User-Agent': 'CITE-Seed/1.0' },
@@ -910,6 +971,38 @@ async function bootstrap() {
         );
       }
     }
+    await addReply(
+      replyRepo,
+      postRepo,
+      userMap.get('emily.green')!,
+      savedPosts[savedPosts.length - 4]!,
+      'Alex, this ties together what Sarah and I have been saying—systems thinking across domains.',
+      1.5,
+    );
+    await addReply(
+      replyRepo,
+      postRepo,
+      userMap.get('sarah.tech')!,
+      savedPosts[savedPosts.length - 3]!,
+      'Thanks for the round-up, Lisa. The 15-minute city thread is one of the best on the feed.',
+      1.2,
+    );
+    await addReply(
+      replyRepo,
+      postRepo,
+      userMap.get('james.dev')!,
+      savedPosts[savedPosts.length - 2]!,
+      'Henry, using our posts as examples is exactly how this should work. Appreciate the shout-out.',
+      2.5,
+    );
+    await addReply(
+      replyRepo,
+      postRepo,
+      userMap.get('tom.rust')!,
+      savedPosts[savedPosts.length - 2]!,
+      'Same from the Rust side—the recursion → ownership analogy is spot on.',
+      2.3,
+    );
 
     // --- 9. LIKES & KEEPS ---
     console.log('❤️ Likes & keeps...');

@@ -6,6 +6,10 @@ import { encode } from 'blurhash';
 import { v4 as uuidv4 } from 'uuid';
 import { SafetyService } from '../safety/safety.service';
 
+/**
+ * Incoming file from multer. Only buffer, mimetype and size are used.
+ * Original filename is never used for storage—all keys are UUID-based.
+ */
 export interface UploadedImageFile {
   mimetype: string;
   size: number;
@@ -17,6 +21,9 @@ interface ResizeSpec {
   height: number | null;
   fit: 'inside' | 'cover';
 }
+
+/** All stored images use this extension; we never keep the user's original format. */
+const STORED_IMAGE_EXT = '.webp';
 
 @Injectable()
 export class UploadService {
@@ -66,24 +73,26 @@ export class UploadService {
     return result.key;
   }
 
+  /**
+   * Process and store an image. We never keep the original:
+   * - Key is always UUID-based (no user filenames).
+   * - Output is always WebP, compressed; original format is discarded.
+   * - EXIF and other metadata are stripped.
+   */
   private async processAndUpload(
     file: UploadedImageFile,
     resizeOptions: ResizeSpec,
     generateBlurhash: boolean,
   ): Promise<{ key: string; blurhash?: string }> {
-    // Validate file type
     if (!file.mimetype.match(/^image\/(jpeg|jpg|webp|png)$/)) {
       throw new BadRequestException(
         'Only JPG, WEBP, and PNG images are allowed',
       );
     }
-
-    // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
       throw new BadRequestException('File size must be less than 10MB');
     }
 
-    // AI Safety Check
     const safety = await this.safetyService.checkImage(file.buffer);
     if (!safety.safe) {
       throw new BadRequestException(
@@ -93,7 +102,6 @@ export class UploadService {
 
     const image = sharp(file.buffer);
 
-    // Generate Blurhash if requested
     let blurhashStr: string | undefined;
     if (generateBlurhash) {
       const { data, info } = await image
@@ -112,40 +120,47 @@ export class UploadService {
       );
     }
 
-    // Process image: compress, strip EXIF, resize
     const sharpResize: ResizeOptions = {
       width: resizeOptions.width,
       height: resizeOptions.height ?? undefined,
       withoutEnlargement: true,
       fit: resizeOptions.fit,
     };
+
+    // Single format: WebP, compressed. Sharp strips all metadata (EXIF, etc.) by default.
     const processedImage = await image
+      .rotate() // apply EXIF orientation before resize, then metadata is not re-encoded
       .resize(sharpResize)
       .webp({ quality: 85 })
       .toBuffer();
 
-    // Generate unique key
-    const key = `uploads/${uuidv4()}.webp`;
+    const key = `uploads/${uuidv4()}${STORED_IMAGE_EXT}`;
 
-    // Upload to MinIO
     await this.minioClient.putObject(
       this.bucketName,
       key,
       processedImage,
       processedImage.length,
-      {
-        'Content-Type': 'image/webp',
-      },
+      { 'Content-Type': 'image/webp' },
     );
 
     return { key, blurhash: blurhashStr };
   }
 
+  /**
+   * URL for clients to load an image. Prefer API_URL so mobile/app can load via API (single origin).
+   * When API_URL is set, returns API_URL/images/key; otherwise MinIO direct (MINIO_PUBLIC_URL/bucket/key).
+   */
   getImageUrl(key: string): string {
+    const apiBase =
+      this.configService.get<string>('API_URL')?.replace(/\/$/, '') ||
+      this.configService.get<string>('PUBLIC_API_URL')?.replace(/\/$/, '');
+    if (apiBase) {
+      return `${apiBase}/images/${encodeURIComponent(key)}`;
+    }
     const publicUrl =
       this.configService.get<string>('MINIO_PUBLIC_URL') ??
       'http://localhost:9000';
-    // Remove trailing slash if present
     const baseUrl = publicUrl.endsWith('/')
       ? publicUrl.slice(0, -1)
       : publicUrl;
@@ -167,6 +182,14 @@ export class UploadService {
 
   /** Get a readable stream for an export file by key (for download). */
   getExportStream(key: string): Promise<NodeJS.ReadableStream> {
+    return this.minioClient.getObject(
+      this.bucketName,
+      key,
+    ) as Promise<NodeJS.ReadableStream>;
+  }
+
+  /** Get a readable stream for an image by key (for GET /images/*). */
+  getImageStream(key: string): Promise<NodeJS.ReadableStream> {
     return this.minioClient.getObject(
       this.bucketName,
       key,

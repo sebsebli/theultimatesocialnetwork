@@ -5,7 +5,13 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In, IsNull } from 'typeorm';
+import {
+  Repository,
+  DataSource,
+  In,
+  IsNull,
+  type FindOptionsWhere,
+} from 'typeorm';
 import { Queue } from 'bullmq';
 import { Reply } from '../entities/reply.entity';
 import { ReplyLike } from '../entities/reply-like.entity';
@@ -129,8 +135,8 @@ export class RepliesService {
         1,
       );
 
-      // Extract mentions and save them (Notification dispatched in worker)
-      const mentionRegex = /@(\w+)/g;
+      // Extract mentions (@handle, handles can contain dots e.g. sarah.tech) and save them (Notification dispatched in worker)
+      const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
       let mentionMatch;
       const mentionedHandles = new Set<string>();
       while ((mentionMatch = mentionRegex.exec(body)) !== null) {
@@ -143,6 +149,7 @@ export class RepliesService {
         });
         if (mentionedUser && mentionedUser.id !== userId) {
           await queryRunner.manager.save(Mention, {
+            postId,
             replyId: savedReply.id,
             mentionedUserId: mentionedUser.id,
           });
@@ -204,7 +211,7 @@ export class RepliesService {
     currentUserId?: string,
     parentReplyId?: string,
   ) {
-    const where: { postId: string; parentReplyId?: null | string } = { postId };
+    const where: FindOptionsWhere<Reply> = { postId };
     if (parentReplyId != null && parentReplyId !== '') {
       where.parentReplyId = parentReplyId;
     } else {

@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, SIZES, FONTS, MODAL } from '../constants/theme';
+import { MaterialIcons } from '@expo/vector-icons';
+import { COLORS, SPACING, SIZES, FONTS, MODAL, HEADER } from '../constants/theme';
 
 export interface ConfirmModalProps {
   visible: boolean;
@@ -20,6 +21,8 @@ export interface ConfirmModalProps {
   onCancel: () => void;
   /** Red/destructive confirm button */
   destructive?: boolean;
+  /** MaterialIcons name above title (e.g. 'warning', 'info-outline') */
+  icon?: string;
 }
 
 /**
@@ -35,6 +38,7 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
   destructive = false,
+  icon,
 }: ConfirmModalProps) {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
@@ -58,6 +62,14 @@ export function ConfirmModal({
       <Pressable style={styles.overlay} onPress={onCancel}>
         <View style={[styles.card, { paddingBottom: insets.bottom + SPACING.xl }]} onStartShouldSetResponder={() => true}>
           <View style={styles.handleBar} />
+          {icon ? (
+            <MaterialIcons
+              name={icon as any}
+              size={36}
+              color={destructive ? COLORS.error : COLORS.primary}
+              style={styles.titleIcon}
+            />
+          ) : null}
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
@@ -123,6 +135,10 @@ const styles = StyleSheet.create({
     backgroundColor: MODAL.handleBackgroundColor,
     alignSelf: 'center',
     marginBottom: SPACING.l,
+  },
+  titleIcon: {
+    alignSelf: 'center',
+    marginBottom: SPACING.m,
   },
   title: {
     fontSize: 20,

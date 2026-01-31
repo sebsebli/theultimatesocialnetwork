@@ -395,19 +395,22 @@ export class RecommendationService {
 
     const userProfile = await this.getUserInterestProfile(userId);
 
-    // Find users who post about similar topics
-    const similarUsers = await this.postTopicRepo
-      .createQueryBuilder('pt')
-      .innerJoin('posts', 'p', 'p.id = pt.post_id')
-      .where('pt.topic_id IN (:...topics)', { topics: userProfile.topics })
-      .andWhere('p.author_id != :userId', { userId })
-      .andWhere('p.deleted_at IS NULL')
-      .select('p.author_id', 'authorId')
-      .addSelect('COUNT(*)', 'topicOverlap')
-      .groupBy('p.author_id')
-      .orderBy('topicOverlap', 'DESC')
-      .limit(limit * 2)
-      .getRawMany<{ authorId: string; topicOverlap: string }>();
+    // Find users who post about similar topics (skip topic filter when user has no topics)
+    let similarUsers: { authorId: string; topicOverlap: string }[] = [];
+    if (userProfile.topics.length > 0) {
+      similarUsers = await this.postTopicRepo
+        .createQueryBuilder('pt')
+        .innerJoin('posts', 'p', 'p.id = pt.post_id')
+        .where('pt.topic_id IN (:...topics)', { topics: userProfile.topics })
+        .andWhere('p.author_id != :userId', { userId })
+        .andWhere('p.deleted_at IS NULL')
+        .select('p.author_id', 'authorId')
+        .addSelect('COUNT(*)', 'topicOverlap')
+        .groupBy('p.author_id')
+        .orderBy('topicOverlap', 'DESC')
+        .limit(limit * 2)
+        .getRawMany<{ authorId: string; topicOverlap: string }>();
+    }
 
     const candidateUserIds = similarUsers.map((su) => su.authorId);
 

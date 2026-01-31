@@ -30,6 +30,23 @@ export function getApiBaseUrl(): string {
   return API_URL;
 }
 
+/** Base URL of the web app for share links (profile, post, etc.). */
+export function getWebAppBaseUrl(): string {
+  const envWeb = process.env.EXPO_PUBLIC_WEB_BASE_URL;
+  if (envWeb) return envWeb.replace(/\/$/, '');
+  const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL || '';
+  // Only strip "api." when it is the host prefix (e.g. https://api.cite.app -> https://cite.app)
+  if (/^https?:\/\/api\./i.test(apiUrl)) return apiUrl.replace(/^https?:\/\/api\./i, 'https://');
+  return 'https://cite.app';
+}
+
+/** URL for an image stored by key; use so images load via API (works on device/emulator). */
+export function getImageUrl(key: string): string {
+  if (!key || typeof key !== 'string' || !key.trim()) return '';
+  const base = getApiBaseUrl().replace(/\/$/, '');
+  return `${base}/images/${encodeURIComponent(key.trim())}`;
+}
+
 const TOKEN_KEY = 'jwt';
 const ONBOARDING_KEY = 'onboarding_complete';
 const ONBOARDING_STAGE_KEY = 'onboarding_stage';

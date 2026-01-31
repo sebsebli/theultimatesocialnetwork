@@ -1,22 +1,42 @@
-import { Controller, Get, Param, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Controller, Get, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { UploadService } from './upload.service';
 
 /**
- * Serves image URLs by redirecting to storage (MinIO).
- * GET /images/:key -> 302 to MINIO_PUBLIC_URL/bucket/key
- * Allows mobile/app to use a single origin (API) for image src.
+ * Serves images by streaming from storage (MinIO).
+ * GET /images/:key or GET /images/* (multi-segment key like seed/avatar-handle.jpg)
+ * -> stream image bytes so mobile/app can load via API (single origin, no redirect to MinIO).
  */
 @Controller('images')
 export class ImagesController {
   constructor(private readonly uploadService: UploadService) {}
 
-  @Get(':key')
-  redirectToImage(@Param('key') key: string, @Res() res: Response) {
-    if (!key || typeof key !== 'string') {
+  @Get('*')
+  async streamImage(@Req() req: Request, @Res() res: Response) {
+    const path = (req.url ?? req.path ?? '')
+      .replace(/^\/images\/?/, '')
+      .split('?')[0]
+      ?.trim();
+    const rawKey = path ? decodeURIComponent(path) : '';
+    const key = rawKey.replace(/^\/+/, '').trim();
+    // Reject path traversal and invalid keys (defense in depth)
+    if (!key || key.includes('..')) {
       return res.status(404).send('Not found');
     }
-    const url = this.uploadService.getImageUrl(key);
-    return res.redirect(302, url);
+    try {
+      const stream = await this.uploadService.getImageStream(key);
+      const ext = key.split('.').pop()?.toLowerCase();
+      const contentType =
+        ext === 'jpg' || ext === 'jpeg'
+          ? 'image/jpeg'
+          : ext === 'png'
+            ? 'image/png'
+            : 'image/webp';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      stream.pipe(res);
+    } catch {
+      return res.status(404).send('Not found');
+    }
   }
 }

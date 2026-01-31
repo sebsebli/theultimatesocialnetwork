@@ -3,6 +3,8 @@ export interface User {
   handle: string;
   displayName: string;
   bio?: string;
+  /** Storage key for avatar; prefer building URL with getImageUrl(key) so device uses correct API base. */
+  avatarKey?: string | null;
   avatarUrl?: string;
   followerCount?: number;
   followingCount?: number;

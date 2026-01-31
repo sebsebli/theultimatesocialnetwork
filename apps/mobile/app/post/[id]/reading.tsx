@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { api } from '../../../utils/api';
+import { api, getImageUrl } from '../../../utils/api';
 import { MarkdownText } from '../../../components/MarkdownText';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../../constants/theme';
 const ACTION_ICON_SIZE = HEADER.iconSize;
@@ -36,7 +36,6 @@ import {
   type OfflinePost,
 } from '../../../utils/offlineStorage';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface Post {
@@ -47,7 +46,7 @@ interface Post {
   headerImageKey?: string | null;
   replyCount?: number;
   quoteCount?: number;
-  author?: { id?: string; displayName?: string; handle?: string; avatarUrl?: string | null };
+  author?: { id?: string; displayName?: string; handle?: string; avatarUrl?: string | null; avatarKey?: string | null };
   isLiked?: boolean;
   isKept?: boolean;
   lang?: string | null;
@@ -253,9 +252,10 @@ export default function ReadingModeScreen() {
         {hasHero && (
           <View style={[styles.heroImageWrap, { height: SCREEN_WIDTH * (3 / 4) }]}>
             <Image
-              source={{ uri: (post as any).headerImageUrl || `${API_BASE}/images/${post.headerImageKey}` }}
+              source={{ uri: (post.headerImageKey ? getImageUrl(post.headerImageKey) : undefined) || (post as any).headerImageUrl }}
               style={[styles.heroImage, { width: SCREEN_WIDTH, height: SCREEN_WIDTH * (3 / 4) }]}
               contentFit="cover"
+              cachePolicy="memory-disk"
             />
             {post.title ? (
               <View style={styles.heroTitleOverlay}>
@@ -271,8 +271,8 @@ export default function ReadingModeScreen() {
             style={styles.authorLine}
             onPress={() => post.author?.handle && router.push(`/user/${post.author.handle}`)}
           >
-            {post.author?.avatarUrl ? (
-              <Image source={{ uri: post.author.avatarUrl }} style={styles.authorAvatarImage} />
+            {(post.author?.avatarKey || post.author?.avatarUrl) ? (
+              <Image source={{ uri: post.author?.avatarKey ? getImageUrl(post.author.avatarKey) : post.author?.avatarUrl }} style={styles.authorAvatarImage} />
             ) : (
               <View style={styles.authorAvatar}>
                 <Text style={styles.avatarText}>
@@ -452,8 +452,8 @@ export default function ReadingModeScreen() {
         visible={moreOptionsVisible}
         title={t('post.options', 'Post Options')}
         options={[
-          ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setMoreOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const }] : []),
-          { label: t('post.report', 'Report Post'), onPress: () => { setMoreOptionsVisible(false); setReportVisible(true); }, destructive: true },
+          ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setMoreOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const, icon: 'delete-outline' as const }] : []),
+          { label: t('post.report', 'Report Post'), onPress: () => { setMoreOptionsVisible(false); setReportVisible(true); }, destructive: true, icon: 'flag' },
         ]}
         cancelLabel={t('common.cancel')}
         onCancel={() => setMoreOptionsVisible(false)}
@@ -471,6 +471,7 @@ export default function ReadingModeScreen() {
         confirmLabel={t('post.delete', 'Delete Post')}
         cancelLabel={t('common.cancel')}
         destructive
+        icon="warning"
         onConfirm={handleDeletePost}
         onCancel={() => setDeleteConfirmVisible(false)}
       />

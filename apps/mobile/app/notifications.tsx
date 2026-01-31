@@ -76,8 +76,11 @@ export default function NotificationsScreen() {
       onPress={() => {
         if (item.type === 'FOLLOW' && item.actor?.handle) {
           router.push(`/user/${item.actor.handle}`);
-        } else if (item.post?.id) {
-          router.push(`/post/${item.post.id}`);
+        } else if (item.type === 'MENTION' && item.replyId && (item.post?.id || item.postId)) {
+          const postId = item.post?.id ?? item.postId;
+          router.push({ pathname: `/post/${postId}/comments`, params: { replyId: item.replyId } });
+        } else if (item.post?.id || item.postId) {
+          router.push(`/post/${item.post?.id ?? item.postId}`);
         }
       }}
       accessibilityRole="button"

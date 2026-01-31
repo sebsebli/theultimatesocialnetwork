@@ -102,7 +102,7 @@ export class UsersService {
     return !!excludeUserId && existing.id === excludeUserId;
   }
 
-  async findByHandle(handle: string) {
+  async findByHandle(handle: string, viewerId?: string) {
     const user = await this.userRepo.findOne({
       where: { handle },
     });
@@ -117,7 +117,15 @@ export class UsersService {
       take: 20,
     });
 
-    return { ...user, posts };
+    let followsMe = false;
+    if (viewerId && viewerId !== user.id) {
+      const follow = await this.followRepo.findOne({
+        where: { followerId: user.id, followeeId: viewerId },
+      });
+      followsMe = !!follow;
+    }
+
+    return { ...user, posts, followsMe };
   }
 
   async findById(id: string) {
@@ -325,6 +333,28 @@ export class UsersService {
     });
   }
 
+  /**
+   * Whether the user has opted in to marketing emails. System emails (sign-in, invite, data export, account deletion) are always sent and must not check this.
+   */
+  async canReceiveMarketingEmail(userId: string): Promise<boolean> {
+    const pref = await this.notifPrefRepo.findOne({
+      where: { userId },
+      select: ['emailMarketing'],
+    });
+    return pref?.emailMarketing ?? false;
+  }
+
+  /**
+   * Whether the user has opted in to product-update emails. System emails are always sent and must not check this.
+   */
+  async canReceiveProductUpdateEmail(userId: string): Promise<boolean> {
+    const pref = await this.notifPrefRepo.findOne({
+      where: { userId },
+      select: ['emailProductUpdates'],
+    });
+    return pref?.emailProductUpdates ?? false;
+  }
+
   async getNotificationPrefs(userId: string) {
     let pref = await this.notifPrefRepo.findOne({ where: { userId } });
     if (!pref) {
@@ -337,6 +367,8 @@ export class UsersService {
         dms: true,
         follows: true,
         saves: false,
+        emailMarketing: false,
+        emailProductUpdates: false,
       });
       await this.notifPrefRepo.save(pref);
     }
@@ -348,6 +380,8 @@ export class UsersService {
       dms: pref.dms,
       follows: pref.follows,
       saves: pref.saves,
+      email_marketing: pref.emailMarketing,
+      email_product_updates: pref.emailProductUpdates,
     };
   }
 
@@ -361,6 +395,8 @@ export class UsersService {
       dms: boolean;
       follows: boolean;
       saves: boolean;
+      email_marketing: boolean;
+      email_product_updates: boolean;
     }>,
   ) {
     let pref = await this.notifPrefRepo.findOne({ where: { userId } });
@@ -376,6 +412,10 @@ export class UsersService {
     if (updates.dms !== undefined) pref.dms = updates.dms;
     if (updates.follows !== undefined) pref.follows = updates.follows;
     if (updates.saves !== undefined) pref.saves = updates.saves;
+    if (updates.email_marketing !== undefined)
+      pref.emailMarketing = updates.email_marketing;
+    if (updates.email_product_updates !== undefined)
+      pref.emailProductUpdates = updates.email_product_updates;
     await this.notifPrefRepo.save(pref);
     return this.getNotificationPrefs(userId);
   }
@@ -412,21 +452,26 @@ export class UsersService {
       return { items, hasMore };
     }
     // type === 'quotes': posts that quote posts authored by userId (same join pattern as getQuotes)
-    const quoters = await this.postRepo
-      .createQueryBuilder('quoter')
-      .innerJoin(PostEdge, 'edge', 'edge.from_post_id = quoter.id')
-      .innerJoin('posts', 'quoted', 'quoted.id = edge.to_post_id')
-      .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
-      .andWhere('quoted.author_id = :userId', { userId })
-      .andWhere('quoter.deleted_at IS NULL')
-      .leftJoinAndSelect('quoter.author', 'author')
-      .orderBy('quoter.created_at', 'DESC')
-      .skip(skip)
-      .take(limit + 1)
-      .getMany();
-    const hasMore = quoters.length > limit;
-    const items = quoters.slice(0, limit).map((p) => postToPlain(p));
-    return { items, hasMore };
+    try {
+      const quoters = await this.postRepo
+        .createQueryBuilder('quoter')
+        .innerJoin(PostEdge, 'edge', 'edge.from_post_id = quoter.id')
+        .innerJoin('posts', 'quoted', 'quoted.id = edge.to_post_id')
+        .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
+        .andWhere('quoted.author_id = :userId', { userId })
+        .andWhere('quoter.deleted_at IS NULL')
+        .leftJoinAndSelect('quoter.author', 'author')
+        .orderBy('quoter.created_at', 'DESC')
+        .skip(skip)
+        .take(limit + 1)
+        .getMany();
+      const hasMore = quoters.length > limit;
+      const items = quoters.slice(0, limit).map((p) => postToPlain(p));
+      return { items, hasMore };
+    } catch (err) {
+      console.error('getUserPosts quotes error', err);
+      return { items: [], hasMore: false };
+    }
   }
 
   async getReplies(userId: string) {
@@ -592,8 +637,14 @@ export class UsersService {
       relations: ['author', 'post'],
       order: { createdAt: 'DESC' },
     });
-    const likes = await this.likeRepo.find({ where: { userId } });
-    const keeps = await this.keepRepo.find({ where: { userId } });
+    const likes = await this.likeRepo.find({
+      where: { userId },
+      relations: ['post'],
+    });
+    const keeps = await this.keepRepo.find({
+      where: { userId },
+      relations: ['post'],
+    });
     const following = await this.followRepo.find({
       where: { followerId: userId },
       relations: ['followee'],
@@ -602,7 +653,10 @@ export class UsersService {
       where: { followeeId: userId },
       relations: ['follower'],
     });
-    const reads = await this.readRepo.find({ where: { userId } });
+    const reads = await this.readRepo.find({
+      where: { userId },
+      relations: ['post'],
+    });
     const notifications = await this.notifRepo.find({ where: { userId } });
     const collections = await this.collectionRepo.find({
       where: { ownerId: userId },
@@ -625,6 +679,129 @@ export class UsersService {
       collections,
       notificationPrefs: notificationPrefs ?? null,
       exportedAt: new Date(),
+    };
+  }
+
+  /**
+   * Sanitize export data for download: remove all IDs (user ids, post ids, etc.)
+   * so the exported zip never contains internal identifiers.
+   */
+  sanitizeExportForDownload(
+    raw: Awaited<ReturnType<UsersService['exportUserData']>>,
+  ): Record<string, unknown> {
+    if (!raw) return {};
+
+    const profile = raw.user
+      ? {
+          handle: raw.user.handle,
+          displayName: raw.user.displayName,
+          bio: raw.user.bio ?? null,
+          email: raw.user.email ?? null,
+          languages: raw.user.languages ?? [],
+          isProtected: raw.user.isProtected ?? false,
+          createdAt: raw.user.createdAt,
+          updatedAt: raw.user.updatedAt,
+        }
+      : null;
+
+    const posts = (raw.posts ?? []).map((p: Post & { author?: User }) => ({
+      title: p.title ?? null,
+      body: p.body,
+      visibility: p.visibility ?? 'PUBLIC',
+      lang: p.lang ?? null,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      replyCount: p.replyCount ?? 0,
+      quoteCount: p.quoteCount ?? 0,
+      readingTimeMinutes: p.readingTimeMinutes ?? 0,
+      author: p.author
+        ? { handle: p.author.handle, displayName: p.author.displayName }
+        : null,
+    }));
+
+    const replies = (raw.replies ?? []).map(
+      (r: Reply & { author?: User; post?: Post }) => ({
+        body: r.body,
+        lang: r.lang ?? null,
+        createdAt: r.createdAt,
+        author: r.author
+          ? { handle: r.author.handle, displayName: r.author.displayName }
+          : null,
+        postTitle: r.post?.title ?? null,
+      }),
+    );
+
+    const readHistory = (raw.readHistory ?? []).map(
+      (r: PostRead & { post?: Post }) => ({
+        lastReadAt: r.lastReadAt ?? r.createdAt,
+        durationSeconds:
+          (r as { durationSeconds?: number }).durationSeconds ?? 0,
+        postTitle: r.post?.title ?? null,
+      }),
+    );
+
+    const likes = (raw.likes ?? []).map((l: Like & { post?: Post }) => ({
+      createdAt: l.createdAt,
+      postTitle: l.post?.title ?? null,
+    }));
+
+    const keeps = (raw.keeps ?? []).map((k: Keep & { post?: Post }) => ({
+      createdAt: k.createdAt,
+      postTitle: k.post?.title ?? null,
+    }));
+
+    const following = (raw.following ?? []).map(
+      (f: Follow & { followee?: User }) => ({
+        handle: f.followee?.handle ?? null,
+        displayName: f.followee?.displayName ?? null,
+        createdAt: f.createdAt,
+      }),
+    );
+
+    const followers = (raw.followers ?? []).map(
+      (f: Follow & { follower?: User }) => ({
+        handle: f.follower?.handle ?? null,
+        displayName: f.follower?.displayName ?? null,
+        createdAt: f.createdAt,
+      }),
+    );
+
+    const collections = (raw.collections ?? []).map((c: Collection) => ({
+      title: c.title,
+      description: c.description ?? null,
+      isPublic: c.isPublic ?? false,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    }));
+
+    const notificationPrefs = raw.notificationPrefs
+      ? {
+          pushEnabled: raw.notificationPrefs.pushEnabled,
+          replies: raw.notificationPrefs.replies,
+          quotes: raw.notificationPrefs.quotes,
+          mentions: raw.notificationPrefs.mentions,
+          dms: raw.notificationPrefs.dms,
+          follows: raw.notificationPrefs.follows,
+          saves: raw.notificationPrefs.saves,
+          quietHoursStart: raw.notificationPrefs.quietHoursStart ?? null,
+          quietHoursEnd: raw.notificationPrefs.quietHoursEnd ?? null,
+          emailMarketing: raw.notificationPrefs.emailMarketing,
+          emailProductUpdates: raw.notificationPrefs.emailProductUpdates,
+        }
+      : null;
+
+    return {
+      user: profile,
+      posts,
+      replies,
+      readHistory,
+      likes,
+      keeps,
+      following,
+      followers,
+      collections,
+      notificationPrefs,
+      exportedAt: raw.exportedAt,
     };
   }
 

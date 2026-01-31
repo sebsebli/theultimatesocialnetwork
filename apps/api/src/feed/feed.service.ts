@@ -11,30 +11,8 @@ import { Mute } from '../entities/mute.entity';
 import { TopicFollow } from '../entities/topic-follow.entity';
 import { FeedItem } from './feed-item.entity';
 import { postToPlain } from '../shared/post-serializer';
+import { UploadService } from '../upload/upload.service';
 import Redis from 'ioredis';
-
-/** Return plain objects so the response is guaranteed JSON-serializable. */
-function toPlainFeedItems(items: FeedItem[]): unknown[] {
-  return items
-    .map((item) => {
-      if (item.type === 'post') {
-        const data = postToPlain(item.data);
-        return data ? { type: 'post' as const, data } : null;
-      }
-      const d = item.data;
-      return {
-        type: 'saved_by' as const,
-        data: {
-          userId: d.userId ?? '',
-          userName: d.userName ?? '',
-          collectionId: d.collectionId ?? '',
-          collectionName: d.collectionName ?? '',
-          post: d.post ? postToPlain(d.post) : undefined,
-        },
-      };
-    })
-    .filter(Boolean);
-}
 
 @Injectable()
 export class FeedService {
@@ -53,6 +31,7 @@ export class FeedService {
     @InjectRepository(TopicFollow)
     private topicFollowRepo: Repository<TopicFollow>,
     @Inject('REDIS_CLIENT') private redis: Redis,
+    private uploadService: UploadService,
   ) {}
 
   async getHomeFeed(
@@ -264,6 +243,30 @@ export class FeedService {
 
     // Re-slice because adding "Saved By" might exceed limit
     const trimmed = feedItems.slice(0, limit);
-    return toPlainFeedItems(trimmed) as FeedItem[];
+    return this.toPlainFeedItems(trimmed) as FeedItem[];
+  }
+
+  /** Return plain objects with avatarUrl/headerImageUrl so mobile can load images via API. */
+  private toPlainFeedItems(items: FeedItem[]): unknown[] {
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+    return items
+      .map((item) => {
+        if (item.type === 'post') {
+          const data = postToPlain(item.data, getImageUrl);
+          return data ? { type: 'post' as const, data } : null;
+        }
+        const d = item.data;
+        return {
+          type: 'saved_by' as const,
+          data: {
+            userId: d.userId ?? '',
+            userName: d.userName ?? '',
+            collectionId: d.collectionId ?? '',
+            collectionName: d.collectionName ?? '',
+            post: d.post ? postToPlain(d.post, getImageUrl) : undefined,
+          },
+        };
+      })
+      .filter(Boolean);
   }
 }

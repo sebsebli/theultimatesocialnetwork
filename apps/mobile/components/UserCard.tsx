@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { getImageUrl } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS, LAYOUT } from '../constants/theme';
 
 /**
@@ -13,6 +14,7 @@ export interface UserCardItem {
   displayName?: string;
   bio?: string | null;
   avatarUrl?: string | null;
+  avatarKey?: string | null;
   isFollowing?: boolean;
 }
 
@@ -33,8 +35,8 @@ export function UserCard({ item, onPress, onFollow }: UserCardProps) {
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.row}>
         <View style={styles.avatar}>
-          {item.avatarUrl ? (
-            <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+          {(item.avatarKey || item.avatarUrl) ? (
+            <Image source={{ uri: item.avatarKey ? getImageUrl(item.avatarKey) : item.avatarUrl! }} style={styles.avatarImage} />
           ) : (
             <Text style={styles.avatarText}>
               {(item.displayName || item.handle || '?').charAt(0).toUpperCase()}

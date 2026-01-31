@@ -1,8 +1,7 @@
 /**
- * Shared email layout aligned with Cite app design (dark theme, responsive, mobile-first).
- * Colors: background #0B0B0C, foreground #F2F2F2, accent #6E7A8A, secondary #A8A8AA, divider #1A1A1D.
- * Table-based layout for maximum client support; color-scheme meta for dark-aware clients.
- * Includes legal footers for CAN-SPAM, GDPR and best practice (address, privacy, terms, preferences).
+ * Shared email layout aligned with Cite app design (dark theme).
+ * Content background #1A1A1D; table-based layout with inline styles.
+ * Includes legal footers for CAN-SPAM, GDPR (address, privacy, terms, preferences).
  */
 
 export interface EmailLayoutOptions {
@@ -22,37 +21,39 @@ export interface EmailLayoutOptions {
   reasonText?: string;
 }
 
-const BG_DARK = '#0B0B0C';
+/* Dark theme – content background #1A1A1D */
+const BG = '#0B0B0C';
 const CARD_BG = '#1A1A1D';
 const BORDER = '#2A2A2E';
 const DIVIDER = '#1A1A1D';
 const FG = '#F2F2F2';
 const MUTED = '#A8A8AA';
 const LEGAL = '#6E6E73';
-const LINK = '#6E7A8A';
+const ACCENT = '#6E7A8A';
+const CODE_BG = '#0B0B0C';
+const CODE_BORDER = '#2A2A2E';
 
 const STYLES = {
-  wrapper: `margin:0;padding:0;width:100%;background-color:${BG_DARK};-webkit-text-size-adjust:100%;`,
-  outerTable: `width:100%;border-collapse:collapse;background-color:${BG_DARK};`,
-  innerCell: `max-width:600px;width:100%;padding:28px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;`,
+  wrapper: `margin:0;padding:0;width:100%;background-color:${BG};-webkit-text-size-adjust:100%;`,
+  outerTable: `width:100%;border-collapse:collapse;background-color:${BG};`,
+  innerCell: `max-width:600px;width:100%;padding:28px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:${BG};`,
   header: `padding:0 0 24px 0;border-bottom:1px solid ${DIVIDER};`,
   logo: `color:${FG};font-size:24px;font-weight:600;letter-spacing:-0.5px;margin:0;`,
-  accentBar: `display:block;width:32px;height:3px;background:${LINK};border-radius:2px;margin:0 0 20px 0;`,
+  accentBar: `display:block;width:32px;height:3px;background:${ACCENT};border-radius:2px;margin:0 0 20px 0;`,
   card: `background-color:${CARD_BG};border-radius:16px;padding:32px 28px;margin:28px 0;border:1px solid ${BORDER};`,
   title: `color:${FG};font-size:22px;font-weight:600;line-height:1.3;margin:0 0 16px 0;letter-spacing:-0.02em;`,
   body: `color:${MUTED};font-size:16px;line-height:1.65;margin:0 0 24px 0;`,
-  codeBox: `display:inline-block;background:${BG_DARK};color:${FG};font-family:ui-monospace,'SF Mono',Monaco,Consolas,monospace;font-size:26px;font-weight:600;letter-spacing:8px;padding:20px 28px;border-radius:12px;margin:20px 0;border:1px solid ${BORDER};`,
+  codeBox: `display:inline-block;background:${CODE_BG};color:${FG};font-family:ui-monospace,'SF Mono',Monaco,Consolas,monospace;font-size:26px;font-weight:600;letter-spacing:8px;padding:20px 28px;border-radius:12px;margin:20px 0;border:1px solid ${CODE_BORDER};`,
   footer: `color:${LEGAL};font-size:13px;line-height:1.55;margin-top:24px;padding-top:20px;border-top:1px solid ${DIVIDER};`,
   legal: `color:${LEGAL};font-size:11px;line-height:1.7;margin-top:32px;padding-top:24px;border-top:1px solid ${DIVIDER};`,
-  legalLink: `color:${LINK};text-decoration:none;`,
+  legalLink: `color:${ACCENT};text-decoration:none;`,
   reason: `color:${LEGAL};font-size:11px;line-height:1.5;margin-top:20px;`,
 };
 
 const RESPONSIVE_STYLES = `
-  :root { color-scheme: dark; supported-color-schemes: dark; background: ${BG_DARK}; }
-  body { background: ${BG_DARK} !important; -webkit-text-size-adjust: 100%; }
-  .email-wrapper-table { width: 100% !important; min-width: 0 !important; background: ${BG_DARK} !important; }
-  .email-inner { box-sizing: border-box !important; background: ${BG_DARK} !important; }
+  body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; background: ${BG} !important; }
+  .email-wrapper-table { width: 100% !important; min-width: 0 !important; background: ${BG} !important; }
+  .email-inner { box-sizing: border-box !important; background: ${BG} !important; }
   @media only screen and (max-width: 620px) {
     .email-inner { padding: 20px 16px !important; max-width: 100% !important; }
     .email-card { padding: 24px 20px !important; margin: 20px 0 !important; border-radius: 12px !important; }
@@ -157,8 +158,6 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <meta name="color-scheme" content="dark">
-  <meta name="supported-color-schemes" content="dark">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>${escapeHtml(title)}</title>
@@ -167,11 +166,11 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
   <![endif]-->
   <style type="text/css">${RESPONSIVE_STYLES}</style>
 </head>
-<body style="${STYLES.wrapper}" bgcolor="${BG_DARK}">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper-table" style="${STYLES.outerTable}" bgcolor="${BG_DARK}">
-    <tr><td align="center" style="padding:0;background-color:${BG_DARK};">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;margin:0 auto;border-collapse:collapse;background-color:${BG_DARK};">
-    <tr><td class="email-inner" style="${STYLES.innerCell};background-color:${BG_DARK};">
+<body style="${STYLES.wrapper}" bgcolor="${BG}">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper-table" style="${STYLES.outerTable}" bgcolor="${BG}">
+    <tr><td align="center" style="padding:0;background-color:${BG};">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;margin:0 auto;border-collapse:collapse;background-color:${BG};" bgcolor="${BG}">
+    <tr><td class="email-inner" style="${STYLES.innerCell}">
     <div style="${STYLES.header}">
       <span style="${STYLES.accentBar}"></span>
       <p style="${STYLES.logo}">${escapeHtml(companyName)}</p>

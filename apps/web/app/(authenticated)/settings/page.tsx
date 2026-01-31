@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
@@ -11,6 +11,22 @@ export default function SettingsPage() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [showSaves, setShowSaves] = useState(true);
   const [enableRecommendations, setEnableRecommendations] = useState(true);
+  const [emailMarketing, setEmailMarketing] = useState(false);
+  const [emailProductUpdates, setEmailProductUpdates] = useState(false);
+  const [emailPrefsLoading, setEmailPrefsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/me/notification-prefs")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setEmailMarketing(!!data.email_marketing);
+          setEmailProductUpdates(!!data.email_product_updates);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setEmailPrefsLoading(false));
+  }, []);
 
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -172,6 +188,74 @@ export default function SettingsPage() {
                   className="w-4 h-4 text-primary"
                 />
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Email notifications */}
+        <section>
+          <h2 className="text-lg font-semibold mb-4 text-paper">Email</h2>
+          <p className="text-secondary text-sm mb-3">
+            System messages (sign-in, security, account) are always sent.
+          </p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+              <div>
+                <div className="text-paper font-medium">
+                  Marketing & promotions
+                </div>
+                <div className="text-secondary text-sm">
+                  News, offers and product updates from Cite
+                </div>
+              </div>
+              {!emailPrefsLoading && (
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={emailMarketing}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      setEmailMarketing(v);
+                      fetch("/api/me/notification-prefs", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email_marketing: v }),
+                      }).catch(() => setEmailMarketing(!v));
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              )}
+            </div>
+            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+              <div>
+                <div className="text-paper font-medium">
+                  Product updates & tips
+                </div>
+                <div className="text-secondary text-sm">
+                  New features and how to get the most out of Cite
+                </div>
+              </div>
+              {!emailPrefsLoading && (
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={emailProductUpdates}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      setEmailProductUpdates(v);
+                      fetch("/api/me/notification-prefs", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email_product_updates: v }),
+                      }).catch(() => setEmailProductUpdates(!v));
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              )}
             </div>
           </div>
         </section>

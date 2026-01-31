@@ -25,6 +25,7 @@ import { SharedModule } from '../shared/shared.module';
 import { SearchModule } from '../search/search.module';
 import { UploadModule } from '../upload/upload.module';
 import { CollectionsModule } from '../collections/collections.module';
+import { SafetyModule } from '../safety/safety.module';
 import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
@@ -50,6 +51,7 @@ import { defaultQueueConfig } from '../common/queue-config';
     SearchModule,
     UploadModule,
     CollectionsModule,
+    SafetyModule,
   ],
   controllers: [UsersController],
   providers: [

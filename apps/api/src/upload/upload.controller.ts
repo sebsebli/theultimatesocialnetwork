@@ -14,6 +14,13 @@ import { AuthGuard } from '@nestjs/passport';
 import { UploadService } from './upload.service';
 import { CurrentUser } from '../shared/current-user.decorator';
 
+/** Typed shape for multipart file from FileInterceptor (buffer storage). */
+interface MulterFile {
+  buffer: Buffer;
+  mimetype: string;
+  size: number;
+}
+
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
@@ -31,13 +38,18 @@ export class UploadController {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   async uploadHeaderImage(
     @CurrentUser() user: { id: string },
-    @UploadedFile() file: any,
+    @UploadedFile() file: MulterFile | undefined,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-
-    const { key, blurhash } = await this.uploadService.uploadHeaderImage(file);
+    const payload = {
+      buffer: file.buffer,
+      mimetype: file.mimetype,
+      size: file.size,
+    };
+    const { key, blurhash } =
+      await this.uploadService.uploadHeaderImage(payload);
     const url = this.uploadService.getImageUrl(key);
 
     return { key, url, blurhash };
@@ -49,13 +61,17 @@ export class UploadController {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   async uploadProfilePicture(
     @CurrentUser() user: { id: string },
-    @UploadedFile() file: any,
+    @UploadedFile() file: MulterFile | undefined,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-
-    const key = await this.uploadService.uploadProfilePicture(file);
+    const payload = {
+      buffer: file.buffer,
+      mimetype: file.mimetype,
+      size: file.size,
+    };
+    const key = await this.uploadService.uploadProfilePicture(payload);
     const url = this.uploadService.getImageUrl(key);
 
     return { key, url };
@@ -67,13 +83,17 @@ export class UploadController {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   async uploadProfileHeader(
     @CurrentUser() user: { id: string },
-    @UploadedFile() file: any,
+    @UploadedFile() file: MulterFile | undefined,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-
-    const key = await this.uploadService.uploadProfileHeader(file);
+    const payload = {
+      buffer: file.buffer,
+      mimetype: file.mimetype,
+      size: file.size,
+    };
+    const key = await this.uploadService.uploadProfileHeader(payload);
     const url = this.uploadService.getImageUrl(key);
 
     return { key, url };

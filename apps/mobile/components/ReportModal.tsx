@@ -65,7 +65,10 @@ export function ReportModal({
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.xl }]}>
           <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>{displayTitle}</Text>
+          <View style={styles.sheetTitleRow}>
+            <MaterialIcons name="flag" size={HEADER.iconSize} color={COLORS.error} style={styles.sheetTitleIcon} />
+            <Text style={styles.sheetTitle}>{displayTitle}</Text>
+          </View>
           <Text style={styles.hint}>{t('post.reportSelectReason', 'Select a reason')}</Text>
           <ScrollView style={styles.reasonsScroll} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
             {REPORT_REASON_KEYS.map((key) => {
@@ -148,12 +151,20 @@ const styles = StyleSheet.create({
     marginTop: MODAL.handleMarginTop,
     marginBottom: MODAL.handleMarginBottom,
   },
+  sheetTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+  },
+  sheetTitleIcon: {
+    marginRight: SPACING.s,
+  },
   sheetTitle: {
+    flex: 1,
     fontSize: MODAL.sheetTitleFontSize,
     fontWeight: MODAL.sheetTitleFontWeight,
     color: MODAL.sheetTitleColor,
     fontFamily: FONTS.semiBold,
-    marginBottom: SPACING.xs,
   },
   hint: {
     fontSize: 13,

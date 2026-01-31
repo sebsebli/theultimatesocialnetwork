@@ -6,7 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 
@@ -269,12 +269,12 @@ export default function EditProfileScreen() {
                   : t('onboarding.publicDescription')}
               </Text>
             </View>
-            <View style={[styles.switch, isProtected && styles.switchActive]}>
-              <View style={[styles.thumb, isProtected && styles.thumbActive]} />
-            </View>
-          </Pressable>
-        </View>
-      </ScrollView>
+          <View style={[styles.switch, isProtected && styles.switchActive]}>
+            <View style={[styles.thumb, isProtected && styles.thumbActive]} />
+          </View>
+        </Pressable>
+      </View>
+    </ScrollView>
 
       <ConfirmModal
         visible={confirmUpdateVisible}

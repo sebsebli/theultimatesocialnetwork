@@ -74,9 +74,6 @@ export default function OnboardingStarterPacksScreen() {
           <View style={styles.stepDot} />
           <View style={[styles.stepDot, styles.stepDotActive]} />
         </View>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.secondary} />
-        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
@@ -142,13 +139,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     height: 44,
-    justifyContent: 'center',
-  },
-  backButton: {
-    position: 'absolute',
-    left: SPACING.l,
-    top: 0,
-    bottom: 0,
     justifyContent: 'center',
   },
   stepIndicator: {

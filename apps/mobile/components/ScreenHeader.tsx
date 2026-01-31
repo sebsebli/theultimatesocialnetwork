@@ -23,6 +23,8 @@ export interface ScreenHeaderProps {
   paddingTop?: number;
   /** Optional container style */
   style?: ViewStyle;
+  /** MaterialIcons name shown next to title (e.g. 'settings' for Settings screen) */
+  titleIcon?: string;
 }
 
 /**
@@ -37,6 +39,7 @@ export function ScreenHeader({
   right,
   paddingTop,
   style,
+  titleIcon,
 }: ScreenHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -59,9 +62,14 @@ export function ScreenHeader({
           left ?? <View style={styles.placeholder} />
         )}
       </View>
-      <Text style={styles.title} numberOfLines={1}>
-        {title}
-      </Text>
+      <View style={styles.titleRow}>
+        {titleIcon ? (
+          <MaterialIcons name={titleIcon as any} size={HEADER_ICON_SIZE} color={HEADER.iconColor} style={styles.titleIcon} />
+        ) : null}
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
       <View style={[styles.side, styles.sideRight]}>
         {right ?? <View style={styles.placeholder} />}
       </View>
@@ -86,8 +94,17 @@ const styles = StyleSheet.create({
   sideRight: {
     justifyContent: 'flex-end',
   },
-  title: {
+  titleRow: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleIcon: {
+    marginRight: SPACING.xs,
+  },
+  title: {
+    flex: 0,
     fontSize: HEADER_TITLE_SIZE,
     fontWeight: '600',
     color: COLORS.paper,

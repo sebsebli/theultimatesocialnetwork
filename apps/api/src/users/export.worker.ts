@@ -67,13 +67,16 @@ export class ExportWorker
 
   async processExport(userId: string, userEmail: string, lang: string = 'en') {
     // 1. Fetch Data
-    const data = await this.usersService.exportUserData(userId);
-    if (!data) {
+    const raw = await this.usersService.exportUserData(userId);
+    if (!raw) {
       this.logger.warn(`No user data for export: ${userId}`);
       return;
     }
 
-    // 2. Create Zip
+    // 2. Sanitize: remove all IDs so the zip never contains user IDs or internal identifiers
+    const data = this.usersService.sanitizeExportForDownload(raw);
+
+    // 3. Create Zip
     const archive = archiver('zip', { zlib: { level: 9 } });
     const chunks: Buffer[] = [];
 
@@ -118,7 +121,7 @@ export class ExportWorker
         reject(err instanceof Error ? err : new Error(String(err))),
       );
 
-      // Add files
+      // Add files (sanitized data: no IDs)
       archive.append(JSON.stringify(data.user, null, 2), {
         name: 'profile.json',
       });

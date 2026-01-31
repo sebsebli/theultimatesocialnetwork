@@ -30,6 +30,16 @@ import Redis from 'ioredis';
         const fromEnv = process.env.JWT_SECRET;
         const secret = (fromConfig ?? fromEnv ?? '').trim();
         const fallback = 'your-secret-key-change-in-production';
+        const isProduction =
+          configService.get<string>('NODE_ENV') === 'production';
+
+        if (isProduction) {
+          if (!secret || secret === fallback) {
+            throw new Error(
+              'JWT_SECRET must be set and must not be the default in production. Set JWT_SECRET in .env or environment.',
+            );
+          }
+        }
         if (!secret) {
           console.warn(
             '[AuthModule] JWT_SECRET not set; using default. Set in .env or Docker env for production.',

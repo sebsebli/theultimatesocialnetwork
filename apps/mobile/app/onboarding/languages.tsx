@@ -6,25 +6,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { api, setOnboardingStage } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { CONTENT_LANGUAGES } from '../../constants/languages';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const LANGUAGES = [
-  { code: 'en', name: 'English', native: 'English' },
-  { code: 'de', name: 'German', native: 'Deutsch' },
-  { code: 'fr', name: 'French', native: 'Français' },
-  { code: 'es', name: 'Spanish', native: 'Español' },
-  { code: 'it', name: 'Italian', native: 'Italiano' },
-  { code: 'pt', name: 'Portuguese', native: 'Português' },
-  { code: 'nl', name: 'Dutch', native: 'Nederlands' },
-  { code: 'pl', name: 'Polish', native: 'Polski' },
-  { code: 'ru', name: 'Russian', native: 'Русский' },
-  { code: 'fi', name: 'Finnish', native: 'Suomi' },
-  { code: 'sv', name: 'Swedish', native: 'Svenska' },
-  { code: 'no', name: 'Norwegian', native: 'Norsk' },
-  { code: 'da', name: 'Danish', native: 'Dansk' },
-  { code: 'cs', name: 'Czech', native: 'Čeština' },
-  { code: 'hu', name: 'Hungarian', native: 'Magyar' },
-];
 
 import * as Localization from 'expo-localization';
 
@@ -79,9 +62,6 @@ export default function OnboardingLanguagesScreen() {
           <View style={[styles.stepDot, styles.stepDotActive]} />
           <View style={styles.stepDot} />
         </View>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.secondary} />
-        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
@@ -89,7 +69,7 @@ export default function OnboardingLanguagesScreen() {
         <Text style={styles.subtitle}>{t('onboarding.languages.languagesSubtitle')}</Text>
 
         <View style={styles.grid}>
-          {LANGUAGES.map((lang) => {
+          {CONTENT_LANGUAGES.map((lang) => {
             const isSelected = selectedLanguages.includes(lang.code);
             return (
               <Pressable
@@ -105,7 +85,7 @@ export default function OnboardingLanguagesScreen() {
                 </Text>
                 {isSelected && (
                   <View style={styles.checkBadge}>
-                    <MaterialIcons name="check" size={HEADER.iconSize} color="#FFF" />
+                    <MaterialIcons name="check" size={12} color="#FFF" />
                   </View>
                 )}
               </Pressable>
@@ -154,13 +134,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     height: 44,
-    justifyContent: 'center',
-  },
-  backButton: {
-    position: 'absolute',
-    left: SPACING.l,
-    top: 0,
-    bottom: 0,
     justifyContent: 'center',
   },
   stepIndicator: {

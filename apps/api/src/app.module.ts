@@ -79,6 +79,8 @@ import * as Joi from 'joi';
         MINIO_ENDPOINT: Joi.string().default('localhost'),
         MINIO_ACCESS_KEY: Joi.string().default('minioadmin'),
         MINIO_SECRET_KEY: Joi.string().default('minioadmin'),
+        /** When set, GET /metrics requires X-Metrics-Secret or Authorization: Bearer <value>. */
+        METRICS_SECRET: Joi.string().optional(),
       }),
     }),
     ScheduleModule.forRoot(),

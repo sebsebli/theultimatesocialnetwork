@@ -24,6 +24,8 @@ export default function NotificationsSettingsScreen() {
     dms: true,
     follows: true,
     saves: false,
+    email_marketing: false,
+    email_product_updates: false,
   });
 
   useEffect(() => {
@@ -43,6 +45,8 @@ export default function NotificationsSettingsScreen() {
           dms: data.dms ?? prev.dms,
           follows: data.follows ?? prev.follows,
           saves: data.saves ?? prev.saves,
+          email_marketing: data.email_marketing ?? prev.email_marketing,
+          email_product_updates: data.email_product_updates ?? prev.email_product_updates,
         }));
       }
     } catch (error) {
@@ -130,6 +134,23 @@ export default function NotificationsSettingsScreen() {
             />
           </View>
         )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('notifications.email', 'Email')}</Text>
+          <Text style={styles.systemNote}>{t('notifications.systemEmailsAlways', 'System messages (sign-in, security, account) are always sent.')}</Text>
+          <NotificationItem
+            label={t('notifications.emailMarketing', 'Marketing & promotions')}
+            description={t('notifications.emailMarketingDesc', 'News, offers and product updates from Cite')}
+            value={prefs.email_marketing}
+            onValueChange={() => togglePref('email_marketing')}
+          />
+          <NotificationItem
+            label={t('notifications.emailProductUpdates', 'Product updates & tips')}
+            description={t('notifications.emailProductUpdatesDesc', 'New features and how to get the most out of Cite')}
+            value={prefs.email_product_updates}
+            onValueChange={() => togglePref('email_product_updates')}
+          />
+        </View>
       </ScrollView>
     </View>
   );
@@ -177,5 +198,11 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
     marginTop: 4,
+  },
+  systemNote: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    marginBottom: SPACING.m,
   },
 });

@@ -71,8 +71,7 @@ export default function NewMessageScreen() {
       }
     } catch (error: any) {
       console.error('Failed to create thread', error);
-      const msg = error?.message ?? '';
-      if (error?.status === 403 && /follow each other|prior interaction/i.test(msg)) {
+      if (error?.status === 403) {
         showError(t('messages.mustFollowOrPrior', 'You can only message people who follow you back or who you\'ve messaged before.'));
       } else {
         showError(t('messages.createThreadFailed', 'Could not start conversation. Try again.'));

@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
@@ -151,7 +151,7 @@ export default function WaitingListScreen() {
                   >
                     <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
                       {acceptedTerms && (
-                        <MaterialCommunityIcons name="check" size={HEADER.iconSize} color={COLORS.ink} />
+                        <MaterialCommunityIcons name="check" size={12} color={COLORS.ink} />
                       )}
                     </View>
                   </Pressable>
@@ -333,8 +333,8 @@ const styles = StyleSheet.create({
     marginTop: -SPACING.xs,
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     borderRadius: 6,
     borderWidth: 1.5,
     borderColor: COLORS.tertiary,

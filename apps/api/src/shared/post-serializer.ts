@@ -74,20 +74,23 @@ export function replyToPlain(
   };
 }
 
+/** User optionally with loaded posts relation. */
+type UserWithPosts = User & { posts?: Post[] };
+
 export function userToPlain(
-  u: User | null | undefined,
+  u: UserWithPosts | User | null | undefined,
 ): Record<string, unknown> | null {
   if (!u || typeof u !== 'object') return null;
   // Strip email and other sensitive internal fields
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { email, preferences, ...safe } = u;
+  const userWithPosts = u as UserWithPosts;
   return {
     ...safe,
     createdAt:
       u.createdAt != null ? new Date(u.createdAt).toISOString() : undefined,
-    // eslint-disable-next-line
-    posts: Array.isArray((u as any).posts)
-      ? (u as any).posts.map(postToPlain)
+    posts: Array.isArray(userWithPosts.posts)
+      ? userWithPosts.posts.map(postToPlain)
       : undefined,
   };
 }

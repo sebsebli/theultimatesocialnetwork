@@ -1,18 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { getImageUrl } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
-
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
 /** Topic card: row with most recent article image (or icon) + title + follow; description; optional recent excerpt. */
 export const TopicCard = ({ item, onPress, onFollow }: { item: any; onPress: () => void; onFollow?: () => void }) => {
   const imageUrl =
+    (item.headerImageKey ? getImageUrl(item.headerImageKey) : null) ||
+    (item.recentPostImageKey ? getImageUrl(item.recentPostImageKey) : null) ||
+    (item.latestPostImageKey ? getImageUrl(item.latestPostImageKey) : null) ||
+    (item.recentPost?.headerImageKey ? getImageUrl(item.recentPost.headerImageKey) : null) ||
     (item as any).headerImageUrl ||
-    (item.headerImageKey ? `${API_BASE}/images/${item.headerImageKey}` : null) ||
-    (item.recentPostImageKey ? `${API_BASE}/images/${item.recentPostImageKey}` : null) ||
-    (item.latestPostImageKey ? `${API_BASE}/images/${item.latestPostImageKey}` : null) ||
-    (item.recentPost?.headerImageKey ? `${API_BASE}/images/${item.recentPost.headerImageKey}` : null) ||
     (item.recentPost?.headerImageUrl ? item.recentPost.headerImageUrl : null);
   return (
     <Pressable onPress={onPress} style={styles.topicCard}>
