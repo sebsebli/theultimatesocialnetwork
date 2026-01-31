@@ -11,7 +11,7 @@ Use this checklist before deploying to production.
 - [ ] **JWT_SECRET**: Set to a **strong, non-default value** (e.g. 32+ random bytes). The API **fails startup** in production if `JWT_SECRET` is missing or equals `your-secret-key-change-in-production`. Generate with: `openssl rand -base64 32`.
 - [ ] **METRICS_SECRET**: Set in production so `GET /metrics` is protected. When set, scrapers must send either **`X-Metrics-Secret: <value>`** or **`Authorization: Bearer <value>`**. Configure Prometheus (or your scraper) to send this header/token — see `infra/docker/prometheus.example.yml` for a scrape config example.
 - [ ] **CITE_ADMIN_SECRET**: Set for invite generation; do not use `dev-admin-change-me` in production (admin-key guard will reject it).
-- [ ] **API**: Set `CORS_ORIGINS` to your frontend and mobile origins (e.g. `https://cite.app,https://api.cite.app`). If unset, only localhost origins are allowed.
+- [ ] **API**: Set `CORS_ORIGINS` to your frontend and mobile origins (e.g. `https://citewalk.app,https://api.citewalk.app`). If unset, only localhost origins are allowed.
 - [ ] **API**: Configure `MINIO_PUBLIC_URL` (or equivalent) so image URLs in API responses point to your production storage (not `http://localhost:9000`).
 - [ ] **Web**: Set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_STORAGE_URL` (and `API_URL` for server-side). Use HTTPS.
 - [ ] **Mobile**: Set `EXPO_PUBLIC_API_BASE_URL` to your production API URL (HTTPS).

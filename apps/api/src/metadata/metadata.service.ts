@@ -19,7 +19,7 @@ export class MetadataService {
       const res = await fetch(normalized, {
         method: 'GET',
         headers: {
-          'User-Agent': 'CITE-Bot/1.0 (Open Graph metadata)',
+          'User-Agent': 'Citewalk-Bot/1.0 (Open Graph metadata)',
           Accept: 'text/html',
         },
         signal: AbortSignal.timeout(this.REQUEST_TIMEOUT_MS),

@@ -53,7 +53,7 @@ export class EmailService {
     lang: string = 'en',
   ): Promise<boolean> {
     const t = signInTokenTemplates[lang] || signInTokenTemplates['en'];
-    const subject = t.subject ?? 'Your verification code – Cite';
+    const subject = t.subject ?? 'Your verification code – Citewalk';
 
     if (!this.transporter) {
       this.logger.warn(
@@ -71,13 +71,13 @@ export class EmailService {
       footerText: t.ignore,
       baseUrl,
       companyName:
-        this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Cite',
+        this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Citewalk',
       companyAddress:
         this.configService.get<string>('EMAIL_COMPANY_ADDRESS') || undefined,
       unsubscribeUrl:
         this.configService.get<string>('EMAIL_PREFERENCES_URL') || undefined,
       reasonText:
-        'You received this email because you have a Cite account or requested to sign in.',
+        'You received this email because you have a Citewalk account or requested to sign in.',
     });
     const text = [t.title, t.body, t.tokenLabel, token, t.ignore].join('\n\n');
 
@@ -85,7 +85,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Cite" <noreply@cite.com>',
+          '"Citewalk" <noreply@Citewalk.com>',
         to: email,
         subject,
         html,
@@ -107,17 +107,17 @@ export class EmailService {
   ): Promise<boolean> {
     const t = inviteCodeTemplates[lang] || inviteCodeTemplates['en'];
     const subject =
-      t?.subject ?? "You're invited to join Cite — here's your invite code";
-    const title = t?.title ?? "You're invited to Cite";
+      t?.subject ?? "You're invited to join Citewalk — here's your invite code";
+    const title = t?.title ?? "You're invited to Citewalk";
     const bodyGeneric =
       t?.bodyGeneric ??
-      "You've been invited to join Cite as one of the first beta testers.";
+      "You've been invited to join Citewalk as one of the first beta testers.";
     const bodyWithInviter =
-      t?.bodyWithInviter ?? '{{inviterName}} has invited you to join Cite.';
+      t?.bodyWithInviter ?? '{{inviterName}} has invited you to join Citewalk.';
     const codeLabel = t?.codeLabel ?? 'Your invitation code';
     const instructions =
       t?.instructions ??
-      'Enter this code when you sign up in the Cite app or on the website.';
+      'Enter this code when you sign up in the Citewalk app or on the website.';
     const footer =
       t?.footer ?? "If you didn't expect this email, you can safely ignore it.";
 
@@ -144,13 +144,13 @@ export class EmailService {
       footerText: footer,
       baseUrl,
       companyName:
-        this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Cite',
+        this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Citewalk',
       companyAddress:
         this.configService.get<string>('EMAIL_COMPANY_ADDRESS') || undefined,
       unsubscribeUrl:
         this.configService.get<string>('EMAIL_PREFERENCES_URL') || undefined,
       reasonText:
-        'You received this email because you were invited to join Cite.',
+        'You received this email because you were invited to join Citewalk.',
     });
     const text = [title, bodyLine1, codeLabel, code, instructions, footer].join(
       '\n\n',
@@ -160,7 +160,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Cite" <noreply@cite.com>',
+          '"Citewalk" <noreply@Citewalk.com>',
         to,
         subject,
         html,
@@ -215,13 +215,13 @@ export class EmailService {
       footerText: t.ignore,
       baseUrl,
       companyName:
-        this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Cite',
+        this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Citewalk',
       companyAddress:
         this.configService.get<string>('EMAIL_COMPANY_ADDRESS') || undefined,
       unsubscribeUrl:
         this.configService.get<string>('EMAIL_PREFERENCES_URL') || undefined,
       reasonText:
-        'You received this because you requested to delete your Cite account.',
+        'You received this because you requested to delete your Citewalk account.',
     });
     const text = [t.title, t.body, t.buttonLabel, confirmUrl, t.ignore].join(
       '\n\n',
@@ -231,7 +231,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Cite" <noreply@cite.com>',
+          '"Citewalk" <noreply@Citewalk.com>',
         to,
         subject,
         html,
@@ -279,13 +279,13 @@ export class EmailService {
       footerText: t.ignore,
       baseUrl,
       companyName:
-        this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Cite',
+        this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Citewalk',
       companyAddress:
         this.configService.get<string>('EMAIL_COMPANY_ADDRESS') || undefined,
       unsubscribeUrl:
         this.configService.get<string>('EMAIL_PREFERENCES_URL') || undefined,
       reasonText:
-        'You received this because you requested a copy of your Cite data.',
+        'You received this because you requested a copy of your Citewalk data.',
     });
     const text = [t.title, t.body, t.buttonLabel, downloadUrl, t.ignore].join(
       '\n\n',
@@ -295,7 +295,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Cite" <noreply@cite.com>',
+          '"Citewalk" <noreply@Citewalk.com>',
         to,
         subject,
         html,
@@ -327,7 +327,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from:
           this.configService.get<string>('SMTP_FROM') ||
-          '"Cite System" <noreply@cite.com>',
+          '"Citewalk System" <noreply@Citewalk.com>',
         to: to,
         subject: subject,
         html: html,

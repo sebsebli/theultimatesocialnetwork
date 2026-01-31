@@ -76,17 +76,7 @@ docker compose exec -T api npm run migration:run || {
     echo -e "${YELLOW}⚠ Migration failed or no migrations to run (this is OK if no migrations exist)${NC}"
 }
 
-# Step 5: Seed comprehensive test data
-echo -e "${BLUE}🌱 Seeding comprehensive test data...${NC}"
-docker compose exec -T api npm run seed:comprehensive || {
-    echo -e "${RED}✗ Seeding failed${NC}"
-    docker compose logs api --tail 50
-    exit 1
-}
-
-echo -e "${GREEN}✓ Test data seeded${NC}\n"
-
-# Step 6: Run comprehensive API tests
+# Step 5: Run comprehensive API tests
 echo -e "${BLUE}🧪 Running comprehensive API tests...${NC}"
 cd "$PROJECT_ROOT"
 export API_URL="http://localhost:3000"
@@ -102,7 +92,7 @@ echo -e "\n${BLUE}🧪 Running production-grade tests (algorithms & beta feature
     echo -e "${YELLOW}⚠ Some production tests failed, but deployment completed${NC}"
 }
 
-# Step 7: Display service status
+# Step 6: Display service status
 echo -e "\n${BLUE}📊 Service Status${NC}"
 docker compose ps
 

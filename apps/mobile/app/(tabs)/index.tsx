@@ -230,7 +230,7 @@ export default function HomeScreen() {
       </View>
       <View style={styles.inviteTextContainer}>
         <Text style={styles.inviteTitle}>{t('home.inviteFriends', 'Invite Friends')}</Text>
-        <Text style={styles.inviteDesc}>{t('home.inviteDesc', 'Build your network. CITE is better with friends.')}</Text>
+        <Text style={styles.inviteDesc}>{t('home.inviteDesc', 'Build your network. Citewalk is better with friends.')}</Text>
       </View>
       <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
     </Pressable>

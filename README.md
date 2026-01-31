@@ -1,4 +1,4 @@
-# CITE Social Network
+# Citewalk Social Network
 
 A production-grade, full-stack social network built for verified information and citations.
 

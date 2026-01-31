@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "CITE",
+    "title": "Citewalk",
     "subtitle": "Közösségi posztok, linkelve mint a Wikipédia.",
     "continue": "Tovább",
     "privacy": "Adatvédelem",
@@ -8,8 +8,8 @@
     "imprint": "Impresszum"
   },
   "intro": {
-    "title": "Üdvözöl a CITE",
-    "founderMessage": "Azért hoztam létre a CITE-ot, hogy kihívjam a felháborodásra tervezett digitális rendet.",
+    "title": "Üdvözöl a Citewalk",
+    "founderMessage": "Azért hoztam létre a Citewalk-ot, hogy kihívjam a felháborodásra tervezett digitális rendet.",
     "founderName": "Sebastian (Alapító)",
     "point1": "100% EU hosting és GDPR megfelelés.",
     "point2": "A te adataid, a te döntésed.",
@@ -62,7 +62,7 @@
   "onboarding": {
     "profile": {
       "title": "Profil létrehozása",
-      "subtitle": "Állítsd be CITE identitásod",
+      "subtitle": "Állítsd be Citewalk identitásod",
       "displayName": "Név",
       "handle": "Felhasználónév",
       "bio": "Bemutatkozás",
@@ -396,7 +396,7 @@
   "waitingList": {
     "title": "Várólista",
     "heading": "Korai hozzáférés",
-    "description": "A CITE béta.",
+    "description": "A Citewalk béta.",
     "emailPlaceholder": "E-mail",
     "join": "Csatlakozás",
     "success": "Siker",
@@ -417,7 +417,7 @@
     "acceptAll": "Összes elfogadása"
   },
   "signupOverlay": {
-    "title": "Csatlakozz a CITE-hez",
+    "title": "Csatlakozz a Citewalk-hez",
     "description": "Hozz létre fiókot, hogy követhess embereket, mentsd a bejegyzéseket és csatlakozz a beszélgetéshez összekapcsolt ötletekkel és forrásokkal.",
     "signInUp": "Bejelentkezés / Regisztráció",
     "joinWaitlist": "Várólista",

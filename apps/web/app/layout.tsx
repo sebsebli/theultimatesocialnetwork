@@ -22,8 +22,21 @@ const ibmPlexSerif = IBM_Plex_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "CITE",
-  description: "Link ideas like Wikipedia.",
+  title: "Citewalk | The Citation Network",
+  description:
+    "Citewalk is the text-first social network for verified information. Mobile-first, EU-hosted, and designed for context. Features offline reporting, data export, and RSS feeds. Join the beta.",
+  keywords: [
+    "Social Network",
+    "Citation Graph",
+    "Verified News",
+    "Journalism Tool",
+    "EU Hosting",
+    "Data Sovereignty",
+    "Alternative Social Media",
+    "Citewalk",
+  ],
+  authors: [{ name: "Dr. Sebastian Lindner", url: "https://citewalk.com" }],
+  creator: "Dr. Sebastian Lindner",
 };
 
 export default async function RootLayout({

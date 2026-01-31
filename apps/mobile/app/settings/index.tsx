@@ -192,17 +192,17 @@ export default function SettingsScreen() {
           <SettingItem
             icon="description"
             label={t('welcome.terms')}
-            onPress={() => openLink('https://cite.app/terms')}
+            onPress={() => openLink('https://citewalk.app/terms')}
           />
           <SettingItem
             icon="lock-outline"
             label={t('welcome.privacy')}
-            onPress={() => openLink('https://cite.app/privacy')}
+            onPress={() => openLink('https://citewalk.app/privacy')}
           />
           <SettingItem
             icon="info-outline"
             label={t('welcome.imprint')}
-            onPress={() => openLink('https://cite.app/imprint')}
+            onPress={() => openLink('https://citewalk.app/imprint')}
           />
           {me?.handle ? (
             <SettingItem

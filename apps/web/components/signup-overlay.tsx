@@ -121,7 +121,7 @@ export function SignupOverlay() {
       />
       <div
         role="dialog"
-        aria-label="Sign up to join CITE"
+        aria-label="Sign up to join Citewalk"
         className="fixed left-1/2 top-1/2 z-[91] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#1A1A1D] bg-[#0B0B0C] p-6 shadow-xl animate-in fade-in duration-300"
       >
         <button

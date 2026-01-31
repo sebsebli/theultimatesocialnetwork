@@ -41,7 +41,8 @@ export class UploadService {
       accessKey: this.configService.get('MINIO_ACCESS_KEY') || 'minioadmin',
       secretKey: this.configService.get('MINIO_SECRET_KEY') || 'minioadmin',
     });
-    this.bucketName = this.configService.get('MINIO_BUCKET') || 'cite-images';
+    this.bucketName =
+      this.configService.get('MINIO_BUCKET') || 'citewalk-images';
   }
 
   async uploadHeaderImage(

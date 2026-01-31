@@ -11,7 +11,7 @@ export const translations = {
       title: "Social media for\ncomplex reality.",
       subtitle: "We are drowning in content but starving for context.",
       description:
-        "Cite is a new network built on a simple premise: Authority should come from being referenced, not from going viral. We replaced the algorithm with a citation graph, giving you a quiet place to think, write, and connect ideas.",
+        "Citewalk is a new network built on a simple premise: Authority should come from being referenced, not from going viral. We replaced the algorithm with a citation graph, giving you a quiet place to think, write, and connect ideas.",
       cta_primary: "Join the Network",
       cta_secondary: "Read the Manifesto",
     },
@@ -30,14 +30,14 @@ export const translations = {
         "Connect your thoughts directly to other posts, topics, or external sources. Linking isn't an afterthought; it's the core interaction. By citing others, you build a web of trust and context.",
       card_2_title: "The Reputation Graph",
       card_2_text:
-        "On Cite, you gain visibility when your work is referenced by others. It is a meritocracy of ideas. Quality rises not because it is loud, but because it is useful.",
+        "On Citewalk, you gain visibility when your work is referenced by others. It is a meritocracy of ideas. Quality rises not because it is loud, but because it is useful.",
       card_3_title: "Private Signals",
       card_3_text:
         "Public like counts create performance anxiety and herd behavior. We made them private. Validate good work, but don't perform for the crowd.",
     },
     archiving: {
       title: "Permanent Citations",
-      text: "Context should never 404. Cite automatically snapshots every external link you post to the Internet Archive (Wayback Machine). Your sources are preserved forever, even if the original page disappears.",
+      text: "Context should never 404. Citewalk automatically snapshots every external link you post to the Internet Archive (Wayback Machine). Your sources are preserved forever, even if the original page disappears.",
     },
     visuals: {
       title: "Visual Quiet",
@@ -56,15 +56,15 @@ export const translations = {
       subtitle: "Every post is a portal. Click through the chain of thought.",
     },
     quote: {
-      text: "I built Cite to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy. The future deserves verification over virality, context over chaos.",
+      text: "I built Citewalk to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy. The future deserves verification over virality, context over chaos.",
       author: "Sebastian Lindner",
       role: "Founder",
     },
     distinction: {
       label: "The Distinction",
-      title: "Why Cite is Different",
+      title: "Why Citewalk is Different",
       text_1:
-        "Most platforms are ephemeral. They are designed to consume your time and sell your attention. Cite is designed to be an archive.",
+        "Most platforms are ephemeral. They are designed to consume your time and sell your attention. Citewalk is designed to be an archive.",
       text_2:
         "We are building a protocol for discourse that respects the user's intelligence and data rights. This is infrastructure for the long term.",
       sovereign: "Sovereign Data",
@@ -87,7 +87,7 @@ export const translations = {
       note: "Beta access is currently open.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Imprint",
       privacy: "Privacy",
       ai_transparency: "AI Transparency",
@@ -108,7 +108,7 @@ export const translations = {
       title: "Social Media,\ndas mitdenkt.",
       subtitle: "Wir ertrinken in Content, aber verdursten nach Kontext.",
       description:
-        "Cite basiert auf einer einfachen Idee: Autorität entsteht durch Referenzen, nicht durch Viralität. Wir haben den Algorithmus durch ein Zitations-Netzwerk ersetzt. Dein ruhiger Ort zum Denken und Schreiben.",
+        "Citewalk basiert auf einer einfachen Idee: Autorität entsteht durch Referenzen, nicht durch Viralität. Wir haben den Algorithmus durch ein Zitations-Netzwerk ersetzt. Dein ruhiger Ort zum Denken und Schreiben.",
       cta_primary: "Dabei sein",
       cta_secondary: "Manifest lesen",
     },
@@ -127,14 +127,14 @@ export const translations = {
         "Verbinde deine Gedanken direkt mit der Quelle. Verlinken ist hier keine Fußnote, sondern der Kern. So webst du ein Netz aus Vertrauen.",
       card_2_title: "Der Ruf, der zählt",
       card_2_text:
-        "Auf Cite wirst du gesehen, wenn du zitiert wirst. Eine Meritokratie der Ideen. Qualität setzt sich durch, weil sie nützlich ist – nicht, weil sie laut ist.",
+        "Auf Citewalk wirst du gesehen, wenn du zitiert wirst. Eine Meritokratie der Ideen. Qualität setzt sich durch, weil sie nützlich ist – nicht, weil sie laut ist.",
       card_3_title: "Schluss mit der Show",
       card_3_text:
         "Öffentliche Likes machen süchtig. Wir haben sie privat gemacht. Hol dir Anerkennung für deine Arbeit, aber performe nicht für die Masse.",
     },
     archiving: {
       title: "Zitate für die Ewigkeit",
-      text: "Kontext darf niemals 'Error 404' sein. Cite speichert automatisch jeden externen Link im Internet Archive (Wayback Machine). Deine Quellen bleiben sicher – für immer.",
+      text: "Kontext darf niemals 'Error 404' sein. Citewalk speichert automatisch jeden externen Link im Internet Archive (Wayback Machine). Deine Quellen bleiben sicher – für immer.",
     },
     visuals: {
       title: "Visuelle Stille",
@@ -153,14 +153,14 @@ export const translations = {
       subtitle: "Jeder Post ist ein Portal. Folge dem Gedankenstrom.",
     },
     quote: {
-      text: "Ich habe Cite gebaut, um gegen eine digitale Ordnung anzutreten, die auf Empörung statt Wahrheit setzt. Wo Algorithmen Spaltung statt Vielfalt belohnen, Wut statt Logik, Krawall statt Präzision. Die Zukunft gehört der Verifizierung, nicht der Viralität. Dem Kontext, nicht dem Chaos.",
+      text: "Ich habe Citewalk gebaut, um gegen eine digitale Ordnung anzutreten, die auf Empörung statt Wahrheit setzt. Wo Algorithmen Spaltung statt Vielfalt belohnen, Wut statt Logik, Krawall statt Präzision. Die Zukunft gehört der Verifizierung, nicht der Viralität. Dem Kontext, nicht dem Chaos.",
       author: "Sebastian Lindner",
       role: "Gründer",
     },
     distinction: {
       label: "Der Unterschied",
-      title: "Warum Cite anders ist",
-      text_1: "Die meisten Plattformen sind flüchtig. Cite ist ein Archiv.",
+      title: "Warum Citewalk anders ist",
+      text_1: "Die meisten Plattformen sind flüchtig. Citewalk ist ein Archiv.",
       text_2: "Wir bauen ein Protokoll, das deine Intelligenz respektiert.",
       sovereign: "Deine Daten, punkt.",
       sovereign_text:
@@ -182,7 +182,7 @@ export const translations = {
       note: "Beta-Zugang ist offen.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Impressum",
       privacy: "Datenschutz",
       ai_transparency: "KI-Transparenz",
@@ -202,7 +202,7 @@ export const translations = {
       title: "Le réseau social\ndu réel.",
       subtitle: "Noyés sous le contenu, assoiffés de contexte.",
       description:
-        "Cite repose sur une idée simple : l'autorité doit venir des références, pas du buzz. On a remplacé l'algorithme par un graphe de citations. Un endroit calme pour penser, écrire et lier les idées.",
+        "Citewalk repose sur une idée simple : l'autorité doit venir des références, pas du buzz. On a remplacé l'algorithme par un graphe de citations. Un endroit calme pour penser, écrire et lier les idées.",
       cta_primary: "Rejoindre le réseau",
       cta_secondary: "Lire le Manifeste",
     },
@@ -221,14 +221,14 @@ export const translations = {
         "Lie tes pensées à leurs sources. C'est la base. En citant, tu tisses un réseau de confiance, pas juste du vent.",
       card_2_title: "Le graphe de réputation",
       card_2_text:
-        "Sur Cite, on te voit quand on te cite. Une méritocratie où la qualité perce parce qu'elle sert, pas parce qu'elle hurle.",
+        "Sur Citewalk, on te voit quand on te Citewalk. Une méritocratie où la qualité perce parce qu'elle sert, pas parce qu'elle hurle.",
       card_3_title: "Signaux privés",
       card_3_text:
         "Les likes publics, ça rend anxieux. On les a rendus privés. Fais du bon boulot, mais ne joue pas pour la galerie.",
     },
     archiving: {
       title: "Citations éternelles",
-      text: "Le contexte ne doit jamais finir en erreur 404. Cite archive automatiquement chaque lien externe sur Internet Archive (Wayback Machine). Tes sources sont sauvées, pour toujours.",
+      text: "Le contexte ne doit jamais finir en erreur 404. Citewalk archive automatiquement chaque lien externe sur Internet Archive (Wayback Machine). Tes sources sont sauvées, pour toujours.",
     },
     visuals: {
       title: "Silence visuel",
@@ -247,15 +247,15 @@ export const translations = {
       subtitle: "Chaque post est un portail. Suis le fil de la pensée.",
     },
     quote: {
-      text: "J'ai créé Cite pour défier un ordre numérique conçu pour l'indignation plutôt que la vérité — où les algos récompensent la polarisation. L'avenir mérite la vérification plutôt que la viralité, le contexte plutôt que le chaos.",
+      text: "J'ai créé Citewalk pour défier un ordre numérique conçu pour l'indignation plutôt que la vérité — où les algos récompensent la polarisation. L'avenir mérite la vérification plutôt que la viralité, le contexte plutôt que le chaos.",
       author: "Sebastian Lindner",
       role: "Fondateur",
     },
     distinction: {
       label: "La Différence",
-      title: "Pourquoi Cite est à part",
+      title: "Pourquoi Citewalk est à part",
       text_1:
-        "La plupart des plateformes sont éphémères. Cite est une archive.",
+        "La plupart des plateformes sont éphémères. Citewalk est une archive.",
       text_2: "On bâtit un protocole qui respecte ton intelligence.",
       sovereign: "Données souveraines",
       sovereign_text:
@@ -277,7 +277,7 @@ export const translations = {
       note: "Accès bêta ouvert.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Mentions légales",
       privacy: "Confidentialité",
       ai_transparency: "Transparence IA",
@@ -296,7 +296,7 @@ export const translations = {
       title: "Redes sociales a la\naltura de la realidad.",
       subtitle: "Ahogados en contenido, pero sedientos de contexto.",
       description:
-        "Cite nace de una premisa simple: la autoridad debe venir de las referencias, no de la viralidad. Cambiamos el algoritmo por un gráfico de citas. Tu refugio para pensar y escribir.",
+        "Citewalk nace de una premisa simple: la autoridad debe venir de las referencias, no de la viralidad. Cambiamos el algoritmo por un gráfico de citas. Tu refugio para pensar y escribir.",
       cta_primary: "Únete a la red",
       cta_secondary: "Lee el Manifiesto",
     },
@@ -315,14 +315,14 @@ export const translations = {
         "Conecta tus ideas con sus fuentes. Citar es la clave. Al hacerlo, tejes una red de confianza real, no de humo.",
       card_2_title: "El gráfico de reputación",
       card_2_text:
-        "En Cite, te ven si te citan. Una meritocracia donde la calidad sube porque sirve, no porque hace ruido.",
+        "En Citewalk, te ven si te citan. Una meritocracia donde la calidad sube porque sirve, no porque hace ruido.",
       card_3_title: "Señales privadas",
       card_3_text:
         "Los likes públicos generan ansiedad. Los hicimos privados. Valida el buen trabajo, pero no actúes para la galería.",
     },
     archiving: {
       title: "Citas para siempre",
-      text: "El contexto nunca debe dar error 404. Cite guarda automáticamente cada enlace externo en Internet Archive (Wayback Machine). Tus fuentes se protegen para siempre.",
+      text: "El contexto nunca debe dar error 404. Citewalk guarda automáticamente cada enlace externo en Internet Archive (Wayback Machine). Tus fuentes se protegen para siempre.",
     },
     visuals: {
       title: "Silencio visual",
@@ -341,14 +341,14 @@ export const translations = {
       subtitle: "Cada post es un portal. Sigue el hilo del pensamiento.",
     },
     quote: {
-      text: "Creé Cite para desafiar un orden digital diseñado para la indignación en lugar de la verdad—donde los algoritmos premian la polarización. El futuro merece verificación en lugar de viralidad, contexto en lugar de caos.",
+      text: "Creé Citewalk para desafiar un orden digital diseñado para la indignación en lugar de la verdad—donde los algoritmos premian la polarización. El futuro merece verificación en lugar de viralidad, contexto en lugar de caos.",
       author: "Sebastian Lindner",
       role: "Fundador",
     },
     distinction: {
       label: "La Diferencia",
-      title: "Por qué Cite es distinto",
-      text_1: "La mayoría de plataformas son efímeras. Cite es un archivo.",
+      title: "Por qué Citewalk es distinto",
+      text_1: "La mayoría de plataformas son efímeras. Citewalk es un archivo.",
       text_2: "Creamos un protocolo que respeta tu inteligencia.",
       sovereign: "Datos soberanos",
       sovereign_text:
@@ -370,7 +370,7 @@ export const translations = {
       note: "Acceso beta abierto.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Aviso legal",
       privacy: "Privacidad",
       ai_transparency: "Transparencia IA",
@@ -389,7 +389,7 @@ export const translations = {
       title: "Social media per\nla realtà vera.",
       subtitle: "Affoghiamo nei contenuti, ma moriamo di fame per il contesto.",
       description:
-        "Cite nasce da un'idea semplice: l'autorevolezza deve venire dalle citazioni, non dalla viralità. Abbiamo rottamato l'algoritmo per un grafo di citazioni. Un posto tranquillo dove pensare.",
+        "Citewalk nasce da un'idea semplice: l'autorevolezza deve venire dalle citazioni, non dalla viralità. Abbiamo rottamato l'algoritmo per un grafo di citazioni. Un posto tranquillo dove pensare.",
       cta_primary: "Entra nel network",
       cta_secondary: "Leggi il Manifesto",
     },
@@ -408,14 +408,14 @@ export const translations = {
         "Collega i tuoi pensieri direttamente alle fonti. Citare è la sostanza. Così costruisci una rete di fiducia.",
       card_2_title: "Il grafo della reputazione",
       card_2_text:
-        "Su Cite, ti si nota se ti citano. Una meritocracia dove la qualità emerge perché serve, non perché fa casino.",
+        "Su Citewalk, ti si nota se ti citano. Una meritocracia dove la qualità emerge perché serve, non perché fa casino.",
       card_3_title: "Segnali privati",
       card_3_text:
         "I like pubblici mettono ansia. Li abbiamo resi privati. Apprezza il lavoro, ma non recitare per la platea.",
     },
     archiving: {
       title: "Citazioni permanenti",
-      text: "Il contesto non deve mai finire in 404. Cite salva automaticamente ogni link esterno su Internet Archive (Wayback Machine). Le tue fonti sono al sicuro, per sempre.",
+      text: "Il contesto non deve mai finire in 404. Citewalk salva automaticamente ogni link esterno su Internet Archive (Wayback Machine). Le tue fonti sono al sicuro, per sempre.",
     },
     visuals: {
       title: "Silenzio visivo",
@@ -434,15 +434,15 @@ export const translations = {
       subtitle: "Ogni post è un portale. Segui il filo del discorso.",
     },
     quote: {
-      text: "Ho creato Cite per sfidare un ordine digitale fatto di indignazione più che di verità — dove gli algoritmi premiano la polarizzazione. Il futuro merita verifica, non viralità. Contesto, non caos.",
+      text: "Ho creato Citewalk per sfidare un ordine digitale fatto di indignazione più che di verità — dove gli algoritmi premiano la polarizzazione. Il futuro merita verifica, non viralità. Contesto, non caos.",
       author: "Sebastian Lindner",
       role: "Fondatore",
     },
     distinction: {
       label: "La Differenza",
-      title: "Perché Cite è diverso",
+      title: "Perché Citewalk è diverso",
       text_1:
-        "La maggior parte delle piattaforme è effimera. Cite è un archivio.",
+        "La maggior parte delle piattaforme è effimera. Citewalk è un archivio.",
       text_2:
         "Stiamo costruendo un protocollo che rispetta la tua intelligenza.",
       sovereign: "Dati sovrani",
@@ -464,7 +464,7 @@ export const translations = {
       note: "Accesso beta aperto.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Note legali",
       privacy: "Privacy",
       ai_transparency: "Trasparenza IA",
@@ -483,7 +483,7 @@ export const translations = {
       title: "Media społecznościowe\ndla dorosłych.",
       subtitle: "Toniemy w treściach, a usychamy z braku kontekstu.",
       description:
-        "Cite opiera się na prostym założeniu: Autorytet powinien wynikać z bycia cytowanym, a nie z wiralowości. Zastąpiliśmy algorytm wykresem cytowań. To twoje ciche miejsce do myślenia.",
+        "Citewalk opiera się na prostym założeniu: Autorytet powinien wynikać z bycia cytowanym, a nie z wiralowości. Zastąpiliśmy algorytm wykresem cytowań. To twoje ciche miejsce do myślenia.",
       cta_primary: "Dołącz do sieci",
       cta_secondary: "Przeczytaj Manifest",
     },
@@ -502,14 +502,14 @@ export const translations = {
         "Łącz myśli ze źródłami. Cytowanie to fundament. W ten sposób budujesz sieć zaufania, a nie domki z kart.",
       card_2_title: "Graf reputacji",
       card_2_text:
-        "Na Cite zyskujesz widoczność, gdy inni cię cytują. To merytokracja idei. Jakość wygrywa użytecznością, a nie hałasem.",
+        "Na Citewalk zyskujesz widoczność, gdy inni cię cytują. To merytokracja idei. Jakość wygrywa użytecznością, a nie hałasem.",
       card_3_title: "Prywatne sygnały",
       card_3_text:
         "Publiczne liczniki lajków to presja i owczy pęd. Uczyniliśmy je prywatnymi. Doceń dobrą robotę, ale nie graj pod publiczkę.",
     },
     archiving: {
       title: "Wieczne cytaty",
-      text: "Kontekst nigdy nie powinien kończyć się błędem 404. Cite automatycznie zapisuje każdy link zewnętrzny w Internet Archive (Wayback Machine). Twoje źródła są bezpieczne na zawsze.",
+      text: "Kontekst nigdy nie powinien kończyć się błędem 404. Citewalk automatycznie zapisuje każdy link zewnętrzny w Internet Archive (Wayback Machine). Twoje źródła są bezpieczne na zawsze.",
     },
     visuals: {
       title: "Wizualna cisza",
@@ -528,14 +528,14 @@ export const translations = {
       subtitle: "Każdy wpis to portal. Podążaj za łańcuchem myśli.",
     },
     quote: {
-      text: "Stworzyłem Cite, by rzucić wyzwanie cyfrowemu porządkowi, który karmi się oburzeniem, a nie prawdą — gdzie algorytmy wolą polaryzację. Przyszłość zasługuje na weryfikację, nie wiralowość. Na kontekst, nie chaos.",
+      text: "Stworzyłem Citewalk, by rzucić wyzwanie cyfrowemu porządkowi, który karmi się oburzeniem, a nie prawdą — gdzie algorytmy wolą polaryzację. Przyszłość zasługuje na weryfikację, nie wiralowość. Na kontekst, nie chaos.",
       author: "Sebastian Lindner",
       role: "Założyciel",
     },
     distinction: {
       label: "Różnica",
-      title: "Dlaczego Cite to coś innego",
-      text_1: "Większość platform to chwilowe mody. Cite to archiwum.",
+      title: "Dlaczego Citewalk to coś innego",
+      text_1: "Większość platform to chwilowe mody. Citewalk to archiwum.",
       text_2: "Budujemy protokół, który szanuje twoją inteligencję.",
       sovereign: "Twoje dane są twoje",
       sovereign_text:
@@ -556,7 +556,7 @@ export const translations = {
       note: "Dostęp do bety jest otwarty.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Nota prawna",
       privacy: "Prywatność",
       ai_transparency: "Przejrzystość AI",
@@ -575,7 +575,7 @@ export const translations = {
       title: "Social media voor\nde echte wereld.",
       subtitle: "We verdrinken in content, maar snakken naar context.",
       description:
-        "Cite is gebouwd op een simpele gedachte: Autoriteit moet komen van referenties, niet van viraliteit. We hebben het algoritme vervangen door een citatie-netwerk. Jouw rustige plek om te denken en te schrijven.",
+        "Citewalk is gebouwd op een simpele gedachte: Autoriteit moet komen van referenties, niet van viraliteit. We hebben het algoritme vervangen door een citatie-netwerk. Jouw rustige plek om te denken en te schrijven.",
       cta_primary: "Doe mee",
       cta_secondary: "Lees het Manifest",
     },
@@ -594,14 +594,14 @@ export const translations = {
         "Verbind je gedachten direct met de bron. Citeren is hier geen voetnoot, maar de kern. Zo bouw je een netwerk van vertrouwen.",
       card_2_title: "De reputatie-grafiek",
       card_2_text:
-        "Op Cite word je gezien als je geciteerd wordt. Een meritocratie van ideeën. Kwaliteit komt boven drijven omdat het nuttig is, niet omdat het luid is.",
+        "Op Citewalk word je gezien als je geciteerd wordt. Een meritocratie van ideeën. Kwaliteit komt boven drijven omdat het nuttig is, niet omdat het luid is.",
       card_3_title: "Privé signalen",
       card_3_text:
         "Publieke likes zorgen voor prestatiedruk. Wij hebben ze privé gemaakt. Waardeer goed werk, maar voer geen show op voor de massa.",
     },
     archiving: {
       title: "Citaten voor de eeuwigheid",
-      text: "Context mag nooit een 404-fout zijn. Cite maakt automatisch een snapshot van elke externe link in het Internet Archive (Wayback Machine). Je bronnen blijven altijd veilig.",
+      text: "Context mag nooit een 404-fout zijn. Citewalk maakt automatisch een snapshot van elke externe link in het Internet Archive (Wayback Machine). Je bronnen blijven altijd veilig.",
     },
     visuals: {
       title: "Visuele stilte",
@@ -620,14 +620,14 @@ export const translations = {
       subtitle: "Elke post is een portaal. Volg de stroom van gedachten.",
     },
     quote: {
-      text: "Ik heb Cite gebouwd als tegengif voor een digitale orde die drijft op ophef in plaats van waarheid—waar algoritmes polarisatie belonen. De toekomst verdient verificatie boven viraliteit, context boven chaos.",
+      text: "Ik heb Citewalk gebouwd als tegengif voor een digitale orde die drijft op ophef in plaats van waarheid—waar algoritmes polarisatie belonen. De toekomst verdient verificatie boven viraliteit, context boven chaos.",
       author: "Sebastian Lindner",
       role: "Oprichter",
     },
     distinction: {
       label: "Het Verschil",
-      title: "Waarom Cite anders is",
-      text_1: "De meeste platforms zijn vluchtig. Cite is een archief.",
+      title: "Waarom Citewalk anders is",
+      text_1: "De meeste platforms zijn vluchtig. Citewalk is een archief.",
       text_2: "We bouwen een protocol dat jouw intelligentie respecteert.",
       sovereign: "Soevereine data",
       sovereign_text:
@@ -649,7 +649,7 @@ export const translations = {
       note: "Beta-toegang is open.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Colofon",
       privacy: "Privacy",
       ai_transparency: "AI Transparantie",
@@ -668,7 +668,7 @@ export const translations = {
       title: "Redes sociais para\numa realidade complexa.",
       subtitle: "Afogamo-nos em conteúdo, mas morremos de sede por contexto.",
       description:
-        "O Cite baseia-se numa premissa simples: a autoridade deve vir de referências, não da viralidade. Substituímos o algoritmo por um gráfico de citações. O teu lugar calmo para pensar.",
+        "O Citewalk baseia-se numa premissa simples: a autoridade deve vir de referências, não da viralidade. Substituímos o algoritmo por um gráfico de citações. O teu lugar calmo para pensar.",
       cta_primary: "Junta-te à rede",
       cta_secondary: "Lê o Manifesto",
     },
@@ -687,14 +687,14 @@ export const translations = {
         "Liga os teus pensamentos diretamente às fontes. Citar é a essência. Assim constróis uma teia de confiança.",
       card_2_title: "O gráfico de reputação",
       card_2_text:
-        "No Cite, és visto quando és citado. Uma meritocracia onde a qualidade sobe porque é útil, não porque faz barulho.",
+        "No Citewalk, és visto quando és citado. Uma meritocracia onde a qualidade sobe porque é útil, não porque faz barulho.",
       card_3_title: "Sinais privados",
       card_3_text:
         "Os likes públicos criam ansiedade. Tornámo-los privados. Valida o bom trabalho, mas não atues para a plateia.",
     },
     archiving: {
       title: "Citações permanentes",
-      text: "O contexto nunca deve dar erro 404. O Cite guarda automaticamente cada link externo no Internet Archive (Wayback Machine). As tuas fontes ficam protegidas para sempre.",
+      text: "O contexto nunca deve dar erro 404. O Citewalk guarda automaticamente cada link externo no Internet Archive (Wayback Machine). As tuas fontes ficam protegidas para sempre.",
     },
     visuals: {
       title: "Silêncio visual",
@@ -713,14 +713,14 @@ export const translations = {
       subtitle: "Cada post é um portal. Segue o fio do pensamento.",
     },
     quote: {
-      text: "Construí o Cite para desafiar uma ordem digital desenhada para a indignação em vez da verdade—onde algoritmos recompensam a polarização. O futuro merece verificação em vez de viralidade, contexto em vez de caos.",
+      text: "Construí o Citewalk para desafiar uma ordem digital desenhada para a indignação em vez da verdade—onde algoritmos recompensam a polarização. O futuro merece verificação em vez de viralidade, contexto em vez de caos.",
       author: "Sebastian Lindner",
       role: "Fundador",
     },
     distinction: {
       label: "A Diferença",
-      title: "Porque o Cite é diferente",
-      text_1: "A maioria das plataformas é efémera. O Cite é um arquivo.",
+      title: "Porque o Citewalk é diferente",
+      text_1: "A maioria das plataformas é efémera. O Citewalk é um arquivo.",
       text_2:
         "Estamos a construir um protocolo que respeita a tua inteligência.",
       sovereign: "Dados soberanos",
@@ -743,7 +743,7 @@ export const translations = {
       note: "O acesso beta está aberto.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Ficha técnica",
       privacy: "Privacidade",
       ai_transparency: "Transparência IA",
@@ -762,7 +762,7 @@ export const translations = {
       title: "Sociala medier för\nen komplex verklighet.",
       subtitle: "Vi drunknar i innehåll, men svälter efter sammanhang.",
       description:
-        "Cite bygger på en enkel idé: Auktoritet ska komma från referenser, inte viralitet. Vi har bytt ut algoritmen mot en citatgraf. Din lugna plats för att tänka och skriva.",
+        "Citewalk bygger på en enkel idé: Auktoritet ska komma från referenser, inte viralitet. Vi har bytt ut algoritmen mot en citatgraf. Din lugna plats för att tänka och skriva.",
       cta_primary: "Gå med i nätverket",
       cta_secondary: "Läs manifestet",
     },
@@ -781,14 +781,14 @@ export const translations = {
         "Koppla dina tankar direkt till källan. Citat är kärnan här. Genom att citera bygger du ett nätverk av tillit.",
       card_2_title: "Ryktesgrafen",
       card_2_text:
-        "På Cite syns du när du blir citerad. En meritokrati för idéer. Kvalitet stiger för att den är användbar, inte för att den är högljudd.",
+        "På Citewalk syns du när du blir citerad. En meritokrati för idéer. Kvalitet stiger för att den är användbar, inte för att den är högljudd.",
       card_3_title: "Privata signaler",
       card_3_text:
         "Offentliga likes skapar prestationsångest. Vi har gjort dem privata. Uppskatta bra jobb, men uppträd inte för publiken.",
     },
     archiving: {
       title: "Citat för evigt",
-      text: "Sammanhang ska aldrig ge error 404. Cite sparar automatiskt varje extern länk i Internet Archive (Wayback Machine). Dina källor bevaras för alltid.",
+      text: "Sammanhang ska aldrig ge error 404. Citewalk sparar automatiskt varje extern länk i Internet Archive (Wayback Machine). Dina källor bevaras för alltid.",
     },
     visuals: {
       title: "Visuellt lugn",
@@ -807,14 +807,14 @@ export const translations = {
       subtitle: "Varje inlägg är en portal. Följ tankekedjan.",
     },
     quote: {
-      text: "Jag byggde Cite för att utmana en digital ordning designad för upprördhet snarare än sanning—där algoritmer belönar polarisering. Framtiden förtjänar verifiering framför viralitet, sammanhang framför kaos.",
+      text: "Jag byggde Citewalk för att utmana en digital ordning designad för upprördhet snarare än sanning—där algoritmer belönar polarisering. Framtiden förtjänar verifiering framför viralitet, sammanhang framför kaos.",
       author: "Sebastian Lindner",
       role: "Grundare",
     },
     distinction: {
       label: "Skillnaden",
-      title: "Varför Cite är annorlunda",
-      text_1: "De flesta plattformar är flyktiga. Cite är ett arkiv.",
+      title: "Varför Citewalk är annorlunda",
+      text_1: "De flesta plattformar är flyktiga. Citewalk är ett arkiv.",
       text_2: "Vi bygger ett protokoll som respekterar din intelligens.",
       sovereign: "Din data är din",
       sovereign_text:
@@ -836,7 +836,7 @@ export const translations = {
       note: "Beta-åtkomst är öppen.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Impressum",
       privacy: "Integritet",
       ai_transparency: "AI-transparens",
@@ -855,7 +855,7 @@ export const translations = {
       title: "Sociale medier til\nen kompleks virkelighed.",
       subtitle: "Vi drukner i indhold, men sulter efter kontekst.",
       description:
-        "Cite bygger på en simpel præmis: Autoritet bør komme fra referencer, ikke viralitet. Vi har erstattet algoritmen med en citatgraf. Dit rolige sted at tænke.",
+        "Citewalk bygger på en simpel præmis: Autoritet bør komme fra referencer, ikke viralitet. Vi har erstattet algoritmen med en citatgraf. Dit rolige sted at tænke.",
       cta_primary: "Deltag i netværket",
       cta_secondary: "Læs manifestet",
     },
@@ -874,14 +874,14 @@ export const translations = {
         "Forbind dine tanker direkte med kilden. Citering er kernen. Ved at gøre det bygger du et netværk af tillid.",
       card_2_title: "Omdømmegraf",
       card_2_text:
-        "På Cite bliver du set, når du bliver citeret. Et meritokrati, hvor kvalitet stiger, fordi det er nyttigt, ikke fordi det larmer.",
+        "På Citewalk bliver du set, når du bliver citeret. Et meritokrati, hvor kvalitet stiger, fordi det er nyttigt, ikke fordi det larmer.",
       card_3_title: "Private signaler",
       card_3_text:
         "Offentliga likes skaber præstationsangst. Vi har gjort dem private. Anerkend godt arbejde, men optræd ikke for galleriet.",
     },
     archiving: {
       title: "Permanente citater",
-      text: "Kontekst må aldrig give fejl 404. Cite gemmer automatisk hvert eksternt link i Internet Archive (Wayback Machine). Dine kilder er sikret for evigt.",
+      text: "Kontekst må aldrig give fejl 404. Citewalk gemmer automatisk hvert eksternt link i Internet Archive (Wayback Machine). Dine kilder er sikret for evigt.",
     },
     visuals: {
       title: "Visuel ro",
@@ -900,14 +900,14 @@ export const translations = {
       subtitle: "Hvert indlæg er en portal. Følg tankekæden.",
     },
     quote: {
-      text: "Jeg byggede Cite for at udfordre en digital orden designet til forargelse frem for sandhed—hvor algoritmer belønner polarisering. Fremtiden fortjener verifikation frem for viralitet, kontekst frem for kaos.",
+      text: "Jeg byggede Citewalk for at udfordre en digital orden designet til forargelse frem for sandhed—hvor algoritmer belønner polarisering. Fremtiden fortjener verifikation frem for viralitet, kontekst frem for kaos.",
       author: "Sebastian Lindner",
       role: "Grundlægger",
     },
     distinction: {
       label: "Forskellen",
-      title: "Hvorfor Cite er anderledes",
-      text_1: "De fleste platforme er flygtige. Cite er et arkiv.",
+      title: "Hvorfor Citewalk er anderledes",
+      text_1: "De fleste platforme er flygtige. Citewalk er et arkiv.",
       text_2: "Vi bygger en protokol, der respekterer din intelligens.",
       sovereign: "Dine data er dine",
       sovereign_text:
@@ -929,7 +929,7 @@ export const translations = {
       note: "Beta-adgang er åben.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Impressum",
       privacy: "Privatliv",
       ai_transparency: "AI-gennemsigtighed",
@@ -948,7 +948,7 @@ export const translations = {
       title: "Sosiaalinen media\nmonimutkaiselle todellisuudelle.",
       subtitle: "Hukumme sisältöön, mutta näännymme kontekstin puutteeseen.",
       description:
-        "Cite perustuu yksinkertaiseen ajatukseen: Auktoriteetin tulisi tulla viittauksista, ei viraalisuudesta. Korvasimme algoritmin sitaattiverkostolla. Rauhallinen paikka ajatella ja kirjoittaa.",
+        "Citewalk perustuu yksinkertaiseen ajatukseen: Auktoriteetin tulisi tulla viittauksista, ei viraalisuudesta. Korvasimme algoritmin sitaattiverkostolla. Rauhallinen paikka ajatella ja kirjoittaa.",
       cta_primary: "Liity verkostoon",
       cta_secondary: "Lue manifesti",
     },
@@ -974,7 +974,7 @@ export const translations = {
     },
     archiving: {
       title: "Pysyvät sitaatit",
-      text: "Konteksti ei saa koskaan olla 404-virhe. Cite tallentaa automaattisesti jokaisen ulkoisen linkin Internet Archiveen (Wayback Machine). Lähteesi ovat turvassa ikuisesti.",
+      text: "Konteksti ei saa koskaan olla 404-virhe. Citewalk tallentaa automaattisesti jokaisen ulkoisen linkin Internet Archiveen (Wayback Machine). Lähteesi ovat turvassa ikuisesti.",
     },
     visuals: {
       title: "Visuaalinen hiljaisuus",
@@ -993,14 +993,14 @@ export const translations = {
       subtitle: "Jokainen viesti on portaali. Seuraa ajatuksen juoksua.",
     },
     quote: {
-      text: "Rakensin Cite'in haastamaan digitaalisen järjestyksen, joka on suunniteltu suuttumukseen, ei totuuteen. Tulevaisuus ansaitsee verifikaation viraalisuuden sijaan, kontekstin kaaoksen sijaan.",
+      text: "Rakensin Citewalk'in haastamaan digitaalisen järjestyksen, joka on suunniteltu suuttumukseen, ei totuuteen. Tulevaisuus ansaitsee verifikaation viraalisuuden sijaan, kontekstin kaaoksen sijaan.",
       author: "Sebastian Lindner",
       role: "Perustaja",
     },
     distinction: {
       label: "Ero",
-      title: "Miksi Cite on erilainen",
-      text_1: "Useimmat alustat ovat katoavaisia. Cite on arkisto.",
+      title: "Miksi Citewalk on erilainen",
+      text_1: "Useimmat alustat ovat katoavaisia. Citewalk on arkisto.",
       text_2: "Rakennamme protokollan, joka kunnioittaa älykkyyttäsi.",
       sovereign: "Sinun datasi",
       sovereign_text:
@@ -1022,7 +1022,7 @@ export const translations = {
       note: "Beta-käyttö on avoinna.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Impressum",
       privacy: "Tietosuoja",
       ai_transparency: "Tekoälyn läpinäkyvyys",
@@ -1041,7 +1041,7 @@ export const translations = {
       title: "Κοινωνικά δίκτυα για\nμια σύνθετη πραγματικότητα.",
       subtitle: "Πνιγόμαστε στο περιεχόμενο, αλλά διψάμε για πλαίσιο.",
       description:
-        "Το Cite βασίζεται σε μια απλή αρχή: Η αυθεντία πρέπει να πηγάζει από τις αναφορές, όχι από τη viral διάδοση. Αντικαταστήσαμε τον αλγόριθμο με ένα δίκτυο παραπομπών. Ο ήσυχος χώρος σου για σκέψη.",
+        "Το Citewalk βασίζεται σε μια απλή αρχή: Η αυθεντία πρέπει να πηγάζει από τις αναφορές, όχι από τη viral διάδοση. Αντικαταστήσαμε τον αλγόριθμο με ένα δίκτυο παραπομπών. Ο ήσυχος χώρος σου για σκέψη.",
       cta_primary: "Μπες στο δίκτυο",
       cta_secondary: "Διάβασε το Μανιφέστο",
     },
@@ -1060,14 +1060,14 @@ export const translations = {
         "Σύνδεσε τις σκέψεις σου απευθείας με τις πηγές. Η παραπομπή είναι η ουσία. Έτσι χτίζεις ένα δίκτυο εμπιστοσύνης.",
       card_2_title: "Το γράφημα φήμης",
       card_2_text:
-        "Στο Cite, φαίνεσαι όταν σε αναφέρουν. Μια αξιοκρατία όπου η ποιότητα αναδεικνύεται επειδή είναι χρήσιμη, όχι επειδή κάνει φασαρία.",
+        "Στο Citewalk, φαίνεσαι όταν σε αναφέρουν. Μια αξιοκρατία όπου η ποιότητα αναδεικνύεται επειδή είναι χρήσιμη, όχι επειδή κάνει φασαρία.",
       card_3_title: "Ιδιωτικά σήματα",
       card_3_text:
         "Τα δημόσια like δημιουργούν άγχος. Τα κάναμε ιδιωτικά. Εκτίμησε την καλή δουλειά, αλλά μην παίζεις θέατρο για το πλήθος.",
     },
     archiving: {
       title: "Μόνιμες παραπομπές",
-      text: "Το πλαίσιο δεν πρέπει ποτέ να δίνει σφάλμα 404. Το Cite αρχειοθετεί αυτόματα κάθε εξωτερικό σύνδεσμο στο Internet Archive. Οι πηγές σου προστατεύονται για πάντα.",
+      text: "Το πλαίσιο δεν πρέπει ποτέ να δίνει σφάλμα 404. Το Citewalk αρχειοθετεί αυτόματα κάθε εξωτερικό σύνδεσμο στο Internet Archive. Οι πηγές σου προστατεύονται για πάντα.",
     },
     visuals: {
       title: "Οπτική ηρεμία",
@@ -1087,15 +1087,15 @@ export const translations = {
         "Κάθε ανάρτηση είναι μια πύλη. Ακολούθησε τον ειρμό της σκέψης.",
     },
     quote: {
-      text: "Έφτιαξα το Cite για να αμφισβητήσω μια ψηφιακή τάξη σχεδιασμένη για την οργή αντί για την αλήθεια. Το μέλλον αξίζει επαλήθευση αντί για viral διάδοση, πλαίσιο αντί για χάος.",
+      text: "Έφτιαξα το Citewalk για να αμφισβητήσω μια ψηφιακή τάξη σχεδιασμένη για την οργή αντί για την αλήθεια. Το μέλλον αξίζει επαλήθευση αντί για viral διάδοση, πλαίσιο αντί για χάος.",
       author: "Sebastian Lindner",
       role: "Ιδρυτής",
     },
     distinction: {
       label: "Η Διαφορά",
-      title: "Γιατί το Cite είναι διαφορετικό",
+      title: "Γιατί το Citewalk είναι διαφορετικό",
       text_1:
-        "Οι περισσότερες πλατφόρμες είναι εφήμερες. Το Cite είναι αρχείο.",
+        "Οι περισσότερες πλατφόρμες είναι εφήμερες. Το Citewalk είναι αρχείο.",
       text_2: "Χτίζουμε ένα πρωτόκολλο που σέβεται την νοημοσύνη σου.",
       sovereign: "Κυρίαρχα δεδομένα",
       sovereign_text:
@@ -1117,7 +1117,7 @@ export const translations = {
       note: "Η πρόσβαση beta είναι ανοιχτή.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Ταυτότητα",
       privacy: "Απόρρητο",
       ai_transparency: "Διαφάνεια AI",
@@ -1136,7 +1136,7 @@ export const translations = {
       title: "Sociální sítě pro\nkomplexní realitu.",
       subtitle: "Topíme se v obsahu, ale hladovíme po kontextu.",
       description:
-        "Cite stojí na jednoduché myšlence: Autorita by měla vycházet z odkazov, ne z virality. Algoritmus jsme nahradili grafem citací. Tvé klidné místo pro přemýšlení a psaní.",
+        "Citewalk stojí na jednoduché myšlence: Autorita by měla vycházet z odkazov, ne z virality. Algoritmus jsme nahradili grafem citací. Tvé klidné místo pro přemýšlení a psaní.",
       cta_primary: "Připoj se k síti",
       cta_secondary: "Přečti si Manifest",
     },
@@ -1155,14 +1155,14 @@ export const translations = {
         "Propoj své myšlenky přímo se zdroji. Citování je tu základ. Tím buduješ síť důvěry.",
       card_2_title: "Graf reputace",
       card_2_text:
-        "Na Cite si vidět, když tě citují. Meritokracie, kde kvalita stoupá, protože je užitečná, ne proto, že je hlučná.",
+        "Na Citewalk si vidět, když tě citují. Meritokracie, kde kvalita stoupá, protože je užitečná, ne proto, že je hlučná.",
       card_3_title: "Soukromé signály",
       card_3_text:
         "Veřejné lajky vytvářejí úzkost z výkonu. Udělali jsme je soukromé. Ocenění práce ano, divadlo pro dav ne.",
     },
     archiving: {
       title: "Citace navždy",
-      text: "Kontext by nikdy neměl končit chybou 404. Cite automaticky ukládá každý externí odkaz do Internet Archive. Tvé zdroje jsou chráněny navždy.",
+      text: "Kontext by nikdy neměl končit chybou 404. Citewalk automaticky ukládá každý externí odkaz do Internet Archive. Tvé zdroje jsou chráněny navždy.",
     },
     visuals: {
       title: "Vizuální ticho",
@@ -1181,14 +1181,14 @@ export const translations = {
       subtitle: "Každý příspěvek je portál. Sleduj tok myšlenek.",
     },
     quote: {
-      text: "Vybudoval jsem Cite, abych vyzval digitální řád navržený pro pobouření místo pravdy. Budoucnost si zaslouží ověření místo virality, kontext místo chaosu.",
+      text: "Vybudoval jsem Citewalk, abych vyzval digitální řád navržený pro pobouření místo pravdy. Budoucnost si zaslouží ověření místo virality, kontext místo chaosu.",
       author: "Sebastian Lindner",
       role: "Zakladatel",
     },
     distinction: {
       label: "Rozdíl",
-      title: "Proč je Cite jiný",
-      text_1: "Většina platforem je pomíjivá. Cite je archiv.",
+      title: "Proč je Citewalk jiný",
+      text_1: "Většina platforem je pomíjivá. Citewalk je archiv.",
       text_2: "Budujeme protokol, který respektuje tvou inteligenci.",
       sovereign: "Suverénní data",
       sovereign_text:
@@ -1209,7 +1209,7 @@ export const translations = {
       note: "Beta přístup je otevřený.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Tiráž",
       privacy: "Soukromí",
       ai_transparency: "AI Transparentnost",
@@ -1228,7 +1228,7 @@ export const translations = {
       title: "Közösségi média\negy komplex valósághoz.",
       subtitle: "Fulladunk a tartalomban, de szomjazunk a kontextusra.",
       description:
-        "A Cite egy egyszerű elvre épül: A hitelességnek hivatkozásokból kell erednie, nem viralitásból. Az algoritmust lecseréltük egy idézet-hálóra. A te csendes helyed a gondolkodásra.",
+        "A Citewalk egy egyszerű elvre épül: A hitelességnek hivatkozásokból kell erednie, nem viralitásból. Az algoritmust lecseréltük egy idézet-hálóra. A te csendes helyed a gondolkodásra.",
       cta_primary: "Csatlakozz",
       cta_secondary: "Olvasd el a Kiáltványt",
     },
@@ -1247,14 +1247,14 @@ export const translations = {
         "Kapcsold gondolataidat közvetlenül a forrásokhoz. Az idézés a lényeg. Így építesz bizalmi hálót.",
       card_2_title: "A hírnév gráfja",
       card_2_text:
-        "A Cite-on akkor látszol, ha idéznek. Meritokrácia, ahol a minőség azért emelkedik ki, mert hasznos, nem mert hangos.",
+        "A Citewalk-on akkor látszol, ha idéznek. Meritokrácia, ahol a minőség azért emelkedik ki, mert hasznos, nem mert hangos.",
       card_3_title: "Privát jelek",
       card_3_text:
         "A nyilvános lájkok szorongást keltenek. Priváttá tettük őket. Értékeld a jó munkát, de ne játssz a tömegnek.",
     },
     archiving: {
       title: "Idézetek örökre",
-      text: "A kontextus soha nem végződhet 404 hibával. A Cite automatikusan elment minden külső linket az Internet Archive-ba. Forrásaid biztonságban vannak – örökre.",
+      text: "A kontextus soha nem végződhet 404 hibával. A Citewalk automatikusan elment minden külső linket az Internet Archive-ba. Forrásaid biztonságban vannak – örökre.",
     },
     visuals: {
       title: "Vizuális csend",
@@ -1273,14 +1273,14 @@ export const translations = {
       subtitle: "Minden poszt egy kapu. Kövesd a gondolatmenetet.",
     },
     quote: {
-      text: "Azért hoztam létre a Cite-ot, hogy kihívjam a felháborodásra tervezett digitális rendet. A jövő az ellenőrzésé a viralitás helyett, a kontextusé a káosz helyett.",
+      text: "Azért hoztam létre a Citewalk-ot, hogy kihívjam a felháborodásra tervezett digitális rendet. A jövő az ellenőrzésé a viralitás helyett, a kontextusé a káosz helyett.",
       author: "Sebastian Lindner",
       role: "Alapító",
     },
     distinction: {
       label: "A Különbség",
-      title: "Miért más a Cite",
-      text_1: "A legtöbb platform mulandó. A Cite egy archívum.",
+      title: "Miért más a Citewalk",
+      text_1: "A legtöbb platform mulandó. A Citewalk egy archívum.",
       text_2:
         "Olyan protokollt építünk, ami tiszteletben tartja az intelligenciádat.",
       sovereign: "Szuverén adatok",
@@ -1303,7 +1303,7 @@ export const translations = {
       note: "A béta hozzáférés nyitott.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Impresszum",
       privacy: "Adatvédelem",
       ai_transparency: "AI Átláthatóság",
@@ -1322,9 +1322,9 @@ export const translations = {
       title: "Social media pentru\nrealitatea complexă.",
       subtitle: "Ne înecăm în conținut, dar murim de sete după context.",
       description:
-        "Cite se bazează pe o premisă simplă: Autoritatea trebuie să vină din referințe, nu din viralitate. Am înlocuit algoritmul cu un graf de citări. Locul tău liniștit pentru a gândi.",
+        "Citewalk se bazează pe o premisă simplă: Autoritatea trebuie să vină din referințe, nu din viralitate. Am înlocuit algoritmul cu un graf de citări. Locul tău liniștit pentru a gândi.",
       cta_primary: "Intră în rețea",
-      cta_secondary: "Citește Manifestul",
+      cta_secondary: "Citewalkște Manifestul",
     },
     problem: {
       label: "Problema",
@@ -1341,14 +1341,14 @@ export const translations = {
         "Conectează-ți gândurile direct la surse. Citarea este esența. Așa construiești o rețea de încredere.",
       card_2_title: "Graful reputației",
       card_2_text:
-        "Pe Cite, ești văzut când ești citat. O meritocrație unde calitatea urcă pentru că e utilă, nu pentru că face zgomot.",
+        "Pe Citewalk, ești văzut când ești citat. O meritocrație unde calitatea urcă pentru că e utilă, nu pentru că face zgomot.",
       card_3_title: "Semnale private",
       card_3_text:
         "Like-urile publice creează anxietate. Le-am făcut private. Apreciază munca bună, dar nu juca teatru pentru mulțime.",
     },
     archiving: {
       title: "Citări permanente",
-      text: "Contextul nu trebuie să dea niciodată eroare 404. Cite salvează automat fiecare link extern în Internet Archive. Sursele tale sunt protejate pentru totdeauna.",
+      text: "Contextul nu trebuie să dea niciodată eroare 404. Citewalk salvează automat fiecare link extern în Internet Archive. Sursele tale sunt protejate pentru totdeauna.",
     },
     visuals: {
       title: "Liniște vizuală",
@@ -1367,14 +1367,14 @@ export const translations = {
       subtitle: "Fiecare postare e un portal. Urmărește firul gândirii.",
     },
     quote: {
-      text: "Am construit Cite pentru a contesta o ordine digitală proiectată pentru indignare în loc de adevăr. Viitorul merită verificare în loc de viralitate, context în loc de haos.",
+      text: "Am construit Citewalk pentru a contesta o ordine digitală proiectată pentru indignare în loc de adevăr. Viitorul merită verificare în loc de viralitate, context în loc de haos.",
       author: "Sebastian Lindner",
       role: "Fondator",
     },
     distinction: {
       label: "Diferența",
-      title: "De ce Cite e diferit",
-      text_1: "Majoritatea platformelor sunt efemere. Cite este o arhivă.",
+      title: "De ce Citewalk e diferit",
+      text_1: "Majoritatea platformelor sunt efemere. Citewalk este o arhivă.",
       text_2: "Construim un protocol care îți respectă inteligența.",
       sovereign: "Date suverane",
       sovereign_text:
@@ -1395,7 +1395,7 @@ export const translations = {
       note: "Accesul beta este deschis.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Date companie",
       privacy: "Confidențialitate",
       ai_transparency: "Transparență AI",
@@ -1414,7 +1414,7 @@ export const translations = {
       title: "Социална мрежа за\nсложна реалност.",
       subtitle: "Давим се в съдържание, а жадуваме за контекст.",
       description:
-        "Cite се гради на проста идея: Авторитетът трябва да идва от препратки, не от виралност. Заменихме алгоритъма с мрежа от цитати. Твоето тихо място за мислене.",
+        "Citewalk се гради на проста идея: Авторитетът трябва да идва от препратки, не от виралност. Заменихме алгоритъма с мрежа от цитати. Твоето тихо място за мислене.",
       cta_primary: "Влез в мрежата",
       cta_secondary: "Прочети манифеста",
     },
@@ -1433,14 +1433,14 @@ export const translations = {
         "Свържи мислите си директно с източниците. Цитирането е същността. Така плетеш мрежа на доверие.",
       card_2_title: "Граф на репутацията",
       card_2_text:
-        "В Cite те виждат, когато те цитират. Меритокрация, където качеството печели с полезност, не с шум.",
+        "В Citewalk те виждат, когато те цитират. Меритокрация, където качеството печели с полезност, не с шум.",
       card_3_title: "Частни сигнали",
       card_3_text:
         "Публичните лайкове създават тревожност. Направихме ги частни. Оценявай работата, но не играй за публиката.",
     },
     archiving: {
       title: "Вечни цитати",
-      text: "Контекстът никога не трябва да дава грешка 404. Cite автоматично архивира всеки външен линк в Internet Archive. Твоите източници са защитени завинаги.",
+      text: "Контекстът никога не трябва да дава грешка 404. Citewalk автоматично архивира всеки външен линк в Internet Archive. Твоите източници са защитени завинаги.",
     },
     visuals: {
       title: "Визуална тишина",
@@ -1459,14 +1459,14 @@ export const translations = {
       subtitle: "Всеки пост е портал. Следвай нишката на мисълта.",
     },
     quote: {
-      text: "Създадох Cite, за да предизвикам дигитален ред, проектиран за възмущение вместо истина. Бъдещето заслужава проверка вместо виралност, контекст вместо хаос.",
+      text: "Създадох Citewalk, за да предизвикам дигитален ред, проектиран за възмущение вместо истина. Бъдещето заслужава проверка вместо виралност, контекст вместо хаос.",
       author: "Sebastian Lindner",
       role: "Основател",
     },
     distinction: {
       label: "Разликата",
-      title: "Защо Cite е различен",
-      text_1: "Повечето платформи са ефимерни. Cite е архив.",
+      title: "Защо Citewalk е различен",
+      text_1: "Повечето платформи са ефимерни. Citewalk е архив.",
       text_2: "Градим протокол, който уважава твоята интелигентност.",
       sovereign: "Суверенни данни",
       sovereign_text:
@@ -1488,7 +1488,7 @@ export const translations = {
       note: "Бета достъпът е отворен.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Импресум",
       privacy: "Поверителност",
       ai_transparency: "AI Прозрачност",
@@ -1507,7 +1507,7 @@ export const translations = {
       title: "Društvena mreža za\nkompleksnu stvarnost.",
       subtitle: "Davimo se u sadržaju, ali gladujemo za kontekstom.",
       description:
-        "Cite počiva na jednostavnoj ideji: Autoritet treba dolaziti iz referenci, ne iz viralnosti. Zamijenili smo algoritam grafom citata. Tvoje mirno mjesto za razmišljanje.",
+        "Citewalk počiva na jednostavnoj ideji: Autoritet treba dolaziti iz referenci, ne iz viralnosti. Zamijenili smo algoritam grafom citata. Tvoje mirno mjesto za razmišljanje.",
       cta_primary: "Pridruži se",
       cta_secondary: "Pročitaj Manifest",
     },
@@ -1533,7 +1533,7 @@ export const translations = {
     },
     archiving: {
       title: "Citati zauvijek",
-      text: "Kontekst nikada ne smije dati grešku 404. Cite automatski sprema svaki vanjski link u Internet Archive. Tvoji izvori su sigurni zauvijek.",
+      text: "Kontekst nikada ne smije dati grešku 404. Citewalk automatski sprema svaki vanjski link u Internet Archive. Tvoji izvori su sigurni zauvijek.",
     },
     visuals: {
       title: "Vizualni mir",
@@ -1552,14 +1552,14 @@ export const translations = {
       subtitle: "Svaki post je portal. Slijedi nit misli.",
     },
     quote: {
-      text: "Izgradio sam Cite kako bih izazvao digitalni poredak dizajniran za bijes umjesto istine. Budućnost zaslužuje provjeru umjesto viralnosti, kontekst umjesto kaosa.",
+      text: "Izgradio sam Citewalk kako bih izazvao digitalni poredak dizajniran za bijes umjesto istine. Budućnost zaslužuje provjeru umjesto viralnosti, kontekst umjesto kaosa.",
       author: "Sebastian Lindner",
       role: "Osnivač",
     },
     distinction: {
       label: "Razlika",
-      title: "Zašto je Cite drugačiji",
-      text_1: "Većina platformi je prolazna. Cite je arhiv.",
+      title: "Zašto je Citewalk drugačiji",
+      text_1: "Većina platformi je prolazna. Citewalk je arhiv.",
       text_2: "Gradimo protokol koji poštuje tvoju inteligenciju.",
       sovereign: "Suvereni podaci",
       sovereign_text:
@@ -1580,7 +1580,7 @@ export const translations = {
       note: "Beta pristup je otvoren.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Impresum",
       privacy: "Privatnost",
       ai_transparency: "AI Transparentnost",
@@ -1599,7 +1599,7 @@ export const translations = {
       title: "Sociálne siete pre\nkomplexnú realitu.",
       subtitle: "Topíme sa v obsahu, ale hladujeme po kontexte.",
       description:
-        "Cite stojí na jednoduchej myšlienke: Autorita by mala vychádzať z odkazov, nie z virality. Algoritmus sme nahradili grafom citácií. Tvoje pokojné miesto na premýšľanie.",
+        "Citewalk stojí na jednoduchej myšlienke: Autorita by mala vychádzať z odkazov, nie z virality. Algoritmus sme nahradili grafom citácií. Tvoje pokojné miesto na premýšľanie.",
       cta_primary: "Pripoj sa k sieti",
       cta_secondary: "Prečítaj si Manifest",
     },
@@ -1618,14 +1618,14 @@ export const translations = {
         "Prepoj svoje myšlienky priamo so zdrojmi. Citovanie je tu základ. Tým buduješ sieť dôvery.",
       card_2_title: "Graf reputácie",
       card_2_text:
-        "Na Cite si viditeľný, keď ťa citujú. Meritokracia, kde kvalita stúpa, pretože je užitočná, nie preto, že je hlučná.",
+        "Na Citewalk si viditeľný, keď ťa citujú. Meritokracia, kde kvalita stúpa, pretože je užitočná, nie preto, že je hlučná.",
       card_3_title: "Súkromné signály",
       card_3_text:
         "Verejné lajky vytvárajú úzkosť z výkonu. Urobili sme ich súkromné. Ocenenie práce áno, divadlo pre dav nie.",
     },
     archiving: {
       title: "Citácie navždy",
-      text: "Kontekst by nikdy nemal končiť chybou 404. Cite automaticky ukladá každý externý odkaz do Internet Archive. Tvoje zdroje sú chránené navždy.",
+      text: "Kontekst by nikdy nemal končiť chybou 404. Citewalk automaticky ukladá každý externý odkaz do Internet Archive. Tvoje zdroje sú chránené navždy.",
     },
     visuals: {
       title: "Vizuálne ticho",
@@ -1644,14 +1644,14 @@ export const translations = {
       subtitle: "Každý príspevok je portál. Sleduj tok myšlienok.",
     },
     quote: {
-      text: "Vybudoval som Cite, aby som vyzval digitálny poriadok navrhnutý pre pobúrenie namiesto pravdy. Budúcnosť si zaslúži overenie namiesto virality, kontext namiesto chaosu.",
+      text: "Vybudoval som Citewalk, aby som vyzval digitálny poriadok navrhnutý pre pobúrenie namiesto pravdy. Budúcnosť si zaslúži overenie namiesto virality, kontext namiesto chaosu.",
       author: "Sebastian Lindner",
       role: "Zakladateľ",
     },
     distinction: {
       label: "Rozdiel",
-      title: "Prečo je Cite iný",
-      text_1: "Väčšina platforiem je pominuteľná. Cite je archív.",
+      title: "Prečo je Citewalk iný",
+      text_1: "Väčšina platforiem je pominuteľná. Citewalk je archív.",
       text_2: "Budujeme protokol, ktorý rešpektuje tvoju inteligenciu.",
       sovereign: "Suverénne dáta",
       sovereign_text:
@@ -1672,7 +1672,7 @@ export const translations = {
       note: "Beta prístup je otvorený.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Tiráž",
       privacy: "Súkromie",
       ai_transparency: "AI Transparentnosť",
@@ -1691,7 +1691,7 @@ export const translations = {
       title: "Družbena omrežja za\nkompleksno resničnost.",
       subtitle: "Utapljamo se v vsebini, a hlepimo po kontekstu.",
       description:
-        "Cite temelji na preprosti ideji: Avtoriteta mora izhajati iz referenc, ne iz viralnosti. Algoritem smo zamenjali z mrežo citatov. Tvoj mirni kotiček za razmišljanje.",
+        "Citewalk temelji na preprosti ideji: Avtoriteta mora izhajati iz referenc, ne iz viralnosti. Algoritem smo zamenjali z mrežo citatov. Tvoj mirni kotiček za razmišljanje.",
       cta_primary: "Pridruži se",
       cta_secondary: "Preberi Manifest",
     },
@@ -1710,14 +1710,14 @@ export const translations = {
         "Poveži svoje misli neposredno z viri. Citiranje je bistvo. Tako gradiš mrežo zaupanja.",
       card_2_title: "Graf ugleda",
       card_2_text:
-        "Na Cite si viden, ko te citirajo. Meritokracija idej. Kakovost raste, ker je koristna, ne ker je glasna.",
+        "Na Citewalk si viden, ko te citirajo. Meritokracija idej. Kakovost raste, ker je koristna, ne ker je glasna.",
       card_3_title: "Zasebni signali",
       card_3_text:
         "Javni všečki povzročajo tesnobo. Naredili smo jih zasebne. Ceni dobro delo, a ne nastopaj za množico.",
     },
     archiving: {
       title: "Citati za vedno",
-      text: "Kontekst ne sme nikoli vrniti napake 404. Cite samodejno shrani vsako zunanjo povezavo v Internet Archive. Tvoji viri so varni za vedno.",
+      text: "Kontekst ne sme nikoli vrniti napake 404. Citewalk samodejno shrani vsako zunanjo povezavo v Internet Archive. Tvoji viri so varni za vedno.",
     },
     visuals: {
       title: "Vizualna tišina",
@@ -1736,14 +1736,14 @@ export const translations = {
       subtitle: "Vsaka objava je portal. Sledi nit misli.",
     },
     quote: {
-      text: "Cite sem zgradil, da bi izzval digitalni red, zasnovan za ogorčenje namesto resnice. Prihodnost si zasluži preverjanje namesto viralnosti, kontekst namesto kaosa.",
+      text: "Citewalk sem zgradil, da bi izzval digitalni red, zasnovan za ogorčenje namesto resnice. Prihodnost si zasluži preverjanje namesto viralnosti, kontekst namesto kaosa.",
       author: "Sebastian Lindner",
       role: "Ustanovitelj",
     },
     distinction: {
       label: "Razlika",
-      title: "Zakaj je Cite drugačen",
-      text_1: "Večina platform je minljivih. Cite je arhiv.",
+      title: "Zakaj je Citewalk drugačen",
+      text_1: "Večina platform je minljivih. Citewalk je arhiv.",
       text_2: "Gradimo protokol, ki spoštuje tvojo inteligenco.",
       sovereign: "Suvereni podatki",
       sovereign_text:
@@ -1765,7 +1765,7 @@ export const translations = {
       note: "Beta dostop je odprt.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Impresum",
       privacy: "Zasebnost",
       ai_transparency: "AI Transparentnost",
@@ -1784,7 +1784,7 @@ export const translations = {
       title: "Socialinis tinklas\nsudėtingai realybei.",
       subtitle: "Skęstame turinyje, bet badaujame konteksto.",
       description:
-        "Cite remiasi paprasta idėja: Autoritetas turi kilti iš nuorodų, ne iš virusiškumo. Pakeitėme algoritmą citavimo grafu. Tavo rami vieta mąstyti.",
+        "Citewalk remiasi paprasta idėja: Autoritetas turi kilti iš nuorodų, ne iš virusiškumo. Pakeitėme algoritmą citavimo grafu. Tavo rami vieta mąstyti.",
       cta_primary: "Prisijunk",
       cta_secondary: "Skaityti Manifestą",
     },
@@ -1803,14 +1803,14 @@ export const translations = {
         "Susiek savo mintis tiesiogiai su šaltiniais. Citavimas yra esmė. Taip kuri pasitikėjimo tinklą.",
       card_2_title: "Reputacijos grafas",
       card_2_text:
-        "Cite tinkle tave mato, kai tave cituoja. Meritokratija, kur kokybė kyla dėl naudingumo, ne dėl triukšmo.",
+        "Citewalk tinkle tave mato, kai tave cituoja. Meritokratija, kur kokybė kyla dėl naudingumo, ne dėl triukšmo.",
       card_3_title: "Privatūs signalai",
       card_3_text:
         "Vieši 'patinka' kelia nerimą. Padarėme juos privačius. Vertink darbą, bet nevaidink publikai.",
     },
     archiving: {
       title: "Nuolatinės citatos",
-      text: "Kontekstas niekada neturi rodyti 404 klaidos. Cite automatiškai išsaugo kiekvieną išorinę nuorodą Internet Archive. Tavo šaltiniai saugūs amžinai.",
+      text: "Kontekstas niekada neturi rodyti 404 klaidos. Citewalk automatiškai išsaugo kiekvieną išorinę nuorodą Internet Archive. Tavo šaltiniai saugūs amžinai.",
     },
     visuals: {
       title: "Vizualinė ramybė",
@@ -1829,14 +1829,14 @@ export const translations = {
       subtitle: "Kiekvienas įrašas yra portalas. Sek mintį.",
     },
     quote: {
-      text: "Sukūriau Cite, kad mesčiau iššūkį skaitmeninei tvarkai, sukurtai pasipiktinimui, o ne tiesai. Ateitis nusipelno patikrinimo vietoje virusiškumo, konteksto vietoje chaoso.",
+      text: "Sukūriau Citewalk, kad mesčiau iššūkį skaitmeninei tvarkai, sukurtai pasipiktinimui, o ne tiesai. Ateitis nusipelno patikrinimo vietoje virusiškumo, konteksto vietoje chaoso.",
       author: "Sebastian Lindner",
       role: "Įkūrėjas",
     },
     distinction: {
       label: "Skirtumas",
-      title: "Kodėl Cite kitoks",
-      text_1: "Dauguma platformų yra laikinos. Cite yra archyvas.",
+      title: "Kodėl Citewalk kitoks",
+      text_1: "Dauguma platformų yra laikinos. Citewalk yra archyvas.",
       text_2: "Kuriame protokolą, gerbiantį tavo intelektą.",
       sovereign: "Suvereni duomenys",
       sovereign_text:
@@ -1857,7 +1857,7 @@ export const translations = {
       note: "Beta prieiga atvira.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Rekvizitai",
       privacy: "Privatumas",
       ai_transparency: "DI skaidrumas",
@@ -1876,7 +1876,7 @@ export const translations = {
       title: "Sociālie mediji\nsarežģītai realitātei.",
       subtitle: "Mēs slīkstam saturā, bet badājamies pēc konteksta.",
       description:
-        "Cite balstās uz vienkāršu ideju: Autoritātei jānāk no atsaucēm, nevis viralitātes. Aizstājām algoritmu ar citātu grafu. Tava klusā vieta domāšanai.",
+        "Citewalk balstās uz vienkāršu ideju: Autoritātei jānāk no atsaucēm, nevis viralitātes. Aizstājām algoritmu ar citātu grafu. Tava klusā vieta domāšanai.",
       cta_primary: "Pievienojies",
       cta_secondary: "Lasīt Manifestu",
     },
@@ -1895,14 +1895,14 @@ export const translations = {
         "Savieno savas domas tieši ar avotiem. Citēšana ir būtība. Tā tu veido uzticības tīklu.",
       card_2_title: "Reputācijas grafs",
       card_2_text:
-        "Cite tīklā tevi pamana, kad tevi citē. Meritokratija, kur kvalitāte ceļas lietderības, ne trokšņa dēļ.",
+        "Citewalk tīklā tevi pamana, kad tevi citē. Meritokratija, kur kvalitāte ceļas lietderības, ne trokšņa dēļ.",
       card_3_title: "Privāti signāli",
       card_3_text:
         "Publiskie 'patīk' rada trauksmi. Padarījām tos privātus. Novērtē darbu, bet nespēlē publikai.",
     },
     archiving: {
       title: "Pastāvīgi citāti",
-      text: "Konteksts nekad nedrīkst dot kļūdu 404. Cite automātiski saglabā katru ārējo saiti Internet Archive. Tavi avoti ir drošībā mūžīgi.",
+      text: "Konteksts nekad nedrīkst dot kļūdu 404. Citewalk automātiski saglabā katru ārējo saiti Internet Archive. Tavi avoti ir drošībā mūžīgi.",
     },
     visuals: {
       title: "Vizuāls miers",
@@ -1921,14 +1921,14 @@ export const translations = {
       subtitle: "Katrs ieraksts ir portāls. Seko domas pavedienam.",
     },
     quote: {
-      text: "Es izveidoju Cite, lai izaicinātu digitālo kārtību, kas radīta sašutumam, nevis patiesībai. Nākotne ir pelnījusi verifikāciju, nevis viralitāti. Kontekstu, nevis haosu.",
+      text: "Es izveidoju Citewalk, lai izaicinātu digitālo kārtību, kas radīta sašutumam, nevis patiesībai. Nākotne ir pelnījusi verifikāciju, nevis viralitāti. Kontekstu, nevis haosu.",
       author: "Sebastian Lindner",
       role: "Dibinātājs",
     },
     distinction: {
       label: "Atšķirība",
-      title: "Kāpēc Cite ir citāds",
-      text_1: "Vairums platformu ir īslaicīgas. Cite ir arhīvs.",
+      title: "Kāpēc Citewalk ir citāds",
+      text_1: "Vairums platformu ir īslaicīgas. Citewalk ir arhīvs.",
       text_2: "Mēs būvējam protokolu, kas ciena tavu intelektu.",
       sovereign: "Suverēni dati",
       sovereign_text:
@@ -1950,7 +1950,7 @@ export const translations = {
       note: "Beta piekļuve ir atvērta.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Rekvizīti",
       privacy: "Privātums",
       ai_transparency: "MI caurspīdīgums",
@@ -1969,7 +1969,7 @@ export const translations = {
       title: "Sotsiaalmeedia\nkeerulisele reaalsusele.",
       subtitle: "Upume sisusse, kuid nälgime konteksti järele.",
       description:
-        "Cite põhineb lihtsal ideel: Autoriteet peab tulema viidetest, mitte viiraalsusest. Asendasime algoritmi tsitaadivõrgustikuga. Sinu rahulik koht mõtlemiseks.",
+        "Citewalk põhineb lihtsal ideel: Autoriteet peab tulema viidetest, mitte viiraalsusest. Asendasime algoritmi tsitaadivõrgustikuga. Sinu rahulik koht mõtlemiseks.",
       cta_primary: "Liitu meiega",
       cta_secondary: "Loe Manifesti",
     },
@@ -1988,14 +1988,14 @@ export const translations = {
         "Ühenda oma mõtted otse allikatega. Tsiteerimine on tuum. Nii ehitad usaldusvõrgustiku.",
       card_2_title: "Maine graafik",
       card_2_text:
-        "Cite'is oled nähtav, kui sind tsiteeritakse. Meritokraatia, kus kvaliteet tõuseb kasulikkuse, mitte kisa tõttu.",
+        "Citewalk'is oled nähtav, kui sind tsiteeritakse. Meritokraatia, kus kvaliteet tõuseb kasulikkuse, mitte kisa tõttu.",
       card_3_title: "Privaatsed signaalid",
       card_3_text:
         "Avalikud laigid tekitavad ärevust. Tegime need privaatseks. Hinda tööd, aga ära esine publikule.",
     },
     archiving: {
       title: "Tsitaadid igaveseks",
-      text: "Kontekst ei tohi kunagi anda viga 404. Cite salvestab automaattisesti iga välise lingi Internet Archive'i. Sinu allikad on kaitstud igavesti.",
+      text: "Kontekst ei tohi kunagi anda viga 404. Citewalk salvestab automaattisesti iga välise lingi Internet Archive'i. Sinu allikad on kaitstud igavesti.",
     },
     visuals: {
       title: "Visuaalne vaikus",
@@ -2014,14 +2014,14 @@ export const translations = {
       subtitle: "Iga postitus on portaal. Järgi mõttelõnga.",
     },
     quote: {
-      text: "Lõin Cite'i, et esitada väljakutse digitaalsele korrale, mis on loodud pahameeleks, mitte tõeks. Tulevik väärib kontrollimist viiraalsuse asemel, konteksti kaose asemel.",
+      text: "Lõin Citewalk'i, et esitada väljakutse digitaalsele korrale, mis on loodud pahameeleks, mitte tõeks. Tulevik väärib kontrollimist viiraalsuse asemel, konteksti kaose asemel.",
       author: "Sebastian Lindner",
       role: "Asutaja",
     },
     distinction: {
       label: "Erinevus",
-      title: "Miks Cite on teistsugune",
-      text_1: "Enamik platvorme on kaduvad. Cite on arhiiv.",
+      title: "Miks Citewalk on teistsugune",
+      text_1: "Enamik platvorme on kaduvad. Citewalk on arhiiv.",
       text_2: "Ehitame protokolli, mis austab sinu intelligentsust.",
       sovereign: "Suveräänsed andmed",
       sovereign_text:
@@ -2043,7 +2043,7 @@ export const translations = {
       note: "Beeta ligipääs on avatud.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Rekvisiidid",
       privacy: "Privaatsus",
       ai_transparency: "AI läbipaistvus",
@@ -2063,7 +2063,7 @@ export const translations = {
       subtitle:
         "Qed negħrqu fil-kontenut, iżda mejtin bil-għatx għall-kuntest.",
       description:
-        "Cite hija mibnija fuq idea sempliċi: L-awtorità għandha tiġi mir-referenzi, mhux mill-viralità. Biddilna l-algoritmu ma' graff taċ-ċitazzjonijiet. Il-post kwiet tiegħek biex taħseb.",
+        "Citewalk hija mibnija fuq idea sempliċi: L-awtorità għandha tiġi mir-referenzi, mhux mill-viralità. Biddilna l-algoritmu ma' graff taċ-ċitazzjonijiet. Il-post kwiet tiegħek biex taħseb.",
       cta_primary: "Ingħaqad magħna",
       cta_secondary: "Aqra l-Manifest",
     },
@@ -2082,14 +2082,14 @@ export const translations = {
         "Qabbad il-ħsibijiet tiegħek direttament mas-sorsi. Iċ-ċitazzjoni hija l-qofol. Hekk tibni xibka ta' fiduċja.",
       card_2_title: "Il-Graff tar-Reputazzjoni",
       card_2_text:
-        "Fuq Cite, tidher meta jikkwotawk. Meritokrazija fejn il-kwalità togħla għax utli, mhux għax storbjuża.",
+        "Fuq Citewalk, tidher meta jikkwotawk. Meritokrazija fejn il-kwalità togħla għax utli, mhux għax storbjuża.",
       card_3_title: "Sinjali Privati",
       card_3_text:
         "Il-likes pubbliċi joħolqu ansjetà. Għamilniehom privati. Apprezza x-xogħol tajjeb, imma tagħmilx spettaklu għan-nies.",
     },
     archiving: {
       title: "Ċitazzjonijiet għal dejjem",
-      text: "Il-kuntest qatt ma għandu jagħti żball 404. Cite jsalva awtomatikament kull link estern fl-Internet Archive. Is-sorsi tiegħek huma mħarsa għal dejjem.",
+      text: "Il-kuntest qatt ma għandu jagħti żball 404. Citewalk jsalva awtomatikament kull link estern fl-Internet Archive. Is-sorsi tiegħek huma mħarsa għal dejjem.",
     },
     visuals: {
       title: "Skiet Viżwali",
@@ -2108,15 +2108,15 @@ export const translations = {
       subtitle: "Kull post huwa portal. Segwi l-fil tal-ħsieb.",
     },
     quote: {
-      text: "Bnejt Cite biex nisfida ordni diġitali ddisinjata għar-rabja flok il-verità. Il-futur jistħoqqlu verifika flok viralità, kuntest flok kaos.",
+      text: "Bnejt Citewalk biex nisfida ordni diġitali ddisinjata għar-rabja flok il-verità. Il-futur jistħoqqlu verifika flok viralità, kuntest flok kaos.",
       author: "Sebastian Lindner",
       role: "Fundatur",
     },
     distinction: {
       label: "Id-Differenza",
-      title: "Għaliex Cite hija differenti",
+      title: "Għaliex Citewalk hija differenti",
       text_1:
-        "Il-biċċa l-kbira tal-pjattaformi huma effimeri. Cite huwa arkivju.",
+        "Il-biċċa l-kbira tal-pjattaformi huma effimeri. Citewalk huwa arkivju.",
       text_2: "Qed nibnu protokoll li jirrispetta l-intelliġenza tiegħek.",
       sovereign: "Dejta Sovrana",
       sovereign_text:
@@ -2138,7 +2138,7 @@ export const translations = {
       note: "L-aċċess beta huwa miftuħ.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Informazzjoni Legali",
       privacy: "Privatezza",
       ai_transparency: "Trasparenza tal-IA",
@@ -2158,7 +2158,7 @@ export const translations = {
       subtitle:
         "Táimid ag bá san ábhar, ach ag fáil bháis den tart don chomhthéacs.",
       description:
-        "Tá Cite bunaithe ar smaoineamh simplí: Ba chóir go dtiocfadh údarás ó thagairtí, ní ó víreasacht. Chuireamar líonra luanna in áit an algartaim. Do spás ciúin féin chun smaoineamh.",
+        "Tá Citewalk bunaithe ar smaoineamh simplí: Ba chóir go dtiocfadh údarás ó thagairtí, ní ó víreasacht. Chuireamar líonra luanna in áit an algartaim. Do spás ciúin féin chun smaoineamh.",
       cta_primary: "Bí linn",
       cta_secondary: "Léigh an Forógra",
     },
@@ -2177,14 +2177,14 @@ export const translations = {
         "Nasc do smaointe go díreach leis na foinsí. Is é an lua an croí. Mar sin, tógann tú gréasán muiníne.",
       card_2_title: "Graf na Clú",
       card_2_text:
-        "Ar Cite, feictear thú nuair a luaitear thú. Meritocracy smaointe. Éiríonn cáilíocht mar go bhfuil sí úsáideach, ní mar go bhfuil sí glórach.",
+        "Ar Citewalk, feictear thú nuair a luaitear thú. Meritocracy smaointe. Éiríonn cáilíocht mar go bhfuil sí úsáideach, ní mar go bhfuil sí glórach.",
       card_3_title: "Comharthaí Príobháideacha",
       card_3_text:
         "Cruthaíonn 'likes' poiblí imní. Rinneamar príobháideach iad. Bíodh meas agat ar dhea-obair, ach ná bí ag aisteoireacht don slua.",
     },
     archiving: {
       title: "Luanna go deo",
-      text: "Níor chóir go dtiocfadh earráid 404 ar chomhthéacs choíche. Sábhálann Cite gach nasc seachtrach go huathoibríoch san Internet Archive. Tá do chuid foinsí slán go deo.",
+      text: "Níor chóir go dtiocfadh earráid 404 ar chomhthéacs choíche. Sábhálann Citewalk gach nasc seachtrach go huathoibríoch san Internet Archive. Tá do chuid foinsí slán go deo.",
     },
     visuals: {
       title: "Ciúnas Amhairc",
@@ -2203,15 +2203,15 @@ export const translations = {
       subtitle: "Is tairseach é gach post. Lean sruth na smaointe.",
     },
     quote: {
-      text: "Thóg mé Cite chun dúshlán a thabhairt d'ord digiteach atá deartha le haghaidh feirge seachas fírinne. Tá fíorú tuillte ag an todhchaí thar víreasacht, comhthéacs thar anord.",
+      text: "Thóg mé Citewalk chun dúshlán a thabhairt d'ord digiteach atá deartha le haghaidh feirge seachas fírinne. Tá fíorú tuillte ag an todhchaí thar víreasacht, comhthéacs thar anord.",
       author: "Sebastian Lindner",
       role: "Bunaitheoir",
     },
     distinction: {
       label: "An Difríocht",
-      title: "Cén fáth go bhfuil Cite difriúil",
+      title: "Cén fáth go bhfuil Citewalk difriúil",
       text_1:
-        "Tá an chuid is mó de na hardáin gearrshaolach. Is cartlann é Cite.",
+        "Tá an chuid is mó de na hardáin gearrshaolach. Is cartlann é Citewalk.",
       text_2: "Tógann muid prótacal a thugann meas d'intleacht an úsáideora.",
       sovereign: "Sonraí Ceannasacha",
       sovereign_text:
@@ -2233,7 +2233,7 @@ export const translations = {
       note: "Tá rochtain béite oscailte.",
     },
     footer: {
-      rights: "© 2026 Cite Systems GmbH",
+      rights: "© 2026 Citewalk Systems GmbH",
       imprint: "Eolas Dlíthiúil",
       privacy: "Príobháideacht",
       ai_transparency: "Trédhearcacht AI",

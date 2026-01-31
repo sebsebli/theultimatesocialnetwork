@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# CITE System Docker Deployment Script
+# Citewalk System Docker Deployment Script
 # Usage: ./deploy.sh [dev|prod]
 
 set -e
@@ -37,7 +37,7 @@ if [ "$ENVIRONMENT" = "prod" ]; then
   get_env() { grep -E "^${1}=" .env 2>/dev/null | cut -d= -f2- | tr -d '\r' || true; }
   JWT_SECRET=$(get_env JWT_SECRET)
   METRICS_SECRET=$(get_env METRICS_SECRET)
-  CITE_ADMIN_SECRET=$(get_env CITE_ADMIN_SECRET)
+  CITEWALK_ADMIN_SECRET=$(get_env CITEWALK_ADMIN_SECRET)
   ERR=0
   if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" = "your-secret-key-change-in-production" ]; then
     echo "❌ Production requires JWT_SECRET to be set to a strong, non-default value in .env"
@@ -47,8 +47,8 @@ if [ "$ENVIRONMENT" = "prod" ]; then
     echo "❌ Production requires METRICS_SECRET in .env (protects GET /metrics)"
     ERR=1
   fi
-  if [ -z "$CITE_ADMIN_SECRET" ] || [ "$CITE_ADMIN_SECRET" = "dev-admin-change-me" ]; then
-    echo "❌ Production requires CITE_ADMIN_SECRET to be set to a strong value in .env"
+  if [ -z "$CITEWALK_ADMIN_SECRET" ] || [ "$CITEWALK_ADMIN_SECRET" = "dev-admin-change-me" ]; then
+    echo "❌ Production requires CITEWALK_ADMIN_SECRET to be set to a strong value in .env"
     ERR=1
   fi
   if [ ! -f "ssl/cert.pem" ] || [ ! -f "ssl/key.pem" ]; then

@@ -155,8 +155,8 @@ export default function PostDetailScreen() {
     if (!post) return;
     try {
       await Share.share({
-        message: `Check out this post by @${post.author.handle}: https://cite.app/post/${post.id}`,
-        url: `https://cite.app/post/${post.id}`, // iOS
+        message: `Check out this post by @${post.author.handle}: https://citewalk.app/post/${post.id}`,
+        url: `https://citewalk.app/post/${post.id}`, // iOS
       });
     } catch (error) {
       // console.error(error);

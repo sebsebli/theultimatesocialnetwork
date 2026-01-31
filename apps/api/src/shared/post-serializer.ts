@@ -90,7 +90,7 @@ export function userToPlain(
     createdAt:
       u.createdAt != null ? new Date(u.createdAt).toISOString() : undefined,
     posts: Array.isArray(userWithPosts.posts)
-      ? userWithPosts.posts.map(postToPlain)
+      ? userWithPosts.posts.map((p) => postToPlain(p))
       : undefined,
   };
 }

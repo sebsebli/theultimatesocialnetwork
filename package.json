@@ -1,5 +1,5 @@
 {
-  "name": "cite-system-root",
+  "name": "citewalk-system-root",
   "private": true,
   "description": "Root package for husky + lint-staged only. Each app (apps/api, apps/web) has its own package.json and deps.",
   "scripts": {

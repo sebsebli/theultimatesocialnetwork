@@ -1,6 +1,6 @@
 # Backend Security Audit (Pentest Summary)
 
-This document summarizes a security review of the CITE API backend: authentication, rate limiting, input validation, and common attack vectors (DDoS, injection, path traversal, info disclosure).
+This document summarizes a security review of the Citewalk API backend: authentication, rate limiting, input validation, and common attack vectors (DDoS, injection, path traversal, info disclosure).
 
 ---
 

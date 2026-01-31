@@ -1,9 +1,9 @@
-appId: com.cite.mobile
+appId: com.Citewalk.mobile
 ---
 - launchApp
 
 # Onboarding Flow
-- assertVisible: "CITE"
+- assertVisible: "Citewalk"
 - tapOn: "Get Started"
 - assertVisible: "Sign in"
 

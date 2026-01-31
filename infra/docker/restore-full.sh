@@ -35,7 +35,7 @@ fi
 POSTGRES_DB="${POSTGRES_DB:-postgres}"
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
 NEO4J_PASSWORD="${NEO4J_PASSWORD:-password}"
-MINIO_BUCKET="${MINIO_BUCKET:-cite-images}"
+MINIO_BUCKET="${MINIO_BUCKET:-citewalk-images}"
 MINIO_ROOT_USER="${MINIO_ROOT_USER:-minioadmin}"
 MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-minioadmin}"
 MEILI_MASTER_KEY="${MEILI_MASTER_KEY:-masterKey}"
@@ -88,7 +88,7 @@ fi
 # -----------------------------------------------------------------------------
 if [ -d "$MINIO_DIR" ]; then
   echo "[3/4] Restoring MinIO bucket (${MINIO_BUCKET})..."
-  docker run --rm --network cite-network \
+  docker run --rm --network citewalk-network \
     -v "$BACKUP_DIR:/restore:ro" \
     -e "MC_HOST_minio=http://minio:9000" \
     minio/mc:latest \

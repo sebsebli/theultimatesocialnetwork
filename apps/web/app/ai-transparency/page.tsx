@@ -1,3 +1,14 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "AI Transparency | Citewalk",
+  description:
+    "AI Transparency Statement for Citewalk. Information pursuant to the EU Artificial Intelligence Act.",
+  alternates: {
+    canonical: "https://citewalk.com/ai-transparency",
+  },
+};
+
 export default function AiTransparencyPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-20 text-paper">
@@ -9,6 +20,9 @@ export default function AiTransparencyPage() {
           Information pursuant to Regulation (EU) 2024/1689 (EU Artificial
           Intelligence Act)
         </p>
+        <p className="text-sm text-tertiary mt-2">
+          Operator: Dr. Sebastian Lindner (Private Initiative)
+        </p>
       </header>
 
       <div className="prose prose-invert prose-p:text-secondary prose-headings:text-paper max-w-none">
@@ -18,17 +32,17 @@ export default function AiTransparencyPage() {
             1. Regulatory Classification
           </h2>
           <p>
-            CITE deploys algorithmic and machine-learning–based systems that
+            Citewalk deploys algorithmic and machine-learning–based systems that
             fall within the categories of <strong>minimal risk</strong> or{" "}
-            <strong>limited risk</strong>
-            under the EU Artificial Intelligence Act.
+            <strong>limited risk</strong> under the EU Artificial Intelligence
+            Act.
           </p>
           <p className="text-primary font-semibold mt-4">
-            CITE does not deploy AI systems classified as “high-risk” under
+            Citewalk does not deploy AI systems classified as “high-risk” under
             Articles 6–7 of the EU AI Act.
           </p>
           <p className="mt-4">
-            In particular, CITE does not use AI systems for:
+            In particular, Citewalk does not use AI systems for:
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>
@@ -78,9 +92,9 @@ export default function AiTransparencyPage() {
 
           <h3 className="text-xl font-bold mb-2">3.1 Automated Assistance</h3>
           <p>
-            CITE uses automated classification systems to assist in detecting
-            potential violations of platform rules, including spam, explicit
-            content, and unlawful speech.
+            Citewalk uses automated classification systems to assist in
+            detecting potential violations of platform rules, including spam,
+            explicit content, and unlawful speech.
           </p>
 
           <h3 className="text-xl font-bold mb-2">3.2 Human-in-the-Loop</h3>
@@ -102,8 +116,9 @@ export default function AiTransparencyPage() {
             4. Generative AI & Synthetic Content
           </h2>
           <p>
-            At present, CITE does not use generative AI systems to autonomously
-            create user posts, comments, or synthetic user identities.
+            At present, Citewalk does not use generative AI systems to
+            autonomously create user posts, comments, or synthetic user
+            identities.
           </p>
           <p className="mt-3">
             Should generative AI features be introduced in the future (e.g.
@@ -116,9 +131,10 @@ export default function AiTransparencyPage() {
         <section className="mb-12">
           <h2 className="text-2xl font-bold mb-4">5. Evolution of Systems</h2>
           <p>
-            CITE continuously evaluates its systems to ensure ongoing compliance
-            with applicable AI regulation. This statement reflects the current
-            state of deployed systems and may be updated as features evolve.
+            Citewalk continuously evaluates its systems to ensure ongoing
+            compliance with applicable AI regulation. This statement reflects
+            the current state of deployed systems and may be updated as features
+            evolve.
           </p>
         </section>
 

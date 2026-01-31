@@ -1,6 +1,6 @@
 export default {
   welcome: {
-    title: 'CITE',
+    title: 'Citewalk',
     subtitle: 'Sosiaaliset julkaisut, linkitetty kuin Wikipedia.',
     continue: 'Jatka',
     privacy: 'Tietosuoja',
@@ -63,7 +63,7 @@ export default {
   onboarding: {
     profile: {
       title: 'Luo profiili',
-      subtitle: 'Aseta CITE-identiteettisi',
+      subtitle: 'Aseta Citewalk-identiteettisi',
       displayName: 'Nimi',
       handle: 'Käyttäjänimi',
       bio: 'Bio',
@@ -311,9 +311,9 @@ export default {
     emailPlaceholder: "Friend's email address",
     sendInvite: 'Send invitation',
     referralTitle: 'Refer Friends',
-    referralText: "Share your referral link with friends. They can join Cite and you'll be connected.",
+    referralText: "Share your referral link with friends. They can join Citewalk and you'll be connected.",
     createReferralLink: 'Create Referral Link',
-    referralShareTitle: 'Join me on Cite',
+    referralShareTitle: 'Join me on Citewalk',
     referralFailed: 'Could not get referral link',
     sendFailed: 'Failed to send invitation',
     resendFailed: 'Could not resend. Try again later.',
@@ -566,7 +566,7 @@ export default {
   waitingList: {
     title: 'Jonotuslista',
     heading: 'Ennakkoon',
-    description: 'CITE on betassa.',
+    description: 'Citewalk on betassa.',
     emailPlaceholder: 'Sähköpostisi',
     join: 'Liity',
     success: 'Onnistui',

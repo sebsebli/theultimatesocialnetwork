@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "cite-mobile",
-    "slug": "cite-mobile",
+    "name": "Citewalk",
+    "slug": "citewalk-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0B0C"
       },
-      "package": "com.cite.mobile",
+      "package": "com.citewalk.mobile",
       "usesCleartextTraffic": true
     },
     "web": {
@@ -33,7 +33,7 @@
       "expo-secure-store",
       "expo-localization"
     ],
-    "scheme": "cite",
+    "scheme": "citewalk",
     "main": "index.ts"
   }
 }

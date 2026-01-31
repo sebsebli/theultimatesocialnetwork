@@ -140,13 +140,13 @@ export default function NotificationsSettingsScreen() {
           <Text style={styles.systemNote}>{t('notifications.systemEmailsAlways', 'System messages (sign-in, security, account) are always sent.')}</Text>
           <NotificationItem
             label={t('notifications.emailMarketing', 'Marketing & promotions')}
-            description={t('notifications.emailMarketingDesc', 'News, offers and product updates from Cite')}
+            description={t('notifications.emailMarketingDesc', 'News, offers and product updates from Citewalk')}
             value={prefs.email_marketing}
             onValueChange={() => togglePref('email_marketing')}
           />
           <NotificationItem
             label={t('notifications.emailProductUpdates', 'Product updates & tips')}
-            description={t('notifications.emailProductUpdatesDesc', 'New features and how to get the most out of Cite')}
+            description={t('notifications.emailProductUpdatesDesc', 'New features and how to get the most out of Citewalk')}
             value={prefs.email_product_updates}
             onValueChange={() => togglePref('email_product_updates')}
           />

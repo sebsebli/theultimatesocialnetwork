@@ -1,6 +1,6 @@
 export default {
   welcome: {
-    title: 'CITE',
+    title: 'Citewalk',
     subtitle: 'Publicaciones sociales, enlazadas como Wikipedia.',
     continue: 'Continuar',
     privacy: 'Privacidad',
@@ -8,8 +8,8 @@ export default {
     imprint: 'Aviso legal',
   },
   intro: {
-    title: 'Bienvenido a CITE',
-    founderMessage: 'Construí CITE para desafiar un orden digital diseñado para la indignación sobre la verdad, donde los algoritmos recompensan la polarización sobre la diversidad. El futuro merece verificación sobre viralidad.',
+    title: 'Bienvenido a Citewalk',
+    founderMessage: 'Construí Citewalk para desafiar un orden digital diseñado para la indignación sobre la verdad, donde los algoritmos recompensan la polarización sobre la diversidad. El futuro merece verificación sobre viralidad.',
     founderName: 'Sebastian (Fundador)',
     point1: '100% alojado en la UE y compatible con GDPR.',
     point2: 'Tus datos, tu elección. Transparencia total.',
@@ -63,7 +63,7 @@ export default {
   onboarding: {
     profile: {
       title: 'Crea tu perfil',
-      subtitle: 'Configura tu identidad CITE',
+      subtitle: 'Configura tu identidad Citewalk',
       displayName: 'Nombre',
       handle: 'Usuario',
       bio: 'Bio',
@@ -311,9 +311,9 @@ export default {
     emailPlaceholder: "Friend's email address",
     sendInvite: 'Send invitation',
     referralTitle: 'Refer Friends',
-    referralText: "Share your referral link with friends. They can join Cite and you'll be connected.",
+    referralText: "Share your referral link with friends. They can join Citewalk and you'll be connected.",
     createReferralLink: 'Create Referral Link',
-    referralShareTitle: 'Join me on Cite',
+    referralShareTitle: 'Join me on Citewalk',
     referralFailed: 'Could not get referral link',
     sendFailed: 'Failed to send invitation',
     resendFailed: 'Could not resend. Try again later.',
@@ -566,7 +566,7 @@ export default {
   waitingList: {
     title: 'Lista de espera',
     heading: 'Acceso anticipado',
-    description: 'CITE está en beta. Únete para recibir invitación.',
+    description: 'Citewalk está en beta. Únete para recibir invitación.',
     emailPlaceholder: 'Tu correo',
     join: 'Unirse',
     success: 'Éxito',

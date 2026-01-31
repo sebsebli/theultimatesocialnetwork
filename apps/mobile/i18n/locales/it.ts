@@ -1,6 +1,6 @@
 export default {
   welcome: {
-    title: 'CITE',
+    title: 'Citewalk',
     subtitle: 'Post social, collegati come Wikipedia.',
     continue: 'Continua',
     privacy: 'Privacy',
@@ -8,8 +8,8 @@ export default {
     imprint: 'Impronta',
   },
   intro: {
-    title: 'Benvenuti su CITE',
-    founderMessage: 'Ho costruito CITE per sfidare un ordine digitale progettato per l\'indignazione piuttosto che per la verità.',
+    title: 'Benvenuti su Citewalk',
+    founderMessage: 'Ho costruito Citewalk per sfidare un ordine digitale progettato per l\'indignazione piuttosto che per la verità.',
     founderName: 'Sebastian (Fondatore)',
     point1: '100% ospitato in UE e conforme al GDPR.',
     point2: 'I tuoi dati, la tua scelta. Trasparenza totale.',
@@ -311,9 +311,9 @@ export default {
     emailPlaceholder: "Friend's email address",
     sendInvite: 'Send invitation',
     referralTitle: 'Refer Friends',
-    referralText: "Share your referral link with friends. They can join Cite and you'll be connected.",
+    referralText: "Share your referral link with friends. They can join Citewalk and you'll be connected.",
     createReferralLink: 'Create Referral Link',
-    referralShareTitle: 'Join me on Cite',
+    referralShareTitle: 'Join me on Citewalk',
     referralFailed: 'Could not get referral link',
     sendFailed: 'Failed to send invitation',
     resendFailed: 'Could not resend. Try again later.',
@@ -566,7 +566,7 @@ export default {
   waitingList: {
     title: 'Lista d\'attesa',
     heading: 'Accesso anticipato',
-    description: 'CITE è in beta.',
+    description: 'Citewalk è in beta.',
     emailPlaceholder: 'La tua email',
     join: 'Unisciti',
     success: 'Successo',

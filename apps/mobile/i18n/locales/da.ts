@@ -1,6 +1,6 @@
 export default {
   welcome: {
-    title: 'CITE',
+    title: 'Citewalk',
     subtitle: 'Sociale indlæg, linket som Wikipedia.',
     continue: 'Fortsæt',
     privacy: 'Privatliv',
@@ -8,8 +8,8 @@ export default {
     imprint: 'Impressum',
   },
   intro: {
-    title: 'Velkommen til CITE',
-    founderMessage: 'Jeg byggede CITE for at udfordre en digital orden designet til forargelse frem for sandhed.',
+    title: 'Velkommen til Citewalk',
+    founderMessage: 'Jeg byggede Citewalk for at udfordre en digital orden designet til forargelse frem for sandhed.',
     founderName: 'Sebastian (Grundlægger)',
     point1: '100% hosted i EU og GDPR-kompatibel.',
     point2: 'Dine data, dit valg. Fuld gennemsigtighed.',
@@ -63,7 +63,7 @@ export default {
   onboarding: {
     profile: {
       title: 'Opret profil',
-      subtitle: 'Opsæt din CITE-identitet',
+      subtitle: 'Opsæt din Citewalk-identitet',
       displayName: 'Navn',
       handle: 'Brugernavn',
       bio: 'Bio',
@@ -311,9 +311,9 @@ export default {
     emailPlaceholder: "Friend's email address",
     sendInvite: 'Send invitation',
     referralTitle: 'Refer Friends',
-    referralText: "Share your referral link with friends. They can join Cite and you'll be connected.",
+    referralText: "Share your referral link with friends. They can join Citewalk and you'll be connected.",
     createReferralLink: 'Create Referral Link',
-    referralShareTitle: 'Join me on Cite',
+    referralShareTitle: 'Join me on Citewalk',
     referralFailed: 'Could not get referral link',
     sendFailed: 'Failed to send invitation',
     resendFailed: 'Could not resend. Try again later.',
@@ -566,7 +566,7 @@ export default {
   waitingList: {
     title: 'Venteliste',
     heading: 'Tidlig adgang',
-    description: 'CITE er i beta.',
+    description: 'Citewalk er i beta.',
     emailPlaceholder: 'E-mail',
     join: 'Deltag',
     success: 'Succes',

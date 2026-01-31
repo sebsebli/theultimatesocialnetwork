@@ -163,7 +163,7 @@ export function PostDetail({ post }: PostDetailProps) {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: post.title || "Post on CITE",
+          title: post.title || "Post on Citewalk",
           text: `Check out this post by @${post.author.handle}`,
           url,
         });
@@ -263,7 +263,7 @@ export function PostDetail({ post }: PostDetailProps) {
           {post.headerImageKey && (
             <div className="relative w-full aspect-video rounded-2xl bg-white/5 mt-4 overflow-hidden shadow-2xl">
               <Image
-                src={`${process.env.NEXT_PUBLIC_STORAGE_URL || "http://localhost:9000/cite-images"}/${post.headerImageKey}`}
+                src={`${process.env.NEXT_PUBLIC_STORAGE_URL || "http://localhost:9000/citewalk-images"}/${post.headerImageKey}`}
                 alt="Post header"
                 fill
                 className="object-cover"

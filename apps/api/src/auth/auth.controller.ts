@@ -9,14 +9,14 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto.email, dto.inviteCode, dto.lang ?? 'en');
   }
 
   @Post('verify')
-  @Throttle({ default: { limit: 10, ttl: 60000 } }) // Limit verification attempts
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async verify(@Body() dto: VerifyDto) {
     return this.authService.verifyToken(dto.email, dto.token);

@@ -243,7 +243,7 @@ export class UsersController {
         .status(200)
         .contentType('text/html')
         .send(
-          '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Account deleted</title></head><body style="font-family:system-ui;background:#0B0B0C;color:#F2F2F2;padding:2rem;text-align:center;"><h1>Account deleted</h1><p>Your Cite account has been permanently deleted.</p></body></html>',
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Account deleted</title></head><body style="font-family:system-ui;background:#0B0B0C;color:#F2F2F2;padding:2rem;text-align:center;"><h1>Account deleted</h1><p>Your Citewalk account has been permanently deleted.</p></body></html>',
         );
     } catch {
       res
@@ -313,7 +313,7 @@ export class UsersController {
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename="cite-export.zip"',
+      'attachment; filename="Citewalk-export.zip"',
     );
     stream.pipe(res);
     stream.on('end', () => {

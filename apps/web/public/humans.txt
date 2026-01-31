@@ -1,0 +1,12 @@
+# humanstxt.org/
+
+/* TEAM */
+  Founder & Engineer: Dr. Sebastian Lindner
+  Contact: build@citewalk.com
+  Location: Berlin, Germany
+
+/* SITE */
+  Standards: HTML5, CSS3
+  Components: Next.js, Tailwind CSS
+  Software: NestJS, Postgres, Neo4j
+  Hosting: Hetzner (EU)

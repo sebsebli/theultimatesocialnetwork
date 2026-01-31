@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Quick Start - CITE System Local Docker"
+echo "🚀 Quick Start - Citewalk System Local Docker"
 echo ""
 
 cd "$(dirname "$0")/.."

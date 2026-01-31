@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "CITE",
+    "title": "Citewalk",
     "subtitle": "Sociala inlägg, länkade som Wikipedia.",
     "continue": "Fortsätt",
     "privacy": "Integritet",
@@ -8,8 +8,8 @@
     "imprint": "Impressum"
   },
   "intro": {
-    "title": "Välkommen till CITE",
-    "founderMessage": "Jag byggde CITE för att utmana en digital ordning designad för upprördhet snarare än sanning.",
+    "title": "Välkommen till Citewalk",
+    "founderMessage": "Jag byggde Citewalk för att utmana en digital ordning designad för upprördhet snarare än sanning.",
     "founderName": "Sebastian (Grundare)",
     "point1": "100% värd i EU och GDPR-kompatibel.",
     "point2": "Dina data, ditt val. Full transparens.",
@@ -62,7 +62,7 @@
   "onboarding": {
     "profile": {
       "title": "Skapa profil",
-      "subtitle": "Ställ in din CITE-identitet",
+      "subtitle": "Ställ in din Citewalk-identitet",
       "displayName": "Namn",
       "handle": "Användarnamn",
       "bio": "Bio",
@@ -396,7 +396,7 @@
   "waitingList": {
     "title": "Väntelista",
     "heading": "Tidig åtkomst",
-    "description": "CITE är i beta.",
+    "description": "Citewalk är i beta.",
     "emailPlaceholder": "E-post",
     "join": "Gå med",
     "success": "Lyckades",
@@ -417,7 +417,7 @@
     "acceptAll": "Acceptera alla"
   },
   "signupOverlay": {
-    "title": "Gå med i CITE",
+    "title": "Gå med i Citewalk",
     "description": "Skapa ett konto för att följa personer, spara inlägg och delta i samtalet med kopplade idéer och källor.",
     "signInUp": "Logga in / Registrera",
     "joinWaitlist": "Väntelista",

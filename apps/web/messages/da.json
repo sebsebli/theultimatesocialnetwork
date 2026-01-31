@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "CITE",
+    "title": "Citewalk",
     "subtitle": "Sociale indlæg, linket som Wikipedia.",
     "continue": "Fortsæt",
     "privacy": "Privatliv",
@@ -8,8 +8,8 @@
     "imprint": "Impressum"
   },
   "intro": {
-    "title": "Velkommen til CITE",
-    "founderMessage": "Jeg byggede CITE for at udfordre en digital orden designet til forargelse frem for sandhed.",
+    "title": "Velkommen til Citewalk",
+    "founderMessage": "Jeg byggede Citewalk for at udfordre en digital orden designet til forargelse frem for sandhed.",
     "founderName": "Sebastian (Grundlægger)",
     "point1": "100% hosted i EU og GDPR-kompatibel.",
     "point2": "Dine data, dit valg. Fuld gennemsigtighed.",
@@ -62,7 +62,7 @@
   "onboarding": {
     "profile": {
       "title": "Opret profil",
-      "subtitle": "Opsæt din CITE-identitet",
+      "subtitle": "Opsæt din Citewalk-identitet",
       "displayName": "Navn",
       "handle": "Brugernavn",
       "bio": "Bio",
@@ -396,7 +396,7 @@
   "waitingList": {
     "title": "Venteliste",
     "heading": "Tidlig adgang",
-    "description": "CITE er i beta.",
+    "description": "Citewalk er i beta.",
     "emailPlaceholder": "E-mail",
     "join": "Deltag",
     "success": "Succes",
@@ -417,7 +417,7 @@
     "acceptAll": "Accepter alle"
   },
   "signupOverlay": {
-    "title": "Tilmeld dig CITE",
+    "title": "Tilmeld dig Citewalk",
     "description": "Opret en konto for at følge folk, gemme opslag og deltage i samtalen med linkede ideer og kilder.",
     "signInUp": "Log ind / Tilmeld",
     "joinWaitlist": "Tilmeld venteliste",

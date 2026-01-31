@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "CITE",
+    "title": "Citewalk",
     "subtitle": "Sosiaaliset julkaisut, linkitetty kuin Wikipedia.",
     "continue": "Jatka",
     "privacy": "Tietosuoja",
@@ -62,7 +62,7 @@
   "onboarding": {
     "profile": {
       "title": "Luo profiili",
-      "subtitle": "Aseta CITE-identiteettisi",
+      "subtitle": "Aseta Citewalk-identiteettisi",
       "displayName": "Nimi",
       "handle": "Käyttäjänimi",
       "bio": "Bio",
@@ -396,7 +396,7 @@
   "waitingList": {
     "title": "Jonotuslista",
     "heading": "Ennakkoon",
-    "description": "CITE on betassa.",
+    "description": "Citewalk on betassa.",
     "emailPlaceholder": "Sähköpostisi",
     "join": "Liity",
     "success": "Onnistui",

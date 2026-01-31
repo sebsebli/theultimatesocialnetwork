@@ -6,7 +6,7 @@ export class AppService {
 
   getInfo() {
     return {
-      name: 'cite-api',
+      name: 'citewalk-api',
       version: '1.0.0',
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
       environment: process.env.NODE_ENV || 'development',

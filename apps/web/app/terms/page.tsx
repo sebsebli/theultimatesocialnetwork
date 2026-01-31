@@ -1,3 +1,14 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Terms of Service | Citewalk",
+  description:
+    "Terms of service for Citewalk, operated by Dr. Sebastian Lindner.",
+  alternates: {
+    canonical: "https://citewalk.com/terms",
+  },
+};
+
 export default function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-20 text-paper">
@@ -6,7 +17,7 @@ export default function TermsPage() {
           Terms of Service
         </h1>
         <p className="text-lg text-secondary">
-          Effective Date: January 26, 2026
+          Effective Date: January 31, 2026
         </p>
       </header>
 
@@ -18,7 +29,10 @@ export default function TermsPage() {
           </h2>
           <p>
             These Terms of Service (“Terms”) govern the use of the platform and
-            services operated by CITE (“CITE”, “we”, “us”, “Service”).
+            services operated by <strong>Dr. Sebastian Lindner</strong>{" "}
+            (“Operator”, “we”, “us”), accessible via the domain{" "}
+            <strong>citewalk.com</strong> and the associated mobile applications
+            (“Service”).
           </p>
           <p>
             By accessing or using the Service, you enter into a legally binding
@@ -26,8 +40,9 @@ export default function TermsPage() {
             least 16 years of age.
           </p>
           <p>
-            If you act on behalf of a legal entity, you warrant that you are
-            authorized to bind such entity.
+            The Service is operated as a personal initiative by the Operator and
+            is not affiliated with any corporation or external company at this
+            time.
           </p>
         </section>
 
@@ -42,10 +57,6 @@ export default function TermsPage() {
             Updated Terms become effective upon publication. Continued use of
             the Service after the effective date constitutes acceptance.
           </p>
-          <p>
-            Where required by mandatory law, users will be notified of material
-            changes. Otherwise, no individual notice is owed.
-          </p>
         </section>
 
         {/* 3 */}
@@ -59,12 +70,12 @@ export default function TermsPage() {
           </h3>
           <p>
             Users are exclusively responsible for all content they upload, post,
-            or transmit. CITE acts solely as a hosting provider within the
-            meaning of Art. 6 Digital Services Act (DSA).
+            or transmit. The Operator acts solely as a hosting provider within
+            the meaning of Art. 6 Digital Services Act (DSA).
           </p>
           <p>
-            CITE does not monitor content proactively and does not adopt user
-            content as its own.
+            We do not monitor content proactively and do not adopt user content
+            as our own.
           </p>
 
           <h3 className="text-xl font-bold mb-2">3.2 Prohibited Content</h3>
@@ -74,22 +85,22 @@ export default function TermsPage() {
             StGB), defamation, copyright violations, or terrorist content.
           </p>
           <p>
-            CITE reserves the right to remove content and report users to
-            competent authorities where legally required.
+            We reserve the right to remove content and report users to competent
+            authorities where legally required.
           </p>
 
           <h3 className="text-xl font-bold mb-2">3.3 No Harassment</h3>
           <p>
             Harassment, threats, doxxing, stalking, intimidation, or coordinated
-            abuse are strictly prohibited. Enforcement is at CITE’s sole
+            abuse are strictly prohibited. Enforcement is at our sole
             discretion.
           </p>
 
           <h3 className="text-xl font-bold mb-2">3.4 Indemnification</h3>
           <p>
-            Users shall indemnify and hold harmless CITE from all third-party
-            claims, damages, fines, costs, and legal fees arising from their
-            content or breach of these Terms.
+            Users shall indemnify and hold harmless the Operator from all
+            third-party claims, damages, fines, costs, and legal fees arising
+            from their content or breach of these Terms.
           </p>
         </section>
 
@@ -104,8 +115,8 @@ export default function TermsPage() {
           </p>
           <p>
             Users are solely responsible for deciding what information they
-            share. CITE assumes no liability for damages resulting from the
-            nature of message storage.
+            share. We assume no liability for damages resulting from the nature
+            of message storage.
           </p>
         </section>
 
@@ -116,7 +127,7 @@ export default function TermsPage() {
           </h2>
 
           <p>
-            CITE operates the Service subject to technical, economic, and
+            The Service is operated subject to technical, economic, and
             organizational feasibility. There is no entitlement to uninterrupted
             or permanent availability.
           </p>
@@ -124,15 +135,8 @@ export default function TermsPage() {
           <h3 className="text-xl font-bold mb-2">5.1 Termination for Cause</h3>
           <p>
             We may suspend or terminate individual user accounts with immediate
-            effect for good cause (<em>wichtiger Grund</em>), including but not
-            limited to:
+            effect for good cause (<em>wichtiger Grund</em>).
           </p>
-          <ul className="list-disc pl-5 space-y-2">
-            <li>Violation of these Terms or applicable law</li>
-            <li>Abusive, harmful, or unlawful behavior</li>
-            <li>Legal or regulatory requirements</li>
-            <li>Security risks or misuse of the Service</li>
-          </ul>
 
           <h3 className="text-xl font-bold mb-2">
             5.2 Termination for Operational or Economic Reasons
@@ -140,39 +144,21 @@ export default function TermsPage() {
           <p>
             We reserve the right to suspend or permanently discontinue the
             Service, in whole or in part, if continued operation is no longer
-            reasonable for us due to:
-          </p>
-          <ul className="list-disc pl-5 space-y-2">
-            <li>
-              Insufficient financial resources or unsustainable operating costs
-              (e.g. server, infrastructure, or compliance costs)
-            </li>
-            <li>Technical infeasibility or security risks</li>
-            <li>
-              Business restructuring, strategic changes, or insolvency risk
-            </li>
-            <li>Legal, regulatory, or court orders</li>
-          </ul>
-
-          <p className="mt-4">
-            In such cases, we may terminate user contracts with reasonable
-            notice where required by mandatory law. Where notice is not legally
-            required, termination may be immediate.
+            reasonable due to financial, technical, or legal reasons.
           </p>
 
           <h3 className="text-xl font-bold mb-2">
             5.3 No Liability for Shutdown
           </h3>
           <p>
-            To the maximum extent permitted by law, CITE shall not be liable for
-            any damages, losses, or disadvantages resulting from suspension,
-            termination, or discontinuation of the Service, including loss of
-            content or access.
+            To the maximum extent permitted by law, the Operator shall not be
+            liable for any damages, losses, or disadvantages resulting from
+            suspension, termination, or discontinuation of the Service.
           </p>
 
           <p>
             Users are responsible for exporting or backing up their data
-            regularly.
+            regularly using the provided Data Export tools.
           </p>
         </section>
 
@@ -196,10 +182,6 @@ export default function TermsPage() {
             provisions closest to the intended economic purpose.
           </p>
         </section>
-
-        <p className="text-sm text-tertiary mt-8">
-          In case of discrepancies, the English version shall prevail.
-        </p>
       </div>
     </div>
   );

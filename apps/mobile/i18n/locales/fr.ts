@@ -1,6 +1,6 @@
 export default {
   welcome: {
-    title: 'CITE',
+    title: 'Citewalk',
     subtitle: 'Publications sociales, liées comme Wikipédia.',
     continue: 'Continuer',
     privacy: 'Confidentialité',
@@ -8,8 +8,8 @@ export default {
     imprint: 'Mentions légales',
   },
   intro: {
-    title: 'Bienvenue sur CITE',
-    founderMessage: 'J\'ai créé CITE pour défier un ordre numérique conçu pour l\'indignation plutôt que la vérité — où les algorithmes récompensent la polarisation sur la diversité, la rage sur la logique, et la controverse sur l\'exactitude. L\'avenir mérite la vérification sur la viralité, le contexte sur le chaos.',
+    title: 'Bienvenue sur Citewalk',
+    founderMessage: 'J\'ai créé Citewalk pour défier un ordre numérique conçu pour l\'indignation plutôt que la vérité — où les algorithmes récompensent la polarisation sur la diversité, la rage sur la logique, et la controverse sur l\'exactitude. L\'avenir mérite la vérification sur la viralité, le contexte sur le chaos.',
     founderName: 'Sebastian (Fondateur)',
     point1: 'Hébergé à 100% en UE et conforme au RGPD. Vos données restent en Europe.',
     point2: 'Vos données, votre choix. Voyez toujours ce que nous collectons. Transparence totale.',
@@ -63,7 +63,7 @@ export default {
   onboarding: {
     profile: {
       title: 'Créez votre profil',
-      subtitle: 'Configurez votre identité CITE',
+      subtitle: 'Configurez votre identité Citewalk',
       displayName: 'Nom d\'affichage',
       handle: 'Nom d\'utilisateur',
       bio: 'Bio',
@@ -311,9 +311,9 @@ export default {
     emailPlaceholder: "Friend's email address",
     sendInvite: 'Send invitation',
     referralTitle: 'Refer Friends',
-    referralText: "Share your referral link with friends. They can join Cite and you'll be connected.",
+    referralText: "Share your referral link with friends. They can join Citewalk and you'll be connected.",
     createReferralLink: 'Create Referral Link',
-    referralShareTitle: 'Join me on Cite',
+    referralShareTitle: 'Join me on Citewalk',
     referralFailed: 'Could not get referral link',
     sendFailed: 'Failed to send invitation',
     resendFailed: 'Could not resend. Try again later.',
@@ -566,7 +566,7 @@ export default {
   waitingList: {
     title: 'Rejoindre la liste',
     heading: 'Accès anticipé',
-    description: 'CITE est en bêta. Rejoignez la liste d\'attente.',
+    description: 'Citewalk est en bêta. Rejoignez la liste d\'attente.',
     emailPlaceholder: 'Votre e-mail',
     join: 'Rejoindre',
     success: 'Succès',

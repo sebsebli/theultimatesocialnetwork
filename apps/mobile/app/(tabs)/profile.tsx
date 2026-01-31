@@ -334,7 +334,7 @@ export default function ProfileScreen() {
     setProfileOptionsVisible(false);
     const profileUrl = `${getWebAppBaseUrl()}/user/${encodeURIComponent(user.handle)}`;
     const displayName = user.displayName || user.handle;
-    const message = t('profile.shareProfileMessage', { defaultValue: 'Check out {{name}} (@{{handle}}) on Cite', name: displayName, handle: user.handle });
+    const message = t('profile.shareProfileMessage', { defaultValue: 'Check out {{name}} (@{{handle}}) on Citewalk', name: displayName, handle: user.handle });
     const title = t('profile.shareProfileTitle', { defaultValue: 'Share profile', handle: user.handle });
     // Defer share until modal has fully closed (avoids share sheet not opening)
     InteractionManager.runAfterInteractions(() => {
@@ -1043,7 +1043,7 @@ const styles = StyleSheet.create({
     gap: SPACING.xxxl,
     paddingVertical: SPACING.m,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider, // cite-border/20
+    borderBottomColor: COLORS.divider, // Citewalk-border/20
     marginBottom: 0,
   },
   statItem: {

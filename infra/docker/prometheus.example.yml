@@ -1,4 +1,4 @@
-# Example Prometheus config for scraping CITE API /metrics.
+# Example Prometheus config for scraping Citewalk API /metrics.
 # When METRICS_SECRET is set in .env, the API requires X-Metrics-Secret or Bearer token.
 # Copy to prometheus.yml and set bearer_token to the same value as METRICS_SECRET.
 
@@ -7,10 +7,10 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'cite-api'
+  - job_name: 'citewalk-api'
     metrics_path: /metrics
     static_configs:
-      - targets: ['api:3000']   # or your API host:port (e.g. cite-api:3000)
+      - targets: ['api:3000']   # or your API host:port (e.g. citewalk-api:3000)
     # Use the same value as METRICS_SECRET in infra/docker/.env
     bearer_token: 'YOUR_METRICS_SECRET'
     # Or use a file (e.g. Docker secret): bearer_token_file: /run/secrets/prometheus_metrics_secret

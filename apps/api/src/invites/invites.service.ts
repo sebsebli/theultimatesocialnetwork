@@ -55,7 +55,7 @@ export class InvitesService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     const baseUrl = (
-      this.configService.get<string>('FRONTEND_URL') || 'https://cite.app'
+      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.app'
     ).replace(/\/$/, '');
     const referralId = user.handle;
     const referralLink = `${baseUrl}/invite/@${referralId}`;

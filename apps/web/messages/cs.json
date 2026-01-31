@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "CITE",
+    "title": "Citewalk",
     "subtitle": "Sociální příspěvky, propojené jako Wikipedie.",
     "continue": "Pokračovat",
     "privacy": "Soukromí",
@@ -8,8 +8,8 @@
     "imprint": "Impresum"
   },
   "intro": {
-    "title": "Vítejte v CITE",
-    "founderMessage": "Vytvořil jsem CITE, abych vyzval digitální řád navržený pro pohoršení místo pravdy.",
+    "title": "Vítejte v Citewalk",
+    "founderMessage": "Vytvořil jsem Citewalk, abych vyzval digitální řád navržený pro pohoršení místo pravdy.",
     "founderName": "Sebastian (Zakladatel)",
     "point1": "100% hostováno v EU a v souladu s GDPR.",
     "point2": "Vaše data, vaše volba. Plná transparentnost.",
@@ -62,7 +62,7 @@
   "onboarding": {
     "profile": {
       "title": "Vytvořit profil",
-      "subtitle": "Nastavte svou CITE identitu",
+      "subtitle": "Nastavte svou Citewalk identitu",
       "displayName": "Jméno",
       "handle": "Uživatel",
       "bio": "Bio",
@@ -396,7 +396,7 @@
   "waitingList": {
     "title": "Čekací listina",
     "heading": "Včasný přístup",
-    "description": "CITE je v betě.",
+    "description": "Citewalk je v betě.",
     "emailPlaceholder": "Váš e-mail",
     "join": "Připojit",
     "success": "Úspěch",
@@ -417,7 +417,7 @@
     "acceptAll": "Přijmout vše"
   },
   "signupOverlay": {
-    "title": "Připojte se k CITE",
+    "title": "Připojte se k Citewalk",
     "description": "Vytvořte si účet pro sledování lidí, ukládání příspěvků a účast v konverzaci s propojenými nápady a zdroji.",
     "signInUp": "Přihlásit / Registrovat",
     "joinWaitlist": "Připojit se k čekací listině",

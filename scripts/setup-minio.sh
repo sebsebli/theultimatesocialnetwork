@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Setup MinIO bucket for CITE images
+# Setup MinIO bucket for Citewalk images
 
 echo "🪣 Setting up MinIO bucket..."
 
@@ -28,13 +28,13 @@ fi
 mc alias set local http://localhost:9000 minioadmin minioadmin
 
 # Create bucket
-echo "🪣 Creating cite-images bucket..."
-mc mb local/cite-images || echo "Bucket may already exist"
+echo "🪣 Creating citewalk-images bucket..."
+mc mb local/citewalk-images || echo "Bucket may already exist"
 
 # Set public policy
 echo "🔓 Setting bucket policy to public..."
-mc anonymous set public local/cite-images
+mc anonymous set public local/citewalk-images
 
 echo "✅ MinIO setup complete!"
-echo "   Bucket: cite-images"
-echo "   Public URL: http://localhost:9000/cite-images"
+echo "   Bucket: citewalk-images"
+echo "   Public URL: http://localhost:9000/citewalk-images"

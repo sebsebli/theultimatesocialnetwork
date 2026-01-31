@@ -1,6 +1,6 @@
 export default {
   welcome: {
-    title: 'CITE',
+    title: 'Citewalk',
     subtitle: 'Sociální příspěvky, propojené jako Wikipedie.',
     continue: 'Pokračovat',
     privacy: 'Soukromí',
@@ -8,8 +8,8 @@ export default {
     imprint: 'Impresum',
   },
   intro: {
-    title: 'Vítejte v CITE',
-    founderMessage: 'Vytvořil jsem CITE, abych vyzval digitální řád navržený pro pohoršení místo pravdy.',
+    title: 'Vítejte v Citewalk',
+    founderMessage: 'Vytvořil jsem Citewalk, abych vyzval digitální řád navržený pro pohoršení místo pravdy.',
     founderName: 'Sebastian (Zakladatel)',
     point1: '100% hostováno v EU a v souladu s GDPR.',
     point2: 'Vaše data, vaše volba. Plná transparentnost.',
@@ -63,7 +63,7 @@ export default {
   onboarding: {
     profile: {
       title: 'Vytvořit profil',
-      subtitle: 'Nastavte svou CITE identitu',
+      subtitle: 'Nastavte svou Citewalk identitu',
       displayName: 'Jméno',
       handle: 'Uživatel',
       bio: 'Bio',
@@ -311,9 +311,9 @@ export default {
     emailPlaceholder: "Friend's email address",
     sendInvite: 'Send invitation',
     referralTitle: 'Refer Friends',
-    referralText: "Share your referral link with friends. They can join Cite and you'll be connected.",
+    referralText: "Share your referral link with friends. They can join Citewalk and you'll be connected.",
     createReferralLink: 'Create Referral Link',
-    referralShareTitle: 'Join me on Cite',
+    referralShareTitle: 'Join me on Citewalk',
     referralFailed: 'Could not get referral link',
     sendFailed: 'Failed to send invitation',
     resendFailed: 'Could not resend. Try again later.',
@@ -566,7 +566,7 @@ export default {
   waitingList: {
     title: 'Čekací listina',
     heading: 'Včasný přístup',
-    description: 'CITE je v betě.',
+    description: 'Citewalk je v betě.',
     emailPlaceholder: 'Váš e-mail',
     join: 'Připojit',
     success: 'Úspěch',

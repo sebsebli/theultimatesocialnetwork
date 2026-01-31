@@ -221,7 +221,7 @@ export default function UserProfileScreen() {
     setOptionsModalVisible(false);
     const profileUrl = `${getWebAppBaseUrl()}/user/${encodeURIComponent(user.handle)}`;
     const displayName = user.displayName || user.handle;
-    const message = t('profile.shareProfileMessage', { defaultValue: 'Check out {{name}} (@{{handle}}) on Cite', name: displayName, handle: user.handle });
+    const message = t('profile.shareProfileMessage', { defaultValue: 'Check out {{name}} (@{{handle}}) on Citewalk', name: displayName, handle: user.handle });
     const title = t('profile.shareProfileTitle', { defaultValue: 'Share profile', handle: user.handle });
     // Defer share until modal has fully closed (avoids share sheet not opening)
     InteractionManager.runAfterInteractions(() => {

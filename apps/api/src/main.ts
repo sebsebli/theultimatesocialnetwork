@@ -20,15 +20,19 @@ async function bootstrap() {
   // Protect /metrics when METRICS_SECRET is set (production: require X-Metrics-Secret or Bearer)
   const metricsSecret = process.env.METRICS_SECRET;
   if (metricsSecret) {
-    app.use((req: Request, res: Response, next: NextFunction) => {
-      const path = req.path ?? req.url?.split('?')[0] ?? '';
+    const metricsMiddleware = (
+      req: Request,
+      res: Response,
+      next: NextFunction,
+    ): void => {
+      const path: string = req.path ?? req.url?.split('?')[0] ?? '';
       if (path === '/metrics') {
         const authHeader = req.headers['authorization'];
-        const provided =
+        const provided: string | undefined =
           req.headers['x-metrics-secret'] ??
           (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
             ? authHeader.slice(7)
-            : null);
+            : undefined);
         if (provided !== metricsSecret) {
           res.status(401).json({
             statusCode: 401,
@@ -38,7 +42,8 @@ async function bootstrap() {
         }
       }
       next();
-    });
+    };
+    app.use(metricsMiddleware);
   }
 
   // Security headers with enhanced configuration
@@ -121,7 +126,7 @@ async function bootstrap() {
   // Swagger API Documentation
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
-      .setTitle('CITE API')
+      .setTitle('Citewalk API')
       .setDescription(
         'The social network for citations and verified information',
       )
@@ -136,7 +141,7 @@ async function bootstrap() {
   await app.listen(port);
   const logger = app.get(Logger);
   logger.log(
-    `🚀 CITE API running on port ${port} [Env: ${process.env.NODE_ENV || 'development'}]`,
+    `🚀 Citewalk API running on port ${port} [Env: ${process.env.NODE_ENV || 'development'}]`,
   );
 }
 void bootstrap();

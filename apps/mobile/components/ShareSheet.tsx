@@ -50,7 +50,7 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
     }
   }, [visible, postId]);
 
-  const url = postId ? `https://cite.app/post/${postId}` : '';
+  const url = postId ? `https://citewalk.app/post/${postId}` : '';
 
   const handleSendToThread = (threadId: string) => {
     setVisible(false);
@@ -75,7 +75,7 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
   const handleCopyLink = async () => {
     setVisible(false);
     if (postId) {
-      const url = `https://cite.app/post/${postId}`;
+      const url = `https://citewalk.app/post/${postId}`;
       await Clipboard.setStringAsync(url);
       showSuccess(t('post.linkCopied', 'Link copied to clipboard'));
     }
@@ -84,7 +84,7 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
   const handleShareSystem = async () => {
     setVisible(false);
     if (postId) {
-      const url = `https://cite.app/post/${postId}`;
+      const url = `https://citewalk.app/post/${postId}`;
       try {
         await NativeShare.share({ message: url });
       } catch (e) {

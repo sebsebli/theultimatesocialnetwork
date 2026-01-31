@@ -77,7 +77,7 @@ export default function InvitesScreen() {
       await Share.share({
         message: referralLink,
         url: Platform.OS === 'ios' ? referralLink : undefined,
-        title: t('invites.referralShareTitle', 'Join me on Cite'),
+        title: t('invites.referralShareTitle', 'Join me on Citewalk'),
       });
     } catch (error: any) {
       showError(error?.message || t('invites.referralFailed', 'Could not get referral link'));
@@ -230,7 +230,7 @@ export default function InvitesScreen() {
             </View>
             <Text style={styles.heroTitle}>{t('invites.referralTitle', 'Refer Friends')}</Text>
             <Text style={styles.heroText}>
-              {t('invites.referralText', 'Share your referral link with friends. They can join Cite and you\'ll be connected.')}
+              {t('invites.referralText', 'Share your referral link with friends. They can join Citewalk and you\'ll be connected.')}
             </Text>
             <Pressable
               style={[styles.button, styles.referralButton, referralLoading && styles.buttonDisabled]}

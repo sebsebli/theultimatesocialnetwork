@@ -95,7 +95,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
               <div>
                 <div className="text-paper font-medium">Email</div>
-                <div className="text-secondary text-sm">dev@cite.local</div>
+                <div className="text-secondary text-sm">dev@Citewalk.local</div>
               </div>
               <button className="text-primary text-sm font-medium">
                 Change
@@ -205,7 +205,7 @@ export default function SettingsPage() {
                   Marketing & promotions
                 </div>
                 <div className="text-secondary text-sm">
-                  News, offers and product updates from Cite
+                  News, offers and product updates from Citewalk
                 </div>
               </div>
               {!emailPrefsLoading && (
@@ -234,7 +234,7 @@ export default function SettingsPage() {
                   Product updates & tips
                 </div>
                 <div className="text-secondary text-sm">
-                  New features and how to get the most out of Cite
+                  New features and how to get the most out of Citewalk
                 </div>
               </div>
               {!emailPrefsLoading && (

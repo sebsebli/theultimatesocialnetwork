@@ -35,9 +35,9 @@ export function getWebAppBaseUrl(): string {
   const envWeb = process.env.EXPO_PUBLIC_WEB_BASE_URL;
   if (envWeb) return envWeb.replace(/\/$/, '');
   const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL || '';
-  // Only strip "api." when it is the host prefix (e.g. https://api.cite.app -> https://cite.app)
+  // Only strip "api." when it is the host prefix (e.g. https://api.citewalk.app -> https://citewalk.app)
   if (/^https?:\/\/api\./i.test(apiUrl)) return apiUrl.replace(/^https?:\/\/api\./i, 'https://');
-  return 'https://cite.app';
+  return 'https://citewalk.app';
 }
 
 /** URL for an image stored by key; use so images load via API (works on device/emulator). */

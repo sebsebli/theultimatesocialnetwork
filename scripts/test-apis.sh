@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# API Test Script for CITE System
+# API Test Script for Citewalk System
 # Tests all API endpoints to ensure they're working
 
 API_URL="${API_URL:-http://localhost:3000}"
 DEV_TOKEN="${DEV_TOKEN:-}"
 
-echo "🧪 Testing CITE API endpoints..."
+echo "🧪 Testing Citewalk API endpoints..."
 echo "API URL: $API_URL"
 echo ""
 

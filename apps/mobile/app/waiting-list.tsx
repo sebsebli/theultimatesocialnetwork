@@ -124,7 +124,7 @@ export default function WaitingListScreen() {
             <View style={styles.textGroup}>
               <Text style={styles.title}>{t('waitingList.heading', 'Get Early Access')}</Text>
               <Text style={styles.description}>
-                {t('waitingList.description', 'CITE is currently in beta. Join the waiting list to be notified when invites become available.')}
+                {t('waitingList.description', 'Citewalk is currently in beta. Join the waiting list to be notified when invites become available.')}
               </Text>
             </View>
 

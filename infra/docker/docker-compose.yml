@@ -4,9 +4,9 @@ services:
   # -----------------------------------------------------------------------------
   db:
     image: postgres:15-alpine
-    container_name: cite-db
+    container_name: citewalk-db
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -24,8 +24,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backup
-    image: cite-backup-full:latest
-    container_name: cite-backup-full
+    image: citewalk-backup-full:latest
+    container_name: citewalk-backup-full
     environment:
       POSTGRES_HOST: db
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
@@ -37,7 +37,7 @@ services:
       MINIO_PORT: "9000"
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_BUCKET: cite-images
+      MINIO_BUCKET: citewalk-images
       BACKUP_DIR: /backups
       FULL_BACKUP_KEEP_DAYS: 7
     volumes:
@@ -62,10 +62,10 @@ services:
 
   neo4j:
     image: neo4j:5.15.0-community
-    container_name: cite-neo4j
+    container_name: citewalk-neo4j
     ports:
-      - "7474:7474" # HTTP
-      - "7687:7687" # Bolt
+      - "127.0.0.1:7474:7474" # HTTP
+      - "127.0.0.1:7687:7687" # Bolt
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-password}
       NEO4J_apoc_export_file_enabled: "true"
@@ -86,9 +86,9 @@ services:
 
   redis:
     image: redis:7.2-alpine
-    container_name: cite-redis
+    container_name: citewalk-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - ./volumes/redis:/data
     restart: unless-stopped
@@ -103,9 +103,9 @@ services:
   # -----------------------------------------------------------------------------
   meilisearch:
     image: getmeili/meilisearch:v1.6
-    container_name: cite-meilisearch
+    container_name: citewalk-meilisearch
     ports:
-      - "7700:7700"
+      - "127.0.0.1:7700:7700"
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-masterKey}
       MEILI_ENV: development
@@ -120,10 +120,10 @@ services:
 
   minio:
     image: minio/minio:RELEASE.2024-01-18T22-51-28Z
-    container_name: cite-minio
+    container_name: citewalk-minio
     ports:
-      - "9000:9000" # API
-      - "9001:9001" # Console
+      - "127.0.0.1:9000:9000" # API
+      - "127.0.0.1:9001:9001" # Console
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -140,9 +140,7 @@ services:
 
   ollama:
     image: ollama/ollama:latest
-    container_name: cite-ollama
-    ports:
-      - "11434:11434"
+    container_name: citewalk-ollama
     volumes:
       - ./volumes/ollama:/root/.ollama
       - ./init-ollama.sh:/init-ollama.sh
@@ -167,11 +165,11 @@ services:
       context: ../..
       dockerfile: apps/api/Dockerfile
       target: production
-    container_name: cite-api
+    container_name: citewalk-api
     env_file:
       - .env
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
       NEO4J_URI: bolt://neo4j:7687
@@ -185,18 +183,18 @@ services:
       MINIO_USE_SSL: "false"
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_BUCKET: cite-images
+      MINIO_BUCKET: citewalk-images
       MINIO_PUBLIC_URL: http://localhost:9000
       # Auth: use .env or default so API can start
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
-      NODE_ENV: ${NODE_ENV:-production}
+      NODE_ENV: development
       DB_SSL: "false"
       PORT: 3000
       # CORS, SMTP, FRONTEND_URL, CITE_ADMIN_SECRET, METRICS_SECRET: from .env
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
-      CITE_ADMIN_SECRET: ${CITE_ADMIN_SECRET:-dev-admin-change-me}
+      CITE_ADMIN_SECRET: ${CITEWALK_ADMIN_SECRET:-dev-admin-change-me}
       METRICS_SECRET: ${METRICS_SECRET:-}
     depends_on:
       db:
@@ -228,9 +226,9 @@ services:
       context: ../../apps/web
       dockerfile: Dockerfile
       target: runner
-    container_name: cite-web
+    container_name: citewalk-web
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
@@ -250,7 +248,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: cite-nginx
+    container_name: citewalk-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -272,4 +270,4 @@ services:
 
 networks:
   default:
-    name: cite-network
+    name: citewalk-network

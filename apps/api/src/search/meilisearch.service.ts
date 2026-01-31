@@ -168,6 +168,7 @@ export class MeilisearchService implements OnModuleInit {
         displayName: string;
         bio: string | null;
       }[];
+      // eslint-disable-next-line no-constant-condition -- batch loop exits via break
       do {
         users = await this.userRepo.find({
           where: {},
@@ -197,6 +198,7 @@ export class MeilisearchService implements OnModuleInit {
       let topicOffset = 0;
       let totalTopics = 0;
       let topics: { id: string; slug: string; title: string }[];
+      // eslint-disable-next-line no-constant-condition -- batch loop exits via break
       do {
         topics = await this.topicRepo.find({
           select: ['id', 'slug', 'title'],
@@ -223,6 +225,7 @@ export class MeilisearchService implements OnModuleInit {
       let postOffset = 0;
       let totalPosts = 0;
       let posts: Post[];
+      // eslint-disable-next-line no-constant-condition -- batch loop exits via break
       do {
         posts = await this.postRepo.find({
           where: {},
@@ -265,6 +268,7 @@ export class MeilisearchService implements OnModuleInit {
       let msgOffset = 0;
       let totalMessages = 0;
       let messages: DmMessage[];
+      // eslint-disable-next-line no-constant-condition -- batch loop exits via break
       do {
         messages = await this.dmMessageRepo.find({
           where: {},
@@ -362,6 +366,7 @@ export class MeilisearchService implements OnModuleInit {
     replyCount: number;
     embedding?: number[];
     topicIds?: string[];
+    readingTimeMinutes?: number;
   }) {
     try {
       const index = this.client.index(this.indexName);
@@ -385,6 +390,7 @@ export class MeilisearchService implements OnModuleInit {
           createdAt: post.createdAt.toISOString(),
           quoteCount: post.quoteCount,
           replyCount: post.replyCount,
+          readingTimeMinutes: post.readingTimeMinutes ?? 1,
           topicIds: post.topicIds ?? [],
           _vectors: post.embedding ? { default: post.embedding } : undefined,
         },
@@ -558,12 +564,19 @@ export class MeilisearchService implements OnModuleInit {
         filter: `participantIds = "${userId}"`,
         sort: ['createdAt:desc'],
       });
-      const hits = (res.hits ?? []).map((h: Record<string, unknown>) => ({
-        id: h.id,
-        threadId: h.threadId,
-        body: h.body,
-        createdAt: h.createdAt,
-        senderId: h.senderId,
+      interface MessageHit {
+        id?: string;
+        threadId?: string;
+        body?: string;
+        createdAt?: string;
+        senderId?: string;
+      }
+      const hits = (res.hits ?? []).map((h: MessageHit) => ({
+        id: h.id ?? '',
+        threadId: h.threadId ?? '',
+        body: h.body ?? '',
+        createdAt: h.createdAt ?? '',
+        senderId: h.senderId ?? '',
       }));
       return { hits };
     } catch (error) {

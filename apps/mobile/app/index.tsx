@@ -162,7 +162,7 @@ export default function IndexScreen() {
   // Get base URL for legal links (use API base URL, assuming web is on same domain or subdomain)
   const getBaseUrl = () => {
     const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
-    // If API is on a subdomain like api.cite.app, use the main domain
+    // If API is on a subdomain like api.citewalk.app, use the main domain
     if (apiUrl.includes('api.')) {
       return apiUrl.replace('api.', '');
     }
@@ -203,7 +203,7 @@ export default function IndexScreen() {
           <View style={styles.content}>
             {!sent ? (
               <View style={styles.logoContainer}>
-                <Text style={styles.appName}>CITE</Text>
+                <Text style={styles.appName}>Citewalk</Text>
                 <Text style={styles.tagline}>{t('welcome.tagline', 'Recognition comes from being cited.')}</Text>
               </View>
             ) : (

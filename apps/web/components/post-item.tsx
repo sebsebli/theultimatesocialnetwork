@@ -40,7 +40,8 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
   const [showCollectionModal, setShowCollectionModal] = useState(false);
 
   const STORAGE_URL =
-    process.env.NEXT_PUBLIC_STORAGE_URL || "http://localhost:9000/cite-images";
+    process.env.NEXT_PUBLIC_STORAGE_URL ||
+    "http://localhost:9000/citewalk-images";
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();

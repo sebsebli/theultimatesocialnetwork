@@ -43,10 +43,11 @@ export class UploadController {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
+    const f: MulterFile = file;
     const payload = {
-      buffer: file.buffer,
-      mimetype: file.mimetype,
-      size: file.size,
+      buffer: f.buffer,
+      mimetype: f.mimetype,
+      size: f.size,
     };
     const { key, blurhash } =
       await this.uploadService.uploadHeaderImage(payload);
@@ -66,10 +67,11 @@ export class UploadController {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
+    const f: MulterFile = file;
     const payload = {
-      buffer: file.buffer,
-      mimetype: file.mimetype,
-      size: file.size,
+      buffer: f.buffer,
+      mimetype: f.mimetype,
+      size: f.size,
     };
     const key = await this.uploadService.uploadProfilePicture(payload);
     const url = this.uploadService.getImageUrl(key);
@@ -88,10 +90,11 @@ export class UploadController {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
+    const f: MulterFile = file;
     const payload = {
-      buffer: file.buffer,
-      mimetype: file.mimetype,
-      size: file.size,
+      buffer: f.buffer,
+      mimetype: f.mimetype,
+      size: f.size,
     };
     const key = await this.uploadService.uploadProfileHeader(payload);
     const url = this.uploadService.getImageUrl(key);

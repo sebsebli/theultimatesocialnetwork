@@ -1,5 +1,5 @@
 /**
- * Shared email layout aligned with Cite app design (dark theme).
+ * Shared email layout aligned with Citewalk app design (dark theme).
  * Content background #1A1A1D; table-based layout with inline styles.
  * Includes legal footers for CAN-SPAM, GDPR (address, privacy, terms, preferences).
  */
@@ -11,13 +11,13 @@ export interface EmailLayoutOptions {
   footerText: string;
   /** Base URL for legal links (e.g. FRONTEND_URL). Used for website, /privacy, /terms, preferences */
   baseUrl?: string;
-  /** Company/sender name for legal footer (default: Cite) */
+  /** Company/sender name for legal footer (default: Citewalk) */
   companyName?: string;
   /** Physical address for CAN-SPAM / legal (optional but recommended) */
   companyAddress?: string;
   /** Unsubscribe / email preferences URL (e.g. baseUrl + /settings/notifications). Required for marketing; recommended for transactional. */
   unsubscribeUrl?: string;
-  /** Short line explaining why they received this email (e.g. "You received this because you have a Cite account."). Good for GDPR/transparency. */
+  /** Short line explaining why they received this email (e.g. "You received this because you have a Citewalk account."). Good for GDPR/transparency. */
   reasonText?: string;
 }
 
@@ -129,7 +129,7 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
     code,
     footerText,
     baseUrl,
-    companyName = 'Cite',
+    companyName = 'Citewalk',
     companyAddress,
     unsubscribeUrl,
     reasonText,

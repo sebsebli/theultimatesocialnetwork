@@ -16,7 +16,7 @@ provider "hcloud" {
 }
 
 resource "hcloud_network" "cite_net" {
-  name     = "cite-network"
+  name     = "citewalk-network"
   ip_range = "10.0.0.0/16"
 }
 
@@ -28,7 +28,7 @@ resource "hcloud_network_subnet" "cite_subnet" {
 }
 
 resource "hcloud_server" "cite_app" {
-  name        = "cite-app-prod"
+  name        = "Citewalk-app-prod"
   image       = "ubuntu-22.04"
   server_type = "cx21" # 2 vCPU, 4 GB RAM
   location    = "fsn1" # Falkenstein, Germany (EU Data Sovereignty)
@@ -47,12 +47,12 @@ resource "hcloud_server" "cite_app" {
 
   labels = {
     environment = "production"
-    app         = "cite"
+    app         = "Citewalk"
   }
 }
 
 resource "hcloud_firewall" "cite_fw" {
-  name = "cite-firewall"
+  name = "Citewalk-firewall"
   rule {
     direction = "in"
     protocol  = "tcp"
@@ -74,7 +74,7 @@ resource "hcloud_firewall" "cite_fw" {
 }
 
 resource "hcloud_volume" "cite_data" {
-  name      = "cite-data"
+  name      = "Citewalk-data"
   size      = 50
   server_id = hcloud_server.cite_app.id
   automount = true

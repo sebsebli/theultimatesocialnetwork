@@ -6,7 +6,7 @@
 API_URL="${API_URL:-http://localhost:3000}"
 DEV_TOKEN="${DEV_TOKEN:-}"
 
-echo "🧪 Testing CITE API - All Endpoints"
+echo "🧪 Testing Citewalk API - All Endpoints"
 echo "===================================="
 echo "API URL: $API_URL"
 echo ""

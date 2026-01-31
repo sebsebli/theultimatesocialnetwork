@@ -1,6 +1,6 @@
 export default {
   welcome: {
-    title: 'CITE',
+    title: 'Citewalk',
     subtitle: 'Közösségi posztok, linkelve mint a Wikipédia.',
     continue: 'Tovább',
     privacy: 'Adatvédelem',
@@ -8,8 +8,8 @@ export default {
     imprint: 'Impresszum',
   },
   intro: {
-    title: 'Üdvözöl a CITE',
-    founderMessage: 'Azért hoztam létre a CITE-ot, hogy kihívjam a felháborodásra tervezett digitális rendet.',
+    title: 'Üdvözöl a Citewalk',
+    founderMessage: 'Azért hoztam létre a Citewalk-ot, hogy kihívjam a felháborodásra tervezett digitális rendet.',
     founderName: 'Sebastian (Alapító)',
     point1: '100% EU hosting és GDPR megfelelés.',
     point2: 'A te adataid, a te döntésed.',
@@ -63,7 +63,7 @@ export default {
   onboarding: {
     profile: {
       title: 'Profil létrehozása',
-      subtitle: 'Állítsd be CITE identitásod',
+      subtitle: 'Állítsd be Citewalk identitásod',
       displayName: 'Név',
       handle: 'Felhasználónév',
       bio: 'Bemutatkozás',
@@ -311,9 +311,9 @@ export default {
     emailPlaceholder: "Friend's email address",
     sendInvite: 'Send invitation',
     referralTitle: 'Refer Friends',
-    referralText: "Share your referral link with friends. They can join Cite and you'll be connected.",
+    referralText: "Share your referral link with friends. They can join Citewalk and you'll be connected.",
     createReferralLink: 'Create Referral Link',
-    referralShareTitle: 'Join me on Cite',
+    referralShareTitle: 'Join me on Citewalk',
     referralFailed: 'Could not get referral link',
     sendFailed: 'Failed to send invitation',
     resendFailed: 'Could not resend. Try again later.',
@@ -566,7 +566,7 @@ export default {
   waitingList: {
     title: 'Várólista',
     heading: 'Korai hozzáférés',
-    description: 'A CITE béta.',
+    description: 'A Citewalk béta.',
     emailPlaceholder: 'E-mail',
     join: 'Csatlakozás',
     success: 'Siker',

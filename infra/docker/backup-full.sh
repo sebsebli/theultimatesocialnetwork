@@ -12,7 +12,7 @@ POSTGRES_DB=${POSTGRES_DB:-postgres}
 BACKUP_DIR=${BACKUP_DIR:-/backups}
 KEEP_DAYS=${FULL_BACKUP_KEEP_DAYS:-7}
 MINIO_ALIAS=${MINIO_ALIAS:-minio}
-MINIO_BUCKET=${MINIO_BUCKET:-cite-images}
+MINIO_BUCKET=${MINIO_BUCKET:-citewalk-images}
 NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
 
 DATE=$(date +%Y%m%d_%H%M%S)
@@ -57,7 +57,7 @@ echo "[$(date)] MinIO backup done: ${MINIO_DIR}"
 # 4. Manifest (backup metadata)
 # -----------------------------------------------------------------------------
 cat > "${FULL_DIR}/manifest.txt" << MANIFEST
-cite-full-backup
+Citewalk-full-backup
 date=${DATE}
 postgres=${POSTGRES_DB}
 neo4j=neo4j

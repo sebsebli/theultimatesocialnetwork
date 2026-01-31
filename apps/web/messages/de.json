@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "CITE",
+    "title": "Citewalk",
     "subtitle": "Soziale Beiträge, verlinkt wie Wikipedia.",
     "continue": "Weiter",
     "privacy": "Datenschutz",
@@ -8,8 +8,8 @@
     "imprint": "Impressum"
   },
   "intro": {
-    "title": "Willkommen bei CITE",
-    "founderMessage": "Ich habe CITE gebaut, um eine digitale Ordnung herauszufordern, die auf Empörung statt Wahrheit ausgelegt ist – wo Algorithmen Polarisierung über Vielfalt, Wut über Logik und Kontroverse über Genauigkeit belohnen. Die Zukunft verdient Verifizierung statt Viralität, Kontext statt Chaos.",
+    "title": "Willkommen bei Citewalk",
+    "founderMessage": "Ich habe Citewalk gebaut, um eine digitale Ordnung herauszufordern, die auf Empörung statt Wahrheit ausgelegt ist – wo Algorithmen Polarisierung über Vielfalt, Wut über Logik und Kontroverse über Genauigkeit belohnen. Die Zukunft verdient Verifizierung statt Viralität, Kontext statt Chaos.",
     "founderName": "Sebastian (Gründer)",
     "point1": "100% in der EU gehostet und DSGVO-konform. Deine Daten bleiben in Europa, unter europäischem Recht.",
     "point2": "Deine Daten, deine Entscheidung. Sieh immer, was wir sammeln und wie wir es nutzen. Volle Transparenz, kein verstecktes Tracking.",
@@ -62,7 +62,7 @@
   "onboarding": {
     "profile": {
       "title": "Erstelle dein Profil",
-      "subtitle": "Richte deine CITE-Identität ein",
+      "subtitle": "Richte deine Citewalk-Identität ein",
       "displayName": "Anzeigename",
       "handle": "Nutzername",
       "bio": "Bio",
@@ -396,7 +396,7 @@
   "waitingList": {
     "title": "Warteliste beitreten",
     "heading": "Früher Zugang",
-    "description": "CITE ist derzeit in der Beta. Tritt der Warteliste bei, um benachrichtigt zu werden, wenn Einladungen verfügbar sind.",
+    "description": "Citewalk ist derzeit in der Beta. Tritt der Warteliste bei, um benachrichtigt zu werden, wenn Einladungen verfügbar sind.",
     "emailPlaceholder": "Deine E-Mail",
     "join": "Warteliste beitreten",
     "success": "Erfolg",
@@ -417,7 +417,7 @@
     "acceptAll": "Alle akzeptieren"
   },
   "signupOverlay": {
-    "title": "CITE beitreten",
+    "title": "Citewalk beitreten",
     "description": "Erstelle ein Konto, um Menschen zu folgen, Beiträge zu speichern und an verknüpften Ideen und Quellen teilzunehmen.",
     "signInUp": "Anmelden / Registrieren",
     "joinWaitlist": "Warteliste",

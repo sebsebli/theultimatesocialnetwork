@@ -20,6 +20,7 @@ interface ExplorePreferences {
   replies?: number;
   likes?: number;
   networkProximity?: number;
+  depth?: number; // Preference for long-form content (0-100)
 }
 
 /**
@@ -171,6 +172,7 @@ export class RecommendationService {
       replies: 50,
       likes: 30, // Affects embedding influence
       networkProximity: 40,
+      depth: 50, // Default balanced preference for length
     }) as ExplorePreferences;
 
     // Normalize weights (0-100 -> 0-1)
@@ -181,6 +183,7 @@ export class RecommendationService {
       replies: (prefs.replies ?? 50) / 100,
       likes: (prefs.likes ?? 30) / 100,
       network: (prefs.networkProximity ?? 40) / 100,
+      depth: (prefs.depth ?? 50) / 100,
     };
 
     const userProfile = await this.getUserInterestProfile(userId);
@@ -278,6 +281,13 @@ export class RecommendationService {
               const replyBoost =
                 (Math.min(post.replyCount, 20) / 20) * (0.1 * w.replies);
 
+              // Depth boost (reading time)
+              // If w.depth > 0.5, we boost longer posts.
+              // We'll scale the influence by 0.3 max score.
+              const readingTime = post.readingTimeMinutes || 1;
+              const lengthScore = Math.min(readingTime, 10) / 10; // 0.1 to 1.0
+              const depthBoost = lengthScore * (0.3 * w.depth);
+
               // Language soft boost
               let langBoost = 0;
               if (user?.languages?.includes(post.lang || '')) {
@@ -292,6 +302,7 @@ export class RecommendationService {
                   topicBoost +
                   quoteBoost +
                   replyBoost +
+                  depthBoost +
                   langBoost,
               };
             }),

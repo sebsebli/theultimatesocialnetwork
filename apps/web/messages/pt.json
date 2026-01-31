@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "CITE",
+    "title": "Citewalk",
     "subtitle": "Postagens sociais, vinculadas como a Wikipédia.",
     "continue": "Continuar",
     "privacy": "Privacidade",
@@ -8,8 +8,8 @@
     "imprint": "Ficha técnica"
   },
   "intro": {
-    "title": "Bem-vindo ao CITE",
-    "founderMessage": "Criei o CITE para desafiar uma ordem digital projetada para a indignação em vez da verdade.",
+    "title": "Bem-vindo ao Citewalk",
+    "founderMessage": "Criei o Citewalk para desafiar uma ordem digital projetada para a indignação em vez da verdade.",
     "founderName": "Sebastian (Fundador)",
     "point1": "100% hospedado na UE e compatível com GDPR.",
     "point2": "Seus dados, sua escolha. Transparência total.",
@@ -62,7 +62,7 @@
   "onboarding": {
     "profile": {
       "title": "Crie seu perfil",
-      "subtitle": "Configure sua identidade CITE",
+      "subtitle": "Configure sua identidade Citewalk",
       "displayName": "Nome",
       "handle": "Usuário",
       "bio": "Bio",
@@ -396,7 +396,7 @@
   "waitingList": {
     "title": "Lista de espera",
     "heading": "Acesso antecipado",
-    "description": "CITE está em beta.",
+    "description": "Citewalk está em beta.",
     "emailPlaceholder": "Seu e-mail",
     "join": "Entrar",
     "success": "Sucesso",
@@ -417,7 +417,7 @@
     "acceptAll": "Aceitar todos"
   },
   "signupOverlay": {
-    "title": "Junte-se ao CITE",
+    "title": "Junte-se ao Citewalk",
     "description": "Crie uma conta para seguir pessoas, guardar publicações e participar na conversa com ideias e fontes ligadas.",
     "signInUp": "Entrar / Registar",
     "joinWaitlist": "Lista de espera",

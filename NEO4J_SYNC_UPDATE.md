@@ -25,7 +25,7 @@
 
 ## The Problem
 
-The seeding script (`seed-comprehensive.ts`) only creates data in **PostgreSQL**. It doesn't sync to Neo4j. However, when posts/users are created through the **API**, they automatically sync to Neo4j.
+Data created through the **API** (users, posts, topics, etc.) automatically syncs to Neo4j.
 
 ## The Solution
 

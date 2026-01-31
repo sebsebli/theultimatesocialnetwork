@@ -1,6 +1,6 @@
 export default {
   welcome: {
-    title: 'CITE',
+    title: 'Citewalk',
     subtitle: 'Postagens sociais, vinculadas como a Wikipédia.',
     continue: 'Continuar',
     privacy: 'Privacidade',
@@ -8,8 +8,8 @@ export default {
     imprint: 'Ficha técnica',
   },
   intro: {
-    title: 'Bem-vindo ao CITE',
-    founderMessage: 'Criei o CITE para desafiar uma ordem digital projetada para a indignação em vez da verdade.',
+    title: 'Bem-vindo ao Citewalk',
+    founderMessage: 'Criei o Citewalk para desafiar uma ordem digital projetada para a indignação em vez da verdade.',
     founderName: 'Sebastian (Fundador)',
     point1: '100% hospedado na UE e compatível com GDPR.',
     point2: 'Seus dados, sua escolha. Transparência total.',
@@ -63,7 +63,7 @@ export default {
   onboarding: {
     profile: {
       title: 'Crie seu perfil',
-      subtitle: 'Configure sua identidade CITE',
+      subtitle: 'Configure sua identidade Citewalk',
       displayName: 'Nome',
       handle: 'Usuário',
       bio: 'Bio',
@@ -278,7 +278,7 @@ export default {
     unfollow: 'Deixar de seguir',
     connections: 'Conexões',
     topics: 'Tópicos',
-    noPostsHint: 'Partilhe a sua primeira publicação ou cite alguém.',
+    noPostsHint: 'Partilhe a sua primeira publicação ou citewalk alguém.',
     noPostsHintView: 'As publicações aparecerão aqui.',
     saved: 'Saved',
     editHeader: 'Edit background',
@@ -311,9 +311,9 @@ export default {
     emailPlaceholder: "Friend's email address",
     sendInvite: 'Send invitation',
     referralTitle: 'Refer Friends',
-    referralText: "Share your referral link with friends. They can join Cite and you'll be connected.",
+    referralText: "Share your referral link with friends. They can join Citewalk and you'll be connected.",
     createReferralLink: 'Create Referral Link',
-    referralShareTitle: 'Join me on Cite',
+    referralShareTitle: 'Join me on Citewalk',
     referralFailed: 'Could not get referral link',
     sendFailed: 'Failed to send invitation',
     resendFailed: 'Could not resend. Try again later.',
@@ -566,7 +566,7 @@ export default {
   waitingList: {
     title: 'Lista de espera',
     heading: 'Acesso antecipado',
-    description: 'CITE está em beta.',
+    description: 'Citewalk está em beta.',
     emailPlaceholder: 'Seu e-mail',
     join: 'Entrar',
     success: 'Sucesso',

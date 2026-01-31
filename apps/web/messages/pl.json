@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "CITE",
+    "title": "Citewalk",
     "subtitle": "Posty społecznościowe, połączone jak Wikipedia.",
     "continue": "Dalej",
     "privacy": "Prywatność",
@@ -8,8 +8,8 @@
     "imprint": "Nota prawna"
   },
   "intro": {
-    "title": "Witamy w CITE",
-    "founderMessage": "Stworzyłem CITE, aby rzucić wyzwanie cyfrowemu porządkowi zaprojektowanemu pod kątem oburzenia, a nie prawdy.",
+    "title": "Witamy w Citewalk",
+    "founderMessage": "Stworzyłem Citewalk, aby rzucić wyzwanie cyfrowemu porządkowi zaprojektowanemu pod kątem oburzenia, a nie prawdy.",
     "founderName": "Sebastian (Założyciel)",
     "point1": "100% hostowane w UE, zgodne z RODO.",
     "point2": "Twoje dane, Twój wybór.",
@@ -62,7 +62,7 @@
   "onboarding": {
     "profile": {
       "title": "Stwórz profil",
-      "subtitle": "Twoja tożsamość CITE",
+      "subtitle": "Twoja tożsamość Citewalk",
       "displayName": "Nazwa",
       "handle": "Użytkownik",
       "bio": "Bio",
@@ -396,7 +396,7 @@
   "waitingList": {
     "title": "Lista oczekujących",
     "heading": "Wczesny dostęp",
-    "description": "CITE jest w becie.",
+    "description": "Citewalk jest w becie.",
     "emailPlaceholder": "Twój e-mail",
     "join": "Dołącz",
     "success": "Sukces",
@@ -417,7 +417,7 @@
     "acceptAll": "Zaakceptuj wszystkie"
   },
   "signupOverlay": {
-    "title": "Dołącz do CITE",
+    "title": "Dołącz do Citewalk",
     "description": "Utwórz konto, aby obserwować ludzi, zapisywać posty i dołączyć do rozmowy z połączonymi pomysłami i źródłami.",
     "signInUp": "Zaloguj / Zarejestruj",
     "joinWaitlist": "Lista oczekujących",

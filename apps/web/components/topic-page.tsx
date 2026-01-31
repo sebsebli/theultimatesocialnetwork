@@ -32,7 +32,8 @@ export function TopicPage({ topic }: TopicPageProps) {
   };
 
   const storageBase =
-    process.env.NEXT_PUBLIC_STORAGE_URL || "http://localhost:9000/cite-images";
+    process.env.NEXT_PUBLIC_STORAGE_URL ||
+    "http://localhost:9000/citewalk-images";
   const headerImagePost = topic.posts?.find((p) => p.headerImageKey);
   const headerImageUrl = headerImagePost
     ? `${storageBase}/${headerImagePost.headerImageKey}`

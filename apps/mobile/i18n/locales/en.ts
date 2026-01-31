@@ -1,6 +1,6 @@
 export default {
   welcome: {
-    title: 'CITE',
+    title: 'Citewalk',
     subtitle: 'Social posts, linked like Wikipedia.',
     continue: 'Continue',
     privacy: 'Privacy',
@@ -8,8 +8,8 @@ export default {
     imprint: 'Imprint',
   },
   intro: {
-    title: 'Welcome to CITE',
-    founderMessage: 'I built cite to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy. The future deserves verification over virality, context over chaos.',
+    title: 'Welcome to Citewalk',
+    founderMessage: 'I built citewalk to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy. The future deserves verification over virality, context over chaos.',
     founderName: 'Sebastian (Founder)',
     point1: '100% EU hosted and GDPR compliant. Your data stays in Europe, under European law.',
     point2: 'Your data, your choice. Always see what we collect and how we use it. Full transparency, no hidden tracking.',
@@ -63,7 +63,7 @@ export default {
   onboarding: {
     profile: {
       title: 'Create your profile',
-      subtitle: 'Set up your CITE identity',
+      subtitle: 'Set up your Citewalk identity',
       displayName: 'Display name',
       handle: 'Handle',
       bio: 'Bio',
@@ -335,9 +335,9 @@ export default {
     emailPlaceholder: "Friend's email address",
     sendInvite: 'Send invitation',
     referralTitle: 'Refer Friends',
-    referralText: "Share your referral link with friends. They can join Cite and you'll be connected.",
+    referralText: "Share your referral link with friends. They can join Citewalk and you'll be connected.",
     createReferralLink: 'Create Referral Link',
-    referralShareTitle: 'Join me on Cite',
+    referralShareTitle: 'Join me on Citewalk',
     referralFailed: 'Could not get referral link',
     sendFailed: 'Failed to send invitation',
     resendFailed: 'Could not resend. Try again later.',
@@ -642,14 +642,14 @@ export default {
     email: 'Email',
     systemEmailsAlways: 'System messages (sign-in, security, account) are always sent.',
     emailMarketing: 'Marketing & promotions',
-    emailMarketingDesc: 'News, offers and product updates from Cite',
+    emailMarketingDesc: 'News, offers and product updates from Citewalk',
     emailProductUpdates: 'Product updates & tips',
-    emailProductUpdatesDesc: 'New features and how to get the most out of Cite',
+    emailProductUpdatesDesc: 'New features and how to get the most out of Citewalk',
   },
   waitingList: {
     title: 'Join the Waitlist',
     heading: 'Get Early Access',
-    description: 'CITE is currently in beta. Join the waitlist to be notified when invites become available.',
+    description: 'Citewalk is currently in beta. Join the waitlist to be notified when invites become available.',
     emailPlaceholder: 'Enter your email',
     join: 'Join Waitlist',
     success: 'Success',

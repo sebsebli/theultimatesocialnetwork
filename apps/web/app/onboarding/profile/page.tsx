@@ -1,16 +1,15 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { useToast } from '@/components/ui/toast';
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/toast";
 
 export default function OnboardingProfilePage() {
   const { error: toastError } = useToast();
   const router = useRouter();
-  const [displayName, setDisplayName] = useState('');
-  const [handle, setHandle] = useState('');
-  const [bio, setBio] = useState('');
+  const [displayName, setDisplayName] = useState("");
+  const [handle, setHandle] = useState("");
+  const [bio, setBio] = useState("");
   const [isProtected, setIsProtected] = useState(false);
   const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -20,16 +19,18 @@ export default function OnboardingProfilePage() {
       setHandleAvailable(null);
       return;
     }
-    
+
     setIsChecking(true);
     try {
-      const res = await fetch(`/api/users/check-handle?handle=${encodeURIComponent(value)}`);
+      const res = await fetch(
+        `/api/users/check-handle?handle=${encodeURIComponent(value)}`,
+      );
       if (res.ok) {
         const data = await res.json();
         setHandleAvailable(data.available);
       }
     } catch (error) {
-      console.error('Error checking handle', error);
+      console.error("Error checking handle", error);
       setHandleAvailable(null);
     } finally {
       setIsChecking(false);
@@ -46,11 +47,11 @@ export default function OnboardingProfilePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName || !handle || handleAvailable === false) return;
-    
+
     try {
-      const res = await fetch('/api/users/me', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           displayName,
           handle,
@@ -58,15 +59,15 @@ export default function OnboardingProfilePage() {
           isProtected,
         }),
       });
-      
+
       if (res.ok) {
-        router.push('/onboarding/languages');
+        router.push("/onboarding/languages");
       } else {
-        toastError('Failed to create profile');
+        toastError("Failed to create profile");
       }
     } catch (error) {
-      console.error('Error creating profile', error);
-      toastError('Failed to create profile');
+      console.error("Error creating profile", error);
+      toastError("Failed to create profile");
     }
   };
 
@@ -80,8 +81,13 @@ export default function OnboardingProfilePage() {
 
       <div className="w-full max-w-md space-y-10 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="text-center md:text-left">
-          <h1 className="text-4xl font-bold tracking-tight text-paper mb-3">Create your profile</h1>
-          <p className="text-secondary text-lg font-light">Set up your CITE identity. This is how others will recognize your thoughts.</p>
+          <h1 className="text-4xl font-bold tracking-tight text-paper mb-3">
+            Create your profile
+          </h1>
+          <p className="text-secondary text-lg font-light">
+            Set up your Citewalk identity. This is how others will recognize
+            your thoughts.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -101,29 +107,41 @@ export default function OnboardingProfilePage() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between ml-1">
-               <label className="block text-sm font-bold uppercase tracking-widest text-secondary/60">
-                 Handle
-               </label>
-               {isChecking ? (
-                 <span className="text-[10px] font-mono text-tertiary animate-pulse">Checking...</span>
-               ) : handleAvailable === true ? (
-                 <span className="text-[10px] font-mono text-green-400 font-bold uppercase tracking-wider">Available</span>
-               ) : handleAvailable === false ? (
-                 <span className="text-[10px] font-mono text-red-400 font-bold uppercase tracking-wider">Taken</span>
-               ) : null}
+              <label className="block text-sm font-bold uppercase tracking-widest text-secondary/60">
+                Handle
+              </label>
+              {isChecking ? (
+                <span className="text-[10px] font-mono text-tertiary animate-pulse">
+                  Checking...
+                </span>
+              ) : handleAvailable === true ? (
+                <span className="text-[10px] font-mono text-green-400 font-bold uppercase tracking-wider">
+                  Available
+                </span>
+              ) : handleAvailable === false ? (
+                <span className="text-[10px] font-mono text-red-400 font-bold uppercase tracking-wider">
+                  Taken
+                </span>
+              ) : null}
             </div>
             <div className="relative group">
-              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors text-lg font-mono">@</span>
+              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-tertiary group-focus-within:text-primary transition-colors text-lg font-mono">
+                @
+              </span>
               <input
                 type="text"
                 value={handle}
                 onChange={(e) => {
-                  const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                  const value = e.target.value
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_]/g, "");
                   setHandle(value);
                 }}
                 placeholder="username"
                 className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner ${
-                  handleAvailable === false ? 'border-red-500/50 focus:ring-red-500/30' : 'border-white/10 focus:ring-primary/50'
+                  handleAvailable === false
+                    ? "border-red-500/50 focus:ring-red-500/30"
+                    : "border-white/10 focus:ring-primary/50"
                 }`}
                 required
                 minLength={3}
@@ -133,10 +151,12 @@ export default function OnboardingProfilePage() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between ml-1">
-               <label className="block text-sm font-bold uppercase tracking-widest text-secondary/60">
-                 Bio
-               </label>
-               <span className="text-[10px] font-mono text-tertiary">{bio.length}/160</span>
+              <label className="block text-sm font-bold uppercase tracking-widest text-secondary/60">
+                Bio
+              </label>
+              <span className="text-[10px] font-mono text-tertiary">
+                {bio.length}/160
+              </span>
             </div>
             <textarea
               value={bio}
@@ -156,25 +176,29 @@ export default function OnboardingProfilePage() {
                 type="button"
                 onClick={() => setIsProtected(false)}
                 className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
-                  !isProtected 
-                    ? 'bg-primary/10 border-primary/40 shadow-lg' 
-                    : 'bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60'
+                  !isProtected
+                    ? "bg-primary/10 border-primary/40 shadow-lg"
+                    : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
                 }`}
               >
                 <span className="font-bold text-paper mb-1">Open</span>
-                <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">Public access</span>
+                <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">
+                  Public access
+                </span>
               </button>
               <button
                 type="button"
                 onClick={() => setIsProtected(true)}
                 className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
-                  isProtected 
-                    ? 'bg-primary/10 border-primary/40 shadow-lg' 
-                    : 'bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60'
+                  isProtected
+                    ? "bg-primary/10 border-primary/40 shadow-lg"
+                    : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
                 }`}
               >
                 <span className="font-bold text-paper mb-1">Protected</span>
-                <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">Follow approvals</span>
+                <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">
+                  Follow approvals
+                </span>
               </button>
             </div>
           </div>
@@ -182,7 +206,12 @@ export default function OnboardingProfilePage() {
           <div className="pt-6">
             <button
               type="submit"
-              disabled={!displayName || !handle || isChecking || handleAvailable === false}
+              disabled={
+                !displayName ||
+                !handle ||
+                isChecking ||
+                handleAvailable === false
+              }
               className="w-full h-14 bg-[#F2F2F2] text-[#0B0B0C] font-bold text-lg rounded-full hover:bg-white transition-all shadow-xl hover:shadow-white/10 active:scale-[0.98] disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed"
             >
               Finish Setup

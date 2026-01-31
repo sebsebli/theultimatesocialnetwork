@@ -27,7 +27,7 @@ export class PostsController {
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
-  @Throttle({ default: { limit: 10, ttl: 60000 } }) // Limit to 10 posts per minute to prevent spam
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   async create(
     @CurrentUser() user: { id: string },
     @Body() dto: CreatePostDto,
@@ -73,7 +73,7 @@ export class PostsController {
 
   @Post(':id/quote')
   @UseGuards(AuthGuard('jwt'))
-  @Throttle({ default: { limit: 10, ttl: 60000 } }) // Limit quotes too
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   async quote(
     @CurrentUser() user: { id: string },
     @Param('id', ParseUUIDPipe) quotedPostId: string,

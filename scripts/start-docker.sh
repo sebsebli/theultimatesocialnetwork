@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Start Docker Compose for CITE System
+# Start Docker Compose for Citewalk System
 
-echo "🚀 Starting CITE System Docker containers..."
+echo "🚀 Starting Citewalk System Docker containers..."
 
 cd infra/docker
 

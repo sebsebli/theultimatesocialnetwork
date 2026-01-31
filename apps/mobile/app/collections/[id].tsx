@@ -36,7 +36,7 @@ export default function CollectionDetailScreen() {
     Haptics.selectionAsync();
     try {
       await Share.share({
-        message: `Check out this collection: https://cite.app/collections/${id}`,
+        message: `Check out this collection: https://citewalk.app/collections/${id}`,
       });
     } catch (error) {
       // console.error(error);

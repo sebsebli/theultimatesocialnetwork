@@ -129,6 +129,7 @@ export class PostWorker
         createdAt: post.createdAt,
         quoteCount: post.quoteCount,
         replyCount: post.replyCount,
+        readingTimeMinutes: post.readingTimeMinutes,
         topicIds,
         embedding: embedding || undefined,
       });
@@ -138,10 +139,15 @@ export class PostWorker
         `
             MERGE (u:User {id: $userId})
             MERGE (p:Post {id: $postId})
-            SET p.createdAt = $createdAt
+            SET p.createdAt = $createdAt, p.readingTime = $readingTime
             MERGE (u)-[:AUTHORED]->(p)
             `,
-        { userId, postId: post.id, createdAt: post.createdAt.toISOString() },
+        {
+          userId,
+          postId: post.id,
+          createdAt: post.createdAt.toISOString(),
+          readingTime: post.readingTimeMinutes,
+        },
       );
 
       // Topics

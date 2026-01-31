@@ -91,7 +91,7 @@ import * as Joi from 'joi';
         throttlers: [
           {
             ttl: 60000,
-            limit: 100,
+            limit: 300,
           },
         ],
         storage: new ThrottlerStorageRedisService(

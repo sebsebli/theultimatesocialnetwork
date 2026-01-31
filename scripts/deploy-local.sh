@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Deploying CITE System to Local Docker..."
+echo "🚀 Deploying Citewalk System to Local Docker..."
 echo ""
 
 cd "$(dirname "$0")/.."

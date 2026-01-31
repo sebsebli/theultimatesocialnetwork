@@ -82,7 +82,7 @@ export class PostsService {
       : [];
     const recentCount =
       recentTopicRefs.length > 0 ? recentTopicRefs[0].count : '0';
-    if (parseInt(recentCount, 10) >= 20) {
+    if (parseInt(recentCount, 10) >= 100) {
       // Check if this post HAS topic references
       const hasTopics = /\[\[(?!post:)(.*?)\]\]/.test(sanitizedBody);
       if (hasTopics) {

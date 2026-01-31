@@ -9,7 +9,7 @@ packages:
 runcmd:
   - systemctl enable docker
   - systemctl start docker
-  - mkdir -p /opt/cite
+  - mkdir -p /opt/Citewalk
   # In a real setup, you'd pull from a registry or git repo here
-  # - git clone ... /opt/cite
-  # - cd /opt/cite && docker-compose up -d
+  # - git clone ... /opt/Citewalk
+  # - cd /opt/Citewalk && docker-compose up -d

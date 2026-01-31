@@ -1,0 +1,34 @@
+# Citewalk System
+
+Citewalk is a text-first social network built for context, citation, and verification.
+It replaces the "viral algorithm" with a "reputation graph" based on citations.
+
+## Core Concepts
+
+- **Inline Citations:** Users link concepts (`[[Topic]]`) or posts (`[[post:uuid]]`) directly in text.
+- **Private Metrics:** Like counts are private to the author. Public metrics are "Quotes" and "References".
+- **Chronological Feed:** No black-box sorting. You see what you follow.
+- **Sovereign Data:** Hosted in the EU. Data is exportable. No tracking.
+
+## Technical Architecture
+
+- **Web:** Next.js (React), Tailwind CSS.
+- **Mobile:** Native iOS/Android (Expo/React Native). Offline-first.
+- **Backend:** NestJS (Node.js).
+- **Database:** Postgres (Source of Truth), Neo4j (Graph), Meilisearch (Search), Redis (Queue/Cache).
+- **Hosting:** Hetzner (Germany/Finland).
+
+## Navigation
+
+- **Home:** / (Landing Page)
+- **Sign In:** /sign-in
+- **Manifesto:** /manifesto
+- **Roadmap:** /roadmap
+- **Privacy:** /privacy
+- **Terms:** /terms
+- **Imprint:** /imprint
+
+## Operator
+
+Operated by Dr. Sebastian Lindner as a private initiative.
+Contact: legal@citewalk.com

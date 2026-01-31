@@ -62,10 +62,10 @@ export class RssService {
     });
 
     const appBase = (
-      this.configService.get<string>('FRONTEND_URL') || 'https://cite.app'
+      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.app'
     ).replace(/\/$/, '');
     const apiBase = (
-      this.configService.get<string>('API_URL') || 'https://api.cite.app'
+      this.configService.get<string>('API_URL') || 'https://api.citewalk.app'
     ).replace(/\/$/, '');
 
     const escapeXml = (unsafe: string) =>
@@ -91,7 +91,7 @@ export class RssService {
         const title = post.title || 'Untitled Post';
         const link = `${appBase}/post/${post.id}`;
         const date = new Date(post.createdAt).toUTCString();
-        const description = escapeXml(`${title} — Read on Cite`);
+        const description = escapeXml(`${title} — Read on Citewalk`);
         return `
     <item>
       <title>${escapeXml(title)}</title>
@@ -104,7 +104,7 @@ export class RssService {
       .join('');
 
     const channelTitle = escapeXml(
-      `${user.displayName} (@${user.handle}) on Cite`,
+      `${user.displayName} (@${user.handle}) on Citewalk`,
     );
     const channelLink = `${appBase}/user/${user.handle}`;
     const selfLink = `${apiBase}/rss/${encodeURIComponent(user.handle)}`;
@@ -114,10 +114,10 @@ export class RssService {
   <channel>
     <title>${channelTitle}</title>
     <link>${escapeXml(channelLink)}</link>
-    <description>Latest posts from ${escapeXml(user.displayName)} on Cite — links to profile and articles</description>
+    <description>Latest posts from ${escapeXml(user.displayName)} on Citewalk — links to profile and articles</description>
     <language>en-us</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <generator>Cite RSS Generator</generator>
+    <generator>Citewalk RSS Generator</generator>
     <atom:link href="${escapeXml(selfLink)}" rel="self" type="application/rss+xml" />
     ${items}
   </channel>

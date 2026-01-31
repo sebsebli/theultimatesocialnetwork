@@ -145,15 +145,15 @@ function FadeInOutText({
     return () => clearTimeout(timer);
   }, [delay, fadeDuration, visibleDuration, isLast]);
 
-  // Parse text for highlighting "cite" in founder message
+  // Parse text for highlighting "Citewalk" in founder message
   const renderText = () => {
     if (isFounder) {
-      const parts = text.split(/(cite)/i);
+      const parts = text.split(/(Citewalk)/i);
       return (
         <View style={styles.founderContainer}>
           <Text style={style}>
             {parts.map((part, index) =>
-              part.toLowerCase() === 'cite' ? (
+              part.toLowerCase() === 'Citewalk' ? (
                 <Text key={index} style={[style, styles.highlightedCite]}>{part}</Text>
               ) : (
                 <Text key={index}>{part}</Text>
@@ -245,7 +245,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
   const scrollX = useRef(new Animated.Value(0)).current;
 
   const allItems = React.useMemo(() => [
-    { text: "I built cite to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy.\n\nThe future deserves verification over virality, context over chaos.", isFounder: true, hasAuthor: true },
+    { text: "I built Citewalk to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy.\n\nThe future deserves verification over virality, context over chaos.", isFounder: true, hasAuthor: true },
     { text: t('intro.point1'), isFounder: false, hasAuthor: false },
     { text: t('intro.point2'), isFounder: false, hasAuthor: false },
     { text: t('intro.point3'), isFounder: false, hasAuthor: false },
@@ -406,8 +406,8 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
                         style={styles.quoteIcon}
                       />
                       <Text style={[styles.text, styles.founderText]}>
-                        {item.text.split(/(cite)/i).map((part, i) =>
-                          part.toLowerCase() === 'cite' ? (
+                        {item.text.split(/(Citewalk)/i).map((part, i) =>
+                          part.toLowerCase() === 'Citewalk' ? (
                             <Text key={i} style={[styles.text, styles.founderText, styles.highlightedCite]}>
                               {part}
                             </Text>

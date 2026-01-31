@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fresh Docker deploy: tear down all containers and volume data, then bring up and seed.
+# Fresh Docker deploy: tear down all containers and volume data, then bring up (no demo seeding).
 
 set -e
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,9 +30,6 @@ done
 
 echo "🔄 Running migrations..."
 docker compose exec -T api npm run migration:run
-
-echo "🌱 Running comprehensive seed..."
-docker compose exec -T api npm run seed:comprehensive
 
 echo ""
 echo "✅ Fresh deploy complete."

@@ -1,6 +1,6 @@
 # Production setup (Docker)
 
-Use this when deploying CITE with `./deploy.sh prod`. Production uses HTTPS (Nginx + SSL) and enforces strong secrets.
+Use this when deploying Citewalk with `./deploy.sh prod`. Production uses HTTPS (Nginx + SSL) and enforces strong secrets.
 
 ## 1. Copy and fill `.env`
 

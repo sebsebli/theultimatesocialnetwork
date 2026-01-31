@@ -18,10 +18,9 @@ const nextConfig = {
       {
         protocol: 'http',
         hostname: 'localhost',
-        port: '9000',
-        pathname: '/cite-images/**',
-      },
-      {
+                  port: '9000',
+                  pathname: '/citewalk-images/**',
+                },      {
         protocol: 'https',
         hostname: '**',
       },

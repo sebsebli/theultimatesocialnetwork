@@ -1,6 +1,6 @@
 Build a production-ready fullstack social network matching these specs:
 
-# CITE System Implementation Instructions
+# Citewalk System Implementation Instructions
 
 ## Document Structure
 
@@ -18,7 +18,7 @@ PART 1 — PRODUCT & UI/UX SPEC (EXHAUSTIVE)
 
 1. Product definition
 
-CITE is a text-first social network that merges:
+Citewalk is a text-first social network that merges:
 	•	social posting (status/opinions/discussion),
 	•	Wikipedia-style clickable inline links ([[topic]], [[post:uuid]], multi-target links),
 	•	citation-based recognition (quotes/backlinks as durable authority),
@@ -228,7 +228,7 @@ Toolbar row (icons + labels):
 	•	Link target: Topic / Post / URL
 	•	Topic
 	•	opens picker, inserts [[Topic]] or [[Topic|Text]]
-	•	Cite post
+	•	Citewalk post
 	•	opens post search; inserts [[post:uuid|Text]]
 	•	Mention
 	•	opens user search; inserts `@handle`
@@ -762,7 +762,7 @@ Core packages:
 
 Auth:
 	•	Supabase magic link with deep link callback:
-	•	cite://auth/callback
+	•	citewalk://auth/callback
 	•	On callback, store session in secure store.
 	•	API calls include bearer token.
 
@@ -845,7 +845,7 @@ Token payload you send:
 Deep links from push
 
 Push payload data includes:
-	•	deepLink: "cite://post/<uuid>" etc.
+	•	deepLink: "citewalk://post/<uuid>" etc.
 App routes accordingly.
 
 ⸻
@@ -1071,10 +1071,10 @@ export async function registerForPush(jwt: string) {
 1.2 Deep links for push routing
 
 Push payload should include data.deepLink such as:
-	•	cite://post/<uuid>
-	•	cite://topic/<slug>
-	•	cite://user/<handle>
-	•	cite://collection/<uuid>
+	•	citewalk://post/<uuid>
+	•	citewalk://topic/<slug>
+	•	citewalk://user/<handle>
+	•	citewalk://collection/<uuid>
 
 Handle them with expo-linking and navigation.
 
@@ -1419,11 +1419,11 @@ PART 4 — DESIGN & AGENCY BRIEF (VISUAL IDENTITY, INTERACTION DESIGN, COMPONENT
 
 ## Product in one sentence
 
-CITE is a text-first social network where posts link like Wikipedia and credibility comes from being cited—not from public like counts.
+Citewalk is a text-first social network where posts link like Wikipedia and credibility comes from being cited—not from public like counts.
 
 ## Why it exists (the human problem)
 
-Modern social feeds optimize for attention and comparison. CITE is for people who want:
+Modern social feeds optimize for attention and comparison. Citewalk is for people who want:
 *   to write and think without "performing"
 *   to explore ideas through connected posts (Wikipedia-style deep dives)
 *   to build identity through what they write and what they curate
@@ -1457,7 +1457,7 @@ Modern social feeds optimize for attention and comparison. CITE is for people wh
 ## 1.1 Logo system (must be distinct and simple)
 
 Deliver 3 logo lockups:
-1.  Wordmark: "CITE" (primary)
+1.  Wordmark: "Citewalk" (primary)
 2.  Icon: a single-character mark suitable for app icon
 3.  Monogram: "C" or "Ci" (fallback)
 
@@ -2116,11 +2116,11 @@ PART 4 — DESIGN & AGENCY BRIEF
 
 Product in one sentence
 
-CITE is a text-first social network where posts link like Wikipedia and credibility comes from being cited—not from public like counts.
+Citewalk is a text-first social network where posts link like Wikipedia and credibility comes from being cited—not from public like counts.
 
 Why it exists (the human problem)
 
-Modern social feeds optimize for attention and comparison. CITE is for people who want:
+Modern social feeds optimize for attention and comparison. Citewalk is for people who want:
 	•	to write and think without "performing"
 	•	to explore ideas through connected posts (Wikipedia-style deep dives)
 	•	to build identity through what they write and what they curate
@@ -2154,7 +2154,7 @@ Core differentiator to reflect in design
 1.1 Logo system (must be distinct and simple)
 
 Deliver 3 logo lockups:
-	1.	Wordmark: "CITE" (primary)
+	1.	Wordmark: "Citewalk" (primary)
 	2.	Icon: a single-character mark suitable for app icon
 	3.	Monogram: "C" or "Ci" (fallback)
 
