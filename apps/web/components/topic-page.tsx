@@ -38,7 +38,7 @@ export function TopicPage({ topic }: TopicPageProps) {
   };
 
   const headerImagePost = topic.posts?.find((p) => p.headerImageKey);
-  const headerImageUrl = headerImagePost
+  const headerImageUrl = headerImagePost?.headerImageKey
     ? getImageUrl(headerImagePost.headerImageKey)
     : null;
 

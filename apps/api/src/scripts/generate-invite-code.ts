@@ -1,9 +1,19 @@
 /**
  * One-off: generate a system invite code (no admin key).
- * Usage: npx ts-node src/scripts/generate-invite-code.ts [email]
+ * Usage: npx ts-node -r tsconfig-paths/register src/scripts/generate-invite-code.ts [email]
  * If email is provided, creates the code and sends it to that address (and prints the code).
  * If no email, only generates and prints the code.
+ * Loads .env from repo root so DATABASE_URL, REDIS_URL, JWT_SECRET (and email config) are set.
  */
+
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({
+  path: path.resolve(__dirname, '../../../../infra/docker/.env'),
+});
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';

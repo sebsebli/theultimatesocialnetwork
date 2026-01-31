@@ -483,18 +483,32 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
               extrapolate: 'clamp',
             });
 
+            const onIndicatorPress = () => {
+              scrollViewRef.current?.scrollTo({
+                x: index * width,
+                animated: true,
+              });
+              setCurrentIndex(index);
+            };
+
             return (
-              // @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode>
-              <Animated.View
+              <Pressable
                 key={index}
-                style={[
-                  styles.indicator,
-                  {
-                    opacity: indicatorOpacity,
-                    transform: [{ scale: indicatorScale }],
-                  },
-                ]}
-              />
+                onPress={onIndicatorPress}
+                style={styles.indicatorPressable}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                {/* @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
+                <Animated.View
+                  style={[
+                    styles.indicator,
+                    {
+                      opacity: indicatorOpacity,
+                      transform: [{ scale: indicatorScale }],
+                    },
+                  ]}
+                />
+              </Pressable>
             );
           })}
         </View>
@@ -589,6 +603,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.s,
     zIndex: 20,
+  },
+  indicatorPressable: {
+    padding: SPACING.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   indicator: {
     width: 8,
