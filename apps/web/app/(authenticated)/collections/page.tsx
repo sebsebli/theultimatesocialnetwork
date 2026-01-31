@@ -2,17 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { CreateCollectionModal } from "@/components/create-collection-modal";
 
 interface Collection {
   id: string;
   title: string;
   description?: string;
+  isPublic?: boolean;
   itemCount: number;
 }
 
 export default function CollectionsPage() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     loadCollections();
@@ -54,7 +57,12 @@ export default function CollectionsPage() {
             </svg>
           </Link>
           <h1 className="text-xl font-bold text-paper">Collections</h1>
-          <button className="text-primary text-sm font-medium">Create</button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="text-primary text-sm font-medium hover:text-primary/80 transition-colors"
+          >
+            Create
+          </button>
         </div>
       </header>
 
@@ -67,7 +75,10 @@ export default function CollectionsPage() {
         ) : collections.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-secondary text-sm mb-4">No collections yet.</p>
-            <button className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors font-medium text-sm shadow-lg shadow-primary/20"
+            >
               Create collection
             </button>
           </div>
@@ -76,21 +87,36 @@ export default function CollectionsPage() {
             <Link
               key={collection.id}
               href={`/collections/${collection.id}`}
-              className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+              className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
-                  <h3 className="text-paper font-semibold mb-1">
+                  <h3 className="text-paper font-semibold mb-1 group-hover:text-primary transition-colors">
                     {collection.title}
                   </h3>
                   {collection.description && (
-                    <p className="text-secondary text-sm">
+                    <p className="text-secondary text-sm line-clamp-1">
                       {collection.description}
                     </p>
                   )}
                 </div>
+                <div className="bg-white/5 p-1.5 rounded-full text-tertiary">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </div>
               </div>
-              <div className="text-tertiary text-xs mt-2">
+              <div className="text-tertiary text-xs font-medium uppercase tracking-wider mt-2">
                 {collection.itemCount}{" "}
                 {collection.itemCount === 1 ? "item" : "items"}
               </div>
@@ -98,6 +124,12 @@ export default function CollectionsPage() {
           ))
         )}
       </div>
+
+      <CreateCollectionModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={loadCollections}
+      />
     </>
   );
 }

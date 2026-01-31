@@ -17,14 +17,12 @@ const publicRoutes = [
   "/manifesto",
 ];
 
-// Routes that require authentication
+// Routes that require authentication (public profile/post are allowed without auth)
 const protectedRoutes = [
   "/home",
   "/explore",
   "/compose",
   "/inbox",
-  "/user",
-  "/post",
   "/topic",
   "/collections",
   "/keeps",
@@ -32,6 +30,8 @@ const protectedRoutes = [
   "/search",
   "/onboarding",
 ];
+// Public view-only: /user/* and /post/* (interaction locked when not authenticated)
+const publicViewRoutes = ["/user/", "/post/"];
 
 // Routes that are public but redirect authenticated users
 const publicAuthRoutes = ["/welcome", "/sign-in"];
@@ -39,6 +39,14 @@ const publicAuthRoutes = ["/welcome", "/sign-in"];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("token")?.value;
+
+  // Public view-only routes: allow without auth (profile and post pages)
+  const isPublicViewRoute = publicViewRoutes.some((route) =>
+    pathname.startsWith(route),
+  );
+  if (isPublicViewRoute) {
+    return NextResponse.next();
+  }
 
   // Check if route is protected
   const isProtectedRoute = protectedRoutes.some((route) =>

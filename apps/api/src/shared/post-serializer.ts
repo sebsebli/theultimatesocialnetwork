@@ -82,7 +82,7 @@ export function userToPlain(
 ): Record<string, unknown> | null {
   if (!u || typeof u !== 'object') return null;
   // Strip email, preferences, publicId; keep rest for safe serialization
-  const uRecord = u as Record<string, unknown>;
+  const uRecord = u as unknown as Record<string, unknown>;
   const safe: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(uRecord)) {
     if (k !== 'email' && k !== 'preferences' && k !== 'publicId') safe[k] = v;

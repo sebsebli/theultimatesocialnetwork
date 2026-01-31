@@ -1,4 +1,16 @@
 {
+  "nav": {
+    "home": "Koti",
+    "explore": "Löydä",
+    "discover": "Löydä",
+    "post": "Julkaisu",
+    "messages": "Viestit",
+    "activity": "Toiminta",
+    "profile": "Profiili",
+    "settings": "Asetukset",
+    "collections": "Kokoelmat",
+    "keeps": "Tallennetut"
+  },
   "welcome": {
     "title": "Citewalk",
     "subtitle": "Sosiaaliset julkaisut, linkitetty kuin Wikipedia.",

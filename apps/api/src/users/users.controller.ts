@@ -32,6 +32,7 @@ import {
 } from '../shared/post-serializer';
 import { UploadService } from '../upload/upload.service';
 import { SafetyService } from '../safety/safety.service';
+import { TopicFollowsService } from '../topics/topic-follows.service';
 
 @Controller('users')
 @SkipThrottle() // GET /users/me is hit on every app load; avoid 429 on cold start
@@ -41,6 +42,7 @@ export class UsersController {
     @Inject('EXPORT_QUEUE') private exportQueue: Queue,
     private readonly uploadService: UploadService,
     private readonly safetyService: SafetyService,
+    private readonly topicFollowsService: TopicFollowsService,
   ) {}
 
   @Patch('me')
@@ -498,6 +500,13 @@ export class UsersController {
     if (!userId) throw new NotFoundException('User not found');
     const followers = await this.usersService.getFollowers(userId);
     return followers.map((u) => this.withAvatarUrl(u));
+  }
+
+  @Get(':idOrHandle/followed-topics')
+  async getFollowedTopicsByUser(@Param('idOrHandle') idOrHandle: string) {
+    const userId = await this.usersService.resolveUserId(idOrHandle);
+    if (!userId) throw new NotFoundException('User not found');
+    return this.topicFollowsService.getFollowedTopics(userId);
   }
 
   @Get(':handle')

@@ -73,6 +73,7 @@ export function AddToCollectionModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newTitle,
+          isPublic: true,
         }),
       });
 

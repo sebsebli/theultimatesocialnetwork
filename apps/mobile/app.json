@@ -15,7 +15,12 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.citewalk.mobile",
+      "associatedDomains": [
+        "applinks:citewalk.com",
+        "applinks:www.citewalk.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +28,29 @@
         "backgroundColor": "#0B0B0C"
       },
       "package": "com.citewalk.mobile",
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "citewalk.com",
+              "pathPrefix": "/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.citewalk.com",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

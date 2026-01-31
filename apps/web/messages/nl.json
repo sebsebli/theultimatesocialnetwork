@@ -1,4 +1,16 @@
 {
+  "nav": {
+    "home": "Home",
+    "explore": "Ontdekken",
+    "discover": "Ontdekken",
+    "post": "Bericht",
+    "messages": "Berichten",
+    "activity": "Activiteit",
+    "profile": "Profiel",
+    "settings": "Instellingen",
+    "collections": "Collecties",
+    "keeps": "Opgeslagen"
+  },
   "welcome": {
     "title": "Citewalk",
     "subtitle": "Sociale berichten, gekoppeld als Wikipedia.",

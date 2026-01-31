@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@citewalk/design-tokens": "file:../../packages/design-tokens",
     "@expo-google-fonts/ibm-plex-serif": "^0.4.1",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",

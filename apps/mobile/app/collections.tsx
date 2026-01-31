@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, Modal, TextInput, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, Modal, TextInput, RefreshControl, KeyboardAvoidingView, Platform, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
@@ -29,6 +29,7 @@ export default function CollectionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [newIsPublic, setNewIsPublic] = useState(true);
 
   useEffect(() => {
     loadCollections();
@@ -73,9 +74,10 @@ export default function CollectionsScreen() {
     if (!newTitle.trim()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await api.post('/collections', { title: newTitle.trim() });
+      await api.post('/collections', { title: newTitle.trim(), isPublic: newIsPublic });
       setModalVisible(false);
       setNewTitle('');
+      setNewIsPublic(true);
       loadCollections();
     } catch (error) {
       console.error('Failed to create collection', error);
@@ -165,6 +167,20 @@ export default function CollectionsScreen() {
               onChangeText={setNewTitle}
               autoFocus
             />
+            <View style={styles.visibilityRow}>
+              <View style={styles.visibilityLabel}>
+                <Text style={styles.visibilityTitle}>{t('collections.visibility', 'Visibility')}</Text>
+                <Text style={styles.visibilityHint}>
+                  {newIsPublic ? t('collections.visibilityPublic', 'Public — anyone can see this collection') : t('collections.visibilityPrivate', 'Private — only your followers can see it')}
+                </Text>
+              </View>
+              <Switch
+                value={newIsPublic}
+                onValueChange={setNewIsPublic}
+                trackColor={{ false: COLORS.tertiary + '40', true: COLORS.primary + '99' }}
+                thumbColor={newIsPublic ? COLORS.primary : COLORS.secondary}
+              />
+            </View>
             <View style={styles.modalActions}>
               <Pressable style={styles.modalButtonCancel} onPress={() => setModalVisible(false)}>
                 <Text style={styles.modalButtonTextCancel}>{t('common.cancel')}</Text>
@@ -269,6 +285,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.divider,
     marginBottom: SPACING.m,
+  },
+  visibilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.l,
+    paddingVertical: SPACING.s,
+  },
+  visibilityLabel: {
+    flex: 1,
+    marginRight: SPACING.m,
+  },
+  visibilityTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  visibilityHint: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    marginTop: 2,
+    fontFamily: FONTS.regular,
   },
   privacyLabel: {
     fontSize: 13,

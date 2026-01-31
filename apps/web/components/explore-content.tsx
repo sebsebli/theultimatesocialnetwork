@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { PostItem } from "./post-item";
+import { PostItem, Post } from "./post-item";
+import { TopicCard } from "./topic-card";
+import { UserCard } from "./user-card";
 import { WhyLabel } from "./why-label";
 
 interface Topic {
@@ -11,6 +12,10 @@ interface Topic {
   slug: string;
   title: string;
   reasons?: string[];
+  description?: string;
+  postCount?: number;
+  followerCount?: number;
+  isFollowing?: boolean;
 }
 
 interface Person {
@@ -19,9 +24,8 @@ interface Person {
   displayName?: string;
   bio?: string;
   reasons?: string[];
+  isFollowing?: boolean;
 }
-
-import { Post } from "./post-item";
 
 interface ExplorePost extends Post {
   reasons?: string[];
@@ -78,12 +82,61 @@ export function ExploreContent() {
   }, [tab, sort]);
 
   useEffect(() => {
-    // Only load if we don't have data for this tab/sort combo or if explicitly refreshing
     const key = tab as keyof TabData;
     if (tabData[key]?.length === 0) {
       loadContent();
     }
   }, [tab, sort, loadContent, tabData]);
+
+  const handleFollowTopic = async (topicId: string, slug: string) => {
+    setTabData((prev) => ({
+      ...prev,
+      topics: prev.topics.map((t) =>
+        t.id === topicId ? { ...t, isFollowing: !t.isFollowing } : t,
+      ),
+    }));
+
+    try {
+      const isFollowing = tabData.topics.find(
+        (t) => t.id === topicId,
+      )?.isFollowing;
+      const method = isFollowing ? "DELETE" : "POST";
+      await fetch(`/api/topics/${encodeURIComponent(slug)}/follow`, { method });
+    } catch {
+      // Revert
+      setTabData((prev) => ({
+        ...prev,
+        topics: prev.topics.map((t) =>
+          t.id === topicId ? { ...t, isFollowing: !t.isFollowing } : t,
+        ),
+      }));
+    }
+  };
+
+  const handleFollowPerson = async (userId: string) => {
+    setTabData((prev) => ({
+      ...prev,
+      people: prev.people.map((p) =>
+        p.id === userId ? { ...p, isFollowing: !p.isFollowing } : p,
+      ),
+    }));
+
+    try {
+      const isFollowing = tabData.people.find(
+        (p) => p.id === userId,
+      )?.isFollowing;
+      const method = isFollowing ? "DELETE" : "POST";
+      await fetch(`/api/users/${userId}/follow`, { method });
+    } catch {
+      // Revert
+      setTabData((prev) => ({
+        ...prev,
+        people: prev.people.map((p) =>
+          p.id === userId ? { ...p, isFollowing: !p.isFollowing } : p,
+        ),
+      }));
+    }
+  };
 
   // Helper to get active items
   const activeItems =
@@ -112,66 +165,20 @@ export function ExploreContent() {
         <div className="space-y-4">
           {tab === "topics" &&
             (activeItems as Topic[]).map((topic) => (
-              <Link
+              <TopicCard
                 key={topic.id}
-                href={`/topic/${encodeURIComponent(topic.slug)}`}
-              >
-                <div className="relative bg-white/[0.02] hover:bg-white/[0.05] flex flex-col items-stretch justify-end rounded-xl p-6 shadow-sm overflow-hidden border border-white/5 hover:border-primary/40 transition-all duration-300 group">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="text-paper text-2xl font-bold tracking-tight group-hover:text-primary transition-colors">
-                      {topic.title}
-                    </h4>
-                    {topic.reasons && <WhyLabel reasons={topic.reasons} />}
-                  </div>
-                  <p className="text-secondary text-sm mb-4 max-w-sm">
-                    Explore verified discussions and citations about{" "}
-                    {topic.title.toLowerCase()}.
-                  </p>
-                  <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest">
-                    View Topic
-                    <svg
-                      className="w-3 h-3 transform group-hover:translate-x-1 transition-transform"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </Link>
+                topic={topic}
+                onFollow={() => handleFollowTopic(topic.id, topic.slug)}
+              />
             ))}
 
           {tab === "people" &&
             (activeItems as Person[]).map((person) => (
-              <Link key={person.id} href={`/user/${person.handle}`}>
-                <div className="p-5 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group active:scale-[0.99]">
-                  <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xl shadow-inner group-hover:bg-primary/30 transition-colors">
-                      {person.displayName?.charAt(0) || person.handle.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-paper text-lg group-hover:text-primary transition-colors truncate">
-                        {person.displayName || person.handle}
-                      </div>
-                      <div className="text-sm text-tertiary">
-                        @{person.handle}
-                      </div>
-                      {person.bio && (
-                        <div className="text-sm text-secondary mt-1 line-clamp-1">
-                          {person.bio}
-                        </div>
-                      )}
-                    </div>
-                    {person.reasons && <WhyLabel reasons={person.reasons} />}
-                  </div>
-                </div>
-              </Link>
+              <UserCard
+                key={person.id}
+                person={person}
+                onFollow={() => handleFollowPerson(person.id)}
+              />
             ))}
 
           {(tab === "quoted" || tab === "deep-dives" || tab === "newsroom") &&

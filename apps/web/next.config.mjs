@@ -6,30 +6,38 @@ const withNextIntl = createNextIntlPlugin('./i18n.ts');
 const nextConfig = {
   // Note: standalone output disabled for now due to build issues
   // output: 'standalone',
-  
+
   // Environment variables
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
   },
-  
+
   // Image optimization
   images: {
     remotePatterns: [
       {
         protocol: 'http',
         hostname: 'localhost',
-                  port: '9000',
-                  pathname: '/citewalk-images/**',
-                },      {
+        port: '9000',
+        pathname: '/citewalk-images/**',
+      }, {
         protocol: 'https',
         hostname: '**',
       },
     ],
   },
-  
-  // Security headers
+
+  // Security headers and .well-known for app deep links (Universal Links / App Links)
   async headers() {
     return [
+      {
+        source: '/.well-known/apple-app-site-association',
+        headers: [{ key: 'Content-Type', value: 'application/json' }],
+      },
+      {
+        source: '/.well-known/assetlinks.json',
+        headers: [{ key: 'Content-Type', value: 'application/json' }],
+      },
       {
         source: '/:path*',
         headers: [

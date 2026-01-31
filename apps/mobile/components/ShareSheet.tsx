@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL } from '../constants/theme';
 import * as Clipboard from 'expo-clipboard';
 import { useToast } from '../context/ToastContext';
-import { api } from '../utils/api';
+import { api, getWebAppBaseUrl } from '../utils/api';
 
 export interface ShareSheetRef {
   open: (postId: string) => void;
@@ -50,7 +50,7 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
     }
   }, [visible, postId]);
 
-  const url = postId ? `https://citewalk.app/post/${postId}` : '';
+  const url = postId ? `${getWebAppBaseUrl()}/post/${postId}` : '';
 
   const handleSendToThread = (threadId: string) => {
     setVisible(false);
@@ -75,8 +75,8 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
   const handleCopyLink = async () => {
     setVisible(false);
     if (postId) {
-      const url = `https://citewalk.app/post/${postId}`;
-      await Clipboard.setStringAsync(url);
+      const linkUrl = `${getWebAppBaseUrl()}/post/${postId}`;
+      await Clipboard.setStringAsync(linkUrl);
       showSuccess(t('post.linkCopied', 'Link copied to clipboard'));
     }
   };
@@ -84,9 +84,9 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
   const handleShareSystem = async () => {
     setVisible(false);
     if (postId) {
-      const url = `https://citewalk.app/post/${postId}`;
+      const linkUrl = `${getWebAppBaseUrl()}/post/${postId}`;
       try {
-        await NativeShare.share({ message: url });
+        await NativeShare.share({ message: linkUrl, url: linkUrl });
       } catch (e) {
         // console.error(e);
       }

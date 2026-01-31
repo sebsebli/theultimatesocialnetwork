@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '../../utils/api';
+import { api, getWebAppBaseUrl } from '../../utils/api';
+import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../components/ConfirmModal';
@@ -19,8 +20,10 @@ export default function CollectionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const { showToast, showSuccess, showError } = useToast();
   const [collection, setCollection] = useState<Collection | null>(null);
+  const isOwner = !!collection?.ownerId && !!user?.id && collection.ownerId === user.id;
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [items, setItems] = useState<CollectionItem[]>([]);
@@ -32,11 +35,15 @@ export default function CollectionDetailScreen() {
   const [hasMore, setHasMore] = useState(true);
   const insets = useSafeAreaInsets();
 
+  const collectionId = typeof id === 'string' ? id : (id?.[0] ?? '');
   const handleShare = async () => {
+    if (!collectionId) return;
     Haptics.selectionAsync();
+    const url = `${getWebAppBaseUrl()}/collections/${collectionId}`;
     try {
       await Share.share({
-        message: `Check out this collection: https://citewalk.app/collections/${id}`,
+        message: `Check out this collection: ${url}`,
+        url, // iOS
       });
     } catch (error) {
       // console.error(error);
@@ -45,7 +52,7 @@ export default function CollectionDetailScreen() {
 
   const handleDeleteCollection = async () => {
     try {
-      await api.delete(`/collections/${id}`);
+      await api.delete(`/collections/${collectionId}`);
       showSuccess(t('collections.deleted', 'Collection deleted'));
       setDeleteConfirmVisible(false);
       setMoreOptionsVisible(false);
@@ -57,12 +64,12 @@ export default function CollectionDetailScreen() {
   };
 
   useEffect(() => {
-    if (id) {
+    if (collectionId) {
       setPage(1);
       setItems([]);
       loadCollection(1, true);
     }
-  }, [id]);
+  }, [collectionId]);
 
   const loadCollection = async (pageNum: number, reset = false) => {
     if (reset) {
@@ -73,7 +80,7 @@ export default function CollectionDetailScreen() {
       setLoadingMore(true);
     }
     try {
-      const collectionData = await api.get(`/collections/${id}`);
+      const collectionData = await api.get(`/collections/${collectionId}`);
       setCollection(collectionData);
       const itemsList = Array.isArray(collectionData?.items) ? collectionData.items : [];
       if (reset) {
@@ -98,21 +105,21 @@ export default function CollectionDetailScreen() {
       setPage(nextPage);
       loadCollection(nextPage, false);
     }
-  }, [loading, refreshing, loadingMore, hasMore, page, id]);
+  }, [loading, refreshing, loadingMore, hasMore, page, collectionId]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadCollection(1, true);
-  }, [id]);
+  }, [collectionId]);
 
   useEffect(() => {
     if (items.length === 0) return;
     const key = pickRandomHeaderImageKey(
       items.map(i => i.post).filter(Boolean),
-      typeof id === 'string' ? id : (id?.[0] ?? '')
+      collectionId
     );
     setHeaderImageKey(prev => prev ?? key);
-  }, [items, id]);
+  }, [items, collectionId]);
 
   const renderItem = useCallback(({ item }: { item: CollectionItem }) => {
     if (!item?.post) return null;
@@ -212,20 +219,22 @@ export default function CollectionDetailScreen() {
         onBack={() => router.back()}
         onAction={handleShare}
         actionLabel={t('common.share')}
-        rightAction="more"
-        onRightAction={() => setMoreOptionsVisible(true)}
+        rightAction={isOwner ? 'more' : undefined}
+        onRightAction={isOwner ? () => setMoreOptionsVisible(true) : undefined}
         metrics={{ itemCount: items.length }}
       />
 
-      <OptionsActionSheet
-        visible={moreOptionsVisible}
-        title={t('collections.options', 'Collection Options')}
-        options={[
-          { label: t('collections.delete', 'Delete Collection'), onPress: () => { setMoreOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true },
-        ]}
-        cancelLabel={t('common.cancel')}
-        onCancel={() => setMoreOptionsVisible(false)}
-      />
+      {isOwner && (
+        <OptionsActionSheet
+          visible={moreOptionsVisible}
+          title={t('collections.options', 'Collection Options')}
+          options={[
+            { label: t('collections.delete', 'Delete Collection'), onPress: () => { setMoreOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true },
+          ]}
+          cancelLabel={t('common.cancel')}
+          onCancel={() => setMoreOptionsVisible(false)}
+        />
+      )}
       <ConfirmModal
         visible={deleteConfirmVisible}
         title={t('collections.delete', 'Delete Collection')}

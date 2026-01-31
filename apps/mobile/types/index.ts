@@ -55,6 +55,7 @@ export interface Collection {
   description?: string;
   isPublic: boolean;
   itemCount: number;
+  ownerId?: string;
   owner?: User;
   hasPost?: boolean; // For "Add to Collection" sheet
 }

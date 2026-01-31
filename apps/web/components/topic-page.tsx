@@ -25,7 +25,12 @@ export function TopicPage({ topic }: TopicPageProps) {
     const previous = isFollowing;
     setIsFollowing(!previous);
     try {
-      // API call would go here
+      const method = previous ? "DELETE" : "POST";
+      const res = await fetch(
+        `/api/topics/${encodeURIComponent(topic.slug)}/follow`,
+        { method },
+      );
+      if (!res.ok) throw new Error("Failed to toggle follow");
     } catch {
       setIsFollowing(previous);
     }

@@ -23,9 +23,11 @@ Edit `.env` and set **production** values:
 
 Never commit `.env`; it is in `.gitignore`.
 
-## 2. SSL certificates
+## 2. SSL certificates (citewalk.com)
 
-Place your TLS certificate and private key in `./ssl/`:
+**Automatic (recommended on Hetzner):** If `ssl/cert.pem` and `ssl/key.pem` are missing, `./deploy.sh prod` will run Certbot in Docker to obtain Let's Encrypt certificates. Add to `.env`: `CERTBOT_EMAIL=hello@citewalk.com` (required for auto SSL). Optional: `CERTBOT_DOMAIN=citewalk.com`, `CERTBOT_STAGING=1` (for testing). Ensure **port 80** is free when Certbot runs; domain must point to the server's IP. **Renewal is automatic:** when using Terraform/cloud-init (Hetzner), a daily cron job runs at 3 AM to renew certs; otherwise add the cron yourself (see “SSL renewal” below).
+
+**Manual:** Place your TLS certificate and private key in `./ssl/`:
 
 - `ssl/cert.pem` — certificate (or full chain)
 - `ssl/key.pem` — private key
@@ -34,12 +36,12 @@ Example with Let’s Encrypt:
 
 ```bash
 mkdir -p ssl
-cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ssl/cert.pem
-cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ssl/key.pem
+cp /etc/letsencrypt/live/citewalk.com/fullchain.pem ssl/cert.pem
+cp /etc/letsencrypt/live/citewalk.com/privkey.pem ssl/key.pem
 chmod 600 ssl/key.pem
 ```
 
-`./deploy.sh prod` will fail if these files are missing.
+If you use manual certs, `./deploy.sh prod` will fail until these files exist.
 
 ## 3. Deploy
 
@@ -78,6 +80,24 @@ $COMPOSE_CMD logs -f api
 $COMPOSE_CMD logs -f nginx
 $COMPOSE_CMD down
 $COMPOSE_CMD up -d --build
+```
+
+### SSL renewal (Let's Encrypt) — automatic
+
+Certificates expire after 90 days. **Auto-renewal is enabled** when you provision the server with Terraform (`infra/terraform/cloud-init.yaml`): a cron job runs **daily at 3 AM** and executes `renew-ssl-cron.sh` (stops nginx → Certbot renew → starts nginx). The cron expects the repo at `/opt/citewalk`; adjust `/etc/cron.d/citewalk-ssl-renew` if your path is different. Logs: `/var/log/citewalk-ssl-renew.log`.
+
+**Manual renew** (from `infra/docker`, port 80 must be free):
+
+```bash
+$COMPOSE_CMD stop nginx
+./init-ssl-certbot.sh --renew
+$COMPOSE_CMD start nginx
+```
+
+**Without Terraform:** add a cron entry so renewal runs automatically, e.g.:
+
+```bash
+0 3 * * * cd /path/to/infra/docker && ./renew-ssl-cron.sh >> /var/log/citewalk-ssl-renew.log 2>&1
 ```
 
 ## 6. Checklist

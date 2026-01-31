@@ -12,6 +12,8 @@ import {
 } from '../utils/api';
 import { registerForPush } from '../utils/push-notifications';
 
+
+
 interface AuthContextType {
   signIn: (token: string) => Promise<void>;
   signOut: () => Promise<void>;

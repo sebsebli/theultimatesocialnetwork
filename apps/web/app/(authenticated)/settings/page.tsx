@@ -72,7 +72,11 @@ export default function SettingsPage() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 py-3">
         <div className="flex items-center justify-between">
-          <Link href="/" className="text-secondary hover:text-paper">
+          <Link
+            href="/home"
+            className="text-secondary hover:text-paper"
+            aria-label="Back"
+          >
             <svg
               className="w-6 h-6"
               fill="none"
@@ -97,6 +101,15 @@ export default function SettingsPage() {
         <section>
           <h2 className="text-lg font-semibold mb-4 text-paper">Account</h2>
           <div className="space-y-3">
+            <Link
+              href="/settings/profile"
+              className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+            >
+              <div className="font-medium">Edit profile</div>
+              <div className="text-secondary text-sm mt-1">
+                Display name, handle, bio
+              </div>
+            </Link>
             <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
               <div>
                 <div className="text-paper font-medium">Email</div>
@@ -143,6 +156,15 @@ export default function SettingsPage() {
             Notifications
           </h2>
           <div className="space-y-3">
+            <Link
+              href="/settings/notifications"
+              className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+            >
+              <div className="font-medium">Notification preferences</div>
+              <div className="text-secondary text-sm mt-1">
+                Push, email, and notification types
+              </div>
+            </Link>
             <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
               <div>
                 <div className="text-paper font-medium">Push notifications</div>

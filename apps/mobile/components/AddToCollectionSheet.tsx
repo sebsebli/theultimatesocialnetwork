@@ -54,6 +54,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
     try {
       const newCollection = await api.post('/collections', {
         title: newTitle,
+        isPublic: true,
       });
 
       setCollections([newCollection, ...collections]);

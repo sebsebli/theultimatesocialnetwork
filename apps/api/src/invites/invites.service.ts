@@ -55,7 +55,7 @@ export class InvitesService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     const baseUrl = (
-      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.app'
+      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.com'
     ).replace(/\/$/, '');
     const referralId = user.handle;
     const referralLink = `${baseUrl}/invite/@${referralId}`;
@@ -291,6 +291,7 @@ export class InvitesService {
       if (count > 5)
         throw new ForbiddenException('Too many requests from this IP');
     }
+    // consent is accepted by the DTO; optional for future storage (e.g. consent timestamp)
     await this.waitingListRepo.save({ email, ipHash, status: 'PENDING' });
   }
 

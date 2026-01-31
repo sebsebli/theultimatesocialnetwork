@@ -74,8 +74,25 @@ export default function PrivacyPage() {
             GDPR (legitimate interest in operating a communication platform).
           </p>
 
+          <h3 className="text-xl font-bold mb-2">3.3 Waiting List</h3>
+          <p>
+            <strong>Data:</strong> Email address, and (for abuse prevention) a
+            hashed IP. You give explicit consent when you join the waiting list.
+          </p>
+          <p>
+            <strong>Purpose & Legal Basis:</strong> To contact you about
+            Citewalk project updates and your invitation to the open beta
+            program, based on your consent (Art. 6(1)(a) GDPR). Consent is given
+            by ticking the consent box before submitting.
+          </p>
+          <p>
+            <strong>Withdrawal:</strong> You may withdraw consent at any time by
+            emailing hello@citewalk.com; we will remove your data from the
+            waiting list and stop contacting you.
+          </p>
+
           <h3 className="text-xl font-bold mb-2">
-            3.3 Technical & Security Data
+            3.4 Technical & Security Data
           </h3>
           <p>
             <strong>Data:</strong> IP address, device information, access logs.

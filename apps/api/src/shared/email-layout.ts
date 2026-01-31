@@ -19,6 +19,10 @@ export interface EmailLayoutOptions {
   unsubscribeUrl?: string;
   /** Short line explaining why they received this email (e.g. "You received this because you have a Citewalk account."). Good for GDPR/transparency. */
   reasonText?: string;
+  /** Logo image URL (e.g. https://citewalk.com/logo_transparent.png). Shown in header when set. */
+  logoUrl?: string;
+  /** Help/support email (e.g. hello@citewalk.com). Shown in footer when set. */
+  helpEmail?: string;
 }
 
 /* Dark theme – content background #1A1A1D */
@@ -79,9 +83,16 @@ function buildLegalFooter(opts: {
   companyAddress?: string;
   unsubscribeUrl?: string;
   reasonText?: string;
+  helpEmail?: string;
 }): { reasonHtml: string; legalHtml: string } {
-  const { baseUrl, companyName, companyAddress, unsubscribeUrl, reasonText } =
-    opts;
+  const {
+    baseUrl,
+    companyName,
+    companyAddress,
+    unsubscribeUrl,
+    reasonText,
+    helpEmail,
+  } = opts;
   const url = baseUrl ? baseUrl.replace(/\/$/, '') : '';
   const links: string[] = [];
   if (baseUrl) {
@@ -113,6 +124,11 @@ function buildLegalFooter(opts: {
       `<span class="email-legal-links">${links.join(' &nbsp;&bull;&nbsp; ')}</span>`,
     );
   }
+  if (helpEmail) {
+    parts.push(
+      `Need help? Contact us at <a href="mailto:${escapeAttr(helpEmail)}" style="${STYLES.legalLink}">${escapeHtml(helpEmail)}</a>.`,
+    );
+  }
   parts.push(escapeHtml('Transactional message. Not marketing.'));
 
   const reasonHtml = reasonText
@@ -133,6 +149,8 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
     companyAddress,
     unsubscribeUrl,
     reasonText,
+    logoUrl,
+    helpEmail,
   } = options;
 
   const codeBlock = code
@@ -150,7 +168,13 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
     companyAddress,
     unsubscribeUrl: prefsUrl,
     reasonText,
+    helpEmail,
   });
+
+  const siteUrl = baseUrl ? baseUrl.replace(/\/$/, '') : '';
+  const headerContent = logoUrl
+    ? `<a href="${siteUrl ? escapeAttr(siteUrl) : '#'}" style="display:inline-block;text-decoration:none;"><img src="${escapeAttr(logoUrl)}" alt="${escapeHtml(companyName)}" width="160" height="auto" style="display:block;max-width:160px;height:auto;border:0;" /></a>`
+    : `<span style="${STYLES.accentBar}"></span><p style="${STYLES.logo}">${escapeHtml(companyName)}</p>`;
 
   return `
 <!DOCTYPE html>
@@ -172,8 +196,7 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;margin:0 auto;border-collapse:collapse;background-color:${BG};" bgcolor="${BG}">
     <tr><td class="email-inner" style="${STYLES.innerCell}">
     <div style="${STYLES.header}">
-      <span style="${STYLES.accentBar}"></span>
-      <p style="${STYLES.logo}">${escapeHtml(companyName)}</p>
+      ${headerContent}
     </div>
     <div class="email-card" style="${STYLES.card}">
       <h1 class="email-title" style="${STYLES.title}">${escapeHtml(title)}</h1>

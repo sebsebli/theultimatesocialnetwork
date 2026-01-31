@@ -32,7 +32,7 @@ if [ ! -f ".env" ]; then
   fi
 fi
 
-# Production: validate required secrets and SSL
+# Production: validate required secrets; obtain SSL via Certbot if missing
 if [ "$ENVIRONMENT" = "prod" ]; then
   get_env() { grep -E "^${1}=" .env 2>/dev/null | cut -d= -f2- | tr -d '\r' || true; }
   JWT_SECRET=$(get_env JWT_SECRET)
@@ -51,23 +51,36 @@ if [ "$ENVIRONMENT" = "prod" ]; then
     echo "❌ Production requires CITEWALK_ADMIN_SECRET to be set to a strong value in .env"
     ERR=1
   fi
-  if [ ! -f "ssl/cert.pem" ] || [ ! -f "ssl/key.pem" ]; then
-    echo "❌ Production requires SSL certs: place cert.pem and key.pem in ./ssl/"
-    ERR=1
-  fi
   if [ $ERR -eq 1 ]; then
     echo "Fix the above and run ./deploy.sh prod again."
     exit 1
   fi
-  echo "✅ Production checks passed (JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET, SSL)"
+  echo "✅ Production checks passed (JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET)"
+
+  # Auto-generate SSL certs with Certbot if missing (domain: citewalk.com via CERTBOT_DOMAIN/CERTBOT_EMAIL in .env)
+  if [ ! -f "ssl/cert.pem" ] || [ ! -f "ssl/key.pem" ]; then
+    echo "🔒 SSL certs not found in ./ssl/. Running Certbot to obtain Let's Encrypt certificates..."
+    if [ -f "init-ssl-certbot.sh" ]; then
+      chmod +x init-ssl-certbot.sh
+      ./init-ssl-certbot.sh
+    else
+      echo "❌ init-ssl-certbot.sh not found. Place cert.pem and key.pem in ./ssl/ or add CERTBOT_EMAIL to .env and run init-ssl-certbot.sh."
+      exit 1
+    fi
+  fi
+  if [ ! -f "ssl/cert.pem" ] || [ ! -f "ssl/key.pem" ]; then
+    echo "❌ SSL certs still missing. Ensure port 80 is free and CERTBOT_EMAIL is set in .env, then run ./init-ssl-certbot.sh"
+    exit 1
+  fi
+  echo "✅ SSL certificates ready (./ssl/cert.pem, key.pem)"
 fi
 
 # Create volumes directory if it doesn't exist
 echo "📁 Creating volume directories..."
 mkdir -p volumes/{db,neo4j/{data,logs},redis,meilisearch,minio,ollama,backups}
 
-# Set permissions for backup/restore scripts
-for script in backup-db.sh backup-full.sh restore-full.sh; do
+# Set permissions for backup/restore and SSL scripts
+for script in backup-db.sh backup-full.sh restore-full.sh init-ssl-certbot.sh renew-ssl-cron.sh; do
   if [ -f "$script" ]; then
     chmod +x "$script"
   fi

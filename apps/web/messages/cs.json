@@ -1,4 +1,16 @@
 {
+  "nav": {
+    "home": "Domů",
+    "explore": "Objevovat",
+    "discover": "Objevovat",
+    "post": "Příspěvek",
+    "messages": "Zprávy",
+    "activity": "Aktivita",
+    "profile": "Profil",
+    "settings": "Nastavení",
+    "collections": "Kolekce",
+    "keeps": "Uložené"
+  },
   "welcome": {
     "title": "Citewalk",
     "subtitle": "Sociální příspěvky, propojené jako Wikipedie.",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Linking, useWindowDimensions, Dimensions, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,7 +10,7 @@ import { api } from '../utils/api';
 import { useAuth } from '../context/auth';
 import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
-import { IntroModal, shouldShowIntro } from '../components/IntroModal';
+import { IntroModal, shouldShowIntro, resetIntro } from '../components/IntroModal';
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -203,8 +204,9 @@ export default function IndexScreen() {
           <View style={styles.content}>
             {!sent ? (
               <View style={styles.logoContainer}>
+                <Image source={require('../assets/logo_transparent.png')} style={styles.logo} contentFit="contain" />
                 <Text style={styles.appName}>Citewalk</Text>
-                <Text style={styles.tagline}>{t('welcome.tagline', 'Recognition comes from being cited.')}</Text>
+                <Text style={styles.tagline}>{t('welcome.tagline', 'History is written by those who write.')}</Text>
               </View>
             ) : (
               <View style={[styles.textContainer, styles.checkEmailBlock]}>
@@ -354,19 +356,30 @@ export default function IndexScreen() {
           </View>
         </View>
 
-        {/* Legal Links - Fixed at bottom */}
-        <View style={styles.legalLinks}>
-          <Pressable onPress={() => openLegalLink('/privacy')}>
-            <Text style={styles.legalLink}>{t('welcome.privacy')}</Text>
+        {/* Show intro again + Legal Links - Fixed at bottom */}
+        <View style={styles.bottomLinks}>
+          <Pressable
+            onPress={async () => {
+              await resetIntro();
+              setShowIntro(true);
+            }}
+            style={styles.showIntroAgain}
+          >
+            <Text style={styles.showIntroAgainText}>{t('welcome.showIntroAgain', 'Show intro again')}</Text>
           </Pressable>
-          <View style={styles.legalSeparator} />
-          <Pressable onPress={() => openLegalLink('/terms')}>
-            <Text style={styles.legalLink}>{t('welcome.terms')}</Text>
-          </Pressable>
-          <View style={styles.legalSeparator} />
-          <Pressable onPress={() => openLegalLink('/imprint')}>
-            <Text style={styles.legalLink}>{t('welcome.imprint')}</Text>
-          </Pressable>
+          <View style={styles.legalLinks}>
+            <Pressable onPress={() => openLegalLink('/privacy')}>
+              <Text style={styles.legalLink}>{t('welcome.privacy')}</Text>
+            </Pressable>
+            <View style={styles.legalSeparator} />
+            <Pressable onPress={() => openLegalLink('/terms')}>
+              <Text style={styles.legalLink}>{t('welcome.terms')}</Text>
+            </Pressable>
+            <View style={styles.legalSeparator} />
+            <Pressable onPress={() => openLegalLink('/imprint')}>
+              <Text style={styles.legalLink}>{t('welcome.imprint')}</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -400,7 +413,11 @@ const styles = StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: SPACING.s, // Reduced gap between Title and Tagline
+    gap: SPACING.m,
+  },
+  logo: {
+    width: 88,
+    height: 88,
   },
   appName: {
     fontSize: 48, // Much larger
@@ -409,12 +426,12 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   tagline: {
-    fontSize: 17,
+    fontSize: 18,
     color: COLORS.secondary,
     textAlign: 'center',
-    fontFamily: FONTS.serifRegular, // Changed to Serif Regular
-    maxWidth: 260,
-    lineHeight: 24,
+    fontFamily: FONTS.serifSemiBold,
+    maxWidth: 300,
+    lineHeight: 26,
   },
   textContainer: {
     alignItems: 'center',
@@ -492,6 +509,19 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     textAlign: 'center',
     fontFamily: FONTS.medium,
+  },
+  bottomLinks: {
+    alignItems: 'center',
+    gap: SPACING.m,
+  },
+  showIntroAgain: {
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.s,
+  },
+  showIntroAgainText: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
   },
   legalLinks: {
     flexDirection: 'row',

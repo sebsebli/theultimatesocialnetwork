@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { MessagesTab } from "@/components/messages-tab";
 
 interface Notification {
@@ -16,12 +17,15 @@ interface Notification {
     id: string;
     title?: string;
   };
+  replyId?: string;
   readAt?: string;
 }
 
 export default function InboxPage() {
+  const searchParams = useSearchParams();
+  const threadIdFromUrl = searchParams.get("thread");
   const [activeTab, setActiveTab] = useState<"notifications" | "messages">(
-    "notifications",
+    threadIdFromUrl ? "messages" : "notifications",
   );
   const [tabData, setTabData] = useState<{
     notifications: Notification[];
@@ -86,6 +90,18 @@ export default function InboxPage() {
     }
   };
 
+  const getNotificationLink = (notif: Notification) => {
+    if (notif.type === "FOLLOW" && notif.actor?.handle) {
+      return `/user/${notif.actor.handle}`;
+    }
+    if (notif.post?.id) {
+      // For replies/mentions, ideally link to anchor if replyId exists
+      // but standard post link is a safe fallback matching mobile logic parity
+      return `/post/${notif.post.id}`;
+    }
+    return "#";
+  };
+
   return (
     <>
       {/* Header */}
@@ -142,7 +158,7 @@ export default function InboxPage() {
               tabData.notifications.map((notif) => (
                 <Link
                   key={notif.id}
-                  href={notif.post ? `/post/${notif.post.id}` : "#"}
+                  href={getNotificationLink(notif)}
                   className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
                 >
                   <div className="flex items-start gap-3">
@@ -167,7 +183,9 @@ export default function InboxPage() {
           </div>
         )}
 
-        {activeTab === "messages" && <MessagesTab />}
+        {activeTab === "messages" && (
+          <MessagesTab initialThreadId={threadIdFromUrl || undefined} />
+        )}
       </div>
     </>
   );

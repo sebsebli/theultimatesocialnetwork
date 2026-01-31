@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Collection } from '../entities/collection.entity';
 import { CollectionItem } from '../entities/collection-item.entity';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
+import { Follow } from '../entities/follow.entity';
 
 @Injectable()
 export class CollectionsService {
@@ -15,6 +16,7 @@ export class CollectionsService {
     private itemRepo: Repository<CollectionItem>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Follow) private followRepo: Repository<Follow>,
   ) {}
 
   async create(
@@ -22,12 +24,13 @@ export class CollectionsService {
     title: string,
     description?: string,
     shareSaves = false,
+    isPublic = true,
   ) {
     const col = this.collectionRepo.create({
       ownerId: userId,
       title,
       description,
-      isPublic: true, // visibility follows user profile; column kept for compatibility
+      isPublic,
       shareSaves,
     });
     return this.collectionRepo.save(col);
@@ -97,6 +100,50 @@ export class CollectionsService {
     return { ...collection, items };
   }
 
+  /**
+   * Get a collection by id for a viewer. Owner sees full detail; others see it only if allowed
+   * (can view profile and either collection is public or viewer follows owner).
+   */
+  async findOneForViewer(collectionId: string, viewerId: string) {
+    const collection = await this.collectionRepo.findOne({
+      where: { id: collectionId },
+    });
+    if (!collection) {
+      throw new NotFoundException('Collection not found');
+    }
+    if (collection.ownerId === viewerId) {
+      return this.findOne(collectionId, viewerId);
+    }
+    const owner = await this.userRepo.findOne({
+      where: { id: collection.ownerId },
+      select: ['id', 'isProtected'],
+    });
+    if (!owner) {
+      throw new NotFoundException('Collection not found');
+    }
+    const canViewProfile =
+      !owner.isProtected ||
+      !!(
+        viewerId &&
+        (await this.followRepo.findOne({
+          where: { followerId: viewerId, followeeId: collection.ownerId },
+        }))
+      );
+    if (!canViewProfile) {
+      throw new NotFoundException('Collection not found');
+    }
+    const isFollower = !!(
+      viewerId &&
+      (await this.followRepo.findOne({
+        where: { followerId: viewerId, followeeId: collection.ownerId },
+      }))
+    );
+    if (!collection.isPublic && !isFollower) {
+      throw new NotFoundException('Collection not found');
+    }
+    return this.findOne(collectionId, collection.ownerId);
+  }
+
   async addItem(collectionId: string, postId: string, note?: string) {
     // Validate ownership in controller or here via another query
     return this.itemRepo.save({ collectionId, postId, curatorNote: note });
@@ -109,6 +156,7 @@ export class CollectionsService {
       shareSaves?: boolean;
       title?: string;
       description?: string;
+      isPublic?: boolean;
     },
   ) {
     const collection = await this.collectionRepo.findOne({
@@ -126,6 +174,9 @@ export class CollectionsService {
     }
     if (dto.description !== undefined) {
       collection.description = dto.description;
+    }
+    if (dto.isPublic !== undefined) {
+      collection.isPublic = dto.isPublic;
     }
 
     return this.collectionRepo.save(collection);

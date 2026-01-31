@@ -1,4 +1,16 @@
 {
+  "nav": {
+    "home": "Главная",
+    "explore": "Обзор",
+    "discover": "Обзор",
+    "post": "Публикация",
+    "messages": "Сообщения",
+    "activity": "Активность",
+    "profile": "Профиль",
+    "settings": "Настройки",
+    "collections": "Коллекции",
+    "keeps": "Сохранённые"
+  },
   "welcome": {
     "title": "Citewalk",
     "subtitle": "Социальные посты, связанные как Википедия.",

@@ -21,9 +21,11 @@ So: **collections are not topics** — topics are global categories; collections
 ## Collections
 
 - **Can be public or private.** Each collection has `isPublic` and `shareSaves`.
+  - **Public:** Anyone who can see your profile can see the collection.
+  - **Private:** Only you and your **followers** can see the collection. (Future: optionally share with specific people.)
 - **Multiple named folders.** e.g. "Research", "Design", "To read".
 - **Followable.** When public and `shareSaves` is on, others can see that you saved a post to a collection (used in feed: "X saved this to Collection Y").
-- **API:** `collections` + `collection_items`. Endpoints: `GET/POST /collections`, `POST /collections/:id/items` (add post), etc.
+- **API:** `collections` + `collection_items`. Endpoints: `GET/POST /collections`, `PATCH /collections/:id` (supports `isPublic`), `POST /collections/:id/items` (add post), etc.
 
 **Use case:** Organize saves into topics; optionally share lists with others.
 

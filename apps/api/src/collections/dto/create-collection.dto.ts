@@ -20,4 +20,8 @@ export class CreateCollectionDto {
   @IsOptional()
   @IsBoolean()
   shareSaves?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }

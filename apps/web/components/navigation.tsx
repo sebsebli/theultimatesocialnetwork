@@ -120,7 +120,7 @@ export function Navigation() {
           <span
             className={`text-[10px] font-bold uppercase tracking-widest mt-1 transition-opacity ${isActive("/inbox") ? "opacity-100" : "opacity-0"}`}
           >
-            {t("activity")}
+            {t("messages")}
           </span>
         </Link>
         <Link

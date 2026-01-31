@@ -6,10 +6,22 @@ packages:
   - docker-compose
   - git
 
+# SSL auto-renew: runs daily at 3 AM (adjust DEPLOY_PATH if your repo is elsewhere)
+# Certbot renews Let's Encrypt certs; nginx is briefly stopped during renew.
+write_files:
+  - path: /etc/cron.d/citewalk-ssl-renew
+    content: |
+      SHELL=/bin/bash
+      PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      # Daily at 3 AM — auto-renew SSL for citewalk.com (run from repo path)
+      # Change DEPLOY_PATH below if you clone to a different directory.
+      0 3 * * * root DEPLOY_PATH=/opt/citewalk/infra/docker; [ -x "$DEPLOY_PATH/renew-ssl-cron.sh" ] && CITEWALK_DOCKER_DIR=$DEPLOY_PATH $DEPLOY_PATH/renew-ssl-cron.sh >> /var/log/citewalk-ssl-renew.log 2>&1
+    permissions: '0644'
+
 runcmd:
   - systemctl enable docker
   - systemctl start docker
-  - mkdir -p /opt/Citewalk
-  # In a real setup, you'd pull from a registry or git repo here
-  # - git clone ... /opt/Citewalk
-  # - cd /opt/Citewalk && docker-compose up -d
+  - mkdir -p /opt/citewalk
+  # After cloning repo to /opt/citewalk, cron will auto-renew SSL daily.
+  # - git clone ... /opt/citewalk
+  # - cd /opt/citewalk/infra/docker && ./deploy.sh prod

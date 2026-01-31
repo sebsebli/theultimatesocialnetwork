@@ -26,6 +26,7 @@ import { SearchModule } from '../search/search.module';
 import { UploadModule } from '../upload/upload.module';
 import { CollectionsModule } from '../collections/collections.module';
 import { SafetyModule } from '../safety/safety.module';
+import { TopicsModule } from '../topics/topics.module';
 import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
@@ -52,6 +53,7 @@ import { defaultQueueConfig } from '../common/queue-config';
     UploadModule,
     CollectionsModule,
     SafetyModule,
+    TopicsModule,
   ],
   controllers: [UsersController],
   providers: [

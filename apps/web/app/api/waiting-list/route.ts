@@ -26,6 +26,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const email = sanitizeString(body.email);
+    const consent = body.consent === true;
 
     if (!validateEmail(email)) {
       return NextResponse.json(
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     const res = await fetch(`${API_URL}/waiting-list`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, consent }),
     });
 
     if (!res.ok) {

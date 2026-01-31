@@ -1,4 +1,16 @@
 {
+  "nav": {
+    "home": "Hjem",
+    "explore": "Utforsk",
+    "discover": "Utforsk",
+    "post": "Innlegg",
+    "messages": "Meldinger",
+    "activity": "Aktivitet",
+    "profile": "Profil",
+    "settings": "Innstillinger",
+    "collections": "Samlinger",
+    "keeps": "Lagret"
+  },
   "welcome": {
     "title": "Citewalk",
     "subtitle": "Sociale innlegg, lenket som Wikipedia.",

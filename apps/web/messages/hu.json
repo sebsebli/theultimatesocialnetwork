@@ -1,4 +1,16 @@
 {
+  "nav": {
+    "home": "Kezdőlap",
+    "explore": "Felfedezés",
+    "discover": "Felfedezés",
+    "post": "Bejegyzés",
+    "messages": "Üzenetek",
+    "activity": "Tevékenység",
+    "profile": "Profil",
+    "settings": "Beállítások",
+    "collections": "Gyűjtemények",
+    "keeps": "Mentve"
+  },
   "welcome": {
     "title": "Citewalk",
     "subtitle": "Közösségi posztok, linkelve mint a Wikipédia.",

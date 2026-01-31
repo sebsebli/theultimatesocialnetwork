@@ -32,6 +32,7 @@ export class CollectionsController {
       dto.title,
       dto.description,
       dto.shareSaves ?? false,
+      dto.isPublic ?? true,
     );
   }
 
@@ -47,7 +48,7 @@ export class CollectionsController {
     @CurrentUser() user: { id: string },
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.collectionsService.findOne(id, user.id);
+    return this.collectionsService.findOneForViewer(id, user.id);
   }
 
   @Post(':id/items')

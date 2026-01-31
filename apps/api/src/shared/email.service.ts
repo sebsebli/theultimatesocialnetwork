@@ -63,13 +63,16 @@ export class EmailService {
     }
 
     const bodyHtml = `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:16px;line-height:1.6;">${t.body}</p><p style="margin:0;color:#6E6E73;font-size:14px;">${t.tokenLabel}</p>`;
-    const baseUrl = this.configService.get<string>('FRONTEND_URL') || undefined;
+    const baseUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.com';
     const html = buildEmailHtml({
       title: t.title,
       bodyHtml,
       code: token,
       footerText: t.ignore,
       baseUrl,
+      logoUrl: `${baseUrl.replace(/\/$/, '')}/logo_transparent.png`,
+      helpEmail: 'hello@citewalk.com',
       companyName:
         this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Citewalk',
       companyAddress:
@@ -136,13 +139,16 @@ export class EmailService {
       `<p style="margin:0 0 8px 0;color:#6E6E73;font-size:14px;">${codeLabel}</p>`,
       `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:14px;line-height:1.5;">${instructions}</p>`,
     ].join('');
-    const baseUrl = this.configService.get<string>('FRONTEND_URL') || undefined;
+    const baseUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.com';
     const html = buildEmailHtml({
       title,
       bodyHtml,
       code,
       footerText: footer,
       baseUrl,
+      logoUrl: `${baseUrl.replace(/\/$/, '')}/logo_transparent.png`,
+      helpEmail: 'hello@citewalk.com',
       companyName:
         this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Citewalk',
       companyAddress:
@@ -208,12 +214,15 @@ export class EmailService {
       reasonBlock,
       `<p style="margin:16px 0 0 0;"><a href="${confirmUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}" style="display:inline-block;background:#6E7A8A;color:#F2F2F2;text-decoration:none;font-size:16px;font-weight:600;padding:14px 24px;border-radius:12px;">${t.buttonLabel}</a></p>`,
     ].join('');
-    const baseUrl = this.configService.get<string>('FRONTEND_URL') || undefined;
+    const baseUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.com';
     const html = buildEmailHtml({
       title: t.title,
       bodyHtml,
       footerText: t.ignore,
       baseUrl,
+      logoUrl: `${baseUrl.replace(/\/$/, '')}/logo_transparent.png`,
+      helpEmail: 'hello@citewalk.com',
       companyName:
         this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Citewalk',
       companyAddress:
@@ -272,12 +281,15 @@ export class EmailService {
       `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:16px;line-height:1.6;">${t.body}</p>`,
       `<p style="margin:16px 0 0 0;"><a href="${safeUrl}" style="display:inline-block;background:#6E7A8A;color:#F2F2F2;text-decoration:none;font-size:16px;font-weight:600;padding:14px 24px;border-radius:12px;">${t.buttonLabel}</a></p>`,
     ].join('');
-    const baseUrl = this.configService.get<string>('FRONTEND_URL') || undefined;
+    const baseUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.com';
     const html = buildEmailHtml({
       title: t.title,
       bodyHtml,
       footerText: t.ignore,
       baseUrl,
+      logoUrl: `${baseUrl.replace(/\/$/, '')}/logo_transparent.png`,
+      helpEmail: 'hello@citewalk.com',
       companyName:
         this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Citewalk',
       companyAddress:

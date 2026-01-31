@@ -12,6 +12,9 @@ node_modules
 # Docker volumes (runtime data)
 infra/docker/volumes/
 
+# Certbot / Let's Encrypt (runtime data; certs copied to ssl/)
+infra/docker/certbot-etc/
+
 # Docker environment files with secrets
 infra/docker/.env
 

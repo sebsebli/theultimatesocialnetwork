@@ -14,4 +14,8 @@ export class UpdateCollectionDto {
   @IsOptional()
   @IsBoolean()
   shareSaves?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }

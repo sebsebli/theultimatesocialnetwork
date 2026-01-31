@@ -2,9 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens from packages/design-tokens – single source of truth */
 :root {
   --background: #0B0B0C;
   --foreground: #F2F2F2;
+  --ink: #0B0B0C;
+  --paper: #F2F2F2;
+  --primary: #6E7A8A;
+  --primary-dark: #5A6573;
+  --secondary: #A8A8AA;
+  --tertiary: #6E6E73;
+  --divider: #1A1A1D;
+  --error: #B85C5C;
+  --like: #EF4444;
+  --hover: rgba(255, 255, 255, 0.05);
+  --pressed: rgba(255, 255, 255, 0.1);
 }
 
 html {
@@ -20,33 +32,33 @@ body {
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
-/* Design system utility classes */
+/* Design system utility classes – use tokens from :root */
 .bg-ink {
-  background-color: #0B0B0C;
+  background-color: var(--ink);
 }
 
 .text-paper {
-  color: #F2F2F2;
+  color: var(--paper);
 }
 
 .text-secondary {
-  color: #A8A8AA;
+  color: var(--secondary);
 }
 
 .text-tertiary {
-  color: #6E6E73;
+  color: var(--tertiary);
 }
 
 .bg-primary {
-  background-color: #6E7A8A;
+  background-color: var(--primary);
 }
 
 .text-primary {
-  color: #6E7A8A;
+  color: var(--primary);
 }
 
 .border-divider {
-  border-color: #1A1A1D;
+  border-color: var(--divider);
 }
 
 /* Custom Utilities */

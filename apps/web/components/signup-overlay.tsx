@@ -3,135 +3,61 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useAuth } from "@/components/auth-provider";
 
-const DISMISSED_AT_KEY = "signup_overlay_dismissed_at";
-const VIEWS_SINCE_DISMISS_KEY = "signup_overlay_views_since_dismiss";
-const RE_SHOW_AFTER_VIEWS = 2;
-
-/** Public routes that have "content" and should show the signup overlay when not authenticated */
-const PUBLIC_CONTENT_PATHS = [
-  "/",
-  "/welcome",
-  "/manifesto",
-  "/roadmap",
-  "/waiting-list",
-];
-
-/** Public routes where we do NOT show the overlay (auth flows, legal, etc.) */
-const NO_OVERLAY_PATHS = [
-  "/sign-in",
-  "/verify",
-  "/privacy",
-  "/terms",
-  "/imprint",
-  "/ai-transparency",
-  "/invites",
-];
-
-function isPublicContentPage(pathname: string): boolean {
-  if (
-    NO_OVERLAY_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
-  )
-    return false;
-  return PUBLIC_CONTENT_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(p + "/"),
-  );
-}
-
-function getSessionStorage(key: string): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function setSessionStorage(key: string, value: string): void {
-  try {
-    sessionStorage.setItem(key, value);
-  } catch {
-    // ignore
-  }
-}
-
 export function SignupOverlay() {
-  const t = useTranslations("signupOverlay");
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useAuth();
-  const [visible, setVisible] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [scrollReached, setScrollReached] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  // Only show on content pages
+  const shouldShow = ["/", "/manifesto", "/roadmap"].includes(pathname);
+
+  // Derive visibility: no synchronous setState in effect
+  const visible =
+    shouldShow && !isLoading && !isAuthenticated && !dismissed && scrollReached;
 
   useEffect(() => {
-    queueMicrotask(() => setMounted(true));
-  }, []);
-
-  useEffect(() => {
-    const schedule = (fn: () => void) => queueMicrotask(fn);
-
-    if (!mounted || isLoading || isAuthenticated) {
-      schedule(() => setVisible(false));
+    if (!shouldShow || isLoading || isAuthenticated || dismissed) {
       return;
     }
 
-    if (!isPublicContentPage(pathname)) {
-      schedule(() => setVisible(false));
-      return;
-    }
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = document.documentElement.clientHeight;
+      const scrollPercent =
+        scrollHeight - clientHeight > 0
+          ? (scrollY / (scrollHeight - clientHeight)) * 100
+          : 0;
 
-    const dismissedAt = getSessionStorage(DISMISSED_AT_KEY);
-    const viewsSince = parseInt(
-      getSessionStorage(VIEWS_SINCE_DISMISS_KEY) ?? "0",
-      10,
-    );
+      if (scrollY > 800 || scrollPercent > 30) {
+        setScrollReached(true);
+      }
+    };
 
-    if (dismissedAt === null || dismissedAt === "") {
-      schedule(() => setVisible(true));
-      return;
-    }
-
-    // They dismissed before; increment view count on this navigation
-    const newViews = viewsSince + 1;
-    setSessionStorage(VIEWS_SINCE_DISMISS_KEY, String(newViews));
-
-    if (newViews >= RE_SHOW_AFTER_VIEWS) {
-      schedule(() => setVisible(true));
-      setSessionStorage(VIEWS_SINCE_DISMISS_KEY, "0");
-      setSessionStorage(DISMISSED_AT_KEY, "");
-    } else {
-      schedule(() => setVisible(false));
-    }
-  }, [mounted, isLoading, isAuthenticated, pathname]);
-
-  const dismiss = () => {
-    setVisible(false);
-    setSessionStorage(DISMISSED_AT_KEY, String(Date.now()));
-    setSessionStorage(VIEWS_SINCE_DISMISS_KEY, "0");
-  };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [shouldShow, isLoading, isAuthenticated, dismissed]);
 
   if (!visible) return null;
 
   return (
-    <>
-      <div
-        className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-        aria-hidden="true"
-      />
-      <div
-        role="dialog"
-        aria-label="Sign up to join Citewalk"
-        className="fixed left-1/2 top-1/2 z-[91] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#1A1A1D] bg-[#0B0B0C] p-6 shadow-xl animate-in fade-in duration-300"
-      >
+    <div className="fixed inset-x-0 bottom-0 z-[90] animate-in slide-in-from-bottom-full duration-500">
+      {/* Blurry Backdrop (Gradient fade) */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C]/95 to-transparent h-[120%] -top-[20%] pointer-events-none backdrop-blur-md" />
+
+      <div className="relative z-[91] max-w-[1200px] mx-auto px-6 pb-8 pt-12 md:pb-12 md:pt-16 flex flex-col md:flex-row items-center justify-between gap-6">
         <button
-          type="button"
-          onClick={dismiss}
-          className="absolute right-4 top-4 p-1 text-[#6E6E73] hover:text-[#F2F2F2] rounded transition-colors"
-          aria-label={t("closeAria")}
+          onClick={() => {
+            setDismissed(true);
+          }}
+          className="absolute top-4 right-6 md:top-8 md:right-8 p-2 text-[#6E6E73] hover:text-[#F2F2F2] transition-colors bg-[#1A1A1D]/50 hover:bg-[#1A1A1D] rounded-full"
+          aria-label="Close"
         >
           <svg
-            className="w-5 h-5"
+            className="w-6 h-6"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -145,35 +71,32 @@ export function SignupOverlay() {
           </svg>
         </button>
 
-        <div className="pt-2">
-          <h2 className="text-xl font-serif font-normal text-[#F2F2F2] mb-2">
-            {t("title")}
-          </h2>
-          <p className="text-sm text-[#A8A8AA] mb-6">{t("description")}</p>
+        <div className="flex-1 max-w-xl">
+          <h3 className="text-2xl md:text-3xl font-serif text-[#F2F2F2] mb-3">
+            The network is waiting.
+          </h3>
+          <p className="text-[#A8A8AA] text-lg leading-relaxed">
+            Join the closed beta to start building your knowledge graph.
+          </p>
+        </div>
 
-          <div className="flex flex-col gap-3">
-            <Link
-              href="/sign-in"
-              className="flex justify-center items-center px-4 py-3 bg-[#F2F2F2] text-[#0B0B0C] font-medium rounded-xl hover:bg-white transition-colors"
-            >
-              {t("signInUp")}
-            </Link>
-            <Link
-              href="/waiting-list"
-              className="flex justify-center items-center px-4 py-3 border border-[#333] text-[#A8A8AA] text-sm rounded-xl hover:border-[#555] hover:text-[#F2F2F2] transition-colors"
-            >
-              {t("joinWaitlist")}
-            </Link>
-            <button
-              type="button"
-              onClick={dismiss}
-              className="text-sm text-[#6E6E73] hover:text-[#A8A8AA] py-2"
-            >
-              {t("notNow")}
-            </button>
-          </div>
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+          <Link
+            href="/sign-in"
+            className="inline-flex justify-center items-center px-8 py-4 bg-[#F2F2F2] text-[#0B0B0C] font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)]"
+          >
+            Join the Beta
+          </Link>
+          <button
+            onClick={() => {
+              setDismissed(true);
+            }}
+            className="inline-flex justify-center items-center px-8 py-4 border border-[#333] text-[#A8A8AA] font-medium text-lg rounded-full hover:border-[#666] hover:text-[#F2F2F2] transition-colors"
+          >
+            Continue Reading
+          </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }

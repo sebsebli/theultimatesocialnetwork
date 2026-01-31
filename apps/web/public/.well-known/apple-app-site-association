@@ -1,0 +1,30 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "YOUR_APPLE_TEAM_ID.com.citewalk.mobile",
+        "paths": [
+          "/post/*",
+          "/collections/*",
+          "/collections",
+          "/user/*",
+          "/topic/*",
+          "/invites",
+          "/search",
+          "/settings/*",
+          "/messages/*",
+          "/notifications",
+          "/keeps",
+          "/welcome",
+          "/waiting-list"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "YOUR_APPLE_TEAM_ID.com.citewalk.mobile"
+    ]
+  }
+}

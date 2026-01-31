@@ -10,8 +10,9 @@ const config = getDefaultConfig(projectRoot);
 // Explicitly set project root - this is the key to fixing the resolution issue
 config.projectRoot = projectRoot;
 
-// Only watch the mobile app directory
-config.watchFolders = [projectRoot];
+// Watch mobile app and monorepo packages (for @citewalk/design-tokens)
+const monorepoRoot = path.resolve(projectRoot, '../..');
+config.watchFolders = [projectRoot, path.resolve(monorepoRoot, 'packages')];
 
 // Configure resolver
 config.resolver = {

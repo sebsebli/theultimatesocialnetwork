@@ -2,10 +2,23 @@
 
 import { useState, useRef, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { AutocompleteDropdown } from "@/components/autocomplete-dropdown";
 import { ImageUploader } from "@/components/image-uploader";
-import { PostItem, Post } from "@/components/post-item";
+import { ReadingMode } from "@/components/reading-mode";
 import { getCaretCoordinates } from "@/utils/textarea-caret";
+import {
+  enforceTitleAndAliasLimits,
+  getProtectedRanges,
+  selectionOverlapsProtected,
+  hasOverlongHeading,
+  hasOverlongRefTitle,
+  getTitleFromBody,
+  BODY_MAX_LENGTH,
+  BODY_MIN_LENGTH,
+  TITLE_MAX_LENGTH,
+  MAX_TOPIC_REFS,
+} from "@/utils/compose-helpers";
 
 function ComposeContent() {
   const router = useRouter();
@@ -52,9 +65,6 @@ function ComposeContent() {
 
     let resolvedText = text;
     try {
-      // In a real app, optimize to batched fetch. Here we fetch sequentially or all at once.
-      // Since we don't have a batched endpoint handy, we'll try to use search or individual get.
-      // For now, let's just do individual fetches (limited parallel).
       const ids = Array.from(idsToFetch);
       const titles = await Promise.all(
         ids.map(async (id) => {
@@ -70,8 +80,6 @@ function ComposeContent() {
       );
 
       titles.forEach(({ id, title }) => {
-        // Replace [[post:id]] with [[post:id|Title]]
-        // Use global regex replacement
         const regex = new RegExp(`\\[\\[post:${id}\\]\\]`, "g");
         resolvedText = resolvedText.replace(regex, `[[post:${id}|${title}]]`);
       });
@@ -82,21 +90,43 @@ function ComposeContent() {
   };
 
   const handlePublish = async () => {
-    if (!body.trim()) return;
+    const trimmedBody = body.trim();
+    if (!trimmedBody) return;
+
+    if (trimmedBody.length < BODY_MIN_LENGTH) {
+      alert(`Post must be at least ${BODY_MIN_LENGTH} characters.`);
+      return;
+    }
+    if (trimmedBody.length > BODY_MAX_LENGTH) {
+      alert("Post is too long. Please shorten it.");
+      return;
+    }
+    const topicRefMatches = body.match(/\[\[[^\]]*\]\]/g) || [];
+    if (topicRefMatches.length > MAX_TOPIC_REFS) {
+      alert(`Too many topic/post references. Maximum ${MAX_TOPIC_REFS}.`);
+      return;
+    }
+    if (hasOverlongHeading(trimmedBody)) {
+      alert(
+        `Headings (H1, H2, H3) must be at most ${TITLE_MAX_LENGTH} characters.`,
+      );
+      return;
+    }
+    if (hasOverlongRefTitle(trimmedBody)) {
+      alert(
+        `Link and tag titles must be at most ${TITLE_MAX_LENGTH} characters.`,
+      );
+      return;
+    }
 
     setIsPublishing(true);
     try {
-      // Check if this is a quote or reply
       if (quotePostId) {
         const res = await fetch("/api/posts/quote", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            postId: quotePostId,
-            body,
-          }),
+          body: JSON.stringify({ postId: quotePostId, body: trimmedBody }),
         });
-
         if (res.ok) {
           router.push("/home");
           router.refresh();
@@ -105,13 +135,10 @@ function ComposeContent() {
         const res = await fetch(`/api/posts/${replyToPostId}/replies`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            body,
-          }),
+          body: JSON.stringify({ body: trimmedBody }),
         });
-
         if (res.ok) {
-          router.push(`/post/${replyToPostId}`); // Go back to the thread
+          router.push(`/post/${replyToPostId}`);
           router.refresh();
         }
       } else {
@@ -119,12 +146,11 @@ function ComposeContent() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            body,
+            body: trimmedBody,
             headerImageKey,
             headerImageBlurhash,
           }),
         });
-
         if (res.ok) {
           router.push("/home");
           router.refresh();
@@ -143,6 +169,21 @@ function ComposeContent() {
 
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
+
+    // Check protected ranges for formatting
+    const isFormatting =
+      before === "**" || before === "_" || before.startsWith("#");
+    if (isFormatting) {
+      const ranges = getProtectedRanges(body);
+      const sel = { start, end };
+      if (selectionOverlapsProtected(sel, ranges)) {
+        alert(
+          "Articles, topic tags and links cannot use headings, bold or italic.",
+        );
+        return;
+      }
+    }
+
     const selected = body.substring(start, end);
     const newText =
       body.substring(0, start) +
@@ -150,9 +191,9 @@ function ComposeContent() {
       selected +
       after +
       body.substring(end);
-    setBody(newText);
 
-    // Restore cursor position
+    setBody(enforceTitleAndAliasLimits(newText, TITLE_MAX_LENGTH));
+
     setTimeout(() => {
       textarea.focus();
       const newPos = start + before.length + selected.length + after.length;
@@ -169,11 +210,10 @@ function ComposeContent() {
 
   const handleBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newBody = e.target.value;
-    setBody(newBody);
+    setBody(enforceTitleAndAliasLimits(newBody, TITLE_MAX_LENGTH));
     checkAutocomplete(e.target, newBody);
   };
 
-  // Separated autocomplete check logic
   const checkAutocomplete = (
     textarea: HTMLTextAreaElement,
     currentBody: string,
@@ -181,21 +221,17 @@ function ComposeContent() {
     const cursorPos = textarea.selectionStart;
     const textBeforeCursor = currentBody.substring(0, cursorPos);
 
-    // Helper to set position
     const setPosition = (
       query: string,
       type: "topic" | "post" | "user" | "all",
     ) => {
       const coords = getCaretCoordinates(textarea, cursorPos);
-
       setAutocomplete({
         show: true,
         query,
         type,
         position: {
-          // Absolute position relative to the viewport/container
-          // We add rect.top to align with the textarea's position on screen
-          top: coords.top + coords.height + 10, // 10px buffer
+          top: coords.top + coords.height + 10,
           left: coords.left,
         },
       });
@@ -236,7 +272,7 @@ function ComposeContent() {
         replacement = `@${item.title.split("@")[1] || item.title} `;
         const newText =
           textBeforeCursor.replace(/@\w*$/, replacement) + textAfterCursor;
-        setBody(newText);
+        setBody(enforceTitleAndAliasLimits(newText, TITLE_MAX_LENGTH));
         setTimeout(() => {
           const newPos =
             cursorPos - mentionMatch[0].length + replacement.length;
@@ -250,7 +286,7 @@ function ComposeContent() {
         const newText =
           textBeforeCursor.replace(/|||\\\[\[[^\]]*$/, replacement) +
           textAfterCursor;
-        setBody(newText);
+        setBody(enforceTitleAndAliasLimits(newText, TITLE_MAX_LENGTH));
         setTimeout(() => {
           const newPos =
             cursorPos - wikilinkMatch[0].length + replacement.length;
@@ -264,7 +300,7 @@ function ComposeContent() {
         const newText =
           textBeforeCursor.replace(/|||\\\[\[[^\]]*$/, replacement) +
           textAfterCursor;
-        setBody(newText);
+        setBody(enforceTitleAndAliasLimits(newText, TITLE_MAX_LENGTH));
         setTimeout(() => {
           const newPos =
             cursorPos - wikilinkMatch[0].length + replacement.length;
@@ -276,11 +312,13 @@ function ComposeContent() {
     setAutocomplete(null);
   };
 
-  const previewPost: Post = {
+  const STORAGE_URL =
+    process.env.NEXT_PUBLIC_STORAGE_URL ||
+    "http://localhost:9000/citewalk-images";
+
+  const previewPost = {
     id: "preview",
-    title: previewBody.startsWith("# ")
-      ? previewBody.split("\n")[0].substring(2)
-      : undefined,
+    title: getTitleFromBody(previewBody) || undefined,
     body: previewBody,
     createdAt: new Date().toISOString(),
     author: {
@@ -290,16 +328,14 @@ function ComposeContent() {
     },
     replyCount: 0,
     quoteCount: 0,
-    headerImageKey: headerImageKey || undefined, // Note: PostItem expects key to be fetched from storage.
-    // If it's a new upload (blob), PostItem might fail to load it from STORAGE_URL.
-    // Ideally we should pass a blob URL for preview, but PostItem needs adjustment.
-    // For now, we assume user uploads real image and gets a key.
-    headerImageBlurhash: headerImageBlurhash || undefined,
+    headerImageKey: headerImageKey || undefined,
+    // Note: We don't have a blob URL for preview here efficiently without object URL,
+    // but ReadingMode likely needs the key.
+    // If we have a key, ReadingMode will construct the URL.
   };
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-ink/90 backdrop-blur-md border-b border-divider">
         <div className="flex items-center gap-4">
           <button
@@ -309,7 +345,6 @@ function ComposeContent() {
             Cancel
           </button>
 
-          {/* View Mode Toggle */}
           <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10">
             <button
               onClick={() => setViewMode("edit")}
@@ -322,7 +357,10 @@ function ComposeContent() {
               Write
             </button>
             <button
-              onClick={() => setViewMode("preview")}
+              onClick={() => {
+                if (body.trim().length < BODY_MIN_LENGTH) return;
+                setViewMode("preview");
+              }}
               className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
                 viewMode === "preview"
                   ? "bg-primary text-white shadow-sm"
@@ -336,7 +374,7 @@ function ComposeContent() {
 
         <div className="flex items-center gap-3">
           <span className="text-xs text-tertiary hidden sm:inline-block">
-            {body.length} chars
+            {body.length} / {BODY_MAX_LENGTH}
           </span>
           <button
             onClick={handlePublish}
@@ -348,34 +386,47 @@ function ComposeContent() {
         </div>
       </header>
 
-      {/* Editor Content Area */}
       <div className="flex-1 flex flex-col px-6 pt-6 pb-32 relative">
         {viewMode === "edit" ? (
           <>
-            {/* Title Input (if starts with #) */}
-            {body.startsWith("#") && (
-              <div className="relative mb-6 group animate-in fade-in duration-300">
-                <input
-                  type="text"
-                  value={body.split("\n")[0].replace(/^#\s*/, "")}
-                  onChange={(e) => {
-                    const lines = body.split("\n");
-                    lines[0] = "# " + e.target.value;
-                    setBody(lines.join("\n"));
-                  }}
-                  placeholder="Title"
-                  className="w-full bg-transparent text-white text-[32px] font-bold leading-tight placeholder-tertiary border-none focus:ring-0 p-0 m-0 outline-none font-sans"
-                />
-              </div>
-            )}
-
-            {/* Body Text */}
             <div ref={containerRef} className="relative flex-1">
+              {headerImageKey && (
+                <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden group">
+                  <Image
+                    src={`${STORAGE_URL}/${headerImageKey}`}
+                    alt="Header preview"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    onClick={() => {
+                      setHeaderImageKey(null);
+                      setHeaderImageBlurhash(null);
+                    }}
+                    className="absolute top-2 right-2 bg-black/60 p-2 rounded-full text-white hover:bg-black/80 transition-colors"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
               <textarea
                 ref={textareaRef}
                 value={body}
                 onChange={handleBodyChange}
-                onScroll={() => setAutocomplete(null)} // Hide autocomplete on scroll to prevent misalignment
+                onScroll={() => setAutocomplete(null)}
                 placeholder={
                   body.startsWith("#")
                     ? "Start writing..."
@@ -398,18 +449,16 @@ function ComposeContent() {
             </div>
           </>
         ) : (
-          // Preview Mode - Use PostItem
           <div className="max-w-2xl mx-auto w-full animate-in fade-in duration-200">
-            <PostItem post={previewPost} isAuthor={true} />
+            {/* Use ReadingMode for preview parity */}
+            <ReadingMode post={previewPost} />
           </div>
         )}
       </div>
 
-      {/* Formatting Toolbar - Only visible in Edit mode */}
       {viewMode === "edit" && (
-        <div className="fixed bottom-0 left-0 right-0 w-full lg:pl-64 xl:pr-80">
+        <div className="fixed bottom-0 left-0 right-0 w-full lg:pl-64 xl:pr-80 z-50">
           <div className="bg-[#1e1f21] border-t border-white/10 px-4 py-3 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.3)] backdrop-blur-xl bg-opacity-95">
-            {/* Left Group: Formatting */}
             <div className="flex items-center gap-1">
               <button
                 onClick={() => insertText("# ")}
@@ -492,7 +541,6 @@ function ComposeContent() {
 
             <div className="w-px h-6 bg-white/10 mx-2"></div>
 
-            {/* Right Group: Linking */}
             <div className="flex items-center gap-1">
               <button
                 onClick={addLink}
@@ -513,13 +561,10 @@ function ComposeContent() {
                   />
                 </svg>
               </button>
-
               <button
                 onClick={() => {
                   const topic = prompt("Topic name:");
-                  if (topic) {
-                    insertText(`[[${topic}]]`);
-                  }
+                  if (topic) insertText(`[[${topic}]]`);
                 }}
                 className="h-10 px-3 flex items-center gap-2 rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
                 title="Link Topic"
@@ -541,12 +586,10 @@ function ComposeContent() {
                   Topic
                 </span>
               </button>
-
               <button
-                onClick={() => {
-                  // Trigger file input
-                  document.getElementById("header-image-upload")?.click();
-                }}
+                onClick={() =>
+                  document.getElementById("header-image-upload")?.click()
+                }
                 className={`size-10 flex items-center justify-center rounded-lg transition-colors ${headerImageKey ? "text-primary bg-primary/10" : "text-tertiary hover:text-paper hover:bg-white/5"}`}
                 title="Header Image"
               >
@@ -564,7 +607,6 @@ function ComposeContent() {
                   />
                 </svg>
               </button>
-              {/* Hidden Image Uploader Trigger */}
               <div className="hidden">
                 <ImageUploader
                   onUploadComplete={(key, url, blurhash) => {

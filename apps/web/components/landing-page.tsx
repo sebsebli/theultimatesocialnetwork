@@ -1,361 +1,512 @@
 "use client";
 
 import Link from "next/link";
-import { translations, Language } from "./landing-translations";
+import Image from "next/image";
+import Script from "next/script";
+import {
+  MdFavoriteBorder,
+  MdChatBubbleOutline,
+  MdFormatQuote,
+  MdBookmarkBorder,
+  MdAddCircleOutline,
+  MdIosShare,
+} from "react-icons/md";
 
 export function LandingPage() {
-  const lang: Language = "en";
-  const t = translations[lang];
-
   return (
-    <div className="min-h-screen bg-[#0B0B0C] text-[#F2F2F2] font-sans selection:bg-[#6E7A8A]/30">
+    <div className="min-h-screen bg-ink text-paper font-sans selection:bg-paper selection:text-ink overflow-x-hidden">
       {/* Navigation */}
-      <nav className="fixed top-0 inset-x-0 z-50 flex justify-between items-center px-6 py-6 md:px-12 bg-[#0B0B0C]/90 backdrop-blur-md border-b border-[#1A1A1D]">
-        <div className="flex items-center gap-2">
-          {/* Brand Logo - Keep Serif for Identity */}
-          <span className="text-xl font-serif font-bold tracking-tight text-[#F2F2F2]">
+      <nav className="fixed top-0 inset-x-0 z-50 flex justify-between items-center px-6 py-4 md:px-12 bg-ink/95 backdrop-blur-sm border-b border-divider">
+        <Link href="/" className="flex items-center gap-3 group">
+          <Image
+            src="/icon-192.png"
+            alt="Citewalk"
+            width={28}
+            height={28}
+            className="rounded-md opacity-90 group-hover:opacity-100 transition-opacity grayscale"
+          />
+          <span className="text-base font-medium tracking-tight text-paper">
             Citewalk
           </span>
-        </div>
+        </Link>
 
-        <div className="flex items-center gap-6 md:gap-8 text-sm font-medium font-sans">
+        <div className="flex items-center gap-6 md:gap-8 text-sm font-medium text-secondary">
           <Link
             href="/manifesto"
-            className="hidden lg:block text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors"
+            className="hidden md:block hover:text-paper transition-colors"
           >
-            {t.nav.manifesto}
+            Manifesto
           </Link>
           <Link
-            href="/waiting-list"
-            className="hidden md:block text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors"
+            href="/roadmap"
+            className="hidden md:block hover:text-paper transition-colors"
           >
-            {(t.nav as { waitingList?: string }).waitingList ??
-              "Join waiting list"}
-          </Link>
-          <Link
-            href="/sign-in"
-            className="hidden sm:block text-[#A8A8AA] hover:text-[#F2F2F2] transition-colors"
-          >
-            {t.nav.login}
+            Roadmap
           </Link>
           <Link
             href="/sign-in"
-            className="text-[#F2F2F2] hover:text-white transition-colors decoration-1 underline underline-offset-4 decoration-[#6E7A8A]"
+            className="text-paper hover:text-white transition-colors"
           >
-            {t.nav.requestAccess}
+            Login
           </Link>
         </div>
       </nav>
 
-      <main className="pt-32 md:pt-40 pb-20">
+      <main className="pt-32 md:pt-48 pb-20">
         {/* Hero Section */}
-        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32 md:mb-48">
+        <section className="px-6 md:px-12 max-w-[1000px] mx-auto mb-32 md:mb-48">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-sans font-medium leading-[1.05] tracking-tight text-[#F2F2F2] mb-12 max-w-5xl whitespace-pre-line">
-              {t.hero.title}
+            <div className="inline-flex items-center gap-2 px-3 py-1 mb-8 border border-divider rounded-full bg-transparent">
+              <span className="w-1.5 h-1.5 rounded-full bg-paper"></span>
+              <span className="text-[11px] uppercase tracking-[0.2em] text-paper font-bold">
+                Closed Beta — Open Beta Soon
+              </span>
+            </div>
+
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-medium leading-[1.0] tracking-tight text-paper mb-10 font-sans">
+              The internet was designed <br className="hidden md:block" />
+              <span className="text-tertiary">to be a library.</span>
             </h1>
 
-            <div className="flex flex-col md:flex-row gap-12 md:items-start justify-between">
-              <div className="max-w-xl space-y-6">
-                <p className="text-lg md:text-xl text-[#A8A8AA] leading-relaxed font-light font-sans">
-                  {t.hero.subtitle}
-                </p>
-                <p className="text-lg md:text-xl text-[#A8A8AA] leading-relaxed font-light font-sans">
-                  {t.hero.description}
-                </p>
-              </div>
+            <div className="max-w-2xl space-y-8">
+              <p className="text-xl md:text-2xl text-secondary leading-relaxed font-light">
+                We are rebuilding the social web. Quiet. Verified. Yours. <br />
+                A place to read, think, and connect without the noise.
+              </p>
 
-              <div className="flex flex-col gap-5 w-full md:w-auto pt-2 font-sans">
+              <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 <Link
-                  href="/sign-in"
-                  className="inline-flex justify-center items-center px-8 py-4 bg-[#F2F2F2] text-[#0B0B0C] font-semibold text-lg rounded-full hover:bg-white transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  href="/waiting-list"
+                  className="inline-flex justify-center items-center px-8 py-3.5 bg-paper text-ink font-semibold text-base rounded-lg hover:bg-white transition-colors"
                 >
-                  {t.hero.cta_primary}
+                  Join the Waiting List
                 </Link>
                 <Link
                   href="/manifesto"
-                  className="inline-flex justify-center items-center px-8 py-4 border border-[#333] text-[#A8A8AA] font-medium text-lg rounded-full hover:border-[#666] hover:text-[#F2F2F2] transition-colors"
+                  className="inline-flex justify-center items-center px-8 py-3.5 border border-divider text-secondary font-medium text-base rounded-lg hover:border-primary hover:text-paper transition-colors"
                 >
-                  {t.hero.cta_secondary}
+                  Read the Plan
                 </Link>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Mobile App Highlight */}
-        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32">
-          <div className="bg-[#0F0F10] border border-[#1A1A1D] rounded-xl p-8 md:p-16 relative overflow-hidden group hover:border-[#333] transition-colors">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-4">
-                  Mobile First
-                </h2>
-                <h3 className="text-3xl md:text-4xl font-sans font-medium text-[#F2F2F2] mb-6">
-                  A Pocket Archive for
-                  <br />
-                  Real-World Context.
-                </h3>
-                <p className="text-[#A8A8AA] text-lg leading-relaxed mb-8 font-sans">
-                  Citewalk isn&apos;t just a website. It&apos;s a powerful
-                  native mobile app designed for onsite reporting and verified
-                  observation. Draft offline, cite eyewitnesses, and publish
-                  when you reconnect.
+        {/* 1. The Problem */}
+        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-40 border-t border-divider pt-24">
+          <div className="grid md:grid-cols-2 gap-16 md:gap-32 items-start">
+            <div>
+              <h2 className="text-xs font-mono uppercase tracking-widest text-tertiary mb-8">
+                The Problem
+              </h2>
+              <h3 className="text-3xl md:text-4xl font-serif font-medium text-secondary mb-6 leading-tight">
+                We are drowning in <span className="text-paper">Noise</span>.
+              </h3>
+            </div>
+            <div className="prose prose-invert text-lg text-secondary leading-relaxed space-y-6">
+              <p>
+                Modern social platforms are optimized for addiction, not
+                understanding. Algorithms prioritize outrage over accuracy and
+                volume over value.
+              </p>
+              <p>
+                We have lost the ability to think together. Conversations are
+                fragmented across ephemeral feeds, and context is washed away by
+                the next scroll.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* 2. The Solution (Graph Mechanism Explained) */}
+        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-40">
+          <div className="bg-white/[0.02] border border-divider rounded-3xl p-8 md:p-20 relative overflow-hidden">
+            <div className="relative z-10 max-w-3xl">
+              <h2 className="text-xs font-mono uppercase tracking-widest text-tertiary mb-8">
+                The Solution
+              </h2>
+              <h3 className="text-4xl md:text-5xl font-serif font-medium text-paper mb-8 leading-tight">
+                The Knowledge Graph.
+              </h3>
+              <p className="text-xl text-secondary font-light leading-relaxed mb-12">
+                Citewalk replaces the ephemeral feed with a persistent network
+                of ideas. We call this structure the <strong>Graph</strong>.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="space-y-4">
+                <div className="h-px w-full bg-divider mb-4"></div>
+                <h4 className="text-paper font-medium text-lg">
+                  1. Bidirectional Links
+                </h4>
+                <p className="text-secondary text-sm leading-relaxed">
+                  When you mention a topic like{" "}
+                  <span className="text-paper">[[Urbanism]]</span>, your post
+                  doesn&apos;t just disappear. It attaches itself to that
+                  topic&apos;s permanent page. Conversations become bridges.
                 </p>
-                <ul className="space-y-4 text-[#A8A8AA] font-sans">
-                  <li className="flex items-center gap-3">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                    <span>Native iOS & Android Experience</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                    <span>Offline-First Drafting & Reading</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
-                    <span>Biometric Security (FaceID/TouchID)</span>
-                  </li>
-                </ul>
               </div>
-              <div className="relative h-[400px] md:h-[500px] bg-[#0B0B0C] border border-[#1A1A1D] rounded-2xl flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="w-16 h-1 bg-[#333] rounded-full mx-auto mb-8"></div>
-                  <p className="text-sm text-[#6E6E73] font-mono mb-2">
-                    READING MODE
-                  </p>
-                  <h4 className="text-2xl font-serif text-[#F2F2F2] mb-4">
-                    Urban Resilience
-                  </h4>
-                  <p className="text-[#A8A8AA] text-sm max-w-[250px] mx-auto leading-relaxed font-serif">
-                    Cities are defined not by their buildings, but by the spaces
-                    between them. [[Public Spaces]] act as the lungs of
-                    democracy...
-                  </p>
-                  <div className="mt-8 flex justify-center gap-4">
-                    <div className="w-8 h-8 rounded-full bg-[#1A1A1D] border border-[#333]"></div>
-                    <div className="w-8 h-8 rounded-full bg-[#1A1A1D] border border-[#333]"></div>
-                    <div className="w-8 h-8 rounded-full bg-[#1A1A1D] border border-[#333]"></div>
+              <div className="space-y-4">
+                <div className="h-px w-full bg-divider mb-4"></div>
+                <h4 className="text-paper font-medium text-lg">
+                  2. Citations as Trust
+                </h4>
+                <p className="text-secondary text-sm leading-relaxed">
+                  Influence isn&apos;t measured by likes. It&apos;s measured by
+                  citations. When verified users reference your work, you gain
+                  authority in that subject.
+                </p>
+              </div>
+              <div className="space-y-4">
+                <div className="h-px w-full bg-divider mb-4"></div>
+                <h4 className="text-paper font-medium text-lg">
+                  3. Context Preservation
+                </h4>
+                <p className="text-secondary text-sm leading-relaxed">
+                  We automatically snapshot external links to the Internet
+                  Archive. Ten years from now, your sources will still be valid.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 3. The Visual Experience (Corrected Mockup) */}
+        <section className="px-6 md:px-12 max-w-[1000px] mx-auto mb-40">
+          <div className="text-center mb-12">
+            <h2 className="text-xs font-mono uppercase tracking-widest text-tertiary mb-4">
+              The Interface
+            </h2>
+            <h3 className="text-3xl font-medium text-paper">
+              Designed for Focus.
+            </h3>
+            <p className="text-secondary mt-4 max-w-lg mx-auto text-sm">
+              We enforce a &quot;One Header Image&quot; policy. No galleries, no
+              carousels. Visuals support the text, they don&apos;t replace it.
+            </p>
+          </div>
+
+          {/* Post mockup: matches mobile PostContent + PostItem (theme.ts, PostContent.tsx, PostItem.tsx) */}
+          <div className="bg-ink border border-divider rounded-xl overflow-hidden shadow-2xl max-w-[400px] mx-auto">
+            <div className="px-4 pt-4 pb-4 flex flex-col gap-3">
+              {/* Author row — same as PostContent: 40px avatar, name, dot, time */}
+              <div className="flex items-center gap-3">
+                <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-[var(--divider)]">
+                  <Image
+                    src="/woman.jpg"
+                    alt="Anna Weber"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="flex items-center min-w-0 flex-1">
+                  <span className="text-paper font-semibold text-sm truncate">
+                    Anna Weber
+                  </span>
+                  <span
+                    className="text-tertiary w-1 h-1 rounded-full bg-tertiary mx-1.5 flex-shrink-0"
+                    aria-hidden
+                  />
+                  <span className="text-tertiary text-xs flex-shrink-0">
+                    2h
+                  </span>
+                </div>
+              </div>
+
+              {/* Content block: header image (4:3) then body — same as PostContent */}
+              <div className="flex flex-col gap-2">
+                <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-[var(--divider)] mt-0">
+                  <Image
+                    src="/copenhagen.jpg"
+                    alt=""
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div className="absolute left-0 right-0 bottom-0 py-3 px-0 bg-black/50">
+                    <h4 className="text-[20px] font-bold leading-[26px] text-paper px-4">
+                      The 15-Minute City Myth
+                    </h4>
                   </div>
+                </div>
+
+                <div className="text-secondary text-[15px] leading-[22px] space-y-2 font-sans">
+                  <p>
+                    Critics often misunderstand the concept. It is not about
+                    restriction, but about abundance. As{" "}
+                    <span className="text-paper bg-[var(--divider)] px-1 rounded border border-divider">
+                      @Carlos Moreno
+                    </span>{" "}
+                    argues, it is about regaining time.
+                  </p>
+                  <p>
+                    I collected some examples from my recent trip to{" "}
+                    <span className="text-paper bg-[var(--divider)] px-1 rounded border border-divider">
+                      [[Copenhagen]]
+                    </span>
+                    .
+                  </p>
+                </div>
+              </div>
+
+              {/* Action row — same icons & styles as PostItem (MaterialIcons, 24px, tertiary) */}
+              <div className="flex items-center justify-between pt-2 pr-4">
+                <div className="flex items-center gap-0">
+                  <span className="p-1 text-tertiary" aria-hidden>
+                    <MdFavoriteBorder size={24} />
+                  </span>
+                  <span className="p-1 text-tertiary" aria-hidden>
+                    <MdChatBubbleOutline size={24} />
+                  </span>
+                  <span className="p-1 text-tertiary" aria-hidden>
+                    <MdFormatQuote size={24} />
+                  </span>
+                  <span className="p-1 text-tertiary" aria-hidden>
+                    <MdBookmarkBorder size={24} />
+                  </span>
+                  <span className="p-1 text-tertiary" aria-hidden>
+                    <MdAddCircleOutline size={24} />
+                  </span>
+                  <span className="p-1 text-tertiary" aria-hidden>
+                    <MdIosShare size={24} />
+                  </span>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* System Features (Icons) */}
-        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32">
-          <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-12 border-b border-[#1A1A1D] pb-4">
-            System Features
+        {/* 4. Role-Based Benefits */}
+        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-40">
+          <h2 className="text-xs font-mono uppercase tracking-widest text-tertiary mb-16 text-center border-b border-divider pb-4">
+            Who is Citewalk for?
           </h2>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 font-sans">
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10] group hover:border-[#333] transition-colors">
-              <div className="text-[#F2F2F2] mb-6">
-                <svg
-                  className="w-8 h-8"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-[#F2F2F2] mb-2">
-                European Hosting
+          <div className="grid md:grid-cols-2 gap-12">
+            <div className="group">
+              <h3 className="text-2xl font-serif text-paper mb-4 flex items-center gap-3">
+                <span className="text-tertiary font-mono text-sm">01</span> For
+                the Curious
               </h3>
-              <p className="text-[#A8A8AA] text-sm leading-relaxed">
-                Data sovereignty is non-negotiable. We host strictly in the EU
-                (Hetzner Germany/Finland). GDPR compliance is built-in.
+              <p className="text-secondary leading-relaxed mb-6">
+                You want a personal library. Collect recipes, read essays, and
+                discover new hobbies without being targeted by ads.
               </p>
             </div>
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10] group hover:border-[#333] transition-colors">
-              <div className="text-[#F2F2F2] mb-6">
-                <svg
-                  className="w-8 h-8"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-[#F2F2F2] mb-2">
-                Data Export
+            <div className="group">
+              <h3 className="text-2xl font-serif text-paper mb-4 flex items-center gap-3">
+                <span className="text-tertiary font-mono text-sm">02</span> For
+                Creators & Artists
               </h3>
-              <p className="text-[#A8A8AA] text-sm leading-relaxed">
-                You are not locked in. Download your entire archive (posts,
-                connections, profile) in open JSON/CSV formats at any time.
+              <p className="text-secondary leading-relaxed mb-6">
+                Build a catalog of work that lasts longer than 24 hours. Your
+                old posts remain discoverable via Topic pages, not buried in a
+                feed.
               </p>
             </div>
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10] group hover:border-[#333] transition-colors">
-              <div className="text-[#F2F2F2] mb-6">
-                <svg
-                  className="w-8 h-8"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M6 5c7.18 0 13 5.82 13 13M6 11a7 7 0 017 7m-6 0a1 1 0 11-2 0 1 1 0 012 0z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-[#F2F2F2] mb-2">
-                RSS Feeds
+            <div className="group">
+              <h3 className="text-2xl font-serif text-paper mb-4 flex items-center gap-3">
+                <span className="text-tertiary font-mono text-sm">03</span> For
+                Journalists
               </h3>
-              <p className="text-[#A8A8AA] text-sm leading-relaxed">
-                Every public profile is a content source. Subscribe via RSS. We
-                believe in the open web, not walled gardens.
+              <p className="text-secondary leading-relaxed mb-6">
+                Verification is your currency. Citewalk automates your sourcing
+                and provides a tamper-proof chain of custody for your reporting.
               </p>
             </div>
-            <div className="p-6 border border-[#1A1A1D] rounded-lg bg-[#0F0F10] group hover:border-[#333] transition-colors">
-              <div className="text-[#F2F2F2] mb-6">
-                <svg
-                  className="w-8 h-8"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-[#F2F2F2] mb-2">
-                No AI Dictation
+            <div className="group">
+              <h3 className="text-2xl font-serif text-paper mb-4 flex items-center gap-3">
+                <span className="text-tertiary font-mono text-sm">04</span> For
+                Teams & Thinkers
               </h3>
-              <p className="text-[#A8A8AA] text-sm leading-relaxed">
-                Your feed is chronological. Recommendations are transparent. We
-                do not use black-box AI to manipulate your attention.
+              <p className="text-secondary leading-relaxed mb-6">
+                Debate ideas with context. Use threaded conversations to build
+                knowledge, not just generate noise.
               </p>
             </div>
           </div>
         </section>
 
-        {/* Use Cases */}
-        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-32">
-          <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-12 border-b border-[#1A1A1D] pb-4">
-            Use Cases
-          </h2>
-
-          <div className="grid md:grid-cols-3 gap-8 font-sans">
-            {/* Journalism */}
-            <div className="group flex flex-col h-full bg-[#0F0F10] border border-[#1A1A1D] rounded-lg overflow-hidden hover:border-[#333] transition-colors">
-              <div className="p-8 pb-4">
-                <h3 className="text-xl font-medium text-[#F2F2F2] mb-2">
-                  Onsite Reporting
-                </h3>
-                <p className="text-[#A8A8AA] text-sm">
-                  For journalists and observers
-                </p>
-              </div>
-              <div className="px-8 pb-8 text-[#A8A8AA] text-sm leading-relaxed">
-                &quot;I&apos;m at the protest. Witnesses say...&quot; <br />
-                Cite eyewitnesses directly using their handle. Link to previous
-                reports. Publish a verified chain of events that others can
-                reference.
-              </div>
+        {/* 5. Ethics & Business Model (Transparency) */}
+        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-40 border-t border-divider pt-24">
+          <div className="grid md:grid-cols-3 gap-12 text-left">
+            <div className="space-y-4">
+              <h4 className="text-paper font-medium text-lg">
+                European Sovereignty
+              </h4>
+              <p className="text-secondary text-sm leading-relaxed">
+                Hosted in the EU. Strict GDPR compliance. No data selling. Your
+                thoughts belong to you, not an AI training set.
+              </p>
             </div>
-
-            {/* Knowledge */}
-            <div className="group flex flex-col h-full bg-[#0F0F10] border border-[#1A1A1D] rounded-lg overflow-hidden hover:border-[#333] transition-colors">
-              <div className="p-8 pb-4">
-                <h3 className="text-xl font-medium text-[#F2F2F2] mb-2">
-                  Topic Expertise
-                </h3>
-                <p className="text-[#A8A8AA] text-sm">
-                  For researchers and thinkers
-                </p>
-              </div>
-              <div className="px-8 pb-8 text-[#A8A8AA] text-sm leading-relaxed">
-                Curate a definitive collection on [[Urban Farming]]. Post deep
-                dives citing academic papers (auto-archived). Become the cited
-                authority in your field.
-              </div>
+            <div className="space-y-4">
+              <h4 className="text-paper font-medium text-lg">
+                Radical Openness
+              </h4>
+              <p className="text-secondary text-sm leading-relaxed">
+                You are not locked in. Download your entire history in open JSON
+                format at any time. We believe in protocols, not walled gardens.
+              </p>
             </div>
-
-            {/* Lifestyle */}
-            <div className="group flex flex-col h-full bg-[#0F0F10] border border-[#1A1A1D] rounded-lg overflow-hidden hover:border-[#333] transition-colors">
-              <div className="p-8 pb-4">
-                <h3 className="text-xl font-medium text-[#F2F2F2] mb-2">
-                  Personal Curation
-                </h3>
-                <p className="text-[#A8A8AA] text-sm">For everyone</p>
-              </div>
-              <div className="px-8 pb-8 text-[#A8A8AA] text-sm leading-relaxed">
-                Save your favorite recipes to a private collection. Share the
-                collection with friends. No ads, no clutter, just the links that
-                matter.
-              </div>
+            <div className="space-y-4">
+              <h4 className="text-paper font-medium text-lg">
+                No Ads. Maybe Premium. Hoping for Supporters.
+              </h4>
+              <p className="text-secondary text-sm leading-relaxed">
+                We do not show ads and are committed to keeping Citewalk
+                ad-free. As the network grows, we may introduce optional premium
+                plans to cover costs—but we are hoping supporters will help keep
+                the core system free for everyone.
+              </p>
             </div>
           </div>
         </section>
 
-        {/* Founder Quote */}
-        <section className="px-6 md:px-12 max-w-[900px] mx-auto mb-32 text-center">
-          <blockquote className="font-serif text-2xl md:text-4xl font-light text-[#F2F2F2] leading-relaxed mb-8">
-            {t.quote.text}
-          </blockquote>
-          <div className="flex flex-col items-center gap-3 font-sans">
-            <span className="text-[#F2F2F2] font-bold tracking-tight text-lg">
-              {t.quote.author}
-            </span>
-            <span className="text-[10px] text-[#6E6E73] uppercase tracking-[0.3em] font-bold">
-              {t.quote.role} • 2026
-            </span>
-          </div>
-        </section>
-
-        {/* Collaborators */}
-        <section className="px-6 md:px-12 max-w-[1000px] mx-auto mb-32 border-t border-[#1A1A1D] pt-24 text-center">
-          <h2 className="text-xs font-mono uppercase tracking-widest text-[#6E6E73] mb-6">
-            Open Source
-          </h2>
-          <h3 className="text-3xl md:text-4xl font-sans font-medium text-[#F2F2F2] mb-6">
-            We need architects, not just users.
-          </h3>
-          <p className="text-[#A8A8AA] text-lg leading-relaxed max-w-2xl mx-auto mb-10 font-sans">
-            Citewalk is an independent protocol for discourse. We are looking
-            for engineers, designers, and thinkers who want to build an internet
-            that respects human intelligence.
-          </p>
-          <a
-            href="mailto:build@citewalk.com"
-            className="inline-flex items-center gap-2 text-primary hover:text-[#F2F2F2] transition-colors font-medium border-b border-primary/30 hover:border-primary pb-0.5 font-sans"
-          >
-            <span>Contribute to the Codebase</span>
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M14 5l7 7m0 0l-7 7m7-7H3"
+        {/* 6. Founder & Community Call */}
+        <section className="px-6 md:px-12 max-w-[800px] mx-auto mb-40 text-center">
+          <div className="flex flex-col items-center gap-8">
+            <div className="relative w-24 h-24 rounded-full overflow-hidden border border-divider">
+              <Image
+                src="/sebastianlindner.jpeg"
+                alt="Dr. Sebastian Lindner"
+                fill
+                className="object-cover"
               />
-            </svg>
-          </a>
+            </div>
+
+            <blockquote className="text-xl md:text-2xl font-serif text-secondary leading-relaxed italic max-w-lg">
+              &quot;We aren&apos;t trying to fix the whole internet. We are just
+              trying to build a quiet corner of it where context still
+              matters.&quot;
+            </blockquote>
+
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-sm font-bold text-paper">
+                Dr. Sebastian Lindner
+              </span>
+              <span className="text-xs text-tertiary uppercase tracking-widest">
+                Founder
+              </span>
+            </div>
+
+            <div className="mt-8 p-8 border border-divider bg-white/[0.02] rounded-xl text-left w-full max-w-lg shadow-lg">
+              <h4 className="text-paper font-medium mb-4">
+                Built with You, for the People
+              </h4>
+              <p className="text-secondary text-sm leading-relaxed mb-4">
+                We want to build a network for the people, with the people. I am
+                very open to feedback—your ideas, critique, and feature wishes
+                directly shape the roadmap.
+              </p>
+              <p className="text-secondary text-sm leading-relaxed mb-4">
+                Citewalk is an independent side project, developed and operated
+                privately.
+              </p>
+              <p className="text-secondary text-sm leading-relaxed mb-4">
+                We do not show ads and are committed to keeping Citewalk
+                ad-free. As the network grows, we may introduce optional premium
+                plans to cover costs.
+              </p>
+              <p className="text-secondary text-sm leading-relaxed mb-6">
+                Voluntary support helps cover infrastructure and development
+                costs, and allows us to hire help or obtain external services
+                where needed — so the core system can remain free and
+                sustainably maintained.
+              </p>
+              <div className="space-y-4">
+                <p className="text-secondary text-sm">
+                  I am also seeking <strong>Collaborators</strong> and{" "}
+                  <strong>Investors</strong> to help grow this vision with
+                  impact.
+                </p>
+                <a
+                  href="mailto:hello@citewalk.com"
+                  className="inline-flex items-center gap-2 text-paper text-sm font-medium hover:text-white transition-colors border-b border-divider pb-0.5 hover:border-paper"
+                >
+                  <span>hello@citewalk.com</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="px-6 md:px-12 max-w-[1200px] mx-auto text-center border-t border-divider pt-32">
+          <h2 className="text-5xl md:text-7xl font-serif font-medium text-paper mb-12 tracking-tight">
+            Start your collection.
+          </h2>
+          <div className="flex flex-col sm:flex-row justify-center gap-6">
+            <Link
+              href="/waiting-list"
+              className="inline-flex justify-center items-center px-12 py-5 bg-paper text-ink font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:scale-105"
+            >
+              Join the Waiting List
+            </Link>
+          </div>
+          <p className="mt-8 text-tertiary text-sm">
+            We&apos;ll contact you with project updates and your invitation when
+            we open the open beta. No algorithm. No ads.
+          </p>
         </section>
       </main>
+
+      <footer className="px-6 md:px-12 py-12 border-t border-divider text-center md:text-left bg-ink mt-32">
+        <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex flex-col gap-1">
+            <span className="text-paper font-medium tracking-tight">
+              Citewalk
+            </span>
+            <span className="text-xs text-tertiary">
+              © 2026 Dr. Sebastian Lindner
+            </span>
+          </div>
+          <div className="flex gap-8 text-sm text-tertiary">
+            <Link
+              href="/imprint"
+              className="hover:text-secondary transition-colors"
+            >
+              Imprint
+            </Link>
+            <Link
+              href="/privacy"
+              className="hover:text-secondary transition-colors"
+            >
+              Privacy
+            </Link>
+            <Link
+              href="/terms"
+              className="hover:text-secondary transition-colors"
+            >
+              Terms
+            </Link>
+            <Link
+              href="/ai-transparency"
+              className="hover:text-secondary transition-colors"
+            >
+              AI Transparency
+            </Link>
+          </div>
+        </div>
+      </footer>
+
+      <Script
+        src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
+        strategy="afterInteractive"
+        onLoad={() => {
+          const w = window as unknown as {
+            kofiWidgetOverlay?: { draw: (id: string, opts: object) => void };
+          };
+          if (typeof w.kofiWidgetOverlay !== "undefined") {
+            w.kofiWidgetOverlay.draw("sebastianlindner", {
+              type: "floating-chat",
+              "floating-chat.donateButton.text": "Support me",
+              "floating-chat.donateButton.background-color": "#323842",
+              "floating-chat.donateButton.text-color": "#fff",
+            });
+          }
+        }}
+      />
     </div>
   );
 }

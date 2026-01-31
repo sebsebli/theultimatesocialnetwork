@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { PostItem, Post } from "./post-item";
+import { ProfileOptionsMenu } from "./profile-options-menu";
+import { ImageUploader } from "./image-uploader";
+import { PublicSignInBar } from "./public-sign-in-bar";
 
 interface Reply {
   id: string;
@@ -19,7 +23,13 @@ interface Collection {
   id: string;
   title: string;
   description?: string;
+  isPublic?: boolean;
   itemCount: number;
+}
+
+interface SavedItem {
+  post: Post;
+  // Other fields if necessary
 }
 
 interface ProfilePageProps {
@@ -33,25 +43,43 @@ interface ProfilePageProps {
     followingCount: number;
     quoteReceivedCount: number;
     posts?: Post[];
+    avatarKey?: string;
+    avatarUrl?: string;
+    profileHeaderKey?: string;
+    profileHeaderUrl?: string;
   };
   isSelf?: boolean;
+  /** When true, viewer is not authenticated; hide Follow/Message and link to sign-in for connections */
+  isPublic?: boolean;
 }
 
-export function ProfilePage({ user, isSelf = false }: ProfilePageProps) {
-  const [following, setFollowing] = useState(false);
+export function ProfilePage({
+  user: initialUser,
+  isSelf = false,
+  isPublic = false,
+}: ProfilePageProps) {
+  const [user, setUser] = useState(initialUser);
+  const [following, setFollowing] = useState(false); // In a real app, check if we follow this user
   const [activeTab, setActiveTab] = useState<
-    "posts" | "replies" | "quotes" | "collections"
+    "posts" | "replies" | "quotes" | "saved" | "collections"
   >("posts");
   const [loading, setLoading] = useState(false);
   const [tabData, setTabData] = useState<{
     replies: Reply[] | null;
     quotesReceived: Quote[] | null;
     collections: Collection[] | null;
+    saved: SavedItem[] | null;
   }>({
     replies: null,
     quotesReceived: null,
     collections: null,
+    saved: null,
   });
+
+  // Storage URL for images
+  const STORAGE_URL =
+    process.env.NEXT_PUBLIC_STORAGE_URL ||
+    "http://localhost:9000/citewalk-images";
 
   useEffect(() => {
     let isMounted = true;
@@ -62,30 +90,46 @@ export function ProfilePage({ user, isSelf = false }: ProfilePageProps) {
           const res = await fetch(`/api/users/${user.id}/replies`);
           if (res.ok && isMounted) {
             const data = await res.json();
-            setTabData((prev) => ({ ...prev, replies: data }));
+            setTabData((prev) => ({ ...prev, replies: data.items || data }));
           }
         } catch {
-          // ignore
+          /* ignore */
         }
       } else if (activeTab === "quotes" && !tabData.quotesReceived) {
         try {
           const res = await fetch(`/api/users/${user.id}/quotes`);
           if (res.ok && isMounted) {
             const data = await res.json();
-            setTabData((prev) => ({ ...prev, quotesReceived: data }));
+            setTabData((prev) => ({
+              ...prev,
+              quotesReceived: data.items || data,
+            }));
           }
         } catch {
-          // ignore
+          /* ignore */
         }
       } else if (activeTab === "collections" && !tabData.collections) {
         try {
           const res = await fetch(`/api/users/${user.id}/collections`);
           if (res.ok && isMounted) {
             const data = await res.json();
-            setTabData((prev) => ({ ...prev, collections: data }));
+            setTabData((prev) => ({
+              ...prev,
+              collections: data.items || data,
+            }));
           }
         } catch {
-          // ignore
+          /* ignore */
+        }
+      } else if (activeTab === "saved" && isSelf && !tabData.saved) {
+        try {
+          const res = await fetch(`/api/keeps?limit=20`);
+          if (res.ok && isMounted) {
+            const data = await res.json();
+            setTabData((prev) => ({ ...prev, saved: data.items || [] }));
+          }
+        } catch {
+          /* ignore */
         }
       }
     };
@@ -100,7 +144,9 @@ export function ProfilePage({ user, isSelf = false }: ProfilePageProps) {
     tabData.replies,
     tabData.quotesReceived,
     tabData.collections,
+    tabData.saved,
     user.id,
+    isSelf,
   ]);
 
   const handleFollow = async () => {
@@ -121,174 +167,363 @@ export function ProfilePage({ user, isSelf = false }: ProfilePageProps) {
     }
   };
 
+  const updateProfileImage = async (key: string, type: "avatar" | "header") => {
+    try {
+      const body =
+        type === "avatar" ? { avatarKey: key } : { profileHeaderKey: key };
+      const res = await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setUser((prev) => ({
+          ...prev,
+          ...(type === "avatar"
+            ? { avatarKey: key }
+            : { profileHeaderKey: key }),
+        }));
+      }
+    } catch (e) {
+      console.error("Failed to update profile image", e);
+    }
+  };
+
+  const getImageUrl = (key?: string, url?: string) => {
+    if (key) return `${STORAGE_URL}/${key}`;
+    return url;
+  };
+
+  const headerUrl = getImageUrl(user.profileHeaderKey, user.profileHeaderUrl);
+  const avatarUrl = getImageUrl(user.avatarKey, user.avatarUrl);
+
+  type ProfileTab = "posts" | "replies" | "quotes" | "saved" | "collections";
+  const tabs: ProfileTab[] = ["posts", "replies", "quotes", "collections"];
+  const visibleTabs: ProfileTab[] = isPublic
+    ? ["posts"]
+    : isSelf
+      ? [...tabs, "saved"]
+      : tabs;
+
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 py-3">
-        <div className="flex items-center justify-between">
-          <Link href="/home" className="text-secondary hover:text-paper">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </Link>
-          <button className="text-secondary hover:text-paper">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-              />
-            </svg>
-          </button>
-        </div>
-      </header>
+    <div className={`min-h-screen ${isPublic ? "pb-24" : "pb-20"}`}>
+      {/* Profile Top Section (Header + Avatar + Info) */}
+      <div className="relative">
+        {/* Header Image Background */}
+        <div className="h-48 md:h-64 w-full bg-ink relative overflow-hidden">
+          {headerUrl ? (
+            <Image
+              src={headerUrl}
+              alt="Header"
+              fill
+              className="object-cover opacity-60"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-b from-ink/50 to-ink" />
+          )}
 
-      {/* Profile Header */}
-      <div className="px-6 pt-6 pb-4 border-b border-divider">
-        <div className="flex flex-col items-center gap-4 mb-6">
-          {/* Avatar */}
-          <div className="h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-2xl">
-            {user.displayName.charAt(0).toUpperCase()}
-          </div>
+          {/* Header Controls (Back & Options) */}
+          <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-20">
+            <Link
+              href={isPublic ? "/" : "/home"}
+              className="p-2 bg-black/20 backdrop-blur-sm rounded-full text-white hover:bg-black/40 transition-colors"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </Link>
 
-          {/* Identity */}
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-paper mb-1">
-              {user.displayName}
-            </h1>
-            <div className="flex items-center justify-center gap-2">
-              <p className="text-tertiary text-sm">@{user.handle}</p>
-              {!user.isProtected && (
-                <a
-                  href={`/api/rss/${user.handle}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-tertiary hover:text-primary transition-colors"
-                  title="RSS Feed"
-                >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
+            <div className="flex gap-2">
+              {isSelf && (
+                <>
+                  <button
+                    onClick={() =>
+                      document.getElementById("header-upload")?.click()
+                    }
+                    className="p-2 bg-black/20 backdrop-blur-sm rounded-full text-white hover:bg-black/40 transition-colors"
+                    title="Edit Header"
                   >
-                    <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248-1.796 0-3.252-1.454-3.252-3.248 0-1.794 1.456-3.248 3.252-3.248 1.795.001 3.251 1.454 3.251 3.248zm-6.503-12.572v4.811c6.05.062 10.96 4.966 11.022 11.009h4.817c-.062-8.71-7.118-15.758-15.839-15.82zm0-8.18v4.812c10.559.062 19.121 8.611 19.183 19.168h4.817c-.062-13.21-10.776-23.911-24-23.98z" />
-                  </svg>
-                </a>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </button>
+                  <div className="hidden">
+                    <ImageUploader
+                      id="header-upload"
+                      onUploadComplete={(key) =>
+                        updateProfileImage(key, "header")
+                      }
+                    />
+                  </div>
+                </>
+              )}
+              {!isPublic && (
+                <ProfileOptionsMenu handle={user.handle} isSelf={isSelf} />
               )}
             </div>
           </div>
-
-          {/* Bio */}
-          {user.bio && (
-            <p className="text-secondary text-[15px] text-center max-w-[320px] leading-relaxed">
-              {user.bio}
-            </p>
-          )}
-
-          {/* Action Buttons */}
-          {!isSelf && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleFollow}
-                disabled={loading}
-                className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 ${
-                  following
-                    ? "bg-primary border-primary text-white"
-                    : "border-primary text-primary hover:bg-primary/10"
-                }`}
-              >
-                {loading ? "..." : following ? "Following" : "Follow"}
-              </button>
-              <button
-                onClick={async () => {
-                  // Create or open DM thread
-                  try {
-                    const res = await fetch("/api/messages/threads", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ userId: user.id }),
-                    });
-                    if (res.ok) {
-                      const thread = await res.json();
-                      window.location.href = `/inbox?thread=${thread.id}`;
-                    }
-                  } catch {
-                    // ignore
-                  }
-                }}
-                className="px-6 py-2 rounded-full border border-divider text-paper hover:bg-white/10 transition-colors"
-              >
-                Message
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Stats */}
-        <div className="flex justify-center gap-8 pt-4">
-          <div className="flex flex-col items-center gap-1 cursor-pointer group">
-            <p className="text-paper text-lg font-bold group-hover:text-primary transition-colors">
-              {user.followerCount.toLocaleString()}
-            </p>
-            <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
-              Followers
-            </p>
+        {/* Profile Info Overlay (Avatar + Name) */}
+        <div className="relative px-6 -mt-16 flex flex-col items-center">
+          <div className="relative group">
+            <div className="h-32 w-32 rounded-full border-4 border-ink bg-ink overflow-hidden relative">
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt={user.displayName}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-primary/20 flex items-center justify-center text-primary font-bold text-4xl">
+                  {user.displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            {isSelf && (
+              <>
+                <button
+                  onClick={() =>
+                    document.getElementById("avatar-upload")?.click()
+                  }
+                  className="absolute bottom-2 right-2 bg-primary text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </button>
+                <div className="hidden">
+                  <ImageUploader
+                    id="avatar-upload"
+                    onUploadComplete={(key) =>
+                      updateProfileImage(key, "avatar")
+                    }
+                  />
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex flex-col items-center gap-1 cursor-pointer group">
-            <p className="text-paper text-lg font-bold group-hover:text-primary transition-colors">
-              {user.followingCount.toLocaleString()}
-            </p>
-            <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
-              Following
-            </p>
+
+          <div className="text-center mt-3 mb-6">
+            <h1 className="text-2xl font-bold text-paper mb-1">
+              {user.displayName}
+            </h1>
+            <p className="text-tertiary text-sm font-medium">@{user.handle}</p>
+
+            {user.bio && (
+              <p className="text-secondary text-[15px] text-center max-w-[320px] leading-relaxed mt-3 mx-auto">
+                {user.bio}
+              </p>
+            )}
+
+            {!isSelf && !isPublic && (
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <button
+                  onClick={handleFollow}
+                  disabled={loading}
+                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${
+                    following
+                      ? "bg-primary border-primary text-white"
+                      : "border-primary text-primary hover:bg-primary/10"
+                  }`}
+                >
+                  {loading ? "..." : following ? "Following" : "Follow"}
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/messages/threads", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ userId: user.id }),
+                      });
+                      if (res.ok) {
+                        const thread = await res.json();
+                        window.location.href = `/inbox?thread=${thread.id}`;
+                      }
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                  className="px-6 py-2 rounded-full border border-divider text-paper hover:bg-white/10 transition-colors font-medium text-sm"
+                >
+                  Message
+                </button>
+              </div>
+            )}
+            {!isSelf && isPublic && (
+              <Link
+                href="/sign-in"
+                className="inline-block mt-4 px-6 py-2 rounded-full border border-primary text-primary hover:bg-primary/10 font-medium text-sm transition-colors"
+              >
+                Sign in to follow
+              </Link>
+            )}
           </div>
-          <div className="flex flex-col items-center gap-1 cursor-pointer group">
-            <p className="text-paper text-lg font-bold group-hover:text-primary transition-colors">
-              {user.quoteReceivedCount.toLocaleString()}
-            </p>
-            <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
-              Quotes
-            </p>
+
+          {/* Stats */}
+          <div className="flex justify-center gap-8 pb-4 w-full border-b border-divider">
+            {isPublic ? (
+              <>
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-paper text-lg font-bold">
+                    {user.followerCount.toLocaleString()}
+                  </p>
+                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
+                    Followers
+                  </p>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-paper text-lg font-bold">
+                    {user.followingCount.toLocaleString()}
+                  </p>
+                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
+                    Following
+                  </p>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <p className="text-paper text-lg font-bold">
+                    {user.quoteReceivedCount.toLocaleString()}
+                  </p>
+                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
+                    Quotes
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <Link
+                  href={`/user/${user.handle}/connections?tab=followers`}
+                  className="flex flex-col items-center gap-1 cursor-pointer group"
+                >
+                  <p className="text-paper text-lg font-bold group-hover:text-primary transition-colors">
+                    {user.followerCount.toLocaleString()}
+                  </p>
+                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
+                    Followers
+                  </p>
+                </Link>
+                <Link
+                  href={`/user/${user.handle}/connections?tab=following`}
+                  className="flex flex-col items-center gap-1 cursor-pointer group"
+                >
+                  <p className="text-paper text-lg font-bold group-hover:text-primary transition-colors">
+                    {user.followingCount.toLocaleString()}
+                  </p>
+                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
+                    Following
+                  </p>
+                </Link>
+                <div className="flex flex-col items-center gap-1 cursor-pointer group">
+                  <p className="text-paper text-lg font-bold group-hover:text-primary transition-colors">
+                    {user.quoteReceivedCount.toLocaleString()}
+                  </p>
+                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
+                    Quotes
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="sticky top-[60px] z-10 bg-ink border-b border-divider">
-        <div className="flex px-6">
-          {(["posts", "replies", "quotes", "collections"] as const).map(
-            (tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize ${
-                  activeTab === tab
-                    ? "border-primary text-paper"
-                    : "border-transparent text-tertiary hover:text-paper"
-                }`}
-              >
-                {tab}
-              </button>
-            ),
-          )}
+        <div className="flex px-6 overflow-x-auto no-scrollbar">
+          {visibleTabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap ${
+                activeTab === tab
+                  ? "border-primary text-paper"
+                  : "border-transparent text-tertiary hover:text-paper"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* Keeps Library Link (only on Saved tab) */}
+      {isSelf && activeTab === "saved" && (
+        <Link
+          href="/keeps"
+          className="flex items-center gap-3 px-6 py-4 border-b border-divider bg-white/[0.02] hover:bg-white/5 transition-colors group"
+        >
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-paper">Keeps Library</h3>
+            <p className="text-xs text-tertiary">Search & add to collections</p>
+          </div>
+          <svg
+            className="w-5 h-5 text-tertiary group-hover:text-primary transition-colors"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </Link>
+      )}
 
       {/* Content */}
       <div className="px-6 py-6">
@@ -380,7 +615,35 @@ export function ProfilePage({ user, isSelf = false }: ProfilePageProps) {
             )}
           </div>
         )}
+
+        {activeTab === "saved" && isSelf && (
+          <div className="space-y-0 -mx-6">
+            {/* SavedByItem usually renders "Saved by X to Y". 
+                 For the "Saved" tab (Keeps), we might just want to list the posts. 
+                 Or if it's strictly "Keeps" (bookmarks), it's just the post itself marked as kept.
+                 The Mobile app renders "Saved" items. Let's use PostItem for now or SavedByItem if the data has context.
+                 The API /keeps returns { post: ... }. 
+             */}
+            {tabData.saved && tabData.saved.length > 0 ? (
+              tabData.saved.map((item) => (
+                <div key={item.post.id} className="border-b border-divider">
+                  <PostItem post={item.post} />
+                </div>
+              ))
+            ) : tabData.saved === null ? (
+              <p className="text-secondary text-sm text-center py-8">
+                Loading...
+              </p>
+            ) : (
+              <p className="text-secondary text-sm text-center py-8">
+                No saved posts yet.
+              </p>
+            )}
+          </div>
+        )}
       </div>
+
+      {isPublic && <PublicSignInBar message="Sign in to follow and interact" />}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '../../utils/api';
+import { api, getWebAppBaseUrl } from '../../utils/api';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
@@ -153,10 +153,11 @@ export default function PostDetailScreen() {
 
   const handleShare = async () => {
     if (!post) return;
+    const url = `${getWebAppBaseUrl()}/post/${post.id}`;
     try {
       await Share.share({
-        message: `Check out this post by @${post.author.handle}: https://citewalk.app/post/${post.id}`,
-        url: `https://citewalk.app/post/${post.id}`, // iOS
+        message: `Check out this post by @${post.author.handle}: ${url}`,
+        url, // iOS
       });
     } catch (error) {
       // console.error(error);
@@ -212,271 +213,271 @@ export default function PostDetailScreen() {
 
   return (
     <>
-    <ScrollView
-      ref={scrollViewRef}
-      showsVerticalScrollIndicator={false}
-      showsHorizontalScrollIndicator={false}
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
-      }
-    >
-      <ScreenHeader
-        title={t('post.thread')}
-        paddingTop={insets.top}
-        right={
-          <Pressable onPress={handlePostMenu} hitSlop={10} style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-          </Pressable>
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
-      />
+      >
+        <ScreenHeader
+          title={t('post.thread')}
+          paddingTop={insets.top}
+          right={
+            <Pressable onPress={handlePostMenu} hitSlop={10} style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, pressed && { opacity: 0.7 }]}>
+              <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
+            </Pressable>
+          }
+        />
 
-      <View style={styles.postContent}>
-        <PostContent post={post} disableNavigation />
+        <View style={styles.postContent}>
+          <PostContent post={post} disableNavigation />
 
-        <View style={styles.stats}>
-          <Text style={styles.stat}>{post.replyCount} {t('post.replies')}</Text>
-          <Text style={styles.stat}>{post.quoteCount} {t('post.quotes')}</Text>
-          {post.readingTimeMinutes ? <Text style={styles.stat}>{post.readingTimeMinutes} {t('post.minRead', 'min read')}</Text> : null}
+          <View style={styles.stats}>
+            <Text style={styles.stat}>{post.replyCount} {t('post.replies')}</Text>
+            <Text style={styles.stat}>{post.quoteCount} {t('post.quotes')}</Text>
+            {post.readingTimeMinutes ? <Text style={styles.stat}>{post.readingTimeMinutes} {t('post.minRead', 'min read')}</Text> : null}
+          </View>
+
+          <View style={styles.actions}>
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => router.push(`/post/${post.id}/reading`)}
+              accessibilityLabel={t('post.readArticle', 'Read article')}
+              accessibilityRole="button"
+            >
+              <MaterialIcons name="menu-book" size={HEADER.iconSize} color={COLORS.primary} />
+              <Text style={styles.actionButtonText}>{t('post.readArticle', 'Read')}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
+              accessibilityLabel={t('post.reply')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.actionButtonText}>{t('post.reply')}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}
+              accessibilityLabel={t('post.quote')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.actionButtonText}>{t('post.quote')}</Text>
+            </Pressable>
+          </View>
         </View>
 
-        <View style={styles.actions}>
+        {sources.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('post.sources', 'SOURCES')}</Text>
+            {sources.map((source: any, index: number) => (
+              <Pressable
+                key={source.id || index}
+                style={styles.sourceItem}
+                onPress={async () => {
+                  if (source.type === 'external' && source.url) {
+                    Linking.openURL(source.url).catch((err: any) => {
+                      console.error('Failed to open URL', err);
+                      showError(t('post.failedOpenUrl', 'Failed to open URL'));
+                    });
+                  } else if (source.type === 'post') {
+                    router.push(`/post/${source.id}`);
+                  } else if (source.type === 'topic') {
+                    router.push(`/topic/${encodeURIComponent(source.slug)}`);
+                  } else if (source.type === 'user') {
+                    router.push(`/user/${source.handle}`);
+                  }
+                }}
+                accessibilityLabel={`${t('post.source', 'Source')} ${index + 1}: ${source.title || source.url}`}
+                accessibilityRole="link"
+              >
+                <Text style={styles.sourceNumber}>{index + 1}</Text>
+                <View style={styles.sourceIcon}>
+                  <Text style={styles.sourceIconText}>
+                    {source.type === 'external' && source.url
+                      ? (new URL(source.url).hostname).charAt(0).toUpperCase()
+                      : (source.title || '?').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.sourceContent}>
+                  <Text style={styles.sourceDomain}>
+                    {source.type === 'external' && source.url
+                      ? new URL(source.url).hostname
+                      : source.type === 'user' ? 'User'
+                        : source.type === 'topic' ? 'Topic'
+                          : 'Post'}
+                  </Text>
+                  <Text style={styles.sourceTitle} numberOfLines={1}>
+                    {source.alias || source.title || source.handle || source.url}
+                  </Text>
+                </View>
+                <MaterialIcons name="open-in-new" size={HEADER.iconSize} color={COLORS.tertiary} />
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {referencedBy.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>REFERENCED BY</Text>
+              <Text style={styles.sectionCount}>{referencedBy.length} {t('post.replies')}</Text>
+            </View>
+            {referencedBy.slice(0, 2).map((refPost) => (
+              <PostItem key={refPost.id} post={refPost} />
+            ))}
+            {referencedBy.length > 2 && (
+              <Pressable style={styles.viewAllButton}>
+                <Text style={styles.viewAllText}>{t('post.viewAllReferences')}</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
+        <View
+          style={styles.section}
+          onLayout={(event: { nativeEvent: { layout: { y: number } } }) => {
+            repliesSectionY.current = event.nativeEvent.layout.y;
+          }}
+        >
+          <Text style={styles.sectionTitle}>{t('post.replies')}</Text>
+          {replies.map((reply) => (
+            <View
+              key={reply.id}
+              onLayout={(event: { nativeEvent: { layout: { y: number } } }) => {
+                if (highlightReplyId === reply.id) {
+                  const itemY = event.nativeEvent.layout.y;
+                  const totalY = repliesSectionY.current + itemY;
+                  setHighlightY(totalY);
+                }
+              }}
+              style={[
+                styles.replyItem,
+                highlightReplyId === reply.id && { backgroundColor: COLORS.hover, borderColor: COLORS.primary, borderWidth: 1 }
+              ]}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <View style={styles.authorRow}>
+                  <View style={styles.avatarSmall}>
+                    <Text style={styles.avatarTextSmall}>{reply.author.displayName.charAt(0)}</Text>
+                  </View>
+                  <Text style={styles.displayNameSmall}>{reply.author.displayName}</Text>
+                  <Text style={styles.handleSmall}>@{reply.author.handle}</Text>
+                </View>
+                <Pressable onPress={() => handleReplyMenu(reply.id)} hitSlop={10}>
+                  <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
+                </Pressable>
+              </View>
+              <View style={{ marginTop: 4 }}>
+                <MarkdownText>{reply.body}</MarkdownText>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.bottomActions}>
           <Pressable
-            style={styles.actionButton}
-            onPress={() => router.push(`/post/${post.id}/reading`)}
-            accessibilityLabel={t('post.readArticle', 'Read article')}
-            accessibilityRole="button"
-          >
-            <MaterialIcons name="menu-book" size={HEADER.iconSize} color={COLORS.primary} />
-            <Text style={styles.actionButtonText}>{t('post.readArticle', 'Read')}</Text>
-          </Pressable>
-          <Pressable
-            style={styles.actionButton}
+            style={styles.bottomActionButton}
             onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
             accessibilityLabel={t('post.reply')}
             accessibilityRole="button"
           >
-            <Text style={styles.actionButtonText}>{t('post.reply')}</Text>
+            <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+            <Text style={styles.bottomActionText}>{t('post.reply')}</Text>
           </Pressable>
           <Pressable
-            style={styles.actionButton}
+            style={styles.bottomActionButton}
             onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}
             accessibilityLabel={t('post.quote')}
             accessibilityRole="button"
           >
-            <Text style={styles.actionButtonText}>{t('post.quote')}</Text>
+            <MaterialIcons name="format-quote" size={HEADER.iconSize} color={COLORS.tertiary} />
+            <Text style={styles.bottomActionText}>{t('post.quote')}</Text>
+          </Pressable>
+          <Pressable
+            style={styles.bottomActionButton}
+            onPress={handleLike}
+            accessibilityLabel={liked ? t('post.liked') : t('post.like')}
+            accessibilityRole="button"
+          >
+            <MaterialIcons
+              name={liked ? "favorite" : "favorite-border"}
+              size={HEADER.iconSize}
+              color={liked ? (COLORS.like || COLORS.primary) : COLORS.tertiary}
+            />
+            <Text style={[styles.bottomActionText, liked && { color: (COLORS.like || COLORS.primary) }]}>
+              {liked ? t('post.liked') : t('post.like')}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={styles.bottomActionButton}
+            onPress={handleKeep}
+            accessibilityLabel={kept ? t('post.kept') : t('post.keep')}
+            accessibilityRole="button"
+          >
+            <MaterialIcons
+              name={kept ? "bookmark" : "bookmark-border"}
+              size={HEADER.iconSize}
+              color={kept ? COLORS.primary : COLORS.tertiary}
+            />
+            <Text style={[styles.bottomActionText, kept && { color: COLORS.primary }]}>
+              {kept ? t('post.kept') : t('post.keep')}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={styles.bottomActionButton}
+            onPress={handleShare}
+            accessibilityLabel={t('post.share')}
+            accessibilityRole="button"
+          >
+            <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.tertiary} />
+            <Text style={styles.bottomActionText}>{t('post.share')}</Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
 
-      {sources.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('post.sources', 'SOURCES')}</Text>
-          {sources.map((source: any, index: number) => (
-            <Pressable
-              key={source.id || index}
-              style={styles.sourceItem}
-              onPress={async () => {
-                if (source.type === 'external' && source.url) {
-                  Linking.openURL(source.url).catch((err: any) => {
-                    console.error('Failed to open URL', err);
-                    showError(t('post.failedOpenUrl', 'Failed to open URL'));
-                  });
-                } else if (source.type === 'post') {
-                  router.push(`/post/${source.id}`);
-                } else if (source.type === 'topic') {
-                  router.push(`/topic/${encodeURIComponent(source.slug)}`);
-                } else if (source.type === 'user') {
-                  router.push(`/user/${source.handle}`);
-                }
-              }}
-              accessibilityLabel={`${t('post.source', 'Source')} ${index + 1}: ${source.title || source.url}`}
-              accessibilityRole="link"
-            >
-              <Text style={styles.sourceNumber}>{index + 1}</Text>
-              <View style={styles.sourceIcon}>
-                <Text style={styles.sourceIconText}>
-                  {source.type === 'external' && source.url
-                    ? (new URL(source.url).hostname).charAt(0).toUpperCase()
-                    : (source.title || '?').charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.sourceContent}>
-                <Text style={styles.sourceDomain}>
-                  {source.type === 'external' && source.url
-                    ? new URL(source.url).hostname
-                    : source.type === 'user' ? 'User'
-                      : source.type === 'topic' ? 'Topic'
-                        : 'Post'}
-                </Text>
-                <Text style={styles.sourceTitle} numberOfLines={1}>
-                  {source.alias || source.title || source.handle || source.url}
-                </Text>
-              </View>
-              <MaterialIcons name="open-in-new" size={HEADER.iconSize} color={COLORS.tertiary} />
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      {referencedBy.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>REFERENCED BY</Text>
-            <Text style={styles.sectionCount}>{referencedBy.length} {t('post.replies')}</Text>
-          </View>
-          {referencedBy.slice(0, 2).map((refPost) => (
-            <PostItem key={refPost.id} post={refPost} />
-          ))}
-          {referencedBy.length > 2 && (
-            <Pressable style={styles.viewAllButton}>
-              <Text style={styles.viewAllText}>{t('post.viewAllReferences')}</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-
-      <View
-        style={styles.section}
-        onLayout={(event: { nativeEvent: { layout: { y: number } } }) => {
-          repliesSectionY.current = event.nativeEvent.layout.y;
-        }}
-      >
-        <Text style={styles.sectionTitle}>{t('post.replies')}</Text>
-        {replies.map((reply) => (
-          <View
-            key={reply.id}
-            onLayout={(event: { nativeEvent: { layout: { y: number } } }) => {
-              if (highlightReplyId === reply.id) {
-                const itemY = event.nativeEvent.layout.y;
-                const totalY = repliesSectionY.current + itemY;
-                setHighlightY(totalY);
-              }
-            }}
-            style={[
-              styles.replyItem,
-              highlightReplyId === reply.id && { backgroundColor: COLORS.hover, borderColor: COLORS.primary, borderWidth: 1 }
-            ]}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <View style={styles.authorRow}>
-                <View style={styles.avatarSmall}>
-                  <Text style={styles.avatarTextSmall}>{reply.author.displayName.charAt(0)}</Text>
-                </View>
-                <Text style={styles.displayNameSmall}>{reply.author.displayName}</Text>
-                <Text style={styles.handleSmall}>@{reply.author.handle}</Text>
-              </View>
-              <Pressable onPress={() => handleReplyMenu(reply.id)} hitSlop={10}>
-                <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
-              </Pressable>
-            </View>
-            <View style={{ marginTop: 4 }}>
-              <MarkdownText>{reply.body}</MarkdownText>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.bottomActions}>
-        <Pressable
-          style={styles.bottomActionButton}
-          onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
-          accessibilityLabel={t('post.reply')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
-          <Text style={styles.bottomActionText}>{t('post.reply')}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.bottomActionButton}
-          onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}
-          accessibilityLabel={t('post.quote')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="format-quote" size={HEADER.iconSize} color={COLORS.tertiary} />
-          <Text style={styles.bottomActionText}>{t('post.quote')}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.bottomActionButton}
-          onPress={handleLike}
-          accessibilityLabel={liked ? t('post.liked') : t('post.like')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons
-            name={liked ? "favorite" : "favorite-border"}
-            size={HEADER.iconSize}
-            color={liked ? (COLORS.like || COLORS.primary) : COLORS.tertiary}
-          />
-          <Text style={[styles.bottomActionText, liked && { color: (COLORS.like || COLORS.primary) }]}>
-            {liked ? t('post.liked') : t('post.like')}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={styles.bottomActionButton}
-          onPress={handleKeep}
-          accessibilityLabel={kept ? t('post.kept') : t('post.keep')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons
-            name={kept ? "bookmark" : "bookmark-border"}
-            size={HEADER.iconSize}
-            color={kept ? COLORS.primary : COLORS.tertiary}
-          />
-          <Text style={[styles.bottomActionText, kept && { color: COLORS.primary }]}>
-            {kept ? t('post.kept') : t('post.keep')}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={styles.bottomActionButton}
-          onPress={handleShare}
-          accessibilityLabel={t('post.share')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.tertiary} />
-          <Text style={styles.bottomActionText}>{t('post.share')}</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
-
-    <ConfirmModal
-      visible={!!reportTarget}
-      title={t('post.reportTitle', 'Report Content')}
-      message={t('post.reportMessage', 'Are you sure you want to report this content?')}
-      confirmLabel={t('post.report', 'Report')}
-      cancelLabel={t('common.cancel')}
-      destructive
-      onConfirm={confirmReport}
-      onCancel={() => setReportTarget(null)}
-    />
-    <OptionsActionSheet
-      visible={postOptionsVisible}
-      title={t('post.options', 'Post Options')}
-      options={[
-        ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setPostOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const }] : []),
-        { label: t('post.report', 'Report Post'), onPress: () => { setPostOptionsVisible(false); handleReport(id as string, 'POST'); }, destructive: true },
-      ]}
-      cancelLabel={t('common.cancel')}
-      onCancel={() => setPostOptionsVisible(false)}
-    />
-    <ConfirmModal
-      visible={deleteConfirmVisible}
-      title={t('post.delete', 'Delete Post')}
-      message={t('post.deleteConfirm', 'Are you sure you want to delete this post? This cannot be undone.')}
-      confirmLabel={t('post.delete', 'Delete Post')}
-      cancelLabel={t('common.cancel')}
-      destructive
-      onConfirm={handleDeletePost}
-      onCancel={() => setDeleteConfirmVisible(false)}
-    />
-    <OptionsActionSheet
-      visible={replyOptionsVisible}
-      title={t('post.options', 'Reply Options')}
-      options={replyOptionsReplyId ? [
-        { label: t('post.report', 'Report Reply'), onPress: () => { setReplyOptionsVisible(false); setReplyOptionsReplyId(null); handleReport(replyOptionsReplyId, 'REPLY'); }, destructive: true },
-      ] : []}
-      cancelLabel={t('common.cancel')}
-      onCancel={() => { setReplyOptionsVisible(false); setReplyOptionsReplyId(null); }}
-    />
+      <ConfirmModal
+        visible={!!reportTarget}
+        title={t('post.reportTitle', 'Report Content')}
+        message={t('post.reportMessage', 'Are you sure you want to report this content?')}
+        confirmLabel={t('post.report', 'Report')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={confirmReport}
+        onCancel={() => setReportTarget(null)}
+      />
+      <OptionsActionSheet
+        visible={postOptionsVisible}
+        title={t('post.options', 'Post Options')}
+        options={[
+          ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setPostOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const }] : []),
+          { label: t('post.report', 'Report Post'), onPress: () => { setPostOptionsVisible(false); handleReport(id as string, 'POST'); }, destructive: true },
+        ]}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setPostOptionsVisible(false)}
+      />
+      <ConfirmModal
+        visible={deleteConfirmVisible}
+        title={t('post.delete', 'Delete Post')}
+        message={t('post.deleteConfirm', 'Are you sure you want to delete this post? This cannot be undone.')}
+        confirmLabel={t('post.delete', 'Delete Post')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={handleDeletePost}
+        onCancel={() => setDeleteConfirmVisible(false)}
+      />
+      <OptionsActionSheet
+        visible={replyOptionsVisible}
+        title={t('post.options', 'Reply Options')}
+        options={replyOptionsReplyId ? [
+          { label: t('post.report', 'Report Reply'), onPress: () => { setReplyOptionsVisible(false); setReplyOptionsReplyId(null); handleReport(replyOptionsReplyId, 'REPLY'); }, destructive: true },
+        ] : []}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => { setReplyOptionsVisible(false); setReplyOptionsReplyId(null); }}
+      />
     </>
   );
 }

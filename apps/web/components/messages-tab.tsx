@@ -27,11 +27,18 @@ interface Message {
   threadId?: string;
 }
 
-export function MessagesTab() {
+interface MessagesTabProps {
+  /** When present (e.g. from /inbox?thread=...), open this thread on load */
+  initialThreadId?: string | null;
+}
+
+export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
   const { user } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedThread, setSelectedThread] = useState<string | null>(null);
+  const [selectedThread, setSelectedThread] = useState<string | null>(
+    initialThreadId || null,
+  );
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const { on, off } = useRealtime();
@@ -39,6 +46,13 @@ export function MessagesTab() {
   useEffect(() => {
     loadThreads();
   }, []);
+
+  useEffect(() => {
+    if (initialThreadId && threads.length > 0 && !selectedThread) {
+      const exists = threads.some((t) => t.id === initialThreadId);
+      if (exists) setSelectedThread(initialThreadId);
+    }
+  }, [initialThreadId, threads, selectedThread]);
 
   useEffect(() => {
     const handleMessage = (data: unknown) => {

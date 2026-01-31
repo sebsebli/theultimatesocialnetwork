@@ -3,8 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 
+const CONSENT_LABEL =
+  "I agree to be contacted at the email address above about Citewalk project updates and my invitation to the open beta program.";
+
 export default function WaitingListPage() {
   const [email, setEmail] = useState("");
+  const [consent, setConsent] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -12,13 +16,19 @@ export default function WaitingListPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!consent) {
+      setError(
+        "Please confirm that you agree to be contacted as described above.",
+      );
+      return;
+    }
     setLoading(true);
 
     try {
       const res = await fetch("/api/waiting-list", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, consent: true }),
       });
 
       if (!res.ok) {
@@ -62,11 +72,12 @@ export default function WaitingListPage() {
             </svg>
           </Link>
           <h1 className="text-4xl font-bold tracking-tight text-paper">
-            Join the Waitlist
+            Join the Waiting List
           </h1>
           <p className="text-secondary text-lg">
-            Citewalk is currently in invite-only beta. Be the first to know when
-            we open up or when your invite is ready.
+            Citewalk is currently in closed beta. We&apos;re testing the network
+            before opening the open beta. Join the waiting list to receive
+            project updates and your invitation when we open.
           </p>
         </div>
 
@@ -92,9 +103,9 @@ export default function WaitingListPage() {
                 You&apos;re on the list!
               </h2>
               <p className="text-secondary">
-                We&apos;ll reach out to{" "}
-                <span className="text-paper">{email}</span> as soon as space
-                opens up.
+                We&apos;ll contact you at{" "}
+                <span className="text-paper">{email}</span> with project updates
+                and your invitation when we open the open beta.
               </p>
             </div>
             <Link
@@ -125,6 +136,39 @@ export default function WaitingListPage() {
               />
             </div>
 
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0 focus:ring-offset-ink"
+                  required
+                />
+                <span className="text-sm text-secondary group-hover:text-paper transition-colors">
+                  {CONSENT_LABEL}
+                </span>
+              </label>
+              <p className="text-[11px] text-tertiary">
+                By submitting, you confirm this consent. You can withdraw it at
+                any time by contacting us at{" "}
+                <a
+                  href="mailto:hello@citewalk.com"
+                  className="underline hover:text-secondary"
+                >
+                  hello@citewalk.com
+                </a>
+                . See our{" "}
+                <Link
+                  href="/privacy"
+                  className="underline hover:text-secondary"
+                >
+                  Privacy Policy
+                </Link>{" "}
+                for how we process your data.
+              </p>
+            </div>
+
             {error && (
               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                 <p className="text-red-400 text-sm">{error}</p>
@@ -134,35 +178,19 @@ export default function WaitingListPage() {
             <div className="space-y-4">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !consent}
                 className="w-full h-14 bg-primary hover:bg-[#7d8b9d] transition-all duration-200 text-white font-semibold rounded-lg disabled:opacity-50 shadow-lg shadow-primary/20 active:scale-[0.98]"
               >
-                {loading ? "Joining..." : "Join Waitlist"}
+                {loading ? "Joining..." : "Join the Waiting List"}
               </button>
 
-              <div className="text-[11px] text-tertiary space-y-2 text-center">
-                <p>
-                  By joining, you agree to our{" "}
-                  <Link
-                    href="/terms"
-                    className="underline hover:text-secondary"
-                  >
-                    Waitlist Terms
-                  </Link>{" "}
-                  and{" "}
-                  <Link
-                    href="/privacy"
-                    className="underline hover:text-secondary"
-                  >
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
-                <p>
-                  Waitlist members are processed in the order received.
-                  Providing a referral code later will skip you to the front.
-                </p>
-              </div>
+              <p className="text-[11px] text-tertiary text-center">
+                You also agree to our{" "}
+                <Link href="/terms" className="underline hover:text-secondary">
+                  Terms of Service
+                </Link>
+                .
+              </p>
             </div>
 
             <p className="text-center text-sm">

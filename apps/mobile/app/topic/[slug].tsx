@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Share, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api } from '../../utils/api';
+import { api, getWebAppBaseUrl } from '../../utils/api';
+import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { PostItem } from '../../components/PostItem';
 import { UserCard } from '../../components/UserCard';
 import { EmptyState } from '../../components/EmptyState';
@@ -28,6 +29,7 @@ export default function TopicScreen() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState<'start-here' | 'new' | 'people' | 'source'>('new');
   const [stickyHeaderImageKey, setStickyHeaderImageKey] = useState<string | null>(null);
+  const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
 
   // ... loadTopic ...
 
@@ -219,6 +221,22 @@ export default function TopicScreen() {
     }
   };
 
+  const handleShareTopic = useCallback(() => {
+    setMoreOptionsVisible(false);
+    if (!slugStr) return;
+    const url = `${getWebAppBaseUrl()}/topic/${encodeURIComponent(slugStr)}`;
+    const message = t('topic.shareTopicMessage', { defaultValue: 'Check out this topic on Citewalk', slug: slugStr });
+    const sharePayload = Platform.OS === 'android'
+      ? { message: `${message}\n${url}`, title: t('topic.shareTopic', 'Share topic') }
+      : { message: `${message}\n${url}`, url, title: t('topic.shareTopic', 'Share topic') };
+    Share.share(sharePayload).catch(() => { });
+  }, [slugStr, t]);
+
+  const handleSearchInTopic = useCallback(() => {
+    setMoreOptionsVisible(false);
+    router.push({ pathname: '/search', params: { topicSlug: slugStr } });
+  }, [router, slugStr]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -253,8 +271,8 @@ export default function TopicScreen() {
         actionLabel={isFollowing ? t('profile.following') : t('profile.follow')}
         isActionActive={isFollowing}
         metrics={{ postCount: topic.postCount, contributorCount: topic.contributorCount }}
-        rightAction="search"
-        onRightAction={() => router.push({ pathname: '/search', params: { topicSlug: slugStr } })}
+        rightAction="more"
+        onRightAction={() => setMoreOptionsVisible(true)}
       >
         <View style={styles.tabsContainer}>
           {(['start-here', 'new', 'people', 'source'] as const).map((tab) => (
@@ -298,6 +316,16 @@ export default function TopicScreen() {
         updateCellsBatchingPeriod={50}
         initialNumToRender={10}
         windowSize={10}
+      />
+      <OptionsActionSheet
+        visible={moreOptionsVisible}
+        title={topic.title}
+        options={[
+          { label: t('topic.searchInTopic', 'Search in topic'), onPress: handleSearchInTopic, icon: 'search' },
+          { label: t('topic.shareTopic', 'Share topic'), onPress: handleShareTopic, icon: 'share' },
+        ]}
+        cancelLabel={t('common.cancel', 'Cancel')}
+        onCancel={() => setMoreOptionsVisible(false)}
       />
     </SafeAreaView>
   );

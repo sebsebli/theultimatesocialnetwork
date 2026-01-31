@@ -1,0 +1,8 @@
+# Production overrides: HTTPS (Nginx + SSL), strong secrets required.
+# Use: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  nginx:
+    volumes:
+      - ./nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Modal, TextInput, Linking, Share, InteractionManager, Platform } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Modal, TextInput, Linking, Share, InteractionManager, Platform, Switch } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -48,6 +48,7 @@ export default function ProfileScreen() {
   const [editingCollection, setEditingCollection] = useState<any>(null);
   const [editCollectionTitle, setEditCollectionTitle] = useState('');
   const [editCollectionDescription, setEditCollectionDescription] = useState('');
+  const [editCollectionIsPublic, setEditCollectionIsPublic] = useState(true);
   const [deleteCollectionConfirmVisible, setDeleteCollectionConfirmVisible] = useState(false);
   const [profileOptionsVisible, setProfileOptionsVisible] = useState(false);
 
@@ -212,6 +213,7 @@ export default function ProfileScreen() {
     setEditingCollection(selectedCollection);
     setEditCollectionTitle(selectedCollection.title);
     setEditCollectionDescription(selectedCollection.description ?? '');
+    setEditCollectionIsPublic(selectedCollection.isPublic !== false);
     setEditCollectionModalVisible(true);
     setCollectionOptionsVisible(false);
     setSelectedCollection(null);
@@ -224,8 +226,9 @@ export default function ProfileScreen() {
       await api.patch(`/collections/${c.id}`, {
         title: editCollectionTitle.trim(),
         description: editCollectionDescription.trim() || undefined,
+        isPublic: editCollectionIsPublic,
       });
-      setPosts((prev) => prev.map((p: any) => (p.id === c.id ? { ...p, title: editCollectionTitle.trim(), description: editCollectionDescription.trim() || undefined } : p)));
+      setPosts((prev) => prev.map((p: any) => (p.id === c.id ? { ...p, title: editCollectionTitle.trim(), description: editCollectionDescription.trim() || undefined, isPublic: editCollectionIsPublic } : p)));
       setEditCollectionModalVisible(false);
       setEditingCollection(null);
       setEditCollectionTitle('');
@@ -233,7 +236,7 @@ export default function ProfileScreen() {
     } catch (e) {
       showError(t('collections.updateFailed', 'Failed to update collection'));
     }
-  }, [editingCollection, editCollectionTitle, editCollectionDescription, showError, t]);
+  }, [editingCollection, editCollectionTitle, editCollectionDescription, editCollectionIsPublic, showError, t]);
 
   const handleDeleteCollectionPress = useCallback(() => {
     setDeleteCollectionConfirmVisible(true);
@@ -392,12 +395,22 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       {profileLoading && !user ? (
-        <View style={styles.loading}>
+        <View style={[styles.loading, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <ActivityIndicator color={COLORS.primary} size="large" />
         </View>
       ) : !user ? (
-        <View style={styles.loading}>
+        <View style={[styles.loading, styles.errorStateContainer, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <MaterialIcons name="cloud-off" size={72} color={COLORS.error} style={styles.errorStateIcon} />
           <Text style={styles.errorText}>{t('profile.loadError', 'Failed to load profile.')}</Text>
+          {!handle && (
+            <Pressable
+              style={({ pressed }) => [styles.errorStateButton, pressed && styles.errorStateButtonPressed]}
+              onPress={() => router.push('/settings')}
+            >
+              <MaterialIcons name="settings" size={SIZES.iconMedium} color={COLORS.primary} />
+              <Text style={styles.errorStateButtonLabel}>{t('settings.title', 'Settings')}</Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         <FlatList
@@ -725,8 +738,22 @@ export default function ProfileScreen() {
               multiline
               numberOfLines={2}
             />
+            <View style={styles.editCollectionVisibilityRow}>
+              <View style={styles.editCollectionVisibilityLabel}>
+                <Text style={styles.editCollectionVisibilityTitle}>{t('collections.visibility', 'Visibility')}</Text>
+                <Text style={styles.editCollectionVisibilityHint}>
+                  {editCollectionIsPublic ? t('collections.visibilityPublic', 'Public — anyone can see this collection') : t('collections.visibilityPrivate', 'Private — only your followers can see it')}
+                </Text>
+              </View>
+              <Switch
+                value={editCollectionIsPublic}
+                onValueChange={setEditCollectionIsPublic}
+                trackColor={{ false: COLORS.tertiary + '40', true: COLORS.primary + '99' }}
+                thumbColor={editCollectionIsPublic ? COLORS.primary : COLORS.secondary}
+              />
+            </View>
             <View style={styles.editCollectionModalButtons}>
-              <Pressable style={styles.editCollectionModalButtonCancel} onPress={() => { setEditCollectionModalVisible(false); setEditingCollection(null); setEditCollectionTitle(''); setEditCollectionDescription(''); }}>
+              <Pressable style={styles.editCollectionModalButtonCancel} onPress={() => { setEditCollectionModalVisible(false); setEditingCollection(null); setEditCollectionTitle(''); setEditCollectionDescription(''); setEditCollectionIsPublic(true); }}>
                 <Text style={styles.editCollectionModalButtonTextCancel}>{t('common.cancel')}</Text>
               </Pressable>
               <Pressable style={[styles.editCollectionModalButtonSave, !editCollectionTitle.trim() && styles.editCollectionModalButtonDisabled]} onPress={handleSaveEditCollection} disabled={!editCollectionTitle.trim()}>
@@ -787,6 +814,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.ink,
   },
   loading: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -794,6 +822,31 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontSize: 16,
     fontFamily: FONTS.medium,
+  },
+  errorStateContainer: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    gap: SPACING.xl,
+  },
+  errorStateIcon: {
+    marginBottom: SPACING.s,
+  },
+  errorStateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.l,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  errorStateButtonPressed: {
+    opacity: 0.8,
+  },
+  errorStateButtonLabel: {
+    fontSize: 16,
+    fontFamily: FONTS.medium,
+    color: COLORS.primary,
   },
   scrollContent: {
     paddingBottom: 40,
@@ -1166,6 +1219,30 @@ const styles = StyleSheet.create({
   editCollectionInputMultiline: {
     minHeight: 72,
     textAlignVertical: 'top',
+  },
+  editCollectionVisibilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.m,
+    marginBottom: SPACING.s,
+    paddingVertical: SPACING.s,
+  },
+  editCollectionVisibilityLabel: {
+    flex: 1,
+    marginRight: SPACING.m,
+  },
+  editCollectionVisibilityTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  editCollectionVisibilityHint: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    marginTop: 2,
+    fontFamily: FONTS.regular,
   },
   editCollectionModalButtons: {
     flexDirection: 'row',

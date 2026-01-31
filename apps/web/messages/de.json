@@ -1,4 +1,16 @@
 {
+  "nav": {
+    "home": "Start",
+    "explore": "Entdecken",
+    "discover": "Entdecken",
+    "post": "Beitrag",
+    "messages": "Nachrichten",
+    "activity": "Aktivität",
+    "profile": "Profil",
+    "settings": "Einstellungen",
+    "collections": "Sammlungen",
+    "keeps": "Gespeichert"
+  },
   "welcome": {
     "title": "Citewalk",
     "subtitle": "Soziale Beiträge, verlinkt wie Wikipedia.",

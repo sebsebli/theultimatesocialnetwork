@@ -833,7 +833,7 @@ export class UsersService {
     return !!follow;
   }
 
-  /** Collections visible to the viewer for this owner. Visibility follows profile: public profile → all collections; private profile → only for followers. */
+  /** Collections visible to the viewer for this owner. Owner sees all. Followers see all (public + private). Others who can see the profile see only public collections. */
   async getUserVisibleCollections(
     ownerId: string,
     viewerId: string | null,
@@ -844,7 +844,20 @@ export class UsersService {
     if (!canView) {
       return { items: [], hasMore: false };
     }
-    return this.getUserAllCollections(ownerId, page, limit);
+    const showPrivate =
+      viewerId === ownerId ||
+      !!(
+        viewerId &&
+        (await this.followRepo.findOne({
+          where: { followerId: viewerId, followeeId: ownerId },
+        }))
+      );
+    return this.getUserCollections(
+      ownerId,
+      page,
+      limit,
+      showPrivate ? undefined : true,
+    );
   }
 
   /** All collections by owner (public + private). For profile owner viewing their own profile. */
@@ -853,15 +866,28 @@ export class UsersService {
     page: number,
     limit: number,
   ): Promise<{ items: Partial<Collection>[]; hasMore: boolean }> {
+    return this.getUserCollections(ownerId, page, limit, undefined);
+  }
+
+  /** Get collections for owner with optional public-only filter. publicOnly true = only public, undefined = all. */
+  async getUserCollections(
+    ownerId: string,
+    page: number,
+    limit: number,
+    publicOnly?: boolean,
+  ): Promise<{ items: Partial<Collection>[]; hasMore: boolean }> {
     const skip = (page - 1) * limit;
-    const collections = await this.collectionRepo
+    const qb = this.collectionRepo
       .createQueryBuilder('c')
       .where('c.ownerId = :ownerId', { ownerId })
       .loadRelationCountAndMap('c.itemCount', 'c.items')
       .orderBy('c.createdAt', 'DESC')
       .skip(skip)
-      .take(limit + 1)
-      .getMany();
+      .take(limit + 1);
+    if (publicOnly === true) {
+      qb.andWhere('c.is_public = true');
+    }
+    const collections = await qb.getMany();
     const slice = collections.slice(0, limit);
     const ids = slice.map((c) => c.id);
     const previewMap = await this.collectionsService.getPreviewImageKeys(ids);

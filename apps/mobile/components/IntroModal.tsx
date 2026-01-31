@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Modal, Pressable, Animated, Dimensions, Image, ScrollView } from 'react-native';
-import { RFValue } from 'react-native-responsive-fontsize';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS, SPACING, SIZES, FONTS, LAYOUT, HEADER, MODAL } from '../constants/theme';
 import * as SecureStore from 'expo-secure-store';
 
 const INTRO_SEEN_KEY = 'intro_seen';
 const { width, height } = Dimensions.get('window');
+
+const logoSource = require('../assets/logo_transparent.png');
 
 // City background images
 const cityImages = [
@@ -240,20 +242,17 @@ function FadeInButton({ delay, duration = 1000, onPress, text, currentIndex, tot
 
 export function IntroModal({ visible, onClose }: IntroModalProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
 
   const allItems = React.useMemo(() => [
-    { text: "I built Citewalk to challenge a digital order engineered for outrage over truth—where algorithms reward polarization over diversity, rage over logic, and controversy over accuracy.\n\nThe future deserves verification over virality, context over chaos.", isFounder: true, hasAuthor: true },
-    { text: t('intro.point1'), isFounder: false, hasAuthor: false },
-    { text: t('intro.point2'), isFounder: false, hasAuthor: false },
-    { text: t('intro.point3'), isFounder: false, hasAuthor: false },
-    { text: t('intro.point4'), isFounder: false, hasAuthor: false },
-    { text: t('intro.point5'), isFounder: false, hasAuthor: false },
-    { text: t('intro.point6'), isFounder: false, hasAuthor: false },
-    { text: t('intro.point7'), isFounder: false, hasAuthor: false },
-    { text: t('intro.finalMessage'), isWelcome: true, isFounder: false, hasAuthor: false },
+    { text: t('intro.founderMessage'), isFounder: true, isQuote: false },
+    { text: t('intro.point1'), isFounder: false, isQuote: false },
+    { text: t('intro.point2'), isFounder: false, isQuote: false },
+    { text: t('intro.point3'), isFounder: false, isQuote: false },
+    { text: t('intro.finalMessage'), isWelcome: true, isFounder: false, isQuote: false },
   ], [t]);
 
   useEffect(() => {
@@ -300,7 +299,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
     >
       <View style={styles.container}>
         {/* Skip Button - Top */}
-        <View style={styles.topSection}>
+        <View style={[styles.topSection, { paddingTop: insets.top + SPACING.l, paddingHorizontal: LAYOUT.contentPaddingHorizontal }]}>
           <Pressable
             style={styles.skipButton}
             onPress={handleSkip}
@@ -329,6 +328,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
         {/* Overlapping Pages with Fade Effect */}
         {allItems.map((item, index) => {
           const isFounder = item.isFounder;
+          const isQuote = item.isQuote;
           const isWelcome = item.isWelcome;
           const cityIndex = index % cityImages.length;
 
@@ -397,39 +397,48 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
                 pointerEvents="none"
               >
                 <View style={styles.textWrapper}>
-                  {isFounder ? (
+                  {(isFounder || isQuote) ? (
                     <View style={styles.founderContainer}>
                       <MaterialIcons
                         name="format-quote"
-                        size={RFValue(32)}
+                        size={28}
                         color={COLORS.paper}
                         style={styles.quoteIcon}
                       />
                       <Text style={[styles.text, styles.founderText]}>
-                        {item.text.split(/(Citewalk)/i).map((part, i) =>
-                          part.toLowerCase() === 'Citewalk' ? (
-                            <Text key={i} style={[styles.text, styles.founderText, styles.highlightedCite]}>
-                              {part}
-                            </Text>
-                          ) : (
-                            <Text key={i}>{part}</Text>
+                        {isFounder
+                          ? item.text.split(/(Citewalk)/i).map((part, i) =>
+                            part.toLowerCase() === 'Citewalk' ? (
+                              <Text key={i} style={[styles.text, styles.founderText, styles.highlightedCite]}>
+                                {part}
+                              </Text>
+                            ) : (
+                              <Text key={i}>{part}</Text>
+                            )
                           )
-                        )}
+                          : item.text}
                       </Text>
-                      <Text style={styles.founderNameAlways}>
-                        {t('intro.founderName')}
-                      </Text>
+                      {isFounder && (
+                        <Text style={styles.founderNameAlways}>
+                          {t('intro.founderName')}
+                        </Text>
+                      )}
                     </View>
                   ) : (
-                    <Text
-                      style={[
-                        styles.text,
-                        isWelcome && styles.welcomeText,
-                        item.text === t('intro.finalMessage') && styles.finalText,
-                      ]}
-                    >
-                      {item.text}
-                    </Text>
+                    <View style={styles.welcomePageContent}>
+                      {isWelcome && (
+                        <Image source={logoSource} style={styles.welcomeLogo} resizeMode="contain" />
+                      )}
+                      <Text
+                        style={[
+                          styles.text,
+                          isWelcome && styles.welcomeText,
+                          item.text === t('intro.finalMessage') && styles.finalText,
+                        ]}
+                      >
+                        {item.text}
+                      </Text>
+                    </View>
                   )}
                 </View>
               </Animated.View>
@@ -439,7 +448,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
 
         {/* Navigation Button - Bottom (only on last page) */}
         {isLastPage && (
-          <View style={styles.bottomSection}>
+          <View style={[styles.bottomSection, { bottom: insets.bottom + SPACING.xxl + 56, paddingHorizontal: LAYOUT.contentPaddingHorizontal }]}>
             <Pressable
               style={styles.beginButton}
               onPress={handleClose}
@@ -452,7 +461,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
         )}
 
         {/* Page Indicators */}
-        <View style={styles.indicatorsContainer}>
+        <View style={[styles.indicatorsContainer, { bottom: insets.bottom + SPACING.l }]}>
           {allItems.map((_, index) => {
             const indicatorOpacity = scrollX.interpolate({
               inputRange: [
@@ -536,7 +545,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: SPACING.m,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     zIndex: 10,
   },
   backgroundContainer: {
@@ -554,7 +563,7 @@ const styles = StyleSheet.create({
   },
   backgroundOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)', // Dark overlay for text readability
+    backgroundColor: COLORS.overlay,
   },
   pageContent: {
     flex: 1,
@@ -568,14 +577,11 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    paddingTop: SPACING.xxl + 40,
-    paddingHorizontal: SPACING.xxl,
     alignItems: 'flex-end',
     zIndex: 20,
   },
   indicatorsContainer: {
     position: 'absolute',
-    bottom: SPACING.xxl + 40, // Position below the button
     left: 0,
     right: 0,
     flexDirection: 'row',
@@ -589,15 +595,12 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: COLORS.paper,
-    marginHorizontal: 4,
+    marginHorizontal: SPACING.xs,
   },
   bottomSection: {
     position: 'absolute',
-    bottom: SPACING.xxl + 100, // Position above the dots
     left: 0,
     right: 0,
-    paddingBottom: 0,
-    paddingHorizontal: SPACING.xxl,
     alignItems: 'center',
     zIndex: 20,
   },
@@ -608,22 +611,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   text: {
-    fontSize: RFValue(20),
-    lineHeight: RFValue(26),
+    fontSize: 26,
+    lineHeight: 38,
     color: COLORS.paper,
     fontFamily: FONTS.serifRegular,
     textAlign: 'center',
   },
   founderText: {
-    fontSize: RFValue(20),
-    lineHeight: RFValue(26),
+    fontSize: 26,
+    lineHeight: 38,
     color: COLORS.paper,
     fontFamily: FONTS.serifRegular,
     textAlign: 'center',
   },
   highlightedCite: {
     fontFamily: FONTS.serifSemiBold,
-    fontWeight: '700',
   },
   founderContainer: {
     alignItems: 'center',
@@ -634,53 +636,60 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   founderNameAlways: {
-    fontSize: RFValue(14),
-    lineHeight: RFValue(20),
-    color: COLORS.paper,
-    fontFamily: FONTS.serifRegular,
+    fontSize: 18,
+    lineHeight: 24,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
     textAlign: 'center',
     marginTop: SPACING.s,
-    fontStyle: 'normal',
+  },
+  welcomePageContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.l,
+  },
+  welcomeLogo: {
+    width: 96,
+    height: 96,
+    marginBottom: SPACING.xs,
   },
   finalText: {
-    fontSize: RFValue(32),
-    lineHeight: RFValue(48),
+    fontSize: 38,
+    lineHeight: 50,
     color: COLORS.paper,
-    fontFamily: FONTS.serifRegular,
+    fontFamily: FONTS.serifSemiBold,
   },
   welcomeText: {
-    fontSize: RFValue(48),
-    lineHeight: RFValue(64),
+    fontSize: 48,
+    lineHeight: 60,
     color: COLORS.paper,
-    fontFamily: FONTS.serifRegular,
-    marginTop: SPACING.xl,
+    fontFamily: FONTS.serifSemiBold,
+    marginTop: 0,
   },
   skipButton: {
     paddingVertical: SPACING.s,
     paddingHorizontal: SPACING.m,
   },
   skipButtonText: {
-    fontSize: 12,
-    color: COLORS.paper,
-    fontFamily: FONTS.regular,
-    letterSpacing: 0.5,
+    fontSize: 16,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.medium,
   },
   beginButton: {
     borderRadius: SIZES.borderRadiusPill,
     borderWidth: 1,
     borderColor: COLORS.paper,
     backgroundColor: 'transparent',
-    paddingVertical: SPACING.m + 2,
-    paddingHorizontal: SPACING.xxl + 4,
-    minWidth: 120,
+    minHeight: MODAL.buttonMinHeight,
+    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal,
+    minWidth: 140,
     alignItems: 'center',
     justifyContent: 'center',
   },
   beginButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: MODAL.buttonFontSize,
     color: COLORS.paper,
-    fontFamily: FONTS.medium,
-    letterSpacing: 0.5,
+    fontFamily: FONTS.semiBold,
   },
 });

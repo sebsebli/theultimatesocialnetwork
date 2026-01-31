@@ -82,7 +82,7 @@ export class RssService {
     });
 
     const appBase = (
-      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.app'
+      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.com'
     ).replace(/\/$/, '');
     const apiBase = (
       this.configService.get<string>('API_URL') || 'https://api.citewalk.app'
