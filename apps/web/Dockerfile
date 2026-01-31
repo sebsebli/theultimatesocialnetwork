@@ -1,19 +1,29 @@
 # Next.js web app (npm, standalone)
+# Build context: repo root (so packages/design-tokens is available)
 FROM node:20-alpine AS base
 
 # Install dependencies
 FROM base AS deps
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci --ignore-scripts || npm install --ignore-scripts
+# Design-tokens: put under /app so "file:./packages/design-tokens" works
+RUN mkdir -p packages
+COPY packages/design-tokens ./packages/design-tokens
+COPY apps/web/package.json ./
+# Point design-tokens to local path; omit lockfile to avoid npm "extraneous" bug with file: deps
+RUN sed -i 's|"file:../../packages/design-tokens"|"file:./packages/design-tokens"|g' package.json
+RUN npm install --ignore-scripts
 
 # Build stage
 FROM base AS builder
 WORKDIR /app
 
+RUN mkdir -p packages node_modules/@citewalk
+COPY packages/design-tokens ./packages/design-tokens
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY apps/web/ .
+# Ensure @citewalk/design-tokens is resolvable (after apps/web so tailwind.config.js can require it)
+COPY packages/design-tokens ./node_modules/@citewalk/design-tokens
 
 ENV SKIP_HTTPS_CHECK=true
 RUN npm run build

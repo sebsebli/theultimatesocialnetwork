@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { getImageUrl } from "@/lib/security";
 import { PostItem, Post } from "./post-item";
 
 interface TopicPageProps {
@@ -36,12 +37,9 @@ export function TopicPage({ topic }: TopicPageProps) {
     }
   };
 
-  const storageBase =
-    process.env.NEXT_PUBLIC_STORAGE_URL ||
-    "http://localhost:9000/citewalk-images";
   const headerImagePost = topic.posts?.find((p) => p.headerImageKey);
   const headerImageUrl = headerImagePost
-    ? `${storageBase}/${headerImagePost.headerImageKey}`
+    ? getImageUrl(headerImagePost.headerImageKey)
     : null;
 
   return (

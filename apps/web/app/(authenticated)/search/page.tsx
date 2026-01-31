@@ -21,11 +21,17 @@ function SearchContent() {
   );
   const [results, setResults] = useState<{
     posts: Post[];
-    users: { id: string; [key: string]: unknown }[];
+    users: {
+      id: string;
+      handle: string;
+      displayName?: string;
+      bio?: string;
+      [key: string]: unknown;
+    }[];
     topics: {
       id: string;
-      title?: string;
-      slug?: string;
+      slug: string;
+      title: string;
       [key: string]: unknown;
     }[];
   }>({
@@ -50,12 +56,14 @@ function SearchContent() {
               users: data.users || [],
               topics: (data.topics || []).map(
                 (t: {
+                  id?: string;
                   title?: string;
                   slug?: string;
                   [key: string]: unknown;
                 }) => ({
                   ...t,
-                  title: t.title || t.slug,
+                  slug: t.slug ?? t.id ?? "",
+                  title: t.title ?? t.slug ?? "",
                 }),
               ),
             });
@@ -98,12 +106,14 @@ function SearchContent() {
               users: [],
               topics: (data.hits || []).map(
                 (t: {
+                  id?: string;
                   title?: string;
                   slug?: string;
                   [key: string]: unknown;
                 }) => ({
                   ...t,
-                  title: t.title || t.slug,
+                  slug: t.slug ?? t.id ?? "",
+                  title: t.title ?? t.slug ?? "",
                 }),
               ),
             });

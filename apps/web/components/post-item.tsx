@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Blurhash } from "react-blurhash";
 import { useTranslations } from "next-intl";
 import { renderMarkdown, extractWikilinks } from "@/utils/markdown";
+import { getImageUrl } from "@/lib/security";
 import { OverflowMenu } from "./overflow-menu";
 import { AddToCollectionModal } from "./add-to-collection-modal";
 
@@ -38,12 +39,6 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [kept, setKept] = useState(post.isKept ?? false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
-
-  // In production, images are served from MinIO/S3 via a proxy or direct URL.
-  // We use the env var or default to the public bucket URL.
-  const STORAGE_URL =
-    process.env.NEXT_PUBLIC_STORAGE_URL ||
-    "http://localhost:9000/citewalk-images";
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -194,7 +189,7 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
               />
             )}
             <Image
-              src={`${STORAGE_URL}/${post.headerImageKey}`}
+              src={getImageUrl(post.headerImageKey)}
               alt="Post header"
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105 z-10"

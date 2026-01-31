@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { getImageUrl as getImageUrlFromKey } from "@/lib/security";
 import { PostItem, Post } from "./post-item";
 import { ProfileOptionsMenu } from "./profile-options-menu";
 import { ImageUploader } from "./image-uploader";
@@ -75,11 +76,6 @@ export function ProfilePage({
     collections: null,
     saved: null,
   });
-
-  // Storage URL for images
-  const STORAGE_URL =
-    process.env.NEXT_PUBLIC_STORAGE_URL ||
-    "http://localhost:9000/citewalk-images";
 
   useEffect(() => {
     let isMounted = true;
@@ -190,7 +186,7 @@ export function ProfilePage({
   };
 
   const getImageUrl = (key?: string, url?: string) => {
-    if (key) return `${STORAGE_URL}/${key}`;
+    if (key) return getImageUrlFromKey(key);
     return url;
   };
 

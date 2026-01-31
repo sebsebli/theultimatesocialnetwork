@@ -64,8 +64,9 @@ export default async function RootLayout({
     <html
       lang={locale}
       className={`dark ${inter.variable} ${ibmPlexSerif.variable}`}
+      suppressHydrationWarning
     >
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <NextIntlClientProvider messages={messages}>
           <ErrorBoundary>
             <ToastProvider>

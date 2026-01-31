@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Script from "next/script";
@@ -11,8 +12,26 @@ import {
   MdAddCircleOutline,
   MdIosShare,
 } from "react-icons/md";
+import {
+  hasCookieConsent,
+  COOKIE_CONSENT_CLOSED_EVENT,
+} from "@/components/cookie-consent-banner";
+
+function getConsentClosedInitial(): boolean {
+  if (typeof window === "undefined") return false;
+  return hasCookieConsent();
+}
 
 export function LandingPage() {
+  const [consentClosed, setConsentClosed] = useState(getConsentClosedInitial);
+
+  useEffect(() => {
+    const onConsentClosed = () => setConsentClosed(true);
+    window.addEventListener(COOKIE_CONSENT_CLOSED_EVENT, onConsentClosed);
+    return () =>
+      window.removeEventListener(COOKIE_CONSENT_CLOSED_EVENT, onConsentClosed);
+  }, []);
+
   return (
     <div className="min-h-screen bg-ink text-paper font-sans selection:bg-paper selection:text-ink overflow-x-hidden">
       {/* Navigation */}
@@ -75,12 +94,14 @@ export function LandingPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-6">
-                <Link
-                  href="/waiting-list"
-                  className="inline-flex justify-center items-center px-8 py-3.5 bg-paper text-ink font-semibold text-base rounded-lg hover:bg-white transition-colors"
-                >
-                  Join the Waiting List
-                </Link>
+                {consentClosed && (
+                  <Link
+                    href="/waiting-list"
+                    className="inline-flex justify-center items-center px-8 py-3.5 bg-paper text-ink font-semibold text-base rounded-lg hover:bg-white transition-colors"
+                  >
+                    Join the Waiting List
+                  </Link>
+                )}
                 <Link
                   href="/manifesto"
                   className="inline-flex justify-center items-center px-8 py-3.5 border border-divider text-secondary font-medium text-base rounded-lg hover:border-primary hover:text-paper transition-colors"
@@ -436,14 +457,16 @@ export function LandingPage() {
           <h2 className="text-5xl md:text-7xl font-serif font-medium text-paper mb-12 tracking-tight">
             Start your collection.
           </h2>
-          <div className="flex flex-col sm:flex-row justify-center gap-6">
-            <Link
-              href="/waiting-list"
-              className="inline-flex justify-center items-center px-12 py-5 bg-paper text-ink font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:scale-105"
-            >
-              Join the Waiting List
-            </Link>
-          </div>
+          {consentClosed && (
+            <div className="flex flex-col sm:flex-row justify-center gap-6">
+              <Link
+                href="/waiting-list"
+                className="inline-flex justify-center items-center px-12 py-5 bg-paper text-ink font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:scale-105"
+              >
+                Join the Waiting List
+              </Link>
+            </div>
+          )}
           <p className="mt-8 text-tertiary text-sm">
             We&apos;ll contact you with project updates and your invitation when
             we open the open beta. No algorithm. No ads.
@@ -490,23 +513,25 @@ export function LandingPage() {
         </div>
       </footer>
 
-      <Script
-        src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
-        strategy="afterInteractive"
-        onLoad={() => {
-          const w = window as unknown as {
-            kofiWidgetOverlay?: { draw: (id: string, opts: object) => void };
-          };
-          if (typeof w.kofiWidgetOverlay !== "undefined") {
-            w.kofiWidgetOverlay.draw("sebastianlindner", {
-              type: "floating-chat",
-              "floating-chat.donateButton.text": "Support me",
-              "floating-chat.donateButton.background-color": "#323842",
-              "floating-chat.donateButton.text-color": "#fff",
-            });
-          }
-        }}
-      />
+      {consentClosed && (
+        <Script
+          src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
+          strategy="afterInteractive"
+          onLoad={() => {
+            const w = window as unknown as {
+              kofiWidgetOverlay?: { draw: (id: string, opts: object) => void };
+            };
+            if (typeof w.kofiWidgetOverlay !== "undefined") {
+              w.kofiWidgetOverlay.draw("sebastianlindner", {
+                type: "floating-chat",
+                "floating-chat.donateButton.text": "Support me",
+                "floating-chat.donateButton.background-color": "#323842",
+                "floating-chat.donateButton.text-color": "#fff",
+              });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

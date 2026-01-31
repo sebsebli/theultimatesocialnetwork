@@ -7,6 +7,7 @@ import { AutocompleteDropdown } from "@/components/autocomplete-dropdown";
 import { ImageUploader } from "@/components/image-uploader";
 import { ReadingMode } from "@/components/reading-mode";
 import { getCaretCoordinates } from "@/utils/textarea-caret";
+import { getImageUrl } from "@/lib/security";
 import {
   enforceTitleAndAliasLimits,
   getProtectedRanges,
@@ -312,10 +313,6 @@ function ComposeContent() {
     setAutocomplete(null);
   };
 
-  const STORAGE_URL =
-    process.env.NEXT_PUBLIC_STORAGE_URL ||
-    "http://localhost:9000/citewalk-images";
-
   const previewPost = {
     id: "preview",
     title: getTitleFromBody(previewBody) || undefined,
@@ -393,7 +390,7 @@ function ComposeContent() {
               {headerImageKey && (
                 <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden group">
                   <Image
-                    src={`${STORAGE_URL}/${headerImageKey}`}
+                    src={getImageUrl(headerImageKey)}
                     alt="Header preview"
                     fill
                     className="object-cover"

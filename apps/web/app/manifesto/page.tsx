@@ -109,21 +109,20 @@ export default function ManifestoPage() {
               The user is not the product. The user is the architect.
             </p>
             <p className="mb-6">
-              Citewalk is an independent European initiative. We host in Germany
-              and Finland. We follow GDPR not because we have to, but because we
-              believe in data sovereignty as a fundamental human right.
+              Citewalk is an independent European initiative. We host in the EU.
+              We follow GDPR not because we have to, but because we believe in
+              data sovereignty as a fundamental human right.
             </p>
             <p>
-              Your data is yours. It is portable (RSS), exportable (JSON), and
-              private. We will never sell it to advertisers or train black-box
-              AI models on your private thoughts without consent.
+              Your data is yours. It is portable (we revived RSS), exportable
+              (JSON), and private. We will never sell it to advertisers or train
+              black-box AI models on your private thoughts without consent.
             </p>
           </section>
 
           <div className="my-24 p-12 border border-[#1A1A1D] rounded-2xl bg-[#0F0F10] text-center shadow-2xl">
             <p className="italic text-2xl text-[#F2F2F2] mb-10 font-light leading-relaxed">
-              &quot;We are building the internet we were promised. Quiet. True.
-              Yours.&quot;
+              &quot;We’re building the space that was meant to exist.&quot;
             </p>
             <div className="flex flex-col items-center gap-2">
               <div className="w-12 h-12 bg-[#1A1A1D] rounded-full mb-4 overflow-hidden relative">
@@ -134,7 +133,7 @@ export default function ManifestoPage() {
                 Dr. Sebastian Lindner
               </span>
               <span className="text-[10px] text-[#6E6E73] uppercase tracking-[0.3em] font-bold">
-                Founder • Berlin, 2026
+                Founder • Germany, 2026
               </span>
             </div>
           </div>

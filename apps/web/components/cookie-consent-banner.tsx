@@ -8,6 +8,8 @@ const STORAGE_KEY = "cookie_consent";
 
 export type CookieConsent = "all" | "essential" | null;
 
+export const COOKIE_CONSENT_CLOSED_EVENT = "cookie-consent-closed";
+
 function readStoredConsent(): CookieConsent {
   if (typeof window === "undefined") return null;
   try {
@@ -16,6 +18,11 @@ function readStoredConsent(): CookieConsent {
   } catch {
     return null;
   }
+}
+
+/** True if the user has closed the cookie banner (accepted all or essential). */
+export function hasCookieConsent(): boolean {
+  return readStoredConsent() !== null;
 }
 
 export function CookieConsentBanner() {
@@ -32,6 +39,9 @@ export function CookieConsentBanner() {
     try {
       localStorage.setItem(STORAGE_KEY, "all");
       setConsent("all");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_CLOSED_EVENT));
+      }
     } catch {
       // ignore
     }
@@ -41,6 +51,9 @@ export function CookieConsentBanner() {
     try {
       localStorage.setItem(STORAGE_KEY, "essential");
       setConsent("essential");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_CLOSED_EVENT));
+      }
     } catch {
       // ignore
     }

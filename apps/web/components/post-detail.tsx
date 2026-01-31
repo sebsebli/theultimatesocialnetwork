@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useToast } from "./ui/toast";
 import { renderMarkdown } from "@/utils/markdown";
+import { getImageUrl } from "@/lib/security";
 import { ReplySection } from "./reply-section";
 import { SourcesSection } from "./sources-section";
 import { ReferencedBySection } from "./referenced-by-section";
@@ -269,7 +270,7 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
           {post.headerImageKey && (
             <div className="relative w-full aspect-video rounded-2xl bg-white/5 mt-4 overflow-hidden shadow-2xl">
               <Image
-                src={`${process.env.NEXT_PUBLIC_STORAGE_URL || "http://localhost:9000/citewalk-images"}/${post.headerImageKey}`}
+                src={getImageUrl(post.headerImageKey)}
                 alt="Post header"
                 fill
                 className="object-cover"

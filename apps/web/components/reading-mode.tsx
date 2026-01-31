@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Blurhash } from "react-blurhash";
+import { getImageUrl } from "@/lib/security";
 
 interface ReadingModeProps {
   post: {
@@ -30,10 +31,6 @@ export function ReadingMode({ post }: ReadingModeProps) {
       day: "numeric",
     });
   };
-
-  const STORAGE_URL =
-    process.env.NEXT_PUBLIC_STORAGE_URL ||
-    "http://localhost:9000/citewalk-images";
 
   return (
     <div className="min-h-screen bg-ink">
@@ -88,7 +85,7 @@ export function ReadingMode({ post }: ReadingModeProps) {
               />
             )}
             <Image
-              src={`${STORAGE_URL}/${post.headerImageKey}`}
+              src={getImageUrl(post.headerImageKey)}
               alt={post.title || "Post header"}
               fill
               className="object-cover z-10"

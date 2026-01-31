@@ -30,7 +30,14 @@ export function FeedList({ initialPosts }: FeedListProps) {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [suggestions, setSuggestions] = useState<
-    { id: string; isFollowing?: boolean; [key: string]: unknown }[]
+    {
+      id: string;
+      handle: string;
+      displayName?: string;
+      bio?: string;
+      isFollowing?: boolean;
+      [key: string]: unknown;
+    }[]
   >([]);
 
   // If initial load is empty, fetch suggestions
