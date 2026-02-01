@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, Pressable, ScrollView, RefreshControl, ActivityIndicator, TextInput } from 'react-native';
+import { Text, View, FlatList, Pressable, ScrollView, RefreshControl, ActivityIndicator, TextInput, PanResponder } from 'react-native';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -7,9 +7,10 @@ import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
 import { TopicCard } from '../../components/ExploreCards';
 import { UserCard } from '../../components/UserCard';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, toDimension, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
+import { ListFooterLoader } from '../../components/ListFooterLoader';
 import { useAuth } from '../../context/auth';
 import * as Haptics from 'expo-haptics';
 
@@ -23,6 +24,8 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('quoted');
+  type SortOption = 'recommended' | 'newest' | 'cited';
+  const [sort, setSort] = useState<SortOption>('recommended');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<any[]>([]);
@@ -33,6 +36,32 @@ export default function ExploreScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const onEndReachedFiredRef = useRef(false);
+  const MAX_PAGE = 50;
+
+  const EXPLORE_TABS = ['quoted', 'deep-dives', 'newsroom', 'topics', 'people'] as const;
+  const swipeThreshold = 60;
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          const { dx, dy } = gestureState;
+          return Math.abs(dx) > Math.abs(dy) * 1.2 && Math.abs(dx) > swipeThreshold;
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const { dx } = gestureState;
+          const idx = EXPLORE_TABS.indexOf(activeTab);
+          if (dx < -swipeThreshold && idx < EXPLORE_TABS.length - 1) {
+            Haptics.selectionAsync();
+            setActiveTab(EXPLORE_TABS[idx + 1]);
+          } else if (dx > swipeThreshold && idx > 0) {
+            Haptics.selectionAsync();
+            setActiveTab(EXPLORE_TABS[idx - 1]);
+          }
+        },
+      }),
+    [activeTab],
+  );
 
   useEffect(() => {
     if (params.tab) {
@@ -47,14 +76,14 @@ export default function ExploreScreen() {
     }
   }, [params.tab, params.q]);
 
-  // When tab changes: load content for current tab (and current search term if any)
+  // When tab or sort changes: load content for current tab/sort
   useEffect(() => {
     if (isAuthenticated) {
       setPage(1);
       setData([]);
       loadContent(1, true, undefined);
     }
-  }, [activeTab, isAuthenticated]);
+  }, [activeTab, sort, isAuthenticated]);
 
   // When search query changes: debounce then run search for active tab; if cleared, load explore feed
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,7 +158,7 @@ export default function ExploreScreen() {
         else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
         else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
         else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
-        const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort: 'recommended' };
+        const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort };
         const qs = new URLSearchParams(params).toString();
         const res = await api.get(`${endpoint}?${qs}`);
         const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
@@ -221,8 +250,7 @@ export default function ExploreScreen() {
   };
 
   const handleLoadMore = useCallback(() => {
-    if (!loading && !refreshing && !loadingMore && hasMore) {
-      // Prevent duplicate fires from FlatList onEndReached
+    if (!loading && !refreshing && !loadingMore && hasMore && page < MAX_PAGE) {
       if (onEndReachedFiredRef.current) return;
       onEndReachedFiredRef.current = true;
       const nextPage = page + 1;
@@ -231,6 +259,7 @@ export default function ExploreScreen() {
         onEndReachedFiredRef.current = false;
       });
     }
+    if (page >= MAX_PAGE) setHasMore(false);
   }, [loading, refreshing, loadingMore, hasMore, page, activeTab]);
 
   const handleRefresh = useCallback(() => {
@@ -268,16 +297,7 @@ export default function ExploreScreen() {
     }
   }, [activeTab, router, handleFollowUser]);
 
-  const keyExtractor = useCallback((item: any, index: number) => `explore-${activeTab}-${index}-${String(item?.id ?? item?.slug ?? index)}`, [activeTab]);
-
-  const ListFooterComponent = useMemo(() => {
-    if (!hasMore || !loadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-      </View>
-    );
-  }, [hasMore, loadingMore]);
+  const keyExtractor = useCallback((item: any, index: number) => `explore-${activeTab}-${String(item?.id ?? item?.slug ?? `i-${index}`)}`, [activeTab]);
 
   const listHeader = useMemo(() => (
     <View key="explore-list-header" style={[styles.headerContainer, { paddingTop: insets.top }]}>
@@ -326,12 +346,29 @@ export default function ExploreScreen() {
           ))}
         </ScrollView>
       </View>
+      <View key="explore-sort" style={styles.sortRow}>
+        {(['recommended', 'newest', 'cited'] as const).map((opt) => (
+          <Pressable
+            key={opt}
+            onPress={() => { Haptics.selectionAsync(); setSort(opt); }}
+            style={[styles.sortChip, sort === opt && styles.sortChipActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: sort === opt }}
+          >
+            <Text style={[styles.sortChipText, sort === opt && styles.sortChipTextActive]}>
+              {opt === 'recommended' ? t('explore.sortRelevance', 'Relevance') :
+                opt === 'newest' ? t('explore.sortLatest', 'Latest') :
+                  t('explore.sortCited', 'Most cited')}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
       <View key="explore-spacer" style={{ height: SPACING.m }} />
     </View>
-  ), [insets.top, activeTab, t, searchQuery]);
+  ), [insets.top, activeTab, sort, t, searchQuery]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} {...panResponder.panHandlers}>
       {error && data.length === 0 ? (
         <ErrorState onRetry={() => loadContent(1, true)} onDismiss={() => setError(false)} />
       ) : (
@@ -355,7 +392,7 @@ export default function ExploreScreen() {
               />
             )
           }
-          ListFooterComponent={ListFooterComponent}
+          ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -366,6 +403,10 @@ export default function ExploreScreen() {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.2}
           contentContainerStyle={{ paddingBottom: 80 }}
+          {...FLATLIST_DEFAULTS}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={8}
         />
       )}
 
@@ -373,14 +414,14 @@ export default function ExploreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
   },
   headerContainer: {
     backgroundColor: COLORS.ink,
-    paddingHorizontal: HEADER.barPaddingHorizontal,
+    paddingHorizontal: toDimension(HEADER.barPaddingHorizontal),
   },
   searchWrapper: {
     flexDirection: 'row',
@@ -397,7 +438,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.divider,
     borderRadius: SIZES.borderRadius,
     height: 48,
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: toDimension(SPACING.l),
     gap: SPACING.m,
   },
   searchInput: {
@@ -411,6 +452,34 @@ const styles = StyleSheet.create({
   tabsContainer: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+  },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.s,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: toDimension(HEADER.barPaddingHorizontal),
+  },
+  sortChip: {
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.m,
+    borderRadius: SIZES.borderRadius,
+    backgroundColor: COLORS.hover,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+  },
+  sortChipActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.hover,
+  },
+  sortChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.tertiary,
+    fontFamily: FONTS.semiBold,
+  },
+  sortChipTextActive: {
+    color: COLORS.primary,
   },
   tabsScrollView: {
     flexGrow: 0,

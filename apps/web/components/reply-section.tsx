@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
 import Link from "next/link";
 import { Avatar } from "./avatar";
 import { OverflowMenu } from "./overflow-menu";
@@ -22,23 +22,33 @@ interface Reply {
   subreplyCount?: number;
 }
 
-interface ReplySectionProps {
+export interface ReplySectionProps {
   postId: string;
   replyCount: number;
   /** When true, viewer is not authenticated; show "Sign in to comment" and hide reply form */
   isPublic?: boolean;
 }
 
-export function ReplySection({ postId, replyCount, isPublic = false }: ReplySectionProps) {
+function ReplySectionInner({
+  postId,
+  replyCount,
+  isPublic = false,
+}: ReplySectionProps) {
   const { user } = useAuth();
   const canReply = Boolean(user) && !isPublic;
   const [replies, setReplies] = useState<Reply[]>([]);
-  const [childrenByParent, setChildrenByParent] = useState<Record<string, Reply[]>>({});
-  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
+  const [childrenByParent, setChildrenByParent] = useState<
+    Record<string, Reply[]>
+  >({});
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(
+    new Set(),
+  );
   const [loading, setLoading] = useState(true);
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyText, setReplyText] = useState("");
-  const [replyingToReplyId, setReplyingToReplyId] = useState<string | null>(null);
+  const [replyingToReplyId, setReplyingToReplyId] = useState<string | null>(
+    null,
+  );
 
   const loadReplies = useCallback(
     async (parentReplyId?: string | null) => {
@@ -52,7 +62,7 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
       }
       return [];
     },
-    [postId]
+    [postId],
   );
 
   // Always load replies on mount so we show list or "No replies yet"; don't rely only on replyCount
@@ -67,7 +77,12 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
   // When logged in and no replies yet, show the reply box once so the input form is visible without clicking
   const didAutoShowReplyRef = useRef(false);
   useEffect(() => {
-    if (canReply && replies.length === 0 && !loading && !didAutoShowReplyRef.current) {
+    if (
+      canReply &&
+      replies.length === 0 &&
+      !loading &&
+      !didAutoShowReplyRef.current
+    ) {
       didAutoShowReplyRef.current = true;
       setShowReplyBox(true);
     }
@@ -79,7 +94,7 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
       setChildrenByParent((prev) => ({ ...prev, [parentId]: children }));
       setExpandedParents((prev) => new Set(prev).add(parentId));
     },
-    [loadReplies]
+    [loadReplies],
   );
 
   const handleSubmitReply = async (e: React.FormEvent) => {
@@ -120,7 +135,10 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body, parentReplyId: parentReplyId || undefined }),
+        body: JSON.stringify({
+          body,
+          parentReplyId: parentReplyId || undefined,
+        }),
       });
 
       if (res.ok) {
@@ -129,7 +147,7 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
           setChildrenByParent((prev) => ({
             ...prev,
             [parentReplyId]: (prev[parentReplyId] || []).map((r) =>
-              r.id === tempId ? saved : r
+              r.id === tempId ? saved : r,
             ),
           }));
         } else {
@@ -142,7 +160,9 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
       if (parentReplyId) {
         setChildrenByParent((prev) => ({
           ...prev,
-          [parentReplyId]: (prev[parentReplyId] || []).filter((r) => r.id !== tempId),
+          [parentReplyId]: (prev[parentReplyId] || []).filter(
+            (r) => r.id !== tempId,
+          ),
         }));
       } else {
         setReplies((prev) => prev.filter((r) => r.id !== tempId));
@@ -181,7 +201,11 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
               setReplyingToReplyId(null);
             }}
             className="text-primary text-sm font-medium hover:underline"
-            aria-label={showReplyBox && !replyingToReplyId ? "Cancel reply" : "Write a reply"}
+            aria-label={
+              showReplyBox && !replyingToReplyId
+                ? "Cancel reply"
+                : "Write a reply"
+            }
           >
             {showReplyBox && !replyingToReplyId ? "Cancel" : "Reply"}
           </button>
@@ -287,7 +311,8 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
                         onClick={() => loadChildren(reply.id)}
                         className="text-primary text-xs font-medium hover:underline"
                       >
-                        View {reply.subreplyCount} {reply.subreplyCount === 1 ? "reply" : "replies"}
+                        View {reply.subreplyCount}{" "}
+                        {reply.subreplyCount === 1 ? "reply" : "replies"}
                       </button>
                     ) : (
                       <div className="mt-3 space-y-3 pl-4 border-l-2 border-divider/70">
@@ -330,7 +355,8 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
                                   </div>
                                 </div>
                                 <span className="text-xs text-tertiary">
-                                  @{child.author.handle} • {formatTime(child.createdAt)}
+                                  @{child.author.handle} •{" "}
+                                  {formatTime(child.createdAt)}
                                 </span>
                               </div>
                             </div>
@@ -381,3 +407,5 @@ export function ReplySection({ postId, replyCount, isPublic = false }: ReplySect
     </section>
   );
 }
+
+export const ReplySection = memo(ReplySectionInner);

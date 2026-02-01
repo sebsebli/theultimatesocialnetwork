@@ -25,6 +25,7 @@ import { FollowsModule } from './follows/follows.module';
 import { MessagesModule } from './messages/messages.module';
 import { UploadModule } from './upload/upload.module';
 import { SafetyModule } from './safety/safety.module';
+import { AdminModule } from './admin/admin.module';
 import { KeepsModule } from './keeps/keeps.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { CleanupService } from './cleanup/cleanup.service';
@@ -53,13 +54,13 @@ import * as Joi from 'joi';
         }),
         transport:
           process.env.NODE_ENV !== 'production' &&
-            process.env.NODE_ENV !== 'test'
+          process.env.NODE_ENV !== 'test'
             ? {
-              target: 'pino-pretty',
-              options: {
-                singleLine: true,
-              },
-            }
+                target: 'pino-pretty',
+                options: {
+                  singleLine: true,
+                },
+              }
             : undefined,
       },
     }),
@@ -127,6 +128,7 @@ import * as Joi from 'joi';
     MessagesModule,
     UploadModule,
     SafetyModule,
+    AdminModule,
     KeepsModule,
     RealtimeModule,
     RssModule,
@@ -142,4 +144,4 @@ import * as Joi from 'joi';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

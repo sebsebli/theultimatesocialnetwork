@@ -146,7 +146,13 @@ export class UsersController {
       ? this.uploadService.getImageUrl(u.profileHeaderKey)
       : null;
     const profileBackgroundColor = '#0B0B0C';
-    return { ...plain, avatarKey, avatarUrl, profileHeaderUrl, profileBackgroundColor };
+    return {
+      ...plain,
+      avatarKey,
+      avatarUrl,
+      profileHeaderUrl,
+      profileBackgroundColor,
+    };
   }
 
   @Get('me/notification-prefs')
@@ -535,8 +541,11 @@ export class UsersController {
     const threshold = await this.usersService.getQuotesBadgeThreshold();
     const quotesBadgeEligible = (user?.quoteReceivedCount ?? 0) >= threshold;
     const followsMe = (user as { followsMe?: boolean })?.followsMe ?? false;
-    const isFollowing = (user as { isFollowing?: boolean })?.isFollowing ?? false;
-    const hasPendingFollowRequest = (user as { hasPendingFollowRequest?: boolean })?.hasPendingFollowRequest ?? false;
+    const isFollowing =
+      (user as { isFollowing?: boolean })?.isFollowing ?? false;
+    const hasPendingFollowRequest =
+      (user as { hasPendingFollowRequest?: boolean })
+        ?.hasPendingFollowRequest ?? false;
     let isBlockedByMe = false;
     if (currentUser?.id && user?.id) {
       isBlockedByMe = await this.safetyService.isBlocked(
@@ -544,6 +553,12 @@ export class UsersController {
         user.id,
       );
     }
+    const postCount = (user as { postCount?: number })?.postCount ?? 0;
+    const replyCount = (user as { replyCount?: number })?.replyCount ?? 0;
+    const collectionCount =
+      (user as { collectionCount?: number })?.collectionCount ?? 0;
+    const keepsCount = (user as { keepsCount?: number })?.keepsCount ?? 0;
+
     return {
       ...plain,
       avatarKey: user?.avatarKey ?? undefined,
@@ -556,6 +571,10 @@ export class UsersController {
       isFollowing,
       hasPendingFollowRequest,
       isBlockedByMe,
+      postCount,
+      replyCount,
+      collectionCount,
+      keepsCount,
     };
   }
 }

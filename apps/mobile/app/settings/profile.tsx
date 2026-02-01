@@ -6,7 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, createStyles } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 
@@ -44,7 +44,7 @@ export default function EditProfileScreen() {
           setIsProtected(user.isProtected || false);
           // If handle exists, mark as available/valid so we don't force re-check unless changed
           if (user.handle) {
-             setHandleStatus('available'); 
+            setHandleStatus('available');
           }
         }
       } catch (e) {
@@ -65,8 +65,8 @@ export default function EditProfileScreen() {
 
   const checkAvailability = useCallback(async (h: string) => {
     if (!isHandleChanged) {
-        setHandleStatus('available');
-        return;
+      setHandleStatus('available');
+      return;
     }
     const norm = h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (norm.length < HANDLE_MIN || norm.length > HANDLE_MAX) {
@@ -85,8 +85,8 @@ export default function EditProfileScreen() {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!isHandleChanged) {
-        setHandleStatus('available');
-        return;
+      setHandleStatus('available');
+      return;
     }
     if (handleLen === 0) {
       setHandleStatus('idle');
@@ -156,13 +156,13 @@ export default function EditProfileScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
-        
+
         {/* Warning Banner */}
         <View style={styles.warningBanner}>
-            <MaterialIcons name="info-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
-            <Text style={styles.warningText}>
-                You can only change your name and handle once every 14 days.
-            </Text>
+          <MaterialIcons name="info-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <Text style={styles.warningText}>
+            You can only change your name and handle once every 14 days.
+          </Text>
         </View>
 
         <View style={styles.form}>
@@ -269,12 +269,12 @@ export default function EditProfileScreen() {
                   : t('onboarding.publicDescription')}
               </Text>
             </View>
-          <View style={[styles.switch, isProtected && styles.switchActive]}>
-            <View style={[styles.thumb, isProtected && styles.thumbActive]} />
-          </View>
-        </Pressable>
-      </View>
-    </ScrollView>
+            <View style={[styles.switch, isProtected && styles.switchActive]}>
+              <View style={[styles.thumb, isProtected && styles.thumbActive]} />
+            </View>
+          </Pressable>
+        </View>
+      </ScrollView>
 
       <ConfirmModal
         visible={confirmUpdateVisible}
@@ -289,7 +289,7 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

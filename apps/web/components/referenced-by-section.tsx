@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Link from "next/link";
 import { Avatar } from "./avatar";
 
@@ -18,12 +18,12 @@ interface ReferencedPost {
   createdAt: string;
 }
 
-interface ReferencedBySectionProps {
+export interface ReferencedBySectionProps {
   postId: string;
   quoteCount: number;
 }
 
-export function ReferencedBySection({
+function ReferencedBySectionInner({
   postId,
   quoteCount,
 }: ReferencedBySectionProps) {
@@ -81,9 +81,7 @@ export function ReferencedBySection({
               d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
             />
           </svg>
-          <p className="text-secondary text-sm">
-            No posts quote this yet.
-          </p>
+          <p className="text-secondary text-sm">No posts quote this yet.</p>
         </div>
       </section>
     );
@@ -138,3 +136,5 @@ export function ReferencedBySection({
     </section>
   );
 }
+
+export const ReferencedBySection = memo(ReferencedBySectionInner);

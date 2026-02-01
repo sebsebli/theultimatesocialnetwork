@@ -1,21 +1,31 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Share, Platform } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Share, Platform, ScrollView, Animated } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, getWebAppBaseUrl } from '../../utils/api';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { PostItem } from '../../components/PostItem';
 import { UserCard } from '../../components/UserCard';
+import { TopicCard } from '../../components/ExploreCards';
 import { EmptyState } from '../../components/EmptyState';
+import { ListFooterLoader } from '../../components/ListFooterLoader';
 import { TopicCollectionHeader, pickRandomHeaderImageKey } from '../../components/TopicCollectionHeader';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import type { ViewProps } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+
+/** Typed Animated.View for React 19 JSX compatibility */
+const AnimatedView = Animated.View as (props: ViewProps & { style?: any }) => React.ReactElement | null;
+
+const HERO_FADE_HEIGHT = 280;
+const STICKY_HEADER_APPEAR = 120;
+const STICKY_FADE_RANGE = 80;
 
 export default function TopicScreen() {
   const router = useRouter();
-  // ... existing hooks ...
+  const insets = useSafeAreaInsets();
   const { slug } = useLocalSearchParams();
   const slugStr = (Array.isArray(slug) ? slug?.[0] : slug) ?? '';
   const { t } = useTranslation();
@@ -30,6 +40,27 @@ export default function TopicScreen() {
   const [activeTab, setActiveTab] = useState<'start-here' | 'new' | 'people' | 'source'>('new');
   const [stickyHeaderImageKey, setStickyHeaderImageKey] = useState<string | null>(null);
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
+  const [moreTopics, setMoreTopics] = useState<any[]>([]);
+  const [stickyVisible, setStickyVisible] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const heroOpacity = useMemo(
+    () =>
+      scrollY.interpolate({
+        inputRange: [0, HERO_FADE_HEIGHT],
+        outputRange: [1, 0],
+        extrapolate: 'clamp',
+      }),
+    [scrollY]
+  );
+  const stickyOpacity = useMemo(
+    () =>
+      scrollY.interpolate({
+        inputRange: [STICKY_HEADER_APPEAR, STICKY_HEADER_APPEAR + STICKY_FADE_RANGE],
+        outputRange: [0, 1],
+        extrapolate: 'clamp',
+      }),
+    [scrollY]
+  );
 
   // ... loadTopic ...
 
@@ -97,6 +128,15 @@ export default function TopicScreen() {
     loadTopic(1, true);
   }, [slugStr, activeTab]);
 
+  useEffect(() => {
+    api.get('/explore/topics?limit=10')
+      .then((data: any) => {
+        const list = Array.isArray(data) ? data : (data?.items ?? data ?? []);
+        setMoreTopics(list.filter((t: any) => (t.slug || t.id) !== slugStr).slice(0, 10));
+      })
+      .catch(() => { });
+  }, [slugStr]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadTopic(1, true);
@@ -119,6 +159,7 @@ export default function TopicScreen() {
             handle: item.handle,
             displayName: item.displayName,
             bio: item.bio,
+            avatarKey: item.avatarKey,
             avatarUrl: item.avatarUrl,
             isFollowing: item.isFollowing,
           }}
@@ -167,15 +208,6 @@ export default function TopicScreen() {
 
 
   const keyExtractor = useCallback((item: any) => item.id, []);
-
-  const ListFooterComponent = useMemo(() => {
-    if (!hasMore || !loadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-      </View>
-    );
-  }, [hasMore, loadingMore]);
 
   const ListEmptyComponent = useMemo(() => {
     if (loading) return null;
@@ -259,49 +291,107 @@ export default function TopicScreen() {
     );
   }
 
+  const listHeader = useMemo(
+    () => (
+      <>
+        <AnimatedView style={{ opacity: heroOpacity }}>
+          <TopicCollectionHeader
+            type="topic"
+            title={topic.title}
+            description={topic.description}
+            headerImageKey={stickyHeaderImageKey}
+            onBack={() => router.back()}
+            onAction={handleFollow}
+            actionLabel={isFollowing ? t('profile.following') : t('profile.follow')}
+            isActionActive={isFollowing}
+            metrics={{ postCount: topic.postCount, contributorCount: topic.contributorCount }}
+            rightAction="more"
+            onRightAction={() => setMoreOptionsVisible(true)}
+          >
+            <View style={styles.tabsContainer}>
+              {(['start-here', 'new', 'people', 'source'] as const).map((tab) => (
+                <Pressable
+                  key={tab}
+                  style={[styles.tab, activeTab === tab && styles.tabActive]}
+                  onPress={() => setActiveTab(tab)}
+                  accessibilityLabel={t(`topic.${tab}`)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeTab === tab }}
+                >
+                  <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                    {tab === 'start-here' ? t('topic.relevance', 'Relevance') :
+                      tab === 'new' ? t('topic.latest', 'Latest') :
+                        tab === 'source' ? t('topic.sources', 'Sources') :
+                          t(`topic.${tab}`)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </TopicCollectionHeader>
+        </AnimatedView>
+        {moreTopics.length > 0 ? (
+          <View style={styles.moreSection}>
+            <Text style={styles.moreSectionTitle}>{t('topic.moreTopics', 'More topics')}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.moreScrollContent}
+            >
+              {moreTopics.map((t: any) => (
+                <View key={t.id || t.slug} style={styles.moreCardWrap}>
+                  <TopicCard
+                    item={t}
+                    onPress={() => router.push(`/topic/${encodeURIComponent(t.slug || t.id)}`)}
+                    onFollow={async () => {
+                      try {
+                        if (t.isFollowing) {
+                          await api.delete(`/topics/${encodeURIComponent(t.slug)}/follow`);
+                        } else {
+                          await api.post(`/topics/${encodeURIComponent(t.slug)}/follow`);
+                        }
+                        setMoreTopics(prev => prev.map(x => (x.id || x.slug) === (t.id || t.slug) ? { ...x, isFollowing: !t.isFollowing } : x));
+                      } catch (e) { /* ignore */ }
+                    }}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+      </>
+    ),
+    [topic, stickyHeaderImageKey, isFollowing, moreTopics, activeTab, heroOpacity, t]
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <TopicCollectionHeader
-        type="topic"
-        title={topic.title}
-        description={topic.description}
-        headerImageKey={stickyHeaderImageKey}
-        onBack={() => router.back()}
-        onAction={handleFollow}
-        actionLabel={isFollowing ? t('profile.following') : t('profile.follow')}
-        isActionActive={isFollowing}
-        metrics={{ postCount: topic.postCount, contributorCount: topic.contributorCount }}
-        rightAction="more"
-        onRightAction={() => setMoreOptionsVisible(true)}
+      <AnimatedView
+        style={[styles.stickyBar, { opacity: stickyOpacity, paddingTop: insets.top }]}
+        pointerEvents={stickyVisible ? 'auto' : 'none'}
       >
-        <View style={styles.tabsContainer}>
-          {(['start-here', 'new', 'people', 'source'] as const).map((tab) => (
-            <Pressable
-              key={tab}
-              style={[styles.tab, activeTab === tab && styles.tabActive]}
-              onPress={() => setActiveTab(tab)}
-              accessibilityLabel={t(`topic.${tab}`)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === tab }}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab === 'start-here' ? t('topic.relevance', 'Relevance') :
-                  tab === 'source' ? t('topic.sources', 'Sources') :
-                    t(`topic.${tab}`)}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={styles.stickyBarContent}>
+          <Pressable onPress={() => router.back()} style={styles.stickyBackBtn} accessibilityLabel={t('common.back', 'Back')}>
+            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
+          </Pressable>
+          <Text style={styles.stickyBarTitle} numberOfLines={1}>{topic.title}</Text>
+          <View style={styles.stickyBarSpacer} />
         </View>
-      </TopicCollectionHeader>
-      <FlatList
+      </AnimatedView>
+      <Animated.FlatList
         style={styles.list}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         data={posts}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
+        ListHeaderComponent={listHeader}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true, listener: (e: any) => setStickyVisible(e.nativeEvent.contentOffset.y > STICKY_HEADER_APPEAR) }
+        )}
+        scrollEventThrottle={16}
         ListEmptyComponent={ListEmptyComponent}
-        ListFooterComponent={ListFooterComponent}
+        ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -311,11 +401,7 @@ export default function TopicScreen() {
         }
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={10}
+        {...FLATLIST_DEFAULTS}
       />
       <OptionsActionSheet
         visible={moreOptionsVisible}
@@ -331,7 +417,7 @@ export default function TopicScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -424,5 +510,60 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.paper,
     fontFamily: FONTS.medium,
+  },
+  moreSection: {
+    paddingVertical: SPACING.m,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  moreSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: SPACING.l,
+    marginBottom: SPACING.s,
+    fontFamily: FONTS.semiBold,
+  },
+  moreScrollContent: {
+    paddingHorizontal: SPACING.l,
+    gap: SPACING.m,
+    paddingRight: SPACING.xl,
+  },
+  moreCardWrap: {
+    width: 280,
+    maxWidth: 280,
+  },
+  stickyBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    backgroundColor: COLORS.ink,
+  },
+  stickyBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.l,
+    paddingVertical: SPACING.m,
+  },
+  stickyBackBtn: {
+    padding: SPACING.s,
+    marginLeft: -SPACING.s,
+  },
+  stickyBarTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.paper,
+    marginLeft: SPACING.s,
+    fontFamily: FONTS.semiBold,
+  },
+  stickyBarSpacer: {
+    width: 40,
   },
 });

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  StyleSheet,
   Text,
   View,
   ScrollView,
@@ -16,7 +15,7 @@ import { useRouter, useLocalSearchParams, usePathname } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/auth';
 import { useToast } from '../../../context/ToastContext';
@@ -283,7 +282,7 @@ export default function PostCommentsScreen() {
             style={[styles.commentRow, replyIdFromParams === reply.id && styles.commentRowHighlight]}
             onLayout={
               replyIdFromParams === reply.id && !hasScrolledToReply.current
-                ? (e) => {
+                ? (e: { nativeEvent: { layout: { y: number } } }) => {
                   hasScrolledToReply.current = true;
                   const y = e.nativeEvent.layout.y;
                   scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
@@ -399,7 +398,7 @@ export default function PostCommentsScreen() {
                       .map((item: any) => (
                         <Pressable
                           key={item.id}
-                          style={({ pressed }) => [styles.mentionItem, pressed && styles.mentionItemPressed]}
+                          style={({ pressed }: { pressed: boolean }) => [styles.mentionItem, pressed && styles.mentionItemPressed]}
                           onPress={() => handleMentionSelect(item)}
                         >
                           <View style={styles.mentionItemAvatar}>
@@ -461,7 +460,7 @@ export default function PostCommentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: { flex: 1, backgroundColor: COLORS.ink },
   center: { justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },

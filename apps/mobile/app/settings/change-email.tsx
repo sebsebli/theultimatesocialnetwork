@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet,
   Text,
   View,
   TextInput,
@@ -16,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, FONTS, HEADER, LAYOUT } from '../../constants/theme';
+import { COLORS, SPACING, FONTS, HEADER, LAYOUT, createStyles } from '../../constants/theme';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -137,7 +136,7 @@ export default function ChangeEmailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

@@ -12,7 +12,14 @@ import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Post, Topic, User, PostTopic, DmMessage, DmThread]),
+    TypeOrmModule.forFeature([
+      Post,
+      Topic,
+      User,
+      PostTopic,
+      DmMessage,
+      DmThread,
+    ]),
     UploadModule,
   ],
   controllers: [SearchController],

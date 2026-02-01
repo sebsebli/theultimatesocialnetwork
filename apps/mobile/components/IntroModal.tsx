@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Modal, Pressable, Animated, Dimensions, Image, 
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, SIZES, FONTS, LAYOUT, HEADER, MODAL } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, LAYOUT, HEADER, MODAL, createStyles } from '../constants/theme';
 import * as SecureStore from 'expo-secure-store';
 
 const INTRO_SEEN_KEY = 'intro_seen';
@@ -526,7 +526,7 @@ export async function resetIntro(): Promise<void> {
   await SecureStore.deleteItemAsync(INTRO_SEEN_KEY);
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     width: '100%',

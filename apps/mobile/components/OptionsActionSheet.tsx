@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, MODAL, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, MODAL, HEADER, createStyles } from '../constants/theme';
 
 export interface OptionItem {
   label: string;
@@ -89,7 +89,7 @@ export function OptionsActionSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

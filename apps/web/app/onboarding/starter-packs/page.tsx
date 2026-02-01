@@ -1,24 +1,31 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+interface SuggestedAccount {
+  id: string;
+  handle: string;
+  displayName?: string;
+  bio?: string;
+}
 
 export default function OnboardingStarterPacksPage() {
   const router = useRouter();
   const [following, setFollowing] = useState<Set<string>>(new Set());
-  const [accounts, setAccounts] = useState<Record<string, unknown>[]>([]);
+  const [accounts, setAccounts] = useState<SuggestedAccount[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadAccounts = async () => {
       try {
-        const res = await fetch('/api/users/suggested');
+        const res = await fetch("/api/users/suggested");
         if (res.ok) {
           const data = await res.json();
-          setAccounts(data);
+          setAccounts(Array.isArray(data) ? (data as SuggestedAccount[]) : []);
         }
       } catch (error) {
-        console.error('Failed to load suggested accounts', error);
+        console.error("Failed to load suggested accounts", error);
       } finally {
         setLoading(false);
       }
@@ -39,20 +46,20 @@ export default function OnboardingStarterPacksPage() {
     setFollowing(newFollowing);
 
     try {
-      const method = isFollowing ? 'DELETE' : 'POST';
+      const method = isFollowing ? "DELETE" : "POST";
       await fetch(`/api/users/${id}/follow`, { method });
     } catch (e) {
-      console.error('Failed to toggle follow', e);
+      console.error("Failed to toggle follow", e);
       // Revert on failure
       setFollowing(following);
     }
   };
 
   const handleFinish = () => {
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.removeItem('onboarding_stage');
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.removeItem("onboarding_stage");
     }
-    router.push('/home');
+    router.push("/home");
   };
 
   return (
@@ -60,8 +67,12 @@ export default function OnboardingStarterPacksPage() {
       <div className="max-w-md md:max-w-lg mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-paper mb-2">Follow a few voices</h1>
-            <p className="text-secondary text-sm">Discover interesting perspectives</p>
+            <h1 className="text-2xl font-semibold text-paper mb-2">
+              Follow a few voices
+            </h1>
+            <p className="text-secondary text-sm">
+              Discover interesting perspectives
+            </p>
           </div>
           <button
             onClick={handleFinish}
@@ -73,9 +84,13 @@ export default function OnboardingStarterPacksPage() {
 
         <div className="space-y-3">
           {loading ? (
-            <p className="text-secondary text-sm text-center py-8">Loading suggestions...</p>
+            <p className="text-secondary text-sm text-center py-8">
+              Loading suggestions...
+            </p>
           ) : accounts.length === 0 ? (
-            <p className="text-secondary text-sm text-center py-8">No suggestions found.</p>
+            <p className="text-secondary text-sm text-center py-8">
+              No suggestions found.
+            </p>
           ) : (
             accounts.map((account) => (
               <div
@@ -86,20 +101,25 @@ export default function OnboardingStarterPacksPage() {
                   {account.displayName?.charAt(0) || account.handle?.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-paper">{account.displayName || account.handle}</div>
+                  <div className="font-semibold text-paper">
+                    {account.displayName || account.handle}
+                  </div>
                   <div className="text-tertiary text-sm">@{account.handle}</div>
                   {account.bio && (
-                    <div className="text-secondary text-xs mt-1 line-clamp-1">{account.bio}</div>
+                    <div className="text-secondary text-xs mt-1 line-clamp-1">
+                      {account.bio}
+                    </div>
                   )}
                 </div>
                 <button
                   onClick={() => toggleFollow(account.id)}
-                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${following.has(account.id)
-                      ? 'bg-primary border-primary text-white'
-                      : 'border-primary text-primary hover:bg-primary/10'
-                    }`}
+                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${
+                    following.has(account.id)
+                      ? "bg-primary border-primary text-white"
+                      : "border-primary text-primary hover:bg-primary/10"
+                  }`}
                 >
-                  {following.has(account.id) ? 'Following' : 'Follow'}
+                  {following.has(account.id) ? "Following" : "Follow"}
                 </button>
               </div>
             ))

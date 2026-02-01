@@ -1,15 +1,15 @@
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, ViewStyle } from 'react-native';
-import { COLORS, SPACING, SIZES } from '../constants/theme';
+import React, { useEffect, useRef, memo } from 'react';
+import { View, Animated, ViewStyle } from 'react-native';
+import { COLORS, SPACING, SIZES, createStyles } from '../constants/theme';
 
-interface SkeletonProps {
+export interface SkeletonProps {
   width?: number | string;
   height?: number;
   style?: ViewStyle;
   borderRadius?: number;
 }
 
-export function Skeleton({ width = '100%', height = 20, style, borderRadius = 4 }: SkeletonProps) {
+function SkeletonInner({ width = '100%', height = 20, style, borderRadius = 4 }: SkeletonProps) {
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -43,6 +43,8 @@ export function Skeleton({ width = '100%', height = 20, style, borderRadius = 4 
     />
   );
 }
+
+export const Skeleton = memo(SkeletonInner as React.FunctionComponent<SkeletonProps>) as (props: SkeletonProps) => React.ReactElement | null;
 
 export function PostSkeleton() {
   return (
@@ -86,7 +88,7 @@ export function ProfileSkeleton() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   skeleton: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },

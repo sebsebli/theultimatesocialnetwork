@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, TextInput, Pressable, Modal, Alert, RefreshControl, ActivityIndicator } from 'react-native';
+import { Text, View, FlatList, TextInput, Pressable, Modal, Alert, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -9,7 +9,8 @@ import { PostItem } from '../components/PostItem';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { EmptyState } from '../components/EmptyState';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
+import { ListFooterLoader } from '../components/ListFooterLoader';
 
 export default function KeepsScreen() {
   const router = useRouter();
@@ -113,14 +114,6 @@ export default function KeepsScreen() {
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
-  const ListFooterComponent = useMemo(() => {
-    if (!hasMore || !loadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-      </View>
-    );
-  }, [hasMore, loadingMore]);
 
   const loadCollections = async () => {
     try {
@@ -209,7 +202,7 @@ export default function KeepsScreen() {
             />
           )
         }
-        ListFooterComponent={ListFooterComponent}
+        ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -219,11 +212,7 @@ export default function KeepsScreen() {
         }
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={10}
+        {...FLATLIST_DEFAULTS}
       />
 
       <Modal
@@ -266,7 +255,7 @@ export default function KeepsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

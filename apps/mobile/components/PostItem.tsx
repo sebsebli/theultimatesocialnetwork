@@ -1,5 +1,5 @@
 import React, { useRef, memo, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, Platform, Animated } from 'react-native';
+import { Text, View, Pressable, Platform, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -13,7 +13,7 @@ import AddToCollectionSheet, { AddToCollectionSheetRef } from './AddToCollection
 import ShareSheet, { ShareSheetRef } from './ShareSheet';
 import { ConfirmModal } from './ConfirmModal';
 import { OptionsActionSheet } from './OptionsActionSheet';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../constants/theme';
 import { PostContent } from './PostContent';
 
 import { Post } from '../types';
@@ -222,8 +222,8 @@ function PostItemComponent({
             <Pressable
               style={styles.actionButton}
               onPress={() => {
-                router.push(`/post/${post.id}`);
                 onReply?.();
+                router.push(`/post/${post.id}/comments`);
               }}
             >
               <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
@@ -321,7 +321,7 @@ const MemoizedPostItem = memo(PostItemComponent as React.ComponentType<PostItemP
 // Type assertion: component always returns JSX.Element, never undefined
 export const PostItem = MemoizedPostItem;
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingTop: SPACING.l,

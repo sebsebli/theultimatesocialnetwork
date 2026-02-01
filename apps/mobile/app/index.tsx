@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Linking, useWindowDimensions, Dimensions, ActivityIndicator } from 'react-native';
+import { Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Linking, useWindowDimensions, Dimensions, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { api } from '../utils/api';
 import { useAuth } from '../context/auth';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, createStyles } from '../constants/theme';
 import { IntroModal, shouldShowIntro, resetIntro } from '../components/IntroModal';
 
 export default function IndexScreen() {
@@ -389,7 +389,7 @@ export default function IndexScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Link from "next/link";
 import { Avatar } from "./avatar";
 
@@ -19,7 +19,7 @@ interface User {
   avatarUrl?: string | null;
 }
 
-export function DesktopRightSidebar() {
+function DesktopRightSidebarInner() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,3 +151,5 @@ export function DesktopRightSidebar() {
     </aside>
   );
 }
+
+export const DesktopRightSidebar = memo(DesktopRightSidebarInner);

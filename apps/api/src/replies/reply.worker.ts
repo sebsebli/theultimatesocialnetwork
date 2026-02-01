@@ -33,7 +33,8 @@ interface ReplyJobData {
 
 @Injectable()
 export class ReplyWorker
-  implements OnApplicationBootstrap, OnApplicationShutdown {
+  implements OnApplicationBootstrap, OnApplicationShutdown
+{
   private readonly logger = new Logger(ReplyWorker.name);
   private worker: Worker;
 
@@ -47,7 +48,7 @@ export class ReplyWorker
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
     @Inject('REDIS_CLIENT') private redis: Redis,
-  ) { }
+  ) {}
 
   onApplicationBootstrap() {
     const redisUrl = this.configService.get<string>('REDIS_URL');
@@ -105,7 +106,7 @@ export class ReplyWorker
             contentSnapshot: reply.body,
             source: ModerationSource.ASYNC_CHECK,
           })
-          .catch(() => { });
+          .catch(() => {});
         await this.replyRepo.softDelete(replyId);
         await this.postRepo.decrement({ id: postId }, 'replyCount', 1);
         this.logger.warn(

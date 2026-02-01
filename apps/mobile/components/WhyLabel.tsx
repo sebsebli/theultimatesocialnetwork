@@ -1,13 +1,13 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { memo } from 'react';
+import { View, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, HEADER } from '../constants/theme';
+import { COLORS, FONTS, SPACING, HEADER, createStyles } from '../constants/theme';
 
-interface WhyLabelProps {
+export interface WhyLabelProps {
   reasons: string[];
 }
 
-export function WhyLabel({ reasons }: WhyLabelProps) {
+function WhyLabelInner({ reasons }: WhyLabelProps) {
   if (!reasons || reasons.length === 0) return null;
 
   return (
@@ -18,7 +18,9 @@ export function WhyLabel({ reasons }: WhyLabelProps) {
   );
 }
 
-const styles = StyleSheet.create({
+export const WhyLabel = memo(WhyLabelInner as React.FunctionComponent<WhyLabelProps>) as (props: WhyLabelProps) => React.ReactElement | null;
+
+const styles = createStyles({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

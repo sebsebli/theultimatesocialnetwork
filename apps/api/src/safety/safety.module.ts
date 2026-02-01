@@ -31,4 +31,4 @@ import { ModerationRecord } from '../entities/moderation-record.entity';
   providers: [SafetyService, ContentModerationService, AdminKeyGuard],
   exports: [SafetyService, ContentModerationService],
 })
-export class SafetyModule { }
+export class SafetyModule {}

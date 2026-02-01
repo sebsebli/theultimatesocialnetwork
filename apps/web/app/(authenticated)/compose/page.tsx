@@ -4,6 +4,7 @@ import { useState, useRef, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { AutocompleteDropdown } from "@/components/autocomplete-dropdown";
+import { useAuth } from "@/components/auth-provider";
 import { ImageUploader } from "@/components/image-uploader";
 import { ReadingMode } from "@/components/reading-mode";
 import { getCaretCoordinates } from "@/utils/textarea-caret";
@@ -24,6 +25,7 @@ import {
 function ComposeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const quotePostId = searchParams.get("quote");
   const replyToPostId = searchParams.get("replyTo");
 
@@ -440,6 +442,7 @@ function ComposeContent() {
                     onSelect={handleAutocompleteSelect}
                     position={autocomplete.position}
                     onClose={() => setAutocomplete(null)}
+                    excludeUserId={user?.id as string | undefined}
                   />
                 </div>
               )}

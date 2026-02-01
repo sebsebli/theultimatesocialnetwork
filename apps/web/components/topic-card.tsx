@@ -1,12 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { WhyLabel } from "./why-label";
 import { getImageUrl } from "@/lib/security";
 
-interface TopicCardProps {
+export interface TopicCardProps {
   topic: {
     id: string;
     slug: string;
@@ -32,7 +33,7 @@ interface TopicCardProps {
   onFollow?: () => void;
 }
 
-export function TopicCard({ topic, onFollow }: TopicCardProps) {
+function TopicCardInner({ topic, onFollow }: TopicCardProps) {
   const t = useTranslations("explore");
   const tProfile = useTranslations("profile");
   const recent = topic.recentPost;
@@ -50,7 +51,9 @@ export function TopicCard({ topic, onFollow }: TopicCardProps) {
 
   const meta = [
     topic.postCount != null && `${topic.postCount} posts`,
-    topic.followerCount != null && topic.followerCount > 0 && `${topic.followerCount} followers`,
+    topic.followerCount != null &&
+      topic.followerCount > 0 &&
+      `${topic.followerCount} followers`,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -94,10 +97,14 @@ export function TopicCard({ topic, onFollow }: TopicCardProps) {
               {topic.reasons && <WhyLabel reasons={topic.reasons} />}
             </div>
             {latestTitle && (
-              <p className="text-secondary text-sm mt-0.5 line-clamp-1">{latestTitle}</p>
+              <p className="text-secondary text-sm mt-0.5 line-clamp-1">
+                {latestTitle}
+              </p>
             )}
             {!latestTitle && latestExcerpt && (
-              <p className="text-secondary text-sm mt-0.5 line-clamp-1">{latestExcerpt}</p>
+              <p className="text-secondary text-sm mt-0.5 line-clamp-1">
+                {latestExcerpt}
+              </p>
             )}
           </div>
         )}
@@ -105,9 +112,13 @@ export function TopicCard({ topic, onFollow }: TopicCardProps) {
         {/* Footer: meta + follow */}
         <div className="flex items-center justify-between gap-2 px-3 py-2 md:px-4 md:py-2.5 border-t border-white/[0.04]">
           <div className="flex items-center gap-2 min-w-0">
-            {meta && <span className="text-tertiary text-xs truncate">{meta}</span>}
+            {meta && (
+              <span className="text-tertiary text-xs truncate">{meta}</span>
+            )}
             {latestAuthor && !imageUrl && (
-              <span className="text-tertiary text-xs truncate">{latestAuthor}</span>
+              <span className="text-tertiary text-xs truncate">
+                {latestAuthor}
+              </span>
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -147,3 +158,5 @@ export function TopicCard({ topic, onFollow }: TopicCardProps) {
     </Link>
   );
 }
+
+export const TopicCard = memo(TopicCardInner);

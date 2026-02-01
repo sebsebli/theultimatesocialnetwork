@@ -3,9 +3,11 @@ import { Reply } from '../entities/reply.entity';
 import { User } from '../entities/user.entity';
 
 /** Extract post IDs referenced in body via [[post:id]] or [[post:id|alias]]. */
-export function extractLinkedPostIds(body: string | null | undefined): string[] {
+export function extractLinkedPostIds(
+  body: string | null | undefined,
+): string[] {
   if (!body || typeof body !== 'string') return [];
-  const re = /\[\[post:([^\]\|]+)(?:\|[^\]]*)?\]\]/gi;
+  const re = /\[\[post:([^\]|]+)(?:\|[^\]]*)?\]\]/gi;
   const ids: string[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(body)) !== null) {

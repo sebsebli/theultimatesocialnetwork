@@ -46,9 +46,7 @@ export class SafetyAdminController {
    * Use for permanent-ban escalation decisions.
    */
   @Get('by-author/:userId')
-  async getByAuthor(
-    @Param('userId', ParseUUIDPipe) userId: string,
-  ) {
+  async getByAuthor(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.safetyService.getModerationStatsByAuthor(userId);
   }
 }

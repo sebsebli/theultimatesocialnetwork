@@ -45,16 +45,25 @@ function SearchContent() {
   });
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState({ posts: true, users: true, topics: true });
+  const [hasMore, setHasMore] = useState({
+    posts: true,
+    users: true,
+    topics: true,
+  });
   const [offsets, setOffsets] = useState({ posts: 0, users: 0, topics: 0 });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const activeTabRef = useRef(activeTab);
-  const handleSearchRef = useRef(handleSearch);
-  activeTabRef.current = activeTab;
-  handleSearchRef.current = handleSearch;
+  const handleSearchRef = useRef<
+    ((q: string, type: SearchTab, append?: boolean) => Promise<void>) | null
+  >(null);
 
-  const normalizeTopic = (t: { id?: string; title?: string; slug?: string; [key: string]: unknown }) => ({
+  const normalizeTopic = (t: {
+    id?: string;
+    title?: string;
+    slug?: string;
+    [key: string]: unknown;
+  }) => ({
     ...t,
     slug: t.slug ?? t.id ?? "",
     title: t.title ?? t.slug ?? "",
@@ -88,7 +97,9 @@ function SearchContent() {
             ]);
             const posts = resPosts.ok ? (await resPosts.json()).hits || [] : [];
             const users = resUsers.ok ? (await resUsers.json()).hits || [] : [];
-            const rawTopics = resTopics.ok ? (await resTopics.json()).hits || [] : [];
+            const rawTopics = resTopics.ok
+              ? (await resTopics.json()).hits || []
+              : [];
             const topics = rawTopics.map(normalizeTopic);
             setResults((prev) => ({
               posts: [...prev.posts, ...posts],
@@ -118,7 +129,9 @@ function SearchContent() {
             }
           }
         } else if (type === "posts" || topicSlug) {
-          const topicParam = topicSlug ? `&topicSlug=${encodeURIComponent(topicSlug)}` : "";
+          const topicParam = topicSlug
+            ? `&topicSlug=${encodeURIComponent(topicSlug)}`
+            : "";
           const res = await fetch(
             `/api/search/posts?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${offset}${topicParam}`,
           );
@@ -126,7 +139,9 @@ function SearchContent() {
             const data = await res.json();
             const hits = data.hits || [];
             setResults((prev) =>
-              append ? { ...prev, posts: [...prev.posts, ...hits] } : { ...prev, posts: hits, users: [], topics: [] },
+              append
+                ? { ...prev, posts: [...prev.posts, ...hits] }
+                : { ...prev, posts: hits, users: [], topics: [] },
             );
             setHasMore((h) => ({ ...h, posts: hits.length >= limit }));
             if (!append) setOffsets((o) => ({ ...o, posts: hits.length }));
@@ -140,7 +155,9 @@ function SearchContent() {
             const data = await res.json();
             const hits = data.hits || [];
             setResults((prev) =>
-              append ? { ...prev, users: [...prev.users, ...hits] } : { ...prev, users: hits, posts: [], topics: [] },
+              append
+                ? { ...prev, users: [...prev.users, ...hits] }
+                : { ...prev, users: hits, posts: [], topics: [] },
             );
             setHasMore((h) => ({ ...h, users: hits.length >= limit }));
             if (!append) setOffsets((o) => ({ ...o, users: hits.length }));
@@ -154,7 +171,9 @@ function SearchContent() {
             const data = await res.json();
             const hits = (data.hits || []).map(normalizeTopic);
             setResults((prev) =>
-              append ? { ...prev, topics: [...prev.topics, ...hits] } : { ...prev, topics: hits, posts: [], users: [] },
+              append
+                ? { ...prev, topics: [...prev.topics, ...hits] }
+                : { ...prev, topics: hits, posts: [], users: [] },
             );
             setHasMore((h) => ({ ...h, topics: hits.length >= limit }));
             if (!append) setOffsets((o) => ({ ...o, topics: hits.length }));
@@ -169,8 +188,16 @@ function SearchContent() {
         setLoadingMore(false);
       }
     },
-    [topicSlug, results.posts.length, results.users.length, results.topics.length],
+    [
+      topicSlug,
+      results.posts.length,
+      results.users.length,
+      results.topics.length,
+    ],
   );
+
+  activeTabRef.current = activeTab;
+  handleSearchRef.current = handleSearch;
 
   // Debounce: only run search after user stops typing (do not depend on handleSearch to avoid reset after load more)
   useEffect(() => {
@@ -183,7 +210,7 @@ function SearchContent() {
     }
     debounceRef.current = setTimeout(() => {
       setOffsets({ posts: 0, users: 0, topics: 0 });
-      handleSearchRef.current(query, activeTabRef.current, false);
+      handleSearchRef.current?.(query, activeTabRef.current, false);
       debounceRef.current = null;
     }, DEBOUNCE_MS);
     return () => {
@@ -431,7 +458,11 @@ function SearchContent() {
                     )}
                   </div>
                 )}
-                <div ref={loadMoreRef} className="h-4 flex-shrink-0" aria-hidden />
+                <div
+                  ref={loadMoreRef}
+                  className="h-4 flex-shrink-0"
+                  aria-hidden
+                />
                 {activeTab === "posts" && hasMore.posts && loadingMore && (
                   <div className="py-4 flex justify-center">
                     <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />

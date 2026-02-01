@@ -25,10 +25,7 @@ import {
   simhashToString,
   simhashFromString,
 } from './simhash.util';
-import {
-  moderationStageCounter,
-  moderationDuration,
-} from '../common/metrics';
+import { moderationStageCounter, moderationDuration } from '../common/metrics';
 
 export type ModerationResult = {
   safe: boolean;
@@ -62,38 +59,22 @@ const ModerationImageSchema = z.object({
   confidence: z.number(),
 });
 
-type ModerationTextOutput = z.infer<typeof ModerationTextSchema>;
-type ModerationImageOutput = z.infer<typeof ModerationImageSchema>;
-
 function getConfig() {
   return {
-    minSimilarCount: parseInt(
-      process.env.MODERATION_MIN_SIMILAR_COUNT || '2',
-      10,
-    ) || 2,
-    similarityThreshold: parseFloat(
-      process.env.MODERATION_SIMILARITY_THRESHOLD || '0.92',
-    ) || 0.92,
-    maxRecentItems: parseInt(
-      process.env.MODERATION_MAX_RECENT_ITEMS || '10',
-      10,
-    ) || 10,
-    simhashHammingMax: parseInt(
-      process.env.MODERATION_SIMHASH_HAMMING_MAX || '3',
-      10,
-    ) || 3,
-    simhashCacheSize: parseInt(
-      process.env.MODERATION_SIMHASH_CACHE_SIZE || '20',
-      10,
-    ) || 20,
-    ollamaChatTimeoutMs: parseInt(
-      process.env.OLLAMA_CHAT_TIMEOUT_MS || '8000',
-      10,
-    ) || 8000,
-    ollamaImageTimeoutMs: parseInt(
-      process.env.OLLAMA_IMAGE_TIMEOUT_MS || '15000',
-      10,
-    ) || 15000,
+    minSimilarCount:
+      parseInt(process.env.MODERATION_MIN_SIMILAR_COUNT || '2', 10) || 2,
+    similarityThreshold:
+      parseFloat(process.env.MODERATION_SIMILARITY_THRESHOLD || '0.92') || 0.92,
+    maxRecentItems:
+      parseInt(process.env.MODERATION_MAX_RECENT_ITEMS || '10', 10) || 10,
+    simhashHammingMax:
+      parseInt(process.env.MODERATION_SIMHASH_HAMMING_MAX || '3', 10) || 3,
+    simhashCacheSize:
+      parseInt(process.env.MODERATION_SIMHASH_CACHE_SIZE || '20', 10) || 20,
+    ollamaChatTimeoutMs:
+      parseInt(process.env.OLLAMA_CHAT_TIMEOUT_MS || '8000', 10) || 8000,
+    ollamaImageTimeoutMs:
+      parseInt(process.env.OLLAMA_IMAGE_TIMEOUT_MS || '15000', 10) || 15000,
   };
 }
 
@@ -281,7 +262,10 @@ export class ContentModerationService implements OnModuleInit {
       };
     } catch (e) {
       end();
-      this.logger.warn('Embedding similarity check failed', (e as Error).message);
+      this.logger.warn(
+        'Embedding similarity check failed',
+        (e as Error).message,
+      );
       return { isSimilar: false, similarCount: 0 };
     }
   }
@@ -357,7 +341,7 @@ Analyze this text and respond with the required JSON schema only. Text to analyz
 
       const raw = response.message?.content ?? '';
       const parsed = JSON.parse(raw) as unknown;
-      const result = ModerationTextSchema.parse(parsed) as ModerationTextOutput;
+      const result = ModerationTextSchema.parse(parsed);
       const reasonCode = this.parseReasonCode(result.reasonCode);
       end();
       if (!result.safe) moderationStageCounter.inc({ stage: 'ollama_block' });
@@ -406,9 +390,7 @@ Analyze this text and respond with the required JSON schema only. Text to analyz
       const response = await Promise.race([
         this.ollama.chat({
           model: visionModel,
-          messages: [
-            { role: 'user', content: userContent, images: [base64] },
-          ],
+          messages: [{ role: 'user', content: userContent, images: [base64] }],
           format: schemaToFormat(ModerationImageSchema),
           options: { temperature: 0.1 },
         }),
@@ -416,7 +398,7 @@ Analyze this text and respond with the required JSON schema only. Text to analyz
       ]);
       const raw = response.message?.content ?? '';
       const parsed = JSON.parse(raw) as unknown;
-      const result = ModerationImageSchema.parse(parsed) as ModerationImageOutput;
+      const result = ModerationImageSchema.parse(parsed);
       end();
       return {
         safe: result.safe,
@@ -461,9 +443,10 @@ Analyze this text and respond with the required JSON schema only. Text to analyz
   async checkContent(
     text: string,
     userId: string,
-    _contentType: 'post' | 'reply' = 'post',
+    _contentType: 'post' | 'reply' = 'post', // reserved for future per-type rules
     options: { onlyFast?: boolean } = {},
   ): Promise<ModerationResult> {
+    void _contentType;
     try {
       const s1 = await this.stage1RepetitionAndSimilarity(text, userId);
       if (!s1.safe) return s1;

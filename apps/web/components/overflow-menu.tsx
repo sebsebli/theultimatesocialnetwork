@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 
-interface OverflowMenuProps {
+export interface OverflowMenuProps {
   onReport?: () => void;
   onMute?: () => void;
   onBlock?: () => void;
@@ -13,7 +13,7 @@ interface OverflowMenuProps {
   isAuthor?: boolean;
 }
 
-export function OverflowMenu({
+function OverflowMenuInner({
   onReport,
   onMute,
   onBlock,
@@ -160,3 +160,5 @@ export function OverflowMenu({
     </div>
   );
 }
+
+export const OverflowMenu = memo(OverflowMenuInner);

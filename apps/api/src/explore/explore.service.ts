@@ -223,11 +223,7 @@ export class ExploreService {
             .select('pt.topic_id', 'topicId')
             .addSelect('p.id', 'postId')
             .from(PostTopic, 'pt')
-            .innerJoin(
-              Post,
-              'p',
-              'p.id = pt.post_id AND p.deleted_at IS NULL',
-            )
+            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
             .where('pt.topic_id IN (:...topicIds)', { topicIds })
             .orderBy('pt.topic_id')
             .addOrderBy('p.created_at', 'DESC')
@@ -244,7 +240,14 @@ export class ExploreService {
         ? await this.postRepo.find({
             where: { id: In(postIds) },
             relations: ['author'],
-            select: ['id', 'authorId', 'title', 'body', 'headerImageKey', 'createdAt'],
+            select: [
+              'id',
+              'authorId',
+              'title',
+              'body',
+              'headerImageKey',
+              'createdAt',
+            ],
           })
         : [];
     const postMap = new Map(posts.map((p) => [p.id, p]));
@@ -257,7 +260,9 @@ export class ExploreService {
         .replace(/_([^_]+)_/g, '$1')
         .replace(/\n+/g, ' ')
         .trim();
-      return stripped.length <= maxLen ? stripped : stripped.slice(0, maxLen) + '…';
+      return stripped.length <= maxLen
+        ? stripped
+        : stripped.slice(0, maxLen) + '…';
     }
 
     return result.map((t) => {
@@ -329,22 +334,33 @@ export class ExploreService {
   async getQuotedNow(
     userId?: string,
     limit = 20,
-    filter?: { lang?: string; sort?: string },
+    filter?: { lang?: string; sort?: string; page?: string; limit?: string },
   ) {
     // If specific sort requested, bypass algo
     const langFilter = await this.getEffectiveLangFilter(userId, filter);
+    const limitNum = filter?.limit
+      ? Math.min(50, Math.max(1, parseInt(filter.limit, 10) || 20))
+      : limit;
+    const pageNum = Math.max(1, parseInt(filter?.page || '1', 10) || 1);
+    const skip = (pageNum - 1) * limitNum;
 
     if (filter?.sort === 'newest') {
       const query = this.postRepo
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
-        .orderBy('post.created_at', 'DESC');
+        .orderBy('post.created_at', 'DESC')
+        .skip(skip)
+        .take(limitNum + 1);
       if (langFilter?.length) {
         query.andWhere('post.lang IN (:...langs)', { langs: langFilter });
       }
-      const posts = await query.take(limit).getMany();
-      return posts.map((p) => ({ ...p, reasons: ['Newest'] }));
+      const posts = await query.getMany();
+      const hasMore = posts.length > limitNum;
+      const items = posts
+        .slice(0, limitNum)
+        .map((p) => ({ ...p, reasons: ['Latest'] }));
+      return hasMore ? { items, hasMore: true } : items;
     }
 
     if (filter?.sort === 'cited') {
@@ -473,25 +489,33 @@ export class ExploreService {
   async getDeepDives(
     userId?: string,
     limit = 20,
-    filter?: { lang?: string; sort?: string },
+    filter?: { lang?: string; sort?: string; page?: string; limit?: string },
   ) {
     const langFilter = await this.getEffectiveLangFilter(userId, filter);
+    const limitNum = filter?.limit
+      ? Math.min(50, Math.max(1, parseInt(filter.limit, 10) || 20))
+      : limit;
+    const pageNum = Math.max(1, parseInt(filter?.page || '1', 10) || 1);
+    const skip = (pageNum - 1) * limitNum;
 
-    // Simple sort overrides
+    // Simple sort overrides (Latest = chronologically, paginated)
     if (filter?.sort === 'newest') {
       const query = this.postRepo
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
         .orderBy('post.created_at', 'DESC')
-        .take(limit);
+        .skip(skip)
+        .take(limitNum + 1);
       if (langFilter?.length) {
         query.andWhere('post.lang IN (:...langs)', { langs: langFilter });
       }
-      return (await query.getMany()).map((p) => ({
-        ...p,
-        reasons: ['Newest'],
-      }));
+      const posts = await query.getMany();
+      const hasMore = posts.length > limitNum;
+      const items = posts
+        .slice(0, limitNum)
+        .map((p) => ({ ...p, reasons: ['Latest'] }));
+      return hasMore ? { items, hasMore: true } : items;
     }
 
     if (filter?.sort === 'cited') {
@@ -563,69 +587,70 @@ export class ExploreService {
   async getNewsroom(
     userId?: string,
     limit = 20,
-    filter?: { lang?: string; sort?: string },
+    filter?: { lang?: string; sort?: string; page?: string; limit?: string },
   ) {
-    // Overrides
-    if (filter?.sort === 'cited') {
-      // Cited posts that have external sources?
-      // For simplicity, just return most cited posts generally if sort=cited is global
-      // Or stick to "Newsroom" theme: posts with sources, ordered by quote count
-      // Let's do posts with sources, ordered by quote count.
+    const langFilterNewsroom = await this.getEffectiveLangFilter(
+      userId,
+      filter,
+    );
+    const limitNum = filter?.limit
+      ? Math.min(50, Math.max(1, parseInt(filter.limit, 10) || 20))
+      : limit;
+    const pageNum = Math.max(1, parseInt(filter?.page || '1', 10) || 1);
+    const skip = (pageNum - 1) * limitNum;
 
+    // Latest: chronologically sorted, paginated
+    if (filter?.sort === 'newest') {
       const query = this.postRepo
         .createQueryBuilder('post')
         .innerJoin('external_sources', 'source', 'source.post_id = post.id')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
-        .orderBy('post.quote_count', 'DESC')
-        .take(limit);
-
-      const langFilterNews = await this.getEffectiveLangFilter(userId, filter);
-      if (langFilterNews?.length) {
-        query.andWhere('post.lang IN (:...langs)', { langs: langFilterNews });
+        .orderBy('post.created_at', 'DESC')
+        .skip(skip)
+        .take(limitNum + 1);
+      if (langFilterNewsroom?.length) {
+        query.andWhere('post.lang IN (:...langs)', {
+          langs: langFilterNewsroom,
+        });
       }
-      // distinct posts
-      query
-        .select('DISTINCT post.id')
-        .addSelect('post.*')
-        .addSelect('author.*');
-      // Note: DISTINCT on post.id might require matching Selects in TypeORM or raw query.
-      // Simpler: Just rely on TypeORM's relations, but we need to ensure unique posts.
-      // .getMany() usually handles hydration uniqueness but multiple sources per post might cause dupes in raw result before hydration.
-      // We can use subquery or stick to logic below.
+      const posts = await query.getMany();
+      const hasMore = posts.length > limitNum;
+      const items = posts
+        .slice(0, limitNum)
+        .map((p) => ({ ...p, reasons: ['Latest'] as string[] }));
+      return hasMore ? { items, hasMore: true } : items;
     }
 
-    // Sort logic (default is Newest for Newsroom usually, but here Recommended is default)
-    // If sort is Newest or Recommended, we use the date-based logic.
-    // If sort is Cited, we use quote count.
-
-    const orderBy =
-      filter?.sort === 'cited' ? 'post.quote_count' : 'post.created_at';
-
-    // Get posts with external sources
-    const langFilterNewsroom = await this.getEffectiveLangFilter(
-      userId,
-      filter,
-    );
-
-    const query = this.postRepo
-      .createQueryBuilder('post')
-      .innerJoin('external_sources', 'source', 'source.post_id = post.id')
-      .leftJoinAndSelect('post.author', 'author')
-      .where('post.deleted_at IS NULL');
-
-    if (langFilterNewsroom?.length) {
-      query.andWhere('post.lang IN (:...langs)', { langs: langFilterNewsroom });
+    // Most cited: posts with sources by quote count
+    if (filter?.sort === 'cited') {
+      const idQuery = this.postRepo
+        .createQueryBuilder('post')
+        .innerJoin('external_sources', 'source', 'source.post_id = post.id')
+        .where('post.deleted_at IS NULL')
+        .orderBy('post.quote_count', 'DESC')
+        .take(limitNum);
+      if (langFilterNewsroom?.length) {
+        idQuery.andWhere('post.lang IN (:...langs)', {
+          langs: langFilterNewsroom,
+        });
+      }
+      const ids = await idQuery
+        .select('post.id')
+        .getRawMany<{ post_id: string }>();
+      if (ids.length === 0) return [];
+      const postIds = ids.map((i) => i.post_id);
+      const posts = await this.postRepo
+        .createQueryBuilder('post')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('post.id IN (:...ids)', { ids: postIds })
+        .orderBy('post.quote_count', 'DESC')
+        .getMany();
+      return posts.map((p) => ({ ...p, reasons: ['Most cited'] }));
     }
 
-    // We want distinct posts.
-    // TypeORM `getMany` with `innerJoin` might return duplicates if multiple sources.
-    // We can use query builder to select distinct ids first.
-
-    // Optimized approach:
-    // 1. Find IDs
-    // 2. Fetch Entities
-
+    // Default: recent posts with sources (recommended order)
+    const orderBy = 'post.created_at';
     const idQuery = this.postRepo
       .createQueryBuilder('post')
       .innerJoin('external_sources', 'source', 'source.post_id = post.id')
@@ -639,9 +664,9 @@ export class ExploreService {
 
     const ids = await idQuery
       .select('DISTINCT post.id', 'id')
-      .addOrderBy(orderBy, 'DESC')
-      .limit(limit)
-      .getRawMany();
+      .orderBy(orderBy, 'DESC')
+      .limit(limitNum)
+      .getRawMany<{ id: string }>();
 
     if (ids.length === 0) return [];
 
@@ -649,9 +674,9 @@ export class ExploreService {
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .where('post.id IN (:...ids)', {
-        ids: ids.map((i: { id: string }) => i.id),
+        ids: ids.map((i) => i.id),
       })
-      .orderBy(orderBy, 'DESC') // Re-apply order
+      .orderBy(orderBy, 'DESC')
       .getMany();
 
     let result: (Post & { reasons?: string[] })[] = finalPosts.map((p) => ({

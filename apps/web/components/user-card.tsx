@@ -1,10 +1,11 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { Avatar } from "./avatar";
 import { WhyLabel } from "./why-label";
 
-interface UserCardProps {
+export interface UserCardProps {
   person: {
     id: string;
     handle: string;
@@ -18,7 +19,7 @@ interface UserCardProps {
   onFollow?: () => void;
 }
 
-export function UserCard({ person, onFollow }: UserCardProps) {
+function UserCardInner({ person, onFollow }: UserCardProps) {
   return (
     <Link href={`/user/${person.handle}`}>
       <div className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group active:scale-[0.99] flex items-center justify-between">
@@ -67,3 +68,5 @@ export function UserCard({ person, onFollow }: UserCardProps) {
     </Link>
   );
 }
+
+export const UserCard = memo(UserCardInner);

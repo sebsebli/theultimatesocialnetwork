@@ -1,13 +1,15 @@
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, toColor, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
+import { ListFooterLoader } from '../components/ListFooterLoader';
 import { useSocket } from '../context/SocketContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { EmptyState } from '../components/EmptyState';
 
 /** Notifications-only screen (bell). Messages are in the Messages tab. */
 export default function NotificationsScreen() {
@@ -98,15 +100,6 @@ export default function NotificationsScreen() {
     </Pressable>
   ), [t, router]);
 
-  const ListFooterComponent = useMemo(() => {
-    if (!hasMore || !loadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-      </View>
-    );
-  }, [hasMore, loadingMore]);
-
   return (
     <View style={styles.container}>
       <ScreenHeader
@@ -140,13 +133,20 @@ export default function NotificationsScreen() {
         keyExtractor={(item: any) => item.id}
         renderItem={renderNotification}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>
-              {loading ? t('common.loading') : t('notifications.empty', 'No notifications yet')}
-            </Text>
-          </View>
+          loading ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={[styles.emptyText, { marginTop: SPACING.l }]}>{t('common.loading')}</Text>
+            </View>
+          ) : (
+            <EmptyState
+              icon="notifications-none"
+              headline={t('notifications.empty', 'No notifications yet')}
+              subtext={t('notifications.emptySubtext', 'When someone follows you, replies, or mentions you, it will show up here.')}
+            />
+          )
         }
-        ListFooterComponent={ListFooterComponent}
+        ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -156,17 +156,13 @@ export default function NotificationsScreen() {
         }
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={10}
+        {...FLATLIST_DEFAULTS}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -178,7 +174,7 @@ const styles = StyleSheet.create({
   markAllRead: {
     fontSize: 16,
     fontWeight: '600',
-    color: HEADER.saveColor,
+    color: toColor(HEADER.saveColor),
     fontFamily: FONTS.semiBold,
   },
   notification: {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable, RefreshControl, Platform, Share, Linking } from 'react-native';
+import { Text, View, ScrollView, Pressable, RefreshControl, Platform, Share, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ import { PostContent } from '../../components/PostContent';
 import { MarkdownText } from '../../components/MarkdownText';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { Post } from '../../types';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../../constants/theme';
 
 export default function PostDetailScreen() {
   const { id, highlightReplyId } = useLocalSearchParams();
@@ -493,7 +493,7 @@ export default function PostDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

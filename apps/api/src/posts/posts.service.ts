@@ -294,7 +294,9 @@ export class PostsService {
   }
 
   /** Return id -> { title } for linked post display (e.g. [[post:id]]). Keys normalized to lowercase for case-insensitive lookup. */
-  async getTitlesForPostIds(ids: string[]): Promise<Record<string, { title?: string }>> {
+  async getTitlesForPostIds(
+    ids: string[],
+  ): Promise<Record<string, { title?: string }>> {
     if (ids.length === 0) return {};
     const unique = Array.from(new Set(ids));
     const posts = await this.postRepo.find({
@@ -314,11 +316,18 @@ export class PostsService {
     postIds: string[],
     topicSlugs: string[],
   ): Promise<{
-    posts: Array<{ id: string; title?: string; headerImageKey?: string | null; authorAvatarKey?: string | null }>;
+    posts: Array<{
+      id: string;
+      title?: string;
+      headerImageKey?: string | null;
+      authorAvatarKey?: string | null;
+    }>;
     topics: Array<{ slug: string; title?: string; imageKey?: string | null }>;
   }> {
     const uniquePostIds = Array.from(new Set(postIds));
-    const uniqueSlugs = Array.from(new Set(topicSlugs.map((s) => s.trim()).filter(Boolean)));
+    const uniqueSlugs = Array.from(
+      new Set(topicSlugs.map((s) => s.trim()).filter(Boolean)),
+    );
     const posts =
       uniquePostIds.length > 0
         ? await this.postRepo.find({
@@ -326,7 +335,9 @@ export class PostsService {
             select: ['id', 'title', 'headerImageKey', 'authorId'],
           })
         : [];
-    const authorIds = [...new Set(posts.map((p) => p.authorId).filter(Boolean))];
+    const authorIds = [
+      ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
+    ];
     const authors =
       authorIds.length > 0
         ? await this.userRepo.find({
@@ -374,12 +385,14 @@ export class PostsService {
         where: { id: In(latestPostIds) },
         select: ['id', 'headerImageKey'],
       });
-      const postIdToKey = new Map(latestPosts.map((p) => [p.id, p.headerImageKey ?? null]));
+      const postIdToKey = new Map(
+        latestPosts.map((p) => [p.id, p.headerImageKey ?? null]),
+      );
       latestRows.forEach((r) => {
-        if (!topicToImageKey.has(r.topicId)) topicToImageKey.set(r.topicId, postIdToKey.get(r.postId) ?? null);
+        if (!topicToImageKey.has(r.topicId))
+          topicToImageKey.set(r.topicId, postIdToKey.get(r.postId) ?? null);
       });
     }
-    const topicIdToSlug = new Map(topics.map((t) => [t.id, t.slug]));
     const topicList = topics.map((t) => ({
       slug: t.slug,
       title: t.title ?? undefined,
@@ -512,11 +525,7 @@ export class PostsService {
             .select('pt.topic_id', 'topicId')
             .addSelect('p.id', 'postId')
             .from(PostTopic, 'pt')
-            .innerJoin(
-              Post,
-              'p',
-              'p.id = pt.post_id AND p.deleted_at IS NULL',
-            )
+            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
             .where('pt.topic_id IN (:...topicIds)', { topicIds })
             .distinctOn(['pt.topic_id'])
             .orderBy('pt.topic_id')
@@ -536,7 +545,8 @@ export class PostsService {
       );
       latestRows.forEach((r) => {
         const key = postIdToKey.get(r.postId) ?? null;
-        if (!topicToImageKey.has(r.topicId)) topicToImageKey.set(r.topicId, key);
+        if (!topicToImageKey.has(r.topicId))
+          topicToImageKey.set(r.topicId, key);
       });
     }
 

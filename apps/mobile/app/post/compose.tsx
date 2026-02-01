@@ -28,7 +28,7 @@ import { MarkdownText } from '../../components/MarkdownText';
 import { PostArticleBlock } from '../../components/PostArticleBlock';
 import { Avatar } from '../../components/Avatar';
 import { Post } from '../../types';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, LAYOUT } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, LAYOUT, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { Image as ExpoImage } from 'expo-image';
 
 /** Stable component so typing in link fields does not remount and dismiss keyboard */
@@ -78,7 +78,7 @@ function LinkInputFields({
         placeholder={t('compose.linkDisplayTextPlaceholder', 'Display Text (optional)')}
         placeholderTextColor={COLORS.tertiary}
         value={linkText}
-        onChangeText={(s) => setLinkText(s.length <= maxDisplayLength ? s : s.slice(0, maxDisplayLength))}
+        onChangeText={(s: string) => setLinkText(s.length <= maxDisplayLength ? s : s.slice(0, maxDisplayLength))}
         maxLength={maxDisplayLength}
         blurOnSubmit={false}
       />
@@ -194,7 +194,7 @@ export default function ComposeScreen() {
         topicBySlug[t.slug] = { imageKey: t.imageKey ?? null };
       });
       setSourcePreviews({ postById, topicBySlug });
-    }).catch(() => {});
+    }).catch(() => { });
   }, [previewMode, body]);
 
   const loadQuotedPost = async (id: string) => {
@@ -667,6 +667,7 @@ export default function ComposeScreen() {
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
             renderItem={({ item }: { item: { type: string; id?: string; slug?: string; handle?: string } }) => renderSuggestionItem(item)}
+            {...FLATLIST_DEFAULTS}
           />
         )}
       </View>
@@ -1136,7 +1137,7 @@ export default function ComposeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

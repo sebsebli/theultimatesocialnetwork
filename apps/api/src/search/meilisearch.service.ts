@@ -249,7 +249,8 @@ export class MeilisearchService implements OnModuleInit {
               ? {
                   displayName: author.displayName ?? author.handle,
                   handle: author.handle,
-                  avatarKey: (author as { avatarKey?: string | null }).avatarKey ?? '',
+                  avatarKey:
+                    (author as { avatarKey?: string | null }).avatarKey ?? '',
                 }
               : { displayName: 'Unknown', handle: 'unknown', avatarKey: '' },
             lang: post.lang ?? 'en',
@@ -388,7 +389,9 @@ export class MeilisearchService implements OnModuleInit {
             ? {
                 displayName: post.author.displayName || post.author.handle,
                 handle: post.author.handle,
-                avatarKey: (post.author as { avatarKey?: string | null }).avatarKey ?? '',
+                avatarKey:
+                  (post.author as { avatarKey?: string | null }).avatarKey ??
+                  '',
               }
             : { displayName: 'Unknown', handle: 'unknown', avatarKey: '' },
           lang: post.lang || 'en',

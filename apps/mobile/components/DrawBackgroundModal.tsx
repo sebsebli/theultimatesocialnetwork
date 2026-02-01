@@ -8,7 +8,6 @@ import {
   Modal,
   useWindowDimensions,
   ActivityIndicator,
-  Image,
   type DimensionValue,
   type ColorValue,
   type TextStyle,
@@ -18,7 +17,7 @@ import Svg, { Path } from 'react-native-svg';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, PROFILE_HEADER_ASPECT_RATIO, HEADER, MODAL, DRAW_CANVAS_OPACITY } from '../constants/theme';
+import { COLORS, SPACING, PROFILE_HEADER_ASPECT_RATIO, HEADER, MODAL, DRAW_CANVAS_OPACITY, createStyles } from '../constants/theme';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -132,20 +131,16 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t('common.close')} />
-        {/* Draw area: profile visible below semi-transparent overlay so user sees where they're drawing */}
+        {/* Backdrop only below the draw area: tap to close; top (draw area) stays transparent so profile shows through */}
+        <Pressable
+          style={[styles.backdropBelowCanvas, { top: canvasHeight }]}
+          onPress={onClose}
+          accessibilityLabel={t('common.close')}
+        />
+        {/* Draw area: same size/ratio as profile header; transparent so profile is visible behind */}
         <View style={[styles.canvasWrap, { width: canvasWidth, height: canvasHeight }]}>
-          {/* Display: profile (or dark) + semi-transparent overlay + strokes */}
+          {/* Transparent background so profile header shows through; overlay + strokes on top */}
           <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight }]}>
-            {profileHeaderUrl ? (
-              <Image
-                source={{ uri: profileHeaderUrl }}
-                style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight }]}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight, backgroundColor: DRAW_HEADER_BG }]} />
-            )}
             <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight, backgroundColor: OVERLAY_BG }]} {...panResponder.panHandlers}>
               <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill} pointerEvents="none">
                 {allPaths.map((stroke, i) => (
@@ -217,14 +212,19 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   overlay: {
     flex: 1,
     justifyContent: 'space-between',
+    backgroundColor: 'transparent',
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  /** Opaque below the draw area so ONLY the header-sized area is transparent; tap to close */
+  backdropBelowCanvas: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: COLORS.ink,
   },
   canvasWrap: {
     position: 'relative',

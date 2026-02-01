@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import React, { memo } from 'react';
+import { Text, View, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, FONTS, SIZES, HEADER, LAYOUT } from '../constants/theme';
+import { COLORS, SPACING, FONTS, SIZES, HEADER, LAYOUT, createStyles } from '../constants/theme';
 
 interface ErrorStateProps {
   message?: string;
@@ -10,7 +11,7 @@ interface ErrorStateProps {
   onDismiss?: () => void;
 }
 
-export function ErrorState({ message = 'Something went wrong', onRetry, onDismiss }: ErrorStateProps) {
+function ErrorStateInner({ message = 'Something went wrong', onRetry, onDismiss }: ErrorStateProps) {
   const { t } = useTranslation();
   return (
     <View style={styles.container}>
@@ -49,7 +50,9 @@ export function ErrorState({ message = 'Something went wrong', onRetry, onDismis
   );
 }
 
-const styles = StyleSheet.create({
+export const ErrorState = memo(ErrorStateInner as React.FunctionComponent<ErrorStateProps>) as (props: ErrorStateProps) => React.ReactElement | null;
+
+const styles = createStyles({
   container: {
     flex: 1,
     justifyContent: 'center',

@@ -10,13 +10,15 @@ import { api, getImageUrl, getApiBaseUrl, getWebAppBaseUrl } from '../../utils/a
 import { PostItem } from '../../components/PostItem';
 import { CollectionCard } from '../../components/CollectionCard';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, PROFILE_HEADER_ASPECT_RATIO } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, PROFILE_HEADER_ASPECT_RATIO, toColor, toDimension, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { ListFooterLoader } from '../../components/ListFooterLoader';
 import { formatCompactNumber } from '../../utils/format';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { DrawBackgroundModal } from '../../components/DrawBackgroundModal';
+import { ProfileHeaderSection } from '../../components/ProfileHeaderSection';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -51,6 +53,7 @@ export default function ProfileScreen() {
   const [editCollectionTitle, setEditCollectionTitle] = useState('');
   const [editCollectionDescription, setEditCollectionDescription] = useState('');
   const [editCollectionIsPublic, setEditCollectionIsPublic] = useState(true);
+  const [editCollectionShareSaves, setEditCollectionShareSaves] = useState(false);
   const [deleteCollectionConfirmVisible, setDeleteCollectionConfirmVisible] = useState(false);
   const [profileOptionsVisible, setProfileOptionsVisible] = useState(false);
 
@@ -216,6 +219,7 @@ export default function ProfileScreen() {
     setEditCollectionTitle(selectedCollection.title);
     setEditCollectionDescription(selectedCollection.description ?? '');
     setEditCollectionIsPublic(selectedCollection.isPublic !== false);
+    setEditCollectionShareSaves(!!(selectedCollection as any).shareSaves);
     setEditCollectionModalVisible(true);
     setCollectionOptionsVisible(false);
     setSelectedCollection(null);
@@ -229,16 +233,18 @@ export default function ProfileScreen() {
         title: editCollectionTitle.trim(),
         description: editCollectionDescription.trim() || undefined,
         isPublic: editCollectionIsPublic,
+        shareSaves: editCollectionShareSaves,
       });
-      setPosts((prev) => prev.map((p: any) => (p.id === c.id ? { ...p, title: editCollectionTitle.trim(), description: editCollectionDescription.trim() || undefined, isPublic: editCollectionIsPublic } : p)));
+      setPosts((prev) => prev.map((p: any) => (p.id === c.id ? { ...p, title: editCollectionTitle.trim(), description: editCollectionDescription.trim() || undefined, isPublic: editCollectionIsPublic, shareSaves: editCollectionShareSaves } : p)));
       setEditCollectionModalVisible(false);
       setEditingCollection(null);
       setEditCollectionTitle('');
       setEditCollectionDescription('');
+      setEditCollectionShareSaves(false);
     } catch (e) {
       showError(t('collections.updateFailed', 'Failed to update collection'));
     }
-  }, [editingCollection, editCollectionTitle, editCollectionDescription, editCollectionIsPublic, showError, t]);
+  }, [editingCollection, editCollectionTitle, editCollectionDescription, editCollectionIsPublic, editCollectionShareSaves, showError, t]);
 
   const handleDeleteCollectionPress = useCallback(() => {
     setDeleteCollectionConfirmVisible(true);
@@ -406,7 +412,7 @@ export default function ProfileScreen() {
           <Text style={styles.errorText}>{t('profile.loadError', 'Failed to load profile.')}</Text>
           {!handle && (
             <Pressable
-              style={({ pressed }) => [styles.errorStateButton, pressed && styles.errorStateButtonPressed]}
+              style={({ pressed }: { pressed: boolean }) => [styles.errorStateButton, pressed && styles.errorStateButtonPressed]}
               onPress={() => router.push('/settings')}
             >
               <MaterialIcons name="settings" size={SIZES.iconMedium} color={COLORS.primary} />
@@ -422,44 +428,20 @@ export default function ProfileScreen() {
           keyExtractor={keyExtractor}
           renderItem={activeTab === 'collections' ? renderCollectionItem : renderItem}
           ListHeaderComponent={
-            <>
-              {/* Header image only: fixed 4:3 so drawing looks identical on all devices. */}
-              <View style={[styles.profileHeaderImageWrap, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
-                {profileHeaderImageUrl ? (
-                  <Image
-                    source={{ uri: profileHeaderImageUrl }}
-                    style={[styles.profileTopBackground, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                  />
-                ) : (
-                  <View style={styles.profileTopBackgroundBlack} />
-                )}
-                <View style={[styles.headerBar, { paddingTop: insets.top + 10 }]}>
-                  {!isSelf ? (
-                    <Pressable onPress={() => router.back()} style={styles.iconButton}>
-                      <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-                    </Pressable>
-                  ) : (
-                    <Pressable
-                      onPress={() => setHeaderEditModalVisible(true)}
-                      style={styles.iconButton}
-                      accessibilityLabel={t('profile.editHeader', 'Edit background')}
-                    >
-                      <MaterialIcons name="edit" size={HEADER.iconSize} color={HEADER.iconColor} />
-                    </Pressable>
-                  )}
-                  <Pressable
-                    onPress={() => setProfileOptionsVisible(true)}
-                    style={styles.iconButton}
-                    accessibilityLabel={t('profile.options', 'Options')}
-                    accessibilityRole="button"
-                  >
-                    <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-                  </Pressable>
-                </View>
+            <View style={styles.profileListHeader}>
+              <View style={[styles.profileTopSectionWrap, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
+                <ProfileHeaderSection
+                  headerImageUrl={profileHeaderImageUrl}
+                  isSelf={isSelf}
+                  safeAreaTop={insets.top}
+                  onBack={() => router.back()}
+                  onEditHeader={() => setHeaderEditModalVisible(true)}
+                  onOptions={() => setProfileOptionsVisible(true)}
+                  editHeaderA11yLabel={t('profile.editHeader', 'Edit background')}
+                  optionsA11yLabel={t('profile.options', 'Options')}
+                />
               </View>
-              {/* Profile info + stats: separate block so content is never clipped on small phones. */}
+              {/* Info block below header: avatar, name, bio, stats (same ratio = same draw area everywhere) */}
               <View style={styles.profileInfoBlock}>
                 <View style={styles.profileHeader}>
                   <View style={styles.avatarContainer}>
@@ -499,9 +481,9 @@ export default function ProfileScreen() {
                     <Text style={styles.handle}>@{user.handle}</Text>
                   </View>
 
-                  {user.bio && (
+                  {user.bio ? (
                     <Text style={styles.bio}>{user.bio}</Text>
-                  )}
+                  ) : null}
 
                   <Pressable
                     style={[
@@ -521,47 +503,54 @@ export default function ProfileScreen() {
                   </Pressable>
                 </View>
 
-                <View style={styles.statsRow}>
+                <View style={styles.followersFollowingRow}>
                   <Pressable
-                    style={styles.statItem}
                     onPress={() => isSelf && router.push('/user/connections?tab=followers')}
+                    disabled={!isSelf}
+                    style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
                   >
-                    <Text style={styles.statNumber}>{formatCompactNumber(user.followerCount)}</Text>
-                    <Text style={styles.statLabel}>{t('profile.followers')}</Text>
+                    <Text style={styles.followersFollowingText}>
+                      {formatCompactNumber(user.followerCount)} {t('profile.followers').toLowerCase()}
+                    </Text>
                   </Pressable>
+                  <Text style={styles.followersFollowingText}> · </Text>
                   <Pressable
-                    style={styles.statItem}
                     onPress={() => isSelf && router.push('/user/connections?tab=following')}
+                    disabled={!isSelf}
+                    style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
                   >
-                    <Text style={styles.statNumber}>{formatCompactNumber(user.followingCount)}</Text>
-                    <Text style={styles.statLabel}>{t('profile.following')}</Text>
+                    <Text style={styles.followersFollowingText}>
+                      {formatCompactNumber(user.followingCount)} {t('profile.following').toLowerCase()}
+                    </Text>
                   </Pressable>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{formatCompactNumber(user.quoteReceivedCount)}</Text>
-                    <Text style={styles.statLabel}>{t('profile.quotes')}</Text>
-                  </View>
                 </View>
               </View>
-
               {/* Tabs: Posts, Replies, Quotes, Saved (own only), Collections */}
               <View style={styles.tabsContainer}>
                 {(isSelf
                   ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
                   : (['posts', 'replies', 'quotes', 'collections'] as const)
-                ).map((tab) => (
-                  <Pressable
-                    key={tab}
-                    style={[styles.tab, activeTab === tab && styles.tabActive]}
-                    onPress={() => setActiveTab(tab)}
-                    accessibilityLabel={t(`profile.${tab}`)}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: activeTab === tab }}
-                  >
-                    <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                      {t(`profile.${tab}`)}
-                    </Text>
-                  </Pressable>
-                ))}
+                ).map((tab) => {
+                  const count = tab === 'posts' ? (user.postCount ?? 0)
+                    : tab === 'replies' ? (user.replyCount ?? 0)
+                      : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
+                        : tab === 'saved' ? (user.keepsCount ?? 0)
+                          : (user.collectionCount ?? 0);
+                  return (
+                    <Pressable
+                      key={tab}
+                      style={[styles.tab, activeTab === tab && styles.tabActive]}
+                      onPress={() => setActiveTab(tab)}
+                      accessibilityLabel={count > 0 ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: activeTab === tab }}
+                    >
+                      <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                        {t(`profile.${tab}`)}{count > 0 ? ` (${formatCompactNumber(count)})` : ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
               {isSelf && activeTab === 'saved' && (
                 <Pressable
@@ -587,7 +576,7 @@ export default function ProfileScreen() {
                   <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
                 </Pressable>
               )}
-            </>
+            </View>
           }
           ListEmptyComponent={
             <EmptyState
@@ -625,6 +614,7 @@ export default function ProfileScreen() {
               }
             />
           }
+          ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -634,11 +624,7 @@ export default function ProfileScreen() {
           }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
-          windowSize={10}
+          {...FLATLIST_DEFAULTS}
           contentContainerStyle={styles.scrollContent}
         />
       )}
@@ -753,7 +739,7 @@ export default function ProfileScreen() {
               />
             </View>
             <View style={styles.editCollectionModalButtons}>
-              <Pressable style={styles.editCollectionModalButtonCancel} onPress={() => { setEditCollectionModalVisible(false); setEditingCollection(null); setEditCollectionTitle(''); setEditCollectionDescription(''); setEditCollectionIsPublic(true); }}>
+              <Pressable style={styles.editCollectionModalButtonCancel} onPress={() => { setEditCollectionModalVisible(false); setEditingCollection(null); setEditCollectionTitle(''); setEditCollectionDescription(''); setEditCollectionIsPublic(true); setEditCollectionShareSaves(false); }}>
                 <Text style={styles.editCollectionModalButtonTextCancel}>{t('common.cancel')}</Text>
               </Pressable>
               <Pressable style={[styles.editCollectionModalButtonSave, !editCollectionTitle.trim() && styles.editCollectionModalButtonDisabled]} onPress={handleSaveEditCollection} disabled={!editCollectionTitle.trim()}>
@@ -809,7 +795,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -852,47 +838,24 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  profileHeaderImageWrap: {
+  profileListHeader: {},
+  profileTopSectionWrap: {
     position: 'relative',
     overflow: 'hidden',
   },
+  /** Info block below header (avatar, name, bio, stats, tabs). */
   profileInfoBlock: {
-    width: '100%',
     backgroundColor: COLORS.ink,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingTop: SPACING.m,
     paddingBottom: SPACING.l,
   },
-  profileTopBackground: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
-  },
-  profileTopBackgroundBlack: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: COLORS.ink,
-  },
-  headerBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: HEADER.barPaddingHorizontal,
-    paddingTop: 0, // Handled dynamically
-    paddingBottom: HEADER.barPaddingBottom,
-    zIndex: 10,
+  profileTopContent: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: SPACING.m,
+    paddingBottom: SPACING.l,
     position: 'relative',
-  },
-  iconButton: {
-    padding: SPACING.s,
-    margin: -SPACING.s,
+    zIndex: 5,
   },
   profileHeader: {
     alignItems: 'center',
@@ -943,26 +906,26 @@ const styles = StyleSheet.create({
   },
   actionModalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: MODAL.backdropBackgroundColor,
+    backgroundColor: toColor(MODAL.backdropBackgroundColor),
   },
   actionModalCard: {
-    backgroundColor: MODAL.sheetBackgroundColor,
-    borderTopLeftRadius: MODAL.sheetBorderRadius,
-    borderTopRightRadius: MODAL.sheetBorderRadius,
-    paddingHorizontal: MODAL.sheetPaddingHorizontal,
-    paddingTop: MODAL.sheetPaddingTop,
-    borderWidth: MODAL.sheetBorderWidth,
-    borderBottomWidth: MODAL.sheetBorderBottomWidth,
-    borderColor: MODAL.sheetBorderColor,
+    backgroundColor: toColor(MODAL.sheetBackgroundColor),
+    borderTopLeftRadius: toDimension(MODAL.sheetBorderRadius),
+    borderTopRightRadius: toDimension(MODAL.sheetBorderRadius),
+    paddingHorizontal: toDimension(MODAL.sheetPaddingHorizontal),
+    paddingTop: toDimension(MODAL.sheetPaddingTop),
+    borderWidth: toDimension(MODAL.sheetBorderWidth),
+    borderBottomWidth: toDimension(MODAL.sheetBorderBottomWidth),
+    borderColor: toColor(MODAL.sheetBorderColor),
   },
   actionModalHandle: {
-    width: MODAL.handleWidth,
-    height: MODAL.handleHeight,
-    borderRadius: MODAL.handleBorderRadius,
-    backgroundColor: MODAL.handleBackgroundColor,
+    width: toDimension(MODAL.handleWidth),
+    height: toDimension(MODAL.handleHeight),
+    borderRadius: toDimension(MODAL.handleBorderRadius),
+    backgroundColor: toColor(MODAL.handleBackgroundColor),
     alignSelf: 'center',
-    marginTop: MODAL.handleMarginTop,
-    marginBottom: MODAL.handleMarginBottom,
+    marginTop: toDimension(MODAL.handleMarginTop),
+    marginBottom: toDimension(MODAL.handleMarginBottom),
   },
   actionModalTitle: {
     fontSize: 13,
@@ -976,9 +939,9 @@ const styles = StyleSheet.create({
   actionModalOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: MODAL.buttonMinHeight,
-    paddingVertical: MODAL.buttonPaddingVertical,
-    paddingHorizontal: MODAL.buttonPaddingHorizontal,
+    minHeight: toDimension(MODAL.buttonMinHeight),
+    paddingVertical: toDimension(MODAL.buttonPaddingVertical),
+    paddingHorizontal: toDimension(MODAL.buttonPaddingHorizontal),
     gap: SPACING.m,
     borderRadius: SIZES.borderRadius,
     marginBottom: 2,
@@ -988,29 +951,29 @@ const styles = StyleSheet.create({
   },
   actionModalOptionDestructive: {},
   actionModalOptionText: {
-    fontSize: MODAL.buttonFontSize,
+    fontSize: toDimension(MODAL.buttonFontSize),
     color: COLORS.paper,
-    fontFamily: FONTS.regular,
+    fontFamily: FONTS.semiBold,
   },
   actionModalOptionTextDestructive: {
     color: COLORS.error,
   },
   actionModalCancel: {
     marginTop: SPACING.m,
-    minHeight: MODAL.buttonMinHeight,
-    paddingVertical: MODAL.buttonPaddingVertical,
-    paddingHorizontal: MODAL.buttonPaddingHorizontal,
+    minHeight: toDimension(MODAL.buttonMinHeight),
+    paddingVertical: toDimension(MODAL.buttonPaddingVertical),
+    paddingHorizontal: toDimension(MODAL.buttonPaddingHorizontal),
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: MODAL.buttonBorderRadius,
-    backgroundColor: MODAL.secondaryButtonBackgroundColor,
-    borderWidth: MODAL.secondaryButtonBorderWidth,
-    borderColor: MODAL.secondaryButtonBorderColor,
+    borderRadius: toDimension(MODAL.buttonBorderRadius),
+    backgroundColor: toColor(MODAL.secondaryButtonBackgroundColor),
+    borderWidth: toDimension(MODAL.secondaryButtonBorderWidth),
+    borderColor: toColor(MODAL.secondaryButtonBorderColor),
   },
   actionModalCancelText: {
-    fontSize: MODAL.buttonFontSize,
-    fontWeight: MODAL.buttonFontWeight,
-    color: MODAL.secondaryButtonTextColor,
+    fontSize: toDimension(MODAL.buttonFontSize),
+    fontWeight: (typeof MODAL.buttonFontWeight === 'string' ? MODAL.buttonFontWeight : '600') as '600',
+    color: toColor(MODAL.secondaryButtonTextColor),
     fontFamily: FONTS.semiBold,
   },
   avatarText: {
@@ -1096,6 +1059,24 @@ const styles = StyleSheet.create({
   actionButtonTextFilled: {
     color: COLORS.ink,
   },
+  followersFollowingRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xs,
+    gap: 2,
+  },
+  followersFollowingPressable: {
+    opacity: 0.7,
+  },
+  followersFollowingText: {
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    color: COLORS.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1104,6 +1085,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider, // Citewalk-border/20
     marginBottom: 0,
+  },
+  statsRowContent: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.l,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.s,
   },
   statItem: {
     alignItems: 'center',
@@ -1189,10 +1177,10 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.m,
   },
   editCollectionModalHandle: {
-    width: MODAL.handleWidth,
-    height: MODAL.handleHeight,
-    borderRadius: MODAL.handleBorderRadius,
-    backgroundColor: MODAL.handleBackgroundColor,
+    width: toDimension(MODAL.handleWidth),
+    height: toDimension(MODAL.handleHeight),
+    borderRadius: toDimension(MODAL.handleBorderRadius),
+    backgroundColor: toColor(MODAL.handleBackgroundColor),
     alignSelf: 'center',
     marginBottom: SPACING.m,
   },

@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { View, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, FONTS, HEADER, createStyles } from '../constants/theme';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
 export function OfflineBanner() {
@@ -19,7 +19,7 @@ export function OfflineBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,24 +1,35 @@
-import React from 'react';
-import { StyleSheet, Text, View, Pressable, Image } from 'react-native';
+import React, { memo, useCallback } from 'react';
+import { Text, View, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getImageUrl } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
 
 const THUMB_ASPECT = 4 / 3;
 const THUMB_WIDTH = 80;
 
+interface PostPreviewRowProps {
+  post: {
+    id: string;
+    title?: string | null;
+    body?: string | null;
+    headerImageKey?: string | null;
+    headerImageUrl?: string | null;
+    author?: { displayName?: string; handle?: string } | null;
+  };
+}
+
 /** Small post preview for "Quoted by" and similar lists: thumb + title + author + one-line body. */
-export function PostPreviewRow({ post }: { post: any }) {
+function PostPreviewRowInner({ post }: PostPreviewRowProps) {
   const router = useRouter();
   const thumbHeight = Math.round(THUMB_WIDTH / THUMB_ASPECT);
   const imageUri = (post.headerImageKey ? getImageUrl(post.headerImageKey) : null)
-    || (post as any).headerImageUrl;
+    || (post as { headerImageUrl?: string }).headerImageUrl;
 
-  const handlePress = () => {
+  const handlePress = useCallback(() => {
     if (post.title) router.push(`/post/${post.id}/reading`);
     else router.push(`/post/${post.id}`);
-  };
+  }, [post.id, post.title, router]);
 
   const bodyPreview = (post.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
   const authorName = post.author?.displayName || post.author?.handle || '';
@@ -49,7 +60,9 @@ export function PostPreviewRow({ post }: { post: any }) {
   );
 }
 
-const styles = StyleSheet.create({
+export const PostPreviewRow = memo(PostPreviewRowInner as React.FunctionComponent<PostPreviewRowProps>) as (props: PostPreviewRowProps) => React.ReactElement | null;
+
+const styles = createStyles({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

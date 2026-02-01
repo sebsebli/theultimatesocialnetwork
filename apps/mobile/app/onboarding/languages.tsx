@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Alert } from 'react-native';
+import { Text, View, Pressable, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api, setOnboardingStage } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../../constants/theme';
 import { CONTENT_LANGUAGES } from '../../constants/languages';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -123,7 +123,7 @@ export default function OnboardingLanguagesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

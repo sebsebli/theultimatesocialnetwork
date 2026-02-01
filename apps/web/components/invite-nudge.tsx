@@ -1,8 +1,9 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 
-export function InviteNudge() {
+function InviteNudgeInner() {
   return (
     <Link
       href="/invites"
@@ -47,3 +48,5 @@ export function InviteNudge() {
     </Link>
   );
 }
+
+export const InviteNudge = memo(InviteNudgeInner);

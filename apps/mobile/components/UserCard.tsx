@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+import React, { memo } from 'react';
+import { View, Text, Pressable, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { getImageUrl } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, LAYOUT } from '../constants/theme';
+import { COLORS, SPACING, FONTS, LAYOUT, createStyles } from '../constants/theme';
 
 /**
  * Shared user profile card used everywhere: followers, following, suggestions, explore, search.
@@ -24,7 +24,7 @@ interface UserCardProps {
   onFollow?: () => void;
 }
 
-export function UserCard({ item, onPress, onFollow }: UserCardProps) {
+function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
   const handleFollowPress = (e: any) => {
     e?.stopPropagation?.();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -65,7 +65,9 @@ export function UserCard({ item, onPress, onFollow }: UserCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+export const UserCard = memo(UserCardInner as React.FunctionComponent<UserCardProps>) as (props: UserCardProps) => React.ReactElement | null;
+
+const styles = createStyles({
   card: {
     backgroundColor: COLORS.ink,
     borderBottomWidth: 1,

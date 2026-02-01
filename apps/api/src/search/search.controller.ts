@@ -66,10 +66,20 @@ export class SearchController {
     const byId = new Map(posts.map((p) => [p.id, p]));
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
     const hydrated = hits.map((h) => {
-      const post = byId.get(h.id);
-      const headerImageKey = post?.headerImageKey ?? (h as { headerImageKey?: string }).headerImageKey ?? null;
-      const headerImageUrl = headerImageKey ? getImageUrl(headerImageKey) : null;
-      return { ...h, headerImageKey: headerImageKey ?? undefined, headerImageUrl: headerImageUrl ?? undefined };
+      const post = h.id != null ? byId.get(h.id) : undefined;
+      const headerImageKey =
+        post?.headerImageKey ??
+        (h as { headerImageKey?: string }).headerImageKey ??
+        null;
+      const headerImageUrl =
+        headerImageKey != null && headerImageKey !== ''
+          ? getImageUrl(headerImageKey)
+          : null;
+      return {
+        ...h,
+        headerImageKey: headerImageKey ?? undefined,
+        headerImageUrl: headerImageUrl ?? undefined,
+      };
     });
     return { ...results, hits: hydrated };
   }
@@ -96,10 +106,15 @@ export class SearchController {
     const byId = new Map(users.map((u) => [u.id, u]));
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
     const hydrated = hits.map((h) => {
-      const u = byId.get(h.id);
+      const u = h.id != null ? byId.get(h.id) : undefined;
       const avatarKey = u?.avatarKey ?? h.avatarKey ?? null;
-      const avatarUrl = avatarKey ? getImageUrl(avatarKey) : null;
-      return { ...h, avatarKey: avatarKey ?? undefined, avatarUrl: avatarUrl ?? undefined };
+      const avatarUrl =
+        avatarKey != null && avatarKey !== '' ? getImageUrl(avatarKey) : null;
+      return {
+        ...h,
+        avatarKey: avatarKey ?? undefined,
+        avatarUrl: avatarUrl ?? undefined,
+      };
     });
     return { ...res, hits: hydrated };
   }
@@ -125,10 +140,16 @@ export class SearchController {
     const byId = new Map(fromDb.map((u) => [u.id, u]));
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
     const hydratedUsers = users.map((h) => {
-      const u = byId.get(h.id);
-      const avatarKey = u?.avatarKey ?? (h as { avatarKey?: string }).avatarKey ?? null;
-      const avatarUrl = avatarKey ? getImageUrl(avatarKey) : null;
-      return { ...h, avatarKey: avatarKey ?? undefined, avatarUrl: avatarUrl ?? undefined };
+      const u = h.id != null ? byId.get(h.id) : undefined;
+      const avatarKey =
+        u?.avatarKey ?? (h as { avatarKey?: string }).avatarKey ?? null;
+      const avatarUrl =
+        avatarKey != null && avatarKey !== '' ? getImageUrl(avatarKey) : null;
+      return {
+        ...h,
+        avatarKey: avatarKey ?? undefined,
+        avatarUrl: avatarUrl ?? undefined,
+      };
     });
     return { ...result, users: hydratedUsers };
   }
@@ -145,7 +166,11 @@ export class SearchController {
       return { hits: [] };
     }
     const res = await this.meilisearch.searchTopics(query, limit, offset);
-    const hits = (res.hits || []) as { id?: string; slug?: string; title?: string }[];
+    const hits = (res.hits || []) as {
+      id?: string;
+      slug?: string;
+      title?: string;
+    }[];
     if (hits.length === 0) return res;
     const topicIds = hits.map((h) => h.id).filter(Boolean) as string[];
     type LatestRow = { topicId: string; postId: string };
@@ -171,7 +196,14 @@ export class SearchController {
         ? await this.postRepo.find({
             where: { id: In(postIds) },
             relations: ['author'],
-            select: ['id', 'authorId', 'title', 'body', 'headerImageKey', 'createdAt'],
+            select: [
+              'id',
+              'authorId',
+              'title',
+              'body',
+              'headerImageKey',
+              'createdAt',
+            ],
           })
         : [];
     const postMap = new Map(posts.map((p) => [p.id, p]));
@@ -183,7 +215,9 @@ export class SearchController {
         .replace(/_([^_]+)_/g, '$1')
         .replace(/\n+/g, ' ')
         .trim();
-      return stripped.length <= maxLen ? stripped : stripped.slice(0, maxLen) + '…';
+      return stripped.length <= maxLen
+        ? stripped
+        : stripped.slice(0, maxLen) + '…';
     }
     const hydrated = hits.map((h) => {
       const postId = topicToPostId.get(h.id!);

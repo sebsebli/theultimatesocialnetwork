@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { getImageUrl } from "@/lib/security";
 
 export type AvatarSize = "sm" | "md" | "lg";
@@ -26,7 +27,7 @@ export interface AvatarProps {
  * otherwise a circle with the first letter of displayName/handle.
  * Uses native <img> so API image URLs work without Next.js image config.
  */
-export function Avatar({
+function AvatarInner({
   avatarKey,
   avatarUrl,
   displayName,
@@ -62,3 +63,5 @@ export function Avatar({
     </div>
   );
 }
+
+export const Avatar = memo(AvatarInner);

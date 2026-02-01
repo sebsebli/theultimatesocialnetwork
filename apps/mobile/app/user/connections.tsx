@@ -4,7 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { COLORS, SPACING, FONTS, SIZES, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, FONTS, SIZES, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -258,24 +258,33 @@ export default function ConnectionsScreen() {
         />
       </View>
 
-      {loading ? (
-        <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
-      ) : (
-<FlatList
+      <FlatList
         data={filteredItems}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         renderItem={renderItem}
-          keyExtractor={(item: { id: string }) => item.id}
-          contentContainerStyle={{ paddingBottom: SPACING.l }}
-          ListEmptyComponent={EmptyComponent}
-        />
-      )}
+        keyExtractor={(item: { id: string }) => item.id}
+        contentContainerStyle={{ paddingBottom: SPACING.l }}
+        ListHeaderComponent={
+          loading ? (
+            <View style={styles.loadingBar}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={loading && filteredItems.length === 0 ? null : EmptyComponent}
+        {...FLATLIST_DEFAULTS}
+      />
+      {loading && filteredItems.length === 0 ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -313,6 +322,18 @@ const styles = StyleSheet.create({
     color: COLORS.tertiary,
     fontSize: 16,
     fontFamily: FONTS.regular,
+  },
+  loadingBar: {
+    paddingVertical: SPACING.m,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.ink,
   },
   itemWrapper: {
     flexDirection: 'row',

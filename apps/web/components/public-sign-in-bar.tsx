@@ -1,13 +1,14 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 
-interface PublicSignInBarProps {
+export interface PublicSignInBarProps {
   /** Short line above the button, e.g. "Sign in to follow and interact" */
   message?: string;
 }
 
-export function PublicSignInBar({
+function PublicSignInBarInner({
   message = "Sign in to follow, like, and comment",
 }: PublicSignInBarProps) {
   return (
@@ -26,3 +27,5 @@ export function PublicSignInBar({
     </div>
   );
 }
+
+export const PublicSignInBar = memo(PublicSignInBarInner);

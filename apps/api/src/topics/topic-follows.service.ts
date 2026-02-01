@@ -106,11 +106,7 @@ export class TopicFollowsService {
       .select('pt.topic_id', 'topicId')
       .addSelect('p.id', 'postId')
       .from(PostTopic, 'pt')
-      .innerJoin(
-        Post,
-        'p',
-        'p.id = pt.post_id AND p.deleted_at IS NULL',
-      )
+      .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
       .where('pt.topic_id IN (:...topicIds)', { topicIds })
       .distinctOn(['pt.topic_id'])
       .orderBy('pt.topic_id')
@@ -126,7 +122,14 @@ export class TopicFollowsService {
         ? await this.postRepo.find({
             where: { id: In(postIds) },
             relations: ['author'],
-            select: ['id', 'authorId', 'title', 'body', 'headerImageKey', 'createdAt'],
+            select: [
+              'id',
+              'authorId',
+              'title',
+              'body',
+              'headerImageKey',
+              'createdAt',
+            ],
           })
         : [];
     const postMap = new Map(posts.map((p) => [p.id, p]));
@@ -139,7 +142,9 @@ export class TopicFollowsService {
         .replace(/_([^_]+)_/g, '$1')
         .replace(/\n+/g, ' ')
         .trim();
-      return stripped.length <= maxLen ? stripped : stripped.slice(0, maxLen) + '…';
+      return stripped.length <= maxLen
+        ? stripped
+        : stripped.slice(0, maxLen) + '…';
     }
 
     return base.map((t) => {

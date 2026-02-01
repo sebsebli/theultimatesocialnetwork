@@ -3,14 +3,13 @@
  * All components should use these patterns for consistency
  */
 
-import { StyleSheet } from 'react-native';
-import { COLORS, SPACING, SIZES, FONTS } from './theme';
+import { COLORS, SPACING, SIZES, FONTS, createStyles } from './theme';
 
 /**
  * Standard Header Styles
  * Used across all screens with navigation
  */
-export const headerStyles = StyleSheet.create({
+export const headerStyles = createStyles({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -56,7 +55,7 @@ export const headerStyles = StyleSheet.create({
 /**
  * Standard Button Styles
  */
-export const buttonStyles = StyleSheet.create({
+export const buttonStyles = createStyles({
   // Primary button (filled)
   primary: {
     height: 50,
@@ -144,7 +143,7 @@ export const buttonStyles = StyleSheet.create({
 /**
  * Standard Input Styles
  */
-export const inputStyles = StyleSheet.create({
+export const inputStyles = createStyles({
   // Standard text input
   text: {
     height: 50,
@@ -219,7 +218,7 @@ export const inputStyles = StyleSheet.create({
 /**
  * Standard Card/Container Styles
  */
-export const cardStyles = StyleSheet.create({
+export const cardStyles = createStyles({
   // Standard card
   card: {
     backgroundColor: COLORS.hover,
@@ -265,7 +264,7 @@ export const cardStyles = StyleSheet.create({
 /**
  * Standard Typography Styles
  */
-export const typographyStyles = StyleSheet.create({
+export const typographyStyles = createStyles({
   // Titles
   titleLarge: {
     fontSize: 28,
@@ -338,7 +337,7 @@ export const typographyStyles = StyleSheet.create({
 /**
  * Standard Tab Styles
  */
-export const tabStyles = StyleSheet.create({
+export const tabStyles = createStyles({
   container: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -368,7 +367,7 @@ export const tabStyles = StyleSheet.create({
 /**
  * Standard Modal Styles
  */
-export const modalStyles = StyleSheet.create({
+export const modalStyles = createStyles({
   overlay: {
     flex: 1,
     backgroundColor: COLORS.overlay,
@@ -428,7 +427,7 @@ export const modalStyles = StyleSheet.create({
 /**
  * Standard Empty State Styles
  */
-export const emptyStateStyles = StyleSheet.create({
+export const emptyStateStyles = createStyles({
   container: {
     padding: SPACING.xxxl,
     alignItems: 'center',
@@ -444,7 +443,7 @@ export const emptyStateStyles = StyleSheet.create({
 /**
  * Standard Toggle/Switch Styles
  */
-export const toggleStyles = StyleSheet.create({
+export const toggleStyles = createStyles({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

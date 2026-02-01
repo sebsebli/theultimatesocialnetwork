@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const t = useTranslations("settings");
   const { error: toastError, success: toastSuccess } = useToast();
   const { user } = useAuth();
   const userHandle = (user as { handle?: string } | null)?.handle;
@@ -307,136 +309,140 @@ export default function SettingsPage() {
             </div>
           </div>
 
-        {/* Email notifications (under Content) */}
-        <div className="mt-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-2">Email</h3>
-          <p className="text-secondary text-sm mb-3">
-            System messages (sign-in, security, account) are always sent.
-          </p>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
-              <div>
-                <div className="text-paper font-medium">
-                  Marketing & promotions
+          {/* Email notifications (under Content) */}
+          <div className="mt-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-2">
+              Email
+            </h3>
+            <p className="text-secondary text-sm mb-3">
+              System messages (sign-in, security, account) are always sent.
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+                <div>
+                  <div className="text-paper font-medium">
+                    Marketing & promotions
+                  </div>
+                  <div className="text-secondary text-sm">
+                    News, offers and product updates from Citewalk
+                  </div>
                 </div>
-                <div className="text-secondary text-sm">
-                  News, offers and product updates from Citewalk
-                </div>
+                {!emailPrefsLoading && (
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={emailMarketing}
+                      onChange={(e) => {
+                        const v = e.target.checked;
+                        setEmailMarketing(v);
+                        fetch("/api/me/notification-prefs", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email_marketing: v }),
+                        }).catch(() => setEmailMarketing(!v));
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                )}
               </div>
-              {!emailPrefsLoading && (
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+                <div>
+                  <div className="text-paper font-medium">
+                    Product updates & tips
+                  </div>
+                  <div className="text-secondary text-sm">
+                    New features and how to get the most out of Citewalk
+                  </div>
+                </div>
+                {!emailPrefsLoading && (
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={emailProductUpdates}
+                      onChange={(e) => {
+                        const v = e.target.checked;
+                        setEmailProductUpdates(v);
+                        fetch("/api/me/notification-prefs", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email_product_updates: v }),
+                        }).catch(() => setEmailProductUpdates(!v));
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Feed (under Content) */}
+          <div className="mt-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-2">
+              Feed
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+                <div>
+                  <div className="text-paper font-medium">
+                    Show saves from people I follow
+                  </div>
+                  <div className="text-secondary text-sm">
+                    See when people you follow save posts
+                  </div>
+                </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={emailMarketing}
-                    onChange={(e) => {
-                      const v = e.target.checked;
-                      setEmailMarketing(v);
-                      fetch("/api/me/notification-prefs", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ email_marketing: v }),
-                      }).catch(() => setEmailMarketing(!v));
-                    }}
+                    checked={showSaves}
+                    onChange={(e) => setShowSaves(e.target.checked)}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
-              )}
-            </div>
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
-              <div>
-                <div className="text-paper font-medium">
-                  Product updates & tips
-                </div>
-                <div className="text-secondary text-sm">
-                  New features and how to get the most out of Citewalk
-                </div>
               </div>
-              {!emailPrefsLoading && (
+            </div>
+          </div>
+
+          {/* Explore relevance (under Content) */}
+          <div className="mt-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-2">
+              Explore relevance
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+                <div>
+                  <div className="text-paper font-medium">
+                    Enable recommendations
+                  </div>
+                  <div className="text-secondary text-sm">
+                    Use relevance algorithms
+                  </div>
+                </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={emailProductUpdates}
-                    onChange={(e) => {
-                      const v = e.target.checked;
-                      setEmailProductUpdates(v);
-                      fetch("/api/me/notification-prefs", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ email_product_updates: v }),
-                      }).catch(() => setEmailProductUpdates(!v));
-                    }}
+                    checked={enableRecommendations}
+                    onChange={(e) => setEnableRecommendations(e.target.checked)}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 </label>
-              )}
+              </div>
+              <Link
+                href="/settings/relevance"
+                className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              >
+                <div className="font-medium">Relevance controls</div>
+                <div className="text-secondary text-sm mt-1">
+                  Adjust recommendation weights
+                </div>
+              </Link>
             </div>
           </div>
-        </div>
-
-        {/* Feed (under Content) */}
-        <div className="mt-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-2">Feed</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
-              <div>
-                <div className="text-paper font-medium">
-                  Show saves from people I follow
-                </div>
-                <div className="text-secondary text-sm">
-                  See when people you follow save posts
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showSaves}
-                  onChange={(e) => setShowSaves(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Explore relevance (under Content) */}
-        <div className="mt-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-2">
-            Explore relevance
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
-              <div>
-                <div className="text-paper font-medium">
-                  Enable recommendations
-                </div>
-                <div className="text-secondary text-sm">
-                  Use relevance algorithms
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={enableRecommendations}
-                  onChange={(e) => setEnableRecommendations(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-              </label>
-            </div>
-            <Link
-              href="/settings/relevance"
-              className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
-            >
-              <div className="font-medium">Relevance controls</div>
-              <div className="text-secondary text-sm mt-1">
-                Adjust recommendation weights
-              </div>
-            </Link>
-          </div>
-        </div>
         </section>
 
         {/* Safety — match mobile */}

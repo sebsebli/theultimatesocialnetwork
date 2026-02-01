@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Blurhash } from "react-blurhash";
 import { useTranslations } from "next-intl";
-import { renderMarkdown, extractWikilinks, stripLeadingH1IfMatch, bodyToPlainExcerpt } from "@/utils/markdown";
+import {
+  renderMarkdown,
+  extractWikilinks,
+  stripLeadingH1IfMatch,
+  bodyToPlainExcerpt,
+} from "@/utils/markdown";
 import { getImageUrl } from "@/lib/security";
 import { Avatar } from "./avatar";
 import { OverflowMenu } from "./overflow-menu";
@@ -33,12 +38,12 @@ export interface Post {
   referenceMetadata?: Record<string, { title?: string }>;
 }
 
-interface PostItemProps {
+export interface PostItemProps {
   post: Post;
   isAuthor?: boolean;
 }
 
-export function PostItem({ post, isAuthor = false }: PostItemProps) {
+function PostItemInner({ post, isAuthor = false }: PostItemProps) {
   const t = useTranslations("post");
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [kept, setKept] = useState(post.isKept ?? false);
@@ -175,9 +180,29 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
             {post.title}
           </h2>
         )}
-        <p className="text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300 whitespace-nowrap overflow-hidden">
-          {bodyToPlainExcerpt(post.body, post.title ?? undefined, 120)}
-        </p>
+        {(() => {
+          const excerptMax = 250;
+          const excerpt = bodyToPlainExcerpt(
+            post.body,
+            post.title ?? undefined,
+            excerptMax,
+            false,
+          );
+          const exceedsThreshold = excerpt.length >= excerptMax;
+          return (
+            <div className="relative max-h-[4.5rem] overflow-hidden">
+              <p className="text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300">
+                {excerpt}
+              </p>
+              {exceedsThreshold && (
+                <div
+                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-ink to-transparent"
+                  aria-hidden
+                />
+              )}
+            </div>
+          );
+        })()}
         {post.headerImageKey && (
           <div className="relative w-full h-[240px] rounded-xl bg-divider mt-4 overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-300">
             {post.headerImageBlurhash && (
@@ -339,7 +364,11 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
         </button>
         <Link
           href={`/post/${post.id}#reply`}
-          aria-label={post.replyCount > 0 ? `${post.replyCount} ${t("replies")}` : t("reply")}
+          aria-label={
+            post.replyCount > 0
+              ? `${post.replyCount} ${t("replies")}`
+              : t("reply")
+          }
           className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <svg
@@ -361,14 +390,14 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
         </Link>
         <Link
           href={`/compose?quote=${post.id}`}
-          aria-label={post.quoteCount > 0 ? `${post.quoteCount} ${t("quotes")}` : t("quote")}
+          aria-label={
+            post.quoteCount > 0
+              ? `${post.quoteCount} ${t("quotes")}`
+              : t("quote")
+          }
           className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <svg
-            className="w-5 h-5"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z" />
           </svg>
           {post.quoteCount > 0 && (
@@ -422,7 +451,9 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
             const url = `${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`;
             navigator.clipboard?.writeText(url);
             if (navigator.share) {
-              navigator.share({ url, title: post.title ?? "Post" }).catch(() => { });
+              navigator
+                .share({ url, title: post.title ?? "Post" })
+                .catch(() => {});
             }
           }}
           aria-label="Share post"
@@ -461,3 +492,5 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
     </article>
   );
 }
+
+export const PostItem = memo(PostItemInner);

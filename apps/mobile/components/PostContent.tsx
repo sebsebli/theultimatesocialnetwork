@@ -1,13 +1,14 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, View, Pressable, Linking, useWindowDimensions } from 'react-native';
+import React, { useMemo, memo } from 'react';
+import { Text, View, Pressable, Linking, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { MarkdownText } from './MarkdownText';
 import { Avatar } from './Avatar';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
 import { getImageUrl } from '../utils/api';
 
 import { Post } from '../types';
@@ -19,13 +20,13 @@ interface PostContentProps {
   headerImageUri?: string | null;
   showSources?: boolean;
   referenceMetadata?: Record<string, { title?: string }>;
-  /** When set, body is truncated to this many lines and "..." is shown to indicate more content when pressed. */
+  /** When set, body is truncated to this many lines with a gradient fade overlay (no ellipsis). */
   maxBodyLines?: number;
 }
 
 const HEADER_IMAGE_ASPECT = 4 / 3;
 
-export function PostContent({ post, onMenuPress, disableNavigation = false, headerImageUri, showSources = false, referenceMetadata = {}, maxBodyLines }: PostContentProps) {
+function PostContentInner({ post, onMenuPress, disableNavigation = false, headerImageUri, showSources = false, referenceMetadata = {}, maxBodyLines }: PostContentProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
@@ -227,7 +228,18 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
         ) : post.title != null && post.title !== '' ? (
           <Text style={styles.title}>{post.title}</Text>
         ) : null}
-        <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
+        {hasMoreLines ? (
+          <View style={[styles.bodyClipWrap, maxBodyLines != null && { maxHeight: maxBodyLines * 26 }]}>
+            <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
+            <LinearGradient
+              colors={['transparent', COLORS.ink]}
+              style={styles.bodyFadeGradient}
+              pointerEvents="none"
+            />
+          </View>
+        ) : (
+          <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
+        )}
       </Pressable>
 
       {/* Sources Section */}
@@ -267,7 +279,7 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     gap: SPACING.m,
   },
@@ -299,6 +311,17 @@ const styles = StyleSheet.create({
   },
   content: {
     gap: SPACING.s,
+  },
+  bodyClipWrap: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  bodyFadeGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 32,
   },
   moreIndicator: {
     fontSize: 18,
@@ -403,3 +426,5 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
   },
 });
+
+export const PostContent = memo(PostContentInner as React.FunctionComponent<PostContentProps>) as (props: PostContentProps) => React.ReactElement | null;

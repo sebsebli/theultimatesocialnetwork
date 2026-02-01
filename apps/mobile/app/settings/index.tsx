@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Platform, Switch, ActivityIndicator, Linking, Share } from 'react-native';
+import { Text, View, Pressable, ScrollView, Platform, Switch, ActivityIndicator, Linking, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { ConfirmModal } from '../../components/ConfirmModal';
@@ -38,7 +38,7 @@ export default function SettingsScreen() {
   }, []);
 
   useEffect(() => {
-    api.get<{ handle?: string }>('/users/me').then(setMe).catch(() => {});
+    api.get<{ handle?: string }>('/users/me').then(setMe).catch(() => { });
   }, []);
 
   const onDownloadSavedToggle = async (value: boolean) => {
@@ -220,13 +220,13 @@ export default function SettingsScreen() {
               icon="rss-feed"
               label={t('settings.myRssFeed', 'My RSS Feed')}
               onPress={() => {
-                const url = `${getApiBaseUrl().replace(/\/$/, '')}/rss/${encodeURIComponent(me.handle)}`;
+                const url = `${getApiBaseUrl().replace(/\/$/, '')}/rss/${encodeURIComponent(me.handle ?? '')}`;
                 const title = t('settings.myRssFeed', 'My RSS Feed');
                 Share.share(
                   Platform.OS === 'android'
                     ? { message: url, title }
                     : { url, message: url, title },
-                ).catch(() => {});
+                ).catch(() => { });
               }}
             />
           ) : null}
@@ -284,7 +284,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

@@ -41,8 +41,16 @@ export class PostsController {
     @Query('postIds') postIdsStr?: string,
     @Query('topicSlugs') topicSlugsStr?: string,
   ) {
-    const postIds = postIdsStr?.split(',').map((s) => s.trim()).filter(Boolean) ?? [];
-    const topicSlugs = topicSlugsStr?.split(',').map((s) => s.trim()).filter(Boolean) ?? [];
+    const postIds =
+      postIdsStr
+        ?.split(',')
+        .map((s) => s.trim())
+        .filter(Boolean) ?? [];
+    const topicSlugs =
+      topicSlugsStr
+        ?.split(',')
+        .map((s) => s.trim())
+        .filter(Boolean) ?? [];
     return this.postsService.getSourcePreviews(postIds, topicSlugs);
   }
 

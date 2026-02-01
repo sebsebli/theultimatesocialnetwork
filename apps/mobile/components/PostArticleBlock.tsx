@@ -1,12 +1,12 @@
-import React from 'react';
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import React, { memo } from 'react';
+import { Text, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { MarkdownText } from './MarkdownText';
 import { getImageUrl } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../constants/theme';
 
 const ACTION_ICON_SIZE = HEADER.iconSize;
 
@@ -48,7 +48,7 @@ export interface PostArticleBlockProps {
   renderLikeButton?: (props: { liked: boolean; onPress: () => void; actionBtnStyle: object }) => React.ReactNode;
 }
 
-export function PostArticleBlock({
+function PostArticleBlockInner({
   post,
   hasHero = false,
   authorSubtitle,
@@ -167,7 +167,7 @@ export function PostArticleBlock({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   article: {
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     marginBottom: SPACING.l,
@@ -238,3 +238,5 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
   },
 });
+
+export const PostArticleBlock = memo(PostArticleBlockInner as React.FunctionComponent<PostArticleBlockProps>) as (props: PostArticleBlockProps) => React.ReactElement | null;

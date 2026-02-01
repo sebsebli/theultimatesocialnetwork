@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, TextInput } from 'react-native';
+import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONTS, SIZES, HEADER } from '../../../constants/theme';
+import { COLORS, SPACING, FONTS, SIZES, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../utils/api';
@@ -10,6 +10,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ErrorState } from '../../../components/ErrorState';
 import { useSocket } from '../../../context/SocketContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
+import { EmptyState } from '../../../components/EmptyState';
 
 interface ThreadItem {
   id: string;
@@ -216,12 +217,8 @@ export default function MessagesScreen() {
             renderItem={renderSearchHit}
             keyExtractor={(item: ChatSearchHit) => item.id}
             contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <MaterialIcons name="search-off" size={HEADER.iconSize} color={COLORS.tertiary} />
-                <Text style={styles.emptyText}>{t('search.noResults', 'No results')}</Text>
-              </View>
-            }
+            ListEmptyComponent={<EmptyState icon="search-off" headline={t('search.noResults', 'No results')} compact />}
+            {...FLATLIST_DEFAULTS}
           />
         )
       ) : (
@@ -235,19 +232,15 @@ export default function MessagesScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
           }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
-              <Text style={styles.emptyText}>{t('inbox.noMessages')}</Text>
-            </View>
-          }
+          ListEmptyComponent={<EmptyState icon="chat-bubble-outline" headline={t('inbox.noMessages')} compact />}
+          {...FLATLIST_DEFAULTS}
         />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -341,17 +334,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 100,
-    opacity: 0.5,
-  },
-  emptyText: {
-    marginTop: SPACING.m,
-    fontSize: 16,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
   },
 });

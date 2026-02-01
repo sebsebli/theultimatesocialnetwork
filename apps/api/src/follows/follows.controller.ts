@@ -15,7 +15,11 @@ export class FollowsController {
   ) {
     const result = await this.followsService.follow(user.id, followeeId);
     // When target is protected, result is a FollowRequest (pending); otherwise a Follow
-    const pending = result && typeof result === 'object' && 'status' in result && (result as { status: string }).status === 'PENDING';
+    const pending =
+      result &&
+      typeof result === 'object' &&
+      'status' in result &&
+      (result as { status: string }).status === 'PENDING';
     return { pending: !!pending };
   }
 

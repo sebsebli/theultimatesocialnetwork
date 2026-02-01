@@ -60,6 +60,8 @@ export interface Collection {
   ownerId?: string;
   owner?: User;
   hasPost?: boolean; // For "Add to Collection" sheet
+  /** When true, saves to this collection appear in feed ("X saved to Collection Y"). */
+  shareSaves?: boolean;
 }
 
 export interface CollectionItem {

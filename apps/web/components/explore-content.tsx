@@ -1,15 +1,23 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { PostItem, Post } from "./post-item";
 import { TopicCard } from "./topic-card";
 import { UserCard } from "./user-card";
 import { WhyLabel } from "./why-label";
 
-const EXPLORE_TABS = ["quoted", "deep-dives", "newsroom", "topics", "people"] as const;
+const EXPLORE_TABS = [
+  "quoted",
+  "deep-dives",
+  "newsroom",
+  "topics",
+  "people",
+] as const;
 const SWIPE_MIN_DISTANCE = 60;
 const SWIPE_HORIZONTAL_RATIO = 1.5; // deltaX must be this much larger than deltaY
+const POST_TABS = ["quoted", "deep-dives", "newsroom"] as const;
+const INITIAL_PAGE_SIZE = 15;
 
 interface Topic {
   id: string;
@@ -54,7 +62,7 @@ type TabData = {
   newsroom: ExplorePost[];
 };
 
-export function ExploreContent() {
+function ExploreContentInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") || "quoted";
@@ -69,41 +77,105 @@ export function ExploreContent() {
     newsroom: [],
   });
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const pageRef = useRef(1);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
 
-  const loadContent = useCallback(async () => {
-    setLoading(true);
-    try {
-      const query = new URLSearchParams();
-      if (sort) query.set("sort", sort);
-      const queryString = query.toString() ? `?${query.toString()}` : "";
+  const isPostTab = (POST_TABS as readonly string[]).includes(tab);
+  const useInfiniteScroll = isPostTab && sort === "newest";
 
-      const endpoints: Record<string, string> = {
-        topics: "/api/explore/topics",
-        people: "/api/explore/people",
-        quoted: "/api/explore/quoted-now",
-        "deep-dives": "/api/explore/deep-dives",
-        newsroom: "/api/explore/newsroom",
-      };
-
-      const res = await fetch(`${endpoints[tab]}${queryString}`);
-      if (res.ok) {
-        const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items || [];
-        setTabData((prev) => ({ ...prev, [tab]: items }));
+  const loadContent = useCallback(
+    async (opts?: { reset?: boolean; append?: boolean }) => {
+      const reset = opts?.reset ?? false;
+      const append = opts?.append ?? false;
+      const page = reset ? 1 : append ? pageRef.current : 1;
+      if (reset) {
+        pageRef.current = 1;
+        setHasMore(true);
       }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
+      if (append) {
+        if (loadingMoreRef.current) return;
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
+      try {
+        const query = new URLSearchParams();
+        if (sort) query.set("sort", sort);
+        if (useInfiniteScroll) {
+          query.set("page", String(page));
+          query.set("limit", String(INITIAL_PAGE_SIZE));
+        }
+        const queryString = query.toString() ? `?${query.toString()}` : "";
+
+        const endpoints: Record<string, string> = {
+          topics: "/api/explore/topics",
+          people: "/api/explore/people",
+          quoted: "/api/explore/quoted-now",
+          "deep-dives": "/api/explore/deep-dives",
+          newsroom: "/api/explore/newsroom",
+        };
+
+        const res = await fetch(`${endpoints[tab]}${queryString}`);
+        if (res.ok) {
+          const data = await res.json();
+          const items = Array.isArray(data) ? data : data.items || [];
+          const hasMoreData = !Array.isArray(data) && data.hasMore === true;
+
+          if (useInfiniteScroll && append) {
+            setTabData((prev) => {
+              const current =
+                (prev[tab as keyof TabData] as ExplorePost[]) || [];
+              const combined = [...current, ...items];
+              return { ...prev, [tab]: combined };
+            });
+            setHasMore(hasMoreData);
+            if (hasMoreData) pageRef.current = page + 1;
+          } else {
+            setTabData((prev) => ({ ...prev, [tab]: items }));
+            if (useInfiniteScroll) {
+              setHasMore(hasMoreData);
+              if (hasMoreData) pageRef.current = 2;
+            }
+          }
+        } else if (append) {
+          setHasMore(false);
+        }
+      } catch {
+        if (append) setHasMore(false);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        loadingMoreRef.current = false;
+      }
+    },
+    [tab, sort, useInfiniteScroll],
+  );
+
+  // Refetch whenever tab or sort changes.
+  useEffect(() => {
+    loadContent({ reset: true });
   }, [tab, sort]);
 
+  // Infinite scroll for Latest (newest) on post tabs
   useEffect(() => {
-    const key = tab as keyof TabData;
-    if (tabData[key]?.length === 0) {
-      loadContent();
-    }
-  }, [tab, sort, loadContent, tabData]);
+    if (!useInfiniteScroll || !hasMore || loading || loadingMore) return;
+    const el = loadMoreSentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        loadContent({ append: true });
+      },
+      { rootMargin: "200px", threshold: 0 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [useInfiniteScroll, hasMore, loading, loadingMore, loadContent]);
 
   const handleFollowTopic = async (topicId: string, slug: string) => {
     setTabData((prev) => ({
@@ -175,18 +247,25 @@ export function ExploreContent() {
       touchStart.current = null;
       const absX = Math.abs(deltaX);
       const absY = Math.abs(deltaY);
-      if (absX < SWIPE_MIN_DISTANCE || absX < absY * SWIPE_HORIZONTAL_RATIO) return;
-      const currentIndex = EXPLORE_TABS.indexOf(tab as (typeof EXPLORE_TABS)[number]);
+      if (absX < SWIPE_MIN_DISTANCE || absX < absY * SWIPE_HORIZONTAL_RATIO)
+        return;
+      const currentIndex = EXPLORE_TABS.indexOf(
+        tab as (typeof EXPLORE_TABS)[number],
+      );
       if (currentIndex === -1) return;
       if (deltaX < 0) {
         if (currentIndex < EXPLORE_TABS.length - 1) {
           const next = EXPLORE_TABS[currentIndex + 1];
-          router.push(`/explore?tab=${next}${sort && sort !== "recommended" ? `&sort=${sort}` : ""}`);
+          router.push(
+            `/explore?tab=${next}${sort && sort !== "recommended" ? `&sort=${sort}` : ""}`,
+          );
         }
       } else {
         if (currentIndex > 0) {
           const prev = EXPLORE_TABS[currentIndex - 1];
-          router.push(`/explore?tab=${prev}${sort && sort !== "recommended" ? `&sort=${sort}` : ""}`);
+          router.push(
+            `/explore?tab=${prev}${sort && sort !== "recommended" ? `&sort=${sort}` : ""}`,
+          );
         }
       }
     },
@@ -245,8 +324,21 @@ export function ExploreContent() {
                 )}
               </div>
             ))}
+
+          {useInfiniteScroll && hasMore && (
+            <div
+              ref={loadMoreSentinelRef}
+              className="min-h-[60px] flex items-center justify-center"
+            >
+              {loadingMore && (
+                <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+export const ExploreContent = memo(ExploreContentInner);

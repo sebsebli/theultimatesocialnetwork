@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Blurhash } from "react-blurhash";
 import { getImageUrl } from "@/lib/security";
 import { Avatar } from "./avatar";
 
-interface ReadingModeProps {
+export interface ReadingModeProps {
   post: {
     id: string;
     body: string;
@@ -28,7 +28,7 @@ interface ReadingModeProps {
   };
 }
 
-export function ReadingMode({ post }: ReadingModeProps) {
+function ReadingModeInner({ post }: ReadingModeProps) {
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
@@ -137,7 +137,11 @@ export function ReadingMode({ post }: ReadingModeProps) {
             fontFamily: "var(--font-serif), Georgia, serif",
           }}
           dangerouslySetInnerHTML={{
-            __html: renderMarkdownForReading(post.body, post.title, post.referenceMetadata),
+            __html: renderMarkdownForReading(
+              post.body,
+              post.title,
+              post.referenceMetadata,
+            ),
           }}
         />
 
@@ -250,6 +254,8 @@ export function ReadingMode({ post }: ReadingModeProps) {
   );
 }
 
+export const ReadingMode = memo(ReadingModeInner);
+
 import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
 
 function renderMarkdownForReading(
@@ -280,7 +286,8 @@ function renderMarkdownForReading(
   // Add reading mode link styling for prose-tag (subtle underline, same as body text)
   html = html.replace(
     /class="(prose-tag[^"]*)"/g,
-    (_, cls) => `class="${cls} border-b border-current border-opacity-40 pb-0.5"`,
+    (_, cls) =>
+      `class="${cls} border-b border-current border-opacity-40 pb-0.5"`,
   );
 
   // Convert to paragraphs for better reading

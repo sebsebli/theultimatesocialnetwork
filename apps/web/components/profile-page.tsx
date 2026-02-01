@@ -44,6 +44,10 @@ interface ProfilePageProps {
     followerCount: number;
     followingCount: number;
     quoteReceivedCount: number;
+    postCount?: number;
+    replyCount?: number;
+    collectionCount?: number;
+    keepsCount?: number;
     posts?: Post[];
     avatarKey?: string;
     avatarUrl?: string;
@@ -64,7 +68,9 @@ export function ProfilePage({
 }: ProfilePageProps) {
   const [user, setUser] = useState(initialUser);
   const [following, setFollowing] = useState(!!initialUser.isFollowing);
-  const [hasPendingFollowRequest, setHasPendingFollowRequest] = useState(!!initialUser.hasPendingFollowRequest);
+  const [hasPendingFollowRequest, setHasPendingFollowRequest] = useState(
+    !!initialUser.hasPendingFollowRequest,
+  );
   const [activeTab, setActiveTab] = useState<
     "posts" | "replies" | "quotes" | "saved" | "collections"
   >("posts");
@@ -155,13 +161,17 @@ export function ProfilePage({
     setLoading(true);
     try {
       if (following || hasPendingFollowRequest) {
-        const res = await fetch(`/api/users/${user.id}/follow`, { method: "DELETE" });
+        const res = await fetch(`/api/users/${user.id}/follow`, {
+          method: "DELETE",
+        });
         if (res.ok) {
           setFollowing(false);
           setHasPendingFollowRequest(false);
         }
       } else {
-        const res = await fetch(`/api/users/${user.id}/follow`, { method: "POST" });
+        const res = await fetch(`/api/users/${user.id}/follow`, {
+          method: "POST",
+        });
         if (res.ok) {
           const data = await res.json().catch(() => ({}));
           if (data.pending) {
@@ -220,8 +230,8 @@ export function ProfilePage({
     <div className={`min-h-screen ${isPublic ? "pb-24" : "pb-20"}`}>
       {/* Profile Top Section (Header + Avatar + Info) */}
       <div className="relative">
-        {/* Header Image Background: fixed 4:3 aspect ratio so drawings look identical on all profiles and devices */}
-        <div className="w-full aspect-[4/3] bg-ink relative overflow-hidden">
+        {/* Header Image Background: fixed 16:9 aspect ratio (matches mobile PROFILE_HEADER_ASPECT_RATIO) so draw area is identical everywhere */}
+        <div className="w-full aspect-video bg-ink relative overflow-hidden">
           {headerUrl ? (
             <Image
               src={headerUrl}
@@ -369,12 +379,19 @@ export function ProfilePage({
                 <button
                   onClick={handleFollow}
                   disabled={loading}
-                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${following || hasPendingFollowRequest
-                    ? "bg-primary border-primary text-white"
-                    : "border-primary text-primary hover:bg-primary/10"
-                    }`}
+                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${
+                    following || hasPendingFollowRequest
+                      ? "bg-primary border-primary text-white"
+                      : "border-primary text-primary hover:bg-primary/10"
+                  }`}
                 >
-                  {loading ? "..." : hasPendingFollowRequest ? "Requested" : following ? "Following" : "Follow"}
+                  {loading
+                    ? "..."
+                    : hasPendingFollowRequest
+                      ? "Requested"
+                      : following
+                        ? "Following"
+                        : "Follow"}
                 </button>
                 <button
                   onClick={async () => {
@@ -408,72 +425,33 @@ export function ProfilePage({
             )}
           </div>
 
-          {/* Stats — own profile (public or not); other people's profiles when logged in */}
+          {/* Followers / Following — subtle single line (no quotes); links when logged in */}
           {(isSelf || !isPublic) && (
-            <div className="flex justify-center gap-8 pb-4 w-full border-b border-divider">
-              {isPublic ? (
-                /* Signed-out view: plain counts, same visibility as tab titles */
-                <>
-                  <div className="flex flex-col items-center gap-1">
-                    <p className="text-paper text-xl font-bold tabular-nums">
-                      {formatCompactNumber(user.followerCount)}
-                    </p>
-                    <p className="text-paper text-sm font-medium uppercase tracking-wider">
-                      Followers
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <p className="text-paper text-xl font-bold tabular-nums">
-                      {formatCompactNumber(user.followingCount)}
-                    </p>
-                    <p className="text-paper text-sm font-medium uppercase tracking-wider">
-                      Following
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <p className="text-paper text-xl font-bold tabular-nums">
-                      {formatCompactNumber(user.quoteReceivedCount)}
-                    </p>
-                    <p className="text-paper text-sm font-medium uppercase tracking-wider">
-                      Quotes
-                    </p>
-                  </div>
-                </>
-              ) : (
-                /* Logged-in: tappable links to connections + quotes count (same as tab title color) */
-                <>
-                  <Link
-                    href={`/user/${user.handle}/connections?tab=followers`}
-                    className="flex flex-col items-center gap-1 cursor-pointer group"
-                  >
-                    <p className="text-paper text-xl font-bold tabular-nums group-hover:text-primary transition-colors">
-                      {formatCompactNumber(user.followerCount)}
-                    </p>
-                    <p className="text-paper text-sm font-medium uppercase tracking-wider group-hover:text-primary transition-colors">
-                      Followers
-                    </p>
-                  </Link>
-                  <Link
-                    href={`/user/${user.handle}/connections?tab=following`}
-                    className="flex flex-col items-center gap-1 cursor-pointer group"
-                  >
-                    <p className="text-paper text-xl font-bold tabular-nums group-hover:text-primary transition-colors">
-                      {formatCompactNumber(user.followingCount)}
-                    </p>
-                    <p className="text-paper text-sm font-medium uppercase tracking-wider group-hover:text-primary transition-colors">
-                      Following
-                    </p>
-                  </Link>
-                  <div className="flex flex-col items-center gap-1">
-                    <p className="text-paper text-xl font-bold tabular-nums">
-                      {formatCompactNumber(user.quoteReceivedCount)}
-                    </p>
-                    <p className="text-paper text-sm font-medium uppercase tracking-wider">
-                      Quotes
-                    </p>
-                  </div>
-                </>
-              )}
+            <div className="flex justify-center pb-4 w-full border-b border-divider">
+              <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
+                {!isPublic ? (
+                  <>
+                    <Link
+                      href={`/user/${user.handle}/connections?tab=followers`}
+                      className="text-tertiary hover:text-primary transition-colors"
+                    >
+                      {formatCompactNumber(user.followerCount)} followers
+                    </Link>
+                    {" · "}
+                    <Link
+                      href={`/user/${user.handle}/connections?tab=following`}
+                      className="text-tertiary hover:text-primary transition-colors"
+                    >
+                      {formatCompactNumber(user.followingCount)} following
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    {formatCompactNumber(user.followerCount)} followers ·{" "}
+                    {formatCompactNumber(user.followingCount)} following
+                  </>
+                )}
+              </p>
             </div>
           )}
         </div>
@@ -483,8 +461,18 @@ export function ProfilePage({
       {!isSelf && user.isProtected && !following && (
         <div className="flex flex-col items-center justify-center py-16 px-6 border-b border-divider">
           <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <svg
+              className="w-8 h-8 text-tertiary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
             </svg>
           </div>
           <p className="text-paper font-semibold text-lg">Private profile</p>
@@ -496,183 +484,205 @@ export function ProfilePage({
 
       {/* Tabs — stick flush to top when scrolling (no fixed header above); hide when private and no access */}
       {!(!isSelf && user.isProtected && !following) && (
-      <>
-      <div className="sticky top-0 z-10 bg-ink border-b border-divider">
-        <div className="flex px-6 overflow-x-auto no-scrollbar">
-          {visibleTabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap ${activeTab === tab
-                ? "border-primary text-paper"
-                : "border-transparent text-tertiary hover:text-paper"
-                }`}
+        <>
+          <div className="sticky top-0 z-10 bg-ink border-b border-divider">
+            <div className="flex px-6 overflow-x-auto no-scrollbar">
+              {visibleTabs.map((tab) => {
+                const count =
+                  tab === "posts"
+                    ? ((user as { postCount?: number }).postCount ?? 0)
+                    : tab === "replies"
+                      ? ((user as { replyCount?: number }).replyCount ?? 0)
+                      : tab === "quotes"
+                        ? (user.quoteReceivedCount ?? 0)
+                        : tab === "saved"
+                          ? ((user as { keepsCount?: number }).keepsCount ?? 0)
+                          : tab === "collections"
+                            ? ((user as { collectionCount?: number })
+                                .collectionCount ?? 0)
+                            : 0;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap tabular-nums ${
+                      activeTab === tab
+                        ? "border-primary text-paper"
+                        : "border-transparent text-tertiary hover:text-paper"
+                    }`}
+                  >
+                    {tab} {count > 0 ? `(${formatCompactNumber(count)})` : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Keeps Library Link (only on Saved tab) */}
+          {isSelf && activeTab === "saved" && (
+            <Link
+              href="/keeps"
+              className="flex items-center gap-3 px-6 py-4 border-b border-divider bg-white/[0.02] hover:bg-white/5 transition-colors group"
             >
-              {tab}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Keeps Library Link (only on Saved tab) */}
-      {isSelf && activeTab === "saved" && (
-        <Link
-          href="/keeps"
-          className="flex items-center gap-3 px-6 py-4 border-b border-divider bg-white/[0.02] hover:bg-white/5 transition-colors group"
-        >
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-              />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-paper">Keeps Library</h3>
-            <p className="text-xs text-tertiary">Search & add to collections</p>
-          </div>
-          <svg
-            className="w-5 h-5 text-tertiary group-hover:text-primary transition-colors"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </Link>
-      )}
-
-      {/* Content */}
-      <div className="px-6 py-6">
-        {activeTab === "posts" && (
-          <div className="space-y-0">
-            {user.posts && user.posts.length > 0 ? (
-              user.posts.map((post) => (
-                <PostItem key={post.id} post={post} isAuthor={isSelf} />
-              ))
-            ) : (
-              <p className="text-secondary text-sm text-center py-8">
-                No posts yet.
-              </p>
-            )}
-          </div>
-        )}
-
-        {activeTab === "replies" && (
-          <div className="space-y-0">
-            {tabData.replies && tabData.replies.length > 0 ? (
-              tabData.replies.map((reply) => (
-                <Link key={reply.id} href={`/post/${reply.postId}`}>
-                  <div className="p-4 border-b border-divider hover:bg-white/5 transition-colors">
-                    <p className="text-secondary text-sm">{reply.body}</p>
-                    <p className="text-tertiary text-xs mt-2">Reply to post</p>
-                  </div>
-                </Link>
-              ))
-            ) : tabData.replies === null ? (
-              <p className="text-secondary text-sm text-center py-8">
-                Loading...
-              </p>
-            ) : (
-              <p className="text-secondary text-sm text-center py-8">
-                No replies yet.
-              </p>
-            )}
-          </div>
-        )}
-
-        {activeTab === "quotes" && (
-          <div className="space-y-0">
-            {tabData.quotesReceived && tabData.quotesReceived.length > 0 ? (
-              tabData.quotesReceived.map((quote) => (
-                <PostItem key={quote.id} post={quote as unknown as Post} />
-              ))
-            ) : tabData.quotesReceived === null ? (
-              <p className="text-secondary text-sm text-center py-8">
-                Loading...
-              </p>
-            ) : (
-              <p className="text-secondary text-sm text-center py-8">
-                No quotes received yet.
-              </p>
-            )}
-          </div>
-        )}
-
-        {activeTab === "collections" && (
-          <div className="space-y-4">
-            {tabData.collections && tabData.collections.length > 0 ? (
-              tabData.collections.map((collection) => (
-                <Link
-                  key={collection.id}
-                  href={`/collections/${collection.id}`}
-                  className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <h3 className="font-semibold text-paper mb-1">
-                    {collection.title}
-                  </h3>
-                  {collection.description && (
-                    <p className="text-secondary text-sm">
-                      {collection.description}
-                    </p>
-                  )}
-                  <p className="text-tertiary text-xs mt-2">
-                    {collection.itemCount || 0} items
-                  </p>
-                </Link>
-              ))
-            ) : tabData.collections === null ? (
-              <p className="text-secondary text-sm text-center py-8">
-                Loading...
-              </p>
-            ) : (
-              <p className="text-secondary text-sm text-center py-8">
-                No collections yet.
-              </p>
-            )}
-          </div>
-        )}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-paper">
+                  Keeps Library
+                </h3>
+                <p className="text-xs text-tertiary">
+                  Search & add to collections
+                </p>
+              </div>
+              <svg
+                className="w-5 h-5 text-tertiary group-hover:text-primary transition-colors"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+          )}
 
-        {activeTab === "saved" && isSelf && (
-          <div className="space-y-0 -mx-6">
-            {/* SavedByItem usually renders "Saved by X to Y". 
+          {/* Content */}
+          <div className="px-6 py-6">
+            {activeTab === "posts" && (
+              <div className="space-y-0">
+                {user.posts && user.posts.length > 0 ? (
+                  user.posts.map((post) => (
+                    <PostItem key={post.id} post={post} isAuthor={isSelf} />
+                  ))
+                ) : (
+                  <p className="text-secondary text-sm text-center py-8">
+                    No posts yet.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activeTab === "replies" && (
+              <div className="space-y-0">
+                {tabData.replies && tabData.replies.length > 0 ? (
+                  tabData.replies.map((reply) => (
+                    <Link key={reply.id} href={`/post/${reply.postId}`}>
+                      <div className="p-4 border-b border-divider hover:bg-white/5 transition-colors">
+                        <p className="text-secondary text-sm">{reply.body}</p>
+                        <p className="text-tertiary text-xs mt-2">
+                          Reply to post
+                        </p>
+                      </div>
+                    </Link>
+                  ))
+                ) : tabData.replies === null ? (
+                  <p className="text-secondary text-sm text-center py-8">
+                    Loading...
+                  </p>
+                ) : (
+                  <p className="text-secondary text-sm text-center py-8">
+                    No replies yet.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activeTab === "quotes" && (
+              <div className="space-y-0">
+                {tabData.quotesReceived && tabData.quotesReceived.length > 0 ? (
+                  tabData.quotesReceived.map((quote) => (
+                    <PostItem key={quote.id} post={quote as unknown as Post} />
+                  ))
+                ) : tabData.quotesReceived === null ? (
+                  <p className="text-secondary text-sm text-center py-8">
+                    Loading...
+                  </p>
+                ) : (
+                  <p className="text-secondary text-sm text-center py-8">
+                    No quotes received yet.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activeTab === "collections" && (
+              <div className="space-y-4">
+                {tabData.collections && tabData.collections.length > 0 ? (
+                  tabData.collections.map((collection) => (
+                    <Link
+                      key={collection.id}
+                      href={`/collections/${collection.id}`}
+                      className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                      <h3 className="font-semibold text-paper mb-1">
+                        {collection.title}
+                      </h3>
+                      {collection.description && (
+                        <p className="text-secondary text-sm">
+                          {collection.description}
+                        </p>
+                      )}
+                      <p className="text-tertiary text-xs mt-2">
+                        {collection.itemCount || 0} items
+                      </p>
+                    </Link>
+                  ))
+                ) : tabData.collections === null ? (
+                  <p className="text-secondary text-sm text-center py-8">
+                    Loading...
+                  </p>
+                ) : (
+                  <p className="text-secondary text-sm text-center py-8">
+                    No collections yet.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activeTab === "saved" && isSelf && (
+              <div className="space-y-0 -mx-6">
+                {/* SavedByItem usually renders "Saved by X to Y". 
                  For the "Saved" tab (Keeps), we might just want to list the posts. 
                  Or if it's strictly "Keeps" (bookmarks), it's just the post itself marked as kept.
                  The Mobile app renders "Saved" items. Let's use PostItem for now or SavedByItem if the data has context.
                  The API /keeps returns { post: ... }. 
              */}
-            {tabData.saved && tabData.saved.length > 0 ? (
-              tabData.saved.map((item) => (
-                <div key={item.post.id} className="border-b border-divider">
-                  <PostItem post={item.post} />
-                </div>
-              ))
-            ) : tabData.saved === null ? (
-              <p className="text-secondary text-sm text-center py-8">
-                Loading...
-              </p>
-            ) : (
-              <p className="text-secondary text-sm text-center py-8">
-                No saved posts yet.
-              </p>
+                {tabData.saved && tabData.saved.length > 0 ? (
+                  tabData.saved.map((item) => (
+                    <div key={item.post.id} className="border-b border-divider">
+                      <PostItem post={item.post} />
+                    </div>
+                  ))
+                ) : tabData.saved === null ? (
+                  <p className="text-secondary text-sm text-center py-8">
+                    Loading...
+                  </p>
+                ) : (
+                  <p className="text-secondary text-sm text-center py-8">
+                    No saved posts yet.
+                  </p>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
-      </>
+        </>
       )}
 
       {isPublic && <PublicSignInBar message="Sign in to follow and interact" />}

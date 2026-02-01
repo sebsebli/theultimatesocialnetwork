@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+import React, { memo } from 'react';
+import { View, Text, Pressable, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
 import { getApiBaseUrl } from '../utils/api';
 
 const PREVIEW_ASPECT = 16 / 9;
@@ -23,20 +23,21 @@ interface CollectionCardProps {
   showMenu?: boolean;
 }
 
-export function CollectionCard({
+function CollectionCardInner({
   item,
   onPress,
   onLongPress,
   onMenuPress,
   showMenu = false,
 }: CollectionCardProps) {
+  const { t } = useTranslation();
   const imageUri = item.previewImageKey
     ? `${getApiBaseUrl()}/images/${encodeURIComponent(item.previewImageKey)}`
     : null;
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }: { pressed: boolean }) => [styles.card, pressed && styles.cardPressed]}
       onPress={onPress}
       onLongPress={onLongPress}
       accessibilityRole="button"
@@ -63,8 +64,8 @@ export function CollectionCard({
           {showMenu && (
             <Pressable
               hitSlop={12}
-              style={({ pressed: p }) => [styles.menuBtn, p && { opacity: 0.7 }]}
-              onPress={(e) => {
+              style={({ pressed }: { pressed: boolean }) => [styles.menuBtn, pressed && { opacity: 0.7 }]}
+              onPress={(e: { stopPropagation: () => void }) => {
                 e.stopPropagation();
                 onMenuPress?.();
               }}
@@ -88,7 +89,9 @@ export function CollectionCard({
   );
 }
 
-const styles = StyleSheet.create({
+export const CollectionCard = memo(CollectionCardInner as React.FunctionComponent<CollectionCardProps>) as (props: CollectionCardProps) => React.ReactElement | null;
+
+const styles = createStyles({
   card: {
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius * 1.5,

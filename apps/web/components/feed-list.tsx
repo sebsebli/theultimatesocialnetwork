@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Link from "next/link";
 import { PostItem, type Post } from "./post-item";
 import { SavedByItem } from "./saved-by-item";
@@ -11,21 +11,21 @@ import { useToast } from "@/components/ui/toast";
 interface FeedItemShape {
   type: string;
   data?:
-  | Post
-  | {
-    post: Post;
-    userId: string;
-    userName: string;
-    collectionId: string;
-    collectionName: string;
-  };
+    | Post
+    | {
+        post: Post;
+        userId: string;
+        userName: string;
+        collectionId: string;
+        collectionName: string;
+      };
 }
 
-interface FeedListProps {
+export interface FeedListProps {
   initialPosts: (Post | FeedItemShape)[];
 }
 
-export function FeedList({ initialPosts }: FeedListProps) {
+function FeedListInner({ initialPosts }: FeedListProps) {
   const { error: showError } = useToast();
   const [posts, setPosts] = useState<(Post | FeedItemShape)[]>(initialPosts);
   const [page, setPage] = useState(1);
@@ -71,7 +71,10 @@ export function FeedList({ initialPosts }: FeedListProps) {
       const nextPage = page + 1;
       const limit = 20;
       const offset = cursor ? 0 : (nextPage - 1) * limit;
-      const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+      const params = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+      });
       if (cursor) params.set("cursor", cursor);
 
       const res = await fetch(`/api/feed?${params.toString()}`);
@@ -239,3 +242,5 @@ export function FeedList({ initialPosts }: FeedListProps) {
     </div>
   );
 }
+
+export const FeedList = memo(FeedListInner);

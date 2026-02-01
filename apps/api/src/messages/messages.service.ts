@@ -181,14 +181,14 @@ export class MessagesService {
           avatarKey: avatarKey ?? undefined,
           avatarUrl,
         },
-      lastMessage: t.lastMessageBody
-        ? {
-            body: t.lastMessageBody,
-            createdAt: t.lastMessageAt,
-          }
-        : null,
-      unreadCount: parseInt(t.unreadCount, 10) || 0,
-      createdAt: t.thread_created_at,
+        lastMessage: t.lastMessageBody
+          ? {
+              body: t.lastMessageBody,
+              createdAt: t.lastMessageAt,
+            }
+          : null,
+        unreadCount: parseInt(t.unreadCount, 10) || 0,
+        createdAt: t.thread_created_at,
       };
     });
   }
@@ -269,7 +269,9 @@ export class MessagesService {
         : null;
       const other = otherUserId ? userById.get(otherUserId) : null;
       const avatarKey = other?.avatarKey ?? null;
-      const avatarUrl = avatarKey ? this.uploadService.getImageUrl(avatarKey) : null;
+      const avatarUrl = avatarKey
+        ? this.uploadService.getImageUrl(avatarKey)
+        : null;
       return {
         id: h.id,
         threadId: h.threadId,

@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, FlatList, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, View, FlatList, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../utils/api';
 import { useSocket } from '../../../context/SocketContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../../components/ScreenHeader';
+import { EmptyState } from '../../../components/EmptyState';
 
 export default function ChatScreen() {
   const { threadId, initialMessage } = useLocalSearchParams<{ threadId: string; initialMessage?: string }>();
@@ -97,7 +98,8 @@ export default function ChatScreen() {
         keyExtractor={(item: { id: string }) => item.id}
         inverted
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={!loading && <Text style={styles.emptyText}>No messages yet.</Text>}
+        ListEmptyComponent={!loading ? <EmptyState icon="chat-bubble-outline" headline={t('messages.noMessagesYet', 'No messages yet')} compact /> : null}
+        {...FLATLIST_DEFAULTS}
       />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
@@ -119,7 +121,7 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -144,7 +146,6 @@ const styles = StyleSheet.create({
   messageText: { fontSize: 16, fontFamily: FONTS.regular },
   myMessageText: { color: '#FFF' },
   theirMessageText: { color: COLORS.paper },
-  emptyText: { textAlign: 'center', color: COLORS.secondary, marginTop: 20 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',

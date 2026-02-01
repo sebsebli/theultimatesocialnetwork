@@ -14,7 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, createStyles } from '../constants/theme';
 
 const REPORT_REASON_KEYS = ['spam', 'harassment', 'misinformation', 'violence', 'hate_speech', 'other'] as const;
 
@@ -122,7 +122,7 @@ export function ReportModal({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

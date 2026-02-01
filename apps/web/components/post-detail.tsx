@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useToast } from "./ui/toast";
@@ -13,7 +13,7 @@ import { ReferencedBySection } from "./referenced-by-section";
 import { OverflowMenu } from "./overflow-menu";
 import { PublicSignInBar } from "./public-sign-in-bar";
 
-interface PostDetailProps {
+export interface PostDetailProps {
   post: {
     id: string;
     body: string;
@@ -37,7 +37,7 @@ interface PostDetailProps {
   isPublic?: boolean;
 }
 
-export function PostDetail({ post, isPublic = false }: PostDetailProps) {
+function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
   const { success: toastSuccess } = useToast();
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
@@ -51,6 +51,14 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
       setKept(!!(post as unknown as { isKept?: boolean }).isKept);
     }
   }, [post]);
+
+  // Scroll to reply section when navigating with #reply (e.g. from post preview "comments" link)
+  useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#reply")
+      return;
+    const el = document.getElementById("reply");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   const handleLike = async () => {
     const previous = liked;
@@ -211,9 +219,12 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
           <div
             className="text-[18px] leading-relaxed text-secondary font-normal prose prose-invert max-w-none"
             dangerouslySetInnerHTML={{
-              __html: renderMarkdown(stripLeadingH1IfMatch(post.body, post.title ?? undefined), {
-                referenceMetadata: post.referenceMetadata ?? undefined,
-              }),
+              __html: renderMarkdown(
+                stripLeadingH1IfMatch(post.body, post.title ?? undefined),
+                {
+                  referenceMetadata: post.referenceMetadata ?? undefined,
+                },
+              ),
             }}
           />
           {post.headerImageKey && (
@@ -360,19 +371,24 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
 
       {/* Sections */}
       <div className={`px-5 py-6 space-y-8 ${isPublic ? "pb-24" : ""}`}>
-        {/* Replies Section - always visible; shows "Sign in to comment" when not authenticated */}
-        <ReplySection
-          postId={post.id}
-          replyCount={post.replyCount ?? 0}
-          isPublic={isPublic}
-        />
+        {/* Replies Section - id for #reply hash; scroll-into-view handled below */}
+        <section id="reply" aria-label="Replies">
+          <ReplySection
+            postId={post.id}
+            replyCount={post.replyCount ?? 0}
+            isPublic={isPublic}
+          />
+        </section>
 
         {/* Sources Section */}
         <SourcesSection postId={post.id} />
 
         {/* Referenced by — only when post has been quoted */}
         {(post.quoteCount ?? 0) > 0 && (
-          <ReferencedBySection postId={post.id} quoteCount={post.quoteCount ?? 0} />
+          <ReferencedBySection
+            postId={post.id}
+            quoteCount={post.quoteCount ?? 0}
+          />
         )}
       </div>
 
@@ -382,3 +398,5 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
     </div>
   );
 }
+
+export const PostDetail = memo(PostDetailInner);

@@ -10,7 +10,10 @@ import { Like } from '../entities/like.entity';
 import { ReplyLike } from '../entities/reply-like.entity';
 import { Keep } from '../entities/keep.entity';
 import { Follow } from '../entities/follow.entity';
-import { FollowRequest, FollowRequestStatus } from '../entities/follow-request.entity';
+import {
+  FollowRequest,
+  FollowRequestStatus,
+} from '../entities/follow-request.entity';
 import { PostRead } from '../entities/post-read.entity';
 import { Notification } from '../entities/notification.entity';
 import { Collection } from '../entities/collection.entity';
@@ -21,7 +24,11 @@ import { MeilisearchService } from '../search/meilisearch.service';
 import { CollectionsService } from '../collections/collections.service';
 import { EmailService } from '../shared/email.service';
 import { UploadService } from '../upload/upload.service';
-import { postToPlain, replyToPlain, extractLinkedPostIds } from '../shared/post-serializer';
+import {
+  postToPlain,
+  replyToPlain,
+  extractLinkedPostIds,
+} from '../shared/post-serializer';
 
 const QUOTES_BADGE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -58,7 +65,8 @@ export class UsersService {
     @InjectRepository(ReplyLike) private replyLikeRepo: Repository<ReplyLike>,
     @InjectRepository(Keep) private keepRepo: Repository<Keep>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
-    @InjectRepository(FollowRequest) private followRequestRepo: Repository<FollowRequest>,
+    @InjectRepository(FollowRequest)
+    private followRequestRepo: Repository<FollowRequest>,
     @InjectRepository(PostRead) private readRepo: Repository<PostRead>,
     @InjectRepository(Notification) private notifRepo: Repository<Notification>,
     @InjectRepository(Collection)
@@ -168,12 +176,26 @@ export class UsersService {
       }
     }
 
+    const [postCount, replyCount, collectionCount, keepsCount] =
+      await Promise.all([
+        this.postRepo.count({
+          where: { authorId: user.id, deletedAt: IsNull() },
+        }),
+        this.replyRepo.count({ where: { authorId: user.id } }),
+        this.collectionRepo.count({ where: { ownerId: user.id } }),
+        this.keepRepo.count({ where: { userId: user.id } }),
+      ]);
+
     return {
       ...user,
       posts,
       followsMe,
       isFollowing,
       hasPendingFollowRequest,
+      postCount,
+      replyCount,
+      collectionCount,
+      keepsCount,
     };
   }
 
@@ -245,7 +267,9 @@ export class UsersService {
         select: ['id'],
       });
       if (existing && existing.id !== id) {
-        throw new BadRequestException('This email is already in use by another account.');
+        throw new BadRequestException(
+          'This email is already in use by another account.',
+        );
       }
     }
 
@@ -894,11 +918,18 @@ export class UsersService {
     };
   }
 
+  /** UUID v4 pattern: avoid passing handle to id column (PostgreSQL throws "invalid input syntax for type uuid"). */
+  private static readonly UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
   /** Resolve handle or UUID to user id. Returns null if not found. */
   async resolveUserId(idOrHandle: string): Promise<string | null> {
     if (!idOrHandle) return null;
+    const isUuid = UsersService.UUID_REGEX.test(idOrHandle.trim());
     const user = await this.userRepo.findOne({
-      where: [{ id: idOrHandle }, { handle: idOrHandle }],
+      where: isUuid
+        ? [{ id: idOrHandle }, { handle: idOrHandle }]
+        : [{ handle: idOrHandle }],
       select: ['id'],
     });
     return user?.id ?? null;
@@ -988,6 +1019,7 @@ export class UsersService {
       title: c.title,
       description: c.description,
       isPublic: c.isPublic,
+      shareSaves: c.shareSaves,
       createdAt: c.createdAt,
       ownerId: c.ownerId,
       itemCount: c.itemCount ?? 0,

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, FlatList, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import { Text, View, FlatList, TextInput, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
 import { api } from '../../../utils/api';
 import { UserCard } from '../../../components/UserCard';
 import { useAuth } from '../../../context/auth';
 import { useToast } from '../../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../../components/ScreenHeader';
+import { EmptyState } from '../../../components/EmptyState';
 
 export default function NewMessageScreen() {
   const router = useRouter();
@@ -124,20 +125,21 @@ export default function NewMessageScreen() {
           contentContainerStyle={{ paddingBottom: 40 }}
           ListEmptyComponent={
             query.length > 0 ? (
-              <Text style={styles.emptyText}>{t('common.noResults')}</Text>
+              <EmptyState icon="search-off" headline={t('common.noResults')} compact />
             ) : suggestedLoading ? (
               <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
             ) : (
-              <Text style={styles.emptyText}>{t('messages.noSuggested', 'No suggested people to message.')}</Text>
+              <EmptyState icon="person-add" headline={t('messages.noSuggested', 'No suggested people to message.')} compact />
             )
           }
+          {...FLATLIST_DEFAULTS}
         />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -153,11 +155,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
     textAlignVertical: 'center',
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: COLORS.secondary,
-    marginTop: 20,
-    fontFamily: FONTS.regular,
   },
 });

@@ -10,7 +10,12 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import type { ScrollViewProps, ViewProps } from 'react-native';
+
+/** Typed Animated components for React 19 JSX compatibility */
+const AnimatedScrollView = Animated.ScrollView as (props: ScrollViewProps & { style?: any }) => React.ReactElement | null;
+const AnimatedView = Animated.View as (props: ViewProps & { style?: any }) => React.ReactElement | null;
+
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -18,7 +23,7 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { api, getImageUrl } from '../../../utils/api';
 import { MarkdownText } from '../../../components/MarkdownText';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles, toDimension, toDimensionValue } from '../../../constants/theme';
 const ACTION_ICON_SIZE = HEADER.iconSize;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/auth';
@@ -28,6 +33,7 @@ import { ReportModal } from '../../../components/ReportModal';
 import { OptionsActionSheet } from '../../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../../components/ConfirmModal';
 import { PostPreviewRow } from '../../../components/PostPreviewRow';
+import { EmptyState } from '../../../components/EmptyState';
 import { useToast } from '../../../context/ToastContext';
 import {
   savePostForOffline,
@@ -230,14 +236,6 @@ export default function ReadingModeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Top fade: content scrolling under this fades into background (~50px at top) */}
-      <View style={styles.topFadeWrap} pointerEvents="none">
-        <LinearGradient
-          colors={['transparent', COLORS.ink]}
-          style={styles.topFadeGradient}
-        />
-      </View>
-
       {/* Overlay header: back + more over hero or at top (no home button) */}
       <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
         <Pressable onPress={() => router.back()} style={styles.overlayIconCircle} accessibilityLabel={t('common.back')}>
@@ -255,12 +253,12 @@ export default function ReadingModeScreen() {
         </Pressable>
       </View>
 
-      <Animated.ScrollView
+      <AnimatedScrollView
         contentContainerStyle={[
           styles.scrollContent,
           // When no hero/title image, add top margin so back button doesn't overlay author line
           !hasHero && {
-            paddingTop: insets.top + 40 + HEADER.barPaddingBottom + SPACING.s,
+            paddingTop: insets.top + 40 + toDimension(HEADER.barPaddingBottom) + toDimension(SPACING.s),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -280,7 +278,7 @@ export default function ReadingModeScreen() {
             extrapolate: 'clamp',
           });
           return (
-            <Animated.View style={[styles.heroImageWrap, { height: SCREEN_WIDTH * (3 / 4), opacity: heroOpacity }]}>
+            <AnimatedView style={[styles.heroImageWrap, { height: SCREEN_WIDTH * (3 / 4), opacity: heroOpacity }]}>
               <Image
                 source={{ uri: (post.headerImageKey ? getImageUrl(post.headerImageKey) : undefined) || (post as any).headerImageUrl }}
                 style={[styles.heroImage, { width: SCREEN_WIDTH, height: SCREEN_WIDTH * (3 / 4) }]}
@@ -292,7 +290,7 @@ export default function ReadingModeScreen() {
                   <Text style={styles.heroTitleText} numberOfLines={2}>{post.title}</Text>
                 </View>
               ) : null}
-            </Animated.View>
+            </AnimatedView>
           );
         })()}
 
@@ -335,14 +333,13 @@ export default function ReadingModeScreen() {
                 handleLike();
               }}
             >
-              {/* @ts-expect-error React 19 JSX: Animated.View return type compatibility */}
-              <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
+              <AnimatedView style={{ transform: [{ scale: scaleValue }] }}>
                 <MaterialIcons
                   name={liked ? 'favorite' : 'favorite-border'}
                   size={ACTION_ICON_SIZE}
                   color={liked ? COLORS.like : COLORS.tertiary}
                 />
-              </Animated.View>
+              </AnimatedView>
             </Pressable>
 
             <Pressable
@@ -468,7 +465,7 @@ export default function ReadingModeScreen() {
               </View>
             )
           ) : quotedBy.length === 0 ? (
-            <Text style={styles.emptyText}>{t('post.noQuotes', 'No one has quoted this post yet.')}</Text>
+            <EmptyState icon="format-quote" headline={t('post.noQuotes', 'No one has quoted this post yet.')} compact />
           ) : (
             <View style={{ gap: 0 }}>
               {quotedBy.map((p: any) => (
@@ -477,7 +474,7 @@ export default function ReadingModeScreen() {
             </View>
           )}
         </View>
-      </Animated.ScrollView>
+      </AnimatedScrollView>
 
       <AddToCollectionSheet ref={collectionSheetRef} />
       <ShareSheet ref={shareSheetRef} />
@@ -512,24 +509,10 @@ export default function ReadingModeScreen() {
   );
 }
 
-const TOP_FADE_HEIGHT = 50;
-
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: { flex: 1, backgroundColor: COLORS.ink },
   center: { justifyContent: 'center', alignItems: 'center' },
   scrollContent: { paddingBottom: 80 },
-  topFadeWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: TOP_FADE_HEIGHT,
-    zIndex: 5,
-  },
-  topFadeGradient: {
-    flex: 1,
-    width: '100%',
-  },
   overlayHeader: {
     position: 'absolute',
     top: 0,
@@ -537,8 +520,8 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: HEADER.barPaddingHorizontal,
-    paddingBottom: HEADER.barPaddingBottom,
+    paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
+    paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     zIndex: 10,
   },
   overlayIconCircle: {

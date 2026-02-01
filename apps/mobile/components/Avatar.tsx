@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, memo } from 'react';
+import { View, Text } from 'react-native';
 import { Image } from 'expo-image';
-import { COLORS, FONTS } from '../constants/theme';
+import { COLORS, FONTS, createStyles } from '../constants/theme';
 
-interface AvatarProps {
+export interface AvatarProps {
   size?: number;
   uri?: string | null;
   name?: string;
-  style?: any;
+  style?: unknown;
 }
 
-export function Avatar({ size = 40, uri, name, style }: AvatarProps) {
+function AvatarInner({ size = 40, uri, name, style }: AvatarProps) {
   const [imageError, setImageError] = useState(false);
   const initial = name ? name.charAt(0).toUpperCase() : '?';
   const fontSize = size * 0.4;
@@ -35,7 +35,9 @@ export function Avatar({ size = 40, uri, name, style }: AvatarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+export const Avatar = memo(AvatarInner as React.FunctionComponent<AvatarProps>) as (props: AvatarProps) => React.ReactElement | null;
+
+const styles = createStyles({
   fallback: {
     backgroundColor: 'rgba(110, 122, 138, 0.2)',
     alignItems: 'center',

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  StyleSheet,
   Text,
   View,
   Pressable,
@@ -13,8 +12,9 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { EmptyState } from '../../components/EmptyState';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import {
   getAllOfflinePosts,
@@ -102,11 +102,11 @@ export default function OfflineStorageScreen() {
       </View>
 
       {posts.length === 0 ? (
-        <View style={styles.empty}>
-          <MaterialIcons name="offline-pin" size={HEADER.iconSize} color={COLORS.tertiary} />
-          <Text style={styles.emptyText}>{t('settings.noOfflineArticles', 'No offline articles')}</Text>
-          <Text style={styles.emptyHint}>{t('settings.noOfflineHint', 'Download articles from the reading screen to read offline.')}</Text>
-        </View>
+        <EmptyState
+          icon="offline-pin"
+          headline={t('settings.noOfflineArticles', 'No offline articles')}
+          subtext={t('settings.noOfflineHint', 'Download articles from the reading screen to read offline.')}
+        />
       ) : (
         <FlatList
           data={posts}
@@ -136,6 +136,7 @@ export default function OfflineStorageScreen() {
               </Pressable>
             </View>
           )}
+          {...FLATLIST_DEFAULTS}
         />
       )}
 
@@ -165,7 +166,7 @@ export default function OfflineStorageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -225,24 +226,5 @@ const styles = StyleSheet.create({
   },
   removeBtn: {
     padding: SPACING.s,
-  },
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xxl,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: COLORS.paper,
-    marginTop: SPACING.m,
-    fontFamily: FONTS.medium,
-  },
-  emptyHint: {
-    fontSize: 14,
-    color: COLORS.tertiary,
-    marginTop: SPACING.s,
-    textAlign: 'center',
-    fontFamily: FONTS.regular,
   },
 });

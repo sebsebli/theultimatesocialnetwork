@@ -7,7 +7,7 @@ import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../../constants/theme';
 import { CONTENT_LANGUAGES } from '../../constants/languages';
 
 export default function SettingsLanguagesScreen() {
@@ -123,7 +123,7 @@ export default function SettingsLanguagesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

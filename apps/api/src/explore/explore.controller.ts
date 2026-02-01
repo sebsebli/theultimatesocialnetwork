@@ -22,7 +22,9 @@ export class ExploreController {
       const plain = userToPlain(u) as Record<string, unknown>;
       if (!plain) return {} as Record<string, unknown>;
       const avatarKey = u.avatarKey ?? null;
-      const avatarUrl = avatarKey ? this.uploadService.getImageUrl(avatarKey) : null;
+      const avatarUrl = avatarKey
+        ? this.uploadService.getImageUrl(avatarKey)
+        : null;
       return { ...plain, avatarKey: avatarKey ?? undefined, avatarUrl };
     });
   }
@@ -44,8 +46,10 @@ export class ExploreController {
     @CurrentUser() user?: { id: string },
     @Query('sort') sort?: string,
     @Query('limit') limit?: string,
+    @Query('page') page?: string,
   ) {
     const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+    const pageNum = Math.max(1, parseInt(page || '1', 10) || 1);
     let list: User[];
     if (user?.id && (!sort || sort === 'recommended')) {
       try {
@@ -62,7 +66,11 @@ export class ExploreController {
     } else {
       list = await this.exploreService.getPeople(user?.id, limitNum, { sort });
     }
-    return this.withAvatar(list);
+    const items = this.withAvatar(list);
+    if (pageNum > 1) {
+      return { items: [], hasMore: false };
+    }
+    return { items, hasMore: false };
   }
 
   @Get('quoted-now')
@@ -71,8 +79,15 @@ export class ExploreController {
     @CurrentUser() user?: { id: string },
     @Query('lang') lang?: string,
     @Query('sort') sort?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.exploreService.getQuotedNow(user?.id, 20, { lang, sort });
+    return this.exploreService.getQuotedNow(user?.id, 20, {
+      lang,
+      sort,
+      page,
+      limit,
+    });
   }
 
   @Get('deep-dives')
@@ -81,8 +96,15 @@ export class ExploreController {
     @CurrentUser() user?: { id: string },
     @Query('lang') lang?: string,
     @Query('sort') sort?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.exploreService.getDeepDives(user?.id, 20, { lang, sort });
+    return this.exploreService.getDeepDives(user?.id, 20, {
+      lang,
+      sort,
+      page,
+      limit,
+    });
   }
 
   @Get('newsroom')
@@ -91,11 +113,15 @@ export class ExploreController {
     @CurrentUser() user?: { id: string },
     @Query('lang') lang?: string,
     @Query('sort') sort?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     try {
       return await this.exploreService.getNewsroom(user?.id, 20, {
         lang,
         sort,
+        page,
+        limit,
       });
     } catch (err) {
       console.error('explore/newsroom error', err);

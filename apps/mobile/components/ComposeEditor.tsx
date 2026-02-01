@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, Pressable, TextInput } from 'react-native';
+import { Text, View, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
 
 export function ComposeEditor() {
   const router = useRouter();
@@ -65,7 +65,7 @@ export function ComposeEditor() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,

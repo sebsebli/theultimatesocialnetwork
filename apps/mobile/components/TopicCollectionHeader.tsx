@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet, Pressable, Image, useWindowDimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
 import { getImageUrl } from '../utils/api';
 /** Same header image format as collection/topic: 4:3 aspect ratio. */
 const HEADER_ASPECT = 3 / 4;
@@ -34,7 +34,7 @@ export interface TopicCollectionHeaderProps {
  * - Optional metrics row
  * - Children e.g. tabs (topic) or extra content
  */
-export function TopicCollectionHeader({
+function TopicCollectionHeaderInner({
   type,
   title,
   description,
@@ -99,7 +99,7 @@ export function TopicCollectionHeader({
               <View style={styles.metricsRow}>
                 {(metrics.postCount != null || metrics.itemCount != null) && (
                   <Text style={styles.metricText}>
-                    {(metrics.postCount ?? metrics.itemCount ?? 0).toLocaleString()} posts
+                    {(metrics.postCount ?? metrics.itemCount ?? 0).toLocaleString()} {type === 'collection' ? 'items' : 'posts'}
                   </Text>
                 )}
                 {metrics.contributorCount != null && type === 'topic' && (
@@ -140,7 +140,9 @@ export function TopicCollectionHeader({
   );
 }
 
-const styles = StyleSheet.create({
+export const TopicCollectionHeader = memo(TopicCollectionHeaderInner as React.FunctionComponent<TopicCollectionHeaderProps>) as (props: TopicCollectionHeaderProps) => React.ReactElement | null;
+
+const styles = createStyles({
   wrapper: {
     backgroundColor: COLORS.ink,
     marginBottom: SPACING.m,

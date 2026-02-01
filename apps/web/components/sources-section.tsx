@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { getImageUrl } from "@/lib/security";
@@ -76,7 +76,7 @@ function sourceSubtitle(source: Source): string | null {
   return null;
 }
 
-export function SourcesSection({ postId }: SourcesSectionProps) {
+function SourcesSectionInner({ postId }: SourcesSectionProps) {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -156,7 +156,8 @@ export function SourcesSection({ postId }: SourcesSectionProps) {
                 {(index + 1).toString().padStart(2, "0")}
               </span>
               <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 overflow-hidden">
-                {source.type === "user" && (source.avatarKey ?? null) != null ? (
+                {source.type === "user" &&
+                (source.avatarKey ?? null) != null ? (
                   <Avatar
                     avatarKey={source.avatarKey ?? undefined}
                     displayName={label}
@@ -182,7 +183,8 @@ export function SourcesSection({ postId }: SourcesSectionProps) {
                       className="!h-8 !w-8"
                     />
                   )
-                ) : source.type === "topic" && (source.imageKey ?? null) != null ? (
+                ) : source.type === "topic" &&
+                  (source.imageKey ?? null) != null ? (
                   <Image
                     src={getImageUrl(source.imageKey!)}
                     alt=""
@@ -269,3 +271,5 @@ export function SourcesSection({ postId }: SourcesSectionProps) {
     </section>
   );
 }
+
+export const SourcesSection = memo(SourcesSectionInner);

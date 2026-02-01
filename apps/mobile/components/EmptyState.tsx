@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { memo } from 'react';
+import { View, Text, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../constants/theme';
 
 export interface EmptyStateProps {
   /** Icon name from MaterialIcons, or 'none' to hide */
@@ -24,7 +24,7 @@ export interface EmptyStateProps {
  * Modern empty state used everywhere: home, explore, profile, search, lists.
  * Minimal, social-network style: icon + headline + subtext + optional actions.
  */
-export function EmptyState({
+function EmptyStateInner({
   icon = 'inbox',
   headline,
   subtext,
@@ -69,7 +69,9 @@ export function EmptyState({
   );
 }
 
-const styles = StyleSheet.create({
+export const EmptyState = memo(EmptyStateInner as React.FunctionComponent<EmptyStateProps>) as (props: EmptyStateProps) => React.ReactElement | null;
+
+const styles = createStyles({
   container: {
     paddingVertical: SPACING.xxl,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,

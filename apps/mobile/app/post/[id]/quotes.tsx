@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  StyleSheet,
   Text,
   View,
   ScrollView,
@@ -12,10 +11,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../../utils/api';
-import { COLORS, SPACING, FONTS, LAYOUT } from '../../../constants/theme';
+import { COLORS, SPACING, FONTS, createStyles } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { PostItem } from '../../../components/PostItem';
+import { EmptyState } from '../../../components/EmptyState';
 import { Post } from '../../../types';
 
 export default function PostQuotesScreen() {
@@ -86,7 +86,7 @@ export default function PostQuotesScreen() {
         ) : null}
 
         {quotes.length === 0 ? (
-          <Text style={styles.emptyText}>{t('post.noQuotesYet', 'No one has quoted this post yet.')}</Text>
+          <EmptyState icon="format-quote" headline={t('post.noQuotesYet', 'No one has quoted this post yet.')} />
         ) : (
           quotes.map((post) => <PostItem key={post.id} post={post} />)
         )}
@@ -95,7 +95,7 @@ export default function PostQuotesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: { flex: 1, backgroundColor: COLORS.ink },
   center: { justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
@@ -106,12 +106,5 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.m,
     marginHorizontal: SPACING.xl,
     fontFamily: FONTS.regular,
-  },
-  emptyText: {
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-    fontStyle: 'italic',
-    paddingVertical: SPACING.xxl,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
 });

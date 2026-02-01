@@ -83,12 +83,7 @@ export class CollectionsService {
     return out;
   }
 
-  async findOne(
-    id: string,
-    userId: string,
-    limit?: number,
-    offset?: number,
-  ) {
+  async findOne(id: string, userId: string, limit?: number, offset?: number) {
     const collection = await this.collectionRepo.findOne({
       where: { id, ownerId: userId },
     });

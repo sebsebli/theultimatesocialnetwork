@@ -1,10 +1,8 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
 const OLLAMA_EMBED_MODEL_DEFAULT = 'qwen3-embedding:0.6b';
-const EMBED_TIMEOUT_MS = parseInt(
-  process.env.OLLAMA_EMBED_TIMEOUT_MS || '15000',
-  10,
-) || 15000;
+const EMBED_TIMEOUT_MS =
+  parseInt(process.env.OLLAMA_EMBED_TIMEOUT_MS || '15000', 10) || 15000;
 
 @Injectable()
 export class EmbeddingService implements OnModuleInit {

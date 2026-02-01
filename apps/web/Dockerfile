@@ -14,9 +14,14 @@ COPY apps/web/package.json ./
 RUN sed -i 's|"file:../../packages/design-tokens"|"file:./packages/design-tokens"|g' package.json
 RUN npm install --ignore-scripts
 
-# Build stage
+# Build stage (NEXT_PUBLIC_* must be set at build time; passed from compose build args)
 FROM base AS builder
 WORKDIR /app
+
+ARG NEXT_PUBLIC_API_URL=http://localhost/api
+ARG NEXT_PUBLIC_BETA_ACTIVE=true
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_BETA_ACTIVE=$NEXT_PUBLIC_BETA_ACTIVE
 
 RUN mkdir -p packages node_modules/@citewalk
 COPY packages/design-tokens ./packages/design-tokens

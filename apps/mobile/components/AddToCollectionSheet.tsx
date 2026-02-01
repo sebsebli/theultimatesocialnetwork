@@ -5,8 +5,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL } from '../constants/theme';
-
+import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
+import { EmptyState } from './EmptyState';
 import { Collection } from '../types';
 
 export interface AddToCollectionSheetRef {
@@ -143,12 +143,14 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
                   </View>
                 </Pressable>
               )}
+              {...FLATLIST_DEFAULTS}
               ListEmptyComponent={!creating ? (
-                <View style={styles.emptyWrap}>
-                  <MaterialIcons name="folder-open" size={32} color={COLORS.tertiary} />
-                  <Text style={styles.emptyText}>{t('collections.empty', 'No collections yet')}</Text>
-                  <Text style={styles.emptyHint}>{t('collections.emptyHint', 'Create one below.')}</Text>
-                </View>
+                <EmptyState
+                  icon="folder-open"
+                  headline={t('collections.empty', 'No collections yet')}
+                  subtext={t('collections.emptyHint', 'Create one below.')}
+                  compact
+                />
               ) : null}
             />
           )}
@@ -195,7 +197,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
 
 const AddToCollectionSheet = AddToCollectionSheetBase as any;
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -293,21 +295,6 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xxl,
-    gap: SPACING.s,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: COLORS.secondary,
-    fontFamily: FONTS.medium,
-  },
-  emptyHint: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
   },
   footer: {
     borderTopWidth: 1,

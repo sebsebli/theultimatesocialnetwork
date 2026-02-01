@@ -37,3 +37,9 @@ The following improvements have been identified to make the system production-re
 - [x] **Cursor-based pagination**: Feed supports `?cursor=<ISO date>`; response includes `nextCursor` for stable deep pagination. Web and mobile clients use cursor for “load more”.
 - [x] **Connection pooler**: `docs/PGBOUNCER.md` and optional `infra/docker/docker-compose.pgbouncer.yml` for PgBouncer in front of Postgres.
 - [x] **Global throttle**: Configurable via `THROTTLE_LIMIT` (default 60) and `THROTTLE_TTL_MS` (default 60000) in `app.module.ts`.
+
+### Frontend (Web & Mobile) — implemented
+
+- [x] **Reusable components memoization**: Presentational and list-item components wrapped with `React.memo` on both web and mobile for fewer re-renders (see `apps/web/components/README.md` and `apps/mobile/components/README.md`).
+- [x] **Mobile list performance**: `FLATLIST_DEFAULTS` (theme), `ListFooterLoader`, `SectionHeader`, and consistent `EmptyState` usage across feeds, profile, explore, search, and settings.
+- [x] **Empty-state consistency**: All list/sheet empty states use shared `EmptyState` (chat thread, post quotes, reading “Quoted by”, collections, AddToCollectionSheet, messages inbox/new, offline-storage). Inline empty text removed; unused `emptyText`/`emptyState` styles cleaned up.

@@ -87,10 +87,7 @@ function escapeAttr(s: string): string {
 /** Escape string for safe use as HTML text content. */
 function escapeText(s: string): string {
   if (!s || typeof s !== "string") return "";
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 const CODE_BLOCK_PLACEHOLDER = "\u200B__CODE_BLOCK_";
@@ -98,39 +95,51 @@ const CODE_BLOCK_PLACEHOLDER_END = "__\u200B";
 
 /**
  * Produce a single-line plain-text excerpt for post previews.
- * Strips markdown, replaces newlines with space, truncates mid-word with "..." (no newline before ellipsis).
+ * Strips markdown, replaces newlines with space, truncates at maxLength.
+ * @param ellipsis - when true (default), appends "..." when truncated; when false, returns raw truncation for use with gradient fade.
  */
 export function bodyToPlainExcerpt(
   body: string,
   title?: string | null,
   maxLength = 120,
+  ellipsis = true,
 ): string {
   if (!body?.trim()) return "";
   let text = stripLeadingH1IfMatch(body, title ?? undefined);
   // Wikilinks: [[target|alias]] -> alias or target; [[target]] -> target
   text = text.replace(/\[\[([^\]]+)\]\]/g, (_, content) => {
     const pipe = content.indexOf("|");
-    if (pipe !== -1) return content.slice(pipe + 1).trim() || content.slice(0, pipe).trim();
+    if (pipe !== -1)
+      return content.slice(pipe + 1).trim() || content.slice(0, pipe).trim();
     return content.trim();
   });
   // Markdown links: [text](url) -> text
   text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   // Bold, italic, inline code: keep text only
-  text = text.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/_([^_]+)_/g, "$1").replace(/`([^`]+)`/g, "$1");
+  text = text
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    .replace(/`([^`]+)`/g, "$1");
   // Headers: strip # ## ###
   text = text.replace(/^#{1,6}\s+/gm, "");
   // Blockquote/list markers
-  text = text.replace(/^>\s*/gm, "").replace(/^[-*]\s+/gm, "").replace(/^\d+\.\s+/gm, "");
+  text = text
+    .replace(/^>\s*/gm, "")
+    .replace(/^[-*]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "");
   // Newlines and multiple spaces -> single space
   text = text.replace(/\s+/g, " ").trim();
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + "...";
+  return text.slice(0, maxLength) + (ellipsis ? "..." : "");
 }
 
 /**
  * Strip the first line of body if it is exactly "# &lt;title&gt;" (so the title is not shown twice in full post view).
  */
-export function stripLeadingH1IfMatch(body: string, title: string | null | undefined): string {
+export function stripLeadingH1IfMatch(
+  body: string,
+  title: string | null | undefined,
+): string {
   if (!title || !body.trim()) return body;
   const firstLine = body.split("\n")[0].trim();
   if (firstLine === "# " + title || firstLine === "#" + title) {
@@ -150,7 +159,10 @@ export interface RenderMarkdownOptions {
  * Supported: H1/H2/H3, bold **, italic _, inline code `, fenced code ```...```, [[wikilink]], [link](url).
  * For [[post:id]] with no alias, display text is referenceMetadata[id].title or first 8 chars of id.
  */
-export function renderMarkdown(text: string, options?: RenderMarkdownOptions): string {
+export function renderMarkdown(
+  text: string,
+  options?: RenderMarkdownOptions,
+): string {
   const referenceMetadata = options?.referenceMetadata;
   let html = text
     .replace(/&/g, "&amp;")
@@ -256,7 +268,10 @@ export function renderMarkdown(text: string, options?: RenderMarkdownOptions): s
   html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
 
   // Strip leading whitespace on each line so wrapped/continuation lines don't get weird padding
-  html = html.split("\n").map((line) => line.trimStart()).join("\n");
+  html = html
+    .split("\n")
+    .map((line) => line.trimStart())
+    .join("\n");
   // Line breaks
   html = html.replace(/\n/g, "<br />");
 

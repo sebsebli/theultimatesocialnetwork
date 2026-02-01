@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { useTranslations } from "next-intl";
 import { Avatar } from "./avatar";
 import { getImageUrl } from "@/lib/security";
@@ -19,20 +19,23 @@ interface AutocompleteItem {
   headerImageUrl?: string | null;
 }
 
-interface AutocompleteDropdownProps {
+export interface AutocompleteDropdownProps {
   query: string;
   type: "topic" | "post" | "user" | "all";
   onSelect: (item: AutocompleteItem) => void;
   position: { top: number; left: number };
   onClose: () => void;
+  /** Exclude this user id from @ mention suggestions (e.g. current user so they cannot tag themselves). */
+  excludeUserId?: string | null;
 }
 
-export function AutocompleteDropdown({
+function AutocompleteDropdownInner({
   query,
   type,
   onSelect,
   position,
   onClose,
+  excludeUserId,
 }: AutocompleteDropdownProps) {
   const t = useTranslations("compose");
   const [items, setItems] = useState<AutocompleteItem[]>([]);
@@ -50,7 +53,7 @@ export function AutocompleteDropdown({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, type]);
+  }, [query, type, excludeUserId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -77,22 +80,26 @@ export function AutocompleteDropdown({
         );
         if (res.ok) {
           const data = await res.json();
-          const userItems: AutocompleteItem[] = (data.hits || []).map(
-            (u: {
-              id: string;
-              displayName?: string;
-              handle: string;
-              avatarKey?: string | null;
-              avatarUrl?: string | null;
-            }) => ({
-              id: u.id,
-              type: "user" as const,
-              title: u.displayName || u.handle,
-              subtitle: `@${u.handle}`,
-              avatarKey: u.avatarKey ?? undefined,
-              avatarUrl: u.avatarUrl ?? undefined,
-            }),
-          );
+          const userItems: AutocompleteItem[] = (data.hits || [])
+            .filter(
+              (u: { id: string }) => !excludeUserId || u.id !== excludeUserId,
+            )
+            .map(
+              (u: {
+                id: string;
+                displayName?: string;
+                handle: string;
+                avatarKey?: string | null;
+                avatarUrl?: string | null;
+              }) => ({
+                id: u.id,
+                type: "user" as const,
+                title: u.displayName || u.handle,
+                subtitle: `@${u.handle}`,
+                avatarKey: u.avatarKey ?? undefined,
+                avatarUrl: u.avatarUrl ?? undefined,
+              }),
+            );
           setItems((prev) => [...prev, ...userItems]);
         }
       }
@@ -112,7 +119,9 @@ export function AutocompleteDropdown({
               slug: t.slug,
             }),
           );
-          setItems((prev) => (type === "all" ? [...prev, ...topicItems] : topicItems));
+          setItems((prev) =>
+            type === "all" ? [...prev, ...topicItems] : topicItems,
+          );
         }
       }
 
@@ -139,7 +148,9 @@ export function AutocompleteDropdown({
               headerImageUrl: p.headerImageUrl ?? undefined,
             }),
           );
-          setItems((prev) => (type === "all" ? [...prev, ...postItems] : postItems));
+          setItems((prev) =>
+            type === "all" ? [...prev, ...postItems] : postItems,
+          );
         }
       }
     } catch {
@@ -149,7 +160,8 @@ export function AutocompleteDropdown({
     }
   };
 
-  const showPlaceholder = query.trim().length < 2 || (items.length === 0 && !loading);
+  const showPlaceholder =
+    query.trim().length < 2 || (items.length === 0 && !loading);
 
   return (
     <div
@@ -193,7 +205,7 @@ export function AutocompleteDropdown({
                         src={
                           item.headerImageKey
                             ? getImageUrl(item.headerImageKey)
-                            : item.headerImageUrl ?? ""
+                            : (item.headerImageUrl ?? "")
                         }
                         alt=""
                         className="h-full w-full object-cover"
@@ -220,3 +232,5 @@ export function AutocompleteDropdown({
     </div>
   );
 }
+
+export const AutocompleteDropdown = memo(AutocompleteDropdownInner);

@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, memo } from "react";
 import { useToast } from "./ui/toast";
 
-interface ImageUploaderProps {
+export interface ImageUploaderProps {
   onUploadComplete: (key: string, url: string, blurhash?: string) => void;
   id?: string;
 }
 
-export function ImageUploader({ onUploadComplete, id }: ImageUploaderProps) {
+function ImageUploaderInner({ onUploadComplete, id }: ImageUploaderProps) {
   const { error: toastError } = useToast();
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -167,3 +167,5 @@ export function ImageUploader({ onUploadComplete, id }: ImageUploaderProps) {
     </div>
   );
 }
+
+export const ImageUploader = memo(ImageUploaderInner);

@@ -78,7 +78,9 @@ export default function ConnectionsPage() {
           const sugRes = await fetch("/api/explore/topics?limit=6");
           if (sugRes.ok) {
             const sugData = await sugRes.json();
-            setTopicSuggestions(Array.isArray(sugData) ? sugData : sugData?.items ?? []);
+            setTopicSuggestions(
+              Array.isArray(sugData) ? sugData : (sugData?.items ?? []),
+            );
           } else {
             setTopicSuggestions([]);
           }
@@ -156,9 +158,12 @@ export default function ConnectionsPage() {
 
   const handleFollowTopic = async (topic: TopicItem, follow: boolean) => {
     const method = follow ? "POST" : "DELETE";
-    const res = await fetch(`/api/topics/${encodeURIComponent(topic.slug)}/follow`, {
-      method,
-    });
+    const res = await fetch(
+      `/api/topics/${encodeURIComponent(topic.slug)}/follow`,
+      {
+        method,
+      },
+    );
     if (res.ok && follow) {
       setTopicSuggestions((prev) => prev.filter((t) => t.slug !== topic.slug));
       setTopics((prev) => [...prev, { ...topic, isFollowing: true }]);
@@ -246,29 +251,14 @@ export default function ConnectionsPage() {
               </div>
             )}
             {activeTab === "topics" ? (
-          topics.length === 0 && topicSuggestions.length === 0 ? (
-            <p className="text-secondary text-center py-8">
-              Not following any topics yet.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {topics.length > 0 &&
-                topics.map((topic) => (
-                  <TopicCard
-                    key={topic.id}
-                    topic={topic}
-                    onFollow={() =>
-                      handleFollowTopic(topic, !topic.isFollowing)
-                    }
-                  />
-                ))}
-              {topics.length === 0 && topicSuggestions.length > 0 && (
-                <>
-                  <p className="text-tertiary text-xs font-semibold uppercase tracking-wider mb-2">
-                    Topics to follow
-                  </p>
-                  <div className="space-y-2">
-                    {topicSuggestions.map((topic) => (
+              topics.length === 0 && topicSuggestions.length === 0 ? (
+                <p className="text-secondary text-center py-8">
+                  Not following any topics yet.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {topics.length > 0 &&
+                    topics.map((topic) => (
                       <TopicCard
                         key={topic.id}
                         topic={topic}
@@ -277,30 +267,45 @@ export default function ConnectionsPage() {
                         }
                       />
                     ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )
-        ) : items.length === 0 ? (
-          <p className="text-secondary text-center py-8">
-            {activeTab === "followers"
-              ? "No followers yet."
-              : "Not following anyone yet."}
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {items.map((person) => (
-              <UserCard
-                key={person.id}
-                person={person}
-                onFollow={() => handleFollow(person)}
-              />
-            ))}
-          </div>
-        )}
+                  {topics.length === 0 && topicSuggestions.length > 0 && (
+                    <>
+                      <p className="text-tertiary text-xs font-semibold uppercase tracking-wider mb-2">
+                        Topics to follow
+                      </p>
+                      <div className="space-y-2">
+                        {topicSuggestions.map((topic) => (
+                          <TopicCard
+                            key={topic.id}
+                            topic={topic}
+                            onFollow={() =>
+                              handleFollowTopic(topic, !topic.isFollowing)
+                            }
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            ) : items.length === 0 ? (
+              <p className="text-secondary text-center py-8">
+                {activeTab === "followers"
+                  ? "No followers yet."
+                  : "Not following anyone yet."}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {items.map((person) => (
+                  <UserCard
+                    key={person.id}
+                    person={person}
+                    onFollow={() => handleFollow(person)}
+                  />
+                ))}
+              </div>
+            )}
           </>
-        )
+        )}
       </div>
     </div>
   );

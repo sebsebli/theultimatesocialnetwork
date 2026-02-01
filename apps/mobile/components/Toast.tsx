@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Text, Animated, ViewStyle, Platform } from 'react-native';
+import { Text, Animated, ViewStyle, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, SIZES, HEADER } from '../constants/theme';
+import { COLORS, FONTS, SPACING, SIZES, HEADER, createStyles } from '../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type ToastType = 'success' | 'error' | 'info';
@@ -90,7 +90,7 @@ export function Toast({ message, type, onHide, duration = 3000 }: ToastProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     position: 'absolute',
     left: SPACING.l,

@@ -25,10 +25,14 @@ async function bootstrap() {
   app.use(compression());
 
   // Enforce HTTPS in production when behind a reverse proxy (set ENFORCE_HTTPS=true)
-  if (process.env.NODE_ENV === 'production' && process.env.ENFORCE_HTTPS === 'true') {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.ENFORCE_HTTPS === 'true'
+  ) {
     app.use((req: Request, res: Response, next: NextFunction) => {
       const proto = req.headers['x-forwarded-proto'];
-      const isSecure = proto === 'https' || (Array.isArray(proto) && proto[0] === 'https');
+      const isSecure =
+        proto === 'https' || (Array.isArray(proto) && proto[0] === 'https');
       if (!isSecure) {
         res.status(403).json({
           statusCode: 403,
@@ -123,11 +127,11 @@ async function bootstrap() {
   const explicitList = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
     : [
-      'http://localhost:3001',
-      'http://localhost:3000',
-      'http://localhost:19006',
-      'exp://localhost:19000',
-    ];
+        'http://localhost:3001',
+        'http://localhost:3000',
+        'http://localhost:19006',
+        'exp://localhost:19000',
+      ];
   const allowOrigin = (
     origin: string | undefined,
     cb: (err: Error | null, allow?: boolean) => void,

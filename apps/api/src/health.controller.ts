@@ -39,7 +39,7 @@ export class HealthController {
   constructor(
     private dataSource: DataSource,
     @Inject('REDIS_CLIENT') private redis: Redis,
-  ) { }
+  ) {}
 
   /** Liveness: process is up. No DB/Redis checks. Use for K8s livenessProbe / external LB. */
   @Get('live')

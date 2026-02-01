@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, Modal, Pressable, Platform } from 'react-native';
+import React, { useState, useMemo, memo } from 'react';
+import { Text, View, Modal, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { COLORS, SPACING, SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, createStyles } from '../constants/theme';
 
 const CODE_FONT = Platform.select({ ios: 'Menlo', android: 'monospace' }) ?? 'monospace';
 
@@ -15,7 +15,7 @@ interface MarkdownTextProps {
   stripLeadingH1IfMatch?: string | null;
 }
 
-export function MarkdownText({ children, referenceMetadata = {}, validMentionHandles, stripLeadingH1IfMatch: titleToStrip }: MarkdownTextProps) {
+function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandles, stripLeadingH1IfMatch: titleToStrip }: MarkdownTextProps) {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [targets, setTargets] = useState<string[]>([]);
@@ -63,7 +63,7 @@ export function MarkdownText({ children, referenceMetadata = {}, validMentionHan
       // Only composer-supported inline: Bold (**), Italic (_), Inline code (`), Wikilink ([[...]]), Link [...](...), Mention (@...)
       // Inline code is intentionally matched inside bold/italic by recursing on bold/italic content.
       const regex = /(\*\*(.*?)\*\*)|(_(.*?)_)|(`([^`]+)`)|(\[\[(.*?)(?:\|(.*?))?\]\])|(\[(.*?)\]\((.*?)\))|(@[a-zA-Z0-9_.]+)/g;
-      let match;
+      let match: RegExpExecArray | null;
       while ((match = regex.exec(content)) !== null) {
         if (match.index > lastIndex) {
           parts.push(<Text key={`${lineKey}-${lastIndex}`} style={lineStyle}>{content.substring(lastIndex, match.index)}</Text>);
@@ -77,18 +77,19 @@ export function MarkdownText({ children, referenceMetadata = {}, validMentionHan
         } else if (match[5]) {
           const codeContent = match[6];
           const isMultiLine = codeContent.includes('\n');
+          const matchIndex = match.index;
           if (isMultiLine) {
             parts.push(
-              <View key={`${lineKey}-${match.index}`} style={styles.inlineCodeBlockWrap}>
-                {codeContent.split('\n').map((codeLine, idx) => (
-                  <Text key={`${lineKey}-${match.index}-${idx}`} style={[lineStyle, styles.inlineCodeBlockLine]} selectable>
+              <View key={`${lineKey}-${matchIndex}`} style={styles.inlineCodeBlockWrap}>
+                {codeContent.split('\n').map((codeLine: string, idx: number) => (
+                  <Text key={`${lineKey}-${matchIndex}-${idx}`} style={[lineStyle, styles.inlineCodeBlockLine]} selectable>
                     {codeLine || ' '}
                   </Text>
                 ))}
               </View>
             );
           } else {
-            parts.push(<Text key={`${lineKey}-${match.index}`} style={[lineStyle, styles.inlineCode]}>{codeContent}</Text>);
+            parts.push(<Text key={`${lineKey}-${matchIndex}`} style={[lineStyle, styles.inlineCode]}>{codeContent}</Text>);
           }
         } else if (match[7]) {
           const linkContentVal = match[8] != null ? String(match[8]) : '';
@@ -297,7 +298,9 @@ export function MarkdownText({ children, referenceMetadata = {}, validMentionHan
   );
 }
 
-const styles = StyleSheet.create({
+export const MarkdownText = memo(MarkdownTextInner as React.FunctionComponent<MarkdownTextProps>) as (props: MarkdownTextProps) => React.ReactElement | null;
+
+const styles = createStyles({
   container: {
     marginBottom: SPACING.m,
   },

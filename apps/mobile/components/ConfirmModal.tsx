@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, MODAL, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, MODAL, HEADER, createStyles } from '../constants/theme';
 
 export interface ConfirmModalProps {
   visible: boolean;
@@ -106,7 +106,7 @@ export function ConfirmModal({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   overlay: {
     flex: 1,
     backgroundColor: MODAL.backdropBackgroundColor,

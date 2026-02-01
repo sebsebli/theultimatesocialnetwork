@@ -1,3 +1,6 @@
+# Persists across restarts: all services use restart: unless-stopped (containers
+# come back after host reboot when Docker daemon starts). Data lives in ./volumes/*
+# (db, neo4j, redis, meilisearch, minio, ollama, backups).
 services:
   # -----------------------------------------------------------------------------
   # CORE DATA
@@ -163,6 +166,7 @@ services:
   # -----------------------------------------------------------------------------
   # APP SERVICES
   # -----------------------------------------------------------------------------
+  # Only nginx (80, 443) is exposed to the host; api and web are internal.
   api:
     build:
       context: ../..
@@ -171,8 +175,7 @@ services:
     container_name: citewalk-api
     env_file:
       - .env
-    ports:
-      - "127.0.0.1:3000:3000"
+    # No ports: access only via nginx. Beta mode is on by default (API returns true when no BETA_MODE row).
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
       NEO4J_URI: bolt://neo4j:7687
@@ -225,17 +228,21 @@ services:
     #   - ../../apps/api:/app/apps/api
     #   - /app/apps/api/node_modules
 
+  # No ports: access only via nginx. Beta (invite-only) is on by default in Docker.
   web:
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
       target: runner
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
+        NEXT_PUBLIC_BETA_ACTIVE: ${NEXT_PUBLIC_BETA_ACTIVE:-true}
     container_name: citewalk-web
-    ports:
-      - "127.0.0.1:3001:3000"
+    # Next line: closed beta on by default; set NEXT_PUBLIC_BETA_ACTIVE=false in .env to open.
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+      NEXT_PUBLIC_BETA_ACTIVE: ${NEXT_PUBLIC_BETA_ACTIVE:-true}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost/api}
       API_URL: http://api:3000
       SKIP_HTTPS_CHECK: "true"  # Allow HTTP in Docker
       DOCKER: "true"
@@ -250,6 +257,7 @@ services:
       retries: 3
       start_period: 40s
 
+  # Only service exposed to the host: 80 and 443. All other services are internal.
   nginx:
     image: nginx:alpine
     container_name: citewalk-nginx

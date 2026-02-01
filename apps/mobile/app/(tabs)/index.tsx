@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, LayoutAnimation, UIManager, Platform, AppState } from 'react-native';
+import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, LayoutAnimation, UIManager, Platform, AppState } from 'react-native';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { COLORS, FONTS, SIZES, SPACING, HEADER, LAYOUT } from '../../constants/theme';
+import { COLORS, FONTS, SIZES, SPACING, HEADER, LAYOUT, toDimension, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { ListFooterLoader } from '../../components/ListFooterLoader';
 import { MaterialIcons } from '@expo/vector-icons';
 import { PostItem } from '../../components/PostItem';
 import { useRouter } from 'expo-router';
@@ -214,15 +215,6 @@ export default function HomeScreen() {
 
   const keyExtractor = useCallback((item: Post) => item.id || `saved-${item._savedBy?.userId}-${item.id}`, []);
 
-  const ListFooterComponent = useMemo(() => {
-    if (!hasMore || !loadingMore) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
-      </View>
-    );
-  }, [hasMore, loadingMore]);
-
   // Updated Empty State Components
   const InviteNudge = () => (
     <Pressable
@@ -300,7 +292,7 @@ export default function HomeScreen() {
               )}
             </EmptyState>
           }
-          ListFooterComponent={ListFooterComponent}
+          ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -310,18 +302,14 @@ export default function HomeScreen() {
           }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
-          windowSize={10}
+          {...FLATLIST_DEFAULTS}
         />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -331,8 +319,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: HEADER.barPaddingBottom,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingBottom: toDimension(HEADER.barPaddingBottom),
+    paddingHorizontal: toDimension(LAYOUT.contentPaddingHorizontal),
     backgroundColor: COLORS.ink,
   },
   profileButton: {

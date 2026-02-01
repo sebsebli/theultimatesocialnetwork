@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform, useWindowDimensions, type DimensionValue } from 'react-native';
+import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform, useWindowDimensions, type DimensionValue } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,8 @@ import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { PostItem } from '../../components/PostItem';
 import { ProfileSkeleton, PostSkeleton } from '../../components/LoadingSkeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, PROFILE_HEADER_ASPECT_RATIO } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, PROFILE_HEADER_ASPECT_RATIO, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { ListFooterLoader } from '../../components/ListFooterLoader';
 import { formatCompactNumber } from '../../utils/format';
 
 const TAB_BAR_HEIGHT = 50;
@@ -344,18 +345,19 @@ export default function UserProfileScreen() {
         renderItem={({ item }: { item: any }) => <PostItem post={item} />}
         ListHeaderComponent={
           <>
-            {/* Header image only: fixed 4:3 so drawing looks identical on all devices. */}
-            <View style={[styles.profileHeaderImageWrap, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
+            {/* Header: fixed aspect ratio so draw area matches on every profile */}
+            <View style={[styles.profileTopSection, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
               {profileHeaderImageUrl ? (
                 <Image
                   source={{ uri: profileHeaderImageUrl }}
-                  style={[styles.profileTopBackground, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}
+                  style={styles.profileTopBackground}
                   contentFit="cover"
                   cachePolicy="memory-disk"
                 />
               ) : (
                 <View style={styles.profileTopBackgroundBlack} />
               )}
+              <View style={styles.profileTopOverlay} />
               <View style={[styles.headerBarOverlay, { paddingTop: insets.top + 10 }]}>
                 <Pressable
                   onPress={() => router.back()}
@@ -375,86 +377,79 @@ export default function UserProfileScreen() {
                 </Pressable>
               </View>
             </View>
-            {/* Profile info + stats: separate block so content is never clipped on small phones. */}
             <View style={styles.profileInfoBlock}>
-              <View style={styles.profileHeader}>
-                <View style={styles.avatarContainer}>
-                  <View style={styles.avatar}>
-                    {(user.avatarKey || user.avatarUrl) ? (
-                      <Image
-                        source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
-                        style={styles.avatarImage}
-                        contentFit="cover"
-                        cachePolicy="memory-disk"
-                      />
-                    ) : (
-                      <Text style={styles.avatarText}>
-                        {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
+                <View style={styles.profileHeader}>
+                  <View style={styles.avatarContainer}>
+                    <View style={styles.avatar}>
+                      {(user.avatarKey || user.avatarUrl) ? (
+                        <Image
+                          source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
+                          style={styles.avatarImage}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
+                      ) : (
+                        <Text style={styles.avatarText}>
+                          {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={styles.identityBlock}>
+                    <Text style={styles.name}>{user.displayName}</Text>
+                    <Text style={styles.handle}>@{user.handle}</Text>
+                  </View>
+
+                  {user.bio ? (
+                    <Text style={styles.bio}>{user.bio}</Text>
+                  ) : null}
+
+                  <View style={styles.actions}>
+                    <Pressable
+                      style={[styles.actionButtonOutline, (following || hasPendingFollowRequest) && styles.actionButtonActive]}
+                      onPress={handleFollow}
+                      accessibilityLabel={hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                      accessibilityRole="button"
+                    >
+                      <Text style={[styles.actionButtonText, (following || hasPendingFollowRequest) && styles.actionButtonTextActive]}>
+                        {hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
                       </Text>
-                    )}
+                    </Pressable>
+
+                    {user.followsMe ? (
+                      <Pressable
+                        style={styles.messageButton}
+                        onPress={handleMessage}
+                        accessibilityLabel={t('profile.message')}
+                        accessibilityRole="button"
+                      >
+                        <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
+                      </Pressable>
+                    ) : null}
                   </View>
                 </View>
 
-                <View style={styles.identityBlock}>
-                  <Text style={styles.name}>{user.displayName}</Text>
-                  <Text style={styles.handle}>@{user.handle}</Text>
-                </View>
-
-                {user.bio && (
-                  <Text style={styles.bio}>{user.bio}</Text>
-                )}
-
-                <View style={styles.actions}>
+                <View style={styles.followersFollowingRow}>
                   <Pressable
-                    style={[styles.actionButtonOutline, (following || hasPendingFollowRequest) && styles.actionButtonActive]}
-                    onPress={handleFollow}
-                    accessibilityLabel={hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
-                    accessibilityRole="button"
+                    onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
+                    style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
                   >
-                    <Text style={[styles.actionButtonText, (following || hasPendingFollowRequest) && styles.actionButtonTextActive]}>
-                      {hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                    <Text style={styles.followersFollowingText}>
+                      {formatCompactNumber(user.followerCount)} {t('profile.followers').toLowerCase()}
                     </Text>
                   </Pressable>
-
-                  {user.followsMe ? (
-                    <Pressable
-                      style={styles.messageButton}
-                      onPress={handleMessage}
-                      accessibilityLabel={t('profile.message')}
-                      accessibilityRole="button"
-                    >
-                      <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
-                    </Pressable>
-                  ) : null}
+                  <Text style={styles.followersFollowingText}> · </Text>
+                  <Pressable
+                    onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
+                    style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
+                  >
+                    <Text style={styles.followersFollowingText}>
+                      {formatCompactNumber(user.followingCount)} {t('profile.following').toLowerCase()}
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
-
-              <View style={styles.statsRow}>
-                <Pressable
-                  style={styles.statItem}
-                  onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
-                >
-                  <Text style={styles.statNumber}>{formatCompactNumber(user.followerCount)}</Text>
-                  <Text style={styles.statLabel}>{t('profile.followers')}</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.statItem}
-                  onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
-                >
-                  <Text style={styles.statNumber}>{formatCompactNumber(user.followingCount)}</Text>
-                  <Text style={styles.statLabel}>{t('profile.following')}</Text>
-                </Pressable>
-                <View style={styles.statItem}>
-                  {user.quotesBadgeEligible && (
-                    <View style={styles.verifiedBadge}>
-                      <MaterialIcons name="verified" size={HEADER.iconSize} color={COLORS.tertiary} />
-                    </View>
-                  )}
-                  <Text style={styles.statNumber}>{formatCompactNumber(user.quoteReceivedCount)}</Text>
-                  <Text style={styles.statLabel}>{t('profile.quotes')}</Text>
-                </View>
-              </View>
-            </View>
 
             {user.isProtected && !following ? (
               <View style={styles.privateProfileGate}>
@@ -467,25 +462,32 @@ export default function UserProfileScreen() {
                 </Text>
               </View>
             ) : (
-            <View style={styles.tabsContainer}>
-              {(isOwnProfile
-                ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
-                : (['posts', 'replies', 'quotes', 'collections'] as const)
-              ).map((tab) => (
-                <Pressable
-                  key={tab}
-                  style={[styles.tab, activeTab === tab && styles.tabActive]}
-                  onPress={() => setActiveTab(tab)}
-                  accessibilityLabel={t(`profile.${tab}`)}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: activeTab === tab }}
-                >
-                  <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                    {t(`profile.${tab}`)}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+              <View style={styles.tabsContainer}>
+                {(isOwnProfile
+                  ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
+                  : (['posts', 'replies', 'quotes', 'collections'] as const)
+                ).map((tab) => {
+                  const count = tab === 'posts' ? (user.postCount ?? 0)
+                    : tab === 'replies' ? (user.replyCount ?? 0)
+                    : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
+                    : tab === 'saved' ? (user.keepsCount ?? 0)
+                    : (user.collectionCount ?? 0);
+                  return (
+                    <Pressable
+                      key={tab}
+                      style={[styles.tab, activeTab === tab && styles.tabActive]}
+                      onPress={() => setActiveTab(tab)}
+                      accessibilityLabel={count > 0 ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: activeTab === tab }}
+                    >
+                      <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                        {t(`profile.${tab}`)}{count > 0 ? ` (${formatCompactNumber(count)})` : ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             )}
           </>
         }
@@ -514,11 +516,7 @@ export default function UserProfileScreen() {
             }
           />
         }
-        ListFooterComponent={hasMore && loadingMore ? (
-          <View style={styles.footerLoader}>
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          </View>
-        ) : null}
+        ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -531,11 +529,7 @@ export default function UserProfileScreen() {
         }
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.3}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={10}
+        {...FLATLIST_DEFAULTS}
       />
 
       <ConfirmModal
@@ -583,7 +577,7 @@ export default function UserProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -605,12 +599,11 @@ const styles = StyleSheet.create({
     zIndex: 10,
     position: 'relative',
   },
-  profileHeaderImageWrap: {
+  profileTopSection: {
     position: 'relative',
     overflow: 'hidden',
   },
   profileInfoBlock: {
-    width: '100%',
     backgroundColor: COLORS.ink,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingTop: SPACING.m,
@@ -624,6 +617,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: '100%',
     height: '100%',
+  },
+  profileTopOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '70%',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  profileTopContent: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: SPACING.m,
+    paddingBottom: SPACING.l,
+    position: 'relative',
+    zIndex: 5,
   },
   profileTopBackgroundBlack: {
     position: 'absolute',
@@ -740,6 +748,24 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     letterSpacing: 0.2,
   },
+  followersFollowingRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xs,
+    gap: 2,
+  },
+  followersFollowingPressable: {
+    opacity: 0.7,
+  },
+  followersFollowingText: {
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    color: COLORS.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -748,6 +774,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     marginBottom: 0,
+  },
+  statsRowContent: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.l,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.s,
   },
   statItem: {
     alignItems: 'center',

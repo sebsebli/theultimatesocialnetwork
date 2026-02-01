@@ -23,7 +23,7 @@ export class FeedController {
   constructor(
     private readonly feedService: FeedService,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
-  ) { }
+  ) {}
 
   @Get()
   @UseGuards(AuthGuard('jwt'))

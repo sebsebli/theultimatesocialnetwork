@@ -33,7 +33,7 @@ export class FeedService {
     private topicFollowRepo: Repository<TopicFollow>,
     @Inject('REDIS_CLIENT') private redis: Redis,
     private uploadService: UploadService,
-  ) { }
+  ) {}
 
   async getHomeFeed(
     userId: string,
@@ -203,9 +203,7 @@ export class FeedService {
       const slice = hasMore ? posts.slice(0, limit) : posts;
       const last = slice[slice.length - 1];
       nextCursorResult =
-        hasMore && last?.createdAt
-          ? last.createdAt.toISOString()
-          : undefined;
+        hasMore && last?.createdAt ? last.createdAt.toISOString() : undefined;
 
       feedItems = slice.map((post) => ({
         type: 'post',
@@ -291,12 +289,18 @@ export class FeedService {
         select: ['id', 'title'],
       });
       titlesMap = Object.fromEntries(
-        refs.map((r) => [(r.id ?? '').toLowerCase(), { title: r.title ?? undefined }]),
+        refs.map((r) => [
+          (r.id ?? '').toLowerCase(),
+          { title: r.title ?? undefined },
+        ]),
       ) as ReferenceMetadata;
     }
     const getRefMeta = (ids: string[] | undefined) =>
       ids?.reduce(
-        (acc, id) => ({ ...acc, [id]: titlesMap[(id ?? '').toLowerCase()] ?? {} }),
+        (acc, id) => ({
+          ...acc,
+          [id]: titlesMap[(id ?? '').toLowerCase()] ?? {},
+        }),
         {} as ReferenceMetadata,
       );
     return items
@@ -307,7 +311,9 @@ export class FeedService {
           return data ? { type: 'post' as const, data } : null;
         }
         const d = item.data;
-        const refMeta = d.post ? getRefMeta(postToLinkedIds.get(d.post.id)) : undefined;
+        const refMeta = d.post
+          ? getRefMeta(postToLinkedIds.get(d.post.id))
+          : undefined;
         return {
           type: 'saved_by' as const,
           data: {

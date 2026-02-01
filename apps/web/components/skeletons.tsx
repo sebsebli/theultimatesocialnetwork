@@ -1,10 +1,12 @@
-export function Skeleton({ className }: { className?: string }) {
-  return (
-    <div className={`animate-pulse bg-white/5 rounded ${className}`} />
-  );
+import { memo } from "react";
+
+function SkeletonInner({ className }: { className?: string }) {
+  return <div className={`animate-pulse bg-white/5 rounded ${className}`} />;
 }
 
-export function PostSkeleton() {
+export const Skeleton = memo(SkeletonInner);
+
+function PostSkeletonInner() {
   return (
     <div className="p-5 border-b border-divider">
       <div className="flex items-center gap-3 mb-4">
@@ -29,7 +31,9 @@ export function PostSkeleton() {
   );
 }
 
-export function ExploreSkeleton() {
+export const PostSkeleton = memo(PostSkeletonInner);
+
+function ExploreSkeletonInner() {
   return (
     <div className="divide-y divide-divider">
       <PostSkeleton />
@@ -39,18 +43,20 @@ export function ExploreSkeleton() {
   );
 }
 
-export function ProfileSkeleton() {
+export const ExploreSkeleton = memo(ExploreSkeletonInner);
+
+function ProfileSkeletonInner() {
   return (
     <div className="w-full">
       {/* Header Image / Space */}
       <div className="h-32 bg-white/5" />
-      
+
       <div className="px-6 relative">
         {/* Avatar */}
         <div className="absolute -top-16 left-6">
           <Skeleton className="w-32 h-32 rounded-full border-4 border-ink" />
         </div>
-        
+
         {/* Actions */}
         <div className="flex justify-end pt-4 pb-8">
           <Skeleton className="w-24 h-10 rounded-full" />
@@ -82,3 +88,5 @@ export function ProfileSkeleton() {
     </div>
   );
 }
+
+export const ProfileSkeleton = memo(ProfileSkeletonInner);

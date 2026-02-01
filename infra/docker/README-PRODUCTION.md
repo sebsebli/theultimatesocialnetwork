@@ -75,7 +75,15 @@ If you scrape `/metrics`, set **METRICS_SECRET** in `.env` and configure your sc
 
 See `prometheus.example.yml` for a Prometheus scrape config using `bearer_token`.
 
-## 6. Useful commands
+## 6. Persistence across restarts
+
+The stack is configured to persist across host reboots and Docker restarts:
+
+- **Restart policy:** Every service uses `restart: unless-stopped`. When the host or Docker daemon restarts, containers start again automatically.
+- **Data:** All persistent data lives in `./volumes/` (db, neo4j, redis, meilisearch, minio, ollama, backups). These directories survive container removal and host reboots.
+- **On Linux:** Ensure Docker starts on boot so the stack comes back after a reboot: `sudo systemctl enable docker` (and start the compose project from `infra/docker` after boot, or use a systemd unit that runs `docker compose up -d`).
+
+## 7. Useful commands
 
 ```bash
 # From infra/docker
@@ -88,7 +96,7 @@ $COMPOSE_CMD down
 $COMPOSE_CMD up -d --build
 ```
 
-### SSL renewal (Let's Encrypt) — automatic
+### 7a. SSL renewal (Let's Encrypt) — automatic
 
 Certificates expire after 90 days. **Auto-renewal is enabled** when you provision the server with Terraform (`infra/terraform/cloud-init.yaml`): a cron job runs **daily at 3 AM** and executes `renew-ssl-cron.sh` (stops nginx → Certbot renew → starts nginx). The cron expects the repo at `/opt/citewalk`; adjust `/etc/cron.d/citewalk-ssl-renew` if your path is different. Logs: `/var/log/citewalk-ssl-renew.log`.
 
@@ -113,7 +121,7 @@ $COMPOSE_CMD start nginx
 
 The API will not start in production without **CORS_ORIGINS** set in `.env` (validated at startup).
 
-## 8. Checklist
+## 9. Checklist
 
 - [ ] `.env` filled with production values (JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET, FRONTEND_URL, NEXT_PUBLIC_API_URL, CORS_ORIGINS, SMTP).
 - [ ] FRONTEND_URL is HTTPS. CORS_ORIGINS is non-empty (comma-separated HTTPS origins).

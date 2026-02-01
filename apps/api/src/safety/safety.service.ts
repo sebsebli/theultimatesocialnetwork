@@ -41,11 +41,12 @@ export class SafetyService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(Reply) private replyRepo: Repository<Reply>,
-    @InjectRepository(ModerationRecord) private moderationRecordRepo: Repository<ModerationRecord>,
+    @InjectRepository(ModerationRecord)
+    private moderationRecordRepo: Repository<ModerationRecord>,
     @Optional()
     @Inject(ContentModerationService)
     private contentModeration?: ContentModerationService,
-  ) { }
+  ) {}
 
   /**
    * List moderation records (admin). Filter by authorId, reasonCode, source; paginate.
@@ -64,9 +65,14 @@ export class SafetyService {
       .orderBy('r.createdAt', 'DESC')
       .take(limit)
       .skip(offset);
-    if (filters.authorId) qb.andWhere('r.authorId = :authorId', { authorId: filters.authorId });
-    if (filters.reasonCode) qb.andWhere('r.reasonCode = :reasonCode', { reasonCode: filters.reasonCode });
-    if (filters.source) qb.andWhere('r.source = :source', { source: filters.source });
+    if (filters.authorId)
+      qb.andWhere('r.authorId = :authorId', { authorId: filters.authorId });
+    if (filters.reasonCode)
+      qb.andWhere('r.reasonCode = :reasonCode', {
+        reasonCode: filters.reasonCode,
+      });
+    if (filters.source)
+      qb.andWhere('r.source = :source', { source: filters.source });
     const [items, total] = await qb.getManyAndCount();
     return { items, total, limit, offset };
   }
@@ -284,7 +290,7 @@ export class SafetyService {
           confidence: 1,
           contentSnapshot: content,
           source: ModerationSource.REPORT_THRESHOLD,
-        }).catch(() => { });
+        }).catch(() => {});
       }
       await this.softDeleteContent(targetId, targetType);
       return;
@@ -329,8 +335,7 @@ export class SafetyService {
                 : ModerationTargetType.REPLY,
             targetId,
             authorId,
-            reasonCode:
-              checkResult.reasonCode ?? ModerationReasonCode.OTHER,
+            reasonCode: checkResult.reasonCode ?? ModerationReasonCode.OTHER,
             reasonText: checkResult.reason ?? 'Content moderated',
             confidence: checkResult.confidence ?? 0.5,
             contentSnapshot: content,

@@ -33,7 +33,8 @@ interface PostJobData {
 
 @Injectable()
 export class PostWorker
-  implements OnApplicationBootstrap, OnApplicationShutdown {
+  implements OnApplicationBootstrap, OnApplicationShutdown
+{
   private readonly logger = new Logger(PostWorker.name);
   private worker: Worker;
 
@@ -47,7 +48,7 @@ export class PostWorker
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
     @Inject('REDIS_CLIENT') private redis: Redis,
-  ) { }
+  ) {}
 
   onApplicationBootstrap() {
     const redisUrl = this.configService.get<string>('REDIS_URL');
@@ -119,7 +120,7 @@ export class PostWorker
             contentSnapshot: post.body,
             source: ModerationSource.ASYNC_CHECK,
           })
-          .catch(() => { });
+          .catch(() => {});
         await this.postRepo.softDelete(postId);
         end();
         workerJobCounter.inc({ worker: 'post', status: 'moderated' });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, memo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { getImageUrl } from "@/lib/security";
@@ -43,7 +43,7 @@ interface TopicSummary {
   } | null;
 }
 
-export function TopicPage({ topic }: TopicPageProps) {
+function TopicPageInner({ topic }: TopicPageProps) {
   const router = useRouter();
   const [isFollowing, setIsFollowing] = useState(topic.isFollowing ?? false);
   const [scrollY, setScrollY] = useState(0);
@@ -67,7 +67,7 @@ export function TopicPage({ topic }: TopicPageProps) {
       const method = previous ? "DELETE" : "POST";
       const res = await fetch(
         `/api/topics/${encodeURIComponent(topic.slug)}/follow`,
-        { method }
+        { method },
       );
       if (!res.ok) throw new Error("Failed to toggle follow");
     } catch {
@@ -82,13 +82,10 @@ export function TopicPage({ topic }: TopicPageProps) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const heroOpacity = Math.max(
-    0,
-    1 - scrollY / HERO_FADE_HEIGHT
-  );
+  const heroOpacity = Math.max(0, 1 - scrollY / HERO_FADE_HEIGHT);
   const stickyHeaderOpacity = Math.min(
     1,
-    Math.max(0, (scrollY - STICKY_HEADER_APPEAR) / 80)
+    Math.max(0, (scrollY - STICKY_HEADER_APPEAR) / 80),
   );
 
   const loadPosts = useCallback(
@@ -96,7 +93,7 @@ export function TopicPage({ topic }: TopicPageProps) {
       if (append) setLoadingMorePosts(true);
       try {
         const res = await fetch(
-          `/api/topics/${encodeURIComponent(topic.slug)}/posts?page=${page}&limit=${POSTS_PAGE_SIZE}&sort=recent`
+          `/api/topics/${encodeURIComponent(topic.slug)}/posts?page=${page}&limit=${POSTS_PAGE_SIZE}&sort=recent`,
         );
         if (!res.ok) return;
         const data = await res.json();
@@ -115,7 +112,7 @@ export function TopicPage({ topic }: TopicPageProps) {
         if (append) setLoadingMorePosts(false);
       }
     },
-    [topic.slug]
+    [topic.slug],
   );
 
   useEffect(() => {
@@ -132,11 +129,9 @@ export function TopicPage({ topic }: TopicPageProps) {
     fetch("/api/explore/topics")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
-        const list = Array.isArray(data) ? data : data?.items ?? [];
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
         setMoreTopics(
-          list
-            .filter((t: TopicSummary) => t.slug !== topic.slug)
-            .slice(0, 10)
+          list.filter((t: TopicSummary) => t.slug !== topic.slug).slice(0, 10),
         );
       })
       .catch(() => {});
@@ -154,7 +149,7 @@ export function TopicPage({ topic }: TopicPageProps) {
         setPostsPage((p) => p + 1);
         loadPosts(page, true);
       },
-      { rootMargin: "200px", threshold: 0 }
+      { rootMargin: "200px", threshold: 0 },
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -165,7 +160,10 @@ export function TopicPage({ topic }: TopicPageProps) {
       {/* Sticky header – fades in on scroll */}
       <header
         className="fixed top-0 left-0 right-0 z-50 border-b border-divider bg-ink/95 backdrop-blur-md transition-opacity duration-150"
-        style={{ opacity: stickyHeaderOpacity, pointerEvents: stickyHeaderOpacity > 0 ? "auto" : "none" }}
+        style={{
+          opacity: stickyHeaderOpacity,
+          pointerEvents: stickyHeaderOpacity > 0 ? "auto" : "none",
+        }}
       >
         <div className="max-w-[680px] mx-auto flex items-center justify-between px-4 py-3">
           <button
@@ -174,8 +172,18 @@ export function TopicPage({ topic }: TopicPageProps) {
             className="text-secondary hover:text-paper p-1 -ml-1"
             aria-label="Back"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
           <h1 className="text-lg font-semibold text-paper truncate max-w-[60%]">
@@ -311,3 +319,5 @@ export function TopicPage({ topic }: TopicPageProps) {
     </div>
   );
 }
+
+export const TopicPage = memo(TopicPageInner);

@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, FlatList, Pressable } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Text, View, TextInput, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -8,8 +8,10 @@ import { PostItem } from '../components/PostItem';
 import { TopicCard } from '../components/ExploreCards';
 import { UserCard } from '../components/UserCard';
 import { EmptyState } from '../components/EmptyState';
+import { SectionHeader } from '../components/SectionHeader';
+import { ListFooterLoader } from '../components/ListFooterLoader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
 
 type SearchType = 'all' | 'posts' | 'people' | 'topics';
 
@@ -19,24 +21,30 @@ export default function SearchScreen() {
   const params = useLocalSearchParams<{ topicSlug?: string }>();
   const topicSlug = typeof params.topicSlug === 'string' ? params.topicSlug : undefined;
   const { t } = useTranslation();
+  const SEARCH_PAGE_SIZE = 20;
   const [query, setQuery] = useState('');
   const [activeType, setActiveType] = useState<SearchType>(topicSlug ? 'posts' : 'all');
   const [results, setResults] = useState<any[]>([]);
   const [allResults, setAllResults] = useState<{ posts: any[]; users: any[]; topics: any[] }>({ posts: [], users: [], topics: [] });
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const onEndReachedFiredRef = useRef(false);
 
   useEffect(() => {
     if (topicSlug) setActiveType('posts');
   }, [topicSlug]);
 
-  const handleSearch = async (searchQuery: string) => {
+  const handleSearch = useCallback(async (searchQuery: string, append = false) => {
     if (!searchQuery.trim()) {
       setResults([]);
       setAllResults({ posts: [], users: [], topics: [] });
+      setHasMore(true);
       return;
     }
-
-    setLoading(true);
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    setHasMore(true);
     try {
       if (activeType === 'all' && !topicSlug) {
         const res = await api.get<{ posts: any[]; users: any[]; topics: any[] }>(`/search/all?q=${encodeURIComponent(searchQuery)}&limit=15`);
@@ -46,25 +54,52 @@ export default function SearchScreen() {
           topics: (res.topics || []).map((topic: any) => ({ ...topic, title: topic.title || topic.slug })),
         });
         setResults([]);
+        setHasMore(false);
       } else if (activeType === 'posts') {
         const topicParam = topicSlug ? `&topicSlug=${encodeURIComponent(topicSlug)}` : '';
-        const res = await api.get<{ hits: any[] }>(`/search/posts?q=${encodeURIComponent(searchQuery)}${topicParam}`);
-        setResults(res.hits || []);
+        const offset = append ? results.length : 0;
+        const res = await api.get<{ hits: any[] }>(`/search/posts?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&offset=${offset}${topicParam}`);
+        const hits = res.hits || [];
+        if (append) setResults((prev) => [...prev, ...hits]);
+        else setResults(hits);
+        setHasMore(hits.length >= SEARCH_PAGE_SIZE);
       } else if (activeType === 'people') {
-        const res = await api.get<{ hits: any[] }>(`/search/users?q=${encodeURIComponent(searchQuery)}`);
-        setResults(res.hits || []);
+        const offset = append ? results.length : 0;
+        const res = await api.get<{ hits: any[] }>(`/search/users?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&offset=${offset}`);
+        const hits = res.hits || [];
+        if (append) setResults((prev) => [...prev, ...hits]);
+        else setResults(hits);
+        setHasMore(hits.length >= SEARCH_PAGE_SIZE);
       } else if (activeType === 'topics') {
-        const res = await api.get<{ hits: any[] }>(`/search/topics?q=${encodeURIComponent(searchQuery)}`);
-        setResults((res.hits || []).map((topic: any) => ({ ...topic, title: topic.title || topic.slug })));
+        const offset = append ? results.length : 0;
+        const res = await api.get<{ hits: any[] }>(`/search/topics?q=${encodeURIComponent(searchQuery)}&limit=${SEARCH_PAGE_SIZE}&offset=${offset}`);
+        const hits = (res.hits || []).map((topic: any) => ({ ...topic, title: topic.title || topic.slug }));
+        if (append) setResults((prev) => [...prev, ...hits]);
+        else setResults(hits);
+        setHasMore(hits.length >= SEARCH_PAGE_SIZE);
       }
     } catch (error) {
       console.error('Failed to search', error);
-      setResults([]);
-      setAllResults({ posts: [], users: [], topics: [] });
+      if (!append) {
+        setResults([]);
+        setAllResults({ posts: [], users: [], topics: [] });
+      }
+      setHasMore(false);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [activeType, topicSlug, results.length]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!query.trim() || loading || loadingMore || !hasMore) return;
+    if (activeType === 'all' && !topicSlug) return;
+    if (onEndReachedFiredRef.current) return;
+    onEndReachedFiredRef.current = true;
+    handleSearch(query, true).finally(() => {
+      onEndReachedFiredRef.current = false;
+    });
+  }, [query, loading, loadingMore, hasMore, activeType, topicSlug, handleSearch]);
 
   const debouncedSearch = useMemo(
     () => {
@@ -73,10 +108,10 @@ export default function SearchScreen() {
         if (timeoutId) clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
           handleSearch(searchQuery);
-        }, 300);
+        }, 350);
       };
     },
-    [activeType, topicSlug]
+    [handleSearch]
   );
 
   const flatListData = useMemo(() => {
@@ -95,11 +130,7 @@ export default function SearchScreen() {
 
   const renderItem = useCallback(({ item }: { item: any }) => {
     if (item.type === 'section') {
-      return (
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionHeaderText}>{item.title}</Text>
-        </View>
-      );
+      return <SectionHeader title={item.title} />;
     }
     if (item.type === 'post') return <PostItem post={item} />;
     if (item.type === 'user') {
@@ -159,7 +190,7 @@ export default function SearchScreen() {
               style={[styles.tab, activeType === type && styles.tabActive]}
               onPress={() => {
                 setActiveType(type);
-                if (query) handleSearch(query);
+                if (query) handleSearch(query, false);
               }}
               accessibilityLabel={t(`search.${type}`, type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1))}
               accessibilityRole="tab"
@@ -186,6 +217,8 @@ export default function SearchScreen() {
         showsHorizontalScrollIndicator={false}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.3}
         ListEmptyComponent={
           loading ? (
             <View style={styles.emptyState}>
@@ -199,16 +232,20 @@ export default function SearchScreen() {
             />
           )
         }
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        initialNumToRender={10}
-        windowSize={10}
+        ListFooterComponent={
+          <ListFooterLoader
+            visible={
+              (activeType === 'posts' || activeType === 'people' || activeType === 'topics') && hasMore && loadingMore
+            }
+          />
+        }
+        {...FLATLIST_DEFAULTS}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -291,5 +328,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.secondary,
     fontFamily: FONTS.medium,
+  },
+  footerLoader: {
+    paddingVertical: SPACING.l,
+    alignItems: 'center',
   },
 });

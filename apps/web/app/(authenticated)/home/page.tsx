@@ -1,6 +1,7 @@
 import { ComposeEditor } from "@/components/compose-editor";
 import { FeedList } from "@/components/feed-list";
 import Link from "next/link";
+import Image from "next/image";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -39,19 +40,14 @@ export default async function HomeFeed() {
       <header className="sticky top-0 z-10 bg-ink border-b border-divider px-4 md:px-6 py-3 md:bg-ink/80 md:backdrop-blur-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center text-primary md:hidden">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path d="M11 5H7C4.5 9 4.5 15 7 19H11"></path>
-                <path d="M13 5H17V19H13"></path>
-              </svg>
+            <div className="relative w-10 h-10 flex-shrink-0 md:hidden">
+              <Image
+                src="/logo_transparent.png"
+                alt=""
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
             <h1 className="text-base md:text-lg font-bold tracking-tight text-paper">
               Home

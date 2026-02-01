@@ -8,8 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { CollectionCard } from '../components/CollectionCard';
+import { EmptyState } from '../components/EmptyState';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
 
 interface Collection {
   id: string;
@@ -111,17 +112,12 @@ export default function CollectionsScreen() {
       />
 
       {collections.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>{t('collections.empty')}</Text>
-          <Pressable
-            style={styles.button}
-            onPress={() => setModalVisible(true)}
-            accessibilityLabel={t('collections.create')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.buttonText}>{t('collections.create')}</Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          icon="folder-open"
+          headline={t('collections.empty')}
+          actionLabel={t('collections.create')}
+          onAction={() => setModalVisible(true)}
+        />
       ) : (
         <FlatList
           data={collections}
@@ -137,11 +133,7 @@ export default function CollectionsScreen() {
               tintColor={COLORS.primary}
             />
           }
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
-          windowSize={10}
+          {...FLATLIST_DEFAULTS}
         />
       )}
 
@@ -200,7 +192,7 @@ export default function CollectionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
@@ -215,18 +207,6 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     textAlign: 'center',
     marginTop: 20,
-    fontFamily: FONTS.regular,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  emptyText: {
-    color: COLORS.secondary,
-    marginBottom: SPACING.xl,
-    fontSize: 16,
     fontFamily: FONTS.regular,
   },
   button: {

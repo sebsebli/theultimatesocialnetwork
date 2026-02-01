@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +7,8 @@ import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { COLORS, SPACING, SIZES, FONTS } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { EmptyState } from '../../components/EmptyState';
 
 export default function MutedUsersScreen() {
   const router = useRouter();
@@ -102,11 +103,14 @@ export default function MutedUsersScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>{t('safety.noMuted', 'No muted users')}</Text>
-          </View>
+          <EmptyState
+            icon="notifications-off"
+            headline={t('safety.noMuted', 'No muted users')}
+            subtext={t('safety.noMutedHint', 'Muted accounts will appear here.')}
+          />
         }
         contentContainerStyle={styles.listContent}
+        {...FLATLIST_DEFAULTS}
       />
 
       <ConfirmModal
@@ -122,7 +126,7 @@ export default function MutedUsersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,

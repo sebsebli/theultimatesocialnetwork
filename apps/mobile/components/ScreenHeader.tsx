@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, Pressable, StyleSheet, ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, FONTS, HEADER, createStyles } from '../constants/theme';
 
 const HEADER_ICON_SIZE = HEADER.iconSize;
 const HEADER_TITLE_SIZE = HEADER.titleSize;
@@ -31,7 +31,7 @@ export interface ScreenHeaderProps {
  * Unified app header: back (optional) + title + right.
  * No border. Uses MaterialIcons 24px, same padding and title style everywhere.
  */
-export function ScreenHeader({
+function ScreenHeaderInner({
   title,
   showBack = true,
   onBack,
@@ -77,7 +77,9 @@ export function ScreenHeader({
   );
 }
 
-const styles = StyleSheet.create({
+export const ScreenHeader = memo(ScreenHeaderInner as React.FunctionComponent<ScreenHeaderProps>) as (props: ScreenHeaderProps) => React.ReactElement | null;
+
+const styles = createStyles({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

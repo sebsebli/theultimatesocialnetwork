@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, createStyles } from '../constants/theme';
 import * as Clipboard from 'expo-clipboard';
 import { useToast } from '../context/ToastContext';
 import { api, getWebAppBaseUrl } from '../utils/api';
@@ -171,7 +171,7 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
   ) as unknown as React.JSX.Element;
 });
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

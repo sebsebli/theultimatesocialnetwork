@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable } from 'react-native';
+import { Text, View, FlatList, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
 
 interface AutocompleteItem {
   id: string;
@@ -114,6 +114,7 @@ export function AutocompleteDropdown({
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item: any) => `${item.type}-${item.id}`}
+          {...FLATLIST_DEFAULTS}
           renderItem={({ item }: { item: any }) => (
             <Pressable
               style={styles.item}
@@ -145,7 +146,7 @@ export function AutocompleteDropdown({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     position: 'absolute',
     bottom: 60,
