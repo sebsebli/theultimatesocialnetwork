@@ -88,9 +88,24 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
 
   const lines = fullDisplayBody.split('\n');
   const hasMoreLines = maxBodyLines != null && lines.length > maxBodyLines;
-  const displayBody = hasMoreLines
-    ? lines.slice(0, maxBodyLines).join('\n')
-    : fullDisplayBody;
+  const MAX_LAST_LINE_CHARS = 72;
+  const ELLIPSIS = ' …';
+  let displayBody: string;
+  if (hasMoreLines) {
+    const take = lines.slice(0, maxBodyLines);
+    const lastLine = take[take.length - 1] ?? '';
+    const truncatedLast =
+      lastLine.length > MAX_LAST_LINE_CHARS
+        ? lastLine.slice(0, MAX_LAST_LINE_CHARS - 3) + '…'
+        : lastLine;
+    const bodyWithoutEllipsis =
+      take.length === 1
+        ? truncatedLast
+        : take.slice(0, -1).join('\n') + '\n' + truncatedLast;
+    displayBody = bodyWithoutEllipsis + ELLIPSIS;
+  } else {
+    displayBody = fullDisplayBody;
+  }
 
   // Prefer key-based URL via API so images work on device/emulator; fallback to API-returned URL or local uri
   const imageSource = headerImageUri
@@ -120,7 +135,7 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
     while ((match = postRegex.exec(post.body)) !== null) {
       const id = match[1];
       const alias = match[2];
-      const resolvedTitle = referenceMetadata[id]?.title;
+      const resolvedTitle = referenceMetadata[id]?.title ?? referenceMetadata[id?.toLowerCase?.() ?? '']?.title;
       list.push({
         type: 'post',
         id,
@@ -146,7 +161,7 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
     }
 
     return list;
-  }, [post.body]);
+  }, [post.body, referenceMetadata]);
 
   if (!post.author) return null;
 
@@ -162,9 +177,10 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
           name={post.author.displayName}
           size={40}
           uri={
-            (post.author as any)?.avatarKey
+            (post.author as any)?.avatarUrl ||
+            ((post.author as any)?.avatarKey
               ? getImageUrl((post.author as any).avatarKey)
-              : (post.author as any)?.avatarUrl
+              : null)
           }
         />
         <View style={styles.authorInfo}>
@@ -212,15 +228,12 @@ export function PostContent({ post, onMenuPress, disableNavigation = false, head
           <Text style={styles.title}>{post.title}</Text>
         ) : null}
         <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
-        {hasMoreLines ? (
-          <Text style={styles.moreIndicator}>{t('post.moreContent', '...')}</Text>
-        ) : null}
       </Pressable>
 
       {/* Sources Section */}
       {showSources && sources.length > 0 && (
         <View style={styles.sourcesSection}>
-          <Text style={styles.sourcesHeader}>{t('post.sources', 'SOURCES')}</Text>
+          <Text style={styles.sourcesHeader}>{t('post.sources', 'Sources')}</Text>
           {sources.map((source, index) => (
             <Pressable
               key={index}

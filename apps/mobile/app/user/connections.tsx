@@ -187,20 +187,24 @@ export default function ConnectionsScreen() {
         <View style={styles.suggestionsContainer}>
           <Text style={styles.suggestionsHeader}>{activeTab === 'topics' ? t('profile.topicsToFollow', 'Topics to follow') : t('home.suggestedPeople', 'Suggested for you')}</Text>
           {suggestions.map(item => (
-            <View key={item.id} style={styles.suggestionItem}>
-              {activeTab === 'topics' ? (
-                <TopicCard
-                  item={item}
-                  onPress={() => router.push(`/topic/${encodeURIComponent(item.slug || item.id)}`)}
-                  onFollow={() => handleFollowTopic(item)}
-                />
-              ) : (
-                <UserCard
-                  item={item}
-                  onPress={() => router.push(`/user/${item.handle}`)}
-                  onFollow={() => handleFollowUser(item)}
-                />
-              )}
+            <View key={item.id || item.slug} style={styles.suggestionItem}>
+              <View style={styles.itemWrapper}>
+                <View style={styles.itemContent}>
+                  {activeTab === 'topics' ? (
+                    <TopicCard
+                      item={item}
+                      onPress={() => router.push(`/topic/${encodeURIComponent(item.slug || item.id)}`)}
+                      onFollow={() => handleFollowTopic(item)}
+                    />
+                  ) : (
+                    <UserCard
+                      item={item}
+                      onPress={() => router.push(`/user/${item.handle}`)}
+                      onFollow={() => handleFollowUser(item)}
+                    />
+                  )}
+                </View>
+              </View>
             </View>
           ))}
         </View>
@@ -250,6 +254,7 @@ export default function ConnectionsScreen() {
           placeholderTextColor={COLORS.tertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          includeFontPadding={false}
         />
       </View>
 
@@ -339,6 +344,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
+    textAlignVertical: 'center',
   },
   privateState: {
     flex: 1,

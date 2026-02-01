@@ -10,6 +10,7 @@ import {
   Dimensions,
   Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -50,6 +51,7 @@ interface Post {
   isLiked?: boolean;
   isKept?: boolean;
   lang?: string | null;
+  referenceMetadata?: Record<string, { title?: string }>;
 }
 
 export default function ReadingModeScreen() {
@@ -68,6 +70,7 @@ export default function ReadingModeScreen() {
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
   const scaleValue = useRef(new Animated.Value(1)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
   const collectionSheetRef = useRef<AddToCollectionSheetRef>(null);
   const shareSheetRef = useRef<ShareSheetRef>(null);
   const [reportVisible, setReportVisible] = useState(false);
@@ -110,6 +113,10 @@ export default function ReadingModeScreen() {
   useEffect(() => {
     loadPost();
   }, [loadPost]);
+
+  useEffect(() => {
+    if ((post?.quoteCount ?? 0) === 0) setSourcesTab('sources');
+  }, [post?.quoteCount]);
 
   const handleLike = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -223,6 +230,14 @@ export default function ReadingModeScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Top fade: content scrolling under this fades into background (~50px at top) */}
+      <View style={styles.topFadeWrap} pointerEvents="none">
+        <LinearGradient
+          colors={['transparent', COLORS.ink]}
+          style={styles.topFadeGradient}
+        />
+      </View>
+
       {/* Overlay header: back + more over hero or at top (no home button) */}
       <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
         <Pressable onPress={() => router.back()} style={styles.overlayIconCircle} accessibilityLabel={t('common.back')}>
@@ -240,30 +255,46 @@ export default function ReadingModeScreen() {
         </Pressable>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          !hasHero && { paddingTop: insets.top },
+          // When no hero/title image, add top margin so back button doesn't overlay author line
+          !hasHero && {
+            paddingTop: insets.top + 40 + HEADER.barPaddingBottom + SPACING.s,
+          },
         ]}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-      >
-        {/* Cover: full width, edge-to-edge (overlay header sits on top) */}
-        {hasHero && (
-          <View style={[styles.heroImageWrap, { height: SCREEN_WIDTH * (3 / 4) }]}>
-            <Image
-              source={{ uri: (post.headerImageKey ? getImageUrl(post.headerImageKey) : undefined) || (post as any).headerImageUrl }}
-              style={[styles.heroImage, { width: SCREEN_WIDTH, height: SCREEN_WIDTH * (3 / 4) }]}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-            {post.title ? (
-              <View style={styles.heroTitleOverlay}>
-                <Text style={styles.heroTitleText} numberOfLines={2}>{post.title}</Text>
-              </View>
-            ) : null}
-          </View>
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
         )}
+        scrollEventThrottle={16}
+      >
+        {/* Cover: full width, edge-to-edge (overlay header sits on top); fades out on scroll */}
+        {hasHero && (() => {
+          const heroFadeDistance = SCREEN_WIDTH * 0.6;
+          const heroOpacity = scrollY.interpolate({
+            inputRange: [0, heroFadeDistance],
+            outputRange: [1, 0],
+            extrapolate: 'clamp',
+          });
+          return (
+            <Animated.View style={[styles.heroImageWrap, { height: SCREEN_WIDTH * (3 / 4), opacity: heroOpacity }]}>
+              <Image
+                source={{ uri: (post.headerImageKey ? getImageUrl(post.headerImageKey) : undefined) || (post as any).headerImageUrl }}
+                style={[styles.heroImage, { width: SCREEN_WIDTH, height: SCREEN_WIDTH * (3 / 4) }]}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+              {post.title ? (
+                <View style={styles.heroTitleOverlay}>
+                  <Text style={styles.heroTitleText} numberOfLines={2}>{post.title}</Text>
+                </View>
+              ) : null}
+            </Animated.View>
+          );
+        })()}
 
         <View style={styles.article}>
           {/* Author above title */}
@@ -293,7 +324,7 @@ export default function ReadingModeScreen() {
             <Text style={styles.title}>{post.title}</Text>
           ) : null}
 
-          <MarkdownText>{post.body}</MarkdownText>
+          <MarkdownText stripLeadingH1IfMatch={post.title ?? undefined} referenceMetadata={post.referenceMetadata}>{post.body}</MarkdownText>
 
           {/* Action row: subtle meta bar with smaller icons so it doesn't compete with the article */}
           <View style={styles.actionsRow}>
@@ -369,7 +400,7 @@ export default function ReadingModeScreen() {
 
         </View>
 
-        {/* Tabs: Sources (tagged content) | Quoted by */}
+        {/* Tabs: Sources (tagged content) | Quoted by (only when post has quotes) */}
         <View style={styles.section}>
           <View style={styles.tabsRow}>
             <Pressable
@@ -380,14 +411,16 @@ export default function ReadingModeScreen() {
                 {t('post.sources', 'Sources')}
               </Text>
             </Pressable>
-            <Pressable
-              style={[styles.tabBtn, sourcesTab === 'quoted' && styles.tabBtnActive]}
-              onPress={() => setSourcesTab('quoted')}
-            >
-              <Text style={[styles.tabBtnText, sourcesTab === 'quoted' && styles.tabBtnTextActive]}>
-                {t('post.quotedBy', 'Quoted by')} {quoteCount > 0 ? `(${quoteCount})` : ''}
-              </Text>
-            </Pressable>
+            {quoteCount > 0 && (
+              <Pressable
+                style={[styles.tabBtn, sourcesTab === 'quoted' && styles.tabBtnActive]}
+                onPress={() => setSourcesTab('quoted')}
+              >
+                <Text style={[styles.tabBtnText, sourcesTab === 'quoted' && styles.tabBtnTextActive]}>
+                  {t('post.quotedBy', 'Quoted by')} ({quoteCount})
+                </Text>
+              </Pressable>
+            )}
           </View>
           {sourcesTab === 'sources' ? (
             sources.length === 0 ? (
@@ -444,7 +477,7 @@ export default function ReadingModeScreen() {
             </View>
           )}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
 
       <AddToCollectionSheet ref={collectionSheetRef} />
       <ShareSheet ref={shareSheetRef} />
@@ -479,10 +512,24 @@ export default function ReadingModeScreen() {
   );
 }
 
+const TOP_FADE_HEIGHT = 50;
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.ink },
   center: { justifyContent: 'center', alignItems: 'center' },
   scrollContent: { paddingBottom: 80 },
+  topFadeWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: TOP_FADE_HEIGHT,
+    zIndex: 5,
+  },
+  topFadeGradient: {
+    flex: 1,
+    width: '100%',
+  },
   overlayHeader: {
     position: 'absolute',
     top: 0,

@@ -13,6 +13,7 @@ function SignInForm() {
   const [email, setEmail] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [showInviteInput, setShowInviteInput] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [token, setToken] = useState("");
 
   const [step, setStep] = useState<"email" | "token">("email");
@@ -63,6 +64,27 @@ function SignInForm() {
     }
   }, [searchParams]);
 
+  // In beta mode, show invite code field first (require invite before signup)
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchBetaMode() {
+      try {
+        const res = await fetch("/api/invites/beta-mode", { cache: "no-store" });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = (await res.json()) as { betaMode?: boolean };
+          if (data.betaMode === true) setShowInviteInput(true);
+        }
+      } catch {
+        if (!cancelled) setShowInviteInput(true);
+      }
+    }
+    fetchBetaMode();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setError("");
@@ -70,6 +92,20 @@ function SignInForm() {
 
     if (!email || !email.includes("@")) {
       setError("Please enter a valid email address");
+      setLoading(false);
+      return;
+    }
+
+    if (showInviteInput && !inviteCode.trim()) {
+      setError("Please enter your invite code to continue.");
+      setLoading(false);
+      return;
+    }
+
+    if (showInviteInput && !acceptedTerms) {
+      setError(
+        "Please accept the Terms of Service and Privacy Policy to continue",
+      );
       setLoading(false);
       return;
     }
@@ -84,27 +120,37 @@ function SignInForm() {
         }),
       });
 
+      const data = await res.json().catch(() => ({}));
+      const msg = data.error ?? data.message;
+
       if (!res.ok) {
-        const data = await res.json();
         if (
           res.status === 400 &&
-          data.message === "Invite code required for registration"
+          (msg === "Invite code required for registration" ||
+            data.message === "Invite code required for registration")
         ) {
           setShowInviteInput(true);
-          throw new Error(
-            "You are new here! Please enter your invite code to join the beta.",
+          setError(
+            "You’re new here — enter your invite code below, then we’ll send you a verification code by email.",
           );
+          setLoading(false);
+          return;
         }
         if (
           res.status === 400 &&
-          data.message === "Please wait before sending another code"
+          (msg === "Please wait before sending another code" ||
+            data.message === "Please wait before sending another code")
         ) {
           startCooldown();
-          throw new Error(
+          setError(
             "Please wait 60 seconds before requesting another code.",
           );
+          setLoading(false);
+          return;
         }
-        throw new Error(data.message || "Failed to send verification code");
+        setError(msg || "Failed to send verification code");
+        setLoading(false);
+        return;
       }
       setStep("token");
       startCooldown();
@@ -130,7 +176,15 @@ function SignInForm() {
         body: JSON.stringify({ email, token }),
       });
       if (!res.ok) throw new Error("Invalid code or expired.");
-      window.location.href = "/home";
+      const data = (await res.json()) as { needsOnboarding?: boolean };
+      if (data.needsOnboarding) {
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem("onboarding_stage", "languages");
+        }
+        window.location.href = "/onboarding";
+      } else {
+        window.location.href = "/home";
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Verification failed");
     } finally {
@@ -172,22 +226,37 @@ function SignInForm() {
             </div>
           )}
 
-          <input
-            type="text"
-            value={token}
-            onChange={(e) =>
-              setToken(e.target.value.replace(/\D/g, "").slice(0, 6))
-            }
-            className={`${inputClass} text-center text-2xl tracking-[0.4em] font-mono`}
-            placeholder="000000"
-            autoFocus
-            maxLength={6}
-          />
+          <div className="space-y-2">
+            <label
+              htmlFor="verification-code"
+              className="block text-sm font-medium text-secondary"
+            >
+              Verification code
+            </label>
+            <input
+              id="verification-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={token}
+              onChange={(e) =>
+                setToken(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              className={`${inputClass} text-center text-2xl tracking-[0.4em] font-mono`}
+              placeholder="000000"
+              autoFocus
+              maxLength={6}
+              aria-label="Enter the 6-digit code from your email"
+            />
+            <p className="text-xs text-tertiary">
+              Enter the 6-digit code we sent to your email.
+            </p>
+          </div>
 
           <button
             type="submit"
             disabled={loading || token.length < 6}
-            className={buttonPrimary}
+            className={`${buttonPrimary} min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ink`}
           >
             {loading ? "Verifying..." : "Verify & Login"}
           </button>
@@ -198,7 +267,7 @@ function SignInForm() {
             type="button"
             onClick={() => handleLogin()}
             disabled={cooldown > 0 || loading}
-            className={buttonSecondary}
+            className={`${buttonSecondary} min-h-[44px] rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ink`}
           >
             {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"}
           </button>
@@ -232,31 +301,89 @@ function SignInForm() {
         </div>
       )}
 
-      <input
-        id="email"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        className={inputClass}
-        placeholder="Email"
-        autoComplete="email"
-      />
+      <div className="space-y-2">
+        <label htmlFor="email" className="block text-sm font-medium text-secondary">
+          Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          className={inputClass}
+          placeholder="you@example.com"
+          autoComplete="email"
+          aria-required="true"
+        />
+      </div>
 
       {showInviteInput && (
-        <input
-          id="inviteCode"
-          type="text"
-          value={inviteCode}
-          onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-          className={`${inputClass} uppercase tracking-wider`}
-          placeholder="Invite code (required for sign up)"
-          required
-          autoFocus
-        />
+        <div className="space-y-2">
+          <label
+            htmlFor="inviteCode"
+            className="block text-sm font-medium text-secondary"
+          >
+            Invite code
+          </label>
+          <input
+            id="inviteCode"
+            type="text"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value.toUpperCase().trim())}
+            className={`${inputClass} uppercase tracking-wider`}
+            placeholder="e.g. A1B2C3D4"
+            required
+            minLength={4}
+            autoComplete="off"
+            autoFocus={!email}
+            aria-required="true"
+            aria-describedby="invite-code-hint"
+          />
+          <p id="invite-code-hint" className="text-xs text-tertiary">
+            Required for new sign-ups. Enter the code you received by email or
+            from someone who invited you.
+          </p>
+        </div>
       )}
 
-      <button type="submit" disabled={loading} className={buttonPrimary}>
+      {showInviteInput && (
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0 focus:ring-offset-ink"
+          />
+          <span className="text-sm text-secondary group-hover:text-paper transition-colors">
+            By signing up, you agree to our{" "}
+            <Link
+              href="/terms"
+              className="text-primary hover:text-primaryDark underline"
+            >
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              className="text-primary hover:text-primaryDark underline"
+            >
+              Privacy Policy
+            </Link>
+            .
+          </span>
+        </label>
+      )}
+
+      <button
+        type="submit"
+        disabled={
+          loading ||
+          (showInviteInput && !acceptedTerms) ||
+          (showInviteInput && !inviteCode.trim())
+        }
+        className={`${buttonPrimary} min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ink`}
+      >
         {loading ? (
           <span className="flex items-center justify-center gap-2">
             <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
@@ -300,43 +427,70 @@ function SignInForm() {
 
 function SignInPageContent() {
   return (
-    <div className="min-h-screen bg-ink flex flex-col py-8 px-6 md:py-10">
-      <div className="flex-1 flex flex-col justify-center items-center gap-8">
-        <div className="flex flex-col items-center justify-center gap-4 text-center w-full max-w-md">
+    <div className="min-h-screen bg-ink flex flex-col md:flex-row">
+      {/* Desktop: left panel — branding */}
+      <div className="hidden md:flex md:flex-1 md:flex-col md:justify-center md:px-12 lg:px-16 xl:px-24 md:border-r md:border-divider">
+        <div className="max-w-md">
           <Image
             src="/icon.png"
             alt="Citewalk"
-            width={88}
-            height={88}
-            className="object-contain"
+            width={72}
+            height={72}
+            className="object-contain mb-8"
             priority
           />
-          <h1 className="text-[48px] font-serif font-semibold text-paper tracking-tight leading-none">
+          <h1 className="text-4xl lg:text-5xl font-serif font-semibold text-paper tracking-tight leading-tight mb-4">
             Citewalk
           </h1>
-          <p className="text-lg font-serif font-semibold text-secondary max-w-[300px] leading-relaxed">
+          <p className="text-lg lg:text-xl font-serif font-light text-secondary leading-relaxed">
             {TAGLINE}
           </p>
-        </div>
-
-        <div className="w-full flex justify-center">
-          <SignInForm />
+          <p className="mt-8 text-sm text-tertiary max-w-sm">
+            No password. We&apos;ll email you a code to sign in or create your
+            account.
+          </p>
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-center gap-2 pt-6 pb-2 text-xs font-medium text-tertiary">
-        <Link href="/privacy" className="hover:text-paper transition-colors">
-          Privacy
-        </Link>
-        <span className="w-0.5 h-0.5 rounded-full bg-tertiary" aria-hidden />
-        <Link href="/terms" className="hover:text-paper transition-colors">
-          Terms
-        </Link>
-        <span className="w-0.5 h-0.5 rounded-full bg-tertiary" aria-hidden />
-        <Link href="/imprint" className="hover:text-paper transition-colors">
-          Imprint
-        </Link>
-      </footer>
+      {/* Mobile: centered branding + form. Desktop: form panel */}
+      <div className="flex-1 flex flex-col py-8 px-6 md:py-12 md:px-10 lg:px-16 md:justify-center md:min-w-0">
+        <div className="flex flex-col justify-center items-center gap-8 md:items-stretch md:max-w-md md:mx-auto w-full">
+          <div className="flex flex-col items-center gap-4 text-center md:hidden">
+            <Image
+              src="/icon.png"
+              alt="Citewalk"
+              width={88}
+              height={88}
+              className="object-contain"
+              priority
+            />
+            <h1 className="text-[48px] font-serif font-semibold text-paper tracking-tight leading-none">
+              Citewalk
+            </h1>
+            <p className="text-lg font-serif font-semibold text-secondary max-w-[300px] leading-relaxed">
+              {TAGLINE}
+            </p>
+          </div>
+
+          <div className="w-full flex justify-center md:justify-stretch">
+            <SignInForm />
+          </div>
+        </div>
+
+        <footer className="flex flex-wrap items-center justify-center gap-2 pt-8 pb-2 mt-auto text-xs font-medium text-tertiary md:justify-start md:max-w-md md:mx-auto">
+          <Link href="/privacy" className="hover:text-paper transition-colors">
+            Privacy
+          </Link>
+          <span className="w-0.5 h-0.5 rounded-full bg-tertiary" aria-hidden />
+          <Link href="/terms" className="hover:text-paper transition-colors">
+            Terms
+          </Link>
+          <span className="w-0.5 h-0.5 rounded-full bg-tertiary" aria-hidden />
+          <Link href="/imprint" className="hover:text-paper transition-colors">
+            Imprint
+          </Link>
+        </footer>
+      </div>
     </div>
   );
 }

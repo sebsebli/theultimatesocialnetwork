@@ -84,7 +84,7 @@ export default function NewMessageScreen() {
       <ScreenHeader
         title={t('messages.newMessage', 'New Message')}
         paddingTop={insets.top}
-        onBack={() => router.replace('/(tabs)/messages')}
+        onBack={() => router.back()}
       />
 
       <View style={styles.searchContainer}>
@@ -95,6 +95,7 @@ export default function NewMessageScreen() {
           value={query}
           onChangeText={setQuery}
           autoFocus
+          includeFontPadding={false}
         />
       </View>
 
@@ -106,13 +107,14 @@ export default function NewMessageScreen() {
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item: { id: string }) => item.id}
-          renderItem={({ item }: { item: { id: string; handle: string; displayName: string; bio?: string; avatarUrl?: string; isFollowing?: boolean } }) => (
+          renderItem={({ item }: { item: { id: string; handle: string; displayName: string; bio?: string; avatarKey?: string; avatarUrl?: string; isFollowing?: boolean } }) => (
             <UserCard
               item={{
                 id: item.id,
                 handle: item.handle,
                 displayName: item.displayName,
                 bio: item.bio,
+                avatarKey: item.avatarKey,
                 avatarUrl: item.avatarUrl,
                 isFollowing: item.isFollowing,
               }}
@@ -150,6 +152,7 @@ const styles = StyleSheet.create({
     color: COLORS.paper,
     fontSize: 16,
     fontFamily: FONTS.regular,
+    textAlignVertical: 'center',
   },
   emptyText: {
     textAlign: 'center',

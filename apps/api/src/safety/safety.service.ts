@@ -17,9 +17,21 @@ import {
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
+import {
+  ModerationRecord,
+  ModerationReasonCode,
+  ModerationSource,
+  ModerationTargetType,
+} from '../entities/moderation-record.entity';
 
 import { ContentModerationService } from './content-moderation.service';
 
+/**
+ * Safety and content moderation. Content moderation is applied to:
+ * - Posts: async in post.worker (checkContent → soft-delete + recordModeration on failure).
+ * - Replies (comments): async in reply.worker (checkContent → soft-delete + recordModeration on failure).
+ * - Images: sync in upload.service processAndUpload (checkImage before storing; all uploads use this).
+ */
 @Injectable()
 export class SafetyService {
   constructor(
@@ -29,10 +41,85 @@ export class SafetyService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(Reply) private replyRepo: Repository<Reply>,
+    @InjectRepository(ModerationRecord) private moderationRecordRepo: Repository<ModerationRecord>,
     @Optional()
     @Inject(ContentModerationService)
     private contentModeration?: ContentModerationService,
-  ) {}
+  ) { }
+
+  /**
+   * List moderation records (admin). Filter by authorId, reasonCode, source; paginate.
+   */
+  async getModerationRecords(filters: {
+    authorId?: string;
+    reasonCode?: ModerationReasonCode;
+    source?: ModerationSource;
+    limit?: number;
+    offset?: number;
+  }) {
+    const limit = Math.min(filters.limit ?? 50, 100);
+    const offset = filters.offset ?? 0;
+    const qb = this.moderationRecordRepo
+      .createQueryBuilder('r')
+      .orderBy('r.createdAt', 'DESC')
+      .take(limit)
+      .skip(offset);
+    if (filters.authorId) qb.andWhere('r.authorId = :authorId', { authorId: filters.authorId });
+    if (filters.reasonCode) qb.andWhere('r.reasonCode = :reasonCode', { reasonCode: filters.reasonCode });
+    if (filters.source) qb.andWhere('r.source = :source', { source: filters.source });
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total, limit, offset };
+  }
+
+  /**
+   * Moderation stats for an author (admin). Used for permanent-ban escalation.
+   * suggestPermanentBan is true when total violations exceed a threshold (e.g. 5).
+   */
+  async getModerationStatsByAuthor(authorId: string): Promise<{
+    total: number;
+    byReasonCode: Record<string, number>;
+    suggestPermanentBan: boolean;
+  }> {
+    const records = await this.moderationRecordRepo.find({
+      where: { authorId },
+      select: ['reasonCode'],
+    });
+    const total = records.length;
+    const byReasonCode: Record<string, number> = {};
+    for (const r of records) {
+      byReasonCode[r.reasonCode] = (byReasonCode[r.reasonCode] ?? 0) + 1;
+    }
+    const PERMANENT_BAN_SUGGEST_THRESHOLD = 5;
+    const suggestPermanentBan = total >= PERMANENT_BAN_SUGGEST_THRESHOLD;
+    return { total, byReasonCode, suggestPermanentBan };
+  }
+
+  /**
+   * Persist a moderation decision (blocked content) for review and analytics.
+   * Stores content snapshot, reason code, and confidence.
+   */
+  async recordModeration(params: {
+    targetType: ModerationTargetType;
+    targetId: string;
+    authorId: string;
+    reasonCode: ModerationReasonCode;
+    reasonText: string;
+    confidence: number;
+    contentSnapshot: string;
+    source: ModerationSource;
+  }): Promise<ModerationRecord> {
+    const record = this.moderationRecordRepo.create({
+      targetType: params.targetType,
+      targetId: params.targetId,
+      authorId: params.authorId,
+      reasonCode: params.reasonCode,
+      reasonText: params.reasonText,
+      confidence: params.confidence,
+      contentSnapshot: params.contentSnapshot.substring(0, 10000), // cap length
+      source: params.source,
+    });
+    return this.moderationRecordRepo.save(record);
+  }
 
   private isValidUUID(uuid: string): boolean {
     const regex =
@@ -163,6 +250,42 @@ export class SafetyService {
     const AI_CHECK_THRESHOLD = 3;
 
     if (reportCount >= AUTO_DELETE_THRESHOLD) {
+      let content = '';
+      let authorId = '';
+      if (targetType === 'POST') {
+        const post = await this.postRepo.findOne({
+          where: { id: targetId },
+          select: ['body', 'authorId'],
+        });
+        if (post) {
+          content = post.body;
+          authorId = post.authorId;
+        }
+      } else {
+        const reply = await this.replyRepo.findOne({
+          where: { id: targetId },
+          select: ['body', 'authorId'],
+        });
+        if (reply) {
+          content = reply.body;
+          authorId = reply.authorId;
+        }
+      }
+      if (content && authorId) {
+        await this.recordModeration({
+          targetType:
+            targetType === 'POST'
+              ? ModerationTargetType.POST
+              : ModerationTargetType.REPLY,
+          targetId,
+          authorId,
+          reasonCode: ModerationReasonCode.OTHER,
+          reasonText: `Report threshold exceeded (${reportCount} reports)`,
+          confidence: 1,
+          contentSnapshot: content,
+          source: ModerationSource.REPORT_THRESHOLD,
+        }).catch(() => { });
+      }
       await this.softDeleteContent(targetId, targetType);
       return;
     }
@@ -199,6 +322,22 @@ export class SafetyService {
         );
 
         if (!checkResult.safe) {
+          await this.recordModeration({
+            targetType:
+              targetType === 'POST'
+                ? ModerationTargetType.POST
+                : ModerationTargetType.REPLY,
+            targetId,
+            authorId,
+            reasonCode:
+              checkResult.reasonCode ?? ModerationReasonCode.OTHER,
+            reasonText: checkResult.reason ?? 'Content moderated',
+            confidence: checkResult.confidence ?? 0.5,
+            contentSnapshot: content,
+            source: ModerationSource.REPORT_THRESHOLD,
+          }).catch(() => {
+            // non-fatal: still soft-delete
+          });
           await this.softDeleteContent(targetId, targetType);
         }
       }
@@ -263,6 +402,7 @@ export class SafetyService {
     reason?: string;
     confidence?: number;
     needsStage2?: boolean;
+    reasonCode?: ModerationReasonCode;
   }> {
     // Use ContentModerationService for two-stage moderation
     if (!this.contentModeration) {

@@ -162,7 +162,8 @@
     "createNewPage": "Ny side",
     "publishedSuccess": "Udgivet",
     "linkToTopic": "TIL EMNE",
-    "references": "{{count}} referencer"
+    "references": "{{count}} referencer",
+    "startTypingToSeeSuggestions": "Begynd at skrive for at se forslag"
   },
   "post": {
     "like": "Synes godt om",

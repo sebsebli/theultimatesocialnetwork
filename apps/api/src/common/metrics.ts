@@ -19,3 +19,15 @@ export const workerJobDuration = new Histogram({
   help: 'Job processing duration',
   labelNames: ['worker'],
 });
+
+export const moderationStageCounter = new Counter({
+  name: 'cite_moderation_stage_total',
+  help: 'Content moderation decisions by stage',
+  labelNames: ['stage'],
+});
+
+export const moderationDuration = new Histogram({
+  name: 'cite_moderation_duration_seconds',
+  help: 'Content moderation check duration',
+  labelNames: ['stage'],
+});

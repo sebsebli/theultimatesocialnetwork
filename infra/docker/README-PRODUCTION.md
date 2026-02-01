@@ -54,13 +54,19 @@ From `infra/docker`:
 The script will:
 
 1. Ensure `.env` exists (create from `.env.example` if missing).
-2. **Production checks**: JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET (strong values), and `ssl/cert.pem` / `ssl/key.pem`. If any check fails, it exits with instructions.
-3. Build images with `docker-compose.yml` + `docker-compose.prod.yml`.
-4. Start services (Nginx uses `nginx-ssl.conf`, HTTP→HTTPS redirect).
-5. Run database migrations.
-6. Print status and logs.
+2. **Production checks**: JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET (strong values).
+3. **SSL**: If `ssl/cert.pem` or `ssl/key.pem` are missing, **automatically run `init-ssl-certbot.sh`** (requires CERTBOT_EMAIL in .env; port 80 free). Then verify certs exist.
+4. Build images with `docker-compose.yml` + `docker-compose.prod.yml` (prod file is override-only: nginx SSL, MinIO no ports).
+5. Start services (Nginx uses `nginx-ssl.conf`, HTTP→HTTPS redirect).
+6. Run database migrations.
+7. **SSL renewal**: Try to **automatically install a cron job** that runs `renew-ssl-cron.sh` daily at 3 AM. If that fails, it prints the `crontab` command to run manually.
+8. Print status and logs.
 
-## 4. Prometheus (optional)
+## 4. MinIO / image storage (security)
+
+**Do not expose MinIO (port 9000/9001) publicly.** The MinIO console and S3 API allow listing and downloading all bucket objects. With `docker-compose.prod.yml`, MinIO has **no published ports** — it is reachable only by the API and backup containers on the Docker network. Images are served to clients only via the API at `GET /images/:key` (use **API_URL** in backend and **NEXT_PUBLIC_API_URL** on web/mobile so clients never hit MinIO directly).
+
+## 5. Prometheus (optional)
 
 If you scrape `/metrics`, set **METRICS_SECRET** in `.env` and configure your scraper with the same value.
 
@@ -69,7 +75,7 @@ If you scrape `/metrics`, set **METRICS_SECRET** in `.env` and configure your sc
 
 See `prometheus.example.yml` for a Prometheus scrape config using `bearer_token`.
 
-## 5. Useful commands
+## 6. Useful commands
 
 ```bash
 # From infra/docker
@@ -100,9 +106,17 @@ $COMPOSE_CMD start nginx
 0 3 * * * cd /path/to/infra/docker && ./renew-ssl-cron.sh >> /var/log/citewalk-ssl-renew.log 2>&1
 ```
 
-## 6. Checklist
+## 7. Health endpoints (API)
+
+- **GET /health** — Readiness: checks database and Redis. Used by Docker HEALTHCHECK and load balancers. Returns 503 if any dependency is down.
+- **GET /health/live** — Liveness: returns 200 immediately (no DB/Redis). Use for Kubernetes livenessProbe if needed.
+
+The API will not start in production without **CORS_ORIGINS** set in `.env` (validated at startup).
+
+## 8. Checklist
 
 - [ ] `.env` filled with production values (JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET, FRONTEND_URL, NEXT_PUBLIC_API_URL, CORS_ORIGINS, SMTP).
+- [ ] FRONTEND_URL is HTTPS. CORS_ORIGINS is non-empty (comma-separated HTTPS origins).
 - [ ] `ssl/cert.pem` and `ssl/key.pem` in place.
 - [ ] `./deploy.sh prod` runs without errors.
 - [ ] HTTPS works; HTTP redirects to HTTPS.

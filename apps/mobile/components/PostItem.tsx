@@ -190,8 +190,8 @@ function PostItemComponent({
         disableNavigation={isPreview}
         headerImageUri={headerImageUri}
         showSources={isPreview}
-        referenceMetadata={isPreview ? (post as any).referenceMetadata : undefined}
-        maxBodyLines={isPreview ? undefined : 5}
+        referenceMetadata={post.referenceMetadata ?? undefined}
+        maxBodyLines={isPreview ? undefined : 2}
       />
 
       {isPreview ? null : (

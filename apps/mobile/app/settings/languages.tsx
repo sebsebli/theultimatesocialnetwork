@@ -89,6 +89,7 @@ export default function SettingsLanguagesScreen() {
           placeholderTextColor={COLORS.tertiary}
           value={search}
           onChangeText={setSearch}
+          includeFontPadding={false}
         />
       </View>
 
@@ -157,11 +158,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
     paddingHorizontal: SPACING.l,
+    paddingVertical: 0,
     color: COLORS.paper,
     fontSize: 16,
     borderWidth: 1,
     borderColor: COLORS.pressed,
     fontFamily: FONTS.regular,
+    textAlignVertical: 'center',
   },
   content: {
     flex: 1,

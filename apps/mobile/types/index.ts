@@ -29,6 +29,8 @@ export interface Post {
   headerImageBlurhash?: string;
   readingTimeMinutes?: number;
   visibility: 'PUBLIC' | 'FOLLOWERS';
+  /** Linked post id -> { title } for [[post:id]] display text (from API). */
+  referenceMetadata?: Record<string, { title?: string }>;
   // UI helper props
   _isSavedBy?: boolean;
   _savedBy?: {

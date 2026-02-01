@@ -65,7 +65,7 @@ export function ConfirmModal({
           {icon ? (
             <MaterialIcons
               name={icon as any}
-              size={36}
+              size={32}
               color={destructive ? COLORS.error : COLORS.primary}
               style={styles.titleIcon}
             />
@@ -74,15 +74,9 @@ export function ConfirmModal({
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
             <Pressable
-              style={({ pressed }: { pressed: boolean }) => [styles.button, styles.cancelButton, pressed && styles.buttonPressed]}
-              onPress={onCancel}
-              disabled={loading}
-            >
-              <Text style={styles.cancelButtonText}>{cancelLabel}</Text>
-            </Pressable>
-            <Pressable
               style={({ pressed }: { pressed: boolean }) => [
                 styles.button,
+                styles.confirmButtonWrap,
                 destructive ? styles.destructiveButton : styles.confirmButton,
                 pressed && styles.buttonPressed,
                 loading && styles.buttonDisabled,
@@ -93,10 +87,17 @@ export function ConfirmModal({
               {loading ? (
                 <ActivityIndicator size="small" color={destructive ? COLORS.error : COLORS.ink} />
               ) : (
-                <Text style={[styles.confirmButtonText, destructive && styles.destructiveButtonText]}>
+                <Text style={[styles.confirmButtonText, destructive && styles.destructiveButtonText]} numberOfLines={1}>
                   {confirmLabel}
                 </Text>
               )}
+            </Pressable>
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [styles.button, styles.cancelButton, pressed && styles.buttonPressed]}
+              onPress={onCancel}
+              disabled={loading}
+            >
+              <Text style={styles.cancelButtonText}>{cancelLabel}</Text>
             </Pressable>
           </View>
         </View>
@@ -158,18 +159,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xs,
   },
   actions: {
-    flexDirection: 'row',
-    gap: SPACING.m,
-    justifyContent: 'stretch',
+    flexDirection: 'column',
+    gap: SPACING.s,
   },
   button: {
-    flex: 1,
     minHeight: MODAL.buttonMinHeight,
-    paddingVertical: MODAL.buttonPaddingVertical,
+    paddingVertical: 14,
     paddingHorizontal: MODAL.buttonPaddingHorizontal,
     borderRadius: MODAL.buttonBorderRadius,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  confirmButtonWrap: {
+    width: '100%',
   },
   buttonPressed: { opacity: 0.8 },
   buttonDisabled: { opacity: 0.6 },

@@ -162,7 +162,8 @@
     "createNewPage": "Uusi sivu",
     "publishedSuccess": "Julkaistu",
     "linkToTopic": "LINKKI AIHEESEEN",
-    "references": "{{count}} viittausta"
+    "references": "{{count}} viittausta",
+    "startTypingToSeeSuggestions": "Aloita kirjoittaminen nähdäksesi ehdotuksia"
   },
   "post": {
     "like": "Tykkää",

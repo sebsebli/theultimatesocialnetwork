@@ -164,6 +164,7 @@ export default {
     tooManyRefs: 'Too many topic/post references. Maximum {{max}}.',
     linkUrlPlaceholder: 'URL (https://...)',
     linkDisplayTextPlaceholder: 'Display Text (optional)',
+    startTypingToSeeSuggestions: 'Commence à taper pour voir les suggestions',
   },
   post: {
     like: 'J\'aime',
@@ -199,7 +200,7 @@ export default {
     quotedBy: 'Cité par',
     noQuotesYet: 'Personne n\'a encore cité ce post.',
     addToCollection: 'Ajouter à une collection',
-    sources: 'SOURCES',
+    sources: 'Sources',
     source: 'Source',
     sourceTitle: 'Titre de la source',
     failedOpenUrl: 'Impossible d\'ouvrir l\'URL',

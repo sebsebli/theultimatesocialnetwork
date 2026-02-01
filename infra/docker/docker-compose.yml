@@ -91,6 +91,7 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - ./volumes/redis:/data
+    command: redis-server --maxmemory ${REDIS_MAXMEMORY:-256mb} --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -118,12 +119,14 @@ services:
       timeout: 5s
       retries: 5
 
+  # MinIO: ports bound to 127.0.0.1 for local dev only. In production use docker-compose.prod.yml
+  # so MinIO has no published ports — images are served only via API (GET /images/:key).
   minio:
     image: minio/minio:RELEASE.2024-01-18T22-51-28Z
     container_name: citewalk-minio
     ports:
-      - "127.0.0.1:9000:9000" # API
-      - "127.0.0.1:9001:9001" # Console
+      - "127.0.0.1:9000:9000" # API (dev only — do not expose publicly)
+      - "127.0.0.1:9001:9001" # Console (dev only — do not expose publicly)
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}

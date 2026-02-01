@@ -13,12 +13,14 @@ import { NotificationHelperService } from '../shared/notification-helper.service
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { NotificationType } from '../entities/notification.entity';
 import { MeilisearchService } from '../search/meilisearch.service';
+import { UploadService } from '../upload/upload.service';
 
 interface ThreadRawResult {
   thread_id: string;
   otherUser_id: string;
   otherUser_handle: string;
   otherUser_display_name: string;
+  otherUser_avatar_key: string | null;
   lastMessageBody: string;
   lastMessageAt: Date;
   unreadCount: string;
@@ -35,6 +37,7 @@ export class MessagesService {
     private notificationHelper: NotificationHelperService,
     private realtimeGateway: RealtimeGateway,
     private meilisearch: MeilisearchService,
+    private uploadService: UploadService,
   ) {}
 
   async findOrCreateThread(userId: string, otherUserId: string) {
@@ -165,13 +168,19 @@ export class MessagesService {
       .orderBy('thread.updatedAt', 'DESC') // Assuming threads have updatedAt
       .getRawMany<ThreadRawResult>();
 
-    return (threads || []).map((t) => ({
-      id: t.thread_id,
-      otherUser: {
-        id: t.otherUser_id,
-        handle: t.otherUser_handle,
-        displayName: t.otherUser_display_name,
-      },
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+    return (threads || []).map((t) => {
+      const avatarKey = t.otherUser_avatar_key ?? null;
+      const avatarUrl = avatarKey ? getImageUrl(avatarKey) : null;
+      return {
+        id: t.thread_id,
+        otherUser: {
+          id: t.otherUser_id,
+          handle: t.otherUser_handle,
+          displayName: t.otherUser_display_name,
+          avatarKey: avatarKey ?? undefined,
+          avatarUrl,
+        },
       lastMessage: t.lastMessageBody
         ? {
             body: t.lastMessageBody,
@@ -180,7 +189,8 @@ export class MessagesService {
         : null,
       unreadCount: parseInt(t.unreadCount, 10) || 0,
       createdAt: t.thread_created_at,
-    }));
+      };
+    });
   }
 
   async getMessages(userId: string, threadId: string) {
@@ -217,7 +227,13 @@ export class MessagesService {
       threadId: string;
       body: string;
       createdAt: string;
-      otherUser: { id: string; handle: string; displayName: string };
+      otherUser: {
+        id: string;
+        handle: string;
+        displayName: string;
+        avatarKey?: string | null;
+        avatarUrl?: string | null;
+      };
     }>
   > {
     if (!query || !query.trim()) {
@@ -252,6 +268,8 @@ export class MessagesService {
           : thread.userA
         : null;
       const other = otherUserId ? userById.get(otherUserId) : null;
+      const avatarKey = other?.avatarKey ?? null;
+      const avatarUrl = avatarKey ? this.uploadService.getImageUrl(avatarKey) : null;
       return {
         id: h.id,
         threadId: h.threadId,
@@ -262,6 +280,8 @@ export class MessagesService {
               id: other.id,
               handle: other.handle,
               displayName: other.displayName ?? other.handle,
+              avatarKey: avatarKey ?? undefined,
+              avatarUrl,
             }
           : { id: '', handle: 'unknown', displayName: 'Unknown' },
       };

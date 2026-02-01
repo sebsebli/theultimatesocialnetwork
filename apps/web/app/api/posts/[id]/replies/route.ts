@@ -3,6 +3,31 @@ import { cookies } from 'next/headers';
 
 const API_URL = process.env.API_URL || 'http://localhost:3000';
 
+export async function GET(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params;
+  const token = (await cookies()).get('token')?.value;
+  const searchParams = request.nextUrl.searchParams;
+  const parentReplyId = searchParams.get('parentReplyId') ?? undefined;
+
+  const url = new URL(`${API_URL}/posts/${params.id}/replies`);
+  if (parentReplyId) url.searchParams.set('parentReplyId', parentReplyId);
+
+  try {
+    const res = await fetch(url.toString(), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return NextResponse.json([], { status: res.status });
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Failed to fetch replies', error);
+    return NextResponse.json([], { status: 500 });
+  }
+}
+
 export async function POST(
   request: NextRequest,
   props: { params: Promise<{ id: string }> }

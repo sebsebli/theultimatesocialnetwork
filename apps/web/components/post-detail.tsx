@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useToast } from "./ui/toast";
-import { renderMarkdown } from "@/utils/markdown";
+import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
 import { getImageUrl } from "@/lib/security";
+import { Avatar } from "./avatar";
 import { ReplySection } from "./reply-section";
 import { SourcesSection } from "./sources-section";
 import { ReferencedBySection } from "./referenced-by-section";
@@ -22,12 +23,15 @@ interface PostDetailProps {
       id: string;
       handle: string;
       displayName: string;
+      avatarKey?: string | null;
+      avatarUrl?: string | null;
     };
     replyCount: number;
     quoteCount: number;
     privateLikeCount?: number;
     headerImageKey?: string | null;
     readingTimeMinutes?: number;
+    referenceMetadata?: Record<string, { title?: string }>;
   };
   /** When true, viewer is not authenticated; hide actions and comments */
   isPublic?: boolean;
@@ -53,31 +57,15 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
     setLiked(!previous); // Optimistic update
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const token = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("token="))
-        ?.split("=")[1];
-
-      if (!token) {
-        setLiked(previous);
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/posts/${post.id}/like`, {
+      const response = await fetch(`/api/posts/${post.id}/like`, {
         method: previous ? "DELETE" : "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        credentials: "include",
       });
 
       if (!response.ok) {
         throw new Error("Failed to toggle like");
       }
     } catch {
-      // console.error('Failed to toggle like', error);
       setLiked(previous); // Revert on error
     }
   };
@@ -87,65 +75,18 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
     setKept(!previous); // Optimistic update
 
     try {
-      const API_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const token = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("token="))
-        ?.split("=")[1];
-
-      if (!token) {
-        setKept(previous);
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/posts/${post.id}/keep`, {
+      const response = await fetch(`/api/posts/${post.id}/keep`, {
         method: previous ? "DELETE" : "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        credentials: "include",
       });
 
       if (!response.ok) {
         throw new Error("Failed to toggle keep");
       }
     } catch {
-      // console.error('Failed to toggle keep', error);
       setKept(previous); // Revert on error
     }
   };
-
-  useEffect(() => {
-    // Fire view beacon
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-    fetch(`${API_URL}/posts/${post.id}/view`, { method: "POST" }).catch(
-      () => {},
-    );
-
-    // Track duration
-    const start = Date.now();
-    return () => {
-      const duration = Math.floor((Date.now() - start) / 1000);
-      if (duration > 0) {
-        const token = document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("token="))
-          ?.split("=")[1];
-        if (token) {
-          fetch(`${API_URL}/posts/${post.id}/read-time`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ duration }),
-            keepalive: true,
-          }).catch(() => {});
-        }
-      }
-    };
-  }, [post.id]);
 
   const formatTime = (date: string) => {
     const d = new Date(date);
@@ -221,9 +162,13 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
         {/* Author Meta */}
         <div className="flex items-center gap-3 mb-4">
           <Link href={`/user/${post.author.handle}`}>
-            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
-              {post.author.displayName.charAt(0).toUpperCase()}
-            </div>
+            <Avatar
+              avatarKey={post.author.avatarKey}
+              avatarUrl={post.author.avatarUrl}
+              displayName={post.author.displayName}
+              handle={post.author.handle}
+              size="md"
+            />
           </Link>
           <div className="flex flex-col leading-tight">
             <div className="flex items-center gap-1.5">
@@ -265,7 +210,11 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
           )}
           <div
             className="text-[18px] leading-relaxed text-secondary font-normal prose prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(post.body) }}
+            dangerouslySetInnerHTML={{
+              __html: renderMarkdown(stripLeadingH1IfMatch(post.body, post.title ?? undefined), {
+                referenceMetadata: post.referenceMetadata ?? undefined,
+              }),
+            }}
           />
           {post.headerImageKey && (
             <div className="relative w-full aspect-video rounded-2xl bg-white/5 mt-4 overflow-hidden shadow-2xl">
@@ -411,16 +360,20 @@ export function PostDetail({ post, isPublic = false }: PostDetailProps) {
 
       {/* Sections */}
       <div className={`px-5 py-6 space-y-8 ${isPublic ? "pb-24" : ""}`}>
-        {/* Replies Section - hidden when public */}
-        {!isPublic && (
-          <ReplySection postId={post.id} replyCount={post.replyCount} />
-        )}
+        {/* Replies Section - always visible; shows "Sign in to comment" when not authenticated */}
+        <ReplySection
+          postId={post.id}
+          replyCount={post.replyCount ?? 0}
+          isPublic={isPublic}
+        />
 
         {/* Sources Section */}
         <SourcesSection postId={post.id} />
 
-        {/* Referenced By Section */}
-        <ReferencedBySection postId={post.id} quoteCount={post.quoteCount} />
+        {/* Referenced by — only when post has been quoted */}
+        {(post.quoteCount ?? 0) > 0 && (
+          <ReferencedBySection postId={post.id} quoteCount={post.quoteCount ?? 0} />
+        )}
       </div>
 
       {isPublic && (

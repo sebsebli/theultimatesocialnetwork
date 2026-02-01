@@ -162,7 +162,8 @@
     "createNewPage": "Nová stránka",
     "publishedSuccess": "Publikováno",
     "linkToTopic": "K TÉMATU",
-    "references": "{{count}} odkazů"
+    "references": "{{count}} odkazů",
+    "startTypingToSeeSuggestions": "Začněte psát pro zobrazení návrhů"
   },
   "post": {
     "like": "Líbí",

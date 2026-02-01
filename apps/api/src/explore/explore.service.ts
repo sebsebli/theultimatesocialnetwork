@@ -212,14 +212,88 @@ export class ExploreService {
       });
     }
     const result = mapped.slice(0, limitNum);
+    const topicIds = result.map((t) => t.id);
 
-    return result.map((t) => ({
-      ...t,
-      isFollowing: followedTopicIds.has(t.id),
-      reasons: followedTopicIds.has(t.id)
-        ? ['Followed by you', 'Cited today']
-        : ['Topic overlap', 'Cited today'],
-    }));
+    // Latest post per topic (by created_at) for topic cards — ORDER BY before distinctOn so PostgreSQL DISTINCT ON keeps first row per topic
+    type LatestRow = { topicId: string; postId: string };
+    const latestRows: LatestRow[] =
+      topicIds.length > 0
+        ? await this.dataSource
+            .createQueryBuilder()
+            .select('pt.topic_id', 'topicId')
+            .addSelect('p.id', 'postId')
+            .from(PostTopic, 'pt')
+            .innerJoin(
+              Post,
+              'p',
+              'p.id = pt.post_id AND p.deleted_at IS NULL',
+            )
+            .where('pt.topic_id IN (:...topicIds)', { topicIds })
+            .orderBy('pt.topic_id')
+            .addOrderBy('p.created_at', 'DESC')
+            .distinctOn(['pt.topic_id'])
+            .getRawMany<LatestRow>()
+            .catch(() => [])
+        : [];
+
+    const postIds = [...new Set(latestRows.map((r) => r.postId))];
+    const topicToPostId = new Map(latestRows.map((r) => [r.topicId, r.postId]));
+
+    const posts =
+      postIds.length > 0
+        ? await this.postRepo.find({
+            where: { id: In(postIds) },
+            relations: ['author'],
+            select: ['id', 'authorId', 'title', 'body', 'headerImageKey', 'createdAt'],
+          })
+        : [];
+    const postMap = new Map(posts.map((p) => [p.id, p]));
+
+    function bodyExcerpt(body: string, maxLen = 120): string {
+      if (!body || typeof body !== 'string') return '';
+      const stripped = body
+        .replace(/#{1,6}\s*/g, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/_([^_]+)_/g, '$1')
+        .replace(/\n+/g, ' ')
+        .trim();
+      return stripped.length <= maxLen ? stripped : stripped.slice(0, maxLen) + '…';
+    }
+
+    return result.map((t) => {
+      const postId = topicToPostId.get(t.id);
+      const post = postId ? postMap.get(postId) : undefined;
+      const recentPost = post
+        ? {
+            id: post.id,
+            title: post.title ?? null,
+            bodyExcerpt: bodyExcerpt(post.body),
+            headerImageKey: post.headerImageKey ?? null,
+            author: post.author
+              ? {
+                  handle: post.author.handle,
+                  displayName: post.author.displayName ?? post.author.handle,
+                }
+              : null,
+            createdAt: post.createdAt?.toISOString?.() ?? null,
+          }
+        : null;
+      return {
+        id: t.id,
+        slug: t.slug,
+        title: t.title,
+        createdAt: t.createdAt?.toISOString?.() ?? null,
+        createdBy: t.createdBy ?? null,
+        postCount: (t as { postCount?: number }).postCount ?? 0,
+        followerCount: (t as { followerCount?: number }).followerCount ?? 0,
+        recentPostImageKey: recentPost?.headerImageKey ?? null,
+        recentPost,
+        isFollowing: followedTopicIds.has(t.id),
+        reasons: followedTopicIds.has(t.id)
+          ? ['Followed by you', 'Cited today']
+          : ['Topic overlap', 'Cited today'],
+      };
+    });
   }
 
   async getPeople(userId?: string, limit = 20, filter?: { sort?: string }) {

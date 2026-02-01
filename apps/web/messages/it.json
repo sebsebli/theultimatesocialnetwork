@@ -162,7 +162,8 @@
     "createNewPage": "Crea pagina",
     "publishedSuccess": "Pubblicato",
     "linkToTopic": "VAI AL TEMA",
-    "references": "{{count}} riferimenti"
+    "references": "{{count}} riferimenti",
+    "startTypingToSeeSuggestions": "Inizia a digitare per vedere i suggerimenti"
   },
   "post": {
     "like": "Mi piace",

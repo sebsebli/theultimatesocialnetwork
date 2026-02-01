@@ -1,54 +1,82 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { getImageUrl } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT } from '../constants/theme';
 
-/** Topic card: row with most recent article image (or icon) + title + follow; description; optional recent excerpt. */
+/** Topic card: bigger card with topic + most recent post (image, excerpt, author) to give users a sense of the topic. */
 export const TopicCard = ({ item, onPress, onFollow }: { item: any; onPress: () => void; onFollow?: () => void }) => {
+  const { t } = useTranslation();
+  const recent = item.recentPost;
   const imageUrl =
+    (recent?.headerImageKey ? getImageUrl(recent.headerImageKey) : null) ||
     (item.headerImageKey ? getImageUrl(item.headerImageKey) : null) ||
     (item.recentPostImageKey ? getImageUrl(item.recentPostImageKey) : null) ||
     (item.latestPostImageKey ? getImageUrl(item.latestPostImageKey) : null) ||
     (item.recentPost?.headerImageKey ? getImageUrl(item.recentPost.headerImageKey) : null) ||
     (item as any).headerImageUrl ||
     (item.recentPost?.headerImageUrl ? item.recentPost.headerImageUrl : null);
+  const latestTitle = recent?.title?.trim() || null;
+  const latestExcerpt = (recent?.bodyExcerpt || item.recentPostExcerpt || '').trim() || null;
+  const latestAuthor = recent?.author ? `@${recent.author.handle}` : null;
+
   return (
     <Pressable onPress={onPress} style={styles.topicCard}>
-      <View style={styles.topicRow}>
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.topicPreviewImage} />
-        ) : (
-          <View style={styles.topicIcon}>
-            <MaterialIcons name="topic" size={HEADER.iconSize} color={COLORS.primary} />
-          </View>
-        )}
-        <View style={styles.topicInfo}>
-          <Text style={styles.topicTitle} numberOfLines={1}>{item.title}</Text>
-          <Text style={styles.topicStatsInline}>
-            {item.postCount ?? 0} posts
-            {(item.followerCount != null && item.followerCount > 0) ? ` · ${item.followerCount} followers` : ''}
-          </Text>
-          {item.recentPostExcerpt ? (
-            <Text style={styles.topicRecentExcerpt} numberOfLines={2}>{item.recentPostExcerpt}</Text>
-          ) : null}
+      {/* Optional header image from latest post — bigger card */}
+      {imageUrl ? (
+        <View style={styles.topicCardImageWrap}>
+          <Image source={{ uri: imageUrl }} style={styles.topicCardImage} />
+          <View style={styles.topicCardImageOverlay} />
         </View>
-        {onFollow != null && (
-          <Pressable
-            style={[styles.topicFollowBtn, item.isFollowing && styles.followingButton]}
-            onPress={(e: { stopPropagation?: () => void }) => { e?.stopPropagation?.(); onFollow(); }}
-          >
-            <Text style={[styles.followButtonText, item.isFollowing && styles.followingButtonText]}>
-              {item.isFollowing ? 'Following' : 'Follow'}
-            </Text>
-          </Pressable>
-        )}
-      </View>
-      {item.description ? (
-        <Text style={styles.topicDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
       ) : null}
+      <View style={styles.topicCardContent}>
+        <View style={styles.topicRow}>
+          {!imageUrl ? (
+            <View style={styles.topicIcon}>
+              <MaterialIcons name="topic" size={HEADER.iconSize} color={COLORS.primary} />
+            </View>
+          ) : null}
+          <View style={[styles.topicInfo, !imageUrl && { marginLeft: 0 }]}>
+            <Text style={styles.topicTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={styles.topicStatsInline}>
+              {item.postCount ?? 0} {t('profile.posts', 'posts').toLowerCase()}
+              {(item.followerCount != null && item.followerCount > 0) ? ` · ${item.followerCount} ${t('profile.followers', 'followers').toLowerCase()}` : ''}
+            </Text>
+          </View>
+          {onFollow != null && (
+            <Pressable
+              style={[styles.topicFollowBtn, item.isFollowing && styles.followingButton]}
+              onPress={(e: { stopPropagation?: () => void }) => { e?.stopPropagation?.(); onFollow(); }}
+            >
+              <Text style={[styles.followButtonText, item.isFollowing && styles.followingButtonText]}>
+                {item.isFollowing ? t('profile.following') : t('profile.follow')}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+        {/* Latest post in topic — gives users a sense of the topic */}
+        {(recent && (latestTitle || latestExcerpt)) ? (
+          <View style={styles.topicLatestBlock}>
+            <Text style={styles.topicLatestLabel}>{t('explore.latest')}</Text>
+            {latestTitle ? (
+              <Text style={styles.topicLatestTitle} numberOfLines={2}>{latestTitle}</Text>
+            ) : null}
+            {latestExcerpt ? (
+              <Text style={[latestTitle ? styles.topicLatestExcerpt : styles.topicLatestExcerptOnly]} numberOfLines={2}>
+                {latestExcerpt}
+              </Text>
+            ) : null}
+            {latestAuthor ? (
+              <Text style={styles.topicLatestAuthor}>{latestAuthor}</Text>
+            ) : null}
+          </View>
+        ) : item.description ? (
+          <Text style={styles.topicDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+        ) : null}
+      </View>
     </Pressable>
   );
 };
@@ -100,9 +128,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.ink,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    marginHorizontal: LAYOUT.contentPaddingHorizontal,
+    marginBottom: SPACING.l,
+    borderRadius: SIZES.borderRadius,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+  },
+  topicCardImageWrap: {
+    width: '100%',
+    aspectRatio: 2.2,
+    backgroundColor: COLORS.divider,
+  },
+  topicCardImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  topicCardImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  topicCardContent: {
     paddingVertical: SPACING.m,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    position: 'relative',
+    paddingHorizontal: SPACING.l,
+  },
+  topicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   topicPreviewImage: {
     width: 48,
@@ -110,10 +163,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: COLORS.divider,
     marginRight: SPACING.m,
-  },
-  topicRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   topicIcon: {
     width: 48,
@@ -127,9 +176,10 @@ const styles = StyleSheet.create({
   topicInfo: {
     flex: 1,
     minWidth: 0,
+    marginLeft: 0,
   },
   topicTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
@@ -139,6 +189,48 @@ const styles = StyleSheet.create({
     color: COLORS.tertiary,
     fontFamily: FONTS.regular,
     marginTop: 2,
+  },
+  topicLatestBlock: {
+    marginTop: SPACING.m,
+    padding: SPACING.m,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+  },
+  topicLatestLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+    letterSpacing: 1,
+  },
+  topicLatestTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    marginTop: 4,
+  },
+  topicLatestExcerpt: {
+    fontSize: 13,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  topicLatestExcerptOnly: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  topicLatestAuthor: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    marginTop: 6,
   },
   topicRecentExcerpt: {
     fontSize: 12,
@@ -175,7 +267,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     lineHeight: 18,
     marginTop: SPACING.s,
-    marginLeft: 48 + SPACING.m,
+    marginLeft: 0,
   },
   personCard: {
     padding: SPACING.xl, // p-5

@@ -20,12 +20,13 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../utils/api';
+import { api, getImageUrl } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/auth';
 import { useComposerSearch } from '../../hooks/useComposerSearch';
 import { MarkdownText } from '../../components/MarkdownText';
 import { PostArticleBlock } from '../../components/PostArticleBlock';
+import { Avatar } from '../../components/Avatar';
 import { Post } from '../../types';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, LAYOUT } from '../../constants/theme';
 import { Image as ExpoImage } from 'expo-image';
@@ -127,6 +128,11 @@ export default function ComposeScreen() {
   const [referenceMetadata, setReferenceMetadata] = useState<Record<string, { title?: string }>>({});
   /** Handles that were selected from the mention dropdown — only these render as @ mentions in preview. */
   const [confirmedMentionHandles, setConfirmedMentionHandles] = useState<Set<string>>(() => new Set());
+  /** Source preview images for composer preview (post header/author avatar, topic image). */
+  const [sourcePreviews, setSourcePreviews] = useState<{
+    postById: Record<string, { headerImageKey?: string | null; authorAvatarKey?: string | null }>;
+    topicBySlug: Record<string, { imageKey?: string | null }>;
+  }>({ postById: {}, topicBySlug: {} });
 
   const textInputRef = useRef<TextInput>(null);
   const [quotedPost, setQuotedPost] = useState<Post | null>(null);
@@ -135,6 +141,10 @@ export default function ComposeScreen() {
     if (quotePostId) loadQuotedPost(quotePostId);
     else if (replyToPostId) loadQuotedPost(replyToPostId);
   }, [quotePostId, replyToPostId]);
+
+  function normalizeTopicSlug(s: string): string {
+    return s.trim().toLowerCase().replace(/[^\w\-]+/g, '-');
+  }
 
   // Load referenced post metadata when entering preview
   useEffect(() => {
@@ -159,6 +169,32 @@ export default function ComposeScreen() {
       };
       loadRefs();
     }
+  }, [previewMode, body]);
+
+  // Load source preview images (header/avatar/topic image) when preview is shown
+  useEffect(() => {
+    if (!previewMode) return;
+    const postIds: string[] = [];
+    const topicSlugs: string[] = [];
+    for (const m of body.matchAll(/\[\[post:([^\]|]+)(?:\|[^\]]*)?\]\]/g)) postIds.push(m[1]);
+    for (const m of body.matchAll(/\[\[(?!post:)([^\]|]+)(?:\|[^\]]*)?\]\]/g)) {
+      topicSlugs.push(normalizeTopicSlug(m[1]));
+    }
+    if (postIds.length === 0 && topicSlugs.length === 0) return;
+    const q = new URLSearchParams();
+    if (postIds.length) q.set('postIds', [...new Set(postIds)].join(','));
+    if (topicSlugs.length) q.set('topicSlugs', [...new Set(topicSlugs)].join(','));
+    api.get(`/posts/source-previews?${q.toString()}`).then((res: { posts?: Array<{ id: string; headerImageKey?: string | null; authorAvatarKey?: string | null }>; topics?: Array<{ slug: string; imageKey?: string | null }> }) => {
+      const postById: Record<string, { headerImageKey?: string | null; authorAvatarKey?: string | null }> = {};
+      (res.posts ?? []).forEach((p) => {
+        postById[p.id] = { headerImageKey: p.headerImageKey ?? null, authorAvatarKey: p.authorAvatarKey ?? null };
+      });
+      const topicBySlug: Record<string, { imageKey?: string | null }> = {};
+      (res.topics ?? []).forEach((t) => {
+        topicBySlug[t.slug] = { imageKey: t.imageKey ?? null };
+      });
+      setSourcePreviews({ postById, topicBySlug });
+    }).catch(() => {});
   }, [previewMode, body]);
 
   const loadQuotedPost = async (id: string) => {
@@ -538,7 +574,7 @@ export default function ComposeScreen() {
   // --- Components ---
 
   const SuggestionsView = () => {
-    if (suggestionType === 'none' || suggestions.length === 0) return null;
+    if (suggestionType === 'none') return null;
     let list: any[] = suggestionType === 'mention' && userId
       ? suggestions.filter((item: any) => item.id !== userId)
       : suggestions;
@@ -551,10 +587,17 @@ export default function ComposeScreen() {
         return true;
       });
     }
-    if (list.length === 0 && suggestionType === 'mention') return null;
     const topics = suggestionType === 'topic' ? list.filter((i: any) => i.type === 'topic') : [];
     const posts = suggestionType === 'topic' ? list.filter((i: any) => i.type === 'post') : [];
     const showSections = suggestionType === 'topic' && (topics.length > 0 && posts.length > 0);
+
+    if (list.length === 0) {
+      return (
+        <View style={styles.suggestionsContainer}>
+          <Text style={styles.suggestionsPlaceholder}>{t('compose.startTypingToSeeSuggestions', 'Start typing to see suggestions')}</Text>
+        </View>
+      );
+    }
 
     const formatPostSuggestionSubtext = (post: { authorHandle?: string; authorDisplayName?: string; createdAt?: string; quoteCount?: number; replyCount?: number }) => {
       const author = post.authorDisplayName || (post.authorHandle ? `@${post.authorHandle}` : null);
@@ -569,7 +612,17 @@ export default function ComposeScreen() {
       <Pressable key={`${item.type}-${item.id ?? item.slug}`} style={styles.suggestionItem} onPress={() => handleSuggestionSelect(item)}>
         <View style={styles.suggestionIcon}>
           {suggestionType === 'mention' ? (
-            <Text style={styles.suggestionAvatarText}>{(item.displayName || item.handle)?.charAt(0)}</Text>
+            <Avatar
+              size={40}
+              uri={item.avatarKey ? getImageUrl(item.avatarKey) : item.avatarUrl}
+              name={(item.displayName || item.handle) ?? ''}
+            />
+          ) : item.type === 'post' && (item.headerImageKey || item.headerImageUrl) ? (
+            <ExpoImage
+              source={{ uri: item.headerImageKey ? getImageUrl(item.headerImageKey) : item.headerImageUrl }}
+              style={styles.suggestionPostImage}
+              contentFit="cover"
+            />
           ) : item.type === 'post' ? (
             <MaterialIcons name="article" size={HEADER.iconSize} color={COLORS.primary} />
           ) : (
@@ -1018,15 +1071,29 @@ export default function ComposeScreen() {
                       const subtitle = source.type === 'external' && source.url
                         ? (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })()
                         : source.type === 'topic' ? t('post.topic', 'Topic') : '';
+                      const postPreview = source.type === 'post' && source.id ? sourcePreviews.postById[source.id] : null;
+                      const topicPreview = source.type === 'topic' && source.slug ? sourcePreviews.topicBySlug[normalizeTopicSlug(source.slug)] : null;
+                      const hasPostImage = postPreview && (postPreview.headerImageKey ?? postPreview.authorAvatarKey);
+                      const hasTopicImage = topicPreview?.imageKey;
                       return (
                         <Pressable key={`${source.type}-${source.id ?? source.slug ?? source.url ?? index}`} style={styles.previewSourceCard} onPress={onPress}>
                           <View style={styles.previewSourceCardLeft}>
                             <View style={styles.previewSourceIconWrap}>
-                              <MaterialIcons
-                                name={source.type === 'post' ? 'article' : source.type === 'topic' ? 'tag' : 'link'}
-                                size={HEADER.iconSize}
-                                color={COLORS.primary}
-                              />
+                              {source.type === 'post' && hasPostImage ? (
+                                postPreview!.headerImageKey ? (
+                                  <Image source={{ uri: getImageUrl(postPreview!.headerImageKey!) }} style={styles.previewSourceCircleImage} resizeMode="cover" />
+                                ) : (
+                                  <Avatar uri={getImageUrl(postPreview!.authorAvatarKey!)} name={title} size={40} style={styles.previewSourceCircleImage} />
+                                )
+                              ) : source.type === 'topic' && hasTopicImage ? (
+                                <Image source={{ uri: getImageUrl(topicPreview!.imageKey!) }} style={styles.previewSourceCircleImage} resizeMode="cover" />
+                              ) : (
+                                <MaterialIcons
+                                  name={source.type === 'post' ? 'article' : source.type === 'topic' ? 'tag' : 'link'}
+                                  size={HEADER.iconSize}
+                                  color={COLORS.primary}
+                                />
+                              )}
                             </View>
                             <View style={styles.previewSourceCardText}>
                               <Text style={styles.previewSourceCardTitle} numberOfLines={1}>{title}</Text>
@@ -1167,10 +1234,12 @@ const styles = StyleSheet.create({
   divider: { width: 1, height: 24, backgroundColor: COLORS.divider, marginHorizontal: 8, alignSelf: 'center' },
 
   suggestionsContainer: { maxHeight: 280, borderBottomWidth: 1, borderBottomColor: COLORS.divider, backgroundColor: COLORS.ink, paddingHorizontal: SPACING.m, paddingTop: SPACING.s },
+  suggestionsPlaceholder: { fontSize: 14, color: COLORS.tertiary, textAlign: 'center', paddingVertical: SPACING.l, fontFamily: FONTS.regular },
   suggestionsScroll: { maxHeight: 280 },
   suggestionSectionHeader: { fontSize: 12, fontWeight: '700', color: COLORS.tertiary, marginTop: SPACING.m, marginBottom: SPACING.xs, marginHorizontal: SPACING.l, textTransform: 'uppercase' },
   suggestionItem: { flexDirection: 'row', alignItems: 'center', padding: SPACING.l, borderBottomWidth: 1, borderBottomColor: COLORS.hover, gap: 16 },
-  suggestionIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.hover, alignItems: 'center', justifyContent: 'center' },
+  suggestionIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.hover, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  suggestionPostImage: { width: 40, height: 40, borderRadius: 8 },
   suggestionAvatarText: { fontSize: 18, color: COLORS.primary, fontWeight: '700' },
   suggestionText: { color: COLORS.paper, fontSize: 16, fontWeight: '600' },
   suggestionSubText: { color: COLORS.secondary, fontSize: 13 },
@@ -1333,6 +1402,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.hover,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  previewSourceCircleImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   previewSourceCardText: {
     flex: 1,

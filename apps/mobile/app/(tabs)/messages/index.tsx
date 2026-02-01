@@ -194,6 +194,7 @@ export default function MessagesScreen() {
           placeholderTextColor={COLORS.tertiary}
           value={search}
           onChangeText={setSearch}
+          includeFontPadding={false}
         />
       </View>
 
@@ -267,6 +268,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: FONTS.regular,
     letterSpacing: 0,
+    textAlignVertical: 'center',
   },
   listContent: {
     paddingBottom: 100,

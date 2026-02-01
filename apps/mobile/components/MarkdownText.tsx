@@ -11,38 +11,44 @@ interface MarkdownTextProps {
   referenceMetadata?: Record<string, { title?: string }>;
   /** When set, only @handle that are in this set render as mention chips; others render as plain text (no @). Omit for published content to render all @ as mentions. */
   validMentionHandles?: Set<string> | null;
+  /** When set (e.g. post.title in full view), the first line "# &lt;title&gt;" is not rendered so the title is not shown twice. */
+  stripLeadingH1IfMatch?: string | null;
 }
 
-export function MarkdownText({ children, referenceMetadata = {}, validMentionHandles }: MarkdownTextProps) {
+export function MarkdownText({ children, referenceMetadata = {}, validMentionHandles, stripLeadingH1IfMatch: titleToStrip }: MarkdownTextProps) {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [targets, setTargets] = useState<string[]>([]);
   const [alias, setAlias] = useState('');
 
-  const handleLinkPress = async (url: string) => {
-    if (url.startsWith('http')) {
-      await WebBrowser.openBrowserAsync(url, {
+  const handleLinkPress = async (url: string | null | undefined) => {
+    if (url == null || typeof url !== 'string') return;
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    if (trimmed.startsWith('http')) {
+      await WebBrowser.openBrowserAsync(trimmed, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
         toolbarColor: COLORS.ink,
         controlsColor: COLORS.primary,
       });
-    } else if (url.startsWith('post:')) {
-      const id = url.split(':')[1];
-      router.push(`/post/${id}`);
+    } else if (trimmed.startsWith('post:')) {
+      const id = trimmed.split(':')[1];
+      if (id) router.push(`/post/${id}`);
     } else {
       // Topic: use exact wikilink target as topic ID (no slugification).
       // [[Artificial Intelligence]] → /topic/Artificial%20Intelligence, [[AI]] → /topic/AI
-      router.push(`/topic/${encodeURIComponent(url)}`);
+      router.push(`/topic/${encodeURIComponent(trimmed)}`);
     }
   };
 
-  const handleWikiLinkPress = (targetString: string, displayAlias?: string) => {
-    const items = targetString.split(',').map(s => s.trim());
+  const handleWikiLinkPress = (targetString: string | null | undefined, displayAlias?: string) => {
+    if (targetString == null || typeof targetString !== 'string') return;
+    const items = targetString.split(',').map(s => s.trim()).filter(Boolean);
     if (items.length > 1) {
       setTargets(items);
       setAlias(displayAlias || 'Linked Items');
       setModalVisible(true);
-    } else {
+    } else if (items[0]) {
       handleLinkPress(items[0]);
     }
   };
@@ -85,21 +91,30 @@ export function MarkdownText({ children, referenceMetadata = {}, validMentionHan
             parts.push(<Text key={`${lineKey}-${match.index}`} style={[lineStyle, styles.inlineCode]}>{codeContent}</Text>);
           }
         } else if (match[7]) {
-          const linkContent = match[8];
-          let linkDisplay = match[9] || linkContent;
-          if (!match[9] && linkContent.startsWith('post:')) {
-            const id = linkContent.split(':')[1];
-            if (referenceMetadata[id]?.title) linkDisplay = referenceMetadata[id].title;
+          const linkContentVal = match[8] != null ? String(match[8]) : '';
+          const aliasVal = match[9] != null ? String(match[9]) : undefined;
+          const meta = referenceMetadata ?? {};
+          let linkDisplay = aliasVal ?? linkContentVal;
+          if (!aliasVal && linkContentVal.startsWith('post:')) {
+            const id = linkContentVal.split(':')[1] ?? '';
+            const refTitle = (meta as Record<string, { title?: string }>)[id]?.title ?? (meta as Record<string, { title?: string }>)[id?.toLowerCase?.() ?? '']?.title;
+            linkDisplay = refTitle ?? id.slice(0, 8);
           }
           parts.push(
-            <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.tagChip, pressed && styles.tagChipPressed]} onPress={() => handleWikiLinkPress(linkContent, match[9])}>
-              <Text style={[lineStyle, styles.tagChipText]} numberOfLines={1}>{linkDisplay}</Text>
+            <Pressable
+              key={`${lineKey}-${match.index}`}
+              style={({ pressed }: { pressed: boolean }) => [styles.inlineLinkWrap, pressed && styles.inlineLinkPressed]}
+              onPress={() => handleWikiLinkPress(linkContentVal, aliasVal)}
+            >
+              <Text style={[lineStyle, styles.tagText]} numberOfLines={1}>{linkDisplay}</Text>
             </Pressable>
           );
         } else if (match[10]) {
+          const hrefVal = match[12] != null ? String(match[12]) : '';
+          const linkTextVal = match[11] != null ? String(match[11]) : hrefVal;
           parts.push(
-            <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.linkChip, pressed && styles.linkChipPressed]} onPress={() => handleLinkPress(match[12])}>
-              <Text style={[lineStyle, styles.linkChipText]} numberOfLines={1}>{match[11]}</Text>
+            <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.inlineLinkWrap, pressed && styles.inlineLinkPressed]} onPress={() => handleLinkPress(hrefVal)}>
+              <Text style={[lineStyle, styles.tagText]} numberOfLines={1}>{linkTextVal}</Text>
             </Pressable>
           );
         } else if (match[13]) {
@@ -107,8 +122,8 @@ export function MarkdownText({ children, referenceMetadata = {}, validMentionHan
           const isValidMention = validMentionHandles == null || validMentionHandles.has(handle);
           if (isValidMention) {
             parts.push(
-              <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.mentionChip, pressed && styles.mentionChipPressed]} onPress={() => router.push(`/user/${handle}`)}>
-                <Text style={[lineStyle, styles.mentionChipText]}>{match[13]}</Text>
+              <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.inlineLinkWrap, pressed && styles.inlineLinkPressed]} onPress={() => router.push(`/user/${handle}`)}>
+                <Text style={[lineStyle, styles.tagText]}>{match[13]}</Text>
               </Pressable>
             );
           } else {
@@ -124,7 +139,21 @@ export function MarkdownText({ children, referenceMetadata = {}, validMentionHan
       return parts;
     };
 
-    const lines = children.split('\n');
+    let content = children;
+    if (titleToStrip && content.trim()) {
+      const firstLine = content.split('\n')[0].trim();
+      if (firstLine === '# ' + titleToStrip || firstLine === '#' + titleToStrip) {
+        content = content.slice(content.indexOf('\n') + 1).trimStart();
+      }
+    }
+    // No line breaks before/after [[]], [text](url), @mention: collapse to space so they render inline
+    content = content.replace(/\n+\s*(\[\[[^\]]+\]\])/g, ' $1');
+    content = content.replace(/(\[\[[^\]]+\]\])\s*\n+\s*/g, '$1 ');
+    content = content.replace(/\n+\s*(\[[^\]]+\]\([^)]+\))/g, ' $1');
+    content = content.replace(/(\[[^\]]+\]\([^)]+\))\s*\n+\s*/g, '$1 ');
+    content = content.replace(/\n+\s*(@[a-zA-Z0-9_.]+)/g, ' $1');
+    content = content.replace(/(@[a-zA-Z0-9_.]+)\s*\n+\s*/g, '$1 ');
+    const lines = content.split('\n');
     type Segment = { type: 'normal'; lines: string[] } | { type: 'code'; lines: string[] };
     const segments: Segment[] = [];
     let i = 0;
@@ -174,32 +203,35 @@ export function MarkdownText({ children, referenceMetadata = {}, validMentionHan
       }
 
       seg.lines.forEach((line, lineIndex) => {
+        const trimmedLine = line.trimStart();
         let lineStyle = styles.text;
-        let content = line;
+        let content = trimmedLine;
         let prefix = null;
-        if (line.startsWith('### ')) {
+        if (trimmedLine.startsWith('### ')) {
           lineStyle = styles.h3;
-          content = line.substring(4);
-        } else if (line.startsWith('## ')) {
+          content = trimmedLine.substring(4).trimStart();
+        } else if (trimmedLine.startsWith('## ')) {
           lineStyle = styles.h2;
-          content = line.substring(3);
-        } else if (line.startsWith('# ') && !line.startsWith('## ')) {
+          content = trimmedLine.substring(3).trimStart();
+        } else if (trimmedLine.startsWith('# ') && !trimmedLine.startsWith('## ')) {
           lineStyle = styles.h1;
-          content = line.substring(2);
-        } else if (line.startsWith('> ')) {
+          content = trimmedLine.substring(2).trimStart();
+        } else if (trimmedLine.startsWith('> ')) {
           lineStyle = styles.blockquote;
-          content = line.substring(2);
+          content = trimmedLine.substring(2).trimStart();
           prefix = <View style={styles.blockquoteBar} />;
-        } else if (line.startsWith('- ')) {
+        } else if (trimmedLine.startsWith('- ')) {
           lineStyle = styles.listItem;
-          content = line.substring(2);
+          content = trimmedLine.substring(2).trimStart();
           prefix = <Text style={styles.bullet}>• </Text>;
-        } else if (/^\d+\. /.test(line)) {
+        } else if (/^\d+\. /.test(trimmedLine)) {
           lineStyle = styles.listItem;
-          const m = line.match(/^(\d+)\. /);
+          const m = trimmedLine.match(/^(\d+)\. /);
           const num = m ? m[1] : '1';
-          content = line.substring(m ? m[0].length : 3);
+          content = trimmedLine.substring(m ? m[0].length : 3).trimStart();
           prefix = <Text style={styles.number}>{num}. </Text>;
+        } else {
+          content = trimmedLine;
         }
         const lineKey = `l-${nodeKey}-${lineIndex}`;
         if (content.trim() === '') {
@@ -225,7 +257,7 @@ export function MarkdownText({ children, referenceMetadata = {}, validMentionHan
     });
 
     return nodes;
-  }, [children, referenceMetadata, validMentionHandles]);
+  }, [children, titleToStrip, referenceMetadata, validMentionHandles]);
 
   return (
     <>
@@ -275,32 +307,33 @@ const styles = StyleSheet.create({
     color: COLORS.paper,
     fontFamily: FONTS.serifRegular,
   },
+  /* H1/H2/H3: Inter, H1 > H2 > H3, tight spacing */
   h1: {
-    fontSize: 28,
-    lineHeight: 36,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
-    marginTop: SPACING.l,
-    marginBottom: SPACING.m,
+    marginTop: SPACING.s,
+    marginBottom: SPACING.xs,
   },
   h2: {
-    fontSize: 22,
-    lineHeight: 30,
-    fontWeight: '700',
-    color: COLORS.paper,
-    fontFamily: FONTS.serifSemiBold,
-    marginTop: SPACING.l,
-    marginBottom: SPACING.m,
-  },
-  h3: {
-    fontSize: 18,
+    fontSize: 19,
     lineHeight: 26,
     fontWeight: '700',
     color: COLORS.paper,
-    fontFamily: FONTS.serifSemiBold,
+    fontFamily: FONTS.semiBold,
     marginTop: SPACING.s,
-    marginBottom: SPACING.m,
+    marginBottom: SPACING.xs,
+  },
+  h3: {
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   blockquote: {
     fontSize: 17,
@@ -342,54 +375,54 @@ const styles = StyleSheet.create({
   italic: {
     fontStyle: 'italic',
   },
-  /* Inline code `code` – Slack-like: monospace, code container, distinct bg */
+  /* Inline code `code` – lighter grey bg, orange code text */
   inlineCode: {
     fontFamily: CODE_FONT,
     fontSize: 14,
-    backgroundColor: 'rgba(30, 32, 36, 0.85)',
-    color: 'rgba(230, 232, 235, 1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.09)',
+    color: '#E8B86D',
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  /* Multi-line inline code (backticks with newlines) – same container as block */
+  /* Multi-line inline code (backticks with newlines) – paragraph-like spacing */
   inlineCodeBlockWrap: {
-    backgroundColor: 'rgba(30, 32, 36, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: 'rgba(110, 122, 138, 0.6)',
+    borderLeftColor: 'rgba(232, 184, 109, 0.5)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     paddingVertical: SPACING.s,
     paddingHorizontal: SPACING.m,
-    marginVertical: SPACING.xs,
+    marginVertical: SPACING.m,
     overflow: 'hidden',
   },
   inlineCodeBlockLine: {
     fontFamily: CODE_FONT,
     fontSize: 13,
-    color: 'rgba(230, 232, 235, 1)',
+    color: '#E8B86D',
     lineHeight: 20,
   },
-  /* Fenced code block ```...``` – Slack-like: monospace, code container, accent bar */
+  /* Fenced code block ```...``` – own paragraph with space before/after, lighter grey bg, orange code */
   codeBlockContainer: {
-    backgroundColor: 'rgba(30, 32, 36, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: 'rgba(110, 122, 138, 0.6)',
+    borderLeftColor: 'rgba(232, 184, 109, 0.5)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     paddingVertical: SPACING.m,
     paddingHorizontal: SPACING.l,
-    marginVertical: SPACING.m,
+    marginVertical: SPACING.l,
     overflow: 'hidden',
   },
   codeBlockLine: {
     fontFamily: CODE_FONT,
     fontSize: 13,
-    color: 'rgba(230, 232, 235, 1)',
+    color: '#E8B86D',
     lineHeight: 20,
   },
   lineRow: {
@@ -400,57 +433,19 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   lineRowHeading: {
-    marginBottom: SPACING.m,
+    marginBottom: SPACING.xs,
   },
-  /* [[Topic]] / [[post:id|title]] – tag pill (minimal vertical padding for compact batches) */
-  tagChip: {
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
-    paddingHorizontal: 4,
-    paddingVertical: 0,
-    borderRadius: 4,
-    marginHorizontal: 1,
+  /* Tags, links, mentions – same font as body (serif), bold and distinct color */
+  inlineLinkWrap: {
+    alignSelf: 'baseline',
   },
-  tagChipPressed: {
-    opacity: 0.8,
-  },
-  tagChipText: {
+  tagText: {
+    fontWeight: '700',
     color: COLORS.primary,
-    fontFamily: FONTS.medium,
-    lineHeight: 20,
+    fontFamily: FONTS.serifSemiBold,
   },
-  /* [text](url) – link pill (minimal vertical padding for compact batches) */
-  linkChip: {
-    backgroundColor: 'rgba(110, 122, 138, 0.15)',
-    paddingHorizontal: 4,
-    paddingVertical: 0,
-    borderRadius: 4,
-    marginHorizontal: 1,
-    borderWidth: 1,
-    borderColor: 'rgba(110, 122, 138, 0.3)',
-  },
-  linkChipPressed: {
+  inlineLinkPressed: {
     opacity: 0.8,
-  },
-  linkChipText: {
-    color: COLORS.primary,
-    fontFamily: FONTS.medium,
-    lineHeight: 20,
-  },
-  /* @handle – mention pill (minimal vertical padding for compact batches) */
-  mentionChip: {
-    backgroundColor: 'rgba(110, 122, 138, 0.18)',
-    paddingHorizontal: 4,
-    paddingVertical: 0,
-    borderRadius: 4,
-    marginHorizontal: 1,
-  },
-  mentionChipPressed: {
-    opacity: 0.8,
-  },
-  mentionChipText: {
-    color: COLORS.secondary,
-    fontFamily: FONTS.medium,
-    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,

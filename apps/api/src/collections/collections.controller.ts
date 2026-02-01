@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CollectionsService } from './collections.service';
@@ -47,8 +49,29 @@ export class CollectionsController {
   findOne(
     @CurrentUser() user: { id: string },
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
-    return this.collectionsService.findOneForViewer(id, user.id);
+    const limitNum = limit != null ? parseInt(limit, 10) : undefined;
+    const offsetNum = offset != null ? parseInt(offset, 10) : undefined;
+    return this.collectionsService.findOneForViewer(
+      id,
+      user.id,
+      limitNum,
+      offsetNum,
+    );
+  }
+
+  @Get(':id/items')
+  @UseGuards(AuthGuard('jwt'))
+  async getItems(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+  ) {
+    await this.collectionsService.findOneForViewer(id, user.id);
+    return this.collectionsService.getItemsPage(id, limit, offset);
   }
 
   @Post(':id/items')

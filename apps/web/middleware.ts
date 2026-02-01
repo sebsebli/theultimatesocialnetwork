@@ -23,6 +23,7 @@ const protectedRoutes = [
   "/explore",
   "/compose",
   "/inbox",
+  "/invites",
   "/topic",
   "/collections",
   "/keeps",
@@ -39,6 +40,11 @@ const publicAuthRoutes = ["/welcome", "/sign-in"];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("token")?.value;
+
+  // Static / well-known: allow without running auth logic
+  if (pathname.startsWith("/.well-known")) {
+    return NextResponse.next();
+  }
 
   // Public view-only routes: allow without auth (profile and post pages)
   const isPublicViewRoute = publicViewRoutes.some((route) =>

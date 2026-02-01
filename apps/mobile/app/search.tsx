@@ -147,6 +147,7 @@ export default function SearchScreen() {
           }}
           autoFocus
           accessibilityLabel={t('home.search')}
+          includeFontPadding={false}
         />
       </View>
 
@@ -226,9 +227,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.divider,
     borderRadius: SIZES.borderRadius,
     paddingHorizontal: SPACING.l,
+    paddingVertical: 0,
     fontSize: 16,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
+    textAlignVertical: 'center',
   },
   tabs: {
     flexDirection: 'row',

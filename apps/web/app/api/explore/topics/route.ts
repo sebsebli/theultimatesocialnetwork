@@ -10,7 +10,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(`${API_URL}/explore/topics`, {
+    const { searchParams } = request.nextUrl;
+    const query = searchParams.toString();
+    const url = query ? `${API_URL}/explore/topics?${query}` : `${API_URL}/explore/topics`;
+    const res = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },

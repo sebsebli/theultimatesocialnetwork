@@ -58,6 +58,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid response' }, { status: 500 });
     }
 
+    const needsOnboarding =
+      typeof user?.handle === 'string' && user.handle.startsWith('__pending_');
+
     // Set secure cookie
     (await cookies()).set('token', accessToken, {
       httpOnly: true,
@@ -67,7 +70,7 @@ export async function POST(request: Request) {
       path: '/',
     });
 
-    return NextResponse.json({ success: true, user });
+    return NextResponse.json({ success: true, user, needsOnboarding });
   } catch (error) {
     const errorResponse = createSecureErrorResponse('Internal Error', 500);
     return NextResponse.json({ error: errorResponse.error }, { status: errorResponse.status });

@@ -333,7 +333,7 @@ function ComposeContent() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-ink/90 backdrop-blur-md border-b border-divider">
+      <header className="sticky top-0 z-40 flex items-center justify-between px-4 md:px-6 py-3 bg-ink/90 backdrop-blur-md border-b border-divider">
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.back()}

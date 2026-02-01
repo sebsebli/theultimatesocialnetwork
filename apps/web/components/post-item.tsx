@@ -5,8 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { Blurhash } from "react-blurhash";
 import { useTranslations } from "next-intl";
-import { renderMarkdown, extractWikilinks } from "@/utils/markdown";
+import { renderMarkdown, extractWikilinks, stripLeadingH1IfMatch, bodyToPlainExcerpt } from "@/utils/markdown";
 import { getImageUrl } from "@/lib/security";
+import { Avatar } from "./avatar";
 import { OverflowMenu } from "./overflow-menu";
 import { AddToCollectionModal } from "./add-to-collection-modal";
 
@@ -19,6 +20,8 @@ export interface Post {
     id: string;
     handle: string;
     displayName: string;
+    avatarKey?: string | null;
+    avatarUrl?: string | null;
   };
   replyCount: number;
   quoteCount: number;
@@ -27,6 +30,7 @@ export interface Post {
   headerImageBlurhash?: string;
   isLiked?: boolean;
   isKept?: boolean;
+  referenceMetadata?: Record<string, { title?: string }>;
 }
 
 interface PostItemProps {
@@ -137,15 +141,19 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
   }, [post.body]);
 
   return (
-    <article className="flex flex-col gap-3 px-5 py-6 border-b border-divider bg-ink">
+    <article className="flex flex-col gap-3 px-5 md:px-6 py-6 border-b border-divider bg-ink">
       {/* Author Meta */}
       <Link
         href={`/user/${post.author.handle}`}
         className="flex items-center gap-3"
       >
-        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
-          {post.author.displayName.charAt(0).toUpperCase()}
-        </div>
+        <Avatar
+          avatarKey={post.author.avatarKey}
+          avatarUrl={post.author.avatarUrl}
+          displayName={post.author.displayName}
+          handle={post.author.handle}
+          size="md"
+        />
         <div className="flex items-center gap-1.5">
           <span className="font-semibold text-sm text-paper">
             {post.author.displayName}
@@ -167,10 +175,9 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
             {post.title}
           </h2>
         )}
-        <div
-          className="text-[17px] leading-relaxed text-secondary font-normal prose prose-invert max-w-none transition-colors duration-200 group-hover:text-gray-300"
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(post.body) }}
-        />
+        <p className="text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300 whitespace-nowrap overflow-hidden">
+          {bodyToPlainExcerpt(post.body, post.title ?? undefined, 120)}
+        </p>
         {post.headerImageKey && (
           <div className="relative w-full h-[240px] rounded-xl bg-divider mt-4 overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-300">
             {post.headerImageBlurhash && (
@@ -311,8 +318,10 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
       {/* Action Row */}
       <div className="flex items-center justify-between pt-2 pr-4 text-tertiary">
         <button
+          type="button"
           onClick={handleLike}
-          className={`flex items-center gap-1 hover:text-primary transition-colors ${liked ? "text-like" : ""}`}
+          aria-label={liked ? t("liked") : t("like")}
+          className={`flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${liked ? "text-like" : ""}`}
         >
           <svg
             className={`w-5 h-5 ${liked ? "fill-current" : ""}`}
@@ -330,7 +339,8 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
         </button>
         <Link
           href={`/post/${post.id}#reply`}
-          className="flex items-center gap-1 hover:text-primary transition-colors"
+          aria-label={post.replyCount > 0 ? `${post.replyCount} ${t("replies")}` : t("reply")}
+          className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <svg
             className="w-5 h-5"
@@ -351,28 +361,25 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
         </Link>
         <Link
           href={`/compose?quote=${post.id}`}
-          className="flex items-center gap-1 hover:text-primary transition-colors"
+          aria-label={post.quoteCount > 0 ? `${post.quoteCount} ${t("quotes")}` : t("quote")}
+          className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <svg
             className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
+            fill="currentColor"
             viewBox="0 0 24 24"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-            />
+            <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z" />
           </svg>
           {post.quoteCount > 0 && (
             <span className="text-xs">{post.quoteCount}</span>
           )}
         </Link>
         <button
+          type="button"
           onClick={handleKeep}
-          className={`flex items-center gap-1 hover:text-primary transition-colors ${kept ? "text-primary" : ""}`}
+          aria-label={kept ? t("kept") : t("keep")}
+          className={`flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${kept ? "text-primary" : ""}`}
         >
           <svg
             className="w-5 h-5"
@@ -389,8 +396,37 @@ export function PostItem({ post, isAuthor = false }: PostItemProps) {
           </svg>
         </button>
         <button
+          type="button"
           onClick={() => setShowCollectionModal(true)}
-          className="flex items-center gap-1 hover:text-primary transition-colors"
+          aria-label="Add to collection"
+          className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            const url = `${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`;
+            navigator.clipboard?.writeText(url);
+            if (navigator.share) {
+              navigator.share({ url, title: post.title ?? "Post" }).catch(() => { });
+            }
+          }}
+          aria-label="Share post"
+          className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <svg
             className="w-5 h-5"

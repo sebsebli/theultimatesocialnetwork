@@ -53,13 +53,13 @@ import * as Joi from 'joi';
         }),
         transport:
           process.env.NODE_ENV !== 'production' &&
-          process.env.NODE_ENV !== 'test'
+            process.env.NODE_ENV !== 'test'
             ? {
-                target: 'pino-pretty',
-                options: {
-                  singleLine: true,
-                },
-              }
+              target: 'pino-pretty',
+              options: {
+                singleLine: true,
+              },
+            }
             : undefined,
       },
     }),
@@ -81,6 +81,15 @@ import * as Joi from 'joi';
         MINIO_SECRET_KEY: Joi.string().default('minioadmin'),
         /** When set, GET /metrics requires X-Metrics-Secret or Authorization: Bearer <value>. */
         METRICS_SECRET: Joi.string().optional(),
+        /** Comma-separated allowed origins. Required in production so CORS is explicit. */
+        CORS_ORIGINS: Joi.when('NODE_ENV', {
+          is: 'production',
+          then: Joi.string().min(1).required(),
+          otherwise: Joi.string().optional(),
+        }),
+        /** Global throttle: requests per IP per window. Default 60/min for abuse mitigation. */
+        THROTTLE_LIMIT: Joi.number().min(1).max(1000).default(60),
+        THROTTLE_TTL_MS: Joi.number().min(1000).max(3600000).default(60000),
       }),
     }),
     ScheduleModule.forRoot(),
@@ -90,8 +99,8 @@ import * as Joi from 'joi';
       useFactory: (config: ConfigService) => ({
         throttlers: [
           {
-            ttl: 60000,
-            limit: 300,
+            ttl: config.get<number>('THROTTLE_TTL_MS') ?? 60000,
+            limit: config.get<number>('THROTTLE_LIMIT') ?? 60,
           },
         ],
         storage: new ThrottlerStorageRedisService(
@@ -133,4 +142,4 @@ import * as Joi from 'joi';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

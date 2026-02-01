@@ -183,7 +183,7 @@ export default function InvitesScreen() {
               </View>
               <Text style={styles.heroTitle}>{t('invites.heroTitle', 'Invite by email')}</Text>
               <Text style={styles.heroText}>
-                {t('invites.heroText', 'Enter your friend\'s email. We\'ll send them a one-time invitation code. You have a limited number of invites.')}
+                {t('invites.heroText', 'Enter your friend\'s email. We\'ll send them a one-time invitation code. You can invite up to 3 people.')}
               </Text>
             </View>
 
@@ -224,29 +224,33 @@ export default function InvitesScreen() {
             </View>
           </>
         ) : (
-          <View style={styles.hero}>
-            <View style={styles.iconCircle}>
-              <MaterialIcons name="share" size={HEADER.iconSize} color={COLORS.primary} />
+          <>
+            <View style={styles.hero}>
+              <View style={styles.iconCircle}>
+                <MaterialIcons name="share" size={HEADER.iconSize} color={COLORS.primary} />
+              </View>
+              <Text style={styles.heroTitle}>{t('invites.referralTitle', 'Refer Friends')}</Text>
+              <Text style={styles.heroText}>
+                {t('invites.referralText', 'Share your referral link with friends. They can join Citewalk and you\'ll be connected.')}
+              </Text>
             </View>
-            <Text style={styles.heroTitle}>{t('invites.referralTitle', 'Refer Friends')}</Text>
-            <Text style={styles.heroText}>
-              {t('invites.referralText', 'Share your referral link with friends. They can join Citewalk and you\'ll be connected.')}
-            </Text>
-            <Pressable
-              style={[styles.button, styles.referralButton, referralLoading && styles.buttonDisabled]}
-              onPress={handleShareReferralLink}
-              disabled={referralLoading}
-            >
-              {referralLoading ? (
-                <ActivityIndicator size="small" color={COLORS.ink} />
-              ) : (
-                <>
-                  <MaterialIcons name="share" size={HEADER.iconSize} color={COLORS.ink} style={{ marginRight: 8 }} />
-                  <Text style={styles.buttonText}>{t('invites.createReferralLink', 'Create Referral Link')}</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
+            <View style={styles.referralCard}>
+              <Pressable
+                style={[styles.button, referralLoading && styles.buttonDisabled]}
+                onPress={handleShareReferralLink}
+                disabled={referralLoading}
+              >
+                {referralLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.ink} />
+                ) : (
+                  <View style={styles.buttonContent}>
+                    <MaterialIcons name="share" size={22} color={COLORS.ink} />
+                    <Text style={styles.buttonText}>{t('invites.shareReferralLink', 'Share referral link')}</Text>
+                  </View>
+                )}
+              </Pressable>
+            </View>
+          </>
         )}
 
         {betaMode && data?.invites && data.invites.length > 0 && (
@@ -410,9 +414,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  referralButton: {
+  buttonContent: {
     flexDirection: 'row',
-    marginTop: SPACING.m,
+    alignItems: 'center',
+    gap: 10,
+  },
+  referralCard: {
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.l,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    marginBottom: SPACING.xl,
   },
   buttonDisabled: { opacity: 0.5 },
   buttonText: {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Platform, Switch, ActivityIndicator, Linking } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ScrollView, Platform, Switch, ActivityIndicator, Linking, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -132,6 +132,17 @@ export default function SettingsScreen() {
             label={t('settings.languages')}
             onPress={() => router.push('/settings/languages')}
           />
+          <SettingItem
+            icon="mail-outline"
+            label={t('settings.changeEmail')}
+            onPress={() => router.push('/settings/change-email')}
+          />
+          <SettingItem
+            icon="warning"
+            label={t('settings.dangerZone', 'Danger zone')}
+            onPress={() => router.push('/settings/danger-zone')}
+            destructive
+          />
         </View>
 
         <View style={styles.section}>
@@ -208,7 +219,15 @@ export default function SettingsScreen() {
             <SettingItem
               icon="rss-feed"
               label={t('settings.myRssFeed', 'My RSS Feed')}
-              onPress={() => Linking.openURL(`${getApiBaseUrl()}/rss/${encodeURIComponent(me.handle)}`)}
+              onPress={() => {
+                const url = `${getApiBaseUrl().replace(/\/$/, '')}/rss/${encodeURIComponent(me.handle)}`;
+                const title = t('settings.myRssFeed', 'My RSS Feed');
+                Share.share(
+                  Platform.OS === 'android'
+                    ? { message: url, title }
+                    : { url, message: url, title },
+                ).catch(() => {});
+              }}
             />
           ) : null}
           <Pressable
@@ -226,15 +245,9 @@ export default function SettingsScreen() {
             </View>
             <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
           </Pressable>
-          <SettingItem
-            icon="warning"
-            label={t('settings.dangerZone', 'Danger zone')}
-            onPress={() => router.push('/settings/danger-zone')}
-            destructive
-          />
         </View>
 
-        <View style={styles.section}>
+        <View style={[styles.section, styles.signOutSection]}>
           <SettingItem
             icon="logout"
             label={t('settings.signOut')}
@@ -261,7 +274,7 @@ export default function SettingsScreen() {
         visible={requestDataModalVisible}
         title={t('settings.requestMyData', 'Request my data')}
         message={t('settings.requestDataModalMessage', 'We will send an email to your account address with a secure download link for your data (ZIP). The link expires in 7 days and can only be used once. Continue?')}
-        confirmLabel={t('settings.sendExportLink', 'Send link to my email')}
+        confirmLabel={t('settings.sendExportLink', 'Send link')}
         cancelLabel={t('common.cancel')}
         icon="email"
         onConfirm={handleRequestMyData}
@@ -284,6 +297,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     paddingBottom: SPACING.s,
+  },
+  signOutSection: {
+    marginTop: SPACING.xxl,
+    paddingTop: SPACING.m,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
   },
   sectionTitle: {
     fontSize: 13,

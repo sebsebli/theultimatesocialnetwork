@@ -53,7 +53,11 @@ export async function PATCH(request: Request) {
   });
 
   if (!res.ok) {
-    return NextResponse.json({ error: 'Failed' }, { status: res.status });
+    const errBody = await res.json().catch(() => ({}));
+    return NextResponse.json(
+      { error: errBody.message ?? errBody.error ?? 'Failed' },
+      { status: res.status },
+    );
   }
 
   const data = await res.json();

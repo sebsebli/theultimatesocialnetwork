@@ -53,6 +53,7 @@ export class UsersController {
     updates: {
       displayName?: string;
       handle?: string;
+      email?: string;
       bio?: string;
       avatarKey?: string | null;
       profileHeaderKey?: string | null;
@@ -81,6 +82,10 @@ export class UsersController {
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9_]/g, '');
+    }
+    if (updates.email !== undefined) {
+      const trimmed = updates.email.trim().toLowerCase();
+      if (trimmed) allowedUpdates.email = trimmed;
     }
     return this.usersService.update(user.id, allowedUpdates);
   }
@@ -133,6 +138,7 @@ export class UsersController {
   private withAvatarUrl(u: User | null): Record<string, unknown> | null {
     const plain = userToPlain(u);
     if (!plain || !u) return plain;
+    const avatarKey = u.avatarKey ?? undefined;
     const avatarUrl = u.avatarKey
       ? this.uploadService.getImageUrl(u.avatarKey)
       : null;
@@ -140,7 +146,7 @@ export class UsersController {
       ? this.uploadService.getImageUrl(u.profileHeaderKey)
       : null;
     const profileBackgroundColor = '#0B0B0C';
-    return { ...plain, avatarUrl, profileHeaderUrl, profileBackgroundColor };
+    return { ...plain, avatarKey, avatarUrl, profileHeaderUrl, profileBackgroundColor };
   }
 
   @Get('me/notification-prefs')
@@ -358,7 +364,7 @@ export class UsersController {
     return {
       user: userPlain,
       posts: raw.posts.map((p) => postToPlain(p, getImageUrl)),
-      replies: raw.replies.map((r) => replyToPlain(r)),
+      replies: raw.replies.map((r) => replyToPlain(r, getImageUrl)),
       likes: raw.likes.map((l) => ({
         postId: l.postId,
         createdAt: l.createdAt,
@@ -529,6 +535,8 @@ export class UsersController {
     const threshold = await this.usersService.getQuotesBadgeThreshold();
     const quotesBadgeEligible = (user?.quoteReceivedCount ?? 0) >= threshold;
     const followsMe = (user as { followsMe?: boolean })?.followsMe ?? false;
+    const isFollowing = (user as { isFollowing?: boolean })?.isFollowing ?? false;
+    const hasPendingFollowRequest = (user as { hasPendingFollowRequest?: boolean })?.hasPendingFollowRequest ?? false;
     let isBlockedByMe = false;
     if (currentUser?.id && user?.id) {
       isBlockedByMe = await this.safetyService.isBlocked(
@@ -545,6 +553,8 @@ export class UsersController {
       profileBackgroundColor,
       quotesBadgeEligible,
       followsMe,
+      isFollowing,
+      hasPendingFollowRequest,
       isBlockedByMe,
     };
   }

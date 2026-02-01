@@ -1,69 +1,78 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 
+const OLLAMA_EMBED_MODEL_DEFAULT = 'qwen3-embedding:0.6b';
+const EMBED_TIMEOUT_MS = parseInt(
+  process.env.OLLAMA_EMBED_TIMEOUT_MS || '15000',
+  10,
+) || 15000;
+
 @Injectable()
 export class EmbeddingService implements OnModuleInit {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private embeddingModel: any = null;
-  private isModelLoaded = false;
+  private ollamaHost: string | null = null;
+  private ollamaEmbedModel: string = OLLAMA_EMBED_MODEL_DEFAULT;
 
   onModuleInit() {
-    // Load embedding model asynchronously (don't block startup)
-    void this.loadEmbeddingModel().catch((err: Error) => {
-      console.warn(
-        'Failed to load embedding model, semantic search will fallback:',
-        err.message,
+    this.ollamaHost = process.env.OLLAMA_HOST ?? null;
+    this.ollamaEmbedModel =
+      process.env.OLLAMA_EMBED_MODEL || OLLAMA_EMBED_MODEL_DEFAULT;
+    if (this.ollamaHost) {
+      console.log(
+        `✅ Embedding: Ollama (${this.ollamaEmbedModel}) at ${this.ollamaHost} (timeout ${EMBED_TIMEOUT_MS}ms)`,
       );
-    });
-  }
-
-  /**
-   * Load embedding model (Xenova Transformers - runs locally)
-   */
-  private async loadEmbeddingModel() {
-    try {
-      // Lazy import to avoid startup crashes if native deps are missing
-      const { pipeline } = await import('@xenova/transformers');
-      // Use a lightweight sentence transformer model
-      this.embeddingModel = await pipeline(
-        'feature-extraction',
-        'Xenova/all-MiniLM-L6-v2', // Fast, lightweight model
-      );
-      this.isModelLoaded = true;
-      console.log('✅ Embedding model loaded for semantic search');
-    } catch (error) {
-      console.warn('Could not load embedding model:', error);
-      this.isModelLoaded = false;
     }
   }
 
+  private cleanTextForEmbedding(text: string): string {
+    return text
+      .replace(/\[\[.*?\]\]/g, '')
+      .replace(/\[.*?\]\(.*?\)/g, '')
+      .replace(/https?:\/\/[^\s]+/g, '')
+      .replace(/#+\s*/g, '')
+      .trim()
+      .substring(0, 512);
+  }
+
   /**
-   * Generate embedding for text
+   * Generate one embedding via Ollama. Returns null if OLLAMA_HOST not set or request fails.
    */
   async generateEmbedding(text: string): Promise<number[] | null> {
-    if (!this.isModelLoaded || !this.embeddingModel) {
-      return null;
-    }
+    const cleanText = this.cleanTextForEmbedding(text);
+    if (!cleanText) return null;
+    if (!this.ollamaHost) return null;
+    const batch = await this.embedViaOllamaBatch([cleanText]);
+    return batch?.[0] ?? null;
+  }
 
+  /**
+   * Generate embeddings for multiple texts in one Ollama API call (much faster than N single calls).
+   */
+  async generateEmbeddings(texts: string[]): Promise<number[][] | null> {
+    if (!this.ollamaHost || texts.length === 0) return null;
+    const cleaned = texts
+      .map((t) => this.cleanTextForEmbedding(t))
+      .filter((t) => t.length > 0);
+    if (cleaned.length === 0) return null;
+    return this.embedViaOllamaBatch(cleaned);
+  }
+
+  private async embedViaOllamaBatch(
+    texts: string[],
+  ): Promise<number[][] | null> {
     try {
-      // Clean text (remove markdown, wikilinks)
-      const cleanText = text
-        .replace(/\[\[.*?\]\]/g, '')
-        .replace(/\[.*?\]\(.*?\)/g, '')
-        .replace(/https?:\/\/[^\s]+/g, '')
-        .replace(/#+\s*/g, '')
-        .trim()
-        .substring(0, 512); // Limit length
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
-      const output = await this.embeddingModel(cleanText, {
-        pooling: 'mean',
-        normalize: true,
+      const res = await fetch(`${this.ollamaHost}/api/embed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: this.ollamaEmbedModel,
+          input: texts.length === 1 ? texts[0] : texts,
+        }),
+        signal: AbortSignal.timeout(EMBED_TIMEOUT_MS),
       });
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
-      return Array.from(output.data);
-    } catch (error) {
-      console.error('Error generating embedding:', error);
+      if (!res.ok) return null;
+      const data = (await res.json()) as { embeddings?: number[][] };
+      const vecs = data.embeddings;
+      return Array.isArray(vecs) && vecs.every(Array.isArray) ? vecs : null;
+    } catch {
       return null;
     }
   }

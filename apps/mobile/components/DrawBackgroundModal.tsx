@@ -8,13 +8,17 @@ import {
   Modal,
   useWindowDimensions,
   ActivityIndicator,
+  Image,
+  type DimensionValue,
+  type ColorValue,
+  type TextStyle,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, SIZES, PROFILE_TOP_HEIGHT, HEADER, MODAL } from '../constants/theme';
+import { COLORS, SPACING, PROFILE_HEADER_ASPECT_RATIO, HEADER, MODAL, DRAW_CANVAS_OPACITY } from '../constants/theme';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -22,25 +26,28 @@ type Point = { x: number; y: number };
 type Stroke = Point[];
 
 const STROKE_WIDTH = 3;
-/** Marker/stroke color: app grey (primary steel) so it matches the design, not white */
-const STROKE_COLOR = COLORS.primary;
-/** Semi-transparent so the profile shows through the drawing header area */
-const DRAW_HEADER_BG = 'rgba(11, 11, 12, 0.3)';
+/** Opaque background for saved PNG only (hidden capture layer) */
+const DRAW_HEADER_BG = COLORS.ink;
+/** Semi-transparent overlay so user sees profile below while drawing */
+const OVERLAY_BG = 'rgba(11,11,12,0.45)';
+const STROKE_VISIBLE = COLORS.paper;
 
 export interface DrawBackgroundModalProps {
   visible: boolean;
   onClose: () => void;
   /** Called after save; pass key (and optionally url) so parent can update UI immediately */
   onSaved: (key: string, url?: string) => void;
+  /** Current profile header image URL so user can see where they are drawing */
+  profileHeaderUrl?: string | null;
 }
 
-export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroundModalProps) {
+export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUrl }: DrawBackgroundModalProps) {
   const { t } = useTranslation();
   const { showError, showSuccess } = useToast();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const canvasWidth = screenWidth;
-  const canvasHeight = PROFILE_TOP_HEIGHT;
+  const canvasHeight = Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO);
 
   const canvasRef = useRef<View>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -88,7 +95,7 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
     setSaving(true);
     try {
       const targetWidth = Math.round(screenWidth * 2);
-      const targetHeight = Math.round(PROFILE_TOP_HEIGHT * 2);
+      const targetHeight = Math.round(canvasHeight * 2);
       // Delay so SVG is fully painted before capture (view-shot can miss SVG otherwise)
       await new Promise((r) => setTimeout(r, 150));
       const result = await captureRef(canvasRef, {
@@ -116,7 +123,7 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
     } finally {
       setSaving(false);
     }
-  }, [strokes, currentStroke, showError, showSuccess, t, onSaved, onClose, screenWidth]);
+  }, [strokes, currentStroke, showError, showSuccess, t, onSaved, onClose, screenWidth, canvasHeight]);
 
   const allPaths = [...strokes, currentStroke].filter((s) => s.length >= 2);
 
@@ -125,23 +132,27 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={styles.overlay}>
-        {/* Dimmed backdrop like other modals */}
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t('common.close')} />
-        {/* Draw area: exact same rect as profile top section (screenWidth × PROFILE_TOP_HEIGHT). ViewShot wraps so captureRef includes SVG. */}
+        {/* Draw area: profile visible below semi-transparent overlay so user sees where they're drawing */}
         <View style={[styles.canvasWrap, { width: canvasWidth, height: canvasHeight }]}>
-          <ViewShot
-            ref={canvasRef}
-            style={[styles.canvas, { width: canvasWidth, height: canvasHeight }]}
-            collapsable={false}
-          >
-            <View style={StyleSheet.absoluteFill} {...panResponder.panHandlers}>
-              <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill}>
-                <Rect x={0} y={0} width={canvasWidth} height={canvasHeight} fill={DRAW_HEADER_BG} />
+          {/* Display: profile (or dark) + semi-transparent overlay + strokes */}
+          <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight }]}>
+            {profileHeaderUrl ? (
+              <Image
+                source={{ uri: profileHeaderUrl }}
+                style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight }]}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight, backgroundColor: DRAW_HEADER_BG }]} />
+            )}
+            <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight, backgroundColor: OVERLAY_BG }]} {...panResponder.panHandlers}>
+              <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill} pointerEvents="none">
                 {allPaths.map((stroke, i) => (
                   <Path
                     key={i}
                     d={pathD(stroke)}
-                    stroke={STROKE_COLOR}
+                    stroke={STROKE_VISIBLE}
                     strokeWidth={STROKE_WIDTH}
                     fill="none"
                     strokeLinecap="round"
@@ -150,6 +161,27 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
                 ))}
               </Svg>
             </View>
+          </View>
+          {/* Hidden: for capture only (opaque bg + strokes so saved PNG is solid) */}
+          <ViewShot
+            ref={canvasRef}
+            style={[styles.captureLayer, { width: canvasWidth, height: canvasHeight }]}
+            collapsable={false}
+          >
+            <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight, backgroundColor: DRAW_HEADER_BG }]} />
+            <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill} pointerEvents="none">
+              {allPaths.map((stroke, i) => (
+                <Path
+                  key={i}
+                  d={pathD(stroke)}
+                  stroke={STROKE_VISIBLE}
+                  strokeWidth={STROKE_WIDTH}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </Svg>
           </ViewShot>
           <Pressable
             style={[styles.closeOverlay, { top: insets.top + SPACING.s }]}
@@ -159,31 +191,26 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
             <MaterialIcons name="close" size={HEADER.iconSize} color={COLORS.paper} />
           </Pressable>
         </View>
-        {/* Lower part: fully opaque (no transparency), only the drawable area above is the canvas */}
-        <View style={styles.lowerPanel}>
-          <View style={[styles.card, { paddingBottom: insets.bottom + SPACING.xl }]}>
-            <View style={styles.handle} />
-            <View style={styles.actions}>
-            <Pressable style={styles.btnSecondary} onPress={clear} disabled={saving}>
-              <MaterialIcons name="delete-outline" size={HEADER.iconSize} color={COLORS.paper} />
-              <Text style={styles.btnSecondaryText}>{t('common.clear', 'Clear')}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.btnPrimary, saving && styles.btnDisabled]}
-              onPress={save}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color={COLORS.ink} size="small" />
-              ) : (
-                <>
-                  <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.ink} />
-                  <Text style={styles.btnPrimaryText}>{t('profile.saveAsHeader', 'Save')}</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-          </View>
+        {/* Bottom bar: Clear and Save */}
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + SPACING.m }]}>
+          <Pressable style={styles.btnSecondary} onPress={clear} disabled={saving}>
+            <MaterialIcons name="delete-outline" size={HEADER.iconSize} color={COLORS.paper} />
+            <Text style={styles.btnSecondaryText}>{t('common.clear', 'Clear')}</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.btnPrimary, saving && styles.btnDisabled]}
+            onPress={save}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color={COLORS.ink} size="small" />
+            ) : (
+              <>
+                <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.ink} />
+                <Text style={styles.btnPrimaryText}>{t('profile.saveAsHeader', 'Save')}</Text>
+              </>
+            )}
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -193,19 +220,23 @@ export function DrawBackgroundModal({ visible, onClose, onSaved }: DrawBackgroun
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: MODAL.backdropBackgroundColor,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   canvasWrap: {
     position: 'relative',
     alignSelf: 'stretch',
     backgroundColor: 'transparent',
   },
-  canvas: {
-    backgroundColor: DRAW_HEADER_BG,
+  captureLayer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    opacity: 0,
+    backgroundColor: 'transparent',
   },
   closeOverlay: {
     position: 'absolute',
@@ -213,33 +244,14 @@ const styles = StyleSheet.create({
     padding: SPACING.s,
     zIndex: 1,
   },
-  lowerPanel: {
-    flex: 1,
-    backgroundColor: COLORS.ink,
-  },
-  card: {
-    backgroundColor: COLORS.ink,
-    borderTopLeftRadius: MODAL.sheetBorderRadius,
-    borderTopRightRadius: MODAL.sheetBorderRadius,
-    borderWidth: MODAL.sheetBorderWidth,
-    borderBottomWidth: MODAL.sheetBorderBottomWidth,
-    borderColor: MODAL.sheetBorderColor,
-    paddingHorizontal: MODAL.sheetPaddingHorizontal,
-    paddingTop: MODAL.sheetPaddingTop,
-    overflow: 'hidden',
-  },
-  handle: {
-    width: MODAL.handleWidth,
-    height: MODAL.handleHeight,
-    borderRadius: MODAL.handleBorderRadius,
-    backgroundColor: MODAL.handleBackgroundColor,
-    alignSelf: 'center',
-    marginTop: MODAL.handleMarginTop,
-    marginBottom: MODAL.handleMarginBottom,
-  },
-  actions: {
+  bottomBar: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: SPACING.m,
+    paddingHorizontal: SPACING.l,
+    paddingTop: SPACING.m,
+    backgroundColor: COLORS.ink,
   },
   btnSecondary: {
     flex: 1,
@@ -247,18 +259,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.s,
-    minHeight: MODAL.buttonMinHeight,
-    paddingVertical: MODAL.buttonPaddingVertical,
-    paddingHorizontal: MODAL.buttonPaddingHorizontal,
-    borderRadius: MODAL.buttonBorderRadius,
-    backgroundColor: MODAL.secondaryButtonBackgroundColor,
-    borderWidth: MODAL.secondaryButtonBorderWidth,
-    borderColor: MODAL.secondaryButtonBorderColor,
+    minHeight: MODAL.buttonMinHeight as DimensionValue,
+    paddingVertical: MODAL.buttonPaddingVertical as DimensionValue,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal as DimensionValue,
+    borderRadius: (MODAL.buttonBorderRadius as number) ?? 0,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   btnSecondaryText: {
-    color: MODAL.secondaryButtonTextColor,
-    fontSize: MODAL.buttonFontSize,
-    fontWeight: MODAL.buttonFontWeight,
+    color: COLORS.paper,
+    fontSize: MODAL.buttonFontSize as number,
+    fontWeight: MODAL.buttonFontWeight as TextStyle['fontWeight'],
   },
   btnPrimary: {
     flex: 1,
@@ -266,16 +276,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.s,
-    minHeight: MODAL.buttonMinHeight,
-    paddingVertical: MODAL.buttonPaddingVertical,
-    paddingHorizontal: MODAL.buttonPaddingHorizontal,
-    borderRadius: MODAL.buttonBorderRadius,
-    backgroundColor: MODAL.primaryButtonBackgroundColor,
+    minHeight: MODAL.buttonMinHeight as DimensionValue,
+    paddingVertical: MODAL.buttonPaddingVertical as DimensionValue,
+    paddingHorizontal: MODAL.buttonPaddingHorizontal as DimensionValue,
+    borderRadius: (MODAL.buttonBorderRadius as number) ?? 0,
+    backgroundColor: MODAL.primaryButtonBackgroundColor as ColorValue,
   },
   btnPrimaryText: {
-    color: MODAL.primaryButtonTextColor,
-    fontSize: MODAL.buttonFontSize,
-    fontWeight: MODAL.buttonFontWeight,
+    color: MODAL.primaryButtonTextColor as ColorValue,
+    fontSize: MODAL.buttonFontSize as number,
+    fontWeight: MODAL.buttonFontWeight as TextStyle['fontWeight'],
   },
   btnDisabled: {
     opacity: 0.6,

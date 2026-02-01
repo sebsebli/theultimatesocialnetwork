@@ -23,7 +23,8 @@ export async function POST(
     return NextResponse.json({ error: 'Failed' }, { status: res.status });
   }
 
-  return NextResponse.json({ success: true });
+  const data = await res.json().catch(() => ({}));
+  return NextResponse.json(data?.pending !== undefined ? { pending: data.pending } : { success: true });
 }
 
 export async function DELETE(

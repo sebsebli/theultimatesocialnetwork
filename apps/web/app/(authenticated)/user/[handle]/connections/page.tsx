@@ -24,6 +24,15 @@ interface TopicItem {
   postCount?: number;
   followerCount?: number;
   isFollowing?: boolean;
+  recentPost?: {
+    id: string;
+    title: string | null;
+    bodyExcerpt: string;
+    headerImageKey: string | null;
+    author: { handle: string; displayName: string } | null;
+    createdAt: string | null;
+  } | null;
+  recentPostImageKey?: string | null;
 }
 
 export default function ConnectionsPage() {
@@ -42,6 +51,7 @@ export default function ConnectionsPage() {
   );
   const [items, setItems] = useState<Person[]>([]);
   const [topics, setTopics] = useState<TopicItem[]>([]);
+  const [topicSuggestions, setTopicSuggestions] = useState<TopicItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -57,11 +67,24 @@ export default function ConnectionsPage() {
         if (!res.ok) {
           setError(true);
           setTopics([]);
+          setTopicSuggestions([]);
           return;
         }
         const data = await res.json();
-        setTopics(Array.isArray(data) ? data : []);
+        const topicList = Array.isArray(data) ? data : [];
+        setTopics(topicList);
         setItems([]);
+        if (topicList.length === 0) {
+          const sugRes = await fetch("/api/explore/topics?limit=6");
+          if (sugRes.ok) {
+            const sugData = await sugRes.json();
+            setTopicSuggestions(Array.isArray(sugData) ? sugData : sugData?.items ?? []);
+          } else {
+            setTopicSuggestions([]);
+          }
+        } else {
+          setTopicSuggestions([]);
+        }
       } else {
         const endpoint = activeTab === "followers" ? "followers" : "following";
         const res = await fetch(
@@ -75,11 +98,13 @@ export default function ConnectionsPage() {
         const data = await res.json();
         setItems(Array.isArray(data) ? data : data.items || []);
         setTopics([]);
+        setTopicSuggestions([]);
       }
     } catch {
       setError(true);
       setItems([]);
       setTopics([]);
+      setTopicSuggestions([]);
     } finally {
       setLoading(false);
     }
@@ -94,6 +119,15 @@ export default function ConnectionsPage() {
           : "followers",
     );
   }, [tabParam]);
+
+  const switchTab = useCallback(
+    (tab: Tab) => {
+      setActiveTab(tab);
+      const path = `/user/${encodeURIComponent(handle)}/connections`;
+      window.history.replaceState(null, "", `${path}?tab=${tab}`);
+    },
+    [handle],
+  );
 
   useEffect(() => {
     load();
@@ -120,11 +154,17 @@ export default function ConnectionsPage() {
     }
   };
 
-  const handleFollowTopic = async (topicSlug: string, follow: boolean) => {
+  const handleFollowTopic = async (topic: TopicItem, follow: boolean) => {
     const method = follow ? "POST" : "DELETE";
-    await fetch(`/api/topics/${encodeURIComponent(topicSlug)}/follow`, {
+    const res = await fetch(`/api/topics/${encodeURIComponent(topic.slug)}/follow`, {
       method,
     });
+    if (res.ok && follow) {
+      setTopicSuggestions((prev) => prev.filter((t) => t.slug !== topic.slug));
+      setTopics((prev) => [...prev, { ...topic, isFollowing: true }]);
+    } else if (res.ok && !follow) {
+      setTopics((prev) => prev.filter((t) => t.slug !== topic.slug));
+    }
   };
 
   return (
@@ -154,10 +194,11 @@ export default function ConnectionsPage() {
         </div>
       </header>
 
-      {/* Tabs */}
+      {/* Tabs — client-side switch + replaceState to avoid full page remount/flicker */}
       <div className="flex border-b border-divider">
-        <Link
-          href={`/user/${handle}/connections?tab=followers`}
+        <button
+          type="button"
+          onClick={() => switchTab("followers")}
           className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
             activeTab === "followers"
               ? "text-primary border-b-2 border-primary"
@@ -165,9 +206,10 @@ export default function ConnectionsPage() {
           }`}
         >
           {t("followers")}
-        </Link>
-        <Link
-          href={`/user/${handle}/connections?tab=following`}
+        </button>
+        <button
+          type="button"
+          onClick={() => switchTab("following")}
           className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
             activeTab === "following"
               ? "text-primary border-b-2 border-primary"
@@ -175,9 +217,10 @@ export default function ConnectionsPage() {
           }`}
         >
           {t("following")}
-        </Link>
-        <Link
-          href={`/user/${handle}/connections?tab=topics`}
+        </button>
+        <button
+          type="button"
+          onClick={() => switchTab("topics")}
           className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
             activeTab === "topics"
               ? "text-primary border-b-2 border-primary"
@@ -185,32 +228,58 @@ export default function ConnectionsPage() {
           }`}
         >
           {t("topics")}
-        </Link>
+        </button>
       </div>
 
-      <div className="px-4 py-6">
-        {loading ? (
+      <div className="px-4 py-6 relative">
+        {loading && items.length === 0 && topics.length === 0 ? (
           <p className="text-secondary text-center py-8">Loading...</p>
         ) : error ? (
           <p className="text-secondary text-center py-8">
             Failed to load. User may be private.
           </p>
-        ) : activeTab === "topics" ? (
-          topics.length === 0 ? (
+        ) : (
+          <>
+            {loading && (
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary/30 overflow-hidden rounded-full">
+                <div className="h-full w-1/3 bg-primary animate-pulse" />
+              </div>
+            )}
+            {activeTab === "topics" ? (
+          topics.length === 0 && topicSuggestions.length === 0 ? (
             <p className="text-secondary text-center py-8">
               Not following any topics yet.
             </p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {topics.map((topic) => (
-                <TopicCard
-                  key={topic.id}
-                  topic={topic}
-                  onFollow={() =>
-                    handleFollowTopic(topic.slug, !topic.isFollowing)
-                  }
-                />
-              ))}
+            <div className="space-y-2">
+              {topics.length > 0 &&
+                topics.map((topic) => (
+                  <TopicCard
+                    key={topic.id}
+                    topic={topic}
+                    onFollow={() =>
+                      handleFollowTopic(topic, !topic.isFollowing)
+                    }
+                  />
+                ))}
+              {topics.length === 0 && topicSuggestions.length > 0 && (
+                <>
+                  <p className="text-tertiary text-xs font-semibold uppercase tracking-wider mb-2">
+                    Topics to follow
+                  </p>
+                  <div className="space-y-2">
+                    {topicSuggestions.map((topic) => (
+                      <TopicCard
+                        key={topic.id}
+                        topic={topic}
+                        onFollow={() =>
+                          handleFollowTopic(topic, !topic.isFollowing)
+                        }
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )
         ) : items.length === 0 ? (
@@ -230,6 +299,8 @@ export default function ConnectionsPage() {
             ))}
           </div>
         )}
+          </>
+        )
       </div>
     </div>
   );

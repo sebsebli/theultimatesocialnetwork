@@ -10,7 +10,8 @@ import { Block } from '../entities/block.entity';
 import { Mute } from '../entities/mute.entity';
 import { TopicFollow } from '../entities/topic-follow.entity';
 import { FeedItem } from './feed-item.entity';
-import { postToPlain } from '../shared/post-serializer';
+import { postToPlain, extractLinkedPostIds } from '../shared/post-serializer';
+import type { ReferenceMetadata } from '../shared/post-serializer';
 import { UploadService } from '../upload/upload.service';
 import Redis from 'ioredis';
 
@@ -32,27 +33,29 @@ export class FeedService {
     private topicFollowRepo: Repository<TopicFollow>,
     @Inject('REDIS_CLIENT') private redis: Redis,
     private uploadService: UploadService,
-  ) {}
+  ) { }
 
   async getHomeFeed(
     userId: string,
     limit = 20,
     offset = 0,
     includeSavedBy = false,
-  ): Promise<FeedItem[]> {
+    cursor?: string,
+  ): Promise<{ items: FeedItem[]; nextCursor?: string }> {
     try {
       return await this.getHomeFeedInternal(
         userId,
         limit,
         offset,
         includeSavedBy,
+        cursor,
       );
     } catch (err) {
       this.logger.error(
         `Feed load failed for user ${userId}`,
         err instanceof Error ? err.stack : String(err),
       );
-      return [];
+      return { items: [] };
     }
   }
 
@@ -61,7 +64,8 @@ export class FeedService {
     limit = 20,
     offset = 0,
     includeSavedBy = false,
-  ): Promise<FeedItem[]> {
+    cursor?: string,
+  ): Promise<{ items: FeedItem[]; nextCursor?: string }> {
     // Get blocked and muted users to exclude
     const [blocks, mutes] = await Promise.all([
       this.blockRepo.find({
@@ -95,12 +99,14 @@ export class FeedService {
     followingIds.push(userId);
 
     // If following no one and no topics, return empty (or could return global feed? No, definition is follow-only)
-    if (followingIds.length === 0 && followedTopicIds.length === 0) return [];
+    if (followingIds.length === 0 && followedTopicIds.length === 0)
+      return { items: [] };
 
     let feedItems: FeedItem[] = [];
     let usedCache = false;
+    let nextCursorResult: string | undefined;
 
-    // 1. Try Redis Cache (Fan-out Read) for recent posts
+    // 1. Try Redis Cache (Fan-out Read) for recent posts (only when no cursor — cursor implies DB for deep pagination)
     // Note: Redis feed usually only stores USER follows push model. Topic follows usually pull model.
     // If we want mixed feed, we likely skip cache if we have topics, or we need to merge.
     // For now, let's skip cache if we have topic follows, or assume cache only has user feed and we need DB for topics.
@@ -109,7 +115,7 @@ export class FeedService {
     // If topic follows exist, force DB pull (or implementing complex merge).
     // Let's force DB pull if topic follows exist to ensure they appear.
 
-    if (offset < 500 && followedTopicIds.length === 0) {
+    if (!cursor && offset < 500 && followedTopicIds.length === 0) {
       try {
         const cacheKey = `feed:${userId}`;
         const cachedIds = await this.redis.lrange(
@@ -144,6 +150,7 @@ export class FeedService {
     }
 
     // 2. DB Fallback (Pull Model) if cache miss or empty (or if we have topics)
+    // Cursor-based: when cursor is provided (ISO date), use WHERE created_at < cursor for stable deep pagination
     if (!usedCache) {
       const query = this.postRepo
         .createQueryBuilder('post')
@@ -179,13 +186,28 @@ export class FeedService {
         }),
       );
 
+      if (cursor) {
+        const cursorDate = new Date(cursor);
+        if (!Number.isNaN(cursorDate.getTime())) {
+          query.andWhere('post.created_at < :cursor', { cursor: cursorDate });
+        }
+      }
+
       const posts = await query
         .orderBy('post.created_at', 'DESC')
-        .skip(offset)
-        .take(limit)
+        .skip(cursor ? 0 : offset)
+        .take(limit + 1) // always fetch one extra to know if there's a next page and to return nextCursor
         .getMany();
 
-      feedItems = posts.map((post) => ({
+      const hasMore = posts.length > limit;
+      const slice = hasMore ? posts.slice(0, limit) : posts;
+      const last = slice[slice.length - 1];
+      nextCursorResult =
+        hasMore && last?.createdAt
+          ? last.createdAt.toISOString()
+          : undefined;
+
+      feedItems = slice.map((post) => ({
         type: 'post',
         data: post,
       }));
@@ -243,19 +265,49 @@ export class FeedService {
 
     // Re-slice because adding "Saved By" might exceed limit
     const trimmed = feedItems.slice(0, limit);
-    return this.toPlainFeedItems(trimmed) as FeedItem[];
+    const items = (await this.toPlainFeedItems(trimmed)) as FeedItem[];
+    return { items, nextCursor: nextCursorResult };
   }
 
-  /** Return plain objects with avatarUrl/headerImageUrl so mobile can load images via API. */
-  private toPlainFeedItems(items: FeedItem[]): unknown[] {
+  /** Return plain objects with avatarUrl/headerImageUrl and referenceMetadata for linked post titles. */
+  private async toPlainFeedItems(items: FeedItem[]): Promise<unknown[]> {
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+    const posts: Post[] = [];
+    for (const item of items) {
+      if (item.type === 'post') posts.push(item.data);
+      else if (item.data.post) posts.push(item.data.post);
+    }
+    const allLinkedIds = new Set<string>();
+    const postToLinkedIds = new Map<string, string[]>();
+    for (const p of posts) {
+      const ids = extractLinkedPostIds(p.body);
+      postToLinkedIds.set(p.id, ids);
+      ids.forEach((id) => allLinkedIds.add(id));
+    }
+    let titlesMap: Record<string, { title?: string }> = {};
+    if (allLinkedIds.size > 0) {
+      const refs = await this.postRepo.find({
+        where: Array.from(allLinkedIds).map((id) => ({ id })),
+        select: ['id', 'title'],
+      });
+      titlesMap = Object.fromEntries(
+        refs.map((r) => [(r.id ?? '').toLowerCase(), { title: r.title ?? undefined }]),
+      ) as ReferenceMetadata;
+    }
+    const getRefMeta = (ids: string[] | undefined) =>
+      ids?.reduce(
+        (acc, id) => ({ ...acc, [id]: titlesMap[(id ?? '').toLowerCase()] ?? {} }),
+        {} as ReferenceMetadata,
+      );
     return items
       .map((item) => {
         if (item.type === 'post') {
-          const data = postToPlain(item.data, getImageUrl);
+          const refMeta = getRefMeta(postToLinkedIds.get(item.data.id));
+          const data = postToPlain(item.data, getImageUrl, refMeta);
           return data ? { type: 'post' as const, data } : null;
         }
         const d = item.data;
+        const refMeta = d.post ? getRefMeta(postToLinkedIds.get(d.post.id)) : undefined;
         return {
           type: 'saved_by' as const,
           data: {
@@ -263,7 +315,9 @@ export class FeedService {
             userName: d.userName ?? '',
             collectionId: d.collectionId ?? '',
             collectionName: d.collectionName ?? '',
-            post: d.post ? postToPlain(d.post, getImageUrl) : undefined,
+            post: d.post
+              ? postToPlain(d.post, getImageUrl, refMeta)
+              : undefined,
           },
         };
       })

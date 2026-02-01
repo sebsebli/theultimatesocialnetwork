@@ -19,11 +19,13 @@ import { TopicFollow } from '../entities/topic-follow.entity';
 import { DatabaseModule } from '../database/database.module';
 import { SharedModule } from '../shared/shared.module';
 import { SearchModule } from '../search/search.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
     SharedModule,
     SearchModule,
+    UploadModule,
     CacheModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({

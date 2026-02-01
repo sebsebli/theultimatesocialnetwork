@@ -5,6 +5,7 @@
     "discover": "Discover",
     "post": "Post",
     "messages": "Messages",
+    "chats": "Chats",
     "activity": "Activity",
     "profile": "Profile",
     "settings": "Settings",
@@ -162,7 +163,8 @@
     "createNewPage": "Create new page",
     "publishedSuccess": "Published successfully",
     "linkToTopic": "LINK TO TOPIC",
-    "references": "{{count}} references"
+    "references": "{{count}} references",
+    "startTypingToSeeSuggestions": "Start typing to see suggestions"
   },
   "post": {
     "like": "Like",
@@ -222,7 +224,9 @@
     "loadError": "Failed to load content. Please try again.",
     "filter": "Filter",
     "deepDiveDescription": "Explore verified discussions and citations about {{topic}}.",
-    "viewTopic": "VIEW TOPIC"
+    "viewTopic": "View Topic",
+    "latest": "Latest",
+    "readPost": "Read post"
   },
   "profile": {
     "title": "Profile",
@@ -309,7 +313,14 @@
     "failedDelete": "Failed to delete account",
     "error": "Error",
     "updateFailed": "Failed to update settings",
-    "changeEmail": "Change Email",
+    "changeEmail": "Change email",
+    "currentEmail": "Current email",
+    "newEmail": "New email",
+    "newEmailPlaceholder": "Enter new email address",
+    "saveEmail": "Save email",
+    "emailUpdated": "Email updated successfully.",
+    "emailInUse": "This email is already in use by another account.",
+    "invalidEmail": "Please enter a valid email address.",
     "contactSupport": "Please contact support to change your email address.",
     "privacyChangeInfo": "You can change your privacy settings in the settings page.",
     "editProfile": "Edit profile",

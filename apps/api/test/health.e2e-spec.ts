@@ -19,7 +19,7 @@ describe('HealthController (e2e)', () => {
     await app.close();
   });
 
-  it('/health (GET)', () => {
+  it('/health (GET) readiness', () => {
     return request(app.getHttpServer())
       .get('/health')
       .expect(200)
@@ -27,6 +27,16 @@ describe('HealthController (e2e)', () => {
         expect(res.body).toHaveProperty('status');
         const body = res.body as { status: string };
         expect(body.status).toBe('ok');
+      });
+  });
+
+  it('/health/live (GET) liveness', () => {
+    return request(app.getHttpServer())
+      .get('/health/live')
+      .expect(200)
+      .expect((res) => {
+        expect(res.body).toHaveProperty('status', 'ok');
+        expect(res.body).toHaveProperty('timestamp');
       });
   });
 

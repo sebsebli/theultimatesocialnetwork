@@ -70,7 +70,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {mounted &&
         typeof document !== "undefined" &&
         createPortal(
-          <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+          <div
+            className="fixed bottom-20 right-4 left-4 md:bottom-6 md:left-auto md:right-6 md:w-auto z-50 flex flex-col gap-2 pointer-events-none max-w-sm md:max-w-md ml-auto"
+            role="region"
+            aria-label="Notifications"
+          >
             {toasts.map((t) => (
               <ToastItem key={t.id} {...t} onClose={() => removeToast(t.id)} />
             ))}
@@ -163,8 +167,10 @@ function ToastItem({
       {icons[type]}
       <p className="flex-1 text-sm font-medium">{message}</p>
       <button
+        type="button"
         onClick={handleClose}
-        className="text-secondary hover:text-paper transition-colors"
+        aria-label="Dismiss notification"
+        className="min-w-[44px] min-h-[44px] flex items-center justify-center -m-2 text-secondary hover:text-paper transition-colors rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         <svg
           className="w-4 h-4"

@@ -45,14 +45,14 @@ export default function WaitingListPage() {
   };
 
   return (
-    <div className="min-h-screen bg-ink flex items-center justify-center px-6 relative overflow-hidden">
+    <div className="min-h-screen bg-ink flex items-center justify-center px-6 md:px-12 py-12 relative overflow-hidden">
       {/* Refined Mesh Gradient Background */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-[25%] -left-[10%] w-[50%] h-[50%] bg-primary/10 blur-[120px] rounded-full animate-pulse"></div>
         <div className="absolute -bottom-[20%] -right-[5%] w-[40%] h-[40%] bg-primary/5 blur-[100px] rounded-full"></div>
       </div>
 
-      <div className="w-full max-w-md space-y-8 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="w-full max-w-md md:max-w-lg space-y-8 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="text-center space-y-4">
           <Link
             href="/"

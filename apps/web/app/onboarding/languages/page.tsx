@@ -46,22 +46,30 @@ export default function OnboardingLanguagesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ languages: selectedLanguages }),
       });
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('onboarding_stage', 'profile');
+      }
+      router.push('/onboarding/profile');
     } catch (e) {
       console.error('Failed to save languages', e);
     }
-    router.push('/onboarding/starter-packs');
   };
 
   return (
-    <div className="min-h-screen bg-ink flex items-center justify-center px-6">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen bg-ink flex items-center justify-center px-6 md:px-12 py-12">
+      <div className="w-full max-w-md md:max-w-lg space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-paper mb-2">Languages you read</h1>
             <p className="text-secondary text-sm">This shapes Explore and recommendations.</p>
           </div>
           <button
-            onClick={() => router.push('/onboarding/starter-packs')}
+            onClick={() => {
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('onboarding_stage', 'profile');
+              }
+              router.push('/onboarding/profile');
+            }}
             className="text-primary text-sm font-medium"
           >
             Skip
@@ -83,11 +91,10 @@ export default function OnboardingLanguagesPage() {
             <button
               key={lang.code}
               onClick={() => toggleLanguage(lang.code)}
-              className={`w-full p-3 rounded-lg border transition-colors text-left ${
-                selectedLanguages.includes(lang.code)
+              className={`w-full p-3 rounded-lg border transition-colors text-left ${selectedLanguages.includes(lang.code)
                   ? 'bg-primary/20 border-primary text-paper'
                   : 'bg-white/5 border-white/10 text-secondary hover:bg-white/10'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium">{lang.name}</span>

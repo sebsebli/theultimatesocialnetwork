@@ -35,6 +35,10 @@ export class Reply {
   @Column({ name: 'parent_reply_id', type: 'uuid', nullable: true })
   parentReplyId: string | null;
 
+  @ManyToOne(() => Reply, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'parent_reply_id' })
+  parentReply: Reply | null;
+
   @Column('text')
   body: string;
 

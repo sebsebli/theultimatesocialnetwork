@@ -19,8 +19,9 @@ import '../i18n';
 import { configureNotifications } from '../utils/push-notifications';
 import { COLORS } from '../constants/theme';
 import { AuthProvider, useAuth } from '../context/auth';
-import { ToastProvider } from '../context/ToastContext';
+import { ToastProvider, useToast } from '../context/ToastContext';
 import { SocketProvider } from '../context/SocketContext';
+import { setApiErrorToastHandler } from '../utils/api';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ErrorFallbackWithNav } from '../components/ErrorFallbackWithNav';
@@ -33,6 +34,16 @@ import { Platform, Linking } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
+
+/** Registers global API error handler so every API failure shows a toast; never signs out the user. */
+function ApiErrorToastRegistration() {
+  const { showError } = useToast();
+  useEffect(() => {
+    setApiErrorToastHandler(showError);
+    return () => setApiErrorToastHandler(null);
+  }, [showError]);
+  return null;
+}
 
 function AppContent({ onReady }: { onReady?: () => void }) {
   const { isLoading, isAuthenticated, onboardingComplete } = useAuth();
@@ -166,6 +177,7 @@ export default function RootLayout() {
       <ErrorBoundary fallback={<ErrorFallbackWithNav />}>
         <AuthProvider>
           <ToastProvider>
+            <ApiErrorToastRegistration />
             <SocketProvider>
               <ThemeProvider value={MyDarkTheme}>
                 <View style={{ flex: 1, backgroundColor: COLORS.ink }}>

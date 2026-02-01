@@ -8,6 +8,7 @@ import { PostItem, Post } from "./post-item";
 import { ProfileOptionsMenu } from "./profile-options-menu";
 import { ImageUploader } from "./image-uploader";
 import { PublicSignInBar } from "./public-sign-in-bar";
+import { formatCompactNumber } from "@/lib/format";
 
 interface Reply {
   id: string;
@@ -48,6 +49,8 @@ interface ProfilePageProps {
     avatarUrl?: string;
     profileHeaderKey?: string;
     profileHeaderUrl?: string;
+    isFollowing?: boolean;
+    hasPendingFollowRequest?: boolean;
   };
   isSelf?: boolean;
   /** When true, viewer is not authenticated; hide Follow/Message and link to sign-in for connections */
@@ -60,7 +63,8 @@ export function ProfilePage({
   isPublic = false,
 }: ProfilePageProps) {
   const [user, setUser] = useState(initialUser);
-  const [following, setFollowing] = useState(false); // In a real app, check if we follow this user
+  const [following, setFollowing] = useState(!!initialUser.isFollowing);
+  const [hasPendingFollowRequest, setHasPendingFollowRequest] = useState(!!initialUser.hasPendingFollowRequest);
   const [activeTab, setActiveTab] = useState<
     "posts" | "replies" | "quotes" | "saved" | "collections"
   >("posts");
@@ -150,11 +154,22 @@ export function ProfilePage({
 
     setLoading(true);
     try {
-      const method = following ? "DELETE" : "POST";
-      const res = await fetch(`/api/users/${user.id}/follow`, { method });
-
-      if (res.ok) {
-        setFollowing(!following);
+      if (following || hasPendingFollowRequest) {
+        const res = await fetch(`/api/users/${user.id}/follow`, { method: "DELETE" });
+        if (res.ok) {
+          setFollowing(false);
+          setHasPendingFollowRequest(false);
+        }
+      } else {
+        const res = await fetch(`/api/users/${user.id}/follow`, { method: "POST" });
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.pending) {
+            setHasPendingFollowRequest(true);
+          } else {
+            setFollowing(true);
+          }
+        }
       }
     } catch {
       // ignore
@@ -205,8 +220,8 @@ export function ProfilePage({
     <div className={`min-h-screen ${isPublic ? "pb-24" : "pb-20"}`}>
       {/* Profile Top Section (Header + Avatar + Info) */}
       <div className="relative">
-        {/* Header Image Background */}
-        <div className="h-48 md:h-64 w-full bg-ink relative overflow-hidden">
+        {/* Header Image Background: fixed 4:3 aspect ratio so drawings look identical on all profiles and devices */}
+        <div className="w-full aspect-[4/3] bg-ink relative overflow-hidden">
           {headerUrl ? (
             <Image
               src={headerUrl}
@@ -354,13 +369,12 @@ export function ProfilePage({
                 <button
                   onClick={handleFollow}
                   disabled={loading}
-                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${
-                    following
-                      ? "bg-primary border-primary text-white"
-                      : "border-primary text-primary hover:bg-primary/10"
-                  }`}
+                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${following || hasPendingFollowRequest
+                    ? "bg-primary border-primary text-white"
+                    : "border-primary text-primary hover:bg-primary/10"
+                    }`}
                 >
-                  {loading ? "..." : following ? "Following" : "Follow"}
+                  {loading ? "..." : hasPendingFollowRequest ? "Requested" : following ? "Following" : "Follow"}
                 </button>
                 <button
                   onClick={async () => {
@@ -394,85 +408,105 @@ export function ProfilePage({
             )}
           </div>
 
-          {/* Stats */}
-          <div className="flex justify-center gap-8 pb-4 w-full border-b border-divider">
-            {isPublic ? (
-              <>
-                <div className="flex flex-col items-center gap-1">
-                  <p className="text-paper text-lg font-bold">
-                    {user.followerCount.toLocaleString()}
-                  </p>
-                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
-                    Followers
-                  </p>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <p className="text-paper text-lg font-bold">
-                    {user.followingCount.toLocaleString()}
-                  </p>
-                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
-                    Following
-                  </p>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <p className="text-paper text-lg font-bold">
-                    {user.quoteReceivedCount.toLocaleString()}
-                  </p>
-                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
-                    Quotes
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <Link
-                  href={`/user/${user.handle}/connections?tab=followers`}
-                  className="flex flex-col items-center gap-1 cursor-pointer group"
-                >
-                  <p className="text-paper text-lg font-bold group-hover:text-primary transition-colors">
-                    {user.followerCount.toLocaleString()}
-                  </p>
-                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
-                    Followers
-                  </p>
-                </Link>
-                <Link
-                  href={`/user/${user.handle}/connections?tab=following`}
-                  className="flex flex-col items-center gap-1 cursor-pointer group"
-                >
-                  <p className="text-paper text-lg font-bold group-hover:text-primary transition-colors">
-                    {user.followingCount.toLocaleString()}
-                  </p>
-                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
-                    Following
-                  </p>
-                </Link>
-                <div className="flex flex-col items-center gap-1 cursor-pointer group">
-                  <p className="text-paper text-lg font-bold group-hover:text-primary transition-colors">
-                    {user.quoteReceivedCount.toLocaleString()}
-                  </p>
-                  <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
-                    Quotes
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
+          {/* Stats — own profile (public or not); other people's profiles when logged in */}
+          {(isSelf || !isPublic) && (
+            <div className="flex justify-center gap-8 pb-4 w-full border-b border-divider">
+              {isPublic ? (
+                /* Signed-out view: plain counts, same visibility as tab titles */
+                <>
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-paper text-xl font-bold tabular-nums">
+                      {formatCompactNumber(user.followerCount)}
+                    </p>
+                    <p className="text-paper text-sm font-medium uppercase tracking-wider">
+                      Followers
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-paper text-xl font-bold tabular-nums">
+                      {formatCompactNumber(user.followingCount)}
+                    </p>
+                    <p className="text-paper text-sm font-medium uppercase tracking-wider">
+                      Following
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-paper text-xl font-bold tabular-nums">
+                      {formatCompactNumber(user.quoteReceivedCount)}
+                    </p>
+                    <p className="text-paper text-sm font-medium uppercase tracking-wider">
+                      Quotes
+                    </p>
+                  </div>
+                </>
+              ) : (
+                /* Logged-in: tappable links to connections + quotes count (same as tab title color) */
+                <>
+                  <Link
+                    href={`/user/${user.handle}/connections?tab=followers`}
+                    className="flex flex-col items-center gap-1 cursor-pointer group"
+                  >
+                    <p className="text-paper text-xl font-bold tabular-nums group-hover:text-primary transition-colors">
+                      {formatCompactNumber(user.followerCount)}
+                    </p>
+                    <p className="text-paper text-sm font-medium uppercase tracking-wider group-hover:text-primary transition-colors">
+                      Followers
+                    </p>
+                  </Link>
+                  <Link
+                    href={`/user/${user.handle}/connections?tab=following`}
+                    className="flex flex-col items-center gap-1 cursor-pointer group"
+                  >
+                    <p className="text-paper text-xl font-bold tabular-nums group-hover:text-primary transition-colors">
+                      {formatCompactNumber(user.followingCount)}
+                    </p>
+                    <p className="text-paper text-sm font-medium uppercase tracking-wider group-hover:text-primary transition-colors">
+                      Following
+                    </p>
+                  </Link>
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-paper text-xl font-bold tabular-nums">
+                      {formatCompactNumber(user.quoteReceivedCount)}
+                    </p>
+                    <p className="text-paper text-sm font-medium uppercase tracking-wider">
+                      Quotes
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="sticky top-[60px] z-10 bg-ink border-b border-divider">
+      {/* Private profile gate: hide tabs and content when protected and we don't follow */}
+      {!isSelf && user.isProtected && !following && (
+        <div className="flex flex-col items-center justify-center py-16 px-6 border-b border-divider">
+          <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <p className="text-paper font-semibold text-lg">Private profile</p>
+          <p className="text-secondary text-sm text-center max-w-[280px] mt-1">
+            Follow this account to see their posts, replies, and quotes.
+          </p>
+        </div>
+      )}
+
+      {/* Tabs — stick flush to top when scrolling (no fixed header above); hide when private and no access */}
+      {!(!isSelf && user.isProtected && !following) && (
+      <>
+      <div className="sticky top-0 z-10 bg-ink border-b border-divider">
         <div className="flex px-6 overflow-x-auto no-scrollbar">
           {visibleTabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap ${
-                activeTab === tab
-                  ? "border-primary text-paper"
-                  : "border-transparent text-tertiary hover:text-paper"
-              }`}
+              className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap ${activeTab === tab
+                ? "border-primary text-paper"
+                : "border-transparent text-tertiary hover:text-paper"
+                }`}
             >
               {tab}
             </button>
@@ -638,6 +672,8 @@ export function ProfilePage({
           </div>
         )}
       </div>
+      </>
+      )}
 
       {isPublic && <PublicSignInBar message="Sign in to follow and interact" />}
     </div>

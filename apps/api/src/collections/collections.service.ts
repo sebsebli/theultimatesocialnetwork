@@ -83,12 +83,22 @@ export class CollectionsService {
     return out;
   }
 
-  async findOne(id: string, userId: string) {
+  async findOne(
+    id: string,
+    userId: string,
+    limit?: number,
+    offset?: number,
+  ) {
     const collection = await this.collectionRepo.findOne({
       where: { id, ownerId: userId },
     });
     if (!collection) {
       throw new Error('Collection not found');
+    }
+
+    if (limit != null && offset != null) {
+      const { items, hasMore } = await this.getItemsPage(id, limit, offset);
+      return { ...collection, items, hasMore };
     }
 
     const items = await this.itemRepo.find({
@@ -100,11 +110,35 @@ export class CollectionsService {
     return { ...collection, items };
   }
 
+  /** Paginated items for a collection. Caller must ensure viewer has access. */
+  async getItemsPage(
+    collectionId: string,
+    limit: number,
+    offset: number,
+  ): Promise<{ items: CollectionItem[]; hasMore: boolean }> {
+    const items = await this.itemRepo.find({
+      where: { collectionId: collectionId },
+      relations: ['post', 'post.author'],
+      order: { addedAt: 'DESC' },
+      take: limit + 1,
+      skip: offset,
+    });
+    const hasMore = items.length > limit;
+    const slice = hasMore ? items.slice(0, limit) : items;
+    return { items: slice, hasMore };
+  }
+
   /**
    * Get a collection by id for a viewer. Owner sees full detail; others see it only if allowed
    * (can view profile and either collection is public or viewer follows owner).
+   * When limit/offset are provided, returns paginated items and hasMore.
    */
-  async findOneForViewer(collectionId: string, viewerId: string) {
+  async findOneForViewer(
+    collectionId: string,
+    viewerId: string,
+    limit?: number,
+    offset?: number,
+  ) {
     const collection = await this.collectionRepo.findOne({
       where: { id: collectionId },
     });
@@ -112,7 +146,7 @@ export class CollectionsService {
       throw new NotFoundException('Collection not found');
     }
     if (collection.ownerId === viewerId) {
-      return this.findOne(collectionId, viewerId);
+      return this.findOne(collectionId, viewerId, limit, offset);
     }
     const owner = await this.userRepo.findOne({
       where: { id: collection.ownerId },
@@ -140,6 +174,14 @@ export class CollectionsService {
     );
     if (!collection.isPublic && !isFollower) {
       throw new NotFoundException('Collection not found');
+    }
+    if (limit != null && offset != null) {
+      const { items, hasMore } = await this.getItemsPage(
+        collectionId,
+        limit,
+        offset,
+      );
+      return { ...collection, items, hasMore };
     }
     return this.findOne(collectionId, collection.ownerId);
   }

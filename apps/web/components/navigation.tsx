@@ -4,11 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "./auth-provider";
+import { useUnreadMessages } from "@/context/unread-messages-context";
 
 export function Navigation() {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const { user } = useAuth();
+  const { unreadCount } = useUnreadMessages();
 
   const handle = (user as { handle?: string } | null)?.handle ?? "me";
 
@@ -20,11 +22,13 @@ export function Navigation() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-ink/90 backdrop-blur-lg border-t border-divider z-50 lg:hidden safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 bg-ink/90 backdrop-blur-lg border-t border-divider z-50 md:hidden safe-area-pb" aria-label="Primary">
       <div className="max-w-[680px] mx-auto px-6 h-16 flex items-center justify-between">
         <Link
           href="/home"
-          className={`flex flex-col items-center justify-center w-12 h-full transition-all duration-200 ${
+          aria-label={t("home")}
+          aria-current={isActive("/home") ? "page" : undefined}
+          className={`flex flex-col items-center justify-center w-12 h-full min-h-[44px] transition-all duration-200 ${
             isActive("/home")
               ? "text-primary scale-110"
               : "text-tertiary hover:text-paper"
@@ -51,7 +55,9 @@ export function Navigation() {
         </Link>
         <Link
           href="/explore"
-          className={`flex flex-col items-center justify-center w-12 h-full transition-all duration-200 ${
+          aria-label={t("discover")}
+          aria-current={isActive("/explore") ? "page" : undefined}
+          className={`flex flex-col items-center justify-center w-12 h-full min-h-[44px] transition-all duration-200 ${
             isActive("/explore")
               ? "text-primary scale-110"
               : "text-tertiary hover:text-paper"
@@ -59,7 +65,7 @@ export function Navigation() {
         >
           <svg
             className="w-6 h-6 mt-1"
-            fill={isActive("/explore") ? "currentColor" : "none"}
+            fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
@@ -67,22 +73,23 @@ export function Navigation() {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
           </svg>
           <span
             className={`text-[10px] font-bold uppercase tracking-widest mt-1 transition-opacity ${isActive("/explore") ? "opacity-100" : "opacity-0"}`}
           >
-            {t("explore")}
+            {t("discover")}
           </span>
         </Link>
         <Link
           href="/compose"
-          className="flex flex-col items-center justify-center w-14 h-full transition-transform active:scale-95"
+          aria-label={t("post")}
+          className="flex flex-col items-center justify-center w-14 h-full min-h-[44px] transition-transform active:scale-95"
         >
-          <div className="w-11 h-11 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shadow-lg shadow-primary/10 group hover:bg-primary/20 transition-colors">
+          <div className="w-11 h-11 rounded-full bg-primary border-2 border-ink flex items-center justify-center shadow-lg group hover:opacity-90 transition-opacity">
             <svg
-              className="w-6 h-6 text-primary group-hover:text-paper transition-colors"
+              className="w-6 h-6 text-ink"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -91,14 +98,16 @@ export function Navigation() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M12 4v16m8-8H4"
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
               />
             </svg>
           </div>
         </Link>
         <Link
           href="/inbox"
-          className={`flex flex-col items-center justify-center w-12 h-full transition-all duration-200 ${
+          aria-label={unreadCount > 0 ? `${t("chats")} (${unreadCount} unread)` : t("chats")}
+          aria-current={isActive("/inbox") ? "page" : undefined}
+          className={`relative flex flex-col items-center justify-center w-12 h-full min-h-[44px] transition-all duration-200 ${
             isActive("/inbox")
               ? "text-primary scale-110"
               : "text-tertiary hover:text-paper"
@@ -114,28 +123,43 @@ export function Navigation() {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
             />
           </svg>
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1/4 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-primary text-ink text-[10px] font-bold">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
           <span
             className={`text-[10px] font-bold uppercase tracking-widest mt-1 transition-opacity ${isActive("/inbox") ? "opacity-100" : "opacity-0"}`}
           >
-            {t("messages")}
+            {t("chats")}
           </span>
         </Link>
         <Link
           href={`/user/${handle}`}
-          className={`flex flex-col items-center justify-center w-12 h-full transition-all duration-200 ${
+          aria-label={t("profile")}
+          aria-current={isActive(`/user/${handle}`) ? "page" : undefined}
+          className={`flex flex-col items-center justify-center w-12 h-full min-h-[44px] transition-all duration-200 ${
             isActive(`/user/${handle}`)
               ? "text-primary scale-110"
               : "text-tertiary hover:text-paper"
           }`}
         >
-          <div
-            className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] mt-1 transition-all ${isActive(`/user/${handle}`) ? "bg-primary text-white" : "bg-primary/20 text-primary"}`}
+          <svg
+            className="w-6 h-6 mt-1"
+            fill={isActive(`/user/${handle}`) ? "currentColor" : "none"}
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            {handle.charAt(0).toUpperCase()}
-          </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
           <span
             className={`text-[10px] font-bold uppercase tracking-widest mt-1 transition-opacity ${isActive(`/user/${handle}`) ? "opacity-100" : "opacity-0"}`}
           >

@@ -38,6 +38,8 @@ if [ "$ENVIRONMENT" = "prod" ]; then
   JWT_SECRET=$(get_env JWT_SECRET)
   METRICS_SECRET=$(get_env METRICS_SECRET)
   CITEWALK_ADMIN_SECRET=$(get_env CITEWALK_ADMIN_SECRET)
+  CORS_ORIGINS=$(get_env CORS_ORIGINS)
+  FRONTEND_URL=$(get_env FRONTEND_URL)
   ERR=0
   if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" = "your-secret-key-change-in-production" ]; then
     echo "❌ Production requires JWT_SECRET to be set to a strong, non-default value in .env"
@@ -51,15 +53,27 @@ if [ "$ENVIRONMENT" = "prod" ]; then
     echo "❌ Production requires CITEWALK_ADMIN_SECRET to be set to a strong value in .env"
     ERR=1
   fi
+  if [ -z "$CORS_ORIGINS" ]; then
+    echo "❌ Production requires CORS_ORIGINS in .env (comma-separated HTTPS origins, e.g. https://yourdomain.com)"
+    ERR=1
+  fi
+  if [ -z "$FRONTEND_URL" ]; then
+    echo "❌ Production requires FRONTEND_URL in .env (e.g. https://yourdomain.com)"
+    ERR=1
+  fi
+  if [ -n "$FRONTEND_URL" ] && [ "${FRONTEND_URL%%:*}" = "http" ]; then
+    echo "❌ Production FRONTEND_URL must use HTTPS"
+    ERR=1
+  fi
   if [ $ERR -eq 1 ]; then
     echo "Fix the above and run ./deploy.sh prod again."
     exit 1
   fi
-  echo "✅ Production checks passed (JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET)"
+  echo "✅ Production checks passed (JWT_SECRET, METRICS_SECRET, CITEWALK_ADMIN_SECRET, CORS_ORIGINS, FRONTEND_URL)"
 
-  # Auto-generate SSL certs with Certbot if missing (domain: citewalk.com via CERTBOT_DOMAIN/CERTBOT_EMAIL in .env)
+  # Auto-run init-ssl-certbot.sh if SSL certs are missing (CERTBOT_EMAIL in .env; port 80 must be free)
   if [ ! -f "ssl/cert.pem" ] || [ ! -f "ssl/key.pem" ]; then
-    echo "🔒 SSL certs not found in ./ssl/. Running Certbot to obtain Let's Encrypt certificates..."
+    echo "🔒 SSL certs not found in ./ssl/. Automatically running init-ssl-certbot.sh..."
     if [ -f "init-ssl-certbot.sh" ]; then
       chmod +x init-ssl-certbot.sh
       ./init-ssl-certbot.sh
@@ -115,4 +129,23 @@ echo ""
 echo "📋 Recent logs:"
 $COMPOSE_CMD logs --tail=50
 echo ""
+
+# Production: auto-install SSL renewal cron (renew-ssl-cron.sh) so certs renew automatically
+if [ "$ENVIRONMENT" = "prod" ]; then
+  DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  CRON_LINE="0 3 * * * DEPLOY_PATH=$DEPLOY_DIR; [ -x \"\$DEPLOY_PATH/renew-ssl-cron.sh\" ] && CITEWALK_DOCKER_DIR=\$DEPLOY_PATH \$DEPLOY_PATH/renew-ssl-cron.sh >> /var/log/citewalk-ssl-renew.log 2>&1"
+  if crontab -l 2>/dev/null | grep -q "renew-ssl-cron.sh"; then
+    echo "✅ SSL renewal cron already installed."
+  else
+    if (crontab -l 2>/dev/null | grep -v "renew-ssl-cron.sh"; echo "$CRON_LINE") | crontab - 2>/dev/null; then
+      echo "✅ SSL renewal cron installed (runs daily at 3 AM via renew-ssl-cron.sh)."
+    else
+      echo "⚠️  Could not install SSL renewal cron. Install manually (as the deploy user):"
+      echo "   (crontab -l 2>/dev/null; echo '$CRON_LINE') | crontab -"
+      echo "   Or run when needed: cd $DEPLOY_DIR && ./renew-ssl-cron.sh"
+    fi
+  fi
+  echo ""
+fi
+
 echo "✅ Deploy complete. Run '$COMPOSE_CMD logs -f' to follow logs."

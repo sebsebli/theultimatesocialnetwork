@@ -29,6 +29,16 @@ export function PostSkeleton() {
   );
 }
 
+export function ExploreSkeleton() {
+  return (
+    <div className="divide-y divide-divider">
+      <PostSkeleton />
+      <PostSkeleton />
+      <PostSkeleton />
+    </div>
+  );
+}
+
 export function ProfileSkeleton() {
   return (
     <div className="w-full">

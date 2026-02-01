@@ -8,12 +8,14 @@ import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SearchModule } from '../search/search.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([DmThread, DmMessage, User, Follow]),
     NotificationsModule,
     SearchModule,
+    UploadModule,
   ],
   controllers: [MessagesController],
   providers: [MessagesService],

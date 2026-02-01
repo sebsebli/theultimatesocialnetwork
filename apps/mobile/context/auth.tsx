@@ -4,7 +4,6 @@ import {
   getAuthToken,
   setAuthToken as setApiToken,
   clearAuthToken as clearApiToken,
-  setAuthErrorHandler,
   getOnboardingComplete,
   setOnboardingComplete as persistOnboardingComplete,
   clearOnboardingComplete as clearOnboardingCompleteStorage,
@@ -101,12 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     checkAuth();
-    setAuthErrorHandler(() => {
-      setIsAuthenticated(false);
-      setOnboardingComplete(null);
-      setUserId(null);
-      router.replace('/welcome');
-    });
+    // Never sign out on API errors – only on explicit Sign out or when /users/me returns 401 on app load
   }, []);
 
   const signIn = async (token: string) => {

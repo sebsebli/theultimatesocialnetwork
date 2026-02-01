@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Blurhash } from "react-blurhash";
 import { getImageUrl } from "@/lib/security";
+import { Avatar } from "./avatar";
 
 interface ReadingModeProps {
   post: {
@@ -15,11 +17,14 @@ interface ReadingModeProps {
       id: string;
       handle: string;
       displayName: string;
+      avatarKey?: string | null;
+      avatarUrl?: string | null;
     };
     replyCount: number;
     quoteCount: number;
     headerImageKey?: string;
     headerImageBlurhash?: string;
+    referenceMetadata?: Record<string, { title?: string }>;
   };
 }
 
@@ -66,7 +71,7 @@ export function ReadingMode({ post }: ReadingModeProps) {
 
       {/* Article Content */}
       <article className="max-w-[680px] mx-auto px-6 py-12">
-        {/* Header Image */}
+        {/* Header Image – fades out on scroll */}
         {post.headerImageKey && (
           <div className="relative w-full aspect-video mb-8 rounded-xl overflow-hidden bg-divider shadow-sm">
             {post.headerImageBlurhash && (
@@ -105,9 +110,13 @@ export function ReadingMode({ post }: ReadingModeProps) {
         {/* Author & Date */}
         <div className="flex items-center gap-3 mb-8 pb-6 border-b border-divider">
           <Link href={`/user/${post.author.handle}`}>
-            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm">
-              {post.author.displayName.charAt(0).toUpperCase()}
-            </div>
+            <Avatar
+              avatarKey={post.author.avatarKey}
+              avatarUrl={post.author.avatarUrl}
+              displayName={post.author.displayName}
+              handle={post.author.handle}
+              size="md"
+            />
           </Link>
           <div>
             <Link href={`/user/${post.author.handle}`}>
@@ -128,7 +137,7 @@ export function ReadingMode({ post }: ReadingModeProps) {
             fontFamily: "var(--font-serif), Georgia, serif",
           }}
           dangerouslySetInnerHTML={{
-            __html: renderMarkdownForReading(post.body),
+            __html: renderMarkdownForReading(post.body, post.title, post.referenceMetadata),
           }}
         />
 
@@ -146,7 +155,27 @@ export function ReadingMode({ post }: ReadingModeProps) {
                 const uniqueUrls = Array.from(new Set(matches));
 
                 if (uniqueUrls.length === 0) {
-                  return <p>No external sources found.</p>;
+                  return (
+                    <div className="flex flex-col items-center justify-center py-10 px-4 bg-white/5 rounded-lg border border-dashed border-divider text-center">
+                      <svg
+                        className="w-12 h-12 text-tertiary mb-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                        />
+                      </svg>
+                      <p className="text-secondary text-sm">
+                        This post doesn&apos;t have any sources.
+                      </p>
+                    </div>
+                  );
                 }
 
                 return (
@@ -179,59 +208,79 @@ export function ReadingMode({ post }: ReadingModeProps) {
             </h2>
             <div className="text-secondary text-sm">
               {post.quoteCount === 0 ? (
-                <p>Not referenced yet.</p>
+                <div className="flex flex-col items-center justify-center py-10 px-4 bg-white/5 rounded-lg border border-dashed border-divider text-center">
+                  <svg
+                    className="w-12 h-12 text-tertiary mb-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                    />
+                  </svg>
+                  <p className="text-secondary text-sm">
+                    No posts quote this yet.
+                  </p>
+                </div>
               ) : (
                 <p>Referenced by {post.quoteCount} posts</p>
               )}
             </div>
           </section>
 
-          {/* Quoted By */}
-          <section>
-            <h2 className="text-2xl font-semibold mb-6 text-paper">
-              Quoted by
-            </h2>
-            <div className="text-secondary text-sm">
-              {post.quoteCount === 0 ? (
-                <p>Not quoted yet.</p>
-              ) : (
+          {/* Quoted by — only when post has been quoted */}
+          {post.quoteCount > 0 && (
+            <section>
+              <h2 className="text-2xl font-semibold mb-6 text-paper">
+                Quoted by
+              </h2>
+              <div className="text-secondary text-sm">
                 <p>Quoted by {post.quoteCount} posts</p>
-              )}
-            </div>
-          </section>
+              </div>
+            </section>
+          )}
         </div>
       </article>
     </div>
   );
 }
 
-import { renderMarkdown } from "@/utils/markdown";
+import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
 
-function renderMarkdownForReading(text: string): string {
-  // Remove title if present (already shown separately)
-  const processed = text.replace(/^#\s+.+$/m, "");
+function renderMarkdownForReading(
+  text: string,
+  title?: string | null,
+  referenceMetadata?: Record<string, { title?: string }>,
+): string {
+  // Remove only the first H1 when it matches the post title (already shown separately)
+  const processed = stripLeadingH1IfMatch(text, title ?? undefined);
 
   // Use shared renderer but with reading mode classes
-  let html = renderMarkdown(processed);
+  let html = renderMarkdown(processed, { referenceMetadata });
 
-  // Override classes for reading mode
+  // Override classes for reading mode (prose-heading: H1 > H2 > H3, larger sizes for reading)
   html = html.replace(
-    /class="text-lg font-semibold/g,
-    'class="text-2xl font-semibold',
+    /class="prose-heading prose-h3 text-base font-semibold/g,
+    'class="prose-heading prose-h3 text-xl font-semibold',
   );
   html = html.replace(
-    /class="text-xl font-semibold/g,
-    'class="text-3xl font-semibold',
+    /class="prose-heading prose-h2 text-lg font-semibold/g,
+    'class="prose-heading prose-h2 text-3xl font-semibold',
   );
   html = html.replace(
-    /class="text-2xl font-bold/g,
-    'class="text-4xl font-bold',
+    /class="prose-heading prose-h1 text-xl font-bold/g,
+    'class="prose-heading prose-h1 text-4xl font-bold',
   );
 
-  // Add reading mode link styling
+  // Add reading mode link styling for prose-tag (subtle underline, same as body text)
   html = html.replace(
-    /class="text-primary hover:underline font-medium"/g,
-    'class="text-primary hover:underline font-medium border-b border-primary/30 pb-0.5"',
+    /class="(prose-tag[^"]*)"/g,
+    (_, cls) => `class="${cls} border-b border-current border-opacity-40 pb-0.5"`,
   );
 
   // Convert to paragraphs for better reading

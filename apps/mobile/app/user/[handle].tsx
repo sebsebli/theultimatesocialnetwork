@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform, useWindowDimensions, type DimensionValue } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -14,13 +14,15 @@ import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { PostItem } from '../../components/PostItem';
 import { ProfileSkeleton, PostSkeleton } from '../../components/LoadingSkeleton';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, PROFILE_TOP_HEIGHT } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, PROFILE_HEADER_ASPECT_RATIO } from '../../constants/theme';
+import { formatCompactNumber } from '../../utils/format';
 
 const TAB_BAR_HEIGHT = 50;
 
 export default function UserProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { handle } = useLocalSearchParams();
   const { t } = useTranslation();
   const { userId: authUserId } = useAuth();
@@ -40,6 +42,7 @@ export default function UserProfileScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [following, setFollowing] = useState(false);
+  const [hasPendingFollowRequest, setHasPendingFollowRequest] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'saved' | 'collections'>('posts');
   const loadingMoreRef = React.useRef(false);
 
@@ -101,10 +104,13 @@ export default function UserProfileScreen() {
       if (reset) {
         userData = await userPromise;
         setUser(userData);
-        setFollowing((userData as any).isFollowing || false);
-        contentData = await fetchContent(userData.id);
+        setFollowing(!!(userData as any).isFollowing);
+        setHasPendingFollowRequest(!!(userData as any).hasPendingFollowRequest);
+        const canViewContent = !(userData as any).isProtected || (userData as any).isFollowing;
+        contentData = canViewContent ? await fetchContent(userData.id) : { items: [], hasMore: false };
       } else {
-        contentData = await fetchContent(user.id);
+        const canViewContent = !user?.isProtected || following;
+        contentData = canViewContent ? await fetchContent(user.id) : { items: [], hasMore: false };
       }
 
       // API may return { items, hasMore } or plain array for replies/quotes
@@ -139,26 +145,34 @@ export default function UserProfileScreen() {
 
   // ... (inside handleFollow)
   const handleFollow = async () => {
-    // Optimistic update
     const prevFollowing = following;
+    const prevPending = hasPendingFollowRequest;
     const prevCount = user.followerCount;
 
-    setFollowing(!prevFollowing);
-    setUser((prev: any) => ({
-      ...prev,
-      followerCount: prevFollowing ? prev.followerCount - 1 : prev.followerCount + 1
-    }));
+    if (prevFollowing || prevPending) {
+      setFollowing(false);
+      setHasPendingFollowRequest(false);
+      setUser((prev: any) => ({ ...prev, followerCount: prev.followerCount - 1 }));
+    } else {
+      setFollowing(true); // optimistic; may be overwritten if pending
+      setUser((prev: any) => ({ ...prev, followerCount: prev.followerCount + 1 }));
+    }
 
     try {
-      if (prevFollowing) {
+      if (prevFollowing || prevPending) {
         await api.delete(`/users/${user.id}/follow`);
       } else {
-        await api.post(`/users/${user.id}/follow`);
+        const res = await api.post<{ pending?: boolean }>(`/users/${user.id}/follow`);
+        if (res?.pending) {
+          setFollowing(false);
+          setHasPendingFollowRequest(true);
+          setUser((prev: any) => ({ ...prev, followerCount: prev.followerCount - 1 }));
+        }
       }
     } catch (error) {
       console.error('Failed to toggle follow', error);
-      // Revert
       setFollowing(prevFollowing);
+      setHasPendingFollowRequest(prevPending);
       setUser((prev: any) => ({ ...prev, followerCount: prevCount }));
     }
   };
@@ -325,17 +339,17 @@ export default function UserProfileScreen() {
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomPadding }}
-        data={posts}
+        data={(user?.isProtected && !following) ? [] : posts}
         keyExtractor={(item: any) => item.id}
         renderItem={({ item }: { item: any }) => <PostItem post={item} />}
         ListHeaderComponent={
           <>
-            {/* Profile top: background image or black, then bar + avatar/name */}
-            <View style={[styles.profileTopSection, { height: PROFILE_TOP_HEIGHT }]}>
+            {/* Header image only: fixed 4:3 so drawing looks identical on all devices. */}
+            <View style={[styles.profileHeaderImageWrap, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
               {profileHeaderImageUrl ? (
                 <Image
                   source={{ uri: profileHeaderImageUrl }}
-                  style={styles.profileTopBackground}
+                  style={[styles.profileTopBackground, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}
                   contentFit="cover"
                   cachePolicy="memory-disk"
                 />
@@ -360,12 +374,15 @@ export default function UserProfileScreen() {
                   <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
                 </Pressable>
               </View>
+            </View>
+            {/* Profile info + stats: separate block so content is never clipped on small phones. */}
+            <View style={styles.profileInfoBlock}>
               <View style={styles.profileHeader}>
                 <View style={styles.avatarContainer}>
                   <View style={styles.avatar}>
                     {(user.avatarKey || user.avatarUrl) ? (
                       <Image
-                        source={{ uri: user.avatarKey ? getImageUrl(user.avatarKey) : user.avatarUrl }}
+                        source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
                         style={styles.avatarImage}
                         contentFit="cover"
                         cachePolicy="memory-disk"
@@ -389,13 +406,13 @@ export default function UserProfileScreen() {
 
                 <View style={styles.actions}>
                   <Pressable
-                    style={[styles.actionButtonOutline, following && styles.actionButtonActive]}
+                    style={[styles.actionButtonOutline, (following || hasPendingFollowRequest) && styles.actionButtonActive]}
                     onPress={handleFollow}
-                    accessibilityLabel={following ? t('profile.following') : t('profile.follow')}
+                    accessibilityLabel={hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
                     accessibilityRole="button"
                   >
-                    <Text style={[styles.actionButtonText, following && styles.actionButtonTextActive]}>
-                      {following ? t('profile.following') : t('profile.follow')}
+                    <Text style={[styles.actionButtonText, (following || hasPendingFollowRequest) && styles.actionButtonTextActive]}>
+                      {hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
                     </Text>
                   </Pressable>
 
@@ -417,14 +434,14 @@ export default function UserProfileScreen() {
                   style={styles.statItem}
                   onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
                 >
-                  <Text style={styles.statNumber}>{user.followerCount}</Text>
+                  <Text style={styles.statNumber}>{formatCompactNumber(user.followerCount)}</Text>
                   <Text style={styles.statLabel}>{t('profile.followers')}</Text>
                 </Pressable>
                 <Pressable
                   style={styles.statItem}
                   onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
                 >
-                  <Text style={styles.statNumber}>{user.followingCount}</Text>
+                  <Text style={styles.statNumber}>{formatCompactNumber(user.followingCount)}</Text>
                   <Text style={styles.statLabel}>{t('profile.following')}</Text>
                 </Pressable>
                 <View style={styles.statItem}>
@@ -433,12 +450,23 @@ export default function UserProfileScreen() {
                       <MaterialIcons name="verified" size={HEADER.iconSize} color={COLORS.tertiary} />
                     </View>
                   )}
-                  <Text style={styles.statNumber}>{user.quoteReceivedCount}</Text>
-                  <Text style={[styles.statLabel, { color: COLORS.primary }]}>{t('profile.quotes')}</Text>
+                  <Text style={styles.statNumber}>{formatCompactNumber(user.quoteReceivedCount)}</Text>
+                  <Text style={styles.statLabel}>{t('profile.quotes')}</Text>
                 </View>
               </View>
             </View>
 
+            {user.isProtected && !following ? (
+              <View style={styles.privateProfileGate}>
+                <View style={styles.privateProfileIconWrap}>
+                  <MaterialIcons name="lock" size={32} color={COLORS.tertiary} />
+                </View>
+                <Text style={styles.privateProfileTitle}>{t('profile.privateProfile', 'Private profile')}</Text>
+                <Text style={styles.privateProfileSubtext}>
+                  {t('profile.privateProfileHint', 'Follow this account to see their posts, replies, and quotes.')}
+                </Text>
+              </View>
+            ) : (
             <View style={styles.tabsContainer}>
               {(isOwnProfile
                 ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
@@ -458,6 +486,7 @@ export default function UserProfileScreen() {
                 </Pressable>
               ))}
             </View>
+            )}
           </>
         }
         ListEmptyComponent={
@@ -563,22 +592,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: HEADER.barPaddingHorizontal,
-    paddingBottom: HEADER.barPaddingBottom,
+    paddingHorizontal: HEADER.barPaddingHorizontal as DimensionValue,
+    paddingBottom: HEADER.barPaddingBottom as DimensionValue,
     backgroundColor: COLORS.ink,
   },
   headerBarOverlay: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: HEADER.barPaddingHorizontal,
-    paddingBottom: HEADER.barPaddingBottom,
+    paddingHorizontal: HEADER.barPaddingHorizontal as DimensionValue,
+    paddingBottom: HEADER.barPaddingBottom as DimensionValue,
     zIndex: 10,
     position: 'relative',
   },
-  profileTopSection: {
-    width: '100%',
+  profileHeaderImageWrap: {
     position: 'relative',
+    overflow: 'hidden',
+  },
+  profileInfoBlock: {
+    width: '100%',
+    backgroundColor: COLORS.ink,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: SPACING.m,
     paddingBottom: SPACING.l,
   },
   profileTopBackground: {
@@ -607,7 +642,6 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
     gap: SPACING.l,
   },
@@ -720,14 +754,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statNumber: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   statLabel: {
-    fontSize: 12,
-    color: COLORS.tertiary,
+    fontSize: 13,
+    color: COLORS.paper,
     fontFamily: FONTS.medium,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -763,6 +797,37 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: COLORS.paper,
     fontWeight: '600',
+  },
+  privateProfileGate: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xxxl,
+    paddingHorizontal: SPACING.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  privateProfileIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.m,
+  },
+  privateProfileTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    marginBottom: SPACING.xs,
+  },
+  privateProfileSubtext: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    textAlign: 'center',
+    maxWidth: 280,
   },
   emptyState: {
     padding: SPACING.xxxl,

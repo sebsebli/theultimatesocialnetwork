@@ -9,14 +9,4 @@ export class AppController {
   getHello() {
     return this.appService.getInfo();
   }
-
-  @Get('health')
-  getHealth() {
-    const info = this.appService.getInfo();
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      ...info,
-    };
-  }
 }

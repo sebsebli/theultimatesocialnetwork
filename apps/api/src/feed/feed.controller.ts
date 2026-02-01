@@ -23,7 +23,7 @@ export class FeedController {
   constructor(
     private readonly feedService: FeedService,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
-  ) {}
+  ) { }
 
   @Get()
   @UseGuards(AuthGuard('jwt'))
@@ -31,6 +31,7 @@ export class FeedController {
     @CurrentUser() user: { id: string },
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('cursor') cursor?: string,
     @Query('includeSavedBy') includeSavedBy?: string,
   ) {
     // Require completed onboarding (no placeholder profile) before allowing feed access
@@ -46,11 +47,13 @@ export class FeedController {
     }
     try {
       const includeSaved = includeSavedBy === 'true';
+      const safeLimit = Math.min(Math.max(1, limit), 100);
       return await this.feedService.getHomeFeed(
         user.id,
-        limit,
+        safeLimit,
         offset,
         includeSaved,
+        cursor,
       );
     } catch (error) {
       if (error instanceof ForbiddenException) throw error;

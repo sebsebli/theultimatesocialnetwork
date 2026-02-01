@@ -162,7 +162,8 @@
     "createNewPage": "Nowa strona",
     "publishedSuccess": "Opublikowano",
     "linkToTopic": "DO TEMATU",
-    "references": "{{count}} odniesień"
+    "references": "{{count}} odniesień",
+    "startTypingToSeeSuggestions": "Zacznij pisać, aby zobaczyć sugestie"
   },
   "post": {
     "like": "Lubię",

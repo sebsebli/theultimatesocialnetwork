@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Avatar } from "./avatar";
 import { WhyLabel } from "./why-label";
 
 interface UserCardProps {
@@ -11,6 +12,8 @@ interface UserCardProps {
     bio?: string;
     reasons?: string[];
     isFollowing?: boolean;
+    avatarKey?: string | null;
+    avatarUrl?: string | null;
   };
   onFollow?: () => void;
 }
@@ -20,9 +23,13 @@ export function UserCard({ person, onFollow }: UserCardProps) {
     <Link href={`/user/${person.handle}`}>
       <div className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group active:scale-[0.99] flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg shadow-inner group-hover:bg-primary/30 transition-colors shrink-0">
-            {person.displayName?.charAt(0) || person.handle.charAt(0)}
-          </div>
+          <Avatar
+            avatarKey={person.avatarKey}
+            avatarUrl={person.avatarUrl}
+            displayName={person.displayName ?? person.handle}
+            handle={person.handle}
+            size="lg"
+          />
           <div className="flex-1 min-w-0">
             <div className="font-bold text-paper text-base group-hover:text-primary transition-colors truncate">
               {person.displayName || person.handle}

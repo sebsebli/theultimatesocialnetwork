@@ -2,6 +2,19 @@ import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
 import { User } from '../entities/user.entity';
 
+/** Extract post IDs referenced in body via [[post:id]] or [[post:id|alias]]. */
+export function extractLinkedPostIds(body: string | null | undefined): string[] {
+  if (!body || typeof body !== 'string') return [];
+  const re = /\[\[post:([^\]\|]+)(?:\|[^\]]*)?\]\]/gi;
+  const ids: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    const id = m[1].trim();
+    if (id && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
 /** Author shape for JSON (avoids TypeORM/circular refs). Optionally add avatarUrl from avatarKey. */
 export function authorPlain(
   a:
@@ -26,15 +39,18 @@ export function authorPlain(
   return base;
 }
 
-/** Post as plain object so response is always JSON-serializable. getImageUrl for author.avatarUrl and post.headerImageUrl. */
+export type ReferenceMetadata = Record<string, { title?: string }>;
+
+/** Post as plain object so response is always JSON-serializable. getImageUrl for author.avatarUrl and post.headerImageUrl. referenceMetadata for linked post titles ([[post:id]] display text). */
 export function postToPlain(
   p: Post | null | undefined,
   getImageUrl?: (key: string) => string,
+  referenceMetadata?: ReferenceMetadata | null,
 ): Record<string, unknown> | null {
   if (!p || typeof p !== 'object') return null;
   const headerImageUrl =
     p.headerImageKey && getImageUrl ? getImageUrl(p.headerImageKey) : undefined;
-  return {
+  const out: Record<string, unknown> = {
     id: p.id ?? '',
     authorId: p.authorId ?? '',
     author: authorPlain(p.author ?? null, getImageUrl),
@@ -55,22 +71,27 @@ export function postToPlain(
     viewCount: p.viewCount ?? 0,
     readingTimeMinutes: p.readingTimeMinutes ?? 0,
   };
+  if (referenceMetadata != null && Object.keys(referenceMetadata).length > 0) {
+    out.referenceMetadata = referenceMetadata;
+  }
+  return out;
 }
 
 export function replyToPlain(
   r: Reply | null | undefined,
+  getImageUrl?: (key: string) => string,
 ): Record<string, unknown> | null {
   if (!r || typeof r !== 'object') return null;
   return {
     id: r.id ?? '',
     postId: r.postId ?? '',
     authorId: r.authorId ?? '',
-    author: authorPlain(r.author ?? null),
+    author: authorPlain(r.author ?? null, getImageUrl),
     parentReplyId: r.parentReplyId ?? null,
     body: r.body ?? '',
     createdAt:
       r.createdAt != null ? new Date(r.createdAt).toISOString() : undefined,
-    post: postToPlain(r.post ?? null),
+    post: postToPlain(r.post ?? null, getImageUrl),
   };
 }
 

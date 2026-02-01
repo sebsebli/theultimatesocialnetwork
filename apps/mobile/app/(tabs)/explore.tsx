@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View, FlatList, Pressable, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, View, FlatList, Pressable, ScrollView, RefreshControl, ActivityIndicator, TextInput } from 'react-native';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -32,6 +32,7 @@ export default function ExploreScreen() {
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const onEndReachedFiredRef = useRef(false);
 
   useEffect(() => {
     if (params.tab) {
@@ -46,53 +47,109 @@ export default function ExploreScreen() {
     }
   }, [params.tab, params.q]);
 
+  // When tab changes: load content for current tab (and current search term if any)
   useEffect(() => {
     if (isAuthenticated) {
       setPage(1);
       setData([]);
-      loadContent(1, true);
-
+      loadContent(1, true, undefined);
     }
   }, [activeTab, isAuthenticated]);
 
-  const loadContent = async (pageNum: number, reset = false) => {
+  // When search query changes: debounce then run search for active tab; if cleared, load explore feed
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (searchQuery.trim() === '') {
+      setPage(1);
+      setData([]);
+      loadContent(1, true, '');
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      setPage(1);
+      setData([]);
+      loadContent(1, true, undefined);
+      searchDebounceRef.current = null;
+    }, 400);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery]);
+
+  const loadContent = async (pageNum: number, reset = false, overrideSearchQuery?: string) => {
     if (!reset && (loading || loadingMore)) return;
 
     if (reset) {
       setLoading(true);
       setPage(1);
+      setHasMore(true);
+      onEndReachedFiredRef.current = false;
     } else {
       setLoadingMore(true);
     }
     setError(false);
+    const queryTrimmed = (overrideSearchQuery !== undefined ? overrideSearchQuery : searchQuery).trim();
+    const isSearchMode = queryTrimmed.length > 0;
+
     try {
-      let endpoint = '/explore/topics';
+      let items: any[] = [];
+      let hasMoreData = false;
 
-      if (activeTab === 'people') endpoint = '/explore/people';
-      else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
-      else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
-      else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
-
-      // Always recommended; language follows user preferences from settings
-      const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort: 'recommended' };
-      const query = new URLSearchParams(params).toString();
-      const res = await api.get(`${endpoint}?${query}`);
-      const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
-      const normalized = rawItems.map((item: any) => ({
-        ...item,
-        author: item.author || {
-          id: item.authorId || '',
-          handle: item.handle || t('post.unknownUser', 'Unknown'),
-          displayName: item.displayName || t('post.unknownUser', 'Unknown')
-        },
-      }));
-      const seen = new Set<string>();
-      const items = normalized.filter((item: any) => {
-        const k = item.id ?? item.slug ?? '';
-        if (!k || seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
+      if (isSearchMode) {
+        // Search API for the active tab
+        if (activeTab === 'topics') {
+          const res = await api.get<{ hits: any[] }>(`/search/topics?q=${encodeURIComponent(queryTrimmed)}&limit=20`);
+          items = (res.hits || []).map((t: any) => ({ ...t, title: t.title || t.slug }));
+          hasMoreData = false;
+        } else if (activeTab === 'people') {
+          const res = await api.get<{ hits: any[] }>(`/search/users?q=${encodeURIComponent(queryTrimmed)}&limit=20`);
+          items = res.hits || [];
+          hasMoreData = false;
+        } else {
+          const offset = (pageNum - 1) * 20;
+          const res = await api.get<{ hits: any[] }>(`/search/posts?q=${encodeURIComponent(queryTrimmed)}&limit=20&offset=${offset}`);
+          const raw = res.hits || [];
+          items = raw.map((item: any) => ({
+            ...item,
+            author: item.author || {
+              id: item.authorId || '',
+              handle: item.author?.handle || t('post.unknownUser', 'Unknown'),
+              displayName: item.author?.displayName || t('post.unknownUser', 'Unknown'),
+              avatarKey: item.author?.avatarKey,
+              avatarUrl: item.author?.avatarUrl,
+            },
+          }));
+          hasMoreData = items.length === 20;
+        }
+      } else {
+        let endpoint = '/explore/topics';
+        if (activeTab === 'people') endpoint = '/explore/people';
+        else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
+        else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
+        else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
+        const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort: 'recommended' };
+        const qs = new URLSearchParams(params).toString();
+        const res = await api.get(`${endpoint}?${qs}`);
+        const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
+        const normalized = rawItems.map((item: any) => ({
+          ...item,
+          author: item.author || {
+            id: item.authorId || '',
+            handle: item.handle || t('post.unknownUser', 'Unknown'),
+            displayName: item.displayName || t('post.unknownUser', 'Unknown'),
+          },
+        }));
+        const seen = new Set<string>();
+        items = normalized.filter((item: any) => {
+          const k = item.id ?? item.slug ?? '';
+          if (!k || seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        hasMoreData = items.length === 20 && (res.hasMore !== false);
+      }
 
       if (reset) {
         setData(items);
@@ -103,8 +160,6 @@ export default function ExploreScreen() {
           return prev.concat(appended);
         });
       }
-
-      const hasMoreData = items.length === 20 && (res.hasMore !== false);
       setHasMore(hasMoreData);
     } catch (error: any) {
       if (error?.status === 401) {
@@ -115,6 +170,8 @@ export default function ExploreScreen() {
       }
       console.error('Failed to load content', error);
       setError(true);
+      // Stop pagination on any error (e.g. 503) so we don't retry infinitely when scrolling
+      setHasMore(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -165,15 +222,20 @@ export default function ExploreScreen() {
 
   const handleLoadMore = useCallback(() => {
     if (!loading && !refreshing && !loadingMore && hasMore) {
+      // Prevent duplicate fires from FlatList onEndReached
+      if (onEndReachedFiredRef.current) return;
+      onEndReachedFiredRef.current = true;
       const nextPage = page + 1;
       setPage(nextPage);
-      loadContent(nextPage, false);
+      loadContent(nextPage, false).finally(() => {
+        onEndReachedFiredRef.current = false;
+      });
     }
   }, [loading, refreshing, loadingMore, hasMore, page, activeTab]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    loadContent(1, true);
+    loadContent(1, true, undefined);
   }, [activeTab]);
 
   const renderItem = useCallback(({ item }: { item: any }) => {
@@ -220,21 +282,32 @@ export default function ExploreScreen() {
   const listHeader = useMemo(() => (
     <View key="explore-list-header" style={[styles.headerContainer, { paddingTop: insets.top }]}>
       <View key="explore-search" style={styles.searchWrapper}>
-        <Pressable
-          style={styles.searchBar}
-          onPress={() => router.push('/search')}
-          accessibilityRole="button"
-          accessibilityLabel={t('explore.searchPlaceholder')}
-        >
+        <View style={styles.searchBar}>
           <MaterialIcons name="search" size={HEADER.iconSize} color={HEADER.iconColor} />
-          <Text style={styles.searchInputPlaceholder}>
-            {t('explore.searchPlaceholder')}
-          </Text>
-        </Pressable>
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={t('explore.searchPlaceholder')}
+            placeholderTextColor={COLORS.tertiary}
+            returnKeyType="search"
+            accessibilityLabel={t('explore.searchPlaceholder')}
+            includeFontPadding={false}
+          />
+          {searchQuery.length > 0 ? (
+            <Pressable
+              onPress={() => setSearchQuery('')}
+              hitSlop={8}
+              accessibilityLabel={t('common.clear')}
+            >
+              <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       <View key="explore-tabs" style={styles.tabsContainer}>
-        <ScrollView horizontal showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent}>
+        <ScrollView horizontal showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent} style={styles.tabsScrollView}>
           {(['quoted', 'deep-dives', 'newsroom', 'topics', 'people'] as const).map((tab) => (
             <Pressable
               key={tab}
@@ -255,7 +328,7 @@ export default function ExploreScreen() {
       </View>
       <View key="explore-spacer" style={{ height: SPACING.m }} />
     </View>
-  ), [insets.top, activeTab, t]);
+  ), [insets.top, activeTab, t, searchQuery]);
 
   return (
     <View style={styles.container}>
@@ -327,15 +400,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.l,
     gap: SPACING.m,
   },
-  searchInputPlaceholder: {
+  searchInput: {
     flex: 1,
-    color: COLORS.tertiary,
+    color: COLORS.paper,
     fontSize: 16,
     fontFamily: FONTS.regular,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   tabsContainer: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+  },
+  tabsScrollView: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
   tabsContent: {
     gap: SPACING.xl,

@@ -12,9 +12,12 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const limit = searchParams.get("limit") || "20";
   const offset = searchParams.get("offset") || "0";
+  const cursor = searchParams.get("cursor") || "";
 
   try {
-    const res = await fetch(`${API_URL}/feed?limit=${limit}&offset=${offset}`, {
+    const q = new URLSearchParams({ limit, offset });
+    if (cursor) q.set("cursor", cursor);
+    const res = await fetch(`${API_URL}/feed?${q.toString()}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

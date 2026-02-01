@@ -233,7 +233,7 @@ export default function PostDetailScreen() {
         />
 
         <View style={styles.postContent}>
-          <PostContent post={post} disableNavigation />
+          <PostContent post={post} disableNavigation referenceMetadata={post.referenceMetadata} />
 
           <View style={styles.stats}>
             <Text style={styles.stat}>{post.replyCount} {t('post.replies')}</Text>
@@ -272,7 +272,7 @@ export default function PostDetailScreen() {
 
         {sources.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('post.sources', 'SOURCES')}</Text>
+            <Text style={styles.sectionTitle}>{t('post.sources', 'Sources')}</Text>
             {sources.map((source: any, index: number) => (
               <Pressable
                 key={source.id || index}
@@ -323,7 +323,7 @@ export default function PostDetailScreen() {
         {referencedBy.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>REFERENCED BY</Text>
+              <Text style={styles.sectionTitle}>{t('post.referencedBy', 'Referenced by')}</Text>
               <Text style={styles.sectionCount}>{referencedBy.length} {t('post.replies')}</Text>
             </View>
             {referencedBy.slice(0, 2).map((refPost) => (
@@ -343,7 +343,18 @@ export default function PostDetailScreen() {
             repliesSectionY.current = event.nativeEvent.layout.y;
           }}
         >
-          <Text style={styles.sectionTitle}>{t('post.replies')}</Text>
+          <Pressable
+            onPress={() => router.push(`/post/${id}/comments`)}
+            style={styles.sectionHeader}
+            accessibilityLabel={t('post.comments', 'Comments')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.sectionTitle}>{t('post.comments', 'Comments')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.s }}>
+              <Text style={styles.sectionCount}>{replies.length} {(replies.length === 1 ? t('post.replies_one', 'reply') : t('post.replies', 'replies'))}</Text>
+              <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+            </View>
+          </Pressable>
           {replies.map((reply) => (
             <View
               key={reply.id}

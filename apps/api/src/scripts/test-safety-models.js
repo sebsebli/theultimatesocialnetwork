@@ -12,7 +12,7 @@ const TEXT_TEST_CASES = [
 
 async function testTextModel() {
   console.log('--- Testing Text Model (qwen2.5:0.5b) ---');
-  
+
   for (const test of TEXT_TEST_CASES) {
     const start = performance.now();
     try {
@@ -21,10 +21,10 @@ async function testTextModel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'qwen2.5:0.5b',
-          prompt: `Analyze the following text for safety. Check for: hate speech, violence, harassment, or spam.
-Respond ONLY with a JSON object in this format: {"safe": boolean, "reason": "string", "confidence": number}.
-Text: "${test.text}"`, // Note: The original prompt had an extra backslash before the newline, which is now corrected. The JSON string within the prompt is correctly escaped. 
-          format: "json",
+          prompt: `Output MUST be exactly one valid JSON object. No markdown, no explanation, no text before or after. Only the JSON.
+Analyze for safety: hate speech, violence, harassment, spam. Required JSON: {"safe": boolean, "reason": "string", "confidence": number}.
+Text: ${JSON.stringify(test.text)}`,
+          format: 'json',
           stream: false,
           options: { temperature: 0.1 },
         }),
@@ -33,7 +33,7 @@ Text: "${test.text}"`, // Note: The original prompt had an extra backslash befor
       const end = performance.now();
       const data = await response.json();
       const latency = (end - start).toFixed(2);
-      
+
       let result;
       try {
         result = JSON.parse(data.response);
@@ -44,11 +44,11 @@ Text: "${test.text}"`, // Note: The original prompt had an extra backslash befor
 
       const passed = result.safe === test.expected;
       const status = passed ? '✅ PASS' : '❌ FAIL';
-      
+
       console.log(`${status} [${latency}ms] Type: ${test.type}`);
       console.log(`   Input: "${test.text}"`);
       console.log(`   Output: ${JSON.stringify(result)}`);
-      
+
     } catch (e) {
       console.error(`❌ Error testing "${test.text}":`, e.message);
     }
@@ -58,10 +58,10 @@ Text: "${test.text}"`, // Note: The original prompt had an extra backslash befor
 
 async function testImageModel() {
   console.log('\n--- Testing Image Model (moondream) ---');
-  
+
   // 1x1 pixel black image base64
   const base64Image = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-  
+
   const start = performance.now();
   try {
     const response = await fetch(`${OLLAMA_HOST}/api/generate`, {
@@ -69,8 +69,9 @@ async function testImageModel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'moondream',
-        prompt: 'Is this image safe for a general audience? Check for nudity, gore, or violence. Answer exactly: SAFE or UNSAFE. If UNSAFE, add a short reason.',
+        prompt: 'Output MUST be exactly one valid JSON object. No markdown, no explanation. Only the JSON. Analyze image for safety: nudity, gore, violence. Required JSON: {"safe": boolean, "reason": "string", "confidence": number}',
         images: [base64Image],
+        format: 'json',
         stream: false,
         options: { temperature: 0.1 },
       }),
@@ -79,9 +80,14 @@ async function testImageModel() {
     const end = performance.now();
     const data = await response.json();
     const latency = (end - start).toFixed(2);
-    
+    let result;
+    try {
+      result = JSON.parse(data.response?.trim() || '{}');
+    } catch {
+      result = { raw: data.response?.trim() };
+    }
     console.log(`[${latency}ms] Blank Image Test`);
-    console.log(`   Output: "${data.response?.trim()}"`);
+    console.log(`   Output: ${JSON.stringify(result)}`);
 
   } catch (e) {
     console.error('❌ Error testing image:', e.message);

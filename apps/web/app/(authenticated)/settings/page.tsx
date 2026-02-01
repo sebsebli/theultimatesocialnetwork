@@ -8,8 +8,9 @@ import { useAuth } from "@/components/auth-provider";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { error: toastError } = useToast();
+  const { error: toastError, success: toastSuccess } = useToast();
   const { user } = useAuth();
+  const userHandle = (user as { handle?: string } | null)?.handle;
   const [pushEnabled, setPushEnabled] = useState(true);
   const [showSaves, setShowSaves] = useState(true);
   const [enableRecommendations, setEnableRecommendations] = useState(true);
@@ -34,43 +35,44 @@ export default function SettingsPage() {
   }, []);
 
   const [isExporting, setIsExporting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [requestExportLoading, setRequestExportLoading] = useState(false);
+  const [requestDataModalOpen, setRequestDataModalOpen] = useState(false);
 
-  const handleExport = async () => {
-    setIsExporting(true);
-    // Simulate slight delay for feedback
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    window.open("/api/me/export", "_blank");
-    setIsExporting(false);
-  };
-
-  const handleDelete = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to delete your account? This action is irreversible.",
-      )
-    )
-      return;
-
-    setIsDeleting(true);
+  const handleRequestMyData = async () => {
+    setRequestDataModalOpen(false);
+    setRequestExportLoading(true);
     try {
-      const res = await fetch("/api/me/delete", { method: "DELETE" });
+      const res = await fetch("/api/me/request-export", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        router.push("/sign-in");
+        toastSuccess(
+          data.message ??
+            "Check your email for a download link. The link expires in 7 days and can only be used once.",
+        );
       } else {
-        toastError("Failed to delete account");
+        toastError(data.error ?? "Failed to request your data");
       }
     } catch (e) {
-      console.error(e);
+      toastError("Failed to request your data");
     } finally {
-      setIsDeleting(false);
+      setRequestExportLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/");
+      router.refresh();
+    } catch {
+      router.push("/");
     }
   };
 
   return (
     <div className="min-h-screen bg-ink">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 py-3">
+      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 md:px-6 py-3">
         <div className="flex items-center justify-between">
           <Link
             href="/home"
@@ -97,74 +99,161 @@ export default function SettingsPage() {
       </header>
 
       <div className="px-6 py-6 space-y-8">
-        {/* Account */}
+        {/* Account — match mobile: Edit profile, Invite Friends, Languages */}
         <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">Account</h2>
-          <div className="space-y-3">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
+            Account
+          </h2>
+          <div className="space-y-1">
             <Link
               href="/settings/profile"
-              className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
             >
-              <div className="font-medium">Edit profile</div>
-              <div className="text-secondary text-sm mt-1">
-                Display name, handle, bio
-              </div>
+              <span className="font-medium">Edit profile</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
             </Link>
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+            <Link
+              href="/invites"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+            >
+              <span className="font-medium">Invite Friends</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+            <Link
+              href="/settings/email"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+            >
+              <span className="font-medium">{t("changeEmail")}</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+            <Link
+              href="/settings/languages"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+            >
+              <span className="font-medium">Languages</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+            <Link
+              href="/settings/danger-zone"
+              className="flex items-center justify-between p-4 bg-white/5 border border-red-500/20 rounded-lg text-red-400/90 hover:bg-red-500/10 transition-colors"
+            >
               <div>
-                <div className="text-paper font-medium">Email</div>
-                <div className="text-secondary text-sm">{userEmail}</div>
+                <span className="font-medium block">Danger zone</span>
+                <span className="text-xs text-tertiary mt-0.5 block">
+                  Delete account, request data export
+                </span>
               </div>
-              <button className="text-primary text-sm font-medium">
-                Change
-              </button>
-            </div>
-            <button className="w-full p-4 bg-white/5 border border-white/10 rounded-lg text-left text-paper hover:bg-white/10 transition-colors">
-              Sign out
-            </button>
+              <svg
+                className="w-5 h-5 text-tertiary shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
           </div>
         </section>
 
-        {/* Privacy */}
+        {/* Content — match mobile order: Relevance, Notifications, then push/email/feed/explore */}
         <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">Privacy</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
-              <div>
-                <div className="text-paper font-medium">Account type</div>
-                <div className="text-secondary text-sm">Open</div>
-              </div>
-              <button className="text-primary text-sm font-medium">
-                Change
-              </button>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
-              <div>
-                <div className="text-paper font-medium">Follow approvals</div>
-                <div className="text-secondary text-sm">Disabled</div>
-              </div>
-              <button className="text-primary text-sm font-medium">
-                Change
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* Notifications */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">
-            Notifications
+          <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
+            Content
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-1 mb-6">
+            <Link
+              href="/settings/relevance"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+            >
+              <span className="font-medium">Relevance</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
             <Link
               href="/settings/notifications"
-              className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
             >
-              <div className="font-medium">Notification preferences</div>
-              <div className="text-secondary text-sm mt-1">
-                Push, email, and notification types
-              </div>
+              <span className="font-medium">Notifications</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
             </Link>
+          </div>
+          <div className="space-y-3">
             <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
               <div>
                 <div className="text-paper font-medium">Push notifications</div>
@@ -217,11 +306,10 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
-        </section>
 
-        {/* Email notifications */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">Email</h2>
+        {/* Email notifications (under Content) */}
+        <div className="mt-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-2">Email</h3>
           <p className="text-secondary text-sm mb-3">
             System messages (sign-in, security, account) are always sent.
           </p>
@@ -285,11 +373,11 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* Feed */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">Feed</h2>
+        {/* Feed (under Content) */}
+        <div className="mt-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-2">Feed</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
               <div>
@@ -311,13 +399,13 @@ export default function SettingsPage() {
               </label>
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* Explore Relevance */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">
+        {/* Explore relevance (under Content) */}
+        <div className="mt-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-2">
             Explore relevance
-          </h2>
+          </h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
               <div>
@@ -348,23 +436,14 @@ export default function SettingsPage() {
               </div>
             </Link>
           </div>
+        </div>
         </section>
 
-        {/* Languages */}
+        {/* Safety — match mobile */}
         <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">Languages</h2>
-          <Link
-            href="/settings/languages"
-            className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
-          >
-            <div className="font-medium">Manage languages</div>
-            <div className="text-secondary text-sm mt-1">English, German</div>
-          </Link>
-        </section>
-
-        {/* Safety */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">Safety</h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
+            Safety
+          </h2>
           <div className="space-y-3">
             <Link
               href="/settings/blocked"
@@ -381,73 +460,206 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Data */}
+        {/* Legal — match mobile: Terms, Privacy, Imprint, RSS, Request data, Danger zone */}
         <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">Data</h2>
-          <div className="space-y-3">
-            <button
-              onClick={handleExport}
-              disabled={isExporting}
-              className="w-full p-4 bg-white/5 border border-white/10 rounded-lg text-left text-paper hover:bg-white/10 transition-colors disabled:opacity-50"
+          <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
+            Legal
+          </h2>
+          <div className="space-y-1">
+            <Link
+              href="/terms"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
             >
-              <div className="font-medium flex items-center justify-between">
-                Export archive
-                {isExporting && (
-                  <span className="text-xs text-primary animate-pulse">
-                    Starting...
-                  </span>
-                )}
-              </div>
-              <div className="text-secondary text-sm mt-1">
-                Download your data
-              </div>
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="w-full p-4 bg-white/5 border border-red-500/50 rounded-lg text-left text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-            >
-              <div className="font-medium flex items-center justify-between">
-                Delete account
-                {isDeleting && (
-                  <span className="text-xs text-red-400 animate-pulse">
-                    Processing...
-                  </span>
-                )}
-              </div>
-              <div className="text-secondary text-sm mt-1">
-                Permanently delete your account
-              </div>
-            </button>
-          </div>
-        </section>
-
-        {/* Legal */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 text-paper">Legal</h2>
-          <div className="space-y-2">
-            <Link href="/terms" className="block text-primary hover:underline">
-              Terms of Service
+              <span className="font-medium">Terms of Service</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
             </Link>
             <Link
               href="/privacy"
-              className="block text-primary hover:underline"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
             >
-              Privacy Policy
-            </Link>
-            <Link
-              href="/ai-transparency"
-              className="block text-primary hover:underline"
-            >
-              AI Transparency
+              <span className="font-medium">Privacy Policy</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
             </Link>
             <Link
               href="/imprint"
-              className="block text-primary hover:underline"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
             >
-              Imprint
+              <span className="font-medium">Imprint</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
             </Link>
+            {userHandle && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const base =
+                    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
+                  const url = `${base}/rss/${encodeURIComponent(userHandle)}`;
+                  const title = "My RSS Feed";
+                  if (typeof navigator !== "undefined" && navigator.share) {
+                    try {
+                      await navigator.share({
+                        url,
+                        title,
+                        text: title,
+                      });
+                    } catch (err) {
+                      if ((err as Error).name !== "AbortError") {
+                        window.open(url, "_blank", "noopener,noreferrer");
+                      }
+                    }
+                  } else {
+                    window.open(url, "_blank", "noopener,noreferrer");
+                  }
+                }}
+                className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-left text-paper hover:bg-white/10 transition-colors"
+              >
+                <span className="font-medium">My RSS Feed</span>
+                <svg
+                  className="w-5 h-5 text-tertiary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </button>
+            )}
+            <button
+              onClick={() => setRequestDataModalOpen(true)}
+              disabled={requestExportLoading}
+              className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-left text-paper hover:bg-white/10 transition-colors disabled:opacity-50"
+            >
+              <span className="font-medium">Request my data</span>
+              {requestExportLoading ? (
+                <span className="text-xs text-primary animate-pulse">
+                  Sending…
+                </span>
+              ) : (
+                <svg
+                  className="w-5 h-5 text-tertiary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              )}
+            </button>
+            {/* Request my data confirmation modal */}
+            {requestDataModalOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60"
+                onClick={() => setRequestDataModalOpen(false)}
+                aria-modal="true"
+                role="dialog"
+                aria-labelledby="request-data-title"
+              >
+                <div
+                  className="w-full max-w-sm rounded-xl border border-white/10 bg-ink p-6 shadow-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h2
+                    id="request-data-title"
+                    className="text-xl font-semibold text-paper text-center mb-3"
+                  >
+                    Request my data
+                  </h2>
+                  <p className="text-secondary text-sm leading-relaxed text-center mb-6">
+                    We will send an email to your account address with a secure
+                    download link for your data (ZIP). The link expires in 7
+                    days and can only be used once. Continue?
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      type="button"
+                      onClick={handleRequestMyData}
+                      disabled={requestExportLoading}
+                      className="w-full py-3.5 rounded-xl font-semibold bg-primary text-ink hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
+                      {requestExportLoading ? "Sending…" : "Send link"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRequestDataModalOpen(false)}
+                      disabled={requestExportLoading}
+                      className="w-full py-3.5 rounded-xl font-semibold border border-white/20 text-paper hover:bg-white/5 transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+        </section>
+
+        {/* Sign out — separate section, clearly distinct from Danger zone */}
+        <section className="pt-6 mt-2 border-t border-divider/50">
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-left text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <span className="font-medium">Sign out</span>
+            <svg
+              className="w-5 h-5 text-tertiary"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
+          </button>
         </section>
       </div>
     </div>

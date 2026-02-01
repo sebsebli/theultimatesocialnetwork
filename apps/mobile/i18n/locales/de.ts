@@ -165,6 +165,7 @@ export default {
     tooManyRefs: 'Zu viele Themen-/Beitragsverweise. Maximal {{max}}.',
     linkUrlPlaceholder: 'URL (https://...)',
     linkDisplayTextPlaceholder: 'Anzeigetext (optional)',
+    startTypingToSeeSuggestions: 'Tippe, um Vorschläge zu sehen',
   },
   post: {
     like: 'Gefällt mir',

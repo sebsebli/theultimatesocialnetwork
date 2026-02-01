@@ -61,7 +61,10 @@ export default function OnboardingProfilePage() {
       });
 
       if (res.ok) {
-        router.push("/onboarding/languages");
+        if (typeof sessionStorage !== "undefined") {
+          sessionStorage.setItem("onboarding_stage", "starter-packs");
+        }
+        router.push("/onboarding/starter-packs");
       } else {
         toastError("Failed to create profile");
       }
@@ -72,14 +75,14 @@ export default function OnboardingProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-ink flex items-center justify-center px-6 relative overflow-hidden">
+    <div className="min-h-screen bg-ink flex items-center justify-center px-6 md:px-12 py-12 relative overflow-hidden">
       {/* Background Decoration */}
       <div className="absolute inset-0 pointer-events-none opacity-20">
         <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/10 blur-[120px] rounded-full animate-pulse"></div>
         <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[100px] rounded-full"></div>
       </div>
 
-      <div className="w-full max-w-md space-y-10 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="w-full max-w-md md:max-w-lg space-y-10 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="text-center md:text-left">
           <h1 className="text-4xl font-bold tracking-tight text-paper mb-3">
             Create your profile
@@ -138,11 +141,10 @@ export default function OnboardingProfilePage() {
                   setHandle(value);
                 }}
                 placeholder="username"
-                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner ${
-                  handleAvailable === false
+                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner ${handleAvailable === false
                     ? "border-red-500/50 focus:ring-red-500/30"
                     : "border-white/10 focus:ring-primary/50"
-                }`}
+                  }`}
                 required
                 minLength={3}
               />
@@ -175,11 +177,10 @@ export default function OnboardingProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsProtected(false)}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
-                  !isProtected
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${!isProtected
                     ? "bg-primary/10 border-primary/40 shadow-lg"
                     : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
-                }`}
+                  }`}
               >
                 <span className="font-bold text-paper mb-1">Open</span>
                 <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">
@@ -189,11 +190,10 @@ export default function OnboardingProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsProtected(true)}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
-                  isProtected
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${isProtected
                     ? "bg-primary/10 border-primary/40 shadow-lg"
                     : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
-                }`}
+                  }`}
               >
                 <span className="font-bold text-paper mb-1">Protected</span>
                 <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">

@@ -10,6 +10,7 @@ import { Like } from '../entities/like.entity';
 import { ReplyLike } from '../entities/reply-like.entity';
 import { Keep } from '../entities/keep.entity';
 import { Follow } from '../entities/follow.entity';
+import { FollowRequest, FollowRequestStatus } from '../entities/follow-request.entity';
 import { PostRead } from '../entities/post-read.entity';
 import { Notification } from '../entities/notification.entity';
 import { Collection } from '../entities/collection.entity';
@@ -19,9 +20,29 @@ import { DataExport } from '../entities/data-export.entity';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { CollectionsService } from '../collections/collections.service';
 import { EmailService } from '../shared/email.service';
-import { postToPlain, replyToPlain } from '../shared/post-serializer';
+import { UploadService } from '../upload/upload.service';
+import { postToPlain, replyToPlain, extractLinkedPostIds } from '../shared/post-serializer';
 
 const QUOTES_BADGE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+/** Return id -> { title } for linked post display. Keys normalized to lowercase for case-insensitive lookup. */
+async function getTitlesForPostIds(
+  postRepo: Repository<Post>,
+  ids: string[],
+): Promise<Record<string, { title?: string }>> {
+  if (ids.length === 0) return {};
+  const unique = Array.from(new Set(ids));
+  const posts = await postRepo.find({
+    where: unique.map((id) => ({ id })),
+    select: ['id', 'title'],
+  });
+  const out: Record<string, { title?: string }> = {};
+  for (const p of posts) {
+    const key = (p.id ?? '').toLowerCase();
+    if (key) out[key] = { title: p.title ?? undefined };
+  }
+  return out;
+}
 
 @Injectable()
 export class UsersService {
@@ -37,6 +58,7 @@ export class UsersService {
     @InjectRepository(ReplyLike) private replyLikeRepo: Repository<ReplyLike>,
     @InjectRepository(Keep) private keepRepo: Repository<Keep>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
+    @InjectRepository(FollowRequest) private followRequestRepo: Repository<FollowRequest>,
     @InjectRepository(PostRead) private readRepo: Repository<PostRead>,
     @InjectRepository(Notification) private notifRepo: Repository<Notification>,
     @InjectRepository(Collection)
@@ -51,6 +73,7 @@ export class UsersService {
     private collectionsService: CollectionsService,
     private emailService: EmailService,
     private configService: ConfigService,
+    private uploadService: UploadService,
   ) {}
 
   /**
@@ -109,8 +132,7 @@ export class UsersService {
 
     if (!user) return null;
 
-    // Get posts with single optimized query
-    const posts = await this.postRepo.find({
+    let posts = await this.postRepo.find({
       where: { authorId: user.id, deletedAt: IsNull() },
       relations: ['author'],
       order: { createdAt: 'DESC' },
@@ -118,14 +140,41 @@ export class UsersService {
     });
 
     let followsMe = false;
+    let isFollowing = false;
+    let hasPendingFollowRequest = false;
+
     if (viewerId && viewerId !== user.id) {
       const follow = await this.followRepo.findOne({
         where: { followerId: user.id, followeeId: viewerId },
       });
       followsMe = !!follow;
+
+      const viewerFollows = await this.followRepo.findOne({
+        where: { followerId: viewerId, followeeId: user.id },
+      });
+      isFollowing = !!viewerFollows;
+
+      if (user.isProtected && !isFollowing) {
+        const pendingRequest = await this.followRequestRepo.findOne({
+          where: {
+            requesterId: viewerId,
+            targetId: user.id,
+            status: FollowRequestStatus.PENDING,
+          },
+        });
+        hasPendingFollowRequest = !!pendingRequest;
+        // Hide posts when profile is protected and viewer does not follow
+        posts = [];
+      }
     }
 
-    return { ...user, posts, followsMe };
+    return {
+      ...user,
+      posts,
+      followsMe,
+      isFollowing,
+      hasPendingFollowRequest,
+    };
   }
 
   async findById(id: string) {
@@ -182,6 +231,21 @@ export class UsersService {
         newDisplayName !== 'Pending'
       ) {
         updates.onboardingCompletedAt = new Date();
+      }
+    }
+
+    // Email change: validate format and uniqueness
+    if (updates.email != null && updates.email !== user.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(updates.email)) {
+        throw new BadRequestException('Please enter a valid email address.');
+      }
+      const existing = await this.userRepo.findOne({
+        where: { email: updates.email },
+        select: ['id'],
+      });
+      if (existing && existing.id !== id) {
+        throw new BadRequestException('This email is already in use by another account.');
       }
     }
 
@@ -436,7 +500,18 @@ export class UsersService {
         take: limit + 1,
       });
       const hasMore = posts.length > limit;
-      const items = posts.slice(0, limit).map((p) => postToPlain(p));
+      const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+      const slice = posts.slice(0, limit);
+      const items = await Promise.all(
+        slice.map(async (p) => {
+          const linkedIds = extractLinkedPostIds(p.body);
+          const referenceMetadata =
+            linkedIds.length > 0
+              ? await getTitlesForPostIds(this.postRepo, linkedIds)
+              : undefined;
+          return postToPlain(p, getImageUrl, referenceMetadata);
+        }),
+      );
       return { items, hasMore };
     }
     if (type === 'replies') {
@@ -448,7 +523,10 @@ export class UsersService {
         take: limit + 1,
       });
       const hasMore = replies.length > limit;
-      const items = replies.slice(0, limit).map((r) => replyToPlain(r));
+      const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+      const items = replies
+        .slice(0, limit)
+        .map((r) => replyToPlain(r, getImageUrl));
       return { items, hasMore };
     }
     // type === 'quotes': posts that quote posts authored by userId (same join pattern as getQuotes)
@@ -466,7 +544,18 @@ export class UsersService {
         .take(limit + 1)
         .getMany();
       const hasMore = quoters.length > limit;
-      const items = quoters.slice(0, limit).map((p) => postToPlain(p));
+      const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+      const slice = quoters.slice(0, limit);
+      const items = await Promise.all(
+        slice.map(async (p) => {
+          const linkedIds = extractLinkedPostIds(p.body);
+          const referenceMetadata =
+            linkedIds.length > 0
+              ? await getTitlesForPostIds(this.postRepo, linkedIds)
+              : undefined;
+          return postToPlain(p, getImageUrl, referenceMetadata);
+        }),
+      );
       return { items, hasMore };
     } catch (err) {
       console.error('getUserPosts quotes error', err);

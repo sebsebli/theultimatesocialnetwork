@@ -20,6 +20,11 @@ import { NotificationHelperService } from '../shared/notification-helper.service
 import { EdgeType } from '../entities/post-edge.entity';
 import { workerJobCounter, workerJobDuration } from '../common/metrics';
 import { SafetyService } from '../safety/safety.service';
+import {
+  ModerationReasonCode,
+  ModerationSource,
+  ModerationTargetType,
+} from '../entities/moderation-record.entity';
 
 interface PostJobData {
   postId: string;
@@ -28,8 +33,7 @@ interface PostJobData {
 
 @Injectable()
 export class PostWorker
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+  implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(PostWorker.name);
   private worker: Worker;
 
@@ -43,7 +47,7 @@ export class PostWorker
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
     @Inject('REDIS_CLIENT') private redis: Redis,
-  ) {}
+  ) { }
 
   onApplicationBootstrap() {
     const redisUrl = this.configService.get<string>('REDIS_URL');
@@ -104,6 +108,18 @@ export class PostWorker
         this.logger.warn(
           `Post ${postId} failed async moderation: ${safety.reason}`,
         );
+        await this.safetyService
+          .recordModeration({
+            targetType: ModerationTargetType.POST,
+            targetId: postId,
+            authorId: userId,
+            reasonCode: safety.reasonCode ?? ModerationReasonCode.OTHER,
+            reasonText: safety.reason ?? 'Content moderated',
+            confidence: safety.confidence ?? 0.5,
+            contentSnapshot: post.body,
+            source: ModerationSource.ASYNC_CHECK,
+          })
+          .catch(() => { });
         await this.postRepo.softDelete(postId);
         end();
         workerJobCounter.inc({ worker: 'post', status: 'moderated' });

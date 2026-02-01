@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Param,
   UseGuards,
@@ -28,9 +29,8 @@ export class InvitesController {
     return this.invitesService.sendByEmail(user.id, email, body.lang ?? 'en');
   }
 
-  /** Beta mode: when true, email invite codes are used; when false, referral links only. */
+  /** Beta mode: when true, email invite codes are used; when false, referral links only. Public so sign-in can show invite field first. */
   @Get('beta-mode')
-  @UseGuards(AuthGuard('jwt'))
   async getBetaMode() {
     const betaMode = await this.invitesService.isBetaMode();
     return { betaMode };
@@ -106,19 +106,38 @@ export class AdminInvitesController {
     return { code };
   }
 
-  /** Set beta mode (admin key required). Body: { "enabled": true|false } */
+  /**
+   * Set beta mode on or off (admin key required).
+   * Body: { "enabled": true | false }
+   * Header: X-Admin-Key: <CITE_ADMIN_SECRET>
+   */
   @Post('set-beta')
   @UseGuards(AdminKeyGuard)
   async setBetaMode(@Body() body: { enabled: boolean }) {
-    await this.invitesService.setBetaMode(body.enabled);
-    return { success: true, betaMode: body.enabled };
+    const enabled = body?.enabled === true;
+    await this.invitesService.setBetaMode(enabled);
+    return { success: true, betaMode: enabled };
+  }
+
+  /**
+   * Toggle beta mode (admin key required). Flips current state; no body required.
+   * Returns the new beta mode state.
+   * Header: X-Admin-Key: <CITE_ADMIN_SECRET>
+   */
+  @Patch('beta-mode')
+  @UseGuards(AdminKeyGuard)
+  async toggleBetaMode() {
+    const current = await this.invitesService.isBetaMode();
+    const next = !current;
+    await this.invitesService.setBetaMode(next);
+    return { success: true, betaMode: next };
   }
 
   /** Set beta mode (JWT). Kept for backward compatibility. */
   @Post('beta-mode')
   @UseGuards(AuthGuard('jwt'))
-  async toggleBeta(@Body() body: { enabled: boolean }) {
-    await this.invitesService.setBetaMode(body.enabled);
+  async setBetaModeJwt(@Body() body: { enabled: boolean }) {
+    await this.invitesService.setBetaMode(body?.enabled === true);
     return { success: true };
   }
 }

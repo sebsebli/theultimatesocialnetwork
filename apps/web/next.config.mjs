@@ -2,6 +2,10 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./i18n.ts');
 
+// API base URL for images (profile, headers, etc.) — allow in CSP img-src so avatars load
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const apiOrigin = apiUrl.replace(/\/$/, '');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Note: standalone output disabled for now due to build issues
@@ -12,7 +16,7 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
   },
 
-  // Image optimization
+  // Image optimization (for next/image; Avatar uses <img> so CSP img-src is what allows API images)
   images: {
     remotePatterns: [
       {
@@ -20,7 +24,25 @@ const nextConfig = {
         hostname: 'localhost',
         port: '9000',
         pathname: '/citewalk-images/**',
-      }, {
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
+        pathname: '/images/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '3000',
+        pathname: '/images/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        pathname: '/images/**',
+      },
+      {
         protocol: 'https',
         hostname: '**',
       },
@@ -63,7 +85,25 @@ const nextConfig = {
           },
           {
             key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin'
+            value: 'strict-origin-when-cross-origin'
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "style-src 'self' 'unsafe-inline'",
+              `img-src 'self' data: https: blob: ${apiOrigin} http://localhost:3000 http://127.0.0.1:3000`,
+              "font-src 'self' data:",
+              "connect-src 'self' https:",
+              "frame-ancestors 'self'",
+              "base-uri 'self'",
+              "form-action 'self'"
+            ].join('; ')
           },
         ],
       },

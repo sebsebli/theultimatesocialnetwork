@@ -73,14 +73,85 @@ function sanitizeUrl(url: string): string {
   }
 }
 
+/** Escape string for safe use in HTML attributes (XSS prevention). */
+function escapeAttr(s: string): string {
+  if (!s || typeof s !== "string") return "";
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** Escape string for safe use as HTML text content. */
+function escapeText(s: string): string {
+  if (!s || typeof s !== "string") return "";
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 const CODE_BLOCK_PLACEHOLDER = "\u200B__CODE_BLOCK_";
 const CODE_BLOCK_PLACEHOLDER_END = "__\u200B";
 
 /**
+ * Produce a single-line plain-text excerpt for post previews.
+ * Strips markdown, replaces newlines with space, truncates mid-word with "..." (no newline before ellipsis).
+ */
+export function bodyToPlainExcerpt(
+  body: string,
+  title?: string | null,
+  maxLength = 120,
+): string {
+  if (!body?.trim()) return "";
+  let text = stripLeadingH1IfMatch(body, title ?? undefined);
+  // Wikilinks: [[target|alias]] -> alias or target; [[target]] -> target
+  text = text.replace(/\[\[([^\]]+)\]\]/g, (_, content) => {
+    const pipe = content.indexOf("|");
+    if (pipe !== -1) return content.slice(pipe + 1).trim() || content.slice(0, pipe).trim();
+    return content.trim();
+  });
+  // Markdown links: [text](url) -> text
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  // Bold, italic, inline code: keep text only
+  text = text.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/_([^_]+)_/g, "$1").replace(/`([^`]+)`/g, "$1");
+  // Headers: strip # ## ###
+  text = text.replace(/^#{1,6}\s+/gm, "");
+  // Blockquote/list markers
+  text = text.replace(/^>\s*/gm, "").replace(/^[-*]\s+/gm, "").replace(/^\d+\.\s+/gm, "");
+  // Newlines and multiple spaces -> single space
+  text = text.replace(/\s+/g, " ").trim();
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + "...";
+}
+
+/**
+ * Strip the first line of body if it is exactly "# &lt;title&gt;" (so the title is not shown twice in full post view).
+ */
+export function stripLeadingH1IfMatch(body: string, title: string | null | undefined): string {
+  if (!title || !body.trim()) return body;
+  const firstLine = body.split("\n")[0].trim();
+  if (firstLine === "# " + title || firstLine === "#" + title) {
+    const rest = body.slice(body.indexOf("\n") + 1);
+    return rest.trimStart();
+  }
+  return body;
+}
+
+/** Optional metadata for resolving post link labels when no alias is provided (e.g. post title by id). */
+export interface RenderMarkdownOptions {
+  referenceMetadata?: Record<string, { title?: string }>;
+}
+
+/**
  * Render markdown supported by the composer, including inline and fenced code.
  * Supported: H1/H2/H3, bold **, italic _, inline code `, fenced code ```...```, [[wikilink]], [link](url).
+ * For [[post:id]] with no alias, display text is referenceMetadata[id].title or first 8 chars of id.
  */
-export function renderMarkdown(text: string): string {
+export function renderMarkdown(text: string, options?: RenderMarkdownOptions): string {
+  const referenceMetadata = options?.referenceMetadata;
   let html = text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -94,18 +165,24 @@ export function renderMarkdown(text: string): string {
     return CODE_BLOCK_PLACEHOLDER + idx + CODE_BLOCK_PLACEHOLDER_END;
   });
 
-  // Headers: only exactly # , ## , ### (composer supports H1/H2/H3 only)
+  // No line breaks before/after [[]], [text](url): collapse to space so they render inline as in source
+  html = html.replace(/\n+\s*(\[\[[^\]]+\]\])/g, " $1");
+  html = html.replace(/(\[\[[^\]]+\]\])\s*\n+\s*/g, "$1 ");
+  html = html.replace(/\n+\s*(\[[^\]]+\]\([^)]+\))/g, " $1");
+  html = html.replace(/(\[[^\]]+\]\([^)]+\))\s*\n+\s*/g, "$1 ");
+
+  // Headers: only exactly # , ## , ### (composer supports H1/H2/H3 only) – Inter, H1 > H2 > H3, tight spacing
   html = html.replace(
     /^### (.+)$/gm,
-    '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>',
+    '<h3 class="prose-heading prose-h3 text-base font-semibold mt-2 mb-1">$1</h3>',
   );
   html = html.replace(
     /^## (.+)$/gm,
-    '<h2 class="text-xl font-semibold mt-4 mb-2">$1</h2>',
+    '<h2 class="prose-heading prose-h2 text-lg font-semibold mt-2 mb-1">$1</h2>',
   );
   html = html.replace(
     /^# ([^#].*)$/gm,
-    '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>',
+    '<h1 class="prose-heading prose-h1 text-xl font-bold mt-2 mb-1">$1</h1>',
   );
 
   // Blockquote and list (composer-supported)
@@ -125,30 +202,45 @@ export function renderMarkdown(text: string): string {
     const targetItems = targetsRaw.split(",").map((s: string) => s.trim());
 
     // If multi-target, we return a special span that the client can hook into
-    // for opening the "Targets Sheet" as per spec.
+    // for opening the "Targets Sheet". Inline, same style as body text (no linebreak).
     if (targetItems.length > 1) {
-      return `<span class="text-primary hover:underline font-medium cursor-pointer" data-targets="${targetItems.join(",")}" data-alias="${alias || "Linked Items"}">${alias || targetItems[0] + "..."}</span>`;
+      const safeTargets = targetItems.map(escapeAttr).join(",");
+      const safeAlias = escapeAttr(alias || "Linked Items");
+      const display = escapeText(alias || targetItems[0] + "...");
+      return `<span class="prose-tag inline hover:underline cursor-pointer" data-targets="${safeTargets}" data-alias="${safeAlias}">${display}</span>`;
     }
 
     const target = parseWikilink(content);
     if (!target) return match;
 
+    const explicitAlias = parts[1]?.trim();
     if (target.type === "post") {
-      return `<a href="/post/${target.target}" class="text-primary hover:underline font-medium">${target.alias}</a>`;
-    } else if (target.type === "topic") {
-      // Use exact wikilink target as topic ID (no slugification)
+      const safeId = target.target.replace(/[^a-zA-Z0-9-]/g, "");
+      const id = target.target;
+      const refTitle =
+        referenceMetadata?.[id]?.title ??
+        referenceMetadata?.[id?.toLowerCase?.() ?? ""]?.title;
+      const displayText =
+        explicitAlias || refTitle || target.target.slice(0, 8);
+      const safeDisplay = escapeText(displayText);
+      return `<a href="/post/${safeId}" class="prose-tag inline hover:underline">${safeDisplay}</a>`;
+    }
+
+    const safeAlias = escapeText(target.alias ?? "");
+    if (target.type === "topic") {
       const slugEnc = encodeURIComponent(target.target);
-      return `<a href="/topic/${slugEnc}" class="text-primary hover:underline font-medium">${target.alias}</a>`;
+      return `<a href="/topic/${slugEnc}" class="prose-tag inline hover:underline">${safeAlias}</a>`;
     } else {
       const safeUrl = sanitizeUrl(target.target);
-      return `<a href="${safeUrl}" class="text-primary hover:underline font-medium" target="_blank" rel="noopener noreferrer">${target.alias}</a>`;
+      return `<a href="${safeUrl}" class="prose-tag inline hover:underline" target="_blank" rel="noopener noreferrer">${safeAlias}</a>`;
     }
   });
 
-  // Markdown links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+  // Markdown links – inline, same style as body text (no linebreak)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, text, url) => {
     const safeUrl = sanitizeUrl(url);
-    return `<a href="${safeUrl}" class="text-primary hover:underline font-medium" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    const safeText = escapeText(text);
+    return `<a href="${safeUrl}" class="prose-tag inline hover:underline" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
   });
 
   // Bold
@@ -160,23 +252,19 @@ export function renderMarkdown(text: string): string {
   // Italic
   html = html.replace(/_([^_]+)_/g, '<em class="italic">$1</em>');
 
-  // Inline code
-  html = html.replace(
-    /`([^`]+)`/g,
-    '<code class="px-1 py-0.5 rounded bg-white/10 font-mono text-sm">$1</code>',
-  );
+  // Inline code (styled by .prose code in globals.css)
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
 
+  // Strip leading whitespace on each line so wrapped/continuation lines don't get weird padding
+  html = html.split("\n").map((line) => line.trimStart()).join("\n");
   // Line breaks
   html = html.replace(/\n/g, "<br />");
 
-  // Restore fenced code blocks
+  // Restore fenced code blocks (styled by .prose pre / .prose pre code in globals.css – paragraph spacing, lighter grey bg, orange code)
   codeBlocks.forEach((content, idx) => {
     const placeholder =
       CODE_BLOCK_PLACEHOLDER + idx + CODE_BLOCK_PLACEHOLDER_END;
-    const blockHtml =
-      '<pre class="my-4 p-4 rounded-lg bg-black/35 border border-white/10 overflow-x-auto text-sm"><code>' +
-      content +
-      "</code></pre>";
+    const blockHtml = "<pre><code>" + content + "</code></pre>";
     html = html.replace(placeholder, blockHtml);
   });
 

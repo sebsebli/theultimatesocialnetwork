@@ -23,6 +23,20 @@ html {
   scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-in,
+  .fade-in,
+  .slide-in-from-bottom-4,
+  .animate-pulse,
+  .animate-float,
+  .animate-pulse-glow {
+    animation: none !important;
+  }
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
@@ -30,6 +44,66 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Focus visible for keyboard users (accessibility) */
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 0;
+}
+
+/* Search bar and single-line inputs: center placeholder and text vertically (no cut-off, no extra top space) */
+input[type="text"],
+input[type="search"] {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+
+/* Skip link: visible on focus only */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  padding: 12px 20px;
+  background: var(--primary);
+  color: var(--ink);
+  font-weight: 600;
+  border-radius: 0 0 8px 0;
+  transform: translateY(-100%);
+  transition: transform 0.2s;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* Safe area for notched devices (mobile nav) */
+.safe-area-pb {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+/* Screen-reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Design system utility classes – use tokens from :root */
@@ -173,6 +247,18 @@ html {
   scrollbar-width: none;
 }
 
+/* Ko-fi floating widget: behind cookie overlay, button only (no container box) */
+.floatingchat-container-wrap {
+  z-index: 40 !important; /* below cookie consent overlay (z-[100]) */
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.floatingchat-container-wrap iframe {
+  background: transparent !important;
+}
+
 /* Prose styles for markdown content */
 .prose {
   max-width: none;
@@ -203,12 +289,41 @@ html {
   color: #d1d1d1;
 }
 
-.prose h1, .prose h2, .prose h3 {
+/* Headings: Inter, H1 > H2 > H3, tight spacing */
+.prose h1,
+.prose h2,
+.prose h3,
+.prose-heading {
+  font-family: var(--font-inter), 'Inter', system-ui, sans-serif;
   color: #F2F2F2;
   font-weight: 700;
-  margin-top: 1.5em;
-  margin-bottom: 0.75em;
+  margin-top: 0.5em;
+  margin-bottom: 0.25em;
   letter-spacing: -0.02em;
+}
+
+.prose .prose-h1 { font-size: 1.25rem; line-height: 1.3; }
+.prose .prose-h2 { font-size: 1.125rem; line-height: 1.35; }
+.prose .prose-h3 { font-size: 1rem; line-height: 1.4; }
+
+/* Tags (wikilinks, links, @mentions): same font as prose body, bold, distinct color, no line break before/after */
+.prose .prose-tag {
+  display: inline;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit;
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap; /* keep tag on one line; surrounding newlines are normalized to space in markdown */
+}
+.prose .prose-tag:hover {
+  color: var(--primary-dark);
+}
+.prose .prose-tag:visited {
+  color: var(--primary);
+}
+.prose .prose-tag:visited:hover {
+  color: var(--primary-dark);
 }
 
 .prose p {
@@ -241,31 +356,34 @@ html {
   border-radius: 0 4px 4px 0;
 }
 
-/* Inline code and fenced code blocks */
+/* Inline code and fenced code blocks – always paragraph-like spacing, lighter grey bg, orange code text */
 .prose code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.9em;
-  padding: 0.15em 0.4em;
-  border-radius: 4px;
-  background: rgba(255,255,255,0.08);
-  color: #E8E8E8;
+  padding: 0.2em 0.5em;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.09);
+  color: #E8B86D;
+  display: inline-block;
 }
 
+/* Fenced code block: own paragraph with space before/after */
 .prose pre {
-  margin: 1em 0 1.5em;
+  display: block;
+  margin: 1.25em 0 1.25em 0;
   padding: 1rem 1.25rem;
   border-radius: 8px;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   overflow-x: auto;
   font-size: 0.875rem;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .prose pre code {
   padding: 0;
   background: none;
-  color: #E8E8E8;
+  color: #E8B86D;
   font-size: 1em;
 }
 

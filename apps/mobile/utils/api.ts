@@ -1,33 +1,59 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
+/** In dev, use Metro host so device/simulator can reach the API on the same machine. */
+function getDevApiUrlFromMetroHost(): string | null {
+  try {
+    const hostUri =
+      (Constants.expoConfig as { hostUri?: string } | undefined)?.hostUri ??
+      (Constants.manifest as { hostUri?: string } | undefined)?.hostUri;
+    if (typeof hostUri === 'string') {
+      const host = hostUri.split(':')[0];
+      // Use Metro host when it's an IP (e.g. 192.168.68.112) so physical device can reach API
+      if (host && /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+        return `http://${host}:3000`;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 // Get API URL from environment or use default
 const getApiUrl = () => {
-  const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+  const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (envUrl) {
     // In production, enforce HTTPS
     if (!__DEV__ && !envUrl.startsWith('https://')) {
       throw new Error('EXPO_PUBLIC_API_BASE_URL must use HTTPS in production');
     }
-    return envUrl;
+    return envUrl.replace(/\/$/, '');
   }
 
-  // Development defaults
+  // Development: prefer Metro host so app on device/simulator can reach API
   if (__DEV__) {
+    const metroHostUrl = getDevApiUrlFromMetroHost();
+    if (metroHostUrl) return metroHostUrl;
     if (Platform.OS === 'ios') return 'http://localhost:3000';
     if (Platform.OS === 'android') return 'http://10.0.2.2:3000';
   }
 
   // Production fallback - should be set via environment variable
-  // This will cause an error if not configured, which is intentional
   throw new Error('EXPO_PUBLIC_API_BASE_URL must be set in production');
 };
 
-const API_URL = getApiUrl();
+// Lazy so Expo Constants.hostUri is available by first request (e.g. when opening app on device)
+let _apiUrl: string | null = null;
+function getApiUrlCached(): string {
+  if (_apiUrl == null) _apiUrl = getApiUrl();
+  return _apiUrl ?? getApiUrl();
+}
 
 /** Base URL of the API (e.g. for RSS feed links). */
 export function getApiBaseUrl(): string {
-  return API_URL;
+  return getApiUrlCached();
 }
 
 /** Base URL of the web app for share links (profile, post, etc.). */
@@ -98,11 +124,26 @@ class ApiError extends Error {
   }
 }
 
-// Global auth error handler - will be set by auth context
-let onAuthError: (() => void) | null = null;
+// Global API error toast – show error to user; never auto sign-out from here
+let onApiErrorToast: ((message: string) => void) | null = null;
 
-export const setAuthErrorHandler = (handler: () => void) => {
-  onAuthError = handler;
+export const setApiErrorToastHandler = (handler: ((message: string) => void) | null) => {
+  onApiErrorToast = handler;
+};
+
+function showApiErrorToast(message: string) {
+  if (onApiErrorToast) {
+    try {
+      onApiErrorToast(message);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/** @deprecated No longer used – we never sign out on API errors; use setApiErrorToastHandler for toasts */
+export const setAuthErrorHandler = (_handler: () => void) => {
+  // No-op: we never sign out the user on API errors
 };
 
 class ApiClient {
@@ -126,25 +167,14 @@ class ApiClient {
       // Check for network connectivity (basic check via fetch failure)
       // In a real app, use NetInfo
 
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetch(`${getApiUrlCached()}${endpoint}`, {
         ...options,
         headers,
       });
 
       if (response.status === 401) {
-        await clearAuthToken();
-        // Trigger auth error handler to update auth state IMMEDIATELY
-        // This must happen before throwing the error
-        if (onAuthError) {
-          try {
-            onAuthError();
-          } catch (handlerError) {
-            // Ignore handler errors, but log in dev
-            if (__DEV__) {
-              console.warn('Auth error handler failed:', handlerError);
-            }
-          }
-        }
+        // Never sign out here – only show toast. Auth check on app load (/users/me) may clear token on 401.
+        showApiErrorToast('Session issue. Please try again.');
         throw new ApiError('Unauthorized', 401);
       }
 
@@ -159,34 +189,8 @@ class ApiClient {
         } catch (e) {
           // Keep text
         }
-        // Do NOT treat "Complete onboarding first" (403) as sign-out — user stays logged in and is sent back to onboarding
-        const isOnboardingRequired =
-          response.status === 403 && /complete onboarding first/i.test(errorMessage);
-        // Do NOT treat "Must follow each other or have prior interaction" (403) as sign-out — messaging restriction only
-        const isMessagingRestriction =
-          response.status === 403 && /must follow each other|prior interaction/i.test(errorMessage);
-        // 404 "Cannot GET" = route not found (e.g. API missing endpoint) — do NOT sign out
-        const isRouteNotFound =
-          response.status === 404 && /cannot get|not found/i.test(errorMessage) && !/user no longer exists|user not found/i.test(errorMessage);
-        // Treat only real auth/session errors: 401, 403, or 404 with user-not-found message
-        const isAuthError =
-          !isOnboardingRequired &&
-          !isMessagingRestriction &&
-          !isRouteNotFound &&
-          (response.status === 401 ||
-            response.status === 403 ||
-            (response.status === 404 && /user no longer exists|user not found/i.test(errorMessage)) ||
-            /unauthorized|invalid token|token expired/i.test(errorMessage));
-        if (isAuthError) {
-          await clearAuthToken();
-          if (onAuthError) {
-            try {
-              onAuthError();
-            } catch (handlerError) {
-              if (__DEV__) console.warn('Auth error handler failed:', handlerError);
-            }
-          }
-        }
+        // Never sign out on API errors – just show the error message in a toast
+        showApiErrorToast(errorMessage);
         throw new ApiError(errorMessage, response.status);
       }
 
@@ -203,13 +207,22 @@ class ApiClient {
       console.error(`API Request Failed: ${endpoint}`, error);
 
       if (error.message === 'Auth check timeout') {
-        throw new ApiError('Connection timed out. Please check your internet connection.', 0);
+        const msg = 'Connection timed out. Please check your internet connection.';
+        showApiErrorToast(msg);
+        throw new ApiError(msg, 0);
       }
 
       if (error.message === 'Network request failed' || error.message.includes('Network')) {
-        throw new ApiError('Network error. Please check your internet connection.', 0);
+        const hint = __DEV__
+          ? ` Can't reach the API at ${getApiUrlCached()}. Ensure the API is running and reachable from this device (e.g. listen on 0.0.0.0).`
+          : ' Please check your internet connection.';
+        const msg = 'Network error.' + hint;
+        showApiErrorToast(msg);
+        throw new ApiError(msg, 0);
       }
 
+      const msg = error?.message ?? 'Something went wrong.';
+      showApiErrorToast(msg);
       throw error;
     }
   }

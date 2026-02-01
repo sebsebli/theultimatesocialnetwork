@@ -164,6 +164,7 @@ export default {
     tooManyRefs: 'Too many topic/post references. Maximum {{max}}.',
     linkUrlPlaceholder: 'URL (https://...)',
     linkDisplayTextPlaceholder: 'Display Text (optional)',
+    startTypingToSeeSuggestions: 'Inizia a digitare per vedere i suggerimenti',
   },
   post: {
     like: 'Mi piace',

@@ -1,6 +1,6 @@
 /**
  * Shared email layout aligned with Citewalk app design.
- * Background #6E7A8A; table-based layout with inline styles.
+ * Uses app dark theme: background #0B0B0C (ink); table-based layout with inline styles.
  * Includes legal footers for CAN-SPAM, GDPR (address, privacy, terms, preferences).
  */
 
@@ -25,17 +25,17 @@ export interface EmailLayoutOptions {
   helpEmail?: string;
 }
 
-/* Background #6E7A8A; card slightly darker for contrast */
-const BG = '#6E7A8A';
-const CARD_BG = '#5A6573';
+/* Dark theme matching app: --background (#0B0B0C), card slightly elevated for contrast */
+const BG = '#0B0B0C';
+const CARD_BG = '#1A1A1D';
 const BORDER = '#2A2A2E';
 const DIVIDER = '#1A1A1D';
 const FG = '#F2F2F2';
 const MUTED = '#A8A8AA';
 const LEGAL = '#6E6E73';
 const ACCENT = '#6E7A8A';
-const CODE_BG = '#0B0B0C';
-const CODE_BORDER = '#2A2A2E';
+const CODE_BG = '#2A2A2E';
+const CODE_BORDER = '#3A3A3E';
 
 const STYLES = {
   wrapper: `margin:0;padding:0;width:100%;background-color:${BG};-webkit-text-size-adjust:100%;`,

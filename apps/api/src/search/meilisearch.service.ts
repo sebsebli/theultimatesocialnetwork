@@ -172,7 +172,7 @@ export class MeilisearchService implements OnModuleInit {
       do {
         users = await this.userRepo.find({
           where: {},
-          select: ['id', 'handle', 'displayName', 'bio'],
+          select: ['id', 'handle', 'displayName', 'bio', 'avatarKey'],
           order: { handle: 'ASC' },
           skip: userOffset,
           take: this.reindexUserBatchSize,
@@ -184,6 +184,7 @@ export class MeilisearchService implements OnModuleInit {
             handle: u.handle,
             displayName: u.displayName,
             bio: u.bio ?? '',
+            avatarKey: (u as { avatarKey?: string | null }).avatarKey ?? '',
           })),
         );
         totalUsers += users.length;
@@ -248,8 +249,9 @@ export class MeilisearchService implements OnModuleInit {
               ? {
                   displayName: author.displayName ?? author.handle,
                   handle: author.handle,
+                  avatarKey: (author as { avatarKey?: string | null }).avatarKey ?? '',
                 }
-              : { displayName: 'Unknown', handle: 'unknown' },
+              : { displayName: 'Unknown', handle: 'unknown', avatarKey: '' },
             lang: post.lang ?? 'en',
             createdAt: post.createdAt.toISOString(),
             quoteCount: post.quoteCount,
@@ -314,6 +316,7 @@ export class MeilisearchService implements OnModuleInit {
     handle: string;
     displayName: string;
     bio?: string;
+    avatarKey?: string | null;
   }) {
     try {
       const index = this.client.index('users');
@@ -323,6 +326,7 @@ export class MeilisearchService implements OnModuleInit {
           handle: user.handle,
           displayName: user.displayName,
           bio: user.bio || '',
+          avatarKey: user.avatarKey ?? '',
         },
       ]);
     } catch (error) {
@@ -384,8 +388,9 @@ export class MeilisearchService implements OnModuleInit {
             ? {
                 displayName: post.author.displayName || post.author.handle,
                 handle: post.author.handle,
+                avatarKey: (post.author as { avatarKey?: string | null }).avatarKey ?? '',
               }
-            : { displayName: 'Unknown', handle: 'unknown' },
+            : { displayName: 'Unknown', handle: 'unknown', avatarKey: '' },
           lang: post.lang || 'en',
           createdAt: post.createdAt.toISOString(),
           quoteCount: post.quoteCount,
@@ -444,10 +449,10 @@ export class MeilisearchService implements OnModuleInit {
     }
   }
 
-  async searchUsers(query: string, limit = 20) {
+  async searchUsers(query: string, limit = 20, offset = 0) {
     try {
       const index = this.client.index('users');
-      const res = await index.search(query, { limit });
+      const res = await index.search(query, { limit, offset });
       return res;
     } catch (error) {
       console.error('Meilisearch user search error', error);
@@ -485,10 +490,10 @@ export class MeilisearchService implements OnModuleInit {
     };
   }
 
-  async searchTopics(query: string, limit = 10) {
+  async searchTopics(query: string, limit = 10, offset = 0) {
     try {
       const index = this.client.index('topics');
-      return await index.search(query, { limit });
+      return await index.search(query, { limit, offset });
     } catch {
       // Topics might not be indexed yet, return empty
       return { hits: [] };

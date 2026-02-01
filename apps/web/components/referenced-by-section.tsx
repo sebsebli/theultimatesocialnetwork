@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { Avatar } from "./avatar";
 
 interface ReferencedPost {
   id: string;
@@ -10,6 +11,8 @@ interface ReferencedPost {
   author: {
     handle: string;
     displayName: string;
+    avatarKey?: string | null;
+    avatarUrl?: string | null;
   };
   quoteCount: number;
   createdAt: string;
@@ -63,7 +66,25 @@ export function ReferencedBySection({
     return (
       <section className="border-t border-divider pt-6">
         <h2 className="text-lg font-semibold mb-4 text-paper">Referenced by</h2>
-        <p className="text-secondary text-sm">Not referenced yet.</p>
+        <div className="flex flex-col items-center justify-center py-10 px-4 bg-white/5 rounded-lg border border-dashed border-divider text-center">
+          <svg
+            className="w-12 h-12 text-tertiary mb-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+            />
+          </svg>
+          <p className="text-secondary text-sm">
+            No posts quote this yet.
+          </p>
+        </div>
       </section>
     );
   }
@@ -82,9 +103,13 @@ export function ReferencedBySection({
               className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
             >
               <div className="flex items-center gap-3 mb-2">
-                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-xs">
-                  {post.author.displayName.charAt(0)}
-                </div>
+                <Avatar
+                  avatarKey={post.author.avatarKey}
+                  avatarUrl={post.author.avatarUrl}
+                  displayName={post.author.displayName}
+                  handle={post.author.handle}
+                  size="sm"
+                />
                 <div>
                   <div className="text-sm font-semibold text-paper">
                     {post.author.displayName}

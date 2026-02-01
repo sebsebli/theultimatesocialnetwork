@@ -162,7 +162,8 @@
     "createNewPage": "Ny sida",
     "publishedSuccess": "Publicerat",
     "linkToTopic": "TILL ÄMNE",
-    "references": "{{count}} referenser"
+    "references": "{{count}} referenser",
+    "startTypingToSeeSuggestions": "Börja skriva för att se förslag"
   },
   "post": {
     "like": "Gilla",

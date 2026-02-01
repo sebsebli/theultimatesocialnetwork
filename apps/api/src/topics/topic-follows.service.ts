@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { TopicFollow } from '../entities/topic-follow.entity';
 import { Topic } from '../entities/topic.entity';
+import { Post } from '../entities/post.entity';
+import { PostTopic } from '../entities/post-topic.entity';
 
 interface TopicRawRow {
   topic_id: string;
@@ -16,6 +18,9 @@ export class TopicFollowsService {
     @InjectRepository(TopicFollow)
     private topicFollowRepo: Repository<TopicFollow>,
     @InjectRepository(Topic) private topicRepo: Repository<Topic>,
+    @InjectRepository(Post) private postRepo: Repository<Post>,
+    @InjectRepository(PostTopic) private postTopicRepo: Repository<PostTopic>,
+    private dataSource: DataSource,
   ) {}
 
   async follow(userId: string, topicId: string) {
@@ -82,12 +87,83 @@ export class TopicFollowsService {
       )
       .getRawAndEntities();
 
-    return entities.map((entity) => {
+    const base = entities.map((entity) => {
       const r = (raw as TopicRawRow[]).find((x) => x.topic_id === entity.id);
       return {
         ...entity,
         postCount: r ? parseInt(r.postCount, 10) : 0,
         followerCount: r ? parseInt(r.followerCount, 10) : 0,
+        isFollowing: true,
+      };
+    });
+
+    const topicIds = base.map((t) => t.id);
+    if (topicIds.length === 0) return base;
+
+    type LatestRow = { topicId: string; postId: string };
+    const latestRows: LatestRow[] = await this.dataSource
+      .createQueryBuilder()
+      .select('pt.topic_id', 'topicId')
+      .addSelect('p.id', 'postId')
+      .from(PostTopic, 'pt')
+      .innerJoin(
+        Post,
+        'p',
+        'p.id = pt.post_id AND p.deleted_at IS NULL',
+      )
+      .where('pt.topic_id IN (:...topicIds)', { topicIds })
+      .distinctOn(['pt.topic_id'])
+      .orderBy('pt.topic_id')
+      .addOrderBy('p.created_at', 'DESC')
+      .getRawMany<LatestRow>()
+      .catch(() => []);
+
+    const postIds = [...new Set(latestRows.map((r) => r.postId))];
+    const topicToPostId = new Map(latestRows.map((r) => [r.topicId, r.postId]));
+
+    const posts =
+      postIds.length > 0
+        ? await this.postRepo.find({
+            where: { id: In(postIds) },
+            relations: ['author'],
+            select: ['id', 'authorId', 'title', 'body', 'headerImageKey', 'createdAt'],
+          })
+        : [];
+    const postMap = new Map(posts.map((p) => [p.id, p]));
+
+    function bodyExcerpt(body: string, maxLen = 120): string {
+      if (!body || typeof body !== 'string') return '';
+      const stripped = body
+        .replace(/#{1,6}\s*/g, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/_([^_]+)_/g, '$1')
+        .replace(/\n+/g, ' ')
+        .trim();
+      return stripped.length <= maxLen ? stripped : stripped.slice(0, maxLen) + '…';
+    }
+
+    return base.map((t) => {
+      const postId = topicToPostId.get(t.id);
+      const post = postId ? postMap.get(postId) : undefined;
+      const recentPost = post
+        ? {
+            id: post.id,
+            title: post.title ?? null,
+            bodyExcerpt: bodyExcerpt(post.body),
+            headerImageKey: post.headerImageKey ?? null,
+            author: post.author
+              ? {
+                  handle: post.author.handle,
+                  displayName: post.author.displayName ?? post.author.handle,
+                }
+              : null,
+            createdAt: post.createdAt?.toISOString?.() ?? null,
+          }
+        : null;
+      return {
+        ...t,
+        recentPostImageKey: recentPost?.headerImageKey ?? null,
+        recentPost,
       };
     });
   }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Modal, TextInput, Linking, Share, InteractionManager, Platform, Switch } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Modal, TextInput, Linking, Share, InteractionManager, Platform, Switch, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +10,8 @@ import { api, getImageUrl, getApiBaseUrl, getWebAppBaseUrl } from '../../utils/a
 import { PostItem } from '../../components/PostItem';
 import { CollectionCard } from '../../components/CollectionCard';
 import { EmptyState } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, PROFILE_TOP_HEIGHT } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, PROFILE_HEADER_ASPECT_RATIO } from '../../constants/theme';
+import { formatCompactNumber } from '../../utils/format';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
@@ -26,6 +27,7 @@ export default function ProfileScreen() {
   const { isAuthenticated } = useAuth();
   const { showError } = useToast();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -421,20 +423,18 @@ export default function ProfileScreen() {
           renderItem={activeTab === 'collections' ? renderCollectionItem : renderItem}
           ListHeaderComponent={
             <>
-              {/* Single profile top area: hand-drawing or dark black background behind avatar, name, stats. No separate header strip. */}
-              <View style={[styles.profileTopSection, { height: PROFILE_TOP_HEIGHT }]}>
-                {/* Full-area background: saved drawing image or dark black */}
+              {/* Header image only: fixed 4:3 so drawing looks identical on all devices. */}
+              <View style={[styles.profileHeaderImageWrap, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
                 {profileHeaderImageUrl ? (
                   <Image
                     source={{ uri: profileHeaderImageUrl }}
-                    style={styles.profileTopBackground}
+                    style={[styles.profileTopBackground, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}
                     contentFit="cover"
                     cachePolicy="memory-disk"
                   />
                 ) : (
                   <View style={styles.profileTopBackgroundBlack} />
                 )}
-                {/* Top bar: back (or edit background) + settings */}
                 <View style={[styles.headerBar, { paddingTop: insets.top + 10 }]}>
                   {!isSelf ? (
                     <Pressable onPress={() => router.back()} style={styles.iconButton}>
@@ -458,7 +458,9 @@ export default function ProfileScreen() {
                     <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
                   </Pressable>
                 </View>
-                {/* Profile Info - Centered (avatar, name, button, stats) */}
+              </View>
+              {/* Profile info + stats: separate block so content is never clipped on small phones. */}
+              <View style={styles.profileInfoBlock}>
                 <View style={styles.profileHeader}>
                   <View style={styles.avatarContainer}>
                     <Pressable
@@ -519,29 +521,27 @@ export default function ProfileScreen() {
                   </Pressable>
                 </View>
 
-                {/* Stats Row */}
                 <View style={styles.statsRow}>
                   <Pressable
                     style={styles.statItem}
                     onPress={() => isSelf && router.push('/user/connections?tab=followers')}
                   >
-                    <Text style={styles.statNumber}>{user.followerCount}</Text>
+                    <Text style={styles.statNumber}>{formatCompactNumber(user.followerCount)}</Text>
                     <Text style={styles.statLabel}>{t('profile.followers')}</Text>
                   </Pressable>
                   <Pressable
                     style={styles.statItem}
                     onPress={() => isSelf && router.push('/user/connections?tab=following')}
                   >
-                    <Text style={styles.statNumber}>{user.followingCount}</Text>
+                    <Text style={styles.statNumber}>{formatCompactNumber(user.followingCount)}</Text>
                     <Text style={styles.statLabel}>{t('profile.following')}</Text>
                   </Pressable>
                   <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{user.quoteReceivedCount}</Text>
-                    <Text style={[styles.statLabel, { color: COLORS.primary }]}>{t('profile.quotes')}</Text>
+                    <Text style={styles.statNumber}>{formatCompactNumber(user.quoteReceivedCount)}</Text>
+                    <Text style={styles.statLabel}>{t('profile.quotes')}</Text>
                   </View>
                 </View>
               </View>
-              {/* End profile top section (full-area background) */}
 
               {/* Tabs: Posts, Replies, Quotes, Saved (own only), Collections */}
               <View style={styles.tabsContainer}>
@@ -648,7 +648,7 @@ export default function ProfileScreen() {
           <View style={styles.avatarModalContent}>
             {(user?.avatarKey || user?.avatarUrl) ? (
               <Image
-                source={{ uri: user.avatarKey ? getImageUrl(user.avatarKey) : user.avatarUrl }}
+                source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
                 style={styles.avatarModalImage}
                 contentFit="contain"
                 cachePolicy="memory-disk"
@@ -803,6 +803,7 @@ export default function ProfileScreen() {
         visible={drawModalVisible}
         onClose={() => setDrawModalVisible(false)}
         onSaved={handleDrawSaved}
+        profileHeaderUrl={profileHeaderImageUrl}
       />
     </View>
   );
@@ -851,9 +852,15 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  profileTopSection: {
-    width: '100%',
+  profileHeaderImageWrap: {
     position: 'relative',
+    overflow: 'hidden',
+  },
+  profileInfoBlock: {
+    width: '100%',
+    backgroundColor: COLORS.ink,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: SPACING.m,
     paddingBottom: SPACING.l,
   },
   profileTopBackground: {
@@ -889,7 +896,6 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
     gap: SPACING.l,
   },
@@ -1104,14 +1110,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statNumber: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   statLabel: {
-    fontSize: 12,
-    color: COLORS.tertiary,
+    fontSize: 13,
+    color: COLORS.paper,
     fontFamily: FONTS.medium,
     textTransform: 'uppercase',
     letterSpacing: 0.5,

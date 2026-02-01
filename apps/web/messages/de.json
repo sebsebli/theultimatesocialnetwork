@@ -162,7 +162,8 @@
     "createNewPage": "Neue Seite erstellen",
     "publishedSuccess": "Erfolgreich veröffentlicht",
     "linkToTopic": "ZUM THEMA",
-    "references": "{{count}} Referenzen"
+    "references": "{{count}} Referenzen",
+    "startTypingToSeeSuggestions": "Tippe, um Vorschläge zu sehen"
   },
   "post": {
     "like": "Gefällt mir",

@@ -12,6 +12,7 @@ import { Like } from '../entities/like.entity';
 import { ReplyLike } from '../entities/reply-like.entity';
 import { Keep } from '../entities/keep.entity';
 import { Follow } from '../entities/follow.entity';
+import { FollowRequest } from '../entities/follow-request.entity';
 import { PostRead } from '../entities/post-read.entity';
 import { Notification } from '../entities/notification.entity';
 import { NotificationPref } from '../entities/notification-pref.entity';
@@ -42,6 +43,7 @@ import { defaultQueueConfig } from '../common/queue-config';
       ReplyLike,
       Keep,
       Follow,
+      FollowRequest,
       PostRead,
       Notification,
       NotificationPref,

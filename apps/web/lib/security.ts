@@ -34,15 +34,17 @@ export function getApiUrl(): string {
 }
 
 /**
- * Build image URL from storage key. Uses NEXT_PUBLIC_API_URL/images/key (API serves images).
- * Use in client components; prefer headerImageUrl/avatarUrl from API when present.
+ * Build image URL from storage key. Prefer NEXT_PUBLIC_API_URL/images/key when set;
+ * otherwise use same-origin /api/images/key proxy so avatars load without client env.
  */
 export function getImageUrl(key: string): string {
   if (!key || typeof key !== "string" || !key.trim()) return "";
   const trimmed = key.trim();
   const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
-  if (!apiBase) return "";
-  return `${apiBase}/images/${encodeURIComponent(trimmed)}`;
+  if (apiBase) {
+    return `${apiBase}/images/${encodeURIComponent(trimmed)}`;
+  }
+  return `/api/images/${encodeURIComponent(trimmed)}`;
 }
 
 /**
@@ -69,21 +71,24 @@ export function createSecureErrorResponse(
 }
 
 /**
- * Validate request origin (basic CSRF protection)
+ * Validate request origin (CSRF protection).
+ * In production: require origin to be missing (same-origin) or listed in ALLOWED_ORIGINS.
  */
 export function validateOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
 
-  // In production, validate against allowed origins
   if (process.env.NODE_ENV === "production") {
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
-    if (origin && allowedOrigins.length > 0) {
-      return allowedOrigins.includes(origin);
-    }
-    // If no origin header (same-origin request), allow
+    const allowed = (process.env.ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean);
+    // Same-origin or no origin (e.g. same-site form POST) — allow
     if (!origin) return true;
+    // Cross-origin: must be explicitly allowed
+    if (allowed.length > 0) return allowed.includes(origin);
+    // No ALLOWED_ORIGINS set: reject cross-origin to be safe
+    return false;
   }
 
-  // In development, allow all
   return true;
 }

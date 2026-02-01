@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { Avatar } from "./avatar";
 
 interface Topic {
   id: string;
@@ -14,6 +15,8 @@ interface User {
   id: string;
   handle: string;
   displayName: string;
+  avatarKey?: string | null;
+  avatarUrl?: string | null;
 }
 
 export function DesktopRightSidebar() {
@@ -49,7 +52,7 @@ export function DesktopRightSidebar() {
   }, []);
 
   return (
-    <aside className="hidden xl:block xl:w-80 xl:sticky xl:top-6 xl:h-[calc(100vh-24px)] xl:overflow-y-auto xl:px-4">
+    <aside className="hidden lg:block lg:w-72 xl:w-80 lg:sticky lg:top-6 lg:h-[calc(100vh-24px)] lg:overflow-y-auto lg:px-4 shrink-0">
       <div className="flex flex-col gap-6 pt-6">
         {/* Trending Topics */}
         {loading ? (
@@ -100,9 +103,13 @@ export function DesktopRightSidebar() {
                     href={`/user/${user.handle}`}
                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
-                      {user.displayName.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar
+                      avatarKey={user.avatarKey}
+                      avatarUrl={user.avatarUrl}
+                      displayName={user.displayName}
+                      handle={user.handle}
+                      size="md"
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-paper group-hover:text-primary transition-colors">
                         {user.displayName}

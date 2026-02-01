@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { isBetaActive } from "@/lib/feature-flags";
 
 export function SignupOverlay() {
   const pathname = usePathname();
@@ -76,16 +77,18 @@ export function SignupOverlay() {
             The network is waiting.
           </h3>
           <p className="text-[#A8A8AA] text-lg leading-relaxed">
-            Join the closed beta to start building your knowledge graph.
+            {isBetaActive
+              ? "Join the closed beta to start building your knowledge graph."
+              : "Join the network to start building your knowledge graph."}
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
           <Link
-            href="/sign-in"
+            href={isBetaActive ? "/waiting-list" : "/sign-in"}
             className="inline-flex justify-center items-center px-8 py-4 bg-[#F2F2F2] text-[#0B0B0C] font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)]"
           >
-            Join the Beta
+            {isBetaActive ? "Join the Waiting List" : "Join the Network"}
           </Link>
           <button
             onClick={() => {

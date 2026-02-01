@@ -10,6 +10,12 @@ export type SearchResult = {
   handle?: string;
   authorHandle?: string;
   authorDisplayName?: string;
+  /** Mention: avatar storage key / URL for profile image */
+  avatarKey?: string;
+  avatarUrl?: string;
+  /** Post: header image key / URL */
+  headerImageKey?: string;
+  headerImageUrl?: string;
   /** Post: ISO date string from search index */
   createdAt?: string;
   /** Post: number of quotes */
@@ -68,6 +74,8 @@ export function useComposerSearch() {
             displayName: p.title || 'Untitled Post',
             authorHandle: p.author?.handle,
             authorDisplayName: p.author?.displayName,
+            headerImageKey: p.headerImageKey,
+            headerImageUrl: p.headerImageUrl,
             createdAt: p.createdAt,
             quoteCount: p.quoteCount ?? 0,
             replyCount: p.replyCount ?? 0,
@@ -92,7 +100,13 @@ export function useComposerSearch() {
           if (searchRequestId.current !== requestId) return;
 
           const userHits = Array.isArray(res?.hits) ? res.hits : [];
-          newResults = userHits.map((u: any) => ({ ...u, type: 'mention', id: u.id }));
+          newResults = userHits.map((u: any) => ({
+            ...u,
+            type: 'mention',
+            id: u.id,
+            avatarKey: u.avatarKey,
+            avatarUrl: u.avatarUrl,
+          }));
         }
 
         setResults(newResults);

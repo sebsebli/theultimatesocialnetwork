@@ -12,7 +12,7 @@ import {
   type NativeSyntheticEvent,
   type TextInputSelectionChangeEventData,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, usePathname } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../../utils/api';
@@ -48,15 +48,23 @@ function normalizeParam(value: unknown): string | undefined {
   return undefined;
 }
 
+/** Get post id from pathname (e.g. /post/abc-123/comments -> abc-123). Nested dynamic routes may not receive params.id. */
+function getPostIdFromPathname(pathname: string): string | undefined {
+  const match = pathname.match(/^\/post\/([^/]+)\/comments/);
+  return match ? match[1] : undefined;
+}
+
 export default function PostCommentsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const pathname = usePathname();
   const replyIdFromParams = typeof params.replyId === 'string' ? params.replyId : Array.isArray(params.replyId) ? params.replyId[0] : undefined;
   const { t } = useTranslation();
   const { isAuthenticated, userId } = useAuth();
   const { showSuccess, showError } = useToast();
-  const postId = normalizeParam(params.id);
+  // postId: params often missing for nested routes, so derive from pathname first
+  const postId = getPostIdFromPathname(pathname ?? '') ?? normalizeParam(params.id);
   const [replies, setReplies] = useState<Reply[]>([]);
   const [commentDraft, setCommentDraft] = useState('');
   const [selection, setSelection] = useState({ start: 0, end: 0 });
@@ -226,8 +234,11 @@ export default function PostCommentsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={styles.container}>
+        <ScreenHeader title={t('post.comments')} paddingTop={insets.top} />
+        <View style={[styles.center, { flex: 1 }]}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
       </View>
     );
   }
@@ -273,10 +284,10 @@ export default function PostCommentsScreen() {
             onLayout={
               replyIdFromParams === reply.id && !hasScrolledToReply.current
                 ? (e) => {
-                    hasScrolledToReply.current = true;
-                    const y = e.nativeEvent.layout.y;
-                    scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
-                  }
+                  hasScrolledToReply.current = true;
+                  const y = e.nativeEvent.layout.y;
+                  scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+                }
                 : undefined
             }
           >

@@ -89,11 +89,19 @@ export default function TermsPage() {
             authorities where legally required.
           </p>
 
-          <h3 className="text-xl font-bold mb-2">3.3 No Harassment</h3>
+          <h3 className="text-xl font-bold mb-2">
+            3.3 Prohibited Conduct & Permanent Ban
+          </h3>
           <p>
-            Harassment, threats, doxxing, stalking, intimidation, or coordinated
-            abuse are strictly prohibited. Enforcement is at our sole
-            discretion.
+            The following conduct is strictly forbidden: harassment, threats,
+            doxxing, stalking, intimidation, coordinated abuse, excessive
+            advertising, spamming, and mistreating other users or third
+            parties.
+          </p>
+          <p>
+            Violations may result in content removal, temporary suspension, or
+            a <strong>permanent ban</strong> of your account. Enforcement is at
+            our sole discretion.
           </p>
 
           <h3 className="text-xl font-bold mb-2">3.4 Indemnification</h3>

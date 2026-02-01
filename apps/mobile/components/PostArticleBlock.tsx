@@ -102,13 +102,17 @@ export function PostArticleBlock({
         <Text style={styles.title}>{post.title}</Text>
       ) : null}
 
-      <MarkdownText referenceMetadata={referenceMetadata} validMentionHandles={validMentionHandles}>
+      <MarkdownText
+        referenceMetadata={referenceMetadata}
+        validMentionHandles={validMentionHandles}
+        stripLeadingH1IfMatch={post.title ?? undefined}
+      >
         {post.body}
       </MarkdownText>
 
       <View style={styles.actionsRow}>
         {renderLikeButton ? (
-          renderLikeButton({ liked, onPress: onLike ?? (() => {}), actionBtnStyle: styles.actionBtn })
+          renderLikeButton({ liked, onPress: onLike ?? (() => { }), actionBtnStyle: styles.actionBtn })
         ) : (
           <Pressable style={styles.actionBtn} onPress={onLike} disabled={!onLike}>
             <MaterialIcons

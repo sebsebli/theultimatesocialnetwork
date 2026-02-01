@@ -1,7 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, IBM_Plex_Serif } from "next/font/google";
 import { ReactNode } from "react";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AuthProvider } from "@/components/auth-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -67,6 +72,9 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className={inter.className} suppressHydrationWarning>
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <NextIntlClientProvider messages={messages}>
           <ErrorBoundary>
             <ToastProvider>

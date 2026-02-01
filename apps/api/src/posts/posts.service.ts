@@ -6,7 +6,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { Queue } from 'bullmq';
 import { Post, PostVisibility } from '../entities/post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -293,6 +293,102 @@ export class PostsService {
     throw new NotFoundException('Post not found');
   }
 
+  /** Return id -> { title } for linked post display (e.g. [[post:id]]). Keys normalized to lowercase for case-insensitive lookup. */
+  async getTitlesForPostIds(ids: string[]): Promise<Record<string, { title?: string }>> {
+    if (ids.length === 0) return {};
+    const unique = Array.from(new Set(ids));
+    const posts = await this.postRepo.find({
+      where: unique.map((id) => ({ id })),
+      select: ['id', 'title'],
+    });
+    const out: Record<string, { title?: string }> = {};
+    for (const p of posts) {
+      const key = (p.id ?? '').toLowerCase();
+      if (key) out[key] = { title: p.title ?? undefined };
+    }
+    return out;
+  }
+
+  /** Preview metadata for composer: post ids and topic slugs -> header/avatar/image keys for source circles. */
+  async getSourcePreviews(
+    postIds: string[],
+    topicSlugs: string[],
+  ): Promise<{
+    posts: Array<{ id: string; title?: string; headerImageKey?: string | null; authorAvatarKey?: string | null }>;
+    topics: Array<{ slug: string; title?: string; imageKey?: string | null }>;
+  }> {
+    const uniquePostIds = Array.from(new Set(postIds));
+    const uniqueSlugs = Array.from(new Set(topicSlugs.map((s) => s.trim()).filter(Boolean)));
+    const posts =
+      uniquePostIds.length > 0
+        ? await this.postRepo.find({
+            where: { id: In(uniquePostIds) },
+            select: ['id', 'title', 'headerImageKey', 'authorId'],
+          })
+        : [];
+    const authorIds = [...new Set(posts.map((p) => p.authorId).filter(Boolean))];
+    const authors =
+      authorIds.length > 0
+        ? await this.userRepo.find({
+            where: { id: In(authorIds) },
+            select: ['id', 'avatarKey'],
+          })
+        : [];
+    const authorMap = new Map(authors.map((a) => [a.id, a.avatarKey ?? null]));
+    const postList = posts.map((p) => ({
+      id: p.id,
+      title: p.title ?? undefined,
+      headerImageKey: p.headerImageKey ?? null,
+      authorAvatarKey: authorMap.get(p.authorId) ?? null,
+    }));
+
+    if (uniqueSlugs.length === 0) {
+      return { posts: postList, topics: [] };
+    }
+    const topicRepo = this.dataSource.getRepository(Topic);
+    const topics = await topicRepo.find({
+      where: { slug: In(uniqueSlugs) },
+      select: ['id', 'slug', 'title'],
+    });
+    const foundTopicIds = topics.map((t) => t.id);
+    type LatestRow = { topicId: string; postId: string };
+    const latestRows: LatestRow[] =
+      foundTopicIds.length > 0
+        ? await this.dataSource
+            .createQueryBuilder()
+            .select('pt.topic_id', 'topicId')
+            .addSelect('p.id', 'postId')
+            .from(PostTopic, 'pt')
+            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+            .where('pt.topic_id IN (:...topicIds)', { topicIds: foundTopicIds })
+            .distinctOn(['pt.topic_id'])
+            .orderBy('pt.topic_id')
+            .addOrderBy('p.created_at', 'DESC')
+            .getRawMany<LatestRow>()
+            .catch(() => [])
+        : [];
+    const latestPostIds = [...new Set(latestRows.map((r) => r.postId))];
+    const topicToImageKey = new Map<string, string | null>();
+    if (latestPostIds.length > 0) {
+      const latestPosts = await this.postRepo.find({
+        where: { id: In(latestPostIds) },
+        select: ['id', 'headerImageKey'],
+      });
+      const postIdToKey = new Map(latestPosts.map((p) => [p.id, p.headerImageKey ?? null]));
+      latestRows.forEach((r) => {
+        if (!topicToImageKey.has(r.topicId)) topicToImageKey.set(r.topicId, postIdToKey.get(r.postId) ?? null);
+      });
+    }
+    const topicIdToSlug = new Map(topics.map((t) => [t.id, t.slug]));
+    const topicList = topics.map((t) => ({
+      slug: t.slug,
+      title: t.title ?? undefined,
+      imageKey: topicToImageKey.get(t.id) ?? null,
+    }));
+
+    return { posts: postList, topics: topicList };
+  }
+
   async softDelete(userId: string, postId: string): Promise<void> {
     const post = await this.postRepo.findOne({
       where: { id: postId, authorId: userId },
@@ -394,7 +490,7 @@ export class PostsService {
       this.externalSourceRepo.find({ where: { postId } }),
       this.dataSource.getRepository(PostEdge).find({
         where: { fromPostId: postId, edgeType: EdgeType.LINK },
-        relations: ['toPost'],
+        relations: ['toPost', 'toPost.author'],
       }),
       this.mentionRepo.find({
         where: { postId },
@@ -405,6 +501,44 @@ export class PostsService {
         relations: ['topic'],
       }),
     ]);
+
+    // Latest post header image per topic (for topic source circles)
+    const topicIds = topics.map((t) => t.topicId);
+    type LatestRow = { topicId: string; postId: string };
+    const latestRows: LatestRow[] =
+      topicIds.length > 0
+        ? await this.dataSource
+            .createQueryBuilder()
+            .select('pt.topic_id', 'topicId')
+            .addSelect('p.id', 'postId')
+            .from(PostTopic, 'pt')
+            .innerJoin(
+              Post,
+              'p',
+              'p.id = pt.post_id AND p.deleted_at IS NULL',
+            )
+            .where('pt.topic_id IN (:...topicIds)', { topicIds })
+            .distinctOn(['pt.topic_id'])
+            .orderBy('pt.topic_id')
+            .addOrderBy('p.created_at', 'DESC')
+            .getRawMany<LatestRow>()
+            .catch(() => [])
+        : [];
+    const latestPostIds = [...new Set(latestRows.map((r) => r.postId))];
+    const topicToImageKey = new Map<string, string | null>();
+    if (latestPostIds.length > 0) {
+      const latestPosts = await this.postRepo.find({
+        where: { id: In(latestPostIds) },
+        select: ['id', 'headerImageKey'],
+      });
+      const postIdToKey = new Map(
+        latestPosts.map((p) => [p.id, p.headerImageKey ?? null]),
+      );
+      latestRows.forEach((r) => {
+        const key = postIdToKey.get(r.postId) ?? null;
+        if (!topicToImageKey.has(r.topicId)) topicToImageKey.set(r.topicId, key);
+      });
+    }
 
     const results = [
       ...external.map((e) => ({
@@ -420,6 +554,8 @@ export class PostsService {
         title: e.toPost?.title || 'Post',
         anchor: e.anchorText,
         createdAt: e.createdAt,
+        headerImageKey: e.toPost?.headerImageKey ?? null,
+        authorAvatarKey: e.toPost?.author?.avatarKey ?? null,
       })),
       ...mentions.map((m) => ({
         type: 'user',
@@ -427,18 +563,18 @@ export class PostsService {
         handle: m.mentionedUser?.handle,
         title: m.mentionedUser?.displayName || m.mentionedUser?.handle,
         createdAt: m.createdAt,
+        avatarKey: m.mentionedUser?.avatarKey ?? null,
       })),
       ...topics.map((t) => ({
         type: 'topic',
         id: t.topicId,
         slug: t.topic?.slug,
         title: t.topic?.title,
-        createdAt: new Date(), // PostTopic does not have createdAt
+        createdAt: new Date(),
+        imageKey: topicToImageKey.get(t.topicId) ?? null,
       })),
     ];
 
-    // Sort by creation or strictly by order if we tracked it (we don't fully).
-    // Just returning combined list is fine.
     return results;
   }
 

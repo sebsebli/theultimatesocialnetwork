@@ -26,7 +26,13 @@ export const FONTS = {
   serifSemiBold: 'IBMPlexSerif_600SemiBold',
 };
 
-/** Height of profile top section (avatar + name + stats). Draw canvas uses same height so saved image matches. */
+/** Fixed profile header aspect ratio (width : height = 4 : 3). Same on all devices so drawings look identical. */
+export const PROFILE_HEADER_ASPECT_RATIO = 4 / 3;
+
+/** Opacity for draw canvas overlay (0–1). Used by DrawBackgroundModal for SVG fillOpacity. */
+export const DRAW_CANVAS_OPACITY = 0.45;
+
+/** @deprecated Use screenWidth / PROFILE_HEADER_ASPECT_RATIO for height. Kept for any legacy fallback. */
 export const PROFILE_TOP_HEIGHT = 380;
 
 export default {

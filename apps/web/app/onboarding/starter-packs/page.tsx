@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 export default function OnboardingStarterPacksPage() {
   const router = useRouter();
   const [following, setFollowing] = useState<Set<string>>(new Set());
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function OnboardingStarterPacksPage() {
 
   const toggleFollow = async (id: string) => {
     const isFollowing = following.has(id);
-    
+
     // Optimistic update
     const newFollowing = new Set(following);
     if (isFollowing) {
@@ -49,12 +49,15 @@ export default function OnboardingStarterPacksPage() {
   };
 
   const handleFinish = () => {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem('onboarding_stage');
+    }
     router.push('/home');
   };
 
   return (
-    <div className="min-h-screen bg-ink px-6 py-8">
-      <div className="max-w-md mx-auto space-y-6">
+    <div className="min-h-screen bg-ink px-6 md:px-12 py-8 md:py-12">
+      <div className="max-w-md md:max-w-lg mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-paper mb-2">Follow a few voices</h1>
@@ -91,11 +94,10 @@ export default function OnboardingStarterPacksPage() {
                 </div>
                 <button
                   onClick={() => toggleFollow(account.id)}
-                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${
-                    following.has(account.id)
+                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${following.has(account.id)
                       ? 'bg-primary border-primary text-white'
                       : 'border-primary text-primary hover:bg-primary/10'
-                  }`}
+                    }`}
                 >
                   {following.has(account.id) ? 'Following' : 'Follow'}
                 </button>

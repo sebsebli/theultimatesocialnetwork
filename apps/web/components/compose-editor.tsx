@@ -8,7 +8,7 @@ export function ComposeEditor() {
   const t = useTranslations("compose");
 
   return (
-    <div className="border-b border-divider p-4">
+    <div className="border-b border-divider p-4 md:p-5">
       <button
         onClick={() => router.push("/compose")}
         className="w-full text-left group"

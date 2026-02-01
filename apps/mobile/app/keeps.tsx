@@ -158,6 +158,7 @@ export default function KeepsScreen() {
           placeholderTextColor={COLORS.tertiary}
           value={search}
           onChangeText={setSearch}
+          includeFontPadding={false}
         />
         <View style={styles.filterPills}>
           <Pressable
@@ -283,9 +284,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.pressed,
     borderRadius: SIZES.borderRadius,
     paddingHorizontal: SPACING.l,
+    paddingVertical: 0,
     fontSize: 15,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
+    textAlignVertical: 'center',
   },
   filterPills: {
     flexDirection: 'row',

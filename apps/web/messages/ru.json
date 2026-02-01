@@ -162,7 +162,8 @@
     "createNewPage": "Новая страница",
     "publishedSuccess": "Опубликовано",
     "linkToTopic": "К ТЕМЕ",
-    "references": "{{count}} ссылок"
+    "references": "{{count}} ссылок",
+    "startTypingToSeeSuggestions": "Начните вводить текст, чтобы увидеть подсказки"
   },
   "post": {
     "like": "Нравится",

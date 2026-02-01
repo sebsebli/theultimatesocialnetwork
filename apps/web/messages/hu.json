@@ -162,7 +162,8 @@
     "createNewPage": "Új oldal",
     "publishedSuccess": "Közzétéve",
     "linkToTopic": "TÉMÁHOZ",
-    "references": "{{count}} hivatkozás"
+    "references": "{{count}} hivatkozás",
+    "startTypingToSeeSuggestions": "Gépelj a javaslatok megjelenítéséhez"
   },
   "post": {
     "like": "Tetszik",

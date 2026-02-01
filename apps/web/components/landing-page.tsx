@@ -16,6 +16,7 @@ import {
   hasCookieConsent,
   COOKIE_CONSENT_CLOSED_EVENT,
 } from "@/components/cookie-consent-banner";
+import { isBetaActive } from "@/lib/feature-flags";
 
 function getConsentClosedInitial(): boolean {
   if (typeof window === "undefined") return false;
@@ -35,7 +36,7 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-ink text-paper font-sans selection:bg-paper selection:text-ink overflow-x-hidden">
       {/* Navigation */}
-      <nav className="fixed top-0 inset-x-0 z-50 flex justify-between items-center px-6 py-4 md:px-12 bg-ink/95 backdrop-blur-sm border-b border-divider">
+      <nav className="fixed top-0 inset-x-0 z-50 flex justify-between items-center px-6 py-4 md:px-12 bg-ink/95 backdrop-blur-sm border-b border-divider" aria-label="Main">
         <Link href="/" className="flex items-center gap-3 group">
           <Image
             src="/icon-192.png"
@@ -71,24 +72,26 @@ export function LandingPage() {
         </div>
       </nav>
 
-      <main className="pt-32 md:pt-48 pb-20">
+      <main id="main-content" className="pt-32 md:pt-40 lg:pt-48 pb-20 md:pb-24" role="main">
         {/* Hero Section */}
-        <section className="px-6 md:px-12 max-w-[1000px] mx-auto mb-32 md:mb-48">
+        <section className="px-6 md:px-12 lg:px-16 max-w-[1000px] lg:max-w-[1100px] mx-auto mb-24 md:mb-32 lg:mb-48">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <div className="inline-flex items-center gap-2 px-3 py-1 mb-8 border border-divider rounded-full bg-transparent">
+            <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 md:mb-8 border border-divider rounded-full bg-transparent">
               <span className="w-1.5 h-1.5 rounded-full bg-paper"></span>
               <span className="text-[11px] uppercase tracking-[0.2em] text-paper font-bold">
-                Closed Beta — Open Beta Soon
+                {isBetaActive
+                  ? "Closed Beta — Open Beta Soon"
+                  : "Open Beta"}
               </span>
             </div>
 
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-medium leading-[1.0] tracking-tight text-paper mb-10 font-sans">
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-medium leading-[1.0] tracking-tight text-paper mb-8 md:mb-10 font-sans">
               The internet was designed <br className="hidden md:block" />
               <span className="text-tertiary">to be a library.</span>
             </h1>
 
-            <div className="max-w-2xl space-y-8">
-              <p className="text-xl md:text-2xl text-secondary leading-relaxed font-light">
+            <div className="max-w-2xl lg:max-w-3xl space-y-6 md:space-y-8">
+              <p className="text-xl md:text-2xl lg:text-[1.4rem] text-secondary leading-relaxed font-light">
                 We are rebuilding the social web. Quiet. Verified. Yours. <br />
                 A place to read, think, and connect without the noise.
               </p>
@@ -96,10 +99,12 @@ export function LandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 {consentClosed && (
                   <Link
-                    href="/waiting-list"
+                    href={isBetaActive ? "/waiting-list" : "/sign-in"}
                     className="inline-flex justify-center items-center px-8 py-3.5 bg-paper text-ink font-semibold text-base rounded-lg hover:bg-white transition-colors"
                   >
-                    Join the Waiting List
+                    {isBetaActive
+                      ? "Join the Waiting List"
+                      : "Join the Network"}
                   </Link>
                 )}
                 <Link
@@ -114,13 +119,13 @@ export function LandingPage() {
         </section>
 
         {/* 1. The Problem */}
-        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-40 border-t border-divider pt-24">
-          <div className="grid md:grid-cols-2 gap-16 md:gap-32 items-start">
+        <section className="px-6 md:px-12 lg:px-16 max-w-[1200px] mx-auto mb-32 md:mb-40 border-t border-divider pt-20 md:pt-24">
+          <div className="grid md:grid-cols-2 gap-12 md:gap-20 lg:gap-32 items-start">
             <div>
-              <h2 className="text-xs font-mono uppercase tracking-widest text-tertiary mb-8">
+              <h2 className="text-xs font-mono uppercase tracking-widest text-tertiary mb-6 md:mb-8">
                 The Problem
               </h2>
-              <h3 className="text-3xl md:text-4xl font-serif font-medium text-secondary mb-6 leading-tight">
+              <h3 className="text-3xl md:text-4xl lg:text-[2.75rem] font-serif font-medium text-secondary mb-6 leading-tight">
                 We are drowning in <span className="text-paper">Noise</span>.
               </h3>
             </div>
@@ -140,13 +145,13 @@ export function LandingPage() {
         </section>
 
         {/* 2. The Solution (Graph Mechanism Explained) */}
-        <section className="px-6 md:px-12 max-w-[1200px] mx-auto mb-40">
-          <div className="bg-white/[0.02] border border-divider rounded-3xl p-8 md:p-20 relative overflow-hidden">
+        <section className="px-6 md:px-12 lg:px-16 max-w-[1200px] mx-auto mb-32 md:mb-40">
+          <div className="bg-white/[0.02] border border-divider rounded-3xl p-8 md:p-12 lg:p-20 relative overflow-hidden">
             <div className="relative z-10 max-w-3xl">
-              <h2 className="text-xs font-mono uppercase tracking-widest text-tertiary mb-8">
+              <h2 className="text-xs font-mono uppercase tracking-widest text-tertiary mb-6 md:mb-8">
                 The Solution
               </h2>
-              <h3 className="text-4xl md:text-5xl font-serif font-medium text-paper mb-8 leading-tight">
+              <h3 className="text-4xl md:text-5xl lg:text-[3rem] font-serif font-medium text-paper mb-6 md:mb-8 leading-tight">
                 The Knowledge Graph.
               </h3>
               <p className="text-xl text-secondary font-light leading-relaxed mb-12">
@@ -460,16 +465,19 @@ export function LandingPage() {
           {consentClosed && (
             <div className="flex flex-col sm:flex-row justify-center gap-6">
               <Link
-                href="/waiting-list"
+                href={isBetaActive ? "/waiting-list" : "/sign-in"}
                 className="inline-flex justify-center items-center px-12 py-5 bg-paper text-ink font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:scale-105"
               >
-                Join the Waiting List
+                {isBetaActive
+                  ? "Join the Waiting List"
+                  : "Join the Network"}
               </Link>
             </div>
           )}
           <p className="mt-8 text-tertiary text-sm">
-            We&apos;ll contact you with project updates and your invitation when
-            we open the open beta. No algorithm. No ads.
+            {isBetaActive
+              ? "We'll contact you with project updates and your invitation when we open the open beta. No algorithm. No ads."
+              : "Sign in to start your knowledge graph. No algorithm. No ads."}
           </p>
         </section>
       </main>

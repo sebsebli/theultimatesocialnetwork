@@ -162,7 +162,8 @@
     "createNewPage": "Nieuwe pagina",
     "publishedSuccess": "Gepubliceerd",
     "linkToTopic": "NAAR ONDERWERP",
-    "references": "{{count}} referenties"
+    "references": "{{count}} referenties",
+    "startTypingToSeeSuggestions": "Begin met typen om suggesties te zien"
   },
   "post": {
     "like": "Vind ik leuk",

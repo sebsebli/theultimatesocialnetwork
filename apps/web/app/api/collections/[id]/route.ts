@@ -14,7 +14,14 @@ export async function GET(
   }
 
   try {
-    const res = await fetch(`${API_URL}/collections/${params.id}`, {
+    const { searchParams } = new URL(request.url);
+    const limit = searchParams.get('limit');
+    const offset = searchParams.get('offset');
+    const q = new URLSearchParams();
+    if (limit != null) q.set('limit', limit);
+    if (offset != null) q.set('offset', offset);
+    const query = q.toString() ? `?${q.toString()}` : '';
+    const res = await fetch(`${API_URL}/collections/${params.id}${query}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },

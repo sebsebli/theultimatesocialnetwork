@@ -36,10 +36,10 @@ export default async function HomeFeed() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 bg-ink border-b border-divider px-4 py-3 md:bg-ink/80 md:backdrop-blur-md">
+      <header className="sticky top-0 z-10 bg-ink border-b border-divider px-4 md:px-6 py-3 md:bg-ink/80 md:backdrop-blur-md">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center text-primary lg:hidden">
+            <div className="w-10 h-10 flex items-center justify-center text-primary md:hidden">
               <svg
                 className="w-6 h-6"
                 fill="none"
@@ -53,14 +53,15 @@ export default async function HomeFeed() {
                 <path d="M13 5H17V19H13"></path>
               </svg>
             </div>
-            <h1 className="text-base font-bold tracking-tight text-paper">
+            <h1 className="text-base md:text-lg font-bold tracking-tight text-paper">
               Home
             </h1>
           </div>
           <div className="flex items-center gap-2">
             <Link
               href="/search"
-              className="p-2 text-tertiary hover:text-primary transition-colors"
+              aria-label="Search"
+              className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-tertiary hover:text-primary transition-colors rounded-lg"
             >
               <svg
                 className="w-5 h-5"
@@ -78,7 +79,8 @@ export default async function HomeFeed() {
             </Link>
             <Link
               href="/settings"
-              className="p-2 text-tertiary hover:text-primary transition-colors"
+              aria-label="Settings"
+              className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-tertiary hover:text-primary transition-colors rounded-lg"
             >
               <svg
                 className="w-5 h-5"

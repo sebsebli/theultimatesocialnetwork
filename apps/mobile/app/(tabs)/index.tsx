@@ -34,6 +34,7 @@ export default function HomeScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
   const [page, setPage] = useState(1);
+  const [cursor, setCursor] = useState<string | undefined>();
   const [hasMore, setHasMore] = useState(true);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const appState = useRef(AppState.currentState);
@@ -94,12 +95,10 @@ export default function HomeScreen() {
     const startTime = Date.now();
     try {
       const limit = 40;
-      const offset = (pageNum - 1) * limit;
-
-      // Add rudimentary request ID tracking if API supports it or generates it
-      // const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      const data = await api.get(`/feed?limit=${limit}&offset=${offset}`);
+      const offset = reset ? 0 : (pageNum - 1) * limit;
+      const useCursor = !reset && cursor;
+      const q = `limit=${limit}&offset=${offset}${useCursor ? `&cursor=${encodeURIComponent(cursor!)}` : ''}`;
+      const data = await api.get(`/feed?${q}`);
 
       // Validate payload shape
       if (!data || (!Array.isArray(data) && !Array.isArray(data.items))) {
@@ -137,12 +136,17 @@ export default function HomeScreen() {
 
       if (reset) {
         setPosts(processedPosts);
+        setCursor(data.nextCursor ?? undefined);
       } else {
         setPosts(prev => [...prev, ...processedPosts]);
+        if (data.nextCursor) setCursor(data.nextCursor);
       }
-
-      const hasMoreData = processedPosts.length === limit && (data.hasMore !== false);
-      setHasMore(hasMoreData);
+      if (data.nextCursor) {
+        setHasMore(true);
+      } else {
+        const hasMoreData = processedPosts.length === limit && (data.hasMore !== false);
+        setHasMore(hasMoreData);
+      }
     } catch (error: any) {
       const duration = Date.now() - startTime;
       console.error('[Feed] Load failed', {
@@ -268,13 +272,13 @@ export default function HomeScreen() {
           renderItem={({ item }: { item: Post }) => renderItem({ item })}
           ListEmptyComponent={
             <EmptyState
-                icon="home"
-                headline={t('home.emptyHeadline', 'Your timeline is quiet.')}
-                subtext={t('home.emptySubtext', 'Follow people and topics to see posts here.')}
-                secondaryLabel={t('home.exploreTopics', 'Explore Topics')}
-                onSecondary={() => router.push('/(tabs)/explore')}
-                compact
-              >
+              icon="home"
+              headline={t('home.emptyHeadline', 'Your timeline is quiet.')}
+              subtext={t('home.emptySubtext', 'Follow people and topics to see posts here.')}
+              secondaryLabel={t('home.exploreTopics', 'Explore Topics')}
+              onSecondary={() => router.push('/(tabs)/explore')}
+              compact
+            >
               {!loading && (
                 <View style={styles.emptyActions}>
                   <InviteNudge />

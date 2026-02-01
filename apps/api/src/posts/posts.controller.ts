@@ -4,6 +4,7 @@ import {
   Post,
   Get,
   Param,
+  Query,
   Delete,
   UseGuards,
   ParseUUIDPipe,
@@ -14,7 +15,7 @@ import { Throttle } from '@nestjs/throttler';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CurrentUser } from '../shared/current-user.decorator';
-import { postToPlain } from '../shared/post-serializer';
+import { postToPlain, extractLinkedPostIds } from '../shared/post-serializer';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { UploadService } from '../upload/upload.service';
 
@@ -35,6 +36,16 @@ export class PostsController {
     return this.postsService.create(user.id, dto);
   }
 
+  @Get('source-previews')
+  async getSourcePreviews(
+    @Query('postIds') postIdsStr?: string,
+    @Query('topicSlugs') topicSlugsStr?: string,
+  ) {
+    const postIds = postIdsStr?.split(',').map((s) => s.trim()).filter(Boolean) ?? [];
+    const topicSlugs = topicSlugsStr?.split(',').map((s) => s.trim()).filter(Boolean) ?? [];
+    return this.postsService.getSourcePreviews(postIds, topicSlugs);
+  }
+
   @Get(':id')
   @UseGuards(OptionalJwtAuthGuard)
   async findOne(
@@ -43,7 +54,12 @@ export class PostsController {
   ) {
     const post = await this.postsService.findOne(id, user?.id);
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
-    const plain = postToPlain(post, getImageUrl);
+    const linkedIds = extractLinkedPostIds(post?.body);
+    const referenceMetadata =
+      linkedIds.length > 0
+        ? await this.postsService.getTitlesForPostIds(linkedIds)
+        : undefined;
+    const plain = postToPlain(post, getImageUrl, referenceMetadata);
     return plain ?? {};
   }
 
@@ -54,7 +70,9 @@ export class PostsController {
 
   @Get(':id/referenced-by')
   async getReferencedBy(@Param('id', ParseUUIDPipe) id: string) {
-    return this.postsService.getReferencedBy(id);
+    const posts = await this.postsService.getReferencedBy(id);
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+    return posts.map((p) => postToPlain(p, getImageUrl)).filter(Boolean);
   }
 
   @Get(':id/quotes')

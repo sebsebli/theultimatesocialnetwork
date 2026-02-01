@@ -6,18 +6,19 @@ import { PostItem, type Post } from "./post-item";
 import { SavedByItem } from "./saved-by-item";
 import { InviteNudge } from "./invite-nudge";
 import { UserCard } from "./user-card";
+import { useToast } from "@/components/ui/toast";
 
 interface FeedItemShape {
   type: string;
   data?:
-    | Post
-    | {
-        post: Post;
-        userId: string;
-        userName: string;
-        collectionId: string;
-        collectionName: string;
-      };
+  | Post
+  | {
+    post: Post;
+    userId: string;
+    userName: string;
+    collectionId: string;
+    collectionName: string;
+  };
 }
 
 interface FeedListProps {
@@ -25,9 +26,12 @@ interface FeedListProps {
 }
 
 export function FeedList({ initialPosts }: FeedListProps) {
+  const { error: showError } = useToast();
   const [posts, setPosts] = useState<(Post | FeedItemShape)[]>(initialPosts);
   const [page, setPage] = useState(1);
+  const [cursor, setCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [suggestions, setSuggestions] = useState<
     {
@@ -66,14 +70,19 @@ export function FeedList({ initialPosts }: FeedListProps) {
     try {
       const nextPage = page + 1;
       const limit = 20;
-      const offset = (nextPage - 1) * limit;
+      const offset = cursor ? 0 : (nextPage - 1) * limit;
+      const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+      if (cursor) params.set("cursor", cursor);
 
-      const res = await fetch(`/api/feed?limit=${limit}&offset=${offset}`);
+      const res = await fetch(`/api/feed?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         const newItems = Array.isArray(data) ? data : data.items || [];
 
-        if (newItems.length < limit) {
+        if (data.nextCursor) {
+          setCursor(data.nextCursor);
+          setHasMore(true);
+        } else if (newItems.length < limit) {
           setHasMore(false);
         }
 
@@ -84,7 +93,8 @@ export function FeedList({ initialPosts }: FeedListProps) {
       }
     } catch (e) {
       console.error("Failed to load more posts", e);
-      setHasMore(false);
+      setLoadMoreError(true);
+      showError("Couldn’t load more. Try again.");
     } finally {
       setLoading(false);
     }
@@ -113,7 +123,7 @@ export function FeedList({ initialPosts }: FeedListProps) {
 
   if (posts.length === 0) {
     return (
-      <div className="py-12 px-6 flex flex-col items-center max-w-md mx-auto">
+      <div className="py-12 md:py-16 px-6 md:px-8 flex flex-col items-center max-w-md mx-auto">
         <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6">
           <svg
             className="w-8 h-8 text-secondary"
@@ -203,13 +213,20 @@ export function FeedList({ initialPosts }: FeedListProps) {
       </div>
 
       {hasMore && (
-        <div className="p-6 flex justify-center">
+        <div className="p-6 flex flex-col items-center gap-3">
+          {loadMoreError && (
+            <p className="text-sm text-secondary text-center">
+              Something went wrong. Try again below.
+            </p>
+          )}
           <button
             onClick={loadMore}
             disabled={loading}
-            className="px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-secondary hover:text-primary hover:border-primary/30 transition-all font-medium text-sm disabled:opacity-50"
+            aria-busy={loading}
+            aria-label={loading ? "Loading more posts" : "Load more posts"}
+            className="min-h-[44px] min-w-[120px] px-6 py-2.5 rounded-full bg-white/5 border border-white/10 text-secondary hover:text-primary hover:border-primary/30 transition-all font-medium text-sm disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
           >
-            {loading ? "Loading..." : "Load more"}
+            {loading ? "Loading…" : "Load more"}
           </button>
         </div>
       )}

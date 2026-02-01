@@ -16,11 +16,11 @@ for i in {1..30}; do
   sleep 2
 done
 
-# Try to pull fast models
+# Try to pull fast models (text, vision, embeddings)
 echo "Downloading models..."
 ollama pull qwen2-vl
 ollama pull qwen2.5:0.5b
-
+ollama pull qwen3-embedding:0.6b
 
 # Keep Ollama running
 wait
