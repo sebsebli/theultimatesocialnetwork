@@ -5,7 +5,7 @@ export class AddAccountDeletionRequests1770400000000 implements MigrationInterfa
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TABLE "account_deletion_requests" (
+      CREATE TABLE IF NOT EXISTS "account_deletion_requests" (
         "id" uuid NOT NULL,
         "user_id" uuid NOT NULL,
         "token" uuid NOT NULL,
@@ -19,10 +19,10 @@ export class AddAccountDeletionRequests1770400000000 implements MigrationInterfa
       )
     `);
     await queryRunner.query(
-      `CREATE INDEX "IDX_account_deletion_requests_user_id" ON "account_deletion_requests" ("user_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_account_deletion_requests_user_id" ON "account_deletion_requests" ("user_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_account_deletion_requests_token" ON "account_deletion_requests" ("token")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_account_deletion_requests_token" ON "account_deletion_requests" ("token")`,
     );
   }
 

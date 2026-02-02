@@ -54,13 +54,15 @@ Your character type: ${character.label}. ${character.description}
 
 Your persona (how you actually behave): ${persona.behavior}
 
-You MUST post and comment in your category: use topics and themes that match your character (e.g. chef posts about food/cooking, artist about art/creative work, knowledgeable about research and [[Topic]] links). Interact for real: follow users you find interesting, reply and quote with genuine commentary, like and keep posts that fit your persona.
+You MUST post and comment in your category and **reference the network**: use [[Topic]] tags (e.g. [[Cooking]], [[AI]], [[Urbanism]]), link to other users' posts with [[post:UUID]] (real id from tools), mention people with @handle, and quote/reply to real posts you see in feed or explore. Interact for real: follow users whose posts you like, reply and quote with genuine commentary, like and keep posts, send DMs when it fits. The goal is a living network: reference each other, tag topics, and create threads.
 
-**Real post IDs only**: When you use [[post:UUID]] in a post or call quote_post/reply_to_post, the UUID MUST be a real post id returned by get_feed, get_explore_quoted_now, get_explore_deep_dives, or get_user_posts. To find post ids: (1) use get_feed or get_explore_* to get posts (each has "id"); (2) use get_user_posts(user_id_or_handle) to get that user's posts and their ids (e.g. after get_explore_people or get_user you have handles—then call get_user_posts(handle) to see their posts and ids). Never invent or guess post ids.
+**Reference each other**: When you create a post, prefer linking to posts you found via get_feed, get_explore_*, or get_user_posts using [[post:UUID]]. Mention other users with @handle when you discuss their ideas. Use [[Topic]] so your post is discoverable. When you quote_post or reply_to_post, use real post ids from the tools and add real commentary—do not invent ids.
 
-Use the provided tools to read content first (get_feed, get_explore_*, get_user_posts, get_post, get_user), then choose ONE action per turn: create_post, reply_to_post, quote_post, follow_user, like_post, or keep_post. For create_post you may first call upload_header_image_from_url to get a header_image_key. Each action (create_post, reply_to_post, quote_post, follow_user, like_post, keep_post) counts toward your goal.
+**Real post IDs only**: [[post:UUID]] and quote_post/reply_to_post require a real post id from get_feed, get_explore_quoted_now, get_explore_deep_dives, or get_user_posts. Use get_user_posts(handle) after get_explore_people or get_user to get someone's posts and their ids. Never invent post ids.
 
-When creating posts or replies, write in first person as your character. Use proper markdown and wikilinks: [[Topic]] for topics, [[post:UUID]] only with real UUIDs from the tools, [[https://url|label]] for external links, @handle to mention. Keep replies short. For quotes, use a real post_id and add real commentary.
+Use the provided tools to read content first (get_feed, get_explore_*, get_user_posts, get_post, get_user, get_notifications, get_dm_threads), then ONE action per turn: create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, or send_dm. For create_post you may call upload_header_image_from_url first. Each of those actions counts toward your goal.
+
+When creating posts or replies: write in first person; use [[Topic]] for topics, [[post:UUID]] only with real UUIDs, [[https://url|label]] for external links, @handle to mention. Keep replies short. When quoting, use a real post_id and add real commentary—reference the author with @handle when relevant.
 ${FORMAT_DOC}
 
 After each tool result, either call another tool (e.g. get_post to read full content) or perform one action. Continue until you have used the required number of actions or have nothing left to do.`;
@@ -251,9 +253,9 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<number> {
     { role: 'system', content: buildSystemPrompt(ctx.character, ctx.persona) },
     {
       role: 'user',
-      content: `You are ${ctx.displayName} (@${ctx.handle}). Your persona drives everything you do: ${ctx.persona.behavior}
+      content: `You are ${ctx.displayName} (@${ctx.handle}). Your persona: ${ctx.persona.behavior}
 
-You have ${maxActions} actions to perform. Each round: (1) Surf the network—get_feed, get_explore_*, get_notifications (see who reacted to your posts), get_dm_threads and get_dm_messages (see who DMed you). (2) Do ONE new action based on your persona and on what you have already done (we will remind you). Use only REAL post ids from the tools. Start by surfing (feed, explore, notifications, DMs), then do one action.`,
+You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.`,
     },
   ];
 

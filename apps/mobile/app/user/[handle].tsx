@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform, useWindowDimensions, type DimensionValue } from 'react-native';
+import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform, useWindowDimensions, StyleSheet, type DimensionValue } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -146,6 +146,10 @@ export default function UserProfileScreen() {
 
   // ... (inside handleFollow)
   const handleFollow = async () => {
+    if (!authUserId) {
+      router.replace('/welcome');
+      return;
+    }
     const prevFollowing = following;
     const prevPending = hasPendingFollowRequest;
     const prevCount = user.followerCount;
@@ -179,6 +183,10 @@ export default function UserProfileScreen() {
   };
 
   const handleMessage = async () => {
+    if (!authUserId) {
+      router.replace('/welcome');
+      return;
+    }
     try {
       const thread = await api.post('/messages/threads', { userId: user.id });
       if (thread && thread.id) {
@@ -294,7 +302,7 @@ export default function UserProfileScreen() {
   if (user.isBlockedByMe) {
     return (
       <View style={styles.container}>
-        <View style={[styles.headerBar, { paddingTop: insets.top + SPACING.s }]}>
+        <View style={[styles.blockedHeaderBar, { paddingTop: insets.top + SPACING.s }]}>
           <Pressable
             onPress={() => router.back()}
             style={styles.iconButton}
@@ -344,21 +352,21 @@ export default function UserProfileScreen() {
         keyExtractor={(item: any) => item.id}
         renderItem={({ item }: { item: any }) => <PostItem post={item} />}
         ListHeaderComponent={
-          <>
-            {/* Header: fixed aspect ratio so draw area matches on every profile */}
-            <View style={[styles.profileTopSection, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
+          <View style={styles.profileListHeader}>
+            <View style={[styles.profileHeaderContainer, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
               {profileHeaderImageUrl ? (
                 <Image
                   source={{ uri: profileHeaderImageUrl }}
-                  style={styles.profileTopBackground}
+                  style={styles.profileHeaderBackground}
                   contentFit="cover"
                   cachePolicy="memory-disk"
                 />
               ) : (
-                <View style={styles.profileTopBackgroundBlack} />
+                <View style={styles.profileHeaderBackgroundBlack} />
               )}
-              <View style={styles.profileTopOverlay} />
-              <View style={[styles.headerBarOverlay, { paddingTop: insets.top + 10 }]}>
+              <View style={styles.profileHeaderOverlay} />
+
+              <View style={[styles.headerBar, { paddingTop: insets.top + 10 }]}>
                 <Pressable
                   onPress={() => router.back()}
                   style={styles.iconButton}
@@ -376,58 +384,56 @@ export default function UserProfileScreen() {
                   <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
                 </Pressable>
               </View>
-            </View>
-            <View style={styles.profileInfoBlock}>
-                <View style={styles.profileHeader}>
-                  <View style={styles.avatarContainer}>
-                    <View style={styles.avatar}>
-                      {(user.avatarKey || user.avatarUrl) ? (
-                        <Image
-                          source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
-                          style={styles.avatarImage}
-                          contentFit="cover"
-                          cachePolicy="memory-disk"
-                        />
-                      ) : (
-                        <Text style={styles.avatarText}>
-                          {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
-                        </Text>
-                      )}
-                    </View>
+
+              <View style={styles.profileHeaderContent}>
+                <View style={styles.avatarContainer}>
+                  <View style={styles.avatar}>
+                    {(user.avatarKey || user.avatarUrl) ? (
+                      <Image
+                        source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
+                        style={styles.avatarImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                    ) : (
+                      <Text style={styles.avatarText}>
+                        {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
+                      </Text>
+                    )}
                   </View>
+                </View>
 
-                  <View style={styles.identityBlock}>
-                    <Text style={styles.name}>{user.displayName}</Text>
-                    <Text style={styles.handle}>@{user.handle}</Text>
-                  </View>
+                <View style={styles.identityBlock}>
+                  <Text style={styles.name}>{user.displayName}</Text>
+                  <Text style={styles.handle}>@{user.handle}</Text>
+                </View>
 
-                  {user.bio ? (
-                    <Text style={styles.bio}>{user.bio}</Text>
-                  ) : null}
+                {user.bio ? (
+                  <Text style={styles.bio}>{user.bio}</Text>
+                ) : null}
 
-                  <View style={styles.actions}>
+                <View style={styles.actions}>
+                  <Pressable
+                    style={[styles.actionButtonOutline, (following || hasPendingFollowRequest) && styles.actionButtonActive]}
+                    onPress={handleFollow}
+                    accessibilityLabel={hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.actionButtonText, (following || hasPendingFollowRequest) && styles.actionButtonTextActive]}>
+                      {hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                    </Text>
+                  </Pressable>
+
+                  {user.followsMe ? (
                     <Pressable
-                      style={[styles.actionButtonOutline, (following || hasPendingFollowRequest) && styles.actionButtonActive]}
-                      onPress={handleFollow}
-                      accessibilityLabel={hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                      style={styles.messageButton}
+                      onPress={handleMessage}
+                      accessibilityLabel={t('profile.message')}
                       accessibilityRole="button"
                     >
-                      <Text style={[styles.actionButtonText, (following || hasPendingFollowRequest) && styles.actionButtonTextActive]}>
-                        {hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
-                      </Text>
+                      <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
                     </Pressable>
-
-                    {user.followsMe ? (
-                      <Pressable
-                        style={styles.messageButton}
-                        onPress={handleMessage}
-                        accessibilityLabel={t('profile.message')}
-                        accessibilityRole="button"
-                      >
-                        <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
-                      </Pressable>
-                    ) : null}
-                  </View>
+                  ) : null}
                 </View>
 
                 <View style={styles.followersFollowingRow}>
@@ -450,6 +456,7 @@ export default function UserProfileScreen() {
                   </Pressable>
                 </View>
               </View>
+            </View>
 
             {user.isProtected && !following ? (
               <View style={styles.privateProfileGate}>
@@ -469,9 +476,9 @@ export default function UserProfileScreen() {
                 ).map((tab) => {
                   const count = tab === 'posts' ? (user.postCount ?? 0)
                     : tab === 'replies' ? (user.replyCount ?? 0)
-                    : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
-                    : tab === 'saved' ? (user.keepsCount ?? 0)
-                    : (user.collectionCount ?? 0);
+                      : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
+                        : tab === 'saved' ? (user.keepsCount ?? 0)
+                          : (user.collectionCount ?? 0);
                   return (
                     <Pressable
                       key={tab}
@@ -489,7 +496,7 @@ export default function UserProfileScreen() {
                 })}
               </View>
             )}
-          </>
+          </View>
         }
         ListEmptyComponent={
           <EmptyState
@@ -587,59 +594,50 @@ const styles = createStyles({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: HEADER.barPaddingHorizontal as DimensionValue,
-    paddingBottom: HEADER.barPaddingBottom as DimensionValue,
-    backgroundColor: COLORS.ink,
+    paddingBottom: SPACING.s,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
-  headerBarOverlay: {
+  blockedHeaderBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: HEADER.barPaddingHorizontal as DimensionValue,
     paddingBottom: HEADER.barPaddingBottom as DimensionValue,
-    zIndex: 10,
-    position: 'relative',
+    backgroundColor: COLORS.ink,
   },
-  profileTopSection: {
+  profileListHeader: {},
+  profileHeaderContainer: {
     position: 'relative',
+    width: '100%',
     overflow: 'hidden',
   },
-  profileInfoBlock: {
+  profileHeaderBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  profileHeaderBackgroundBlack: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: COLORS.ink,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    paddingTop: SPACING.m,
-    paddingBottom: SPACING.l,
   },
-  profileTopBackground: {
+  profileHeaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  profileHeaderContent: {
     position: 'absolute',
     left: 0,
+    right: 0,
+    bottom: 0,
     top: 0,
-    right: 0,
-    bottom: 0,
-    width: '100%',
-    height: '100%',
-  },
-  profileTopOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '70%',
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  profileTopContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    paddingTop: SPACING.m,
     paddingBottom: SPACING.l,
-    position: 'relative',
+    gap: SPACING.l,
     zIndex: 5,
-  },
-  profileTopBackgroundBlack: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: COLORS.ink,
   },
   list: {
     flex: 1,
@@ -647,11 +645,6 @@ const styles = createStyles({
   iconButton: {
     padding: SPACING.s,
     margin: -SPACING.s,
-  },
-  profileHeader: {
-    alignItems: 'center',
-    paddingBottom: SPACING.l,
-    gap: SPACING.l,
   },
   avatarContainer: {
     position: 'relative',

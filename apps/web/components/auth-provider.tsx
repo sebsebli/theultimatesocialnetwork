@@ -68,11 +68,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!user;
 
-  // Redirect logic for client-side navigation
+  // Redirect logic for client-side navigation.
+  // Unauthenticated: only protected routes redirect to "/" (landing). Root always shows landing.
+  // Authenticated on landing/sign-in: redirect to /home.
   useEffect(() => {
     if (isLoading) return;
 
-    const publicRoutes = [
+    const landingAndPublicRoutes = [
       "/",
       "/welcome",
       "/sign-in",
@@ -86,9 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       "/waiting-list",
     ];
     const isPublicRoute =
-      publicRoutes.includes(pathname) ||
+      landingAndPublicRoutes.includes(pathname) ||
+      pathname === "" ||
       pathname.startsWith("/verify") ||
-      pathname.startsWith("/waiting-list");
+      pathname.startsWith("/waiting-list") ||
+      pathname.startsWith("/invite/");
 
     if (!isAuthenticated && !isPublicRoute) {
       router.replace("/");

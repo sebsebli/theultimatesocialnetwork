@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { reportError } from "@/lib/error-reporting";
 
 export default function Error({
   error,
@@ -11,15 +12,19 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Error boundary:", error);
-    }
+    reportError(error, { digest: error.digest });
   }, [error]);
 
   return (
-    <div id="main-content" className="min-h-screen bg-ink flex flex-col items-center justify-center px-6" role="main">
+    <div
+      id="main-content"
+      className="min-h-screen bg-ink flex flex-col items-center justify-center px-6"
+      role="main"
+    >
       <div className="text-center max-w-md">
-        <h1 className="text-2xl font-bold text-paper mb-2">Something went wrong</h1>
+        <h1 className="text-2xl font-bold text-paper mb-2">
+          Something went wrong
+        </h1>
         <p className="text-secondary mb-6">
           We’ve been notified and are looking into it. You can try again or go
           back home.

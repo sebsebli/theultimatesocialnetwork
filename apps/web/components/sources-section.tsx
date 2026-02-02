@@ -82,6 +82,7 @@ function SourcesSectionInner({ postId }: SourcesSectionProps) {
 
   useEffect(() => {
     loadSources();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadSources depends only on postId
   }, [postId]);
 
   const loadSources = async () => {
@@ -140,22 +141,22 @@ function SourcesSectionInner({ postId }: SourcesSectionProps) {
       <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2 tracking-tight">
         Sources
       </h2>
-      <ol className="space-y-4">
-        {sources.map((source, index) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {sources.map((source) => {
           const href = sourceHref(source);
           const label = sourceLabel(source);
           const subtitle = sourceSubtitle(source);
           const isExternal = source.type === "external";
 
           return (
-            <li
+            <Link
               key={`${source.type}-${source.id}`}
-              className="flex items-center gap-4 group"
+              href={href}
+              target={isExternal ? "_blank" : undefined}
+              rel={isExternal ? "noopener noreferrer" : undefined}
+              className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 hover:border-white/10 transition-all group"
             >
-              <span className="text-tertiary text-sm font-mono w-4 shrink-0">
-                {(index + 1).toString().padStart(2, "0")}
-              </span>
-              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0 overflow-hidden">
+              <div className="w-8 h-8 rounded-full bg-divider flex items-center justify-center shrink-0 overflow-hidden text-secondary group-hover:text-primary transition-colors">
                 {source.type === "user" &&
                 (source.avatarKey ?? null) != null ? (
                   <Avatar
@@ -194,7 +195,7 @@ function SourcesSectionInner({ postId }: SourcesSectionProps) {
                   />
                 ) : (
                   <svg
-                    className="w-4 h-4 text-secondary group-hover:text-primary transition-colors"
+                    className="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -236,38 +237,27 @@ function SourcesSectionInner({ postId }: SourcesSectionProps) {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <Link
-                  href={href}
-                  target={isExternal ? "_blank" : undefined}
-                  rel={isExternal ? "noopener noreferrer" : undefined}
-                  className="text-primary hover:text-primaryDark transition-colors font-bold text-base block truncate"
-                >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-tertiary font-medium">
+                    {subtitle ||
+                      (source.type === "external"
+                        ? "External Link"
+                        : "Internal")}
+                  </span>
+                </div>
+                <div className="text-sm font-semibold text-paper truncate group-hover:text-primary transition-colors">
                   {label}
-                  <svg
-                    className="inline-block w-3 h-3 ml-2 opacity-0 group-hover:opacity-50 transition-opacity"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={3}
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                    />
-                  </svg>
-                </Link>
-                {subtitle && (
-                  <div className="text-tertiary text-xs mt-0.5 font-medium opacity-60 truncate">
-                    {subtitle}
-                    {source.type === "external" && ` • ${source.url}`}
+                </div>
+                {subtitle && source.type === "external" && (
+                  <div className="text-xs text-tertiary/70 truncate mt-0.5">
+                    {source.url}
                   </div>
                 )}
               </div>
-            </li>
+            </Link>
           );
         })}
-      </ol>
+      </div>
     </section>
   );
 }

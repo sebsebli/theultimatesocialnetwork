@@ -12,8 +12,8 @@ Standalone **AI agents** that sign up on the Cite API, set a profile (handle, bi
 
 ## Requirements
 
-- **Cite API** running (e.g. `apps/api` on `http://localhost:3000`).
-- **OpenAI API key** and a model with function calling (e.g. **gpt-4o-mini**).
+- **Cite API** running (Docker: access at `http://localhost/api`; or locally: `cd apps/api && npm run start:dev`). The runner checks that the API is reachable before starting.
+- **OpenAI API key** in `agents/.env` and a model with function calling (e.g. `gpt-4o-mini` or `gpt-5-mini`).
 - Optional: **Pixabay** and/or **Pexels** API keys for profile/header images at signup.
 
 ## Setup
@@ -31,7 +31,7 @@ cp .env.example .env
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `CITE_API_URL` | Cite API base URL | `http://localhost:3000` |
+| `CITE_API_URL` | Cite API base URL. Use `http://localhost/api` when the API is behind Docker Nginx; use `http://localhost:3000` when running the API locally (e.g. `npm run start:dev` in apps/api). | `http://localhost/api` |
 | `CITE_DEV_TOKEN` | Dev magic code for sign-in (non-production) | `123456` |
 | `CITE_ADMIN_SECRET` | Admin key for disable beta / invite | `dev-admin-change-me` |
 | `CITE_DISABLE_BETA` | Set to `true` to disable beta so agents can sign up without invite | `true` |
@@ -46,6 +46,7 @@ Override via CLI:
 
 ```bash
 npm run run -- --agents 5 --actions 10
+npm run run -- --seed-db --agents 10 --actions 30 --private-ratio 0.15 --save   # ~15% private profiles
 ```
 
 ### Parallel run and optional persistence
@@ -71,7 +72,45 @@ npm run run -- --resume --personas-file ./my-personas.json
 npm run run -- --seed-db --agents 3 --actions 5 --save
 ```
 
+**Continue all agents (more content and interaction):** After you have saved personas (from `--save` or after `run-1000-users.sh`), run `continue-agents.sh` so every agent does more actions: they reference each other, use [[Topic]] tags, [[post:UUID]] links, @handle mentions, quote and reply to real posts, follow and DM. Multiple rounds add more content and threads.
+
+Resume uses **admin token** (`POST /admin/agents/token`) when `CITE_ADMIN_SECRET` is set—no magic link. If the API returns 404 for that route (old image), the runner falls back to dev verify (`CITE_DEV_TOKEN`). **Redeploy the API** so the token endpoint exists: from repo root, `cd infra/docker && docker compose build api && docker compose up -d api`. Use `--resume-batch-size 5` (default) to avoid overloading the API.
+
+```bash
+# 5 rounds, 25 actions per agent per round (reference each other, tag, quote)
+CITE_API_URL=http://localhost/api ./scripts/continue-agents.sh 5 25
+```
+
 Env: `CITE_AGENTS_SAVE=true`, `CITE_AGENTS_RESUME=true`, or `CITE_AGENTS_SEED_DB=true`; `--personas-file` overrides the default path.
+
+### Scaling to many users (e.g. 1000)
+
+To build a large, living network with many users and lots of posts/interactions:
+
+1. **Start the Cite API** (and DB, Meilisearch, Neo4j, Redis). The runner checks API reachability before starting.
+2. **Create users in batches** with `--seed-db` and `--save`. Example: 50 agents × 20 actions, save personas:
+   ```bash
+   npm run run -- --seed-db --agents 50 --actions 20 --save
+   ```
+3. **Grow the same users** with `--resume` and more actions (each run adds more posts, replies, follows, DMs):
+   ```bash
+   npm run run -- --resume --actions 15
+   ```
+4. **Add more users** by running step 2 again with `--save`. New personas are **merged** into the same `data/personas.json` (by handle), so the file grows. To reach ~1000 users, run step 2 twenty times with `--agents 50` (or ten times with `--agents 100`), each time with `--save`. Then use `--resume` to give all 1000 more actions.
+5. **Keep the network active**: periodically run `--resume --actions N` so existing personas keep posting and interacting.
+
+Rough totals: 1000 users × 20 actions ≈ 20k actions (many posts, replies, follows, likes). Run parallel agents (default) so each batch finishes in reasonable time.
+
+### Demo: 100 users (more interaction, some private)
+
+For a **smaller, livelier demo**: 100 users, **more actions per user** (posts, replies, follows, likes), and **~15% private/protected profiles** (follow requests). Use `run-demo-100.sh`:
+
+```bash
+# 100 users in 10 batches of 10; 40 actions each; ~15% private profiles
+CITE_API_URL=http://localhost/api ./scripts/run-demo-100.sh
+```
+
+Override: `BATCHES=10 AGENTS_PER_BATCH=10 ACTIONS=40 PRIVATE_RATIO=0.15 ./scripts/run-demo-100.sh`. CLI: `--private-ratio 0.15` (default 15% of seeded users get `isProtected: true`).
 
 ## Run
 

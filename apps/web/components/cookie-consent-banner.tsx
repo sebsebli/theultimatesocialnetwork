@@ -65,10 +65,13 @@ export function CookieConsentBanner() {
     <div
       role="dialog"
       aria-label="Cookie consent"
-      aria-live="polite"
-      className="fixed bottom-0 left-0 right-0 z-[100] border-t border-[#1A1A1D] bg-[#0B0B0C]/95 backdrop-blur-md p-4 md:p-6 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]"
+      aria-modal="true"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
     >
-      <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-[#0B0B0C] border border-[#1A1A1D] rounded-xl p-6 md:p-8 max-w-lg w-full shadow-2xl space-y-6">
+        <h2 className="text-xl font-bold text-[#F2F2F2]">
+          {t("title") || "We value your privacy"}
+        </h2>
         <p className="text-sm text-[#A8A8AA] leading-relaxed">
           {t("message")}{" "}
           <Link
@@ -78,20 +81,20 @@ export function CookieConsentBanner() {
             {t("privacyLink")}
           </Link>
         </p>
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={essentialOnly}
-            className="px-4 py-2.5 text-sm font-medium text-[#A8A8AA] hover:text-[#F2F2F2] border border-[#333] hover:border-[#555] rounded-lg transition-colors"
-          >
-            {t("essentialOnly")}
-          </button>
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button
             type="button"
             onClick={acceptAll}
-            className="px-4 py-2.5 text-sm font-medium bg-[#F2F2F2] text-[#0B0B0C] hover:bg-white rounded-lg transition-colors"
+            className="flex-1 px-4 py-3 text-sm font-bold bg-[#F2F2F2] text-[#0B0B0C] hover:bg-white rounded-lg transition-colors"
           >
             {t("acceptAll")}
+          </button>
+          <button
+            type="button"
+            onClick={essentialOnly}
+            className="flex-1 px-4 py-3 text-sm font-medium text-[#A8A8AA] hover:text-[#F2F2F2] border border-[#333] hover:border-[#555] rounded-lg transition-colors"
+          >
+            {t("essentialOnly")}
           </button>
         </div>
       </div>

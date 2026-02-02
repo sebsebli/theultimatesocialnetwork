@@ -15,8 +15,10 @@ function SignInForm() {
   const [showInviteInput, setShowInviteInput] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [token, setToken] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [tempToken, setTempToken] = useState("");
 
-  const [step, setStep] = useState<"email" | "token">("email");
+  const [step, setStep] = useState<"email" | "token" | "2fa">("email");
   const [cooldown, setCooldown] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -69,7 +71,9 @@ function SignInForm() {
     let cancelled = false;
     async function fetchBetaMode() {
       try {
-        const res = await fetch("/api/invites/beta-mode", { cache: "no-store" });
+        const res = await fetch("/api/invites/beta-mode", {
+          cache: "no-store",
+        });
         if (cancelled) return;
         if (res.ok) {
           const data = (await res.json()) as { betaMode?: boolean };
@@ -142,9 +146,7 @@ function SignInForm() {
             data.message === "Please wait before sending another code")
         ) {
           startCooldown();
-          setError(
-            "Please wait 60 seconds before requesting another code.",
-          );
+          setError("Please wait 60 seconds before requesting another code.");
           setLoading(false);
           return;
         }
@@ -176,7 +178,16 @@ function SignInForm() {
         body: JSON.stringify({ email, token }),
       });
       if (!res.ok) throw new Error("Invalid code or expired.");
-      const data = (await res.json()) as { needsOnboarding?: boolean };
+
+      const data = await res.json();
+
+      if (data.twoFactorRequired) {
+        setTempToken(data.tempToken);
+        setStep("2fa");
+        setLoading(false);
+        return;
+      }
+
       if (data.needsOnboarding) {
         if (typeof sessionStorage !== "undefined") {
           sessionStorage.setItem("onboarding_stage", "languages");
@@ -187,6 +198,27 @@ function SignInForm() {
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handle2FALogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/2fa/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: totpCode, tempToken }),
+      });
+
+      if (!res.ok) throw new Error("Invalid 2FA code.");
+
+      window.location.href = "/home";
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "2FA Verification failed");
     } finally {
       setLoading(false);
     }
@@ -205,6 +237,53 @@ function SignInForm() {
     "w-full h-14 bg-primary hover:bg-primaryDark text-ink font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]";
   const buttonSecondary =
     "w-full h-14 border border-divider bg-transparent hover:bg-white/5 text-paper font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+
+  if (step === "2fa") {
+    return (
+      <div className="space-y-6 animate-in fade-in w-full max-w-md">
+        <div className="text-center space-y-2">
+          <h1 className="text-[28px] font-serif font-semibold text-paper tracking-tight">
+            Two-Factor Auth
+          </h1>
+          <p className="text-secondary text-base">
+            Enter the code from your authenticator app.
+          </p>
+        </div>
+
+        <form onSubmit={handle2FALogin} className="space-y-6">
+          {error && (
+            <div className={errorBoxClass} style={errorBoxStyle}>
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={totpCode}
+              onChange={(e) =>
+                setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              className={`${inputClass} text-center text-2xl tracking-[0.4em] font-mono`}
+              placeholder="000000"
+              autoFocus
+              maxLength={6}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || totpCode.length < 6}
+            className={`${buttonPrimary} min-h-[44px]`}
+          >
+            {loading ? "Verifying..." : "Verify"}
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   if (step === "token") {
     return (
@@ -302,7 +381,10 @@ function SignInForm() {
       )}
 
       <div className="space-y-2">
-        <label htmlFor="email" className="block text-sm font-medium text-secondary">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-secondary"
+        >
           Email
         </label>
         <input

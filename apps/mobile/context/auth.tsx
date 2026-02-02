@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   getAuthToken,
@@ -7,6 +7,7 @@ import {
   getOnboardingComplete,
   setOnboardingComplete as persistOnboardingComplete,
   clearOnboardingComplete as clearOnboardingCompleteStorage,
+  setOnUnauthorized,
   api,
 } from '../utils/api';
 import { registerForPush } from '../utils/push-notifications';
@@ -45,6 +46,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const signOutRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
+  // When any API returns 401 (invalid/expired token or revoked session), sign out and go to welcome
+  useEffect(() => {
+    setOnUnauthorized(() => signOutRef.current?.());
+    return () => setOnUnauthorized(null);
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -74,12 +82,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           registerForPush(token).catch(err => console.warn('Push registration failed', err));
         } catch (apiError: any) {
           const status = apiError?.status;
-          // Only sign out on 401 (invalid/expired token). 403/404 (e.g. onboarding, route not found) must NOT sign out the user.
-          if (status === 401) {
+          const message = String(apiError?.message ?? '').toLowerCase();
+          const userNoLongerExists = status === 404 || message.includes('user no longer exists');
+          // Backend: GET /users/me returns 401 (invalid/expired/revoked token), 404 "User no longer exists" (deleted account).
+          // Sign out and go to welcome for both; otherwise treat as offline and keep session.
+          if (status === 401 || userNoLongerExists) {
             await clearApiToken();
+            await clearOnboardingCompleteStorage();
             setIsAuthenticated(false);
             setOnboardingComplete(null);
             setUserId(null);
+            router.replace('/welcome');
           } else {
             // Stored session valid; treat as offline but logged in — use storage for onboarding state
             if (__DEV__) {
@@ -134,6 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserId(null);
     router.replace('/welcome');
   };
+  signOutRef.current = signOut;
 
   const completeOnboarding = async () => {
     await persistOnboardingComplete();

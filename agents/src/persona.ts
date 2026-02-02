@@ -50,7 +50,7 @@ Return only the JSON object.`;
       { role: 'system', content: sys },
       { role: 'user', content: user },
     ],
-    temperature: 0.8,
+    // Omit temperature: some models (e.g. gpt-5-mini) only support default (1).
   });
 
   const content = response.choices?.[0]?.message?.content?.trim() ?? '';

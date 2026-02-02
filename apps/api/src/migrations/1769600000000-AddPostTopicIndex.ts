@@ -5,7 +5,7 @@ export class AddPostTopicIndex1769600000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE INDEX "IDX_post_topics_topic_id" ON "post_topics" ("topic_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_post_topics_topic_id" ON "post_topics" ("topic_id")`,
     );
   }
 

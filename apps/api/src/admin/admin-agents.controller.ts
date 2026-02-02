@@ -17,4 +17,9 @@ export class AdminAgentsController {
   async seed(@Body() body: SeedAgentDto): Promise<SeedAgentResult> {
     return this.adminAgentsService.seedAgent(body);
   }
+
+  @Post('token')
+  async token(@Body() body: { email: string }): Promise<SeedAgentResult> {
+    return this.adminAgentsService.getTokenForEmail(body.email);
+  }
 }

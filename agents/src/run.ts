@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import 'dotenv/config';
 /**
  * Spawn N AI agents (optionally in parallel). For each agent:
  * 1. Create a persona (LLM generates handle, displayName, bio, behavior from character type).
@@ -46,6 +47,8 @@ function getConfig() {
   let save = env.CITE_AGENTS_SAVE === 'true' || env.CITE_AGENTS_SAVE === '1';
   let resume = env.CITE_AGENTS_RESUME === 'true' || env.CITE_AGENTS_RESUME === '1';
   let seedDb = env.CITE_AGENTS_SEED_DB === 'true' || env.CITE_AGENTS_SEED_DB === '1';
+  let resumeBatchSize = parseInt(env.CITE_AGENTS_RESUME_BATCH_SIZE ?? '5', 10);
+  let privateRatio = parseFloat(env.CITE_AGENTS_PRIVATE_RATIO ?? '0.15');
   let personasFile: string | undefined;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--agents' && args[i + 1]) {
@@ -60,13 +63,19 @@ function getConfig() {
       resume = true;
     } else if (args[i] === '--seed-db') {
       seedDb = true;
+    } else if (args[i] === '--resume-batch-size' && args[i + 1]) {
+      resumeBatchSize = Math.max(1, parseInt(args[i + 1], 10));
+      i++;
+    } else if (args[i] === '--private-ratio' && args[i + 1]) {
+      privateRatio = Math.max(0, Math.min(1, parseFloat(args[i + 1])));
+      i++;
     } else if (args[i] === '--personas-file' && args[i + 1]) {
       personasFile = args[i + 1];
       i++;
     }
   }
   return {
-    citeApiUrl: env.CITE_API_URL ?? 'http://localhost:3000',
+    citeApiUrl: env.CITE_API_URL ?? 'http://localhost/api',
     citeAdminSecret: env.CITE_ADMIN_SECRET ?? 'dev-admin-change-me',
     citeDevToken: env.CITE_DEV_TOKEN ?? '123456',
     disableBeta: env.CITE_DISABLE_BETA === 'true' || env.CITE_DISABLE_BETA === '1',
@@ -79,6 +88,8 @@ function getConfig() {
     save,
     resume,
     seedDb,
+    resumeBatchSize: Math.max(1, resumeBatchSize),
+    privateRatio,
     personasFile: personasFile ?? getPersonasFilePath(),
   };
 }
@@ -104,8 +115,23 @@ async function runResumedAgent(
 
   let token: string;
   try {
-    const auth = await devSignup(api, stored.email, config.citeDevToken);
-    token = auth.accessToken;
+    if (config.citeAdminSecret) {
+      try {
+        const auth = await api.getAgentToken(stored.email);
+        token = auth.accessToken;
+      } catch (adminErr: unknown) {
+        const msg = adminErr instanceof Error ? adminErr.message : String(adminErr);
+        if (msg.includes('404') || msg.includes('Cannot POST')) {
+          const auth = await devSignup(api, stored.email, config.citeDevToken);
+          token = auth.accessToken;
+        } else {
+          throw adminErr;
+        }
+      }
+    } else {
+      const auth = await devSignup(api, stored.email, config.citeDevToken);
+      token = auth.accessToken;
+    }
   } catch (e) {
     console.error(`[${index + 1}/${total}] Re-auth failed for @${stored.handle}:`, (e as Error).message);
     return 0;
@@ -151,7 +177,10 @@ async function main() {
     console.log('  Personas file:', config.personasFile);
   } else {
     console.log('  Agents (parallel):', config.agentsCount);
-    if (config.seedDb) console.log('  Seed DB: yes (profiles written directly, Meilisearch + Neo4j)');
+    if (config.seedDb) {
+      console.log('  Seed DB: yes (profiles written directly, Meilisearch + Neo4j)');
+      if (config.privateRatio > 0) console.log('  Private profiles (isProtected):', Math.round(config.privateRatio * 100) + '%');
+    }
     if (config.save) console.log('  Save personas: yes');
   }
   if (!config.openaiApiKey) {
@@ -162,6 +191,10 @@ async function main() {
     console.error('CITE_ADMIN_SECRET is required when using --seed-db.');
     process.exit(1);
   }
+  if (config.resume && !config.citeAdminSecret && !config.citeDevToken) {
+    console.error('For --resume set CITE_ADMIN_SECRET (for admin token) or CITE_DEV_TOKEN (for dev verify).');
+    process.exit(1);
+  }
   const openai = new OpenAI({ apiKey: config.openaiApiKey });
 
   const api = createApiClient({
@@ -169,6 +202,36 @@ async function main() {
     adminKey: config.citeAdminSecret,
     devToken: config.citeDevToken,
   });
+
+  const maxApiRetries = 5;
+  const apiRetryDelayMs = 5000;
+  let apiOk = false;
+  for (let attempt = 1; attempt <= maxApiRetries; attempt++) {
+    try {
+      await api.checkHandleAvailable('_test_');
+      apiOk = true;
+      break;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const is502OrUnavailable = msg.includes('502') || msg.includes('fetch failed') || msg.includes('ECONNREFUSED');
+      if (is502OrUnavailable && attempt < maxApiRetries) {
+        console.warn(`API not ready (${msg.slice(0, 60)}...). Retry ${attempt}/${maxApiRetries} in ${apiRetryDelayMs / 1000}s.`);
+        await new Promise((r) => setTimeout(r, apiRetryDelayMs));
+        continue;
+      }
+      if (msg.includes('fetch failed') || msg.includes('ECONNREFUSED')) {
+        console.error('Cite API is not reachable at', config.citeApiUrl);
+        console.error('Start the API (e.g. from apps/api: npm run start:dev) and try again.');
+      } else if (msg.includes('404') || msg.includes('<!DOCTYPE html>')) {
+        console.error('Got 404 or HTML from', config.citeApiUrl, '— wrong server or path.');
+        console.error('Set CITE_API_URL to the API base (e.g. http://localhost/api for Docker, http://localhost:3000 for local API), not the web app.');
+      } else {
+        console.error('API check failed:', msg.slice(0, 200));
+      }
+      process.exit(1);
+    }
+  }
+  if (!apiOk) process.exit(1);
 
   if (config.disableBeta) {
     try {
@@ -190,12 +253,19 @@ async function main() {
       console.log('No personas found in', config.personasFile, '— run without --resume and use --save first.');
       return;
     }
-    console.log(`Resuming ${personas.length} persona(s) in parallel...\n`);
-    await Promise.all(
-      personas.map((stored, i) =>
-        runResumedAgent(i, personas.length, config, openai, api, stored),
-      ),
-    );
+    const batchSize = config.resumeBatchSize;
+    console.log(`Resuming ${personas.length} persona(s) in batches of ${batchSize}...\n`);
+    for (let offset = 0; offset < personas.length; offset += batchSize) {
+      const chunk = personas.slice(offset, offset + batchSize);
+      await Promise.all(
+        chunk.map((stored, j) =>
+          runResumedAgent(offset + j, personas.length, config, openai, api, stored),
+        ),
+      );
+      if (offset + batchSize < personas.length) {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
     console.log('\nAll resumed agents finished.');
     return;
   }
@@ -245,10 +315,12 @@ async function main() {
       let storedEmail: string;
       if (config.seedDb) {
         try {
+          const isProtected = Math.random() < config.privateRatio;
           const auth = await api.seedAgent({
             handle: persona.handle,
             displayName: persona.displayName,
             bio: persona.bio,
+            isProtected,
           });
           token = auth.accessToken;
           storedEmail = (auth.user as { email?: string }).email ?? email;
@@ -354,9 +426,14 @@ async function main() {
 
   const succeeded = results.filter((r): r is NonNullable<typeof r> => r != null);
   if (config.save && succeeded.length > 0) {
-    const toSave = succeeded.map((r) => r.stored);
-    await savePersonas(config.personasFile, toSave);
-    console.log('\nSaved', toSave.length, 'persona(s) to', config.personasFile);
+    const newPersonas = succeeded.map((r) => r.stored);
+    const existing = await loadPersonas(config.personasFile);
+    const byHandle = new Map<string, StoredPersona>();
+    for (const p of existing) byHandle.set(p.handle, p);
+    for (const p of newPersonas) byHandle.set(p.handle, p);
+    const merged = Array.from(byHandle.values());
+    await savePersonas(config.personasFile, merged);
+    console.log('\nSaved', merged.length, 'persona(s) to', config.personasFile, `(${newPersonas.length} new this run)`);
     console.log('Next time run: npm run run -- --resume --actions', config.actionsPerAgent);
   }
 

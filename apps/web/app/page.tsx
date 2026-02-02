@@ -1,15 +1,22 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { LandingPage } from "@/components/landing-page";
-// import { cookies } from 'next/headers';
-// import { redirect } from 'next/navigation';
 
-export default async function Home() {
-  // const token = (await cookies()).get('token')?.value;
-  
-  // If authenticated, redirect to home feed
-  // if (token) {
-  //   redirect('/home');
-  // }
-  
-  // Show landing page for unauthenticated users
-  return <LandingPage />;
+/**
+ * Root route:
+ * - If authenticated and no 'show_landing' param, redirect to /home.
+ * - Otherwise show LandingPage (with isAuthenticated state).
+ */
+export default async function Home(props: {
+  searchParams: Promise<{ show_landing?: string }>;
+}) {
+  const searchParams = await props.searchParams;
+  const token = (await cookies()).get("token")?.value;
+  const isAuthenticated = !!token && token.length > 0;
+
+  if (isAuthenticated && !searchParams.show_landing) {
+    redirect("/home");
+  }
+
+  return <LandingPage isAuthenticated={isAuthenticated} />;
 }

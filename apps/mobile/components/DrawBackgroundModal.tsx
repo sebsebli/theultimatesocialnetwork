@@ -12,14 +12,16 @@ import {
   type ColorValue,
   type TextStyle,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, PROFILE_HEADER_ASPECT_RATIO, HEADER, MODAL, DRAW_CANVAS_OPACITY, createStyles } from '../constants/theme';
-import { api } from '../utils/api';
+import { COLORS, SPACING, PROFILE_HEADER_ASPECT_RATIO, HEADER, MODAL, FONTS, LAYOUT, SIZES, createStyles } from '../constants/theme';
+import { api, getImageUrl } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { formatCompactNumber } from '../utils/format';
 
 type Point = { x: number; y: number };
 type Stroke = Point[];
@@ -38,9 +40,10 @@ export interface DrawBackgroundModalProps {
   onSaved: (key: string, url?: string) => void;
   /** Current profile header image URL so user can see where they are drawing */
   profileHeaderUrl?: string | null;
+  user?: any;
 }
 
-export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUrl }: DrawBackgroundModalProps) {
+export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUrl, user }: DrawBackgroundModalProps) {
   const { t } = useTranslation();
   const { showError, showSuccess } = useToast();
   const insets = useSafeAreaInsets();
@@ -139,6 +142,50 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
         />
         {/* Draw area: same size/ratio as profile header; transparent so profile is visible behind */}
         <View style={[styles.canvasWrap, { width: canvasWidth, height: canvasHeight }]}>
+          {/* Ghost Profile Info (Visual Guide) - Rendered BEHIND drawing surface but visible through transparent stroke layer */}
+          {user && (
+            <View style={styles.ghostContent} pointerEvents="none">
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatar}>
+                  {(user.avatarKey || user.avatarUrl) ? (
+                    <Image
+                      source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
+                      style={styles.avatarImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  ) : (
+                    <Text style={styles.avatarText}>
+                      {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.identityBlock}>
+                <Text style={styles.name}>{user.displayName}</Text>
+                <Text style={styles.handle}>@{user.handle}</Text>
+              </View>
+
+              {user.bio ? (
+                <Text style={styles.bio} numberOfLines={3}>{user.bio}</Text>
+              ) : null}
+
+              {/* Placeholder for actions to match spacing */}
+              <View style={styles.actionPlaceholder} />
+
+              <View style={styles.followersFollowingRow}>
+                <Text style={styles.followersFollowingText}>
+                  {formatCompactNumber(user.followerCount ?? 0)} {t('profile.followers').toLowerCase()}
+                </Text>
+                <Text style={styles.followersFollowingText}> · </Text>
+                <Text style={styles.followersFollowingText}>
+                  {formatCompactNumber(user.followingCount ?? 0)} {t('profile.following').toLowerCase()}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Transparent background so profile header shows through; overlay + strokes on top */}
           <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight }]}>
             <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight, backgroundColor: OVERLAY_BG }]} {...panResponder.panHandlers}>
@@ -289,5 +336,91 @@ const styles = createStyles({
   },
   btnDisabled: {
     opacity: 0.6,
+  },
+  ghostContent: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingBottom: SPACING.l,
+    gap: SPACING.l,
+    zIndex: 0, // Behind drawing strokes but visible
+  },
+  avatarContainer: {
+    position: 'relative',
+    width: 96,
+    height: 96,
+    marginBottom: SPACING.xs,
+  },
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: COLORS.divider,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.divider,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 48,
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  identityBlock: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    letterSpacing: -0.5,
+  },
+  handle: {
+    fontSize: 14,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.medium,
+  },
+  bio: {
+    fontSize: 15,
+    color: COLORS.paper,
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: 320,
+    fontFamily: FONTS.regular,
+    opacity: 0.9,
+  },
+  actionPlaceholder: {
+    height: 38,
+    width: 120, // Approximate button width
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: COLORS.tertiary,
+    opacity: 0.3, // Dim placeholder
+    marginTop: SPACING.xs,
+  },
+  followersFollowingRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xs,
+    gap: 2,
+  },
+  followersFollowingText: {
+    fontSize: 12,
+    fontFamily: FONTS.medium,
+    color: COLORS.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

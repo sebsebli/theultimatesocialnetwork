@@ -5,18 +5,27 @@ export class AddModerationRecords1770800000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      CREATE TYPE "moderation_records_target_type_enum" AS ENUM('POST', 'REPLY')
+      DO $$ BEGIN
+        CREATE TYPE "moderation_records_target_type_enum" AS ENUM('POST', 'REPLY');
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
     `);
     await queryRunner.query(`
-      CREATE TYPE "moderation_records_reason_code_enum" AS ENUM(
-        'SPAM', 'ADVERTISING', 'HARASSMENT', 'REPEATED', 'VIOLENCE', 'HATE', 'OTHER'
-      )
+      DO $$ BEGIN
+        CREATE TYPE "moderation_records_reason_code_enum" AS ENUM(
+          'SPAM', 'ADVERTISING', 'HARASSMENT', 'REPEATED', 'VIOLENCE', 'HATE', 'OTHER'
+        );
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
     `);
     await queryRunner.query(`
-      CREATE TYPE "moderation_records_source_enum" AS ENUM('ASYNC_CHECK', 'REPORT_THRESHOLD')
+      DO $$ BEGIN
+        CREATE TYPE "moderation_records_source_enum" AS ENUM('ASYNC_CHECK', 'REPORT_THRESHOLD');
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
     `);
     await queryRunner.query(`
-      CREATE TABLE "moderation_records" (
+      CREATE TABLE IF NOT EXISTS "moderation_records" (
         "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "target_type" "moderation_records_target_type_enum" NOT NULL,
         "target_id" uuid NOT NULL,
@@ -31,16 +40,16 @@ export class AddModerationRecords1770800000000 implements MigrationInterface {
       )
     `);
     await queryRunner.query(
-      `CREATE INDEX "IDX_moderation_records_target_type" ON "moderation_records" ("target_type")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_moderation_records_target_type" ON "moderation_records" ("target_type")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_moderation_records_target_id" ON "moderation_records" ("target_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_moderation_records_target_id" ON "moderation_records" ("target_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_moderation_records_author_id" ON "moderation_records" ("author_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_moderation_records_author_id" ON "moderation_records" ("author_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_moderation_records_created_at" ON "moderation_records" ("created_at")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_moderation_records_created_at" ON "moderation_records" ("created_at")`,
     );
   }
 

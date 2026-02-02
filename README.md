@@ -49,11 +49,11 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Access the application:
-- **Web App:** http://localhost:3001
-- **API:** http://localhost:3000
-- **API Docs:** http://localhost:3000/api/docs
-- **Nginx (Reverse Proxy):** http://localhost
+Access the application (only Nginx is exposed; use these URLs):
+- **Web App:** http://localhost
+- **API:** http://localhost/api
+- **API Docs:** http://localhost/api/docs
+- **Health:** http://localhost/health
 
 See [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md) for detailed deployment instructions.
 
@@ -100,5 +100,6 @@ Translations are managed in:
 
 ## 📚 API Documentation
 
-Once the API is running, visit:
-`http://localhost:3000/api/docs`
+Once the stack is running (Docker or local API), visit:
+- **Docker:** http://localhost/api/docs
+- **Local API (e.g. `npm run start:dev` in apps/api):** http://localhost:3000/api/docs

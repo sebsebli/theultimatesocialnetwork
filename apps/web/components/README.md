@@ -22,6 +22,7 @@ These components use `memo(Inner)` and are exported as named constants (e.g. `ex
 | **PostDetail** | Full post view with actions |
 | **ExploreContent** | Explore tabs and content |
 | **TopicPage** | Topic page with posts and follow |
+| **ComposeContent** | Compose editor (quote/reply/new post) |
 | **ReadingMode** | Reading-mode post layout |
 | **PublicSignInBar** | “Sign in” bar for public views |
 | **DesktopSidebar** | Main app sidebar (nav, logo) |

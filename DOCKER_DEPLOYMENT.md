@@ -48,18 +48,27 @@ curl http://localhost/health
 
 The Docker Compose setup includes:
 
-### Core Services
-- **PostgreSQL** (port 5433): Main database
-- **Neo4j** (ports 7474, 7687): Graph database
-- **Redis** (port 6379): Caching and rate limiting
-- **Meilisearch** (port 7700): Search engine
-- **MinIO** (ports 9000, 9001): Object storage
-- **Ollama** (port 11434): AI model server
+### Network exposure
+**Only Nginx (ports 80, 443) is exposed to the host.** All other services (PostgreSQL, Neo4j, Redis, Meilisearch, MinIO, Ollama, API, Web) are internal to the Docker network. Access the app and API only through Nginx:
 
-### Application Services
-- **API** (port 3000): NestJS backend
-- **Web** (port 3001): Next.js frontend
-- **Nginx** (ports 80, 443): Reverse proxy
+- **Web app:** http://localhost
+- **API base:** http://localhost/api
+- **API docs:** http://localhost/api/docs
+- **Health:** http://localhost/health
+- **Metrics:** http://localhost/api/metrics (when `METRICS_SECRET` is set, use header or Bearer)
+
+### Core Services (internal)
+- **PostgreSQL:** Main database (no host port)
+- **Neo4j:** Graph database (no host port)
+- **Redis:** Caching and rate limiting (no host port)
+- **Meilisearch:** Search engine (no host port)
+- **MinIO:** Object storage (no host port)
+- **Ollama:** AI model server (no host port)
+
+### Application Services (internal)
+- **API:** NestJS backend (proxied at `/api`)
+- **Web:** Next.js frontend (proxied at `/`)
+- **Nginx:** Reverse proxy (ports 80, 443)
 
 ## Building Images
 
@@ -112,11 +121,11 @@ Data is persisted in `infra/docker/volumes/`:
 - `volumes/ollama/`: Ollama models
 - `volumes/backups/`: Full backups (PostgreSQL + Neo4j + MinIO)
 
-## Full Backups (PostgreSQL + Neo4j + MinIO)
+## Full Backups (PostgreSQL, Neo4j, Meilisearch, MinIO, Redis, volumes)
 
-Automatic **complete** backups run every 6 hours and are kept for 7 days by default.
+### Scheduled backups (Docker service)
 
-Each run creates a timestamped directory under `volumes/backups/`:
+The **backup-full** service runs automatically every 6 hours and is kept for 7 days by default. It creates a timestamped directory under `volumes/backups/`:
 - `full_YYYYMMDD_HHMMSS/postgres_<db>.sql.gz` – PostgreSQL dump
 - `full_YYYYMMDD_HHMMSS/neo4j.cypher` – Neo4j graph (Cypher export)
 - `full_YYYYMMDD_HHMMSS/minio_<bucket>/` – MinIO bucket contents (e.g. images)
@@ -124,9 +133,19 @@ Each run creates a timestamped directory under `volumes/backups/`:
 
 The `backup-full` service depends on `db`, `neo4j`, and `minio`. Retention is controlled by `FULL_BACKUP_KEEP_DAYS` (default 7).
 
+### Manual full dump (password-confirmed)
+
+To create a full dump on demand (PostgreSQL, Neo4j, Meilisearch, MinIO, Redis, and raw volume files), from the **repo root** run:
+
+```bash
+./scripts/dump-all-data.sh
+```
+
+You will be prompted to enter a password to confirm. Output is written to `infra/docker/volumes/backups/full_YYYYMMDD_HHMMSS/`. Restore with `./infra/docker/restore-full.sh <path-to-that-dir>` (see below). Prerequisites: Docker stack running; run from repo root; `infra/docker/.env` used for credentials.
+
 ### Restore from a full backup
 
-Use this after a failure or compromise to restore everything to a known good state.
+Use this after a failure or compromise to restore everything to a known good state. Works with backups created by the **backup-full** service or by **scripts/dump-all-data.sh**.
 
 1. **Stop the API** (optional but recommended for a clean restore):
    ```bash
@@ -134,10 +153,12 @@ Use this after a failure or compromise to restore everything to a known good sta
    docker compose stop api
    ```
 
-2. **Run the restore script** with the path to a full backup directory:
+2. **Run the restore script** from `infra/docker` with the path to a full backup directory:
    ```bash
+   cd infra/docker
    ./restore-full.sh volumes/backups/full_20250131_120000
    ```
+   Or with an absolute path: `./restore-full.sh /path/to/volumes/backups/full_YYYYMMDD_HHMMSS`
 
 3. **Start the API** again:
    ```bash
@@ -149,9 +170,9 @@ The script restores:
 - **Neo4j**: clears the graph and runs the Cypher export
 - **MinIO**: mirrors the backup directory into the bucket (overwrites)
 
-Credentials are read from `.env`. To list available full backups:
+Credentials are read from `infra/docker/.env`. To list available full backups:
 ```bash
-ls -la volumes/backups/
+ls -la infra/docker/volumes/backups/
 ```
 
 **Meilisearch:** The restore script **clears** Meilisearch indexes (posts, users, topics) so they are empty. When you start the API again, it **automatically reindexes** all users, topics, and posts from PostgreSQL in the background—no manual step. Reindex is batched and scalable (thousands of users, hundreds of thousands of posts). Optional env: `MEILISEARCH_REINDEX_BATCH_SIZE` (posts/topics batch, default 1000), `MEILISEARCH_REINDEX_USER_BATCH_SIZE` (users batch, default 5000). To force a full reindex on every API start: `MEILISEARCH_REINDEX_ON_STARTUP=true`.
@@ -183,7 +204,7 @@ Update `.env` with strong, unique passwords for:
 
 ### 4. Configure Firewall
 
-Only expose necessary ports:
+With the default Docker Compose setup, **only Nginx ports are exposed** (80, 443). No database, cache, or app ports are published to the host. Ensure the firewall allows only:
 - 80 (HTTP)
 - 443 (HTTPS)
 - Consider closing other ports or using a firewall
@@ -210,7 +231,7 @@ docker compose ps
 
 ### Metrics
 
-- API Prometheus metrics: `http://localhost:3000/metrics`
+- API Prometheus metrics: `http://localhost/api/metrics` (via Nginx)
 - Health endpoint: `http://localhost/health`
 
 ## Troubleshooting
@@ -333,12 +354,14 @@ docker compose down --rmi all
 
 ### Database Migrations
 
+Migrations run **automatically on every API start** (see `apps/api/entrypoint.sh`). For ad-hoc runs:
+
 ```bash
-# Run migrations
+# Run migrations manually (optional; they also run on API start)
 docker compose exec api npm run migration:run
 
-# Generate migration
-docker compose exec api npm run migration:generate -- -n MigrationName
+# Generate a new migration (from repo, with local TypeORM)
+cd apps/api && npm run migration:generate -- -n MigrationName
 ```
 
 ### Seed Database

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CreateCollectionModal } from "@/components/create-collection-modal";
 import { getImageUrl } from "@/lib/security";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Collection {
   id: string;
@@ -75,15 +76,12 @@ export default function CollectionsPage() {
             <p className="text-secondary text-sm">Loading...</p>
           </div>
         ) : collections.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-secondary text-sm mb-4">No collections yet.</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors font-medium text-sm shadow-lg shadow-primary/20"
-            >
-              Create collection
-            </button>
-          </div>
+          <EmptyState
+            icon="folder_open"
+            headline="No collections yet"
+            actionLabel="Create collection"
+            onAction={() => setShowCreateModal(true)}
+          />
         ) : (
           collections.map((collection) => (
             <Link
@@ -93,6 +91,7 @@ export default function CollectionsPage() {
             >
               {collection.previewImageKey ? (
                 <div className="relative w-full aspect-video bg-divider">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={getImageUrl(collection.previewImageKey)}
                     alt=""

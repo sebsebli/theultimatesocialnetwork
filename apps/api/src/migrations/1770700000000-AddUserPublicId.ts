@@ -5,9 +5,11 @@ export class AddUserPublicId1770700000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Add column nullable
-    await queryRunner.query(`ALTER TABLE "users" ADD "public_id" text`);
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "IDX_users_public_id" ON "users" ("public_id")`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "public_id" text`,
+    );
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_public_id" ON "users" ("public_id")`,
     );
 
     // 2. Backfill existing users with a random ID (Postgres-side generation for speed/simplicity)

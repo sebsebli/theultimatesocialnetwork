@@ -39,6 +39,9 @@ export default function IndexScreen() {
   const [inviteCode, setInviteCode] = useState('');
   const [showInviteInput, setShowInviteInput] = useState(false);
   const [token, setToken] = useState('');
+  const [tempToken, setTempToken] = useState('');
+  const [is2FA, setIs2FA] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -141,6 +144,15 @@ export default function IndexScreen() {
         email: email.trim().toLowerCase(),
         token: token.trim()
       });
+
+      // Handle 2FA Challenge
+      if (response.twoFactorRequired) {
+        setTempToken(response.tempToken);
+        setIs2FA(true);
+        setLoading(false);
+        return;
+      }
+
       const { accessToken, user } = response;
 
       if (!accessToken || typeof accessToken !== 'string') {
@@ -155,6 +167,24 @@ export default function IndexScreen() {
         ? t('signIn.invalid') || 'Invalid token'
         : t('signIn.error') || 'An error occurred';
       showError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handle2FAVerify = async () => {
+    if (!totpCode.trim()) return;
+    setLoading(true);
+    try {
+      const response = await api.post('/auth/2fa/login', {
+        token: totpCode.trim(),
+        tempToken
+      });
+      const { accessToken, user } = response;
+      await SecureStore.setItemAsync('user', JSON.stringify(user));
+      await signIn(accessToken);
+    } catch (error: any) {
+      showError('Invalid 2FA code');
     } finally {
       setLoading(false);
     }
@@ -210,8 +240,10 @@ export default function IndexScreen() {
               </View>
             ) : (
               <View style={[styles.textContainer, styles.checkEmailBlock]}>
-                <Text style={styles.checkEmailTitle}>{t('signIn.checkEmailTitle', 'Check your email')}</Text>
-                <Text style={styles.checkEmailSubtitle}>{t('signIn.enterCode', { email })}</Text>
+                <Text style={styles.checkEmailTitle}>{is2FA ? 'Two-Factor Auth' : t('signIn.checkEmailTitle', 'Check your email')}</Text>
+                <Text style={styles.checkEmailSubtitle}>
+                  {is2FA ? 'Enter code from authenticator app' : t('signIn.enterCode', { email })}
+                </Text>
               </View>
             )}
           </View>
@@ -313,6 +345,29 @@ export default function IndexScreen() {
 
                 <Pressable onPress={() => router.push('/waiting-list')}>
                   <Text style={styles.resendLink}>{t('signIn.joinWaitlist', 'Need an invite? Join the waitlist')}</Text>
+                </Pressable>
+              </>
+            ) : is2FA ? (
+              <>
+                <TextInput
+                  style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontWeight: 'bold', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }]}
+                  placeholder="000000"
+                  placeholderTextColor={COLORS.tertiary}
+                  value={totpCode}
+                  onChangeText={(val: string) => setTotpCode(val.replace(/\D/g, '').slice(0, 6))}
+                  keyboardType="number-pad"
+                  textContentType="oneTimeCode"
+                  autoFocus
+                />
+
+                <Pressable
+                  style={[styles.button, (totpCode.length < 6 || loading) && styles.buttonDisabled]}
+                  onPress={handle2FAVerify}
+                  disabled={totpCode.length < 6 || loading}
+                >
+                  <Text style={styles.buttonText}>
+                    {loading ? t('signIn.verifying') : t('signIn.verify')}
+                  </Text>
                 </Pressable>
               </>
             ) : (

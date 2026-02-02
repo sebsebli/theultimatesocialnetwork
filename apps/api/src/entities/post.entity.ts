@@ -21,6 +21,8 @@ export enum PostVisibility {
 }
 
 @Entity('posts')
+@Index(['authorId', 'createdAt']) // Fast Profile Feeds
+@Index(['status', 'createdAt']) // Fast Public Feeds
 export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -39,6 +41,14 @@ export class Post {
     default: PostVisibility.PUBLIC,
   })
   visibility: PostVisibility;
+
+  @Column({
+    type: 'enum',
+    enum: ['PUBLISHED', 'DRAFT'],
+    default: 'PUBLISHED',
+  })
+  @Index()
+  status: 'PUBLISHED' | 'DRAFT';
 
   @Column('text')
   body: string;
@@ -83,6 +93,15 @@ export class Post {
 
   @Column({ name: 'reading_time_minutes', type: 'float', default: 0 })
   readingTimeMinutes: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  media: {
+    type: 'gif' | 'video';
+    url?: string;
+    key?: string;
+    width?: number;
+    height?: number;
+  } | null;
 
   @OneToMany(() => PostEdge, (edge) => edge.fromPost)
   outgoingEdges: PostEdge[];

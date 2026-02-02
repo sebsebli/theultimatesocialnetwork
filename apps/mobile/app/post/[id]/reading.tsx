@@ -436,7 +436,7 @@ export default function ReadingModeScreen() {
                     ? (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })()
                     : source.type === 'user' ? `@${source.handle}` : source.type === 'topic' ? t('post.topic', 'Topic') : '';
                   return (
-                    <Pressable key={source.id || index} style={styles.sourceCard} onPress={handleSourcePress}>
+                    <Pressable key={`${source.type}-${source.id ?? source.handle ?? source.slug ?? source.url ?? index}-${index}`} style={styles.sourceCard} onPress={handleSourcePress}>
                       <View style={styles.sourceCardLeft}>
                         {source.type === 'user' ? (
                           <View style={styles.sourceAvatar}>

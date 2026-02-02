@@ -27,6 +27,8 @@ export interface SeedAgentBody {
   email?: string;
   avatarKey?: string | null;
   profileHeaderKey?: string | null;
+  /** True = private/protected profile (follow requests). */
+  isProtected?: boolean;
 }
 
 export interface ApiClient {
@@ -39,6 +41,10 @@ export interface ApiClient {
    * creates Neo4j user node, returns JWT. No signup/tokenization. Uses client admin key.
    */
   seedAgent(body: SeedAgentBody): Promise<AuthTokens>;
+  /**
+   * Get a JWT for an existing user by email (admin). Use for --resume so agents don't need magic link.
+   */
+  getAgentToken(email: string): Promise<AuthTokens>;
   /** Step 1: request magic code (sends email; in dev we skip and use verify with 123456). */
   login(email: string, inviteCode?: string): Promise<{ success: boolean }>;
   /** Step 2: verify code and get JWT. In dev, token 123456 works without prior login. */
@@ -169,6 +175,14 @@ export function createApiClient(config: ApiConfig): ApiClient {
       return fetchJson<AuthTokens>('/admin/agents/seed', {
         method: 'POST',
         body: JSON.stringify(body),
+        admin: true,
+      });
+    },
+
+    async getAgentToken(email: string) {
+      return fetchJson<AuthTokens>('/admin/agents/token', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
         admin: true,
       });
     },

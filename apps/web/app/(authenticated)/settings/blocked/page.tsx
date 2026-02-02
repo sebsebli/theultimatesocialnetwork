@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface BlockedUser {
   id: string;
@@ -74,9 +75,11 @@ export default function BlockedPage() {
             <p className="text-secondary text-sm">Loading...</p>
           </div>
         ) : blocked.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-secondary text-sm">No blocked accounts.</p>
-          </div>
+          <EmptyState
+            icon="block"
+            headline="No blocked accounts"
+            subtext="You haven't blocked anyone yet."
+          />
         ) : (
           <div className="space-y-4">
             {blocked.map((user) => (

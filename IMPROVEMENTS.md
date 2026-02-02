@@ -43,3 +43,5 @@ The following improvements have been identified to make the system production-re
 - [x] **Reusable components memoization**: Presentational and list-item components wrapped with `React.memo` on both web and mobile for fewer re-renders (see `apps/web/components/README.md` and `apps/mobile/components/README.md`).
 - [x] **Mobile list performance**: `FLATLIST_DEFAULTS` (theme), `ListFooterLoader`, `SectionHeader`, and consistent `EmptyState` usage across feeds, profile, explore, search, and settings.
 - [x] **Empty-state consistency**: All list/sheet empty states use shared `EmptyState` (chat thread, post quotes, reading “Quoted by”, collections, AddToCollectionSheet, messages inbox/new, offline-storage). Inline empty text removed; unused `emptyText`/`emptyState` styles cleaned up.
+- [x] **Web error reporting hook**: `lib/error-reporting.ts` + wiring in `ErrorBoundary` and `error.tsx`; production can set `window.__reportError` (e.g. Sentry) for one-line integration.
+- [x] **Web explore code-splitting**: `ExploreContent` loaded via `next/dynamic` with skeleton fallback so explore tab JS is in a separate chunk.

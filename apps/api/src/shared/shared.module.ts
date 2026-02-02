@@ -11,14 +11,13 @@ import { Notification } from '../entities/notification.entity';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
 import { PushOutbox } from '../entities/push-outbox.entity';
-import { RealtimeModule } from '../realtime/realtime.module';
 import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
   imports: [
     ConfigModule,
     TypeOrmModule.forFeature([Notification, Post, User, PushOutbox]),
-    RealtimeModule,
+    // RealtimeModule,
   ],
   providers: [
     LanguageDetectionService,

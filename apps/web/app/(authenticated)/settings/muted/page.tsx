@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface MutedUser {
   id: string;
@@ -74,9 +75,11 @@ export default function MutedPage() {
             <p className="text-secondary text-sm">Loading...</p>
           </div>
         ) : muted.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-secondary text-sm">No muted accounts.</p>
-          </div>
+          <EmptyState
+            icon="volume_off"
+            headline="No muted accounts"
+            subtext="You haven't muted anyone yet."
+          />
         ) : (
           <div className="space-y-4">
             {muted.map((user) => (

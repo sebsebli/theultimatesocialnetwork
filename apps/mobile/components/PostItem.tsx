@@ -191,7 +191,7 @@ function PostItemComponent({
         headerImageUri={headerImageUri}
         showSources={isPreview}
         referenceMetadata={post.referenceMetadata ?? undefined}
-        maxBodyLines={isPreview ? undefined : 2}
+        maxBodyLines={isPreview ? undefined : 10}
       />
 
       {isPreview ? null : (

@@ -4,18 +4,23 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  IsObject,
 } from 'class-validator';
 import { PostVisibility } from '../../entities/post.entity';
 
 export class CreatePostDto {
   @IsNotEmpty()
   @IsString()
-  @MaxLength(10000) // Matches mobile composer BODY_MAX_LENGTH
+  @MaxLength(10000)
   body: string;
 
   @IsOptional()
   @IsEnum(PostVisibility)
   visibility?: PostVisibility;
+
+  @IsOptional()
+  @IsEnum(['PUBLISHED', 'DRAFT'])
+  status?: 'PUBLISHED' | 'DRAFT';
 
   @IsOptional()
   @IsString()
@@ -24,4 +29,14 @@ export class CreatePostDto {
   @IsOptional()
   @IsString()
   headerImageBlurhash?: string;
+
+  @IsOptional()
+  @IsObject()
+  media?: {
+    type: 'gif' | 'video';
+    url?: string;
+    key?: string;
+    width?: number;
+    height?: number;
+  };
 }

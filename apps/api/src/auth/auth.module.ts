@@ -5,8 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { AuthController } from './auth.controller';
+import { SessionsController } from './sessions.controller';
 import { AuthService } from './auth.service';
 import { User } from '../entities/user.entity';
+import { Session } from '../entities/session.entity';
 import { NotificationPref } from '../entities/notification-pref.entity';
 import { InvitesModule } from '../invites/invites.module';
 import { SharedModule } from '../shared/shared.module';
@@ -17,7 +19,7 @@ import Redis from 'ioredis';
   imports: [
     PassportModule,
     ConfigModule,
-    TypeOrmModule.forFeature([User, NotificationPref]),
+    TypeOrmModule.forFeature([User, Session, NotificationPref]),
     InvitesModule,
     SharedModule,
     SearchModule,
@@ -50,7 +52,7 @@ import Redis from 'ioredis';
       },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, SessionsController],
   providers: [
     AuthService,
     JwtStrategy,

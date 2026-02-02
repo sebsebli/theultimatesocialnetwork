@@ -42,6 +42,30 @@ export class User {
   @Column({ name: 'is_protected', default: false })
   isProtected: boolean;
 
+  @Column({
+    type: 'enum',
+    enum: ['user', 'admin', 'moderator'],
+    default: 'user',
+  })
+  role: 'user' | 'admin' | 'moderator';
+
+  @Column({ name: 'banned_at', type: 'timestamp', nullable: true })
+  bannedAt: Date | null;
+
+  @Column({ name: 'two_factor_enabled', default: false })
+  twoFactorEnabled: boolean;
+
+  @Column({
+    name: 'two_factor_secret',
+    type: 'text',
+    nullable: true,
+    select: false,
+  })
+  twoFactorSecret: string | null;
+
+  @Column({ name: 'token_version', default: 0 })
+  tokenVersion: number;
+
   @Column({ name: 'invites_remaining', default: 3 })
   invitesRemaining: number;
 

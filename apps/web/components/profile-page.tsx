@@ -9,6 +9,8 @@ import { ProfileOptionsMenu } from "./profile-options-menu";
 import { ImageUploader } from "./image-uploader";
 import { PublicSignInBar } from "./public-sign-in-bar";
 import { formatCompactNumber } from "@/lib/format";
+import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/toast";
 
 interface Reply {
   id: string;
@@ -55,6 +57,7 @@ interface ProfilePageProps {
     profileHeaderUrl?: string;
     isFollowing?: boolean;
     hasPendingFollowRequest?: boolean;
+    isBlockedByMe?: boolean;
   };
   isSelf?: boolean;
   /** When true, viewer is not authenticated; hide Follow/Message and link to sign-in for connections */
@@ -86,6 +89,7 @@ export function ProfilePage({
     collections: null,
     saved: null,
   });
+  const { success: toastSuccess, error: toastError } = useToast();
 
   useEffect(() => {
     let isMounted = true;
@@ -188,7 +192,10 @@ export function ProfilePage({
     }
   };
 
-  const updateProfileImage = async (key: string, type: "avatar" | "header") => {
+  const updateProfileImage = async (
+    key: string | null,
+    type: "avatar" | "header",
+  ) => {
     try {
       const body =
         type === "avatar" ? { avatarKey: key } : { profileHeaderKey: key };
@@ -210,6 +217,22 @@ export function ProfilePage({
     }
   };
 
+  const handleUnblock = async () => {
+    try {
+      const res = await fetch(`/api/safety/block/${user.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toastSuccess("User unblocked");
+        window.location.reload();
+      } else {
+        throw new Error();
+      }
+    } catch {
+      toastError("Failed to unblock user");
+    }
+  };
+
   const getImageUrl = (key?: string, url?: string) => {
     if (key) return getImageUrlFromKey(key);
     return url;
@@ -217,6 +240,47 @@ export function ProfilePage({
 
   const headerUrl = getImageUrl(user.profileHeaderKey, user.profileHeaderUrl);
   const avatarUrl = getImageUrl(user.avatarKey, user.avatarUrl);
+
+  if (user.isBlockedByMe) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+        <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4">
+          <svg
+            className="w-8 h-8 text-tertiary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+            />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-paper mb-2">
+          You have blocked this account
+        </h2>
+        <p className="text-secondary text-center max-w-sm mb-6">
+          You cannot view this profile while blocked. Unblock to see their posts
+          and profile.
+        </p>
+        <button
+          onClick={handleUnblock}
+          className="px-6 py-2 bg-primary text-white rounded-full font-medium hover:bg-primary/90 transition-colors"
+        >
+          Unblock
+        </button>
+        <Link
+          href="/home"
+          className="mt-4 text-tertiary hover:text-paper text-sm"
+        >
+          Go Home
+        </Link>
+      </div>
+    );
+  }
 
   type ProfileTab = "posts" | "replies" | "quotes" | "saved" | "collections";
   const tabs: ProfileTab[] = ["posts", "replies", "quotes", "collections"];
@@ -230,7 +294,7 @@ export function ProfilePage({
     <div className={`min-h-screen ${isPublic ? "pb-24" : "pb-20"}`}>
       {/* Profile Top Section (Header + Avatar + Info) */}
       <div className="relative">
-        {/* Header Image Background: fixed 16:9 aspect ratio (matches mobile PROFILE_HEADER_ASPECT_RATIO) so draw area is identical everywhere */}
+        {/* Header Image Background: fixed 16:9 aspect ratio */}
         <div className="w-full aspect-video bg-ink relative overflow-hidden">
           {headerUrl ? (
             <Image
@@ -288,6 +352,27 @@ export function ProfilePage({
                       />
                     </svg>
                   </button>
+                  {user.profileHeaderKey && (
+                    <button
+                      onClick={() => updateProfileImage(null, "header")}
+                      className="p-2 bg-black/20 backdrop-blur-sm rounded-full text-white hover:bg-red-500/80 transition-colors"
+                      title="Remove Header"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  )}
                   <div className="hidden">
                     <ImageUploader
                       id="header-upload"
@@ -299,7 +384,11 @@ export function ProfilePage({
                 </>
               )}
               {!isPublic && (
-                <ProfileOptionsMenu handle={user.handle} isSelf={isSelf} />
+                <ProfileOptionsMenu
+                  handle={user.handle}
+                  userId={user.id}
+                  isSelf={isSelf}
+                />
               )}
             </div>
           </div>
@@ -425,7 +514,7 @@ export function ProfilePage({
             )}
           </div>
 
-          {/* Followers / Following — subtle single line (no quotes); links when logged in */}
+          {/* Followers / Following */}
           {(isSelf || !isPublic) && (
             <div className="flex justify-center pb-4 w-full border-b border-divider">
               <p className="text-tertiary text-xs font-medium uppercase tracking-wider">
@@ -482,7 +571,7 @@ export function ProfilePage({
         </div>
       )}
 
-      {/* Tabs — stick flush to top when scrolling (no fixed header above); hide when private and no access */}
+      {/* Tabs */}
       {!(!isSelf && user.isProtected && !following) && (
         <>
           <div className="sticky top-0 z-10 bg-ink border-b border-divider">
@@ -569,12 +658,15 @@ export function ProfilePage({
               <div className="space-y-0">
                 {user.posts && user.posts.length > 0 ? (
                   user.posts.map((post) => (
-                    <PostItem key={post.id} post={post} isAuthor={isSelf} />
+                    <PostItem
+                      key={post.id}
+                      post={post}
+                      isAuthor={isSelf}
+                      isPublic={isPublic}
+                    />
                   ))
                 ) : (
-                  <p className="text-secondary text-sm text-center py-8">
-                    No posts yet.
-                  </p>
+                  <EmptyState icon="article" headline="No posts yet" compact />
                 )}
               </div>
             )}
@@ -597,9 +689,11 @@ export function ProfilePage({
                     Loading...
                   </p>
                 ) : (
-                  <p className="text-secondary text-sm text-center py-8">
-                    No replies yet.
-                  </p>
+                  <EmptyState
+                    icon="chat_bubble_outline"
+                    headline="No replies yet"
+                    compact
+                  />
                 )}
               </div>
             )}
@@ -608,16 +702,22 @@ export function ProfilePage({
               <div className="space-y-0">
                 {tabData.quotesReceived && tabData.quotesReceived.length > 0 ? (
                   tabData.quotesReceived.map((quote) => (
-                    <PostItem key={quote.id} post={quote as unknown as Post} />
+                    <PostItem
+                      key={quote.id}
+                      post={quote as unknown as Post}
+                      isPublic={isPublic}
+                    />
                   ))
                 ) : tabData.quotesReceived === null ? (
                   <p className="text-secondary text-sm text-center py-8">
                     Loading...
                   </p>
                 ) : (
-                  <p className="text-secondary text-sm text-center py-8">
-                    No quotes received yet.
-                  </p>
+                  <EmptyState
+                    icon="format_quote"
+                    headline="No quotes received yet"
+                    compact
+                  />
                 )}
               </div>
             )}
@@ -649,21 +749,17 @@ export function ProfilePage({
                     Loading...
                   </p>
                 ) : (
-                  <p className="text-secondary text-sm text-center py-8">
-                    No collections yet.
-                  </p>
+                  <EmptyState
+                    icon="folder_open"
+                    headline="No collections yet"
+                    compact
+                  />
                 )}
               </div>
             )}
 
             {activeTab === "saved" && isSelf && (
               <div className="space-y-0 -mx-6">
-                {/* SavedByItem usually renders "Saved by X to Y". 
-                 For the "Saved" tab (Keeps), we might just want to list the posts. 
-                 Or if it's strictly "Keeps" (bookmarks), it's just the post itself marked as kept.
-                 The Mobile app renders "Saved" items. Let's use PostItem for now or SavedByItem if the data has context.
-                 The API /keeps returns { post: ... }. 
-             */}
                 {tabData.saved && tabData.saved.length > 0 ? (
                   tabData.saved.map((item) => (
                     <div key={item.post.id} className="border-b border-divider">
@@ -675,9 +771,12 @@ export function ProfilePage({
                     Loading...
                   </p>
                 ) : (
-                  <p className="text-secondary text-sm text-center py-8">
-                    No saved posts yet.
-                  </p>
+                  <EmptyState
+                    icon="bookmark_border"
+                    headline="No saved posts yet"
+                    subtext="Bookmark posts to see them here."
+                    compact
+                  />
                 )}
               </div>
             )}

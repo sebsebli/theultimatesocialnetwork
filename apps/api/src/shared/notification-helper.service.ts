@@ -8,7 +8,7 @@ import {
 } from '../entities/notification.entity';
 import { User } from '../entities/user.entity';
 import { PushOutbox, PushStatus } from '../entities/push-outbox.entity';
-import { RealtimeGateway } from '../realtime/realtime.gateway';
+// import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class NotificationHelperService {
@@ -18,7 +18,7 @@ export class NotificationHelperService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(PushOutbox)
     private pushOutboxRepo: Repository<PushOutbox>,
-    private realtimeGateway: RealtimeGateway,
+    // private realtimeGateway: RealtimeGateway,
     @Inject('PUSH_QUEUE') private pushQueue: Queue,
   ) {}
 
@@ -59,10 +59,12 @@ export class NotificationHelperService {
     const saved = await this.notificationRepo.save(notification);
 
     // Realtime (Socket)
+    /*
     this.realtimeGateway.sendNotification(
       data.userId,
       saved as unknown as Record<string, unknown>,
     );
+    */
 
     // Push Notification (Async via Outbox)
     try {

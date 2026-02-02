@@ -1,16 +1,10 @@
-"use client";
-
 import { useState, useMemo, memo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Blurhash } from "react-blurhash";
 import { useTranslations } from "next-intl";
-import {
-  renderMarkdown,
-  extractWikilinks,
-  stripLeadingH1IfMatch,
-  bodyToPlainExcerpt,
-} from "@/utils/markdown";
+import { Blurhash } from "react-blurhash";
+import { renderMarkdown, extractWikilinks } from "@/utils/markdown";
 import { getImageUrl } from "@/lib/security";
 import { Avatar } from "./avatar";
 import { OverflowMenu } from "./overflow-menu";
@@ -18,11 +12,10 @@ import { AddToCollectionModal } from "./add-to-collection-modal";
 
 export interface Post {
   id: string;
-  title?: string;
   body: string;
+  title?: string | null;
   createdAt: string;
   author: {
-    id: string;
     handle: string;
     displayName: string;
     avatarKey?: string | null;
@@ -30,21 +23,28 @@ export interface Post {
   };
   replyCount: number;
   quoteCount: number;
-  privateLikeCount?: number;
-  headerImageKey?: string;
-  headerImageBlurhash?: string;
   isLiked?: boolean;
   isKept?: boolean;
+  privateLikeCount?: number;
+  headerImageKey?: string | null;
+  headerImageBlurhash?: string | null;
   referenceMetadata?: Record<string, { title?: string }>;
+  media?: { type: string; url: string };
 }
 
 export interface PostItemProps {
   post: Post;
   isAuthor?: boolean;
+  isPublic?: boolean;
 }
 
-function PostItemInner({ post, isAuthor = false }: PostItemProps) {
+function PostItemInner({
+  post,
+  isAuthor = false,
+  isPublic = false,
+}: PostItemProps) {
   const t = useTranslations("post");
+  const router = useRouter();
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [kept, setKept] = useState(post.isKept ?? false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
@@ -52,6 +52,10 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isPublic) {
+      router.push("/sign-in");
+      return;
+    }
     const previous = liked;
     setLiked(!previous);
 
@@ -72,6 +76,10 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
   const handleKeep = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isPublic) {
+      router.push("/sign-in");
+      return;
+    }
     const previous = kept;
     setKept(!previous);
 
@@ -180,29 +188,25 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
             {post.title}
           </h2>
         )}
-        {(() => {
-          const excerptMax = 250;
-          const excerpt = bodyToPlainExcerpt(
-            post.body,
-            post.title ?? undefined,
-            excerptMax,
-            false,
-          );
-          const exceedsThreshold = excerpt.length >= excerptMax;
-          return (
-            <div className="relative max-h-[4.5rem] overflow-hidden">
-              <p className="text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300">
-                {excerpt}
-              </p>
-              {exceedsThreshold && (
-                <div
-                  className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-ink to-transparent"
-                  aria-hidden
-                />
-              )}
-            </div>
-          );
-        })()}
+        <div className="relative max-h-[20rem] overflow-hidden">
+          <div
+            className="prose prose-invert max-w-none text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300"
+            dangerouslySetInnerHTML={{
+              __html: renderMarkdown(post.body, {
+                referenceMetadata: post.referenceMetadata,
+              }),
+            }}
+          />
+          {/* Always show fade if content might be long - we rely on max-h + overflow-hidden to cut it off. 
+              Ideally we'd check content length, but for markdown HTML it's hard. 
+              We can assume if body length > 300 chars it might overflow. */}
+          {post.body.length > 300 && (
+            <div
+              className="pointer-events-none absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-ink via-ink/80 to-transparent"
+              aria-hidden
+            />
+          )}
+        </div>
         {post.headerImageKey && (
           <div className="relative w-full h-[240px] rounded-xl bg-divider mt-4 overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-300">
             {post.headerImageBlurhash && (
@@ -229,6 +233,29 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
             />
           </div>
         )}
+
+        {/* Render Rich Media (GIF/Video) */}
+        {post.media && (
+          <div
+            className="mb-3 rounded-xl overflow-hidden relative w-full bg-black mt-4"
+            onClick={(e) => e.preventDefault()}
+          >
+            {post.media.type === "video" ? (
+              <video
+                src={post.media.url}
+                controls
+                className="w-full max-h-[500px]"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={post.media.url}
+                alt="Post media"
+                className="w-full h-auto object-contain"
+              />
+            )}
+          </div>
+        )}
       </Link>
 
       {/* Sources Section */}
@@ -237,7 +264,7 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
           <h4 className="text-[11px] font-semibold text-tertiary uppercase tracking-wider mb-2">
             Sources & References
           </h4>
-          <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {sources.map((source, i) => (
               <Link
                 key={i}
@@ -252,10 +279,10 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
                 rel={
                   source.type === "external" ? "noopener noreferrer" : undefined
                 }
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group/source"
+                className="flex items-center gap-3 p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 transition-colors group/source"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-secondary group-hover/source:text-primary transition-colors">
+                <div className="w-7 h-7 rounded-full bg-divider flex items-center justify-center text-secondary group-hover/source:text-primary transition-colors shrink-0">
                   {source.type === "external" && (
                     <svg
                       className="w-3.5 h-3.5"
@@ -302,22 +329,18 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
                     </svg>
                   )}
                 </div>
-                <span className="text-sm text-paper font-medium truncate flex-1">
-                  {source.alias || source.title}
-                </span>
-                <svg
-                  className="w-4 h-4 text-tertiary opacity-0 group-hover/source:opacity-100 transition-opacity"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs text-tertiary font-medium">
+                    {source.type === "external"
+                      ? new URL(source.url || "http://x").hostname
+                      : source.type === "topic"
+                        ? "Topic"
+                        : "Post"}
+                  </span>
+                  <span className="text-sm text-paper font-semibold truncate">
+                    {source.alias || source.title}
+                  </span>
+                </div>
               </Link>
             ))}
           </div>
@@ -362,8 +385,17 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
             />
           </svg>
         </button>
-        <Link
-          href={`/post/${post.id}#reply`}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isPublic) {
+              router.push("/sign-in");
+            } else {
+              router.push(`/post/${post.id}#reply`);
+            }
+          }}
           aria-label={
             post.replyCount > 0
               ? `${post.replyCount} ${t("replies")}`
@@ -387,9 +419,18 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
           {post.replyCount > 0 && (
             <span className="text-xs">{post.replyCount}</span>
           )}
-        </Link>
-        <Link
-          href={`/compose?quote=${post.id}`}
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isPublic) {
+              router.push("/sign-in");
+            } else {
+              router.push(`/compose?quote=${post.id}`);
+            }
+          }}
           aria-label={
             post.quoteCount > 0
               ? `${post.quoteCount} ${t("quotes")}`
@@ -403,7 +444,7 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
           {post.quoteCount > 0 && (
             <span className="text-xs">{post.quoteCount}</span>
           )}
-        </Link>
+        </button>
         <button
           type="button"
           onClick={handleKeep}
@@ -426,7 +467,15 @@ function PostItemInner({ post, isAuthor = false }: PostItemProps) {
         </button>
         <button
           type="button"
-          onClick={() => setShowCollectionModal(true)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isPublic) {
+              router.push("/sign-in");
+              return;
+            }
+            setShowCollectionModal(true);
+          }}
           aria-label="Add to collection"
           className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >

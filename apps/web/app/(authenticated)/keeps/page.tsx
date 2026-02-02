@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Keep {
   id: string;
@@ -161,9 +162,20 @@ export default function KeepsPage() {
             <p className="text-secondary text-sm">Loading...</p>
           </div>
         ) : keeps.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-secondary text-sm">No keeps found.</p>
-          </div>
+          <EmptyState
+            icon="bookmark"
+            headline="No keeps yet"
+            subtext="Keep interesting posts to build your personal library."
+          >
+            <div className="mt-6">
+              <button
+                onClick={() => (window.location.href = "/explore")}
+                className="text-primary hover:underline"
+              >
+                Explore posts
+              </button>
+            </div>
+          </EmptyState>
         ) : (
           <div className="space-y-4">
             {keeps.map((keep) => (

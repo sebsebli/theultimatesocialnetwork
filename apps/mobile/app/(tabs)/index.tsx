@@ -150,12 +150,6 @@ export default function HomeScreen() {
       }
     } catch (error: any) {
       const duration = Date.now() - startTime;
-      console.error('[Feed] Load failed', {
-        status: error?.status,
-        message: error?.message,
-        duration,
-        user: isAuthenticated ? 'auth' : 'guest',
-      });
 
       if (error?.status === 401) {
         setLoading(false);
@@ -163,7 +157,7 @@ export default function HomeScreen() {
         setLoadingMore(false);
         return;
       }
-      // Server says profile/onboarding incomplete — send user back to onboarding (never show feed without full onboarding)
+      // Backend GET /feed returns 403 "Complete onboarding first" when profile is placeholder (handle starts with __pending_).
       if (error?.status === 403) {
         setLoading(false);
         setRefreshing(false);
@@ -171,6 +165,13 @@ export default function HomeScreen() {
         await resetOnboarding();
         return;
       }
+
+      console.error('[Feed] Load failed', {
+        status: error?.status,
+        message: error?.message,
+        duration,
+        user: isAuthenticated ? 'auth' : 'guest',
+      });
       setError(true);
       if (posts.length === 0 && !loading) {
         showError(t('feed.loadError', 'Failed to load feed. Please check your connection.'));

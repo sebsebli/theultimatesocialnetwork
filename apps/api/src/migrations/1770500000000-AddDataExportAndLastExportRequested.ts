@@ -5,10 +5,10 @@ export class AddDataExportAndLastExportRequested1770500000000 implements Migrati
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "users" ADD COLUMN "last_export_requested_at" TIMESTAMP`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "last_export_requested_at" TIMESTAMP`,
     );
     await queryRunner.query(`
-      CREATE TABLE "data_exports" (
+      CREATE TABLE IF NOT EXISTS "data_exports" (
         "id" uuid NOT NULL,
         "user_id" uuid NOT NULL,
         "token" varchar(64) NOT NULL,
@@ -21,10 +21,10 @@ export class AddDataExportAndLastExportRequested1770500000000 implements Migrati
       )
     `);
     await queryRunner.query(
-      `CREATE INDEX "IDX_data_exports_user_id" ON "data_exports" ("user_id")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_data_exports_user_id" ON "data_exports" ("user_id")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_data_exports_token" ON "data_exports" ("token")`,
+      `CREATE INDEX IF NOT EXISTS "IDX_data_exports_token" ON "data_exports" ("token")`,
     );
   }
 

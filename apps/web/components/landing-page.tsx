@@ -23,7 +23,11 @@ function getConsentClosedInitial(): boolean {
   return hasCookieConsent();
 }
 
-export function LandingPage() {
+interface LandingPageProps {
+  isAuthenticated?: boolean;
+}
+
+export function LandingPage({ isAuthenticated }: LandingPageProps) {
   const [consentClosed, setConsentClosed] = useState(getConsentClosedInitial);
 
   useEffect(() => {
@@ -36,7 +40,10 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-ink text-paper font-sans selection:bg-paper selection:text-ink overflow-x-hidden">
       {/* Navigation */}
-      <nav className="fixed top-0 inset-x-0 z-50 flex justify-between items-center px-6 py-4 md:px-12 bg-ink/95 backdrop-blur-sm border-b border-divider" aria-label="Main">
+      <nav
+        className="fixed top-0 inset-x-0 z-50 flex justify-between items-center px-6 py-4 md:px-12 bg-ink/95 backdrop-blur-sm border-b border-divider"
+        aria-label="Main"
+      >
         <Link href="/" className="flex items-center gap-3 group">
           <Image
             src="/icon-192.png"
@@ -63,25 +70,36 @@ export function LandingPage() {
           >
             Roadmap
           </Link>
-          <Link
-            href="/sign-in"
-            className="text-paper hover:text-white transition-colors"
-          >
-            Login
-          </Link>
+          {isAuthenticated ? (
+            <Link
+              href="/home"
+              className="text-paper hover:text-white transition-colors font-semibold"
+            >
+              Go to Home
+            </Link>
+          ) : (
+            <Link
+              href="/sign-in"
+              className="text-paper hover:text-white transition-colors"
+            >
+              Login
+            </Link>
+          )}
         </div>
       </nav>
 
-      <main id="main-content" className="pt-32 md:pt-40 lg:pt-48 pb-20 md:pb-24" role="main">
+      <main
+        id="main-content"
+        className="pt-32 md:pt-40 lg:pt-48 pb-20 md:pb-24"
+        role="main"
+      >
         {/* Hero Section */}
         <section className="px-6 md:px-12 lg:px-16 max-w-[1000px] lg:max-w-[1100px] mx-auto mb-24 md:mb-32 lg:mb-48">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
             <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 md:mb-8 border border-divider rounded-full bg-transparent">
               <span className="w-1.5 h-1.5 rounded-full bg-paper"></span>
               <span className="text-[11px] uppercase tracking-[0.2em] text-paper font-bold">
-                {isBetaActive
-                  ? "Closed Beta — Open Beta Soon"
-                  : "Open Beta"}
+                {isBetaActive ? "Closed Beta — Open Beta Soon" : "Open Beta"}
               </span>
             </div>
 
@@ -97,16 +115,24 @@ export function LandingPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-6">
-                {consentClosed && (
-                  <Link
-                    href={isBetaActive ? "/waiting-list" : "/sign-in"}
-                    className="inline-flex justify-center items-center px-8 py-3.5 bg-paper text-ink font-semibold text-base rounded-lg hover:bg-white transition-colors"
-                  >
-                    {isBetaActive
-                      ? "Join the Waiting List"
-                      : "Join the Network"}
-                  </Link>
-                )}
+                {consentClosed &&
+                  (isAuthenticated ? (
+                    <Link
+                      href="/home"
+                      className="inline-flex justify-center items-center px-8 py-3.5 bg-paper text-ink font-semibold text-base rounded-lg hover:bg-white transition-colors"
+                    >
+                      Enter App
+                    </Link>
+                  ) : (
+                    <Link
+                      href={isBetaActive ? "/waiting-list" : "/sign-in"}
+                      className="inline-flex justify-center items-center px-8 py-3.5 bg-paper text-ink font-semibold text-base rounded-lg hover:bg-white transition-colors"
+                    >
+                      {isBetaActive
+                        ? "Join the Waiting List"
+                        : "Join the Network"}
+                    </Link>
+                  ))}
                 <Link
                   href="/manifesto"
                   className="inline-flex justify-center items-center px-8 py-3.5 border border-divider text-secondary font-medium text-base rounded-lg hover:border-primary hover:text-paper transition-colors"
@@ -464,14 +490,21 @@ export function LandingPage() {
           </h2>
           {consentClosed && (
             <div className="flex flex-col sm:flex-row justify-center gap-6">
-              <Link
-                href={isBetaActive ? "/waiting-list" : "/sign-in"}
-                className="inline-flex justify-center items-center px-12 py-5 bg-paper text-ink font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:scale-105"
-              >
-                {isBetaActive
-                  ? "Join the Waiting List"
-                  : "Join the Network"}
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  href="/home"
+                  className="inline-flex justify-center items-center px-12 py-5 bg-paper text-ink font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:scale-105"
+                >
+                  Go to Dashboard
+                </Link>
+              ) : (
+                <Link
+                  href={isBetaActive ? "/waiting-list" : "/sign-in"}
+                  className="inline-flex justify-center items-center px-12 py-5 bg-paper text-ink font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:scale-105"
+                >
+                  {isBetaActive ? "Join the Waiting List" : "Join the Network"}
+                </Link>
+              )}
             </div>
           )}
           <p className="mt-8 text-tertiary text-sm">
@@ -521,25 +554,23 @@ export function LandingPage() {
         </div>
       </footer>
 
-      {consentClosed && (
-        <Script
-          src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
-          strategy="afterInteractive"
-          onLoad={() => {
-            const w = window as unknown as {
-              kofiWidgetOverlay?: { draw: (id: string, opts: object) => void };
-            };
-            if (typeof w.kofiWidgetOverlay !== "undefined") {
-              w.kofiWidgetOverlay.draw("sebastianlindner", {
-                type: "floating-chat",
-                "floating-chat.donateButton.text": "Support me",
-                "floating-chat.donateButton.background-color": "#323842",
-                "floating-chat.donateButton.text-color": "#fff",
-              });
-            }
-          }}
-        />
-      )}
+      <Script
+        src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
+        strategy="afterInteractive"
+        onLoad={() => {
+          const w = window as unknown as {
+            kofiWidgetOverlay?: { draw: (id: string, opts: object) => void };
+          };
+          if (typeof w.kofiWidgetOverlay !== "undefined") {
+            w.kofiWidgetOverlay.draw("sebastianlindner", {
+              type: "floating-chat",
+              "floating-chat.donateButton.text": "Support me",
+              "floating-chat.donateButton.background-color": "#323842",
+              "floating-chat.donateButton.text-color": "#fff",
+            });
+          }
+        }}
+      />
     </div>
   );
 }

@@ -55,6 +55,9 @@ export class MeilisearchService implements OnModuleInit {
         'lang',
         'createdAt',
         'topicIds',
+        'author.handle',
+        'status',
+        'hasLink',
       ]);
       await index.updateSortableAttributes([
         'createdAt',
@@ -257,6 +260,8 @@ export class MeilisearchService implements OnModuleInit {
             createdAt: post.createdAt.toISOString(),
             quoteCount: post.quoteCount,
             replyCount: post.replyCount,
+            status: post.status ?? 'PUBLISHED',
+            hasLink: searchBody.includes('http') || searchBody.includes('[['),
             topicIds,
           };
         });
@@ -372,6 +377,7 @@ export class MeilisearchService implements OnModuleInit {
     embedding?: number[];
     topicIds?: string[];
     readingTimeMinutes?: number;
+    status?: string;
   }) {
     try {
       const index = this.client.index(this.indexName);
@@ -400,6 +406,8 @@ export class MeilisearchService implements OnModuleInit {
           replyCount: post.replyCount,
           readingTimeMinutes: post.readingTimeMinutes ?? 1,
           topicIds: post.topicIds ?? [],
+          status: post.status ?? 'PUBLISHED',
+          hasLink: searchBody.includes('http') || searchBody.includes('[['),
           _vectors: post.embedding ? { default: post.embedding } : undefined,
         },
       ]);
@@ -419,11 +427,41 @@ export class MeilisearchService implements OnModuleInit {
   ) {
     try {
       const index = this.client.index(this.indexName);
-      const filters: string[] = [];
+      const filters: string[] = ['status = "PUBLISHED"'];
       if (options?.lang) filters.push(`lang = "${options.lang}"`);
       if (options?.topicId) filters.push(`topicIds IN ["${options.topicId}"]`);
+
+      // Parse advanced operators
+      let cleanQuery = query;
+
+      const fromMatch = query.match(/from:(\w+)/);
+      if (fromMatch) {
+        filters.push(`author.handle = "${fromMatch[1]}"`);
+        cleanQuery = cleanQuery.replace(fromMatch[0], '').trim();
+      }
+
+      const sinceMatch = query.match(/since:([\d-]+)/);
+      if (sinceMatch) {
+        const date = new Date(sinceMatch[1]);
+        if (!isNaN(date.getTime())) {
+          filters.push(`createdAt > ${date.getTime()}`); // Meilisearch handles Unix timestamps? No, ISO strings.
+          // Wait, Meilisearch sortable/filterable attributes for dates work best with Unix timestamps for range.
+          // But I indexed createdAt as ISO string.
+          // Meilisearch string comparison works for ISO dates too! "2023-01-01" > "2022-01-01".
+          // So I can use ISO string.
+          filters.push(`createdAt > "${date.toISOString()}"`);
+        }
+        cleanQuery = cleanQuery.replace(sinceMatch[0], '').trim();
+      }
+
+      const hasMatch = query.match(/has:link/);
+      if (hasMatch) {
+        filters.push('hasLink = true');
+        cleanQuery = cleanQuery.replace(hasMatch[0], '').trim();
+      }
+
       const filter = filters.length > 0 ? filters.join(' AND ') : undefined;
-      const results = await index.search(query, {
+      const results = await index.search(cleanQuery, {
         limit: options?.limit || 20,
         offset: options?.offset || 0,
         filter: filter || undefined,

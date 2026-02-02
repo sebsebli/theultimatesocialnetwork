@@ -9,6 +9,7 @@ import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
+import { PostPreviewRow } from '../../components/PostPreviewRow';
 import { PostItem } from '../../components/PostItem';
 import { PostContent } from '../../components/PostContent';
 import { MarkdownText } from '../../components/MarkdownText';
@@ -105,6 +106,10 @@ export default function PostDetailScreen() {
   };
 
   const handleLike = async () => {
+    if (!userId) {
+      router.replace('/welcome');
+      return;
+    }
     const previous = liked;
     setLiked(!previous);
     try {
@@ -120,6 +125,10 @@ export default function PostDetailScreen() {
   };
 
   const handleKeep = async () => {
+    if (!userId) {
+      router.replace('/welcome');
+      return;
+    }
     const previous = kept;
     setKept(!previous);
     try {
@@ -253,7 +262,13 @@ export default function PostDetailScreen() {
             </Pressable>
             <Pressable
               style={styles.actionButton}
-              onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
+              onPress={() => {
+                if (!userId) {
+                  router.replace('/welcome');
+                  return;
+                }
+                router.push({ pathname: '/post/compose', params: { replyTo: post.id } });
+              }}
               accessibilityLabel={t('post.reply')}
               accessibilityRole="button"
             >
@@ -261,7 +276,13 @@ export default function PostDetailScreen() {
             </Pressable>
             <Pressable
               style={styles.actionButton}
-              onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}
+              onPress={() => {
+                if (!userId) {
+                  router.replace('/welcome');
+                  return;
+                }
+                router.push({ pathname: '/post/compose', params: { quote: post.id } });
+              }}
               accessibilityLabel={t('post.quote')}
               accessibilityRole="button"
             >
@@ -327,7 +348,7 @@ export default function PostDetailScreen() {
               <Text style={styles.sectionCount}>{referencedBy.length} {t('post.replies')}</Text>
             </View>
             {referencedBy.slice(0, 2).map((refPost) => (
-              <PostItem key={refPost.id} post={refPost} />
+              <PostPreviewRow key={refPost.id} post={refPost} />
             ))}
             {referencedBy.length > 2 && (
               <Pressable style={styles.viewAllButton}>
@@ -392,7 +413,13 @@ export default function PostDetailScreen() {
         <View style={styles.bottomActions}>
           <Pressable
             style={styles.bottomActionButton}
-            onPress={() => router.push({ pathname: '/post/compose', params: { replyTo: post.id } })}
+            onPress={() => {
+              if (!userId) {
+                router.replace('/welcome');
+                return;
+              }
+              router.push({ pathname: '/post/compose', params: { replyTo: post.id } });
+            }}
             accessibilityLabel={t('post.reply')}
             accessibilityRole="button"
           >
@@ -401,7 +428,13 @@ export default function PostDetailScreen() {
           </Pressable>
           <Pressable
             style={styles.bottomActionButton}
-            onPress={() => router.push({ pathname: '/post/compose', params: { quote: post.id } })}
+            onPress={() => {
+              if (!userId) {
+                router.replace('/welcome');
+                return;
+              }
+              router.push({ pathname: '/post/compose', params: { quote: post.id } });
+            }}
             accessibilityLabel={t('post.quote')}
             accessibilityRole="button"
           >

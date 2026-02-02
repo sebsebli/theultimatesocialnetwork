@@ -3,19 +3,23 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "./auth-provider";
+import { useToast } from "./ui/toast";
 
 interface ProfileOptionsMenuProps {
   handle: string;
+  userId?: string;
   isSelf: boolean;
 }
 
 export function ProfileOptionsMenu({
   handle,
+  userId,
   isSelf,
 }: ProfileOptionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { signOut } = useAuth();
+  const { success, error: toastError } = useToast();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -32,6 +36,66 @@ export function ProfileOptionsMenu({
     navigator.clipboard.writeText(url);
     setIsOpen(false);
     alert("Profile link copied to clipboard");
+  };
+
+  const handleBlock = async () => {
+    if (!userId || !confirm(`Are you sure you want to block @${handle}?`))
+      return;
+    try {
+      const res = await fetch(`/api/safety/block/${userId}`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        success("User blocked");
+        window.location.reload();
+      } else {
+        throw new Error();
+      }
+    } catch {
+      toastError("Failed to block user");
+    }
+    setIsOpen(false);
+  };
+
+  const handleMute = async () => {
+    if (!userId || !confirm(`Are you sure you want to mute @${handle}?`))
+      return;
+    try {
+      const res = await fetch(`/api/safety/mute/${userId}`, { method: "POST" });
+      if (res.ok) {
+        success("User muted");
+      } else {
+        throw new Error();
+      }
+    } catch {
+      toastError("Failed to mute user");
+    }
+    setIsOpen(false);
+  };
+
+  const handleReport = async () => {
+    if (!userId) return;
+    const reason = prompt("Reason for reporting:");
+    if (!reason) return;
+    try {
+      const res = await fetch("/api/safety/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetId: userId,
+          targetType: "USER",
+          reason,
+        }),
+      });
+      if (res.ok) {
+        success("Report submitted");
+      } else {
+        throw new Error();
+      }
+    } catch {
+      toastError("Failed to submit report");
+    }
+    setIsOpen(false);
   };
 
   return (
@@ -93,6 +157,74 @@ export function ProfileOptionsMenu({
               </svg>
               RSS Feed
             </a>
+            {!isSelf && userId && (
+              <>
+                <div className="h-px bg-divider my-1" />
+                <button
+                  onClick={handleMute}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm text-paper hover:bg-white/5 transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4 text-secondary"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+                    />
+                  </svg>
+                  Mute User
+                </button>
+                <button
+                  onClick={handleBlock}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm text-error hover:bg-white/5 transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4 text-error"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                    />
+                  </svg>
+                  Block User
+                </button>
+                <button
+                  onClick={handleReport}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm text-error hover:bg-white/5 transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4 text-error"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 21v-8a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  Report User
+                </button>
+              </>
+            )}
             {isSelf && (
               <>
                 <div className="h-px bg-divider my-1" />

@@ -8,9 +8,16 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
+import { Session } from '../entities/session.entity';
 import { v4 as uuidv4 } from 'uuid';
 import Redis from 'ioredis';
 import { randomInt, randomBytes } from 'crypto';
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- otplib has no ESM types
+const { authenticator } = require('otplib') as {
+  generateSecret: () => string;
+  keyuri: (user: string, service: string, secret: string) => string;
+  verify: (opts: { token: string; secret: string }) => boolean;
+};
 
 import { InvitesService } from '../invites/invites.service';
 import { EmailService } from '../shared/email.service';
@@ -21,6 +28,7 @@ import { MeilisearchService } from '../search/meilisearch.service';
 export class AuthService {
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Session) private sessionRepo: Repository<Session>,
     private jwtService: JwtService,
     @Inject('REDIS_CLIENT') private redis: Redis,
     private invitesService: InvitesService,
@@ -113,7 +121,22 @@ export class AuthService {
     }
 
     const user = await this.validateOrCreateUser(email, inviteCode);
-    const tokens = this.generateTokens(user);
+
+    // 2FA Check
+    if (user.twoFactorEnabled) {
+      // Clear used token since we verified it
+      await this.redis.del(key);
+      await this.redis.del(attemptsKey);
+
+      // Return temp token for 2FA step
+      const tempPayload = { sub: user.id, email: user.email, isPartial: true };
+      return {
+        twoFactorRequired: true,
+        tempToken: this.jwtService.sign(tempPayload, { expiresIn: '5m' }),
+      };
+    }
+
+    const tokens = await this.generateTokens(user);
 
     // Clear used token and attempts after success
     await this.redis.del(key);
@@ -158,9 +181,6 @@ export class AuthService {
       });
       user = await this.userRepo.save(user);
 
-      // Index user in search only after they complete onboarding (real handle)
-      // Placeholder users (__pending_*) are not indexed
-
       // Consume invite code
       if (inviteCode) {
         await this.invitesService.consumeCode(inviteCode, user.id);
@@ -173,16 +193,89 @@ export class AuthService {
     return user;
   }
 
-  generateTokens(user: User) {
-    const payload = { sub: user.id, email: user.email };
+  async generateTokens(user: User) {
+    const sessionId = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      sessionId,
+      role: user.role,
+    };
+    const accessToken = this.jwtService.sign(payload);
+
+    // Store Session
+    await this.sessionRepo.save({
+      id: sessionId,
+      userId: user.id,
+      tokenHash: accessToken.slice(-10), // Store partial hash or full if needed for revocation
+      expiresAt,
+    });
+
     return {
-      accessToken: this.jwtService.sign(payload),
+      accessToken,
       user: {
         id: user.id,
         email: user.email,
         handle: user.handle,
         displayName: user.displayName,
+        role: user.role, // Added role
       },
     };
+  }
+
+  // --- 2FA Methods ---
+
+  async generate2FASecret(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- otplib from require() */
+    const secret = authenticator.generateSecret();
+    const otpauthUrl = authenticator.keyuri(user.email, 'Citewalk', secret);
+
+    return { secret, otpauthUrl };
+  }
+
+  async enable2FA(userId: string, token: string, secret: string) {
+    /* eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- otplib */
+    const isValid = authenticator.verify({ token, secret });
+    if (!isValid) throw new BadRequestException('Invalid TOTP code');
+
+    await this.userRepo.update(userId, {
+      twoFactorEnabled: true,
+      twoFactorSecret: secret,
+    });
+    return { success: true };
+  }
+
+  async verify2FALogin(userId: string, token: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: [
+        'id',
+        'email',
+        'handle',
+        'displayName',
+        'role',
+        'twoFactorEnabled',
+        'twoFactorSecret',
+      ],
+    });
+
+    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+      throw new UnauthorizedException('2FA not enabled or user not found');
+    }
+
+    /* eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access -- otplib */
+    const isValid = authenticator.verify({
+      token,
+      secret: user.twoFactorSecret,
+    });
+    if (!isValid) throw new UnauthorizedException('Invalid 2FA code');
+
+    return this.generateTokens(user);
   }
 }

@@ -38,8 +38,8 @@ export const FONTS = {
   serifSemiBold: 'IBMPlexSerif_600SemiBold',
 };
 
-/** Fixed profile header aspect ratio (width : height). Same on profile and draw modal so drawing matches header. 16:9 keeps header compact. */
-export const PROFILE_HEADER_ASPECT_RATIO = 16 / 9;
+/** Fixed profile header aspect ratio (width : height). Same on profile and draw modal so drawing matches header. 1 (square) allows enough room for avatar + bio. */
+export const PROFILE_HEADER_ASPECT_RATIO = 1;
 
 /** Opacity for draw canvas overlay (0–1). Used by DrawBackgroundModal for SVG fillOpacity. */
 export const DRAW_CANVAS_OPACITY = 0.45;

@@ -133,6 +133,11 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/languages')}
           />
           <SettingItem
+            icon="security"
+            label={t('settings.security', 'Security (2FA & Sessions)')}
+            onPress={() => router.push('/settings/security')}
+          />
+          <SettingItem
             icon="mail-outline"
             label={t('settings.changeEmail')}
             onPress={() => router.push('/settings/change-email')}

@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 import { PostItem, Post } from "./post-item";
 import { TopicCard } from "./topic-card";
 import { UserCard } from "./user-card";
 import { WhyLabel } from "./why-label";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const EXPLORE_TABS = [
   "quoted",
@@ -120,7 +122,9 @@ function ExploreContentInner() {
           newsroom: "/api/explore/newsroom",
         };
 
-        const res = await fetch(`${endpoints[tab]}${queryString}`);
+        const res = await fetchWithRetry(`${endpoints[tab]}${queryString}`, {
+          credentials: "include",
+        });
         if (res.ok) {
           const data = await res.json();
           const items = Array.isArray(data) ? data : data.items || [];
@@ -159,7 +163,7 @@ function ExploreContentInner() {
   // Refetch whenever tab or sort changes.
   useEffect(() => {
     loadContent({ reset: true });
-  }, [tab, sort]);
+  }, [tab, sort, loadContent]);
 
   // Infinite scroll for Latest (newest) on post tabs
   useEffect(() => {
@@ -278,21 +282,17 @@ function ExploreContentInner() {
       onTouchStart={onSwipeStart}
       onTouchEnd={onSwipeEnd}
     >
-      <h3 className="text-xl md:text-[1.25rem] font-bold leading-tight text-left text-paper tracking-tight px-4 md:px-0 mb-4">
-        Discover
-      </h3>
-
       {loading && activeItems.length === 0 ? (
         <div className="text-center py-24">
           <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-secondary text-sm">Finding context...</p>
         </div>
       ) : activeItems.length === 0 ? (
-        <div className="text-center py-24 border border-dashed border-divider rounded-xl">
-          <p className="text-secondary text-sm">
-            No items found in this category.
-          </p>
-        </div>
+        <EmptyState
+          icon="explore"
+          headline="No content yet"
+          subtext="Try another filter or check back later."
+        />
       ) : (
         <div className={tab === "topics" ? "space-y-2" : "space-y-4"}>
           {tab === "topics" &&

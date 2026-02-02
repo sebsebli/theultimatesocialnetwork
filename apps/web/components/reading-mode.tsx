@@ -1,11 +1,62 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Blurhash } from "react-blurhash";
 import { getImageUrl } from "@/lib/security";
 import { Avatar } from "./avatar";
+import { OfflineToggle } from "./offline-toggle";
+import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
+
+function renderMarkdownForReading(
+  text: string,
+  title?: string | null,
+  referenceMetadata?: Record<string, { title?: string }>,
+): string {
+  const processed = stripLeadingH1IfMatch(text, title ?? undefined);
+  let html = renderMarkdown(processed, { referenceMetadata });
+  html = html.replace(
+    /class="prose-heading prose-h3 text-base font-semibold/g,
+    'class="prose-heading prose-h3 text-xl font-semibold font-sans tracking-tight',
+  );
+  html = html.replace(
+    /class="prose-heading prose-h2 text-lg font-semibold/g,
+    'class="prose-heading prose-h2 text-3xl font-semibold font-sans tracking-tighter',
+  );
+  html = html.replace(
+    /class="prose-heading prose-h1 text-xl font-bold/g,
+    'class="prose-heading prose-h1 text-4xl font-bold font-sans tracking-tighter',
+  );
+  html = html.replace(
+    /class="(prose-tag[^"]*)"/g,
+    (_, cls) =>
+      `class="${cls} border-b border-current border-opacity-40 pb-0.5 font-serif font-semibold"`,
+  );
+  html = html.replace(
+    /<blockquote>/g,
+    '<blockquote class="border-l-4 border-primary/50 bg-white/5 pl-6 pr-4 py-4 my-8 rounded-r-lg text-xl italic text-secondary font-serif">',
+  );
+  html = html.replace(
+    /<ul>/g,
+    '<ul class="list-disc pl-6 space-y-3 my-6 marker:text-tertiary font-serif">',
+  );
+  html = html.replace(
+    /<ol>/g,
+    '<ol class="list-decimal pl-6 space-y-3 my-6 marker:text-tertiary font-serif">',
+  );
+  html = html.replace(/<li>/g, '<li class="pl-2">');
+  html = html
+    .split("<br /><br />")
+    .map((para) => {
+      if (para.trim() && !para.match(/^<[h|b|u|o]/)) {
+        return `<p class="mb-6">${para}</p>`;
+      }
+      return para;
+    })
+    .join("");
+  return html;
+}
 
 export interface ReadingModeProps {
   post: {
@@ -14,40 +65,38 @@ export interface ReadingModeProps {
     title?: string | null;
     createdAt: string;
     author: {
-      id: string;
       handle: string;
       displayName: string;
       avatarKey?: string | null;
       avatarUrl?: string | null;
     };
-    replyCount: number;
-    quoteCount: number;
-    headerImageKey?: string;
-    headerImageBlurhash?: string;
+    headerImageKey?: string | null;
+    headerImageBlurhash?: string | null;
     referenceMetadata?: Record<string, { title?: string }>;
+    quoteCount: number;
   };
 }
 
 function ReadingModeInner({ post }: ReadingModeProps) {
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString("en-US", {
+    const d = new Date(date);
+    return d.toLocaleDateString(undefined, {
       year: "numeric",
-      month: "long",
+      month: "short",
       day: "numeric",
     });
   };
 
   return (
     <div className="min-h-screen bg-ink">
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-50 bg-ink/95 backdrop-blur-md border-b border-divider px-4 py-3">
-        <div className="max-w-[680px] mx-auto flex items-center justify-between">
+      <header className="sticky top-0 z-10 bg-ink/95 backdrop-blur-md border-b border-divider">
+        <div className="max-w-[680px] mx-auto px-6 py-4 flex items-center justify-between gap-3">
           <Link
             href={`/post/${post.id}`}
-            className="text-secondary hover:text-paper"
+            className="text-secondary hover:text-paper flex items-center gap-2"
           >
             <svg
-              className="w-6 h-6"
+              className="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -65,7 +114,7 @@ function ReadingModeInner({ post }: ReadingModeProps) {
               {post.title}
             </h1>
           )}
-          <div className="w-6"></div>
+          <OfflineToggle post={post} />
         </div>
       </header>
 
@@ -255,51 +304,3 @@ function ReadingModeInner({ post }: ReadingModeProps) {
 }
 
 export const ReadingMode = memo(ReadingModeInner);
-
-import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
-
-function renderMarkdownForReading(
-  text: string,
-  title?: string | null,
-  referenceMetadata?: Record<string, { title?: string }>,
-): string {
-  // Remove only the first H1 when it matches the post title (already shown separately)
-  const processed = stripLeadingH1IfMatch(text, title ?? undefined);
-
-  // Use shared renderer but with reading mode classes
-  let html = renderMarkdown(processed, { referenceMetadata });
-
-  // Override classes for reading mode (prose-heading: H1 > H2 > H3, larger sizes for reading)
-  html = html.replace(
-    /class="prose-heading prose-h3 text-base font-semibold/g,
-    'class="prose-heading prose-h3 text-xl font-semibold',
-  );
-  html = html.replace(
-    /class="prose-heading prose-h2 text-lg font-semibold/g,
-    'class="prose-heading prose-h2 text-3xl font-semibold',
-  );
-  html = html.replace(
-    /class="prose-heading prose-h1 text-xl font-bold/g,
-    'class="prose-heading prose-h1 text-4xl font-bold',
-  );
-
-  // Add reading mode link styling for prose-tag (subtle underline, same as body text)
-  html = html.replace(
-    /class="(prose-tag[^"]*)"/g,
-    (_, cls) =>
-      `class="${cls} border-b border-current border-opacity-40 pb-0.5"`,
-  );
-
-  // Convert to paragraphs for better reading
-  html = html
-    .split("<br /><br />")
-    .map((para) => {
-      if (para.trim() && !para.match(/^<[h|]/)) {
-        return `<p class="mb-6">${para}</p>`;
-      }
-      return para;
-    })
-    .join("");
-
-  return html;
-}

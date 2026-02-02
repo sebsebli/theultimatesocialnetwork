@@ -429,21 +429,47 @@ export default function ProfileScreen() {
           renderItem={activeTab === 'collections' ? renderCollectionItem : renderItem}
           ListHeaderComponent={
             <View style={styles.profileListHeader}>
-              <View style={[styles.profileTopSectionWrap, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
-                <ProfileHeaderSection
-                  headerImageUrl={profileHeaderImageUrl}
-                  isSelf={isSelf}
-                  safeAreaTop={insets.top}
-                  onBack={() => router.back()}
-                  onEditHeader={() => setHeaderEditModalVisible(true)}
-                  onOptions={() => setProfileOptionsVisible(true)}
-                  editHeaderA11yLabel={t('profile.editHeader', 'Edit background')}
-                  optionsA11yLabel={t('profile.options', 'Options')}
-                />
-              </View>
-              {/* Info block below header: avatar, name, bio, stats (same ratio = same draw area everywhere) */}
-              <View style={styles.profileInfoBlock}>
-                <View style={styles.profileHeader}>
+              <View style={[styles.profileHeaderContainer, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
+                {profileHeaderImageUrl ? (
+                  <Image
+                    source={{ uri: profileHeaderImageUrl }}
+                    style={styles.profileHeaderBackground}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                ) : (
+                  <View style={styles.profileHeaderBackgroundBlack} />
+                )}
+                {/* Overlay for text contrast */}
+                <View style={styles.profileHeaderOverlay} />
+
+                {/* Top Action Buttons */}
+                <View style={[styles.headerBar, { paddingTop: insets.top + 10 }]}>
+                  {isSelf ? (
+                    <Pressable
+                      onPress={() => setHeaderEditModalVisible(true)}
+                      style={styles.iconButton}
+                      accessibilityLabel={t('profile.editHeader', 'Edit background')}
+                    >
+                      <MaterialIcons name="edit" size={HEADER.iconSize} color={HEADER.iconColor} />
+                    </Pressable>
+                  ) : (
+                    <Pressable onPress={() => router.back()} style={styles.iconButton}>
+                      <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
+                    </Pressable>
+                  )}
+                  <Pressable
+                    onPress={() => setProfileOptionsVisible(true)}
+                    style={styles.iconButton}
+                    accessibilityLabel={t('profile.options', 'Options')}
+                    accessibilityRole="button"
+                  >
+                    <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
+                  </Pressable>
+                </View>
+
+                {/* Profile Content (Avatar, Name, Bio, Stats) */}
+                <View style={styles.profileHeaderContent}>
                   <View style={styles.avatarContainer}>
                     <Pressable
                       onPress={onAvatarPress}
@@ -501,30 +527,31 @@ export default function ProfileScreen() {
                       {isSelf ? t('profile.editProfile') : (isFollowing ? t('profile.following') : t('profile.follow'))}
                     </Text>
                   </Pressable>
-                </View>
 
-                <View style={styles.followersFollowingRow}>
-                  <Pressable
-                    onPress={() => isSelf && router.push('/user/connections?tab=followers')}
-                    disabled={!isSelf}
-                    style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
-                  >
-                    <Text style={styles.followersFollowingText}>
-                      {formatCompactNumber(user.followerCount)} {t('profile.followers').toLowerCase()}
-                    </Text>
-                  </Pressable>
-                  <Text style={styles.followersFollowingText}> · </Text>
-                  <Pressable
-                    onPress={() => isSelf && router.push('/user/connections?tab=following')}
-                    disabled={!isSelf}
-                    style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
-                  >
-                    <Text style={styles.followersFollowingText}>
-                      {formatCompactNumber(user.followingCount)} {t('profile.following').toLowerCase()}
-                    </Text>
-                  </Pressable>
+                  <View style={styles.followersFollowingRow}>
+                    <Pressable
+                      onPress={() => isSelf && router.push('/user/connections?tab=followers')}
+                      disabled={!isSelf}
+                      style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
+                    >
+                      <Text style={styles.followersFollowingText}>
+                        {formatCompactNumber(user.followerCount)} {t('profile.followers').toLowerCase()}
+                      </Text>
+                    </Pressable>
+                    <Text style={styles.followersFollowingText}> · </Text>
+                    <Pressable
+                      onPress={() => isSelf && router.push('/user/connections?tab=following')}
+                      disabled={!isSelf}
+                      style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
+                    >
+                      <Text style={styles.followersFollowingText}>
+                        {formatCompactNumber(user.followingCount)} {t('profile.following').toLowerCase()}
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
+
               {/* Tabs: Posts, Replies, Quotes, Saved (own only), Collections */}
               <View style={styles.tabsContainer}>
                 {(isSelf
@@ -790,6 +817,7 @@ export default function ProfileScreen() {
         onClose={() => setDrawModalVisible(false)}
         onSaved={handleDrawSaved}
         profileHeaderUrl={profileHeaderImageUrl}
+        user={user}
       />
     </View>
   );
@@ -838,29 +866,46 @@ const styles = createStyles({
   scrollContent: {
     paddingBottom: 40,
   },
-  profileListHeader: {},
-  profileTopSectionWrap: {
+  profileHeaderContainer: {
     position: 'relative',
+    width: '100%',
     overflow: 'hidden',
   },
-  /** Info block below header (avatar, name, bio, stats, tabs). */
-  profileInfoBlock: {
+  profileHeaderBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  profileHeaderBackgroundBlack: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: COLORS.ink,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    paddingTop: SPACING.m,
-    paddingBottom: SPACING.l,
   },
-  profileTopContent: {
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    paddingTop: SPACING.m,
-    paddingBottom: SPACING.l,
-    position: 'relative',
-    zIndex: 5,
+  profileHeaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)', // Subtle dim for text contrast
   },
-  profileHeader: {
+  headerBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingBottom: SPACING.s,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  profileHeaderContent: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
     gap: SPACING.l,
+    zIndex: 5,
   },
   avatarContainer: {
     position: 'relative',

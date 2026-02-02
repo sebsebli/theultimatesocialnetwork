@@ -1,4 +1,4 @@
-import { TopicPage } from "@/components/topic-page";
+import TopicPageDynamic from "./TopicPageDynamic";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -40,5 +40,5 @@ export default async function TopicPageRoute(props: {
     );
   }
 
-  return <TopicPage topic={topic} />;
+  return <TopicPageDynamic topic={topic} />;
 }

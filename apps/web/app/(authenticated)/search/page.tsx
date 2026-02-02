@@ -2,9 +2,11 @@
 
 import { useState, Suspense, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { fetchWithRetry } from "@/lib/fetchWithRetry";
 import { PostItem, type Post } from "@/components/post-item";
 import { UserCard } from "@/components/user-card";
 import { TopicCard } from "@/components/topic-card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type SearchTab = "all" | "posts" | "people" | "topics";
 
@@ -50,9 +52,11 @@ function SearchContent() {
     users: true,
     topics: true,
   });
-  const [offsets, setOffsets] = useState({ posts: 0, users: 0, topics: 0 });
+  const [, setOffsets] = useState({ posts: 0, users: 0, topics: 0 });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
   const activeTabRef = useRef(activeTab);
   const handleSearchRef = useRef<
     ((q: string, type: SearchTab, append?: boolean) => Promise<void>) | null
@@ -85,14 +89,17 @@ function SearchContent() {
         if (type === "all" && !topicSlug) {
           if (append) {
             const [resPosts, resUsers, resTopics] = await Promise.all([
-              fetch(
+              fetchWithRetry(
                 `/api/search/posts?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${results.posts.length}`,
+                { credentials: "include" },
               ),
-              fetch(
+              fetchWithRetry(
                 `/api/search/users?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${results.users.length}`,
+                { credentials: "include" },
               ),
-              fetch(
+              fetchWithRetry(
                 `/api/search/topics?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${results.topics.length}`,
+                { credentials: "include" },
               ),
             ]);
             const posts = resPosts.ok ? (await resPosts.json()).hits || [] : [];
@@ -112,8 +119,9 @@ function SearchContent() {
               topics: topics.length >= limit,
             });
           } else {
-            const res = await fetch(
+            const res = await fetchWithRetry(
               `/api/search/all?q=${encodeURIComponent(searchQuery)}&limit=${limit}`,
+              { credentials: "include" },
             );
             if (res.ok) {
               const data = await res.json();
@@ -132,8 +140,9 @@ function SearchContent() {
           const topicParam = topicSlug
             ? `&topicSlug=${encodeURIComponent(topicSlug)}`
             : "";
-          const res = await fetch(
+          const res = await fetchWithRetry(
             `/api/search/posts?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${offset}${topicParam}`,
+            { credentials: "include" },
           );
           if (res.ok) {
             const data = await res.json();
@@ -148,8 +157,9 @@ function SearchContent() {
             else setOffsets((o) => ({ ...o, posts: o.posts + hits.length }));
           }
         } else if (type === "people") {
-          const res = await fetch(
+          const res = await fetchWithRetry(
             `/api/search/users?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${offset}`,
+            { credentials: "include" },
           );
           if (res.ok) {
             const data = await res.json();
@@ -164,8 +174,9 @@ function SearchContent() {
             else setOffsets((o) => ({ ...o, users: o.users + hits.length }));
           }
         } else if (type === "topics") {
-          const res = await fetch(
+          const res = await fetchWithRetry(
             `/api/search/topics?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${offset}`,
+            { credentials: "include" },
           );
           if (res.ok) {
             const data = await res.json();
@@ -199,7 +210,7 @@ function SearchContent() {
   activeTabRef.current = activeTab;
   handleSearchRef.current = handleSearch;
 
-  // Debounce: only run search after user stops typing (do not depend on handleSearch to avoid reset after load more)
+  // Debounce: only run search after user stops typing
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim()) {
@@ -242,6 +253,30 @@ function SearchContent() {
     if (!more) return;
     handleSearch(query, activeTab, true);
   }, [activeTab, loadingMore, loading, hasMore, query, handleSearch]);
+
+  // Infinite Scroll Observer
+  useEffect(() => {
+    if (loading || loadingMore) return;
+
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [loading, loadingMore, loadMore, results]); // Re-attach when results change to ensure sentinel is at bottom
 
   const tabs: SearchTab[] = ["all", "posts", "people", "topics"];
 
@@ -338,26 +373,12 @@ function SearchContent() {
             <p className="text-secondary text-sm">Searching...</p>
           </div>
         ) : !query ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
-              <svg
-                className="w-8 h-8 text-secondary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </div>
-            <p className="text-secondary text-sm">
-              Start typing to search {topicSlug ? "in this topic" : "Citewalk"}
-            </p>
-          </div>
+          <EmptyState
+            icon="search"
+            headline={topicSlug ? `Search in ${topicSlug}` : "Search Citewalk"}
+            subtext="Find people, topics, and posts."
+            compact
+          />
         ) : (
           <div className="flex flex-col">
             {activeTab === "all" && !topicSlug ? (
@@ -405,9 +426,11 @@ function SearchContent() {
                 {results.posts.length === 0 &&
                   results.users.length === 0 &&
                   results.topics.length === 0 && (
-                    <div className="text-center py-12">
-                      <p className="text-secondary text-sm">No results found</p>
-                    </div>
+                    <EmptyState
+                      icon="search_off"
+                      headline="No results found"
+                      subtext={`We couldn't find anything matching "${query}"`}
+                    />
                   )}
               </>
             ) : (
@@ -420,11 +443,11 @@ function SearchContent() {
                         <PostItem key={post.id} post={post} />
                       ))
                     ) : (
-                      <div className="text-center py-12">
-                        <p className="text-secondary text-sm">
-                          No posts found.
-                        </p>
-                      </div>
+                      <EmptyState
+                        icon="article"
+                        headline="No posts found"
+                        subtext="Try adjusting your search terms."
+                      />
                     )}
                   </div>
                 )}
@@ -435,11 +458,11 @@ function SearchContent() {
                         <UserCard key={user.id} person={user} />
                       ))
                     ) : (
-                      <div className="text-center py-12">
-                        <p className="text-secondary text-sm">
-                          No people found.
-                        </p>
-                      </div>
+                      <EmptyState
+                        icon="person_search"
+                        headline="No people found"
+                        subtext="Try searching by handle or name."
+                      />
                     )}
                   </div>
                 )}
@@ -450,32 +473,24 @@ function SearchContent() {
                         <TopicCard key={topic.id} topic={topic} />
                       ))
                     ) : (
-                      <div className="text-center py-12">
-                        <p className="text-secondary text-sm">
-                          No topics found.
-                        </p>
-                      </div>
+                      <EmptyState
+                        icon="tag"
+                        headline="No topics found"
+                        subtext="Try a different topic name."
+                      />
                     )}
-                  </div>
-                )}
-                <div
-                  ref={loadMoreRef}
-                  className="h-4 flex-shrink-0"
-                  aria-hidden
-                />
-                {activeTab === "posts" && hasMore.posts && loadingMore && (
-                  <div className="py-4 flex justify-center">
-                    <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-                  </div>
-                )}
-                {activeTab === "people" && hasMore.users && loadingMore && (
-                  <div className="py-4 flex justify-center">
-                    <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
                   </div>
                 )}
               </>
             )}
-            <div ref={loadMoreRef} className="h-4 flex-shrink-0" aria-hidden />
+
+            {/* Sentinel for Infinite Scroll */}
+            <div
+              ref={loadMoreRef}
+              className="h-4 flex-shrink-0 w-full"
+              aria-hidden
+            />
+
             {loadingMore && (
               <div className="py-4 flex justify-center">
                 <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />

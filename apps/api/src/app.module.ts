@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { ThrottlerStorageRedisService } from 'nestjs-throttler-storage-redis';
 import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from './database/database.module';
 import { AppController } from './app.controller';
@@ -30,8 +29,6 @@ import { KeepsModule } from './keeps/keeps.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { CleanupService } from './cleanup/cleanup.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { RssModule } from './rss/rss.module';
-import { MetadataModule } from './metadata/metadata.module';
 import { Post } from './entities/post.entity';
 import { User } from './entities/user.entity';
 import { Notification } from './entities/notification.entity';
@@ -104,9 +101,6 @@ import * as Joi from 'joi';
             limit: config.get<number>('THROTTLE_LIMIT') ?? 60,
           },
         ],
-        storage: new ThrottlerStorageRedisService(
-          config.get<string>('REDIS_URL') || 'redis://localhost:6379',
-        ),
       }),
     }),
     DatabaseModule,
@@ -131,8 +125,8 @@ import * as Joi from 'joi';
     AdminModule,
     KeepsModule,
     RealtimeModule,
-    RssModule,
-    MetadataModule,
+    // RssModule,
+    // MetadataModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

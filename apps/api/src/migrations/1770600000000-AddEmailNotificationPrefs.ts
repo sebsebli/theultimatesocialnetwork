@@ -5,10 +5,10 @@ export class AddEmailNotificationPrefs1770600000000 implements MigrationInterfac
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "notification_prefs" ADD COLUMN "email_marketing" boolean NOT NULL DEFAULT false`,
+      `ALTER TABLE "notification_prefs" ADD COLUMN IF NOT EXISTS "email_marketing" boolean NOT NULL DEFAULT false`,
     );
     await queryRunner.query(
-      `ALTER TABLE "notification_prefs" ADD COLUMN "email_product_updates" boolean NOT NULL DEFAULT false`,
+      `ALTER TABLE "notification_prefs" ADD COLUMN IF NOT EXISTS "email_product_updates" boolean NOT NULL DEFAULT false`,
     );
   }
 

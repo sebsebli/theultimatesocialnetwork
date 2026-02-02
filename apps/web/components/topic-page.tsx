@@ -11,7 +11,7 @@ const HERO_FADE_HEIGHT = 280;
 const STICKY_HEADER_APPEAR = 120;
 const POSTS_PAGE_SIZE = 15;
 
-interface TopicPageProps {
+export interface TopicPageProps {
   topic: {
     id: string;
     slug: string;
@@ -48,7 +48,8 @@ function TopicPageInner({ topic }: TopicPageProps) {
   const [isFollowing, setIsFollowing] = useState(topic.isFollowing ?? false);
   const [scrollY, setScrollY] = useState(0);
   const [posts, setPosts] = useState<Post[]>(topic.posts ?? []);
-  const [postsPage, setPostsPage] = useState(1);
+  const [_postsPage, setPostsPage] = useState(1);
+  void _postsPage;
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const [moreTopics, setMoreTopics] = useState<TopicSummary[]>([]);
@@ -123,7 +124,7 @@ function TopicPageInner({ topic }: TopicPageProps) {
     } else {
       loadPosts(1, false);
     }
-  }, [topic.slug, loadPosts]);
+  }, [topic.slug, topic.posts, loadPosts]);
 
   useEffect(() => {
     fetch("/api/explore/topics")

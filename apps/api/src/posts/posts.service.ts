@@ -4,6 +4,7 @@ import {
   BadRequestException,
   NotFoundException,
   Inject,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
@@ -23,8 +24,13 @@ import { NotificationHelperService } from '../shared/notification-helper.service
 import { SafetyService } from '../safety/safety.service';
 import { EmbeddingService } from '../shared/embedding.service';
 
+import { UpdatePostDto } from './dto/update-post.dto';
+import { EntityManager } from 'typeorm';
+
 @Injectable()
 export class PostsService {
+  private readonly logger = new Logger(PostsService.name);
+
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(ExternalSource)
@@ -68,27 +74,27 @@ export class PostsService {
     }
 
     // Rate Limit: Topic References (Anti-Spam)
-    // Check how many topic references this user has made in the last hour
-    type CountRow = { count: string };
-    const rawRefs = await this.dataSource.query(
-      `SELECT COUNT(*) as count 
-       FROM post_topics pt
-       JOIN posts p ON pt.post_id = p.id
-       WHERE p.author_id = $1 AND p.created_at > NOW() - INTERVAL '1 hour'`,
-      [userId],
-    );
-    const recentTopicRefs: CountRow[] = Array.isArray(rawRefs)
-      ? (rawRefs as CountRow[])
-      : [];
-    const recentCount =
-      recentTopicRefs.length > 0 ? recentTopicRefs[0].count : '0';
-    if (parseInt(recentCount, 10) >= 100) {
-      // Check if this post HAS topic references
-      const hasTopics = /\[\[(?!post:)(.*?)\]\]/.test(sanitizedBody);
-      if (hasTopics) {
-        throw new BadRequestException(
-          'You have reached the limit for topic references this hour.',
-        );
+    if (dto.status !== 'DRAFT') {
+      type CountRow = { count: string };
+      const rawRefs = await this.dataSource.query(
+        `SELECT COUNT(*) as count 
+         FROM post_topics pt
+         JOIN posts p ON pt.post_id = p.id
+         WHERE p.author_id = $1 AND p.created_at > NOW() - INTERVAL '1 hour'`,
+        [userId],
+      );
+      const recentTopicRefs: CountRow[] = Array.isArray(rawRefs)
+        ? (rawRefs as CountRow[])
+        : [];
+      const recentCount =
+        recentTopicRefs.length > 0 ? recentTopicRefs[0].count : '0';
+      if (parseInt(recentCount, 10) >= 100) {
+        const hasTopics = /\[\[(?!post:)(.*?)\]\]/.test(sanitizedBody);
+        if (hasTopics) {
+          throw new BadRequestException(
+            'You have reached the limit for topic references this hour.',
+          );
+        }
       }
     }
 
@@ -130,94 +136,18 @@ export class PostsService {
         lang: lang,
         langConfidence: confidence,
         readingTimeMinutes: readingTime,
+        status: dto.status ?? 'PUBLISHED',
+        media: dto.media ?? null,
       });
 
       // Explicitly save as single entity
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       savedPost = (await queryRunner.manager.save(
         Post,
         post,
       )) as unknown as Post;
 
-      // 4. Extract & Process Wikilinks [[target|alias]]
-      const wikilinkRegex = /\[\[(.*?)\]\]/g;
-      let match;
-      while ((match = wikilinkRegex.exec(sanitizedBody)) !== null) {
-        const content = match[1];
-        const parts = content.split('|');
-        const targetsRaw = parts[0];
-        const alias = parts[1]?.trim() || null;
-
-        const targetItems = targetsRaw.split(',').map((s) => s.trim());
-
-        for (const target of targetItems) {
-          if (target.toLowerCase().startsWith('post:')) {
-            const targetUuid = target.split(':')[1];
-            if (this.isValidUUID(targetUuid)) {
-              const targetPost = await queryRunner.manager.findOne(Post, {
-                where: { id: targetUuid },
-              });
-              if (targetPost) {
-                await queryRunner.manager.save(PostEdge, {
-                  fromPostId: savedPost.id,
-                  toPostId: targetUuid,
-                  edgeType: EdgeType.LINK,
-                  anchorText: alias,
-                });
-              }
-            }
-          } else if (target.startsWith('http')) {
-            await queryRunner.manager.save(ExternalSource, {
-              postId: savedPost.id,
-              url: target,
-              title: alias,
-            });
-            fetch(`https://web.archive.org/save/${target}`).catch(() => {});
-          } else {
-            // Topic Link: use exact wikilink text as topic ID/name (no slugification).
-            // [[Artificial Intelligence]] → topic slug/title "Artificial Intelligence"; [[AI]] → "AI".
-            const slug = target.trim();
-            let topic = await queryRunner.manager.findOne(Topic, {
-              where: { slug },
-            });
-            if (!topic) {
-              topic = queryRunner.manager.create(Topic, {
-                slug,
-                title: slug,
-                createdBy: userId,
-              });
-              topic = await queryRunner.manager.save(Topic, topic);
-              // Index topic (async, lightweight)
-              this.meilisearch
-                .indexTopic(topic)
-                .catch((err) => console.error('Failed to index topic', err));
-            }
-            await queryRunner.manager.save(PostTopic, {
-              postId: savedPost.id,
-              topicId: topic.id,
-            });
-          }
-        }
-      }
-
-      // 5. Extract & Process Mentions @handle
-      const mentionRegex = /@(\w+)/g;
-      let mentionMatch;
-      const mentionedHandles = new Set<string>();
-      while ((mentionMatch = mentionRegex.exec(sanitizedBody)) !== null) {
-        mentionedHandles.add(mentionMatch[1]);
-      }
-
-      for (const handle of mentionedHandles) {
-        const mentionedUser = await queryRunner.manager.findOne(User, {
-          where: { handle },
-        });
-        if (mentionedUser && mentionedUser.id !== userId) {
-          await queryRunner.manager.save(Mention, {
-            postId: savedPost.id,
-            mentionedUserId: mentionedUser.id,
-          });
-        }
+      if (savedPost.status === 'PUBLISHED') {
+        await this.processPublishedPost(savedPost, queryRunner.manager, userId);
       }
 
       await queryRunner.commitTransaction();
@@ -228,12 +158,155 @@ export class PostsService {
       await queryRunner.release();
     }
 
-    // Indexing happens in the background via post queue (post.worker)
-    if (!skipQueue) {
+    if (savedPost.status === 'PUBLISHED' && !skipQueue) {
       await this.postQueue.add('process', { postId: savedPost.id, userId });
     }
 
     return savedPost;
+  }
+
+  async update(userId: string, id: string, dto: UpdatePostDto): Promise<Post> {
+    const post = await this.postRepo.findOne({
+      where: { id, authorId: userId },
+    });
+    if (!post) throw new NotFoundException('Post not found or unauthorized');
+
+    const wasDraft = post.status === 'DRAFT';
+    const isPublishing = wasDraft && dto.status === 'PUBLISHED';
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (dto.body) {
+        const { default: DOMPurify } = await import('isomorphic-dompurify');
+        post.body = DOMPurify.sanitize(dto.body, {
+          ALLOWED_TAGS: [],
+          ALLOWED_ATTR: [],
+          KEEP_CONTENT: true,
+        });
+
+        // Update Title/Stats if body changed
+        const titleMatch = post.body.match(/^#\s+(.+)$/m);
+        post.title = titleMatch
+          ? DOMPurify.sanitize(titleMatch[1].trim(), { ALLOWED_TAGS: [] })
+          : null;
+        const wordCount = post.body.split(/\s+/).length;
+        post.readingTimeMinutes = Math.ceil(wordCount / 200);
+      }
+
+      if (dto.visibility) post.visibility = dto.visibility;
+      if (dto.headerImageKey !== undefined)
+        post.headerImageKey = dto.headerImageKey;
+      if (dto.media !== undefined) post.media = dto.media;
+      if (dto.status) post.status = dto.status;
+
+      const savedPost = await queryRunner.manager.save(Post, post);
+
+      if (isPublishing) {
+        await this.processPublishedPost(savedPost, queryRunner.manager, userId);
+      }
+
+      await queryRunner.commitTransaction();
+
+      if (isPublishing) {
+        await this.postQueue.add('process', { postId: savedPost.id, userId });
+      }
+
+      return savedPost;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  private async processPublishedPost(
+    post: Post,
+    manager: EntityManager,
+    userId: string,
+  ) {
+    // 4. Extract & Process Wikilinks [[target|alias]]
+    const wikilinkRegex = /\[\[(.*?)\]\]/g;
+    let match;
+    while ((match = wikilinkRegex.exec(post.body)) !== null) {
+      const content = match[1];
+      const parts = content.split('|');
+      const targetsRaw = parts[0];
+      const alias = parts[1]?.trim() || null;
+
+      const targetItems = targetsRaw.split(',').map((s) => s.trim());
+
+      for (const target of targetItems) {
+        if (target.toLowerCase().startsWith('post:')) {
+          const targetUuid = target.split(':')[1];
+          if (this.isValidUUID(targetUuid)) {
+            const targetPost = await manager.findOne(Post, {
+              where: { id: targetUuid },
+            });
+            if (targetPost) {
+              await manager.save(PostEdge, {
+                fromPostId: post.id,
+                toPostId: targetUuid,
+                edgeType: EdgeType.LINK,
+                anchorText: alias,
+              });
+            }
+          }
+        } else if (target.startsWith('http')) {
+          await manager.save(ExternalSource, {
+            postId: post.id,
+            url: target,
+            title: alias,
+          });
+          fetch(`https://web.archive.org/save/${target}`).catch(() => {});
+        } else {
+          // Topic Link
+          const slug = target.trim();
+          let topic = await manager.findOne(Topic, {
+            where: { slug },
+          });
+          if (!topic) {
+            topic = manager.create(Topic, {
+              slug,
+              title: slug,
+              createdBy: userId,
+            });
+            topic = await manager.save(Topic, topic);
+            // Index topic (async, lightweight)
+            this.meilisearch
+              .indexTopic(topic)
+              .catch((err) => this.logger.error('Failed to index topic', err));
+          }
+          await manager.save(PostTopic, {
+            postId: post.id,
+            topicId: topic.id,
+          });
+        }
+      }
+    }
+
+    // 5. Extract & Process Mentions @handle
+    const mentionRegex = /@(\w+)/g;
+    let mentionMatch;
+    const mentionedHandles = new Set<string>();
+    while ((mentionMatch = mentionRegex.exec(post.body)) !== null) {
+      mentionedHandles.add(mentionMatch[1]);
+    }
+
+    for (const handle of mentionedHandles) {
+      const mentionedUser = await manager.findOne(User, {
+        where: { handle },
+      });
+      if (mentionedUser && mentionedUser.id !== userId) {
+        await manager.save(Mention, {
+          postId: post.id,
+          mentionedUserId: mentionedUser.id,
+        });
+      }
+    }
   }
 
   // ... helpers

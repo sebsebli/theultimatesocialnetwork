@@ -1,8 +1,17 @@
 "use client";
 
-import { Suspense, useState, useRef, useEffect } from "react";
-import { ExploreContent } from "@/components/explore-content";
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import Link from "next/link";
+import { ExploreSkeleton } from "@/components/skeletons";
+
+const ExploreContent = dynamic(
+  () =>
+    import("@/components/explore-content").then((m) => ({
+      default: m.ExploreContent,
+    })),
+  { ssr: false, loading: () => <ExploreSkeleton /> },
+);
 import { useSearchParams, useRouter } from "next/navigation";
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
@@ -16,25 +25,10 @@ function ExplorePageContent() {
   const router = useRouter();
   const activeTab = searchParams.get("tab") || "quoted";
   const currentSort = searchParams.get("sort") || "recommended";
-  const [sortOpen, setSortOpen] = useState(false);
-  const sortRef = useRef<HTMLDivElement>(null);
 
   const isActive = (tab: string) => activeTab === tab;
 
-  useEffect(() => {
-    const onOutside = (e: MouseEvent) => {
-      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
-        setSortOpen(false);
-      }
-    };
-    if (sortOpen) {
-      document.addEventListener("mousedown", onOutside);
-      return () => document.removeEventListener("mousedown", onOutside);
-    }
-  }, [sortOpen]);
-
   const setSort = (sort: string) => {
-    setSortOpen(false);
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", activeTab);
     if (sort !== "recommended") params.set("sort", sort);
@@ -82,7 +76,7 @@ function ExplorePageContent() {
         </div>
       </div>
 
-      {/* Tabs — order and labels match mobile: quoted, deep-dives, newsroom, topics, people; horizontal scroll for tab names */}
+      {/* Tabs */}
       <div className="pt-1 pb-3 bg-ink border-b border-divider overflow-x-auto overflow-y-hidden min-w-0 no-scrollbar">
         <div className="flex flex-nowrap px-4 gap-6 md:gap-8 min-w-max">
           {tabs.map(({ id, label }) => (
@@ -99,73 +93,21 @@ function ExplorePageContent() {
         </div>
       </div>
 
-      {/* Controls Toolbar */}
-      <div className="flex justify-between items-center gap-2 px-4 py-4">
-        <button
-          type="button"
-          aria-label="Filters"
-          className="flex items-center justify-center min-w-[44px] min-h-[44px] p-2 rounded-lg text-tertiary hover:text-primary hover:bg-white/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-            />
-          </svg>
-        </button>
-        <div className="relative" ref={sortRef}>
+      {/* Sort Chips */}
+      <div className="flex items-center gap-2 px-4 py-4 overflow-x-auto no-scrollbar">
+        {SORT_OPTIONS.map((opt) => (
           <button
-            type="button"
-            aria-label="Sort"
-            aria-expanded={sortOpen}
-            onClick={() => setSortOpen((o) => !o)}
-            className="flex cursor-pointer items-center justify-center overflow-hidden rounded-full min-h-[44px] h-9 bg-white/5 border border-white/10 text-secondary gap-2 text-xs font-bold leading-normal tracking-tight min-w-0 px-4 hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            key={opt.value}
+            onClick={() => setSort(opt.value)}
+            className={`px-4 py-1.5 rounded-lg border text-sm font-semibold transition-colors whitespace-nowrap ${
+              currentSort === opt.value
+                ? "bg-white/5 border-primary text-primary"
+                : "bg-white/5 border-divider text-tertiary hover:text-paper"
+            }`}
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
-              />
-            </svg>
-            <span className="truncate">
-              {SORT_OPTIONS.find((o) => o.value === currentSort)?.label ??
-                "Sort"}
-            </span>
+            {opt.label}
           </button>
-          {sortOpen && (
-            <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] py-1 rounded-lg bg-ink border border-divider shadow-lg">
-              {SORT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setSort(opt.value)}
-                  className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors ${
-                    currentSort === opt.value
-                      ? "bg-primary/20 text-primary"
-                      : "text-paper hover:bg-white/10"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        ))}
       </div>
 
       {/* Main Content */}

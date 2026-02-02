@@ -141,90 +141,161 @@ function showApiErrorToast(message: string) {
   }
 }
 
+/** Called when any request returns 401 (invalid/expired token or revoked session). Use to sign out and redirect to welcome. */
+let onUnauthorized: (() => void | Promise<void>) | null = null;
+
+export const setOnUnauthorized = (handler: (() => void | Promise<void>) | null) => {
+  onUnauthorized = handler;
+};
+
+function triggerUnauthorized() {
+  if (onUnauthorized) {
+    try {
+      const result = onUnauthorized();
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        (result as Promise<void>).catch(() => { });
+      }
+    } catch {
+      // ignore
+    }
+  }
+}
+
 /** @deprecated No longer used – we never sign out on API errors; use setApiErrorToastHandler for toasts */
 export const setAuthErrorHandler = (_handler: () => void) => {
   // No-op: we never sign out the user on API errors
 };
 
+const RETRY_MAX = 2;
+const RETRY_INITIAL_MS = 500;
+const RETRY_MAX_MS = 4000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status >= 500 && status < 600;
+}
+
 class ApiClient {
+  private async requestOnce(
+    endpoint: string,
+    options: RequestInit,
+    headers: Record<string, string>,
+  ): Promise<Response> {
+    return fetch(`${getApiUrlCached()}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  }
+
   async request(endpoint: string, options: RequestInit = {}): Promise<any> {
-    try {
-      const token = await getAuthToken();
+    const method = (options.method || 'GET').toUpperCase();
+    const isGet = method === 'GET';
+    let lastError: any;
+    let lastResponse: Response | undefined;
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...(options.headers as Record<string, string>),
-      };
-
-      if (options.body instanceof FormData) {
-        delete headers['Content-Type'];
-      }
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      // Check for network connectivity (basic check via fetch failure)
-      // In a real app, use NetInfo
-
-      const response = await fetch(`${getApiUrlCached()}${endpoint}`, {
-        ...options,
-        headers,
-      });
-
-      if (response.status === 401) {
-        // Never sign out here – only show toast. Auth check on app load (/users/me) may clear token on 401.
-        showApiErrorToast('Session issue. Please try again.');
-        throw new ApiError('Unauthorized', 401);
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `API Error: ${response.status}`;
-        try {
-          const errorJson = JSON.parse(errorText);
-          // API returns { success, error: { message } } – support both shapes
-          const m = errorJson.error?.message ?? errorJson.message;
-          errorMessage = Array.isArray(m) ? (m[0] ?? errorMessage) : (m || errorMessage);
-        } catch (e) {
-          // Keep text
-        }
-        // Never sign out on API errors – just show the error message in a toast
-        showApiErrorToast(errorMessage);
-        throw new ApiError(errorMessage, response.status);
-      }
-
-      if (response.status === 204) return null;
-
-      const text = await response.text();
-      if (!text || text.trim() === '') return null;
+    for (let attempt = 0; attempt <= (isGet ? RETRY_MAX : 0); attempt++) {
       try {
-        return JSON.parse(text);
-      } catch {
-        throw new ApiError('Invalid JSON response from server', response.status);
-      }
-    } catch (error: any) {
-      console.error(`API Request Failed: ${endpoint}`, error);
+        const token = await getAuthToken();
 
-      if (error.message === 'Auth check timeout') {
-        const msg = 'Connection timed out. Please check your internet connection.';
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...(options.headers as Record<string, string>),
+        };
+
+        if (options.body instanceof FormData) {
+          delete headers['Content-Type'];
+        }
+
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await this.requestOnce(endpoint, options, headers);
+
+        if (response.status === 401) {
+          showApiErrorToast('Session issue. Please try again.');
+          triggerUnauthorized();
+          throw new ApiError('Unauthorized', 401);
+        }
+
+        if (!response.ok) {
+          const retryable = isGet && isRetryableStatus(response.status);
+          if (retryable && attempt < RETRY_MAX) {
+            lastResponse = response;
+            const backoff = Math.min(
+              RETRY_INITIAL_MS * Math.pow(2, attempt),
+              RETRY_MAX_MS,
+            );
+            await delay(backoff);
+            continue;
+          }
+          const errorText = await response.text();
+          let errorMessage = `API Error: ${response.status}`;
+          try {
+            const errorJson = JSON.parse(errorText);
+            const m = errorJson.error?.message ?? errorJson.message;
+            errorMessage = Array.isArray(m) ? (m[0] ?? errorMessage) : (m || errorMessage);
+          } catch (e) {
+            // Keep text
+          }
+          showApiErrorToast(errorMessage);
+          throw new ApiError(errorMessage, response.status);
+        }
+
+        if (response.status === 204) return null;
+
+        const text = await response.text();
+        if (!text || text.trim() === '') return null;
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new ApiError('Invalid JSON response from server', response.status);
+        }
+      } catch (error: any) {
+        lastError = error;
+        lastResponse = undefined;
+        if (error instanceof ApiError) throw error;
+
+        const isNetwork =
+          error?.message === 'Network request failed' ||
+          error?.message?.includes('Network') ||
+          error?.name === 'TypeError';
+        if (isGet && isNetwork && attempt < RETRY_MAX) {
+          const backoff = Math.min(
+            RETRY_INITIAL_MS * Math.pow(2, attempt),
+            RETRY_MAX_MS,
+          );
+          await delay(backoff);
+          continue;
+        }
+
+        console.error(`API Request Failed: ${endpoint}`, error);
+
+        if (error.message === 'Auth check timeout') {
+          const msg = 'Connection timed out. Please check your internet connection.';
+          showApiErrorToast(msg);
+          throw new ApiError(msg, 0);
+        }
+
+        if (isNetwork) {
+          const hint = __DEV__
+            ? ` Can't reach the API at ${getApiUrlCached()}. Ensure the API is running and reachable from this device (e.g. listen on 0.0.0.0).`
+            : ' Please check your internet connection.';
+          const msg = 'Network error.' + hint;
+          showApiErrorToast(msg);
+          throw new ApiError(msg, 0);
+        }
+
+        const msg = error?.message ?? 'Something went wrong.';
         showApiErrorToast(msg);
-        throw new ApiError(msg, 0);
+        throw error;
       }
-
-      if (error.message === 'Network request failed' || error.message.includes('Network')) {
-        const hint = __DEV__
-          ? ` Can't reach the API at ${getApiUrlCached()}. Ensure the API is running and reachable from this device (e.g. listen on 0.0.0.0).`
-          : ' Please check your internet connection.';
-        const msg = 'Network error.' + hint;
-        showApiErrorToast(msg);
-        throw new ApiError(msg, 0);
-      }
-
-      const msg = error?.message ?? 'Something went wrong.';
-      showApiErrorToast(msg);
-      throw error;
     }
+
+    throw lastError ?? new ApiError('Request failed', 0);
   }
 
   async get<T = any>(endpoint: string): Promise<T> {

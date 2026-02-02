@@ -1,4 +1,4 @@
-import { PostDetail } from "@/components/post-detail";
+import PostDetailDynamic from "./PostDetailDynamic";
 import { cookies } from "next/headers";
 
 async function getPost(id: string) {
@@ -57,5 +57,5 @@ export default async function PostPage(props: {
     "isPublic" in result &&
     Boolean((result as { isPublic?: boolean }).isPublic);
 
-  return <PostDetail post={post} isPublic={isPublic} />;
+  return <PostDetailDynamic post={post} isPublic={isPublic} />;
 }

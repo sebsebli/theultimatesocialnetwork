@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -22,6 +23,8 @@ export interface SeedAgentDto {
   email?: string;
   avatarKey?: string | null;
   profileHeaderKey?: string | null;
+  /** Optional; default false. True = private/protected profile (follow requests). */
+  isProtected?: boolean;
 }
 
 export interface SeedAgentResult {
@@ -90,7 +93,7 @@ export class AdminAgentsService {
       bio: (dto.bio ?? '').trim().slice(0, 500) || undefined,
       avatarKey: dto.avatarKey ?? undefined,
       profileHeaderKey: dto.profileHeaderKey ?? undefined,
-      isProtected: false,
+      isProtected: dto.isProtected === true,
       invitesRemaining: 0,
       languages: [],
       followerCount: 0,
@@ -111,7 +114,31 @@ export class AdminAgentsService {
 
     await this.neo4j.run('MERGE (u:User {id: $id})', { id: user.id });
 
-    const tokens = this.authService.generateTokens(user);
+    const tokens = await this.authService.generateTokens(user);
+    return {
+      accessToken: tokens.accessToken,
+      user: {
+        id: user.id,
+        handle: user.handle,
+        displayName: user.displayName,
+        email: user.email,
+      },
+    };
+  }
+
+  /**
+   * Issue a JWT for an existing user by email (for agent resume). No magic link needed.
+   */
+  async getTokenForEmail(email: string): Promise<SeedAgentResult> {
+    const normalized = email?.trim();
+    if (!normalized) throw new BadRequestException('email is required');
+    const user = await this.userRepo.findOne({
+      where: { email: normalized },
+    });
+    if (!user) {
+      throw new NotFoundException(`No user with email ${normalized}`);
+    }
+    const tokens = await this.authService.generateTokens(user);
     return {
       accessToken: tokens.accessToken,
       user: {

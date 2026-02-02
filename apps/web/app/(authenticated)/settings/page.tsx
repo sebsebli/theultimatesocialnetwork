@@ -20,7 +20,8 @@ export default function SettingsPage() {
   const [emailProductUpdates, setEmailProductUpdates] = useState(false);
   const [emailPrefsLoading, setEmailPrefsLoading] = useState(true);
 
-  // Email to display (fallback if not loaded yet)
+  // Email to display (fallback if not loaded yet) – reserved for future display
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for future email display
   const userEmail = (user as { email?: string } | null)?.email ?? "Loading...";
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function SettingsPage() {
       .finally(() => setEmailPrefsLoading(false));
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for export progress UI
   const [isExporting, setIsExporting] = useState(false);
   const [requestExportLoading, setRequestExportLoading] = useState(false);
   const [requestDataModalOpen, setRequestDataModalOpen] = useState(false);
@@ -54,7 +56,7 @@ export default function SettingsPage() {
       } else {
         toastError(data.error ?? "Failed to request your data");
       }
-    } catch (e) {
+    } catch {
       toastError("Failed to request your data");
     } finally {
       setRequestExportLoading(false);
@@ -180,6 +182,25 @@ export default function SettingsPage() {
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+            <Link
+              href="/settings/security"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+            >
+              <span className="font-medium">Security (2FA & Sessions)</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                 />
               </svg>
             </Link>

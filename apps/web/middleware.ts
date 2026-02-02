@@ -59,13 +59,11 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route),
   );
 
-  // If accessing root and authenticated, redirect to home
-  if (pathname === "/" && token) {
-    return NextResponse.redirect(new URL("/home", request.url));
-  }
-
-  // If accessing root and not authenticated, allow (show landing page)
-  if (pathname === "/" && !token) {
+  // Root "/" is the landing page: unauthenticated always see it; authenticated redirect to /home
+  if (pathname === "/" || pathname === "") {
+    if (token) {
+      return NextResponse.redirect(new URL("/home", request.url));
+    }
     return NextResponse.next();
   }
 

@@ -156,6 +156,7 @@ export class FeedService {
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
+        .andWhere("post.status = 'PUBLISHED'")
         .andWhere('post.author_id NOT IN (:...excluded)', {
           excluded:
             excludedUserIds.size > 0

@@ -2,20 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Text,
   View,
-  ScrollView,
-  Pressable,
+  FlatList,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../../utils/api';
-import { COLORS, SPACING, FONTS, createStyles } from '../../../constants/theme';
+import { COLORS, SPACING, FONTS, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { PostItem } from '../../../components/PostItem';
+import { PostPreviewRow } from '../../../components/PostPreviewRow';
 import { EmptyState } from '../../../components/EmptyState';
+import { ListFooterLoader } from '../../../components/ListFooterLoader';
 import { Post } from '../../../types';
 
 export default function PostQuotesScreen() {
@@ -28,35 +27,54 @@ export default function PostQuotesScreen() {
   const [postTitle, setPostTitle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (pageNum: number, reset = false) => {
     if (!postId) return;
+    if (reset) {
+      setLoading(true);
+      // Fetch post details only once
+      api.get<{ title?: string }>(`/posts/${postId}`).then(data => setPostTitle(data?.title ?? null));
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
-      const [postData, referencedBy] = await Promise.all([
-        api.get<{ title?: string }>(`/posts/${postId}`),
-        api.get<Post[]>(`/posts/${postId}/referenced-by`),
-      ]);
-      setPostTitle(postData?.title ?? null);
-      setQuotes(Array.isArray(referencedBy) ? referencedBy : []);
+      const res = await api.get<{ items: Post[]; hasMore: boolean } | Post[]>(`/posts/${postId}/referenced-by?page=${pageNum}&limit=20`);
+      const newItems = Array.isArray(res) ? res : res.items;
+      const more = Array.isArray(res) ? false : res.hasMore;
+
+      setQuotes(prev => reset ? newItems : [...prev, ...newItems]);
+      setHasMore(more);
+      setPage(pageNum);
     } catch (error) {
       console.error('Failed to load quotes', error);
-      setQuotes([]);
+      if (reset) setQuotes([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   }, [postId]);
 
   useEffect(() => {
-    load();
+    load(1, true);
   }, [load]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    load();
+    load(1, true);
   };
 
-  if (loading) {
+  const onEndReached = () => {
+    if (!loading && !loadingMore && hasMore) {
+      load(page + 1, false);
+    }
+  };
+
+  if (loading && quotes.length === 0) {
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
@@ -70,27 +88,29 @@ export default function PostQuotesScreen() {
         title={`${t('post.quotedBy', 'Quoted by')} ${quotes.length > 0 ? `(${quotes.length})` : ''}`}
         paddingTop={insets.top}
       />
-      <ScrollView
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
+      {postTitle ? (
+        <Text style={styles.postTitleLabel} numberOfLines={1}>
+          {postTitle}
+        </Text>
+      ) : null}
+
+      <FlatList
+        data={quotes}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <PostPreviewRow post={item} />}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
-      >
-        {postTitle ? (
-          <Text style={styles.postTitleLabel} numberOfLines={1}>
-            {postTitle}
-          </Text>
-        ) : null}
-
-        {quotes.length === 0 ? (
-          <EmptyState icon="format-quote" headline={t('post.noQuotesYet', 'No one has quoted this post yet.')} />
-        ) : (
-          quotes.map((post) => <PostItem key={post.id} post={post} />)
-        )}
-      </ScrollView>
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.5}
+        ListEmptyComponent={
+          !loading ? <EmptyState icon="format-quote" headline={t('post.noQuotesYet', 'No one has quoted this post yet.')} /> : null
+        }
+        ListFooterComponent={<ListFooterLoader visible={loadingMore} />}
+        {...FLATLIST_DEFAULTS}
+      />
     </View>
   );
 }
@@ -98,12 +118,11 @@ export default function PostQuotesScreen() {
 const styles = createStyles({
   container: { flex: 1, backgroundColor: COLORS.ink },
   center: { justifyContent: 'center', alignItems: 'center' },
-  scroll: { flex: 1 },
-  scrollContent: { paddingTop: SPACING.l },
+  scrollContent: { paddingTop: SPACING.m },
   postTitleLabel: {
     fontSize: 13,
     color: COLORS.tertiary,
-    marginBottom: SPACING.m,
+    marginBottom: SPACING.s,
     marginHorizontal: SPACING.xl,
     fontFamily: FONTS.regular,
   },

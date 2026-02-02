@@ -5,7 +5,7 @@ export class AddUserProfileHeaderKey1770300000000 implements MigrationInterface 
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "users" ADD COLUMN "profile_header_key" TEXT`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "profile_header_key" TEXT`,
     );
   }
 

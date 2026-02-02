@@ -5,7 +5,7 @@ export class AddOnboardingCompletedAt1738224000000 implements MigrationInterface
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "users" ADD COLUMN "onboarding_completed_at" TIMESTAMP`,
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "onboarding_completed_at" TIMESTAMP`,
     );
   }
 

@@ -23,6 +23,24 @@ services:
       timeout: 5s
       retries: 5
 
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: citewalk-pgbouncer
+    environment:
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_HOST: db
+      DB_NAME: ${POSTGRES_DB:-postgres}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 20
+    ports:
+      - "127.0.0.1:6432:5432"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   backup-full:
     build:
       context: .
@@ -64,7 +82,7 @@ services:
     restart: unless-stopped
 
   neo4j:
-    image: neo4j:5.15.0-community
+    image: neo4j:2025.12.1-community
     container_name: citewalk-neo4j
     ports:
       - "127.0.0.1:7474:7474" # HTTP
@@ -125,7 +143,7 @@ services:
   # MinIO: ports bound to 127.0.0.1 for local dev only. In production use docker-compose.prod.yml
   # so MinIO has no published ports — images are served only via API (GET /images/:key).
   minio:
-    image: minio/minio:RELEASE.2024-01-18T22-51-28Z
+    image: minio/minio:RELEASE.2025-10-15T17-29-55Z
     container_name: citewalk-minio
     ports:
       - "127.0.0.1:9000:9000" # API (dev only — do not expose publicly)
@@ -177,6 +195,7 @@ services:
       - .env
     # No ports: access only via nginx. Beta mode is on by default (API returns true when no BETA_MODE row).
     environment:
+      # Connect to db directly (no pgbouncer) so API starts reliably; use pgbouncer in prod if needed
       DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: neo4j
@@ -198,6 +217,8 @@ services:
       DB_SSL: "false"
       DB_SYNCHRONIZE: "false"
       PORT: 3000
+      # Allow http when behind nginx on localhost (override .env ENFORCE_HTTPS for local Docker)
+      ENFORCE_HTTPS: "false"
       # CORS, SMTP, FRONTEND_URL, CITE_ADMIN_SECRET, METRICS_SECRET: from .env
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
@@ -223,10 +244,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    # Use image's built code (no host mount) so REDIS_CLIENT fix in SharedModule is used
+    # Run from image: migrations + node dist/main.js (no host mount).
+    # For dev with hot reload, uncomment below and rebuild: docker compose build api && docker compose up -d api
     # volumes:
-    #   - ../../apps/api:/app/apps/api
-    #   - /app/apps/api/node_modules
+    #   - ../../apps/api:/app
+    #   - /app/node_modules
+    # entrypoint: ["/bin/sh", "-c"]
+    # command:
+    #   - |
+    #     npm run start:dev
 
   # No ports: access only via nginx. Beta (invite-only) is on by default in Docker.
   web:

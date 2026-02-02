@@ -3,6 +3,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Param,
   Query,
   Delete,
@@ -14,6 +15,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { postToPlain, extractLinkedPostIds } from '../shared/post-serializer';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
@@ -34,6 +36,16 @@ export class PostsController {
     @Body() dto: CreatePostDto,
   ) {
     return this.postsService.create(user.id, dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(AuthGuard('jwt'))
+  async update(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePostDto,
+  ) {
+    return this.postsService.update(user.id, id, dto);
   }
 
   @Get('source-previews')
