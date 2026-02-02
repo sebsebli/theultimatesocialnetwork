@@ -43,7 +43,8 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
-          borderTopWidth: 0,
+          borderTopWidth: 1,
+          borderTopColor: COLORS.divider,
         },
         tabBarActiveTintColor: COLORS.paper,
         tabBarInactiveTintColor: COLORS.primary,
@@ -90,24 +91,16 @@ export default function TabLayout() {
           title: '',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <View style={{
-              width: 56,
-              height: 56,
-              borderRadius: 28,
+              width: 40,
+              height: 40,
+              borderRadius: 8,
               backgroundColor: COLORS.primary,
               alignItems: 'center',
               justifyContent: 'center',
-              marginTop: -20,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 5,
-              borderWidth: 4,
-              borderColor: COLORS.ink,
             }}>
               <MaterialIcons
                 name="edit"
-                size={28}
+                size={20}
                 color={COLORS.ink}
               />
             </View>

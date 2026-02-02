@@ -266,7 +266,7 @@ export default function IndexScreen() {
                 {showInviteInput && (
                   <TextInput
                     style={styles.input}
-                    placeholder={t('signIn.inviteCodePlaceholder', 'Invite code (Required for sign up)')}
+                    placeholder={t('signIn.inviteCodePlaceholder', 'Access Code (Required)')}
                     placeholderTextColor={COLORS.tertiary}
                     value={inviteCode}
                     onChangeText={(val: string) => setInviteCode(val.toUpperCase())}
