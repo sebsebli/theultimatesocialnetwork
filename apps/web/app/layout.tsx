@@ -11,6 +11,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { AuthProvider } from "@/components/auth-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { RealtimeProvider } from "@/context/realtime-provider";
+import { BetaModeProvider } from "@/context/beta-mode-provider";
 import { ConsentAndSignup } from "@/components/consent-and-signup";
 import { NotificationManager } from "@/components/notification-manager";
 import { NextIntlClientProvider } from "next-intl";
@@ -28,18 +29,18 @@ const ibmPlexSerif = IBM_Plex_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Citewalk | The Citation Network",
+  title: "Citewalk | The Sovereign Knowledge Graph",
   description:
-    "Citewalk is the text-first social network for verified information. Mobile-first, EU-hosted, and designed for context. Features offline reporting, data export, and RSS feeds. Join the beta.",
+    "Citewalk is the sovereign knowledge graph. A quiet, verified archive designed for context and comprehension. 100% EU-hosted. History is written by those who write.",
   keywords: [
-    "Social Network",
-    "Citation Graph",
-    "Verified News",
-    "Journalism Tool",
+    "Knowledge Graph",
+    "Sovereign Data",
+    "Citation Network",
+    "Slow Social",
     "EU Hosting",
     "Data Sovereignty",
-    "Alternative Social Media",
     "Citewalk",
+    "Context",
   ],
   authors: [{ name: "Dr. Sebastian Lindner", url: "https://citewalk.com" }],
   creator: "Dr. Sebastian Lindner",
@@ -79,11 +80,13 @@ export default async function RootLayout({
           <ErrorBoundary>
             <ToastProvider>
               <AuthProvider>
-                <RealtimeProvider>
-                  <NotificationManager />
-                  {children}
-                  <ConsentAndSignup />
-                </RealtimeProvider>
+                <BetaModeProvider>
+                  <RealtimeProvider>
+                    <NotificationManager />
+                    {children}
+                    <ConsentAndSignup />
+                  </RealtimeProvider>
+                </BetaModeProvider>
               </AuthProvider>
             </ToastProvider>
           </ErrorBoundary>

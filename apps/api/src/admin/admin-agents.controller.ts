@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AdminKeyGuard } from '../invites/admin-key.guard';
 import type { SeedAgentDto, SeedAgentResult } from './admin-agents.service';
 import { AdminAgentsService } from './admin-agents.service';
@@ -21,5 +21,13 @@ export class AdminAgentsController {
   @Post('token')
   async token(@Body() body: { email: string }): Promise<SeedAgentResult> {
     return this.adminAgentsService.getTokenForEmail(body.email);
+  }
+
+  /** List agent users (email @agents.local) for --resume-from-db. */
+  @Get()
+  async list(): Promise<
+    { email: string; handle: string; displayName: string; bio: string }[]
+  > {
+    return this.adminAgentsService.listAgentUsers();
   }
 }

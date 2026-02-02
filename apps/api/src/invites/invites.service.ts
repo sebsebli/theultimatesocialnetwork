@@ -34,11 +34,37 @@ export class InvitesService {
     private emailService: EmailService,
   ) {}
 
+  /**
+   * Single source of truth for invitation-only (beta) mode.
+   * When true: sign-up requires an invite code; when false: open sign-up.
+   * Order: 1) BETA_MODE env (deploy override), 2) system_settings DB row, 3) default true.
+   * Ensures BETA_MODE row exists in DB on first read so admin can toggle later.
+   */
   async isBetaMode(): Promise<boolean> {
-    const setting = await this.settingsRepo.findOne({
-      where: { key: 'BETA_MODE' },
-    });
-    return setting ? setting.value === 'true' : true;
+    const envVal = this.configService.get<string>('BETA_MODE');
+    if (envVal === 'true' || envVal === '1') return true;
+    if (envVal === 'false' || envVal === '0') return false;
+
+    try {
+      let setting = await this.settingsRepo.findOne({
+        where: { key: 'BETA_MODE' },
+      });
+      if (!setting) {
+        await this.settingsRepo.save({
+          key: 'BETA_MODE',
+          value: 'true',
+        });
+        setting = await this.settingsRepo.findOne({
+          where: { key: 'BETA_MODE' },
+        });
+      }
+      return setting ? setting.value === 'true' : true;
+    } catch (error) {
+      this.logger.warn(
+        'Failed to check beta mode setting (defaulting to true): ' + error,
+      );
+      return true;
+    }
   }
 
   async setBetaMode(enabled: boolean) {

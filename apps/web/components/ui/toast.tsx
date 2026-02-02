@@ -158,7 +158,7 @@ function ToastItem({
   return (
     <div
       className={`
-        pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg border shadow-xl backdrop-blur-md min-w-[300px] max-w-sm
+        pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg border shadow-sm backdrop-blur-md min-w-[300px] max-w-sm
         transition-all duration-300 ease-out transform
         ${styles[type]}
         ${isVisible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
 
 const STORAGE_KEY = "cookie_consent";
 
@@ -26,7 +25,6 @@ export function hasCookieConsent(): boolean {
 }
 
 export function CookieConsentBanner() {
-  const t = useTranslations("cookieConsent");
   const [consent, setConsent] = useState<CookieConsent>(readStoredConsent);
   const [mounted, setMounted] = useState(false);
 
@@ -70,16 +68,19 @@ export function CookieConsentBanner() {
     >
       <div className="bg-[#0B0B0C] border border-[#1A1A1D] rounded-xl p-6 md:p-8 max-w-lg w-full shadow-2xl space-y-6">
         <h2 className="text-xl font-bold text-[#F2F2F2]">
-          {t("title") || "We value your privacy"}
+          We value your privacy
         </h2>
         <p className="text-sm text-[#A8A8AA] leading-relaxed">
-          {t("message")}{" "}
+          We use cookies to enhance your experience, analyze site traffic, and
+          serve personalized content. By clicking &quot;Accept All&quot;, you
+          consent to our use of cookies. Read our{" "}
           <Link
             href="/privacy"
             className="text-[#6E7A8A] hover:text-[#F2F2F2] underline underline-offset-2"
           >
-            {t("privacyLink")}
+            Privacy Policy
           </Link>
+          .
         </p>
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button
@@ -87,14 +88,14 @@ export function CookieConsentBanner() {
             onClick={acceptAll}
             className="flex-1 px-4 py-3 text-sm font-bold bg-[#F2F2F2] text-[#0B0B0C] hover:bg-white rounded-lg transition-colors"
           >
-            {t("acceptAll")}
+            Accept All
           </button>
           <button
             type="button"
             onClick={essentialOnly}
             className="flex-1 px-4 py-3 text-sm font-medium text-[#A8A8AA] hover:text-[#F2F2F2] border border-[#333] hover:border-[#555] rounded-lg transition-colors"
           >
-            {t("essentialOnly")}
+            Essential Only
           </button>
         </div>
       </div>

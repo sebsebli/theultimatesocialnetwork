@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { TrustedIpThrottlerGuard } from './common/guards/trusted-ip-throttler.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from './database/database.module';
 import { AppController } from './app.controller';
@@ -134,7 +135,7 @@ import * as Joi from 'joi';
     CleanupService,
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: TrustedIpThrottlerGuard,
     },
   ],
 })

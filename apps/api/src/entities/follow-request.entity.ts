@@ -26,6 +26,7 @@ export class FollowRequest {
     type: 'enum',
     enum: FollowRequestStatus,
     default: FollowRequestStatus.PENDING,
+    enumName: 'follow_requests_status_enum',
   })
   status: FollowRequestStatus;
 

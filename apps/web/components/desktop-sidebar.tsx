@@ -52,7 +52,7 @@ function DesktopSidebarInner() {
             href="/home"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive("/home") || pathname === "/home"
-                ? "bg-primary/20 text-primary"
+                ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
             }`}
           >
@@ -77,7 +77,7 @@ function DesktopSidebarInner() {
             href="/explore"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive("/explore")
-                ? "bg-primary/20 text-primary"
+                ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
             }`}
           >
@@ -123,7 +123,7 @@ function DesktopSidebarInner() {
             href="/inbox"
             className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive("/inbox")
-                ? "bg-primary/20 text-primary"
+                ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
             }`}
           >
@@ -152,7 +152,7 @@ function DesktopSidebarInner() {
             href={`/user/${handle}`}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive(`/user/${handle}`)
-                ? "bg-primary/20 text-primary"
+                ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
             }`}
           >
@@ -208,7 +208,7 @@ function DesktopSidebarInner() {
             href="/collections"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive("/collections")
-                ? "bg-primary/20 text-primary"
+                ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
             }`}
           >
@@ -232,7 +232,7 @@ function DesktopSidebarInner() {
             href="/keeps"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive("/keeps")
-                ? "bg-primary/20 text-primary"
+                ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
             }`}
           >
@@ -256,7 +256,7 @@ function DesktopSidebarInner() {
             href="/settings"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive("/settings")
-                ? "bg-primary/20 text-primary"
+                ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
             }`}
           >
@@ -281,6 +281,51 @@ function DesktopSidebarInner() {
             </svg>
             <span className="text-sm font-medium">{t("settings")}</span>
           </Link>
+        </div>
+
+        {/* Footer Links */}
+        <div className="mt-8 px-3 pt-6 border-t border-divider text-[10px] font-medium text-tertiary flex flex-col gap-3 pb-6">
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <Link href="/about" className="hover:text-paper transition-colors">
+              About
+            </Link>
+            <Link
+              href="/manifesto"
+              className="hover:text-paper transition-colors"
+            >
+              Manifesto
+            </Link>
+            <Link
+              href="/roadmap"
+              className="hover:text-paper transition-colors"
+            >
+              Roadmap
+            </Link>
+            <Link
+              href="/ai-transparency"
+              className="hover:text-paper transition-colors"
+            >
+              AI Safety
+            </Link>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <Link
+              href="/privacy"
+              className="hover:text-paper transition-colors"
+            >
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-paper transition-colors">
+              Terms
+            </Link>
+            <Link
+              href="/imprint"
+              className="hover:text-paper transition-colors"
+            >
+              Imprint
+            </Link>
+          </div>
+          <div className="opacity-50">© 2026 Citewalk</div>
         </div>
       </div>
     </aside>

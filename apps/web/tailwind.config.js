@@ -16,7 +16,14 @@ module.exports = {
       },
       colors: tokens.colors,
       spacing: tokens.spacing,
-      borderRadius: tokens.borderRadius,
+      borderRadius: {
+        ...tokens.borderRadius,
+        DEFAULT: '6px',
+        md: '6px',
+        lg: tokens.borderRadius.xl, // Now 8px
+        xl: '12px',
+        '2xl': '16px',
+      },
       maxWidth: tokens.maxWidth,
       fontSize: {
         xs: ['12px', { lineHeight: '16px', letterSpacing: '-0.5px' }],

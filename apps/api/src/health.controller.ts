@@ -9,6 +9,8 @@ import { Throttle } from '@nestjs/throttler';
 import { DataSource } from 'typeorm';
 import Redis from 'ioredis';
 import type { Request } from 'express';
+import { Neo4jService } from './database/neo4j.service';
+import { MeilisearchService } from './search/meilisearch.service';
 
 /** When set, full GET /health (DB/Redis details) requires X-Health-Secret or request from private IP. */
 function isDetailedHealthAllowed(req: Request): boolean {
@@ -39,6 +41,8 @@ export class HealthController {
   constructor(
     private dataSource: DataSource,
     @Inject('REDIS_CLIENT') private redis: Redis,
+    private neo4j: Neo4jService,
+    private meilisearch: MeilisearchService,
   ) {}
 
   /** Liveness: process is up. No DB/Redis checks. Use for K8s livenessProbe / external LB. */
@@ -62,12 +66,23 @@ export class HealthController {
       };
     }
 
-    const result = {
+    const result: {
+      status: string;
+      timestamp: string;
+      services: {
+        database: string;
+        redis: string;
+        neo4j: string;
+        meilisearch: string;
+      };
+    } = {
       status: 'ok',
       timestamp: new Date().toISOString(),
       services: {
         database: 'unknown',
         redis: 'unknown',
+        neo4j: 'unknown',
+        meilisearch: 'unknown',
       },
     };
 
@@ -85,6 +100,20 @@ export class HealthController {
     } catch {
       result.services.redis = 'down';
       result.status = 'error';
+    }
+
+    try {
+      const neo4jStatus = this.neo4j.getStatus();
+      result.services.neo4j = neo4jStatus.healthy ? 'up' : 'down';
+    } catch {
+      result.services.neo4j = 'down';
+    }
+
+    try {
+      await this.meilisearch.health();
+      result.services.meilisearch = 'up';
+    } catch {
+      result.services.meilisearch = 'down';
     }
 
     if (result.status === 'error') {

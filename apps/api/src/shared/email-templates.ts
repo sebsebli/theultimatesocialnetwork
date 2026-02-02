@@ -8,124 +8,111 @@ export interface EmailTemplate {
 
 export const signInTokenTemplates: Record<string, EmailTemplate> = {
   en: {
-    subject: 'Your Citewalk verification code (expires in 15 min)',
-    title: 'Your sign-in code',
-    body: 'Enter this code in the app to sign in. It expires in 15 minutes.',
-    tokenLabel: 'Your code',
-    ignore:
-      "If you didn't request this code, you can ignore this email — your account is secure.",
+    subject: 'Sign in to Citewalk',
+    title: 'Sign in',
+    body: 'Enter this code to sign in to your account. It is valid for 15 minutes.',
+    tokenLabel: 'Verification Code',
+    ignore: 'If you did not request this, you can safely ignore this message.',
   },
   de: {
-    subject: 'Ihr Citewalk-Verifizierungscode (gültig 15 Min.)',
-    title: 'Ihr Code zur Anmeldung',
-    body: 'Geben Sie diesen Code in der App ein, um sich anzumelden. Der Code ist 15 Minuten gültig.',
-    tokenLabel: 'Ihr Code',
+    subject: 'Anmeldung bei Citewalk',
+    title: 'Anmelden',
+    body: 'Geben Sie diesen Code ein, um sich anzumelden. Er ist 15 Minuten gültig.',
+    tokenLabel: 'Verifizierungscode',
     ignore:
-      'Wenn Sie diesen Code nicht angefordert haben, können Sie diese E-Mail ignorieren — Ihr Konto ist sicher.',
+      'Wenn Sie dies nicht angefordert haben, können Sie diese Nachricht ignorieren.',
   },
   fr: {
-    subject: 'Votre code de vérification Citewalk (valable 15 min)',
-    title: 'Votre code de connexion',
-    body: "Saisissez ce code dans l'application pour vous connecter. Il expire dans 15 minutes.",
-    tokenLabel: 'Votre code',
-    ignore:
-      "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer ce message — votre compte est sécurisé.",
+    subject: 'Connexion à Citewalk',
+    title: 'Se connecter',
+    body: 'Saisissez ce code pour vous connecter. Il est valide pendant 15 minutes.',
+    tokenLabel: 'Code de vérification',
+    ignore: "Si vous n'avez pas demandé cela, vous pouvez ignorer ce message.",
   },
   es: {
-    subject: 'Tu código de verificación de Citewalk (caduca en 15 min)',
-    title: 'Tu código para iniciar sesión',
-    body: 'Introduce este código en la app para iniciar sesión. Caduca en 15 minutos.',
-    tokenLabel: 'Tu código',
-    ignore:
-      'Si no has solicitado este código, puedes ignorar este correo; tu cuenta está segura.',
+    subject: 'Iniciar sesión en Citewalk',
+    title: 'Iniciar sesión',
+    body: 'Introduce este código para iniciar sesión. Es válido durante 15 minutos.',
+    tokenLabel: 'Código de verificación',
+    ignore: 'Si no has solicitado esto, puedes ignorar este mensaje.',
   },
   it: {
-    subject: 'Il tuo codice di verifica Citewalk (scade tra 15 min)',
-    title: 'Il tuo codice per accedere',
-    body: "Inserisci questo codice nell'app per accedere. Scade tra 15 minuti.",
-    tokenLabel: 'Il tuo codice',
-    ignore:
-      'Se non hai richiesto tu questo codice, puoi ignorare questa email — il tuo account è al sicuro.',
+    subject: 'Accedi a Citewalk',
+    title: 'Accedi',
+    body: 'Inserisci questo codice per accedere. È valido per 15 minuti.',
+    tokenLabel: 'Codice di verifica',
+    ignore: 'Se non hai richiesto questo, puoi ignorare questo messaggio.',
   },
   pt: {
-    subject: 'Seu código de verificação Citewalk (expira em 15 min)',
-    title: 'Seu código para entrar',
-    body: 'Digite este código no app para entrar. Ele expira em 15 minutos.',
-    tokenLabel: 'Seu código',
-    ignore:
-      'Se você não pediu este código, pode ignorar este e-mail; sua conta está segura.',
+    subject: 'Entrar no Citewalk',
+    title: 'Entrar',
+    body: 'Digite este código para entrar. Válido por 15 minutos.',
+    tokenLabel: 'Código de verificação',
+    ignore: 'Se você não solicitou isso, pode ignorar esta mensagem.',
   },
   nl: {
-    subject: 'Je Citewalk-verificatiecode (geldig 15 min)',
-    title: 'Je inlogcode',
-    body: 'Voer deze code in de app in om in te loggen. De code is 15 minuten geldig.',
-    tokenLabel: 'Je code',
-    ignore:
-      'Als je deze code niet hebt aangevraagd, kun je deze e-mail negeren — je account is veilig.',
+    subject: 'Inloggen bij Citewalk',
+    title: 'Inloggen',
+    body: 'Voer deze code in om in te loggen. De code is 15 minuten geldig.',
+    tokenLabel: 'Verificatiecode',
+    ignore: 'Als u dit niet heeft aangevraagd, kunt u dit bericht negeren.',
   },
   pl: {
-    subject: 'Twój kod weryfikacyjny Citewalk (ważny 15 min)',
-    title: 'Twój kod do logowania',
-    body: 'Wprowadź ten kod w aplikacji, aby się zalogować. Kod jest ważny przez 15 minut.',
-    tokenLabel: 'Twój kod',
-    ignore:
-      'Jeśli nie prosiłeś o ten kod, możesz zignorować tę wiadomość — twoje konto jest bezpieczne.',
+    subject: 'Zaloguj się do Citewalk',
+    title: 'Zaloguj się',
+    body: 'Wprowadź ten kod, aby się zalogować. Jest ważny przez 15 minut.',
+    tokenLabel: 'Kod weryfikacyjny',
+    ignore: 'Jeśli tego nie zażądałeś, możesz zignorować tę wiadomość.',
   },
   ru: {
-    subject: 'Ваш код подтверждения Citewalk (действует 15 мин)',
-    title: 'Ваш код для входа',
-    body: 'Введите этот код в приложении, чтобы войти. Код действителен 15 минут.',
-    tokenLabel: 'Ваш код',
+    subject: 'Вход в Citewalk',
+    title: 'Войти',
+    body: 'Введите этот код для входа. Он действителен 15 минут.',
+    tokenLabel: 'Код подтверждения',
     ignore:
-      'Если вы не запрашивали этот код, проигнорируйте это письмо — ваш аккаунт в безопасности.',
+      'Если вы этого не запрашивали, можете проигнорировать это сообщение.',
   },
   cs: {
-    subject: 'Váš ověřovací kód Citewalk (platný 15 min)',
-    title: 'Váš kód pro přihlášení',
-    body: 'Zadejte tento kód v aplikaci pro přihlášení. Platnost kódu vyprší za 15 minut.',
-    tokenLabel: 'Váš kód',
-    ignore:
-      'Pokud jste tento kód nepožádali, můžete tento e-mail ignorovat — váš účet je v bezpečí.',
+    subject: 'Přihlášení do Citewalk',
+    title: 'Přihlásit se',
+    body: 'Zadejte tento kód pro přihlášení. Platí 15 minut.',
+    tokenLabel: 'Ověřovací kód',
+    ignore: 'Pokud jste o to nežádali, můžete tuto zprávu ignorovat.',
   },
   da: {
-    subject: 'Din Citewalk-bekræftelseskode (udløber om 15 min)',
-    title: 'Din kode til log ind',
-    body: 'Indtast denne kode i appen for at logge ind. Koden udløber om 15 minutter.',
-    tokenLabel: 'Din kode',
-    ignore:
-      'Hvis du ikke har anmodet om denne kode, kan du ignorere denne e-mail — din konto er sikker.',
+    subject: 'Log ind på Citewalk',
+    title: 'Log ind',
+    body: 'Indtast denne kode for at logge ind. Den er gyldig i 15 minutter.',
+    tokenLabel: 'Bekræftelseskode',
+    ignore: 'Hvis du ikke har anmodet om dette, kan du ignorere denne besked.',
   },
   fi: {
-    subject: 'Citewalk-vahvistuskoodisi (vanhenee 15 min)',
-    title: 'Kirjautumiskoodisi',
-    body: 'Syötä tämä koodi sovellukseen kirjautuaksesi. Koodi vanhenee 15 minuutissa.',
-    tokenLabel: 'Koodisi',
-    ignore:
-      'Jos et pyytänyt tätä koodia, voit jättää tämän sähköpostin huomiotta — tiliisi on turvassa.',
+    subject: 'Kirjaudu Citewalkiin',
+    title: 'Kirjaudu sisään',
+    body: 'Syötä tämä koodi kirjautuaksesi. Se on voimassa 15 minuuttia.',
+    tokenLabel: 'Vahvistuskoodi',
+    ignore: 'Jos et pyytänyt tätä, voit jättää tämän viestin huomiotta.',
   },
   hu: {
-    subject: 'A Citewalk ellenőrző kódod (15 percig érvényes)',
-    title: 'Bejelentkezési kódod',
-    body: 'Add meg ezt a kódot az alkalmazásban a bejelentkezéshez. A kód 15 perc múlva lejár.',
-    tokenLabel: 'A kódod',
-    ignore:
-      'Ha nem te kérted ezt a kódot, nyugodtan figyelmen kívül hagyhatod ezt az e-mailt — a fiókod biztonságban van.',
+    subject: 'Bejelentkezés a Citewalkba',
+    title: 'Bejelentkezés',
+    body: 'Add meg ezt a kódot a bejelentkezéshez. 15 percig érvényes.',
+    tokenLabel: 'Ellenőrző kód',
+    ignore: 'Ha nem te kérted, figyelmen kívül hagyhatod ezt az üzenetet.',
   },
   no: {
-    subject: 'Din Citewalk-bekreftelseskode (utløper om 15 min)',
-    title: 'Din kode for å logge inn',
-    body: 'Skriv inn denne koden i appen for å logge inn. Koden utløper om 15 minutter.',
-    tokenLabel: 'Din kode',
-    ignore:
-      'Hvis du ikke ba om denne koden, kan du ignorere denne e-posten — kontoen din er trygg.',
+    subject: 'Logg inn på Citewalk',
+    title: 'Logg inn',
+    body: 'Skriv inn denne koden for å logge inn. Den er gyldig i 15 minutter.',
+    tokenLabel: 'Bekreftelseskode',
+    ignore: 'Hvis du ikke ba om dette, kan du ignorere denne meldingen.',
   },
   sv: {
-    subject: 'Din Citewalk-verifieringskod (går ut om 15 min)',
-    title: 'Din kod för att logga in',
-    body: 'Ange denna kod i appen för att logga in. Koden går ut om 15 minuter.',
-    tokenLabel: 'Din kod',
-    ignore:
-      'Om du inte begärde denna kod kan du ignorera det här e-postmeddelandet — ditt konto är säkert.',
+    subject: 'Logga in på Citewalk',
+    title: 'Logga in',
+    body: 'Ange denna kod för att logga in. Den är giltig i 15 minuter.',
+    tokenLabel: 'Verifieringskod',
+    ignore: 'Om du inte begärde detta kan du ignorera detta meddelande.',
   },
 };
 
@@ -141,187 +128,154 @@ export interface InviteCodeTemplate {
 
 export const inviteCodeTemplates: Record<string, InviteCodeTemplate> = {
   en: {
-    subject: "You're invited to join Citewalk — here's your invite code",
-    title: "You're invited to Citewalk",
-    bodyWithInviter:
-      '{{inviterName}} has invited you to join Citewalk as one of the first beta testers.',
-    bodyGeneric:
-      "You've been invited to join Citewalk as one of the first beta testers.",
-    codeLabel: 'Your invitation code',
+    subject: 'You have been invited to Citewalk',
+    title: 'Invitation',
+    bodyWithInviter: '{{inviterName}} has invited you to join Citewalk.',
+    bodyGeneric: 'You have been invited to join Citewalk.',
+    codeLabel: 'Access Code',
     instructions:
-      'Enter this code when you sign up in the Citewalk app or on the website. The code is single-use, valid for 7 days, and expires if not used in time.',
-    footer: "If you didn't expect this email, you can safely ignore it.",
+      'Use this code to create your account. The code is single-use and valid for 7 days.',
+    footer: 'If you did not expect this, you can safely ignore it.',
   },
   de: {
-    subject: 'Du bist eingeladen, Citewalk beizutreten',
-    title: 'Du bist zu Citewalk eingeladen',
-    bodyWithInviter:
-      '{{inviterName}} hat dich eingeladen, Citewalk als einer der ersten Beta-Tester zu nutzen.',
-    bodyGeneric:
-      'Du wurdest eingeladen, Citewalk als einer der ersten Beta-Tester zu nutzen.',
-    codeLabel: 'Dein Einladungscode',
+    subject: 'Einladung zu Citewalk',
+    title: 'Einladung',
+    bodyWithInviter: '{{inviterName}} hat Sie zu Citewalk eingeladen.',
+    bodyGeneric: 'Sie wurden zu Citewalk eingeladen.',
+    codeLabel: 'Zugangscode',
     instructions:
-      'Gib diesen Code bei der Anmeldung in der Citewalk-App oder auf der Website ein. Der Code ist einmalig gültig und verfällt, wenn er nicht rechtzeitig genutzt wird.',
-    footer:
-      'Wenn du diese E-Mail nicht erwartet hast, kannst du sie ignorieren.',
+      'Verwenden Sie diesen Code, um Ihr Konto zu erstellen. Der Code ist einmalig verwendbar und 7 Tage gültig.',
+    footer: 'Wenn Sie dies nicht erwartet haben, können Sie es ignorieren.',
   },
   fr: {
-    subject: 'Vous êtes invité à rejoindre Citewalk',
-    title: 'Vous êtes invité sur Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} vous a invité à rejoindre Citewalk parmi les premiers testeurs bêta.',
-    bodyGeneric:
-      'Vous avez été invité à rejoindre Citewalk parmi les premiers testeurs bêta.',
-    codeLabel: "Votre code d'invitation",
+    subject: 'Invitation à Citewalk',
+    title: 'Invitation',
+    bodyWithInviter: '{{inviterName}} vous a invité à rejoindre Citewalk.',
+    bodyGeneric: 'Vous avez été invité à rejoindre Citewalk.',
+    codeLabel: "Code d'accès",
     instructions:
-      "Saisissez ce code lors de l'inscription dans l'app Citewalk ou sur le site. Le code est à usage unique et expirera s'il n'est pas utilisé à temps.",
-    footer: "Si vous n'attendiez pas cet e-mail, vous pouvez l'ignorer.",
+      'Utilisez ce code pour créer votre compte. Le code est à usage unique et valable 7 jours.',
+    footer: "Si vous ne vous y attendiez pas, vous pouvez l'ignorer.",
   },
   es: {
-    subject: 'Estás invitado a unirte a Citewalk',
-    title: 'Estás invitado a Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} te ha invitado a unirte a Citewalk como uno de los primeros beta testers.',
-    bodyGeneric:
-      'Has sido invitado a unirte a Citewalk como uno de los primeros beta testers.',
-    codeLabel: 'Tu código de invitación',
+    subject: 'Invitación a Citewalk',
+    title: 'Invitación',
+    bodyWithInviter: '{{inviterName}} te ha invitado a unirte a Citewalk.',
+    bodyGeneric: 'Has sido invitado a unirte a Citewalk.',
+    codeLabel: 'Código de acceso',
     instructions:
-      'Introduce este código al registrarte en la app o en la web de Citewalk. El código es de un solo uso y caducará si no se usa a tiempo.',
-    footer: 'Si no esperabas este correo, puedes ignorarlo.',
+      'Utiliza este código para crear tu cuenta. El código es de un solo uso y válido por 7 días.',
+    footer: 'Si no esperabas esto, puedes ignorarlo.',
   },
   it: {
-    subject: 'Sei stato invitato a unirti a Citewalk',
-    title: 'Sei invitato su Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} ti ha invitato a unirti a Citewalk come uno dei primi beta tester.',
-    bodyGeneric:
-      'Sei stato invitato a unirti a Citewalk come uno dei primi beta tester.',
-    codeLabel: 'Il tuo codice invito',
+    subject: 'Invito a Citewalk',
+    title: 'Invito',
+    bodyWithInviter: '{{inviterName}} ti ha invitato a unirti a Citewalk.',
+    bodyGeneric: 'Sei stato invitato a unirti a Citewalk.',
+    codeLabel: 'Codice di accesso',
     instructions:
-      "Inserisci questo codice quando ti registri nell'app Citewalk o sul sito. Il codice è monouso e scadrà se non usato in tempo.",
-    footer: 'Se non ti aspettavi questa email, puoi ignorarla.',
+      'Usa questo codice per creare il tuo account. Il codice è monouso e valido per 7 giorni.',
+    footer: 'Se non te lo aspettavi, puoi ignorarlo.',
   },
   pt: {
-    subject: 'Você foi convidado a entrar no Citewalk',
-    title: 'Você está convidado para o Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} convidou você para entrar no Citewalk como um dos primeiros beta testers.',
-    bodyGeneric:
-      'Você foi convidado a entrar no Citewalk como um dos primeiros beta testers.',
-    codeLabel: 'Seu código de convite',
+    subject: 'Convite para Citewalk',
+    title: 'Convite',
+    bodyWithInviter: '{{inviterName}} convidou você para o Citewalk.',
+    bodyGeneric: 'Você foi convidado para o Citewalk.',
+    codeLabel: 'Código de acesso',
     instructions:
-      'Digite este código ao se cadastrar no app ou no site do Citewalk. O código é de uso único e expira se não for usado a tempo.',
-    footer: 'Se você não esperava este e-mail, pode ignorá-lo.',
+      'Use este código para criar sua conta. O código é de uso único e válido por 7 dias.',
+    footer: 'Se você não esperava por isso, pode ignorar.',
   },
   nl: {
-    subject: 'Je bent uitgenodigd voor Citewalk',
-    title: 'Je bent uitgenodigd voor Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} heeft je uitgenodigd om Citewalk te joinen als een van de eerste bètatesters.',
-    bodyGeneric:
-      'Je bent uitgenodigd om Citewalk te joinen als een van de eerste bètatesters.',
-    codeLabel: 'Je uitnodigingscode',
+    subject: 'Uitnodiging voor Citewalk',
+    title: 'Uitnodiging',
+    bodyWithInviter: '{{inviterName}} heeft u uitgenodigd voor Citewalk.',
+    bodyGeneric: 'U bent uitgenodigd voor Citewalk.',
+    codeLabel: 'Toegangscode',
     instructions:
-      'Voer deze code in bij het aanmelden in de Citewalk-app of op de website. De code is eenmalig en verloopt als hij niet op tijd wordt gebruikt.',
-    footer: 'Als je deze e-mail niet verwachtte, kun je hem negeren.',
+      'Gebruik deze code om uw account aan te maken. De code is eenmalig en 7 dagen geldig.',
+    footer: 'Als u dit niet verwachtte, kunt u het negeren.',
   },
   pl: {
-    subject: 'Zostałeś zaproszony do Citewalk',
-    title: 'Jesteś zaproszony do Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} zaprosił Cię do Citewalk jako jednego z pierwszych beta testerów.',
-    bodyGeneric:
-      'Zostałeś zaproszony do Citewalk jako jeden z pierwszych beta testerów.',
-    codeLabel: 'Twój kod zaproszenia',
+    subject: 'Zaproszenie do Citewalk',
+    title: 'Zaproszenie',
+    bodyWithInviter: '{{inviterName}} zaprosił Cię do Citewalk.',
+    bodyGeneric: 'Zostałeś zaproszony do Citewalk.',
+    codeLabel: 'Kod dostępu',
     instructions:
-      'Wprowadź ten kod przy rejestracji w aplikacji lub na stronie Citewalk. Kod jest jednorazowy i wygaśnie, jeśli nie zostanie użyty w czasie.',
-    footer: 'Jeśli nie spodziewałeś się tego e-maila, możesz go zignorować.',
+      'Użyj tego kodu, aby utworzyć konto. Kod jest jednorazowy i ważny przez 7 dni.',
+    footer: 'Jeśli się tego nie spodziewałeś, możesz to zignorować.',
   },
   ru: {
-    subject: 'Вас пригласили в Citewalk',
-    title: 'Вас пригласили в Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} пригласил вас присоединиться к Citewalk в числе первых бета-тестеров.',
-    bodyGeneric:
-      'Вас пригласили присоединиться к Citewalk в числе первых бета-тестеров.',
-    codeLabel: 'Ваш код приглашения',
+    subject: 'Приглашение в Citewalk',
+    title: 'Приглашение',
+    bodyWithInviter: '{{inviterName}} пригласил вас в Citewalk.',
+    bodyGeneric: 'Вас пригласили в Citewalk.',
+    codeLabel: 'Код доступа',
     instructions:
-      'Введите этот код при регистрации в приложении или на сайте Citewalk. Код одноразовый и истечёт, если не использовать его вовремя.',
-    footer: 'Если вы не ожидали это письмо, можете его проигнорировать.',
+      'Используйте этот код для создания аккаунта. Код одноразовый и действителен 7 дней.',
+    footer: 'Если вы этого не ожидали, можете проигнорировать.',
   },
   cs: {
-    subject: 'Jste zváni do Citewalk',
-    title: 'Jste zváni do Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} vás pozval do Citewalk jako jednoho z prvních beta testerů.',
-    bodyGeneric:
-      'Byli jste pozváni do Citewalk jako jeden z prvních beta testerů.',
-    codeLabel: 'Váš pozvánkový kód',
+    subject: 'Pozvánka do Citewalk',
+    title: 'Pozvánka',
+    bodyWithInviter: '{{inviterName}} vás pozval do Citewalk.',
+    bodyGeneric: 'Byli jste pozváni do Citewalk.',
+    codeLabel: 'Přístupový kód',
     instructions:
-      'Zadejte tento kód při registraci v aplikaci nebo na webu Citewalk. Kód je na jedno použití a vyprší, pokud nebude včas použit.',
-    footer: 'Pokud jste tento e-mail neočekávali, můžete ho ignorovat.',
+      'Použijte tento kód k vytvoření účtu. Kód je jednorázový a platí 7 dní.',
+    footer: 'Pokud jste to neočekávali, můžete to ignorovat.',
   },
   da: {
-    subject: 'Du er inviteret til Citewalk',
-    title: 'Du er inviteret til Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} har inviteret dig til at deltage i Citewalk som en af de første beta-testere.',
-    bodyGeneric:
-      'Du er blevet inviteret til at deltage i Citewalk som en af de første beta-testere.',
-    codeLabel: 'Din invitationskode',
+    subject: 'Invitation til Citewalk',
+    title: 'Invitation',
+    bodyWithInviter: '{{inviterName}} har inviteret dig til Citewalk.',
+    bodyGeneric: 'Du er blevet inviteret til Citewalk.',
+    codeLabel: 'Adgangskode',
     instructions:
-      'Indtast denne kode, når du tilmelder dig i Citewalk-appen eller på webstedet. Koden kan kun bruges én gang og udløber, hvis den ikke bruges i tide.',
-    footer: 'Hvis du ikke forventede denne e-mail, kan du ignorere den.',
+      'Brug denne kode til at oprette din konto. Koden er til engangsbrug og gyldig i 7 dage.',
+    footer: 'Hvis du ikke forventede dette, kan du ignorere det.',
   },
   fi: {
-    subject: 'Olet kutsuttu Citeen',
-    title: 'Olet kutsuttu Citeen',
-    bodyWithInviter:
-      '{{inviterName}} on kutsunut sinut Citeen yhdeksi ensimmäisistä beetatestääjistä.',
-    bodyGeneric:
-      'Sinut on kutsuttu Citeen yhdeksi ensimmäisistä beetatestääjistä.',
-    codeLabel: 'Kutsukoodisi',
+    subject: 'Kutsu Citewalkiin',
+    title: 'Kutsu',
+    bodyWithInviter: '{{inviterName}} on kutsunut sinut Citewalkiin.',
+    bodyGeneric: 'Sinut on kutsuttu Citewalkiin.',
+    codeLabel: 'Pääsykoodi',
     instructions:
-      'Syötä tämä koodi rekisteröityessäsi Citewalk-sovelluksessa tai verkkosivustolla. Koodi on kertakäyttöinen ja vanhenee, jos sitä ei käytetä ajoissa.',
-    footer: 'Jos et odottanut tätä sähköpostia, voit jättää sen huomiotta.',
+      'Käytä tätä koodia tilisi luomiseen. Koodi on kertakäyttöinen ja voimassa 7 päivää.',
+    footer: 'Jos et odottanut tätä, voit jättää sen huomiotta.',
   },
   hu: {
-    subject: 'Meghívtak a Citewalk használatára',
-    title: 'Meghívtak a Citewalk használatára',
-    bodyWithInviter:
-      '{{inviterName}} meghívott, hogy csatlakozz a Citewalk-hez az első béta tesztelők egyikeként.',
-    bodyGeneric:
-      'Meghívtak, hogy csatlakozz a Citewalk-hez az első béta tesztelők egyikeként.',
-    codeLabel: 'Meghívókódod',
+    subject: 'Meghívó a Citewalkba',
+    title: 'Meghívó',
+    bodyWithInviter: '{{inviterName}} meghívott a Citewalkba.',
+    bodyGeneric: 'Meghívtak a Citewalkba.',
+    codeLabel: 'Hozzáférési kód',
     instructions:
-      'Add meg ezt a kódot a Citewalk alkalmazásban vagy weboldalon történő regisztrációkor. A kód egyszer használható, és lejár, ha nem használod fel időben.',
-    footer:
-      'Ha nem erre az e-mailre számítottál, nyugodtan figyelmen kívül hagyhatod.',
+      'Használd ezt a kódot a fiókod létrehozásához. A kód egyszer használható és 7 napig érvényes.',
+    footer: 'Ha nem számítottál erre, figyelmen kívül hagyhatod.',
   },
   no: {
-    subject: 'Du er invitert til Citewalk',
-    title: 'Du er invitert til Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} har invitert deg til å bli med i Citewalk som en av de første betatesterne.',
-    bodyGeneric:
-      'Du er invitert til å bli med i Citewalk som en av de første betatesterne.',
-    codeLabel: 'Din invitasjonskode',
+    subject: 'Invitasjon til Citewalk',
+    title: 'Invitasjon',
+    bodyWithInviter: '{{inviterName}} har invitert deg til Citewalk.',
+    bodyGeneric: 'Du er invitert til Citewalk.',
+    codeLabel: 'Tilgangskode',
     instructions:
-      'Skriv inn denne koden når du registrerer deg i Citewalk-appen eller på nettsiden. Koden er engangsbruk og utløper hvis den ikke brukes i tide.',
-    footer: 'Hvis du ikke forventet denne e-posten, kan du ignorere den.',
+      'Bruk denne koden for å opprette kontoen din. Koden er til engangsbruk og gyldig i 7 dager.',
+    footer: 'Hvis du ikke forventet dette, kan du ignorere det.',
   },
   sv: {
-    subject: 'Du är inbjuden till Citewalk',
-    title: 'Du är inbjuden till Citewalk',
-    bodyWithInviter:
-      '{{inviterName}} har bjudit in dig till Citewalk som en av de första betatestarna.',
-    bodyGeneric:
-      'Du har bjudits in till Citewalk som en av de första betatestarna.',
-    codeLabel: 'Din inbjudningskod',
+    subject: 'Inbjudan till Citewalk',
+    title: 'Inbjudan',
+    bodyWithInviter: '{{inviterName}} har bjudit in dig till Citewalk.',
+    bodyGeneric: 'Du har bjudits in till Citewalk.',
+    codeLabel: 'Åtkomstkod',
     instructions:
-      'Ange denna kod när du registrerar dig i Citewalk-appen eller på webbplatsen. Koden är engångsbruk och går ut om den inte används i tid.',
-    footer:
-      'Om du inte förväntade dig det här e-postmeddelandet kan du ignorera det.',
+      'Använd denna kod för att skapa ditt konto. Koden är för engångsbruk och giltig i 7 dagar.',
+    footer: 'Om du inte förväntade dig detta kan du ignorera det.',
   },
 };
 
@@ -336,36 +290,114 @@ export interface AccountDeletionTemplate {
 export const accountDeletionTemplates: Record<string, AccountDeletionTemplate> =
   {
     en: {
-      subject: 'Confirm account deletion – Citewalk',
-      title: 'Confirm account deletion',
-      body: 'You requested to delete your Citewalk account. Click the link below to permanently delete it. This link expires in 24 hours.',
-      buttonLabel: 'Confirm delete my account',
-      ignore:
-        "If you didn't request this, you can ignore this email — your account will remain active.",
+      subject: 'Confirm Account Deletion',
+      title: 'Delete Account',
+      body: 'You requested to delete your Citewalk account. Click the link below to permanently delete your data. This link expires in 24 hours.',
+      buttonLabel: 'Delete My Account',
+      ignore: 'If you did not request this, you can ignore this email.',
     },
     de: {
-      subject: 'Kontolöschung bestätigen – Citewalk',
-      title: 'Kontolöschung bestätigen',
-      body: 'Sie haben die Löschung Ihres Citewalk-Kontos angefordert. Klicken Sie auf den Link unten, um es dauerhaft zu löschen. Der Link ist 24 Stunden gültig.',
-      buttonLabel: 'Kontolöschung bestätigen',
+      subject: 'Kontolöschung bestätigen',
+      title: 'Konto löschen',
+      body: 'Sie haben die Löschung Ihres Citewalk-Kontos angefordert. Klicken Sie auf den Link unten, um Ihre Daten dauerhaft zu löschen. Der Link ist 24 Stunden gültig.',
+      buttonLabel: 'Mein Konto löschen',
       ignore:
-        'Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren — Ihr Konto bleibt aktiv.',
+        'Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren.',
     },
     fr: {
-      subject: 'Confirmer la suppression du compte – Citewalk',
-      title: 'Confirmer la suppression du compte',
-      body: 'Vous avez demandé la suppression de votre compte Citewalk. Cliquez sur le lien ci-dessous pour le supprimer définitivement. Ce lien expire dans 24 heures.',
-      buttonLabel: 'Confirmer la suppression de mon compte',
+      subject: 'Confirmer la suppression du compte',
+      title: 'Supprimer le compte',
+      body: 'Vous avez demandé la suppression de votre compte Citewalk. Cliquez sur le lien ci-dessous pour supprimer définitivement vos données. Ce lien expire dans 24 heures.',
+      buttonLabel: 'Supprimer mon compte',
       ignore:
-        "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail — votre compte restera actif.",
+        "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.",
     },
     es: {
-      subject: 'Confirmar eliminación de cuenta – Citewalk',
-      title: 'Confirmar eliminación de cuenta',
-      body: 'Has solicitado eliminar tu cuenta de Citewalk. Haz clic en el enlace de abajo para eliminarla permanentemente. El enlace caduca en 24 horas.',
-      buttonLabel: 'Confirmar eliminar mi cuenta',
+      subject: 'Confirmar eliminación de cuenta',
+      title: 'Eliminar cuenta',
+      body: 'Has solicitado eliminar tu cuenta de Citewalk. Haz clic en el enlace de abajo para eliminar permanentemente tus datos. El enlace caduca en 24 horas.',
+      buttonLabel: 'Eliminar mi cuenta',
+      ignore: 'Si no has solicitado esto, puedes ignorar este correo.',
+    },
+    it: {
+      subject: 'Conferma eliminazione account',
+      title: 'Elimina account',
+      body: 'Hai richiesto di eliminare il tuo account Citewalk. Clicca sul link qui sotto per eliminare definitivamente i tuoi dati. Questo link scade in 24 ore.',
+      buttonLabel: 'Elimina il mio account',
+      ignore: 'Se non hai richiesto questo, puoi ignorare questa email.',
+    },
+    pt: {
+      subject: 'Confirmar exclusão de conta',
+      title: 'Excluir conta',
+      body: 'Você solicitou excluir sua conta Citewalk. Clique no link abaixo para excluir permanentemente seus dados. Este link expira em 24 horas.',
+      buttonLabel: 'Excluir minha conta',
+      ignore: 'Se você não solicitou isso, pode ignorar este e-mail.',
+    },
+    nl: {
+      subject: 'Bevestig accountverwijdering',
+      title: 'Account verwijderen',
+      body: 'U heeft verzocht uw Citewalk-account te verwijderen. Klik op de onderstaande link om uw gegevens permanent te verwijderen. Deze link verloopt over 24 uur.',
+      buttonLabel: 'Mijn account verwijderen',
+      ignore: 'Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.',
+    },
+    pl: {
+      subject: 'Potwierdź usunięcie konta',
+      title: 'Usuń konto',
+      body: 'Zażądałeś usunięcia swojego konta Citewalk. Kliknij poniższy link, aby trwale usunąć swoje dane. Link wygasa za 24 godziny.',
+      buttonLabel: 'Usuń moje konto',
+      ignore: 'Jeśli tego nie zażądałeś, możesz zignorować ten e-mail.',
+    },
+    ru: {
+      subject: 'Подтвердите удаление аккаунта',
+      title: 'Удалить аккаунт',
+      body: 'Вы запросили удаление вашего аккаунта Citewalk. Нажмите на ссылку ниже, чтобы навсегда удалить ваши данные. Ссылка действительна 24 часа.',
+      buttonLabel: 'Удалить мой аккаунт',
       ignore:
-        'Si no has solicitado esto, puedes ignorar este correo; tu cuenta seguirá activa.',
+        'Если вы этого не запрашивали, можете проигнорировать это письмо.',
+    },
+    cs: {
+      subject: 'Potvrdit smazání účtu',
+      title: 'Smazat účet',
+      body: 'Požádali jste o smazání vašeho účtu Citewalk. Kliknutím na odkaz níže trvale smažete svá data. Odkaz vyprší za 24 hodin.',
+      buttonLabel: 'Smazat můj účet',
+      ignore: 'Pokud jste o to nežádali, můžete tento e-mail ignorovat.',
+    },
+    da: {
+      subject: 'Bekræft sletning af konto',
+      title: 'Slet konto',
+      body: 'Du har anmodet om at slette din Citewalk-konto. Klik på linket nedenfor for at slette dine data permanent. Dette link udløber om 24 timer.',
+      buttonLabel: 'Slet min konto',
+      ignore:
+        'Hvis du ikke har anmodet om dette, kan du ignorere denne e-mail.',
+    },
+    fi: {
+      subject: 'Vahvista tilin poisto',
+      title: 'Poista tili',
+      body: 'Olet pyytänyt Citewalk-tilisi poistamista. Napsauta alla olevaa linkkiä poistaaksesi tietosi pysyvästi. Linkki vanhenee 24 tunnissa.',
+      buttonLabel: 'Poista tilini',
+      ignore: 'Jos et pyytänyt tätä, voit jättää tämän sähköpostin huomiotta.',
+    },
+    hu: {
+      subject: 'Fiók törlésének megerősítése',
+      title: 'Fiók törlése',
+      body: 'Kérted a Citewalk fiókod törlését. Kattints az alábbi linkre az adataid végleges törléséhez. A link 24 óráig érvényes.',
+      buttonLabel: 'Fiókom törlése',
+      ignore: 'Ha nem te kérted, figyelmen kívül hagyhatod ezt az e-mailt.',
+    },
+    no: {
+      subject: 'Bekreft sletting av konto',
+      title: 'Slett konto',
+      body: 'Du har bedt om å slette Citewalk-kontoen din. Klikk på lenken nedenfor for å slette dataene dine permanent. Denne lenken utløper om 24 timer.',
+      buttonLabel: 'Slett min konto',
+      ignore: 'Hvis du ikke ba om dette, kan du ignorere denne e-posten.',
+    },
+    sv: {
+      subject: 'Bekräfta borttagning av konto',
+      title: 'Ta bort konto',
+      body: 'Du har begärt att ta bort ditt Citewalk-konto. Klicka på länken nedan för att permanent radera dina data. Länken går ut om 24 timmar.',
+      buttonLabel: 'Ta bort mitt konto',
+      ignore:
+        'Om du inte begärde detta kan du ignorera det här e-postmeddelandet.',
     },
   };
 
@@ -379,34 +411,111 @@ export interface DataExportTemplate {
 
 export const dataExportTemplates: Record<string, DataExportTemplate> = {
   en: {
-    subject: 'Your data export – Citewalk',
-    title: 'Your data export is ready',
-    body: 'You requested a copy of your Citewalk data. Click the button below to download your export (ZIP file). This link expires in 7 days and can only be used once.',
-    buttonLabel: 'Download my data',
-    ignore:
-      "If you didn't request this, you can ignore this email — no export will be sent.",
+    subject: 'Your Data Export',
+    title: 'Download Ready',
+    body: 'Your data archive is ready. Click the button below to download your export (ZIP). This link expires in 7 days.',
+    buttonLabel: 'Download Data',
+    ignore: 'If you did not request this, you can ignore this email.',
   },
   de: {
-    subject: 'Ihre Datenexport – Citewalk',
-    title: 'Ihr Datenexport ist bereit',
-    body: 'Sie haben eine Kopie Ihrer Citewalk-Daten angefordert. Klicken Sie auf den Button unten, um Ihren Export (ZIP-Datei) herunterzuladen. Der Link ist 7 Tage gültig und kann nur einmal verwendet werden.',
-    buttonLabel: 'Meine Daten herunterladen',
+    subject: 'Ihr Datenexport',
+    title: 'Download Bereit',
+    body: 'Ihr Datenarchiv steht bereit. Klicken Sie auf den Button unten, um Ihren Export (ZIP) herunterzuladen. Der Link ist 7 Tage gültig.',
+    buttonLabel: 'Daten herunterladen',
     ignore:
       'Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren.',
   },
   fr: {
-    subject: 'Votre export de données – Citewalk',
-    title: 'Votre export de données est prêt',
-    body: "Vous avez demandé une copie de vos données Citewalk. Cliquez sur le bouton ci-dessous pour télécharger votre export (fichier ZIP). Ce lien expire dans 7 jours et ne peut être utilisé qu'une fois.",
-    buttonLabel: 'Télécharger mes données',
+    subject: 'Votre export de données',
+    title: 'Téléchargement prêt',
+    body: 'Votre archive de données est prête. Cliquez sur le bouton ci-dessous pour télécharger votre export (ZIP). Ce lien expire dans 7 jours.',
+    buttonLabel: 'Télécharger les données',
     ignore:
       "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.",
   },
   es: {
-    subject: 'Tu exportación de datos – Citewalk',
-    title: 'Tu exportación de datos está lista',
-    body: 'Solicitaste una copia de tus datos de Citewalk. Haz clic en el botón de abajo para descargar tu exportación (archivo ZIP). El enlace caduca en 7 días y solo puede usarse una vez.',
-    buttonLabel: 'Descargar mis datos',
+    subject: 'Tu exportación de datos',
+    title: 'Descarga lista',
+    body: 'Tu archivo de datos está listo. Haz clic en el botón de abajo para descargar tu exportación (ZIP). El enlace caduca en 7 días.',
+    buttonLabel: 'Descargar datos',
     ignore: 'Si no has solicitado esto, puedes ignorar este correo.',
+  },
+  it: {
+    subject: 'La tua esportazione dati',
+    title: 'Download pronto',
+    body: 'Il tuo archivio dati è pronto. Clicca sul pulsante qui sotto per scaricare la tua esportazione (ZIP). Questo link scade in 7 giorni.',
+    buttonLabel: 'Scarica dati',
+    ignore: 'Se non hai richiesto questo, puoi ignorare questa email.',
+  },
+  pt: {
+    subject: 'Sua exportação de dados',
+    title: 'Download pronto',
+    body: 'Seu arquivo de dados está pronto. Clique no botão abaixo para baixar sua exportação (ZIP). Este link expira em 7 dias.',
+    buttonLabel: 'Baixar dados',
+    ignore: 'Se você não solicitou isso, pode ignorar este e-mail.',
+  },
+  nl: {
+    subject: 'Uw gegevensexport',
+    title: 'Download gereed',
+    body: 'Uw data-archief staat klaar. Klik op de knop hieronder om uw export (ZIP) te downloaden. Deze link verloopt over 7 dagen.',
+    buttonLabel: 'Gegevens downloaden',
+    ignore: 'Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.',
+  },
+  pl: {
+    subject: 'Twój eksport danych',
+    title: 'Pobieranie gotowe',
+    body: 'Twoje archiwum danych jest gotowe. Kliknij przycisk poniżej, aby pobrać eksport (ZIP). Link wygasa za 7 dni.',
+    buttonLabel: 'Pobierz dane',
+    ignore: 'Jeśli tego nie zażądałeś, możesz zignorować ten e-mail.',
+  },
+  ru: {
+    subject: 'Ваш экспорт данных',
+    title: 'Загрузка готова',
+    body: 'Ваш архив данных готов. Нажмите кнопку ниже, чтобы загрузить экспорт (ZIP). Ссылка действительна 7 дней.',
+    buttonLabel: 'Скачать данные',
+    ignore: 'Если вы этого не запрашивали, можете проигнорировать это письмо.',
+  },
+  cs: {
+    subject: 'Váš export dat',
+    title: 'Stahování připraveno',
+    body: 'Váš datový archiv je připraven. Kliknutím na tlačítko níže stáhnete export (ZIP). Odkaz vyprší za 7 dní.',
+    buttonLabel: 'Stáhnout data',
+    ignore: 'Pokud jste o to nežádali, můžete tento e-mail ignorovat.',
+  },
+  da: {
+    subject: 'Din dataeksport',
+    title: 'Download klar',
+    body: 'Dit dataarkiv er klar. Klik på knappen nedenfor for at downloade din eksport (ZIP). Dette link udløber om 7 dage.',
+    buttonLabel: 'Hent data',
+    ignore: 'Hvis du ikke har anmodet om dette, kan du ignorere denne e-mail.',
+  },
+  fi: {
+    subject: 'Tietojen vientisi',
+    title: 'Lataus valmis',
+    body: 'Tietoarkistosi on valmis. Napsauta alla olevaa painiketta ladataksesi vientisi (ZIP). Linkki vanhenee 7 päivässä.',
+    buttonLabel: 'Lataa tiedot',
+    ignore: 'Jos et pyytänyt tätä, voit jättää tämän sähköpostin huomiotta.',
+  },
+  hu: {
+    subject: 'Adat exportod',
+    title: 'Letöltés kész',
+    body: 'Az adatarchívumod készen áll. Kattints az alábbi gombra az export (ZIP) letöltéséhez. A link 7 napig érvényes.',
+    buttonLabel: 'Adatok letöltése',
+    ignore: 'Ha nem te kérted, figyelmen kívül hagyhatod ezt az e-mailt.',
+  },
+  no: {
+    subject: 'Din dataeksport',
+    title: 'Nedlasting klar',
+    body: 'Dataarkivet ditt er klart. Klikk på knappen nedenfor for å laste ned eksporten (ZIP). Denne lenken utløper om 7 dager.',
+    buttonLabel: 'Last ned data',
+    ignore: 'Hvis du ikke ba om dette, kan du ignorere denne e-posten.',
+  },
+  sv: {
+    subject: 'Din dataexport',
+    title: 'Nedladdning redo',
+    body: 'Ditt dataarkiv är redo. Klicka på knappen nedan för att ladda ner din export (ZIP). Länken går ut om 7 dagar.',
+    buttonLabel: 'Ladda ner data',
+    ignore:
+      'Om du inte begärde detta kan du ignorera det här e-postmeddelandet.',
   },
 };

@@ -1,7 +1,7 @@
 /**
- * Shared email layout aligned with Citewalk app design.
- * Uses app dark theme: background #0B0B0C (ink); table-based layout with inline styles.
- * Includes legal footers for CAN-SPAM, GDPR (address, privacy, terms, preferences).
+ * Shared email layout aligned with Citewalk System design (Brutalist/Technical).
+ * Theme: Ink (#0B0B0C) / Paper (#F2F2F2) / Steel (#6E7A8A).
+ * Typography: System Sans (Inter/SF Pro) + Monospace for data.
  */
 
 export interface EmailLayoutOptions {
@@ -9,71 +9,67 @@ export interface EmailLayoutOptions {
   bodyHtml: string;
   code?: string;
   footerText: string;
-  /** Base URL for legal links (e.g. FRONTEND_URL). Used for website, /privacy, /terms, preferences */
   baseUrl?: string;
-  /** Company/sender name for legal footer (default: Citewalk) */
   companyName?: string;
-  /** Physical address for CAN-SPAM / legal (optional but recommended) */
   companyAddress?: string;
-  /** Unsubscribe / email preferences URL (e.g. baseUrl + /settings/notifications). Required for marketing; recommended for transactional. */
   unsubscribeUrl?: string;
-  /** Short line explaining why they received this email (e.g. "You received this because you have a Citewalk account."). Good for GDPR/transparency. */
   reasonText?: string;
-  /** Logo image URL (e.g. https://citewalk.com/logo_transparent.png). Shown in header when set. */
   logoUrl?: string;
-  /** Help/support email (e.g. hello@citewalk.com). Shown in footer when set. */
   helpEmail?: string;
 }
 
-/* Dark theme matching app: --background (#0B0B0C), card slightly elevated for contrast */
-const BG = '#0B0B0C';
-const CARD_BG = '#1A1A1D';
-const BORDER = '#2A2A2E';
-const DIVIDER = '#1A1A1D';
-const FG = '#F2F2F2';
-const MUTED = '#A8A8AA';
-const LEGAL = '#6E6E73';
-const ACCENT = '#6E7A8A';
-const CODE_BG = '#2A2A2E';
-const CODE_BORDER = '#3A3A3E';
+// Citewalk System Palette
+const C = {
+  INK: '#0B0B0C',
+  PAPER: '#F2F2F2',
+  STEEL: '#6E7A8A',
+  MUTED: '#A8A8AA',
+  SUBTLE: '#1A1A1D',
+  BORDER: '#333333',
+  CODE_BG: '#121215',
+};
+
+// Typography Stacks
+const FONT_SANS = `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;`;
+const FONT_MONO = `font-family: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, monospace;`;
 
 const STYLES = {
-  wrapper: `margin:0;padding:0;width:100%;background-color:${BG};-webkit-text-size-adjust:100%;`,
-  outerTable: `width:100%;border-collapse:collapse;background-color:${BG};`,
-  innerCell: `max-width:600px;width:100%;padding:28px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:${BG};`,
-  header: `padding:0 0 24px 0;border-bottom:1px solid ${DIVIDER};`,
-  logo: `color:${FG};font-size:24px;font-weight:600;letter-spacing:-0.5px;margin:0;`,
-  accentBar: `display:block;width:32px;height:3px;background:${ACCENT};border-radius:2px;margin:0 0 20px 0;`,
-  card: `background-color:${CARD_BG};border-radius:16px;padding:32px 28px;margin:28px 0;border:1px solid ${BORDER};`,
-  title: `color:${FG};font-size:22px;font-weight:600;line-height:1.3;margin:0 0 16px 0;letter-spacing:-0.02em;`,
-  body: `color:${MUTED};font-size:16px;line-height:1.65;margin:0 0 24px 0;`,
-  codeBox: `display:inline-block;background:${CODE_BG};color:${FG};font-family:ui-monospace,'SF Mono',Monaco,Consolas,monospace;font-size:26px;font-weight:600;letter-spacing:8px;padding:20px 28px;border-radius:12px;margin:20px 0;border:1px solid ${CODE_BORDER};`,
-  footer: `color:${LEGAL};font-size:13px;line-height:1.55;margin-top:24px;padding-top:20px;border-top:1px solid ${DIVIDER};`,
-  legal: `color:${LEGAL};font-size:11px;line-height:1.7;margin-top:32px;padding-top:24px;border-top:1px solid ${DIVIDER};`,
-  legalLink: `color:${ACCENT};text-decoration:none;`,
-  reason: `color:${LEGAL};font-size:11px;line-height:1.5;margin-top:20px;`,
+  // Reset & Base
+  wrapper: `margin:0;padding:0;width:100%;background-color:${C.INK};color:${C.PAPER};-webkit-text-size-adjust:100%;`,
+  outerTable: `width:100%;border-collapse:collapse;background-color:${C.INK};`,
+
+  // Container
+  innerCell: `max-width:600px;width:100%;padding:40px 20px;background-color:${C.INK};`,
+
+  // Header
+  header: `padding:0 0 32px 0;border-bottom:1px solid ${C.SUBTLE};margin-bottom:32px;`,
+  logo: `display:block;width:32px;height:32px;border-radius:6px;`,
+  systemBadge: `display:inline-block;padding:4px 8px;background:${C.SUBTLE};border:1px solid ${C.BORDER};border-radius:4px;color:${C.STEEL};font-size:10px;text-transform:uppercase;letter-spacing:1px;${FONT_MONO}`,
+
+  // Content
+  card: `background-color:${C.INK};padding:0;`, // No card background for brutalist feel, just clean text on ink
+  title: `color:${C.PAPER};font-size:24px;font-weight:600;line-height:1.2;margin:0 0 24px 0;letter-spacing:-0.5px;${FONT_SANS}`,
+  body: `color:${C.MUTED};font-size:16px;line-height:1.6;margin:0 0 24px 0;${FONT_SANS}`,
+
+  // Code Block (Technical look)
+  codeContainer: `margin:32px 0;text-align:center;`,
+  codeBox: `display:inline-block;background:${C.CODE_BG};color:${C.PAPER};font-size:28px;font-weight:700;letter-spacing:6px;padding:24px 32px;border:1px solid ${C.STEEL};border-radius:0;${FONT_MONO}`,
+  codeLabel: `display:block;margin-top:12px;color:${C.STEEL};font-size:11px;text-transform:uppercase;letter-spacing:1px;${FONT_MONO}`,
+
+  // Footer
+  footer: `border-top:1px solid ${C.SUBTLE};padding-top:32px;margin-top:48px;`,
+  footerText: `color:${C.STEEL};font-size:12px;line-height:1.5;margin-bottom:16px;${FONT_MONO}`,
+  legalLink: `color:${C.MUTED};text-decoration:none;border-bottom:1px solid ${C.SUBTLE};`,
 };
 
 const RESPONSIVE_STYLES = `
-  body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; background: ${BG} !important; }
-  .email-wrapper-table { width: 100% !important; min-width: 0 !important; background: ${BG} !important; }
-  .email-inner { box-sizing: border-box !important; background: ${BG} !important; }
-  @media only screen and (max-width: 620px) {
-    .email-inner { padding: 20px 16px !important; max-width: 100% !important; }
-    .email-card { padding: 24px 20px !important; margin: 20px 0 !important; border-radius: 12px !important; }
-    .email-title { font-size: 20px !important; margin-bottom: 14px !important; }
-    .email-body, .email-body p { font-size: 15px !important; line-height: 1.6 !important; margin-bottom: 16px !important; }
-    .email-code-box { font-size: 22px !important; letter-spacing: 5px !important; padding: 16px 20px !important; }
-    .email-footer { font-size: 12px !important; margin-top: 20px !important; padding-top: 16px !important; }
-    .email-legal { font-size: 11px !important; margin-top: 24px !important; padding-top: 20px !important; }
-    .email-reason { font-size: 11px !important; margin-top: 16px !important; }
-    .email-legal-links { display: block !important; }
-    .email-legal-links a { display: inline-block !important; margin: 2px 4px 2px 0 !important; }
-  }
+  body { background-color: ${C.INK} !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .email-wrapper { width: 100% !important; background-color: ${C.INK} !important; }
+  .code-box { font-size: 24px !important; padding: 20px !important; letter-spacing: 4px !important; }
   @media only screen and (max-width: 480px) {
-    .email-inner { padding: 16px 12px !important; }
-    .email-card { padding: 20px 16px !important; margin: 16px 0 !important; border-radius: 10px !important; }
-    .email-code-box { font-size: 18px !important; letter-spacing: 4px !important; padding: 14px 18px !important; }
+    .inner-cell { padding: 30px 16px !important; }
+    .title { font-size: 20px !important; }
+    .code-box { font-size: 20px !important; letter-spacing: 2px !important; padding: 16px !important; width: 100% !important; box-sizing: border-box !important; }
   }
 `;
 
@@ -84,58 +80,35 @@ function buildLegalFooter(opts: {
   unsubscribeUrl?: string;
   reasonText?: string;
   helpEmail?: string;
-}): { reasonHtml: string; legalHtml: string } {
-  const {
-    baseUrl,
-    companyName,
-    companyAddress,
-    unsubscribeUrl,
-    reasonText,
-    helpEmail,
-  } = opts;
-  const url = baseUrl ? baseUrl.replace(/\/$/, '') : '';
-  const links: string[] = [];
-  if (baseUrl) {
-    links.push(
-      `<a href="${escapeAttr(url)}" style="${STYLES.legalLink}">${escapeHtml('Website')}</a>`,
-    );
-    links.push(
-      `<a href="${escapeAttr(url + '/privacy')}" style="${STYLES.legalLink}">${escapeHtml('Privacy Policy')}</a>`,
-    );
-    links.push(
-      `<a href="${escapeAttr(url + '/terms')}" style="${STYLES.legalLink}">${escapeHtml('Terms of Service')}</a>`,
-    );
-  }
+}): string {
+  const { baseUrl, companyName, unsubscribeUrl, reasonText, helpEmail } = opts;
+  const url = baseUrl ? baseUrl.replace(/\/$/, '') : '#';
+
+  const links = [
+    `<a href="${url}" style="${STYLES.legalLink}">Index</a>`,
+    `<a href="${url}/manifesto" style="${STYLES.legalLink}">Manifesto</a>`,
+    `<a href="${url}/privacy" style="${STYLES.legalLink}">Privacy</a>`,
+  ];
+
   if (unsubscribeUrl) {
     links.push(
-      `<a href="${escapeAttr(unsubscribeUrl)}" style="${STYLES.legalLink}">${escapeHtml('Email preferences')}</a>`,
+      `<a href="${unsubscribeUrl}" style="${STYLES.legalLink}">Config</a>`,
     );
   }
 
-  const parts: string[] = [];
-  parts.push(
-    `&copy; ${new Date().getFullYear()} ${escapeHtml(companyName)}. All rights reserved.`,
-  );
-  if (companyAddress) {
-    parts.push(escapeHtml(companyAddress));
+  let html = `<p style="${STYLES.footerText}">SYSTEM: ACTIVE<br>&copy; ${new Date().getFullYear()} ${escapeHtml(companyName)}</p>`;
+
+  if (reasonText) {
+    html += `<p style="${STYLES.footerText}color:${C.MUTED};">${escapeHtml(reasonText)}</p>`;
   }
-  if (links.length) {
-    parts.push(
-      `<span class="email-legal-links">${links.join(' &nbsp;&bull;&nbsp; ')}</span>`,
-    );
-  }
+
+  html += `<p style="${STYLES.footerText}">${links.join(' &nbsp; / &nbsp; ')}</p>`;
+
   if (helpEmail) {
-    parts.push(
-      `Need help? Contact us at <a href="mailto:${escapeAttr(helpEmail)}" style="${STYLES.legalLink}">${escapeHtml(helpEmail)}</a>.`,
-    );
+    html += `<p style="${STYLES.footerText}">SIGNAL: <a href="mailto:${helpEmail}" style="${STYLES.legalLink}">${helpEmail}</a></p>`;
   }
-  parts.push(escapeHtml('Transactional message. Not marketing.'));
 
-  const reasonHtml = reasonText
-    ? `<p class="email-reason" style="${STYLES.reason}">${escapeHtml(reasonText)}</p>`
-    : '';
-  const legalHtml = parts.join('<br>');
-  return { reasonHtml, legalHtml };
+  return html;
 }
 
 export function buildEmailHtml(options: EmailLayoutOptions): string {
@@ -154,27 +127,33 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
   } = options;
 
   const codeBlock = code
-    ? `<div style="text-align:center;"><span class="email-code-box" style="${STYLES.codeBox}">${escapeHtml(code)}</span></div>`
+    ? `<div style="${STYLES.codeContainer}">
+         <span class="code-box" style="${STYLES.codeBox}">${escapeHtml(code)}</span>
+       </div>`
     : '';
 
-  const prefsUrl =
-    unsubscribeUrl ||
-    (baseUrl
-      ? baseUrl.replace(/\/$/, '') + '/settings/notifications'
-      : undefined);
-  const { reasonHtml, legalHtml } = buildLegalFooter({
+  const footerContent = buildLegalFooter({
     baseUrl,
     companyName,
     companyAddress,
-    unsubscribeUrl: prefsUrl,
+    unsubscribeUrl,
     reasonText,
     helpEmail,
   });
 
-  const siteUrl = baseUrl ? baseUrl.replace(/\/$/, '') : '';
-  const headerContent = logoUrl
-    ? `<a href="${siteUrl ? escapeAttr(siteUrl) : '#'}" style="display:inline-block;text-decoration:none;"><img src="${escapeAttr(logoUrl)}" alt="${escapeHtml(companyName)}" width="160" height="auto" style="display:block;max-width:160px;height:auto;border:0;" /></a>`
-    : `<span style="${STYLES.accentBar}"></span><p style="${STYLES.logo}">${escapeHtml(companyName)}</p>`;
+  // Header: Logo + System Badge
+  const headerContent = `
+    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td align="left">
+          ${logoUrl ? `<img src="${logoUrl}" width="32" height="32" style="${STYLES.logo}" alt="Citewalk" />` : `<span style="font-weight:bold;color:${C.PAPER};">Citewalk</span>`}
+        </td>
+        <td align="right">
+          <span style="${STYLES.systemBadge}">System Msg</span>
+        </td>
+      </tr>
+    </table>
+  `;
 
   return `
 <!DOCTYPE html>
@@ -183,49 +162,60 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>${escapeHtml(title)}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
   <style type="text/css">${RESPONSIVE_STYLES}</style>
 </head>
-<body style="${STYLES.wrapper}" bgcolor="${BG}">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper-table" style="${STYLES.outerTable}" bgcolor="${BG}">
-    <tr><td align="center" style="padding:0;background-color:${BG};">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;margin:0 auto;border-collapse:collapse;background-color:${BG};" bgcolor="${BG}">
-    <tr><td class="email-inner" style="${STYLES.innerCell}">
-    <div style="${STYLES.header}">
-      ${headerContent}
-    </div>
-    <div class="email-card" style="${STYLES.card}">
-      <h1 class="email-title" style="${STYLES.title}">${escapeHtml(title)}</h1>
-      <div class="email-body" style="${STYLES.body}">${bodyHtml}</div>
-      ${codeBlock}
-      <p class="email-footer" style="${STYLES.footer}">${escapeHtml(footerText)}</p>
-    </div>
-    ${reasonHtml}
-    <p class="email-legal" style="${STYLES.legal}">${legalHtml}</p>
-    </td></tr>
-  </table>
-    </td></tr>
-  </table>
+<body style="${STYLES.wrapper}" bgcolor="${C.INK}">
+  <center>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper" bgcolor="${C.INK}">
+      <tr>
+        <td align="center" valign="top">
+          <!-- Main Container -->
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;">
+            <tr>
+              <td class="inner-cell" style="${STYLES.innerCell}">
+                
+                <!-- Header -->
+                <div style="${STYLES.header}">
+                  ${headerContent}
+                </div>
+
+                <!-- Body -->
+                <div style="${STYLES.card}">
+                  <h1 class="title" style="${STYLES.title}">${escapeHtml(title)}</h1>
+                  <div class="body" style="${STYLES.body}">${bodyHtml}</div>
+                  
+                  ${codeBlock}
+                  
+                  <p style="${STYLES.body};font-size:14px;color:${C.STEEL};border-left:1px solid ${C.STEEL};padding-left:16px;margin-top:32px;">
+                    ${escapeHtml(footerText)}
+                  </p>
+                </div>
+
+                <!-- Footer -->
+                <div style="${STYLES.footer}">
+                  ${footerContent}
+                </div>
+
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </center>
 </body>
 </html>`.trim();
 }
 
 function escapeHtml(s: string): string {
+  if (!s) return '';
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-}
-
-function escapeAttr(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }

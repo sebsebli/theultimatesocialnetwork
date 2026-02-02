@@ -14,9 +14,11 @@ import Redis from 'ioredis';
 import { randomInt, randomBytes } from 'crypto';
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- otplib has no ESM types
 const { authenticator } = require('otplib') as {
-  generateSecret: () => string;
-  keyuri: (user: string, service: string, secret: string) => string;
-  verify: (opts: { token: string; secret: string }) => boolean;
+  authenticator: {
+    generateSecret: () => string;
+    keyuri: (user: string, service: string, secret: string) => string;
+    verify: (opts: { token: string; secret: string }) => boolean;
+  };
 };
 
 import { InvitesService } from '../invites/invites.service';

@@ -37,6 +37,15 @@ export class MeilisearchService implements OnModuleInit {
     });
   }
 
+  /** Health check for readiness (used by GET /health). */
+  async health(): Promise<void> {
+    const host =
+      this.configService.get<string>('MEILISEARCH_HOST') ||
+      'http://localhost:7700';
+    const res = await fetch(`${host.replace(/\/$/, '')}/health`);
+    if (!res.ok) throw new Error(`Meilisearch health: ${res.status}`);
+  }
+
   async onModuleInit() {
     try {
       // Create index if it doesn't exist

@@ -208,8 +208,8 @@ export function ProfilePage({
         setUser((prev) => ({
           ...prev,
           ...(type === "avatar"
-            ? { avatarKey: key }
-            : { profileHeaderKey: key }),
+            ? { avatarKey: key ?? undefined }
+            : { profileHeaderKey: key ?? undefined }),
         }));
       }
     } catch (e) {

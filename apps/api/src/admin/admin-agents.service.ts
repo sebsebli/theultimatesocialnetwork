@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { User } from '../entities/user.entity';
@@ -124,6 +124,25 @@ export class AdminAgentsService {
         email: user.email,
       },
     };
+  }
+
+  /**
+   * List users with email ending in @agents.local (for --resume-from-db).
+   */
+  async listAgentUsers(): Promise<
+    { email: string; handle: string; displayName: string; bio: string }[]
+  > {
+    const users = await this.userRepo.find({
+      where: { email: Like('%@agents.local') },
+      select: ['email', 'handle', 'displayName', 'bio'],
+      order: { createdAt: 'ASC' },
+    });
+    return users.map((u) => ({
+      email: u.email ?? '',
+      handle: u.handle,
+      displayName: u.displayName ?? u.handle,
+      bio: u.bio ?? '',
+    }));
   }
 
   /**

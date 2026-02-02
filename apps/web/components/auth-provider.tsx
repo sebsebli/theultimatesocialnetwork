@@ -78,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       "/",
       "/welcome",
       "/sign-in",
+      "/about",
       "/verify",
       "/privacy",
       "/terms",

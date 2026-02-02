@@ -249,7 +249,7 @@ html {
 
 /* Ko-fi floating widget: behind cookie overlay, button only (no container box) */
 .floatingchat-container-wrap {
-  z-index: 40 !important; /* below cookie consent overlay (z-[100]) */
+  z-index: 9999 !important; /* above everything */
   background: transparent !important;
   padding: 0 !important;
   border: none !important;
@@ -430,4 +430,13 @@ html {
     padding: 0 !important;
     margin: 0 !important;
   }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
 }

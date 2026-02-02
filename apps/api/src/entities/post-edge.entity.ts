@@ -39,6 +39,7 @@ export class PostEdge {
     type: 'enum',
     enum: EdgeType,
     name: 'edge_type',
+    enumName: 'post_edges_edge_type_enum',
   })
   edgeType: EdgeType;
 

@@ -4,15 +4,19 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { useBetaMode } from "@/context/beta-mode-provider";
 
 const TAGLINE = "History is written by those who write.";
 const ERROR_COLOR = "#B85C5C";
 
 function SignInForm() {
   const searchParams = useSearchParams();
+  const { betaMode } = useBetaMode();
+  const codeFromUrl = searchParams.get("code");
+  const showInviteInput = betaMode || !!codeFromUrl;
+
   const [email, setEmail] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
-  const [showInviteInput, setShowInviteInput] = useState(false);
+  const [inviteCode, setInviteCode] = useState(codeFromUrl ?? "");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [token, setToken] = useState("");
   const [totpCode, setTotpCode] = useState("");
@@ -59,35 +63,8 @@ function SignInForm() {
   };
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (code) {
-      setInviteCode(code);
-      setShowInviteInput(true);
-    }
-  }, [searchParams]);
-
-  // In beta mode, show invite code field first (require invite before signup)
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchBetaMode() {
-      try {
-        const res = await fetch("/api/invites/beta-mode", {
-          cache: "no-store",
-        });
-        if (cancelled) return;
-        if (res.ok) {
-          const data = (await res.json()) as { betaMode?: boolean };
-          if (data.betaMode === true) setShowInviteInput(true);
-        }
-      } catch {
-        if (!cancelled) setShowInviteInput(true);
-      }
-    }
-    fetchBetaMode();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (codeFromUrl) setInviteCode(codeFromUrl);
+  }, [codeFromUrl]);
 
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -531,6 +508,23 @@ function SignInPageContent() {
             No password. We&apos;ll email you a code to sign in or create your
             account.
           </p>
+          <div className="mt-12 flex flex-wrap gap-6 text-sm font-medium text-secondary">
+            <Link href="/about" className="hover:text-paper transition-colors">
+              About
+            </Link>
+            <Link
+              href="/manifesto"
+              className="hover:text-paper transition-colors"
+            >
+              Manifesto
+            </Link>
+            <Link
+              href="/roadmap"
+              className="hover:text-paper transition-colors"
+            >
+              Roadmap
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -559,17 +553,33 @@ function SignInPageContent() {
           </div>
         </div>
 
-        <footer className="flex flex-wrap items-center justify-center gap-2 pt-8 pb-2 mt-auto text-xs font-medium text-tertiary md:justify-start md:max-w-md md:mx-auto">
+        <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-8 pb-2 mt-auto text-xs font-medium text-tertiary md:justify-start md:max-w-md md:mx-auto">
+          <Link href="/about" className="hover:text-paper transition-colors">
+            About
+          </Link>
+          <Link
+            href="/manifesto"
+            className="hover:text-paper transition-colors"
+          >
+            Manifesto
+          </Link>
+          <Link href="/roadmap" className="hover:text-paper transition-colors">
+            Roadmap
+          </Link>
           <Link href="/privacy" className="hover:text-paper transition-colors">
             Privacy
           </Link>
-          <span className="w-0.5 h-0.5 rounded-full bg-tertiary" aria-hidden />
           <Link href="/terms" className="hover:text-paper transition-colors">
             Terms
           </Link>
-          <span className="w-0.5 h-0.5 rounded-full bg-tertiary" aria-hidden />
           <Link href="/imprint" className="hover:text-paper transition-colors">
             Imprint
+          </Link>
+          <Link
+            href="/ai-transparency"
+            className="hover:text-paper transition-colors"
+          >
+            AI Safety
           </Link>
         </footer>
       </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useBetaMode } from "@/context/beta-mode-provider";
 import { DesktopSidebar } from "@/components/desktop-sidebar";
 import { DesktopRightSidebar } from "@/components/desktop-right-sidebar";
 
@@ -22,8 +23,8 @@ interface InviteData {
 }
 
 export default function InvitesPage() {
+  const { betaMode } = useBetaMode();
   const [data, setData] = useState<InviteData | null>(null);
-  const [betaMode, setBetaMode] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
@@ -31,21 +32,8 @@ export default function InvitesPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchBetaMode = async () => {
-    try {
-      const res = await fetch("/api/invites/beta-mode", { cache: "no-store" });
-      if (res.ok) {
-        const json = await res.json();
-        setBetaMode(json.betaMode !== false);
-      }
-    } catch {
-      setBetaMode(true);
-    }
-  };
-
   const fetchInvites = async () => {
     try {
-      await fetchBetaMode();
       const res = await fetch("/api/invites/my", { credentials: "include" });
       if (res.ok) {
         const json = await res.json();
@@ -79,7 +67,7 @@ export default function InvitesPage() {
         const err = await res.json().catch(() => ({}));
         setError(err?.error ?? "Failed to generate code");
       }
-    } catch (err) {
+    } catch {
       setError("Something went wrong");
     } finally {
       setGenerating(false);
@@ -207,7 +195,7 @@ export default function InvitesPage() {
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-3">
                   <span className="text-tertiary">Invites remaining</span>
                   <span className="text-2xl font-bold text-primary tabular-nums">
-                    {loading ? "…" : data?.remaining ?? 0}
+                    {loading ? "…" : (data?.remaining ?? 0)}
                   </span>
                 </div>
 
@@ -225,9 +213,7 @@ export default function InvitesPage() {
                       className="w-full px-4 py-3 rounded-lg bg-ink border border-white/10 text-paper placeholder:text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/50"
                       disabled={sending}
                     />
-                    {error && (
-                      <p className="text-sm text-red-400">{error}</p>
-                    )}
+                    {error && <p className="text-sm text-red-400">{error}</p>}
                     <button
                       type="submit"
                       disabled={
@@ -318,14 +304,12 @@ export default function InvitesPage() {
                     Invites Remaining
                   </div>
                   <div className="text-4xl font-bold text-primary mb-6">
-                    {loading ? "..." : data?.remaining ?? 0}
+                    {loading ? "..." : (data?.remaining ?? 0)}
                   </div>
 
                   <button
                     onClick={generateCode}
-                    disabled={
-                      !data || data.remaining <= 0 || generating
-                    }
+                    disabled={!data || data.remaining <= 0 || generating}
                     className="w-full sm:w-auto px-8 h-12 bg-primary hover:bg-[#7d8b9d] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-full transition-all active:scale-[0.98]"
                   >
                     {generating ? "Generating..." : "Generate New Code"}

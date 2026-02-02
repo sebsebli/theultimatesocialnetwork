@@ -172,7 +172,7 @@ function PostItemInner({
             {post.author.displayName}
           </span>
           <span className="text-tertiary text-xs">•</span>
-          <span className="text-tertiary text-xs">
+          <span className="text-tertiary text-xs font-mono">
             {formatTime(post.createdAt)}
           </span>
         </div>
@@ -208,7 +208,7 @@ function PostItemInner({
           )}
         </div>
         {post.headerImageKey && (
-          <div className="relative w-full h-[240px] rounded-xl bg-divider mt-4 overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-300">
+          <div className="relative w-full h-[240px] rounded-lg bg-divider mt-4 overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-300">
             {post.headerImageBlurhash && (
               <Blurhash
                 hash={post.headerImageBlurhash}
@@ -237,7 +237,7 @@ function PostItemInner({
         {/* Render Rich Media (GIF/Video) */}
         {post.media && (
           <div
-            className="mb-3 rounded-xl overflow-hidden relative w-full bg-black mt-4"
+            className="mb-3 rounded-lg overflow-hidden relative w-full bg-black mt-4"
             onClick={(e) => e.preventDefault()}
           >
             {post.media.type === "video" ? (
@@ -279,7 +279,7 @@ function PostItemInner({
                 rel={
                   source.type === "external" ? "noopener noreferrer" : undefined
                 }
-                className="flex items-center gap-3 p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 transition-colors group/source"
+                className="flex items-center gap-3 p-2.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/5 transition-colors group/source"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="w-7 h-7 rounded-full bg-divider flex items-center justify-center text-secondary group-hover/source:text-primary transition-colors shrink-0">

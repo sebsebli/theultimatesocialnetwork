@@ -20,7 +20,11 @@ export class PushToken {
   @Column({ name: 'user_id' })
   userId: string;
 
-  @Column({ type: 'enum', enum: PushProvider })
+  @Column({
+    type: 'enum',
+    enum: PushProvider,
+    enumName: 'push_tokens_provider_enum',
+  })
   provider: PushProvider;
 
   @Column()

@@ -39,6 +39,7 @@ export class PushOutbox {
     type: 'enum',
     enum: PushStatus,
     default: PushStatus.PENDING,
+    enumName: 'push_outbox_status_enum',
   })
   status: PushStatus;
 

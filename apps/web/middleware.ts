@@ -46,6 +46,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Explicitly allow /about (landing page content) for everyone
+  if (pathname === "/about") {
+    return NextResponse.next();
+  }
+
   // Public view-only routes: allow without auth (profile and post pages)
   const isPublicViewRoute = publicViewRoutes.some((route) =>
     pathname.startsWith(route),

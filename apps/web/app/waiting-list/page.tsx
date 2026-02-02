@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const CONSENT_LABEL =
   "I agree to be contacted at the email address above about Citewalk project updates and my invitation to the open beta program.";
@@ -56,20 +57,15 @@ export default function WaitingListPage() {
         <div className="text-center space-y-4">
           <Link
             href="/"
-            className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-white/5 border border-white/10 mb-4 transition-all hover:scale-105 hover:bg-white/10 hover:border-white/20 shadow-2xl"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/5 border border-white/10 mb-4 transition-all hover:scale-105 hover:bg-white/10 hover:border-white/20 shadow-2xl"
           >
-            <svg
-              className="w-8 h-8 text-primary"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2.5"
-              viewBox="0 0 24 24"
-            >
-              <path d="M11 5H7C4.5 9 4.5 15 7 19H11"></path>
-              <path d="M13 5H17V19H13"></path>
-            </svg>
+            <Image
+              src="/icon.png"
+              alt="Citewalk"
+              width={48}
+              height={48}
+              className="w-12 h-12 rounded-lg opacity-90"
+            />
           </Link>
           <h1 className="text-4xl font-bold tracking-tight text-paper">
             Join the Waiting List
@@ -191,6 +187,15 @@ export default function WaitingListPage() {
                 </Link>
                 .
               </p>
+            </div>
+
+            <div className="pt-4 text-center border-t border-white/5">
+              <Link
+                href="/"
+                className="text-secondary hover:text-paper transition-colors text-sm"
+              >
+                &larr; Back to Home
+              </Link>
             </div>
 
             <p className="text-center text-sm">

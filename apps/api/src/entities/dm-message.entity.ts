@@ -34,4 +34,7 @@ export class DmMessage {
 
   @DeleteDateColumn({ name: 'deleted_at' })
   deletedAt: Date;
+
+  @Column({ name: 'read_at', type: 'timestamp', nullable: true })
+  readAt: Date | null;
 }

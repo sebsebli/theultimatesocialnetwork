@@ -36,6 +36,7 @@ export class Notification {
       'COLLECTION_ADD',
       'DM',
     ],
+    enumName: 'notifications_type_enum',
   })
   type: string;
 

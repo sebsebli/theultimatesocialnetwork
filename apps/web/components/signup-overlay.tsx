@@ -4,16 +4,19 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
-import { isBetaActive } from "@/lib/feature-flags";
+import { useBetaMode } from "@/context/beta-mode-provider";
 
 export function SignupOverlay() {
   const pathname = usePathname();
   const { isAuthenticated, isLoading } = useAuth();
+  const { betaMode } = useBetaMode();
   const [scrollReached, setScrollReached] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   // Only show on content pages
-  const shouldShow = ["/", "/manifesto", "/roadmap"].includes(pathname);
+  const shouldShow = ["/", "/about", "/manifesto", "/roadmap"].includes(
+    pathname,
+  );
 
   // Derive visibility: no synchronous setState in effect
   const visible =
@@ -54,7 +57,7 @@ export function SignupOverlay() {
           onClick={() => {
             setDismissed(true);
           }}
-          className="absolute top-4 right-6 md:top-8 md:right-8 p-2 text-[#6E6E73] hover:text-[#F2F2F2] transition-colors bg-[#1A1A1D]/50 hover:bg-[#1A1A1D] rounded-full"
+          className="absolute top-8 right-8 p-2 text-[#6E6E73] hover:text-[#F2F2F2] transition-colors bg-[#1A1A1D]/50 hover:bg-[#1A1A1D] rounded-full"
           aria-label="Close"
         >
           <svg
@@ -77,18 +80,18 @@ export function SignupOverlay() {
             The network is waiting.
           </h3>
           <p className="text-[#A8A8AA] text-lg leading-relaxed">
-            {isBetaActive
+            {betaMode
               ? "Join the closed beta to start building your knowledge graph."
               : "Join the network to start building your knowledge graph."}
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-8 w-full md:w-auto">
           <Link
-            href={isBetaActive ? "/waiting-list" : "/sign-in"}
+            href={betaMode ? "/waiting-list" : "/sign-in"}
             className="inline-flex justify-center items-center px-8 py-4 bg-[#F2F2F2] text-[#0B0B0C] font-semibold text-lg rounded-full hover:bg-white transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.2)]"
           >
-            {isBetaActive ? "Join the Waiting List" : "Join the Network"}
+            {betaMode ? "Join the Waiting List" : "Join the Network"}
           </Link>
           <button
             onClick={() => {

@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/toast";
 interface OfflineToggleProps {
   post: {
     id: string;
-    title?: string;
+    title?: string | null;
     body: string;
     author: {
       displayName: string;
@@ -34,7 +34,7 @@ export function OfflineToggle({ post }: OfflineToggleProps) {
     } else {
       const payload: OfflinePost = {
         id: post.id,
-        title: post.title,
+        title: post.title ?? undefined,
         body: post.body,
         author: {
           displayName: post.author.displayName,

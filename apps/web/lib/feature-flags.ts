@@ -1,8 +1,8 @@
 /**
  * Feature flags for home/overlay copy and CTAs.
- * Set NEXT_PUBLIC_BETA_ACTIVE=false when opening the beta or going live.
+ *
+ * Beta mode (invitation-only) is NOT read from env here. It comes from the
+ * real API: GET /api/invites/beta-mode (backend system_settings BETA_MODE).
+ * Use the useBetaMode() hook from @/context/beta-mode-provider in client
+ * components so all beta-mode checks use the same source of truth.
  */
-
-const raw = process.env.NEXT_PUBLIC_BETA_ACTIVE;
-export const isBetaActive =
-  raw === undefined || raw === "" || raw.toLowerCase() === "true";
