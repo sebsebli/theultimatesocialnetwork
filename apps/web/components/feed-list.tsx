@@ -5,6 +5,7 @@ import { PostItem, type Post } from "./post-item";
 import { SavedByItem } from "./saved-by-item";
 import { InviteNudge } from "./invite-nudge";
 import { useToast } from "@/components/ui/toast";
+import { getApiErrorMessage } from "@/lib/api-error";
 import {
   EmptyState,
   emptyStateCenterClassName,
@@ -75,6 +76,10 @@ export function FeedList({ initialPosts }: FeedListProps) {
 
         setPosts((prev) => [...prev, ...newItems]);
       } else {
+        const body = await res.json().catch(() => null);
+        showError(
+          getApiErrorMessage(res.status, body) || "Couldn’t load more.",
+        );
         setHasMore(false);
       }
     } catch (e) {

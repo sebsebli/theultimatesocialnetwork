@@ -36,6 +36,7 @@ export default function InboxPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
@@ -60,6 +61,7 @@ export default function InboxPage() {
   const loadNotifications = async (pageNum: number, reset = false) => {
     if (reset) {
       setLoading(true);
+      setLoadError(false);
       setPage(1);
     } else {
       setLoadingMore(true);
@@ -77,11 +79,13 @@ export default function InboxPage() {
         } else {
           setNotifications((prev) => [...prev, ...items]);
         }
-        // Assuming API returns hasMore or we check length
         setHasMore(items.length === 20 && data.hasMore !== false);
+      } else if (reset) {
+        setLoadError(true);
       }
     } catch (error) {
       console.error("Failed to load notifications", error);
+      if (reset) setLoadError(true);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -184,11 +188,24 @@ export default function InboxPage() {
           <div
             className={`space-y-4 ${notifications.length === 0 ? "flex flex-1 flex-col min-h-[200px]" : ""}`}
           >
-            {loading && notifications.length === 0 ? (
+            {loading && notifications.length === 0 && !loadError ? (
               <div className="text-center py-12">
                 <p className="text-secondary text-sm">
                   Loading notifications...
                 </p>
+              </div>
+            ) : loadError && notifications.length === 0 ? (
+              <div className={emptyStateCenterClassName}>
+                <p className="text-secondary text-sm mb-4">
+                  Failed to load notifications. Please try again.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => loadNotifications(1, true)}
+                  className="text-primary hover:underline font-medium"
+                >
+                  Retry
+                </button>
               </div>
             ) : notifications.length === 0 ? (
               <div className={emptyStateCenterClassName}>

@@ -1,0 +1,77 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e4]:
+    - generic [ref=e6]:
+      - img "Citewalk" [ref=e7]
+      - heading "Citewalk" [level=1] [ref=e8]
+      - paragraph [ref=e9]: History is written by those who write.
+      - paragraph [ref=e10]: No password. We'll email you a code to sign in or create your account.
+      - generic [ref=e11]:
+        - link "About" [ref=e12] [cursor=pointer]:
+          - /url: /about
+        - link "Manifesto" [ref=e13] [cursor=pointer]:
+          - /url: /manifesto
+        - link "Roadmap" [ref=e14] [cursor=pointer]:
+          - /url: /roadmap
+      - link "Support me" [ref=e15] [cursor=pointer]:
+        - /url: https://ko-fi.com/sebastianlindner
+    - generic [ref=e16]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]: Email
+          - textbox "Email" [ref=e22]:
+            - /placeholder: you@example.com
+        - generic [ref=e23]:
+          - generic [ref=e24]: Invite code
+          - textbox "Invite code" [active] [ref=e25]:
+            - /placeholder: e.g. A1B2C3D4
+          - paragraph [ref=e26]: Required for new sign-ups. Enter the code you received by email or from someone who invited you.
+        - generic [ref=e27] [cursor=pointer]:
+          - checkbox "By signing up, you agree to our Terms of Service and Privacy Policy." [ref=e28]
+          - generic [ref=e29]:
+            - text: By signing up, you agree to our
+            - link "Terms of Service" [ref=e30]:
+              - /url: /terms
+            - text: and
+            - link "Privacy Policy" [ref=e31]:
+              - /url: /privacy
+            - text: .
+        - button "Send verification code" [disabled] [ref=e32]
+        - paragraph [ref=e33]: No password. We'll email you a code.
+        - link "Need an invite? Join the waiting list" [ref=e35] [cursor=pointer]:
+          - /url: /waiting-list
+      - contentinfo [ref=e36]:
+        - link "About" [ref=e37] [cursor=pointer]:
+          - /url: /about
+        - link "Manifesto" [ref=e38] [cursor=pointer]:
+          - /url: /manifesto
+        - link "Roadmap" [ref=e39] [cursor=pointer]:
+          - /url: /roadmap
+        - link "Privacy" [ref=e40] [cursor=pointer]:
+          - /url: /privacy
+        - link "Terms" [ref=e41] [cursor=pointer]:
+          - /url: /terms
+        - link "Imprint" [ref=e42] [cursor=pointer]:
+          - /url: /imprint
+        - link "AI Safety" [ref=e43] [cursor=pointer]:
+          - /url: /ai-transparency
+  - button "Open Next.js Dev Tools" [ref=e49] [cursor=pointer]:
+    - img [ref=e50]
+  - alert [ref=e53]
+  - dialog "Cookie consent" [ref=e54]:
+    - generic [ref=e55]:
+      - heading "We value your privacy" [level=2] [ref=e56]
+      - paragraph [ref=e57]:
+        - text: We use cookies to enhance your experience, analyze site traffic, and serve personalized content. By clicking "Accept All", you consent to our use of cookies. Read our
+        - link "Privacy Policy" [ref=e58] [cursor=pointer]:
+          - /url: /privacy
+        - text: .
+      - generic [ref=e59]:
+        - button "Accept All" [ref=e60] [cursor=pointer]
+        - button "Essential Only" [ref=e61] [cursor=pointer]
+  - region "Notifications"
+```

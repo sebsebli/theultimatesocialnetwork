@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportError } from "@/lib/error-reporting";
 
 /**
  * Catches errors in the root layout. Must render its own <html> and <body>.
  * Used for unhandled errors that would otherwise break the whole app.
+ * Reports to Sentry when window.__reportError is set (see docs/MONITORING.md).
  */
 export default function GlobalError({
   error,
@@ -14,10 +16,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Global error boundary:", error);
-    }
-    // In production, wire Sentry here: window.__reportError?.(error, { digest: error.digest, scope: 'global' })
+    reportError(error, { digest: error.digest, scope: "global" });
   }, [error]);
 
   return (
@@ -46,10 +45,10 @@ export default function GlobalError({
             type="button"
             onClick={reset}
             style={{
-              minHeight: 44,
-              padding: "10px 24px",
-              borderRadius: 8,
-              background: "#6E7A8A",
+              minHeight: 44, // MODAL.buttonMinHeight
+              padding: "12px 24px", // MODAL.buttonPaddingVertical/Horizontal
+              borderRadius: 8, // SIZES.borderRadius
+              background: "#6E7A8A", // COLORS.primary
               color: "#fff",
               border: "none",
               fontWeight: 500,

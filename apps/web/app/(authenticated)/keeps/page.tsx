@@ -24,6 +24,7 @@ interface Keep {
 export default function KeepsPage() {
   const [keeps, setKeeps] = useState<Keep[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unsorted" | "in-collections">(
     "all",
@@ -31,6 +32,7 @@ export default function KeepsPage() {
 
   const loadKeeps = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const params = new URLSearchParams();
       if (search) params.append("search", search);
@@ -41,9 +43,12 @@ export default function KeepsPage() {
       if (res.ok) {
         const data = await res.json();
         setKeeps(Array.isArray(data) ? data : (data?.items ?? []));
+      } else {
+        setLoadError(true);
       }
     } catch (error) {
       console.error("Failed to load keeps", error);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -105,9 +110,22 @@ export default function KeepsPage() {
 
       {/* Keeps List */}
       <div className="px-6 py-6 flex-1 flex flex-col min-h-[200px]">
-        {loading ? (
+        {loading && !loadError ? (
           <div className="text-center py-12">
             <p className="text-secondary text-sm">Loading...</p>
+          </div>
+        ) : loadError ? (
+          <div className={emptyStateCenterClassName}>
+            <p className="text-secondary text-sm mb-4">
+              Failed to load keeps. Please try again.
+            </p>
+            <button
+              type="button"
+              onClick={() => loadKeeps()}
+              className="text-primary hover:underline font-medium"
+            >
+              Retry
+            </button>
           </div>
         ) : keeps.length === 0 ? (
           <div className={emptyStateCenterClassName}>

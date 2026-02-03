@@ -27,6 +27,7 @@ interface Collection {
 export default function CollectionsPage() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
@@ -35,14 +36,18 @@ export default function CollectionsPage() {
 
   const loadCollections = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch("/api/collections");
       if (res.ok) {
         const data = await res.json();
-        setCollections(data);
+        setCollections(Array.isArray(data) ? data : (data?.items ?? []));
+      } else {
+        setLoadError(true);
       }
     } catch (error) {
       console.error("Failed to load collections", error);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -80,9 +85,22 @@ export default function CollectionsPage() {
 
       {/* Collections List */}
       <div className="px-6 py-6 space-y-4 flex-1 flex flex-col min-h-[200px]">
-        {loading ? (
+        {loading && !loadError ? (
           <div className="text-center py-12">
             <p className="text-secondary text-sm">Loading...</p>
+          </div>
+        ) : loadError ? (
+          <div className={emptyStateCenterClassName}>
+            <p className="text-secondary text-sm mb-4">
+              Failed to load collections. Please try again.
+            </p>
+            <button
+              type="button"
+              onClick={() => loadCollections()}
+              className="text-primary hover:underline font-medium"
+            >
+              Retry
+            </button>
           </div>
         ) : collections.length === 0 ? (
           <div className={emptyStateCenterClassName}>

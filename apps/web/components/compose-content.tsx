@@ -11,6 +11,7 @@ import { ImageUploader } from "@/components/image-uploader";
 import { ReadingMode } from "@/components/reading-mode";
 import { getCaretCoordinates } from "@/utils/textarea-caret";
 import { getImageUrl } from "@/lib/security";
+import { getErrorMessageFromResponse } from "@/lib/api-error";
 import {
   enforceTitleAndAliasLimits,
   getProtectedRanges,
@@ -178,8 +179,8 @@ function ComposeContentInner() {
           router.push("/home");
           router.refresh();
         } else {
-          const errData = await res.json().catch(() => ({}));
-          toastError(errData?.message || t("error"));
+          const msg = await getErrorMessageFromResponse(res);
+          toastError(msg || t("error"));
         }
       } else if (replyToPostId) {
         const res = await fetch(`/api/posts/${replyToPostId}/replies`, {
@@ -192,8 +193,8 @@ function ComposeContentInner() {
           router.push(`/post/${replyToPostId}`);
           router.refresh();
         } else {
-          const errData = await res.json().catch(() => ({}));
-          toastError(errData?.message || t("error"));
+          const msg = await getErrorMessageFromResponse(res);
+          toastError(msg || t("error"));
         }
       } else {
         const res = await fetch("/api/posts", {
@@ -210,8 +211,8 @@ function ComposeContentInner() {
           router.push("/home");
           router.refresh();
         } else {
-          const errData = await res.json().catch(() => ({}));
-          toastError(errData?.message || t("error"));
+          const msg = await getErrorMessageFromResponse(res);
+          toastError(msg || t("error"));
         }
       }
     } catch (error) {
