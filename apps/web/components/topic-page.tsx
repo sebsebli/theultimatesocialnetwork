@@ -93,6 +93,25 @@ function TopicPageInner({ topic }: TopicPageProps) {
     Math.max(0, (scrollY - STICKY_HEADER_APPEAR) / 80),
   );
 
+  const handleFollowTopic = useCallback(
+    async (slug: string, currentlyFollowing: boolean) => {
+      const method = currentlyFollowing ? "DELETE" : "POST";
+      const res = await fetch(
+        `/api/topics/${encodeURIComponent(slug)}/follow`,
+        {
+          method,
+        },
+      );
+      if (!res.ok) return;
+      setMoreTopics((prev) =>
+        prev.map((t) =>
+          t.slug === slug ? { ...t, isFollowing: !currentlyFollowing } : t,
+        ),
+      );
+    },
+    [],
+  );
+
   const loadPosts = useCallback(
     async (page: number, append: boolean) => {
       if (append) setLoadingMorePosts(true);
@@ -260,7 +279,12 @@ function TopicPageInner({ topic }: TopicPageProps) {
             <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 -mx-4 px-4 no-scrollbar">
               {moreTopics.map((t) => (
                 <div key={t.id} className="shrink-0 w-[280px]">
-                  <TopicCard topic={t} />
+                  <TopicCard
+                    topic={t}
+                    onFollow={() =>
+                      handleFollowTopic(t.slug, t.isFollowing ?? false)
+                    }
+                  />
                 </div>
               ))}
             </div>

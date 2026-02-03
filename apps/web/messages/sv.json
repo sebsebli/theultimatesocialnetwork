@@ -164,7 +164,9 @@
     "publishedSuccess": "Publicerat",
     "linkToTopic": "LÄNK TILL ÄMNE",
     "references": "{{count}} refs",
-    "startTypingToSeeSuggestions": "Skriv för att söka..."
+    "startTypingToSeeSuggestions": "Skriv för att söka...",
+    "sourcesCount": "Källor {{used}}/{{max}}",
+    "tooManySources": "För många källor (max {{max}}). Du har {{count}}."
   },
   "post": {
     "like": "Gilla",

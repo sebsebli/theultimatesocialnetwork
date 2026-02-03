@@ -208,7 +208,7 @@ export default function ConnectionsPage() {
         <button
           type="button"
           onClick={() => switchTab("followers")}
-          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+          className={`flex-1 px-4 py-3 text-center text-sm font-semibold transition-colors ${
             activeTab === "followers"
               ? "text-primary border-b-2 border-primary"
               : "text-tertiary hover:text-paper"
@@ -219,7 +219,7 @@ export default function ConnectionsPage() {
         <button
           type="button"
           onClick={() => switchTab("following")}
-          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+          className={`flex-1 px-4 py-3 text-center text-sm font-semibold transition-colors ${
             activeTab === "following"
               ? "text-primary border-b-2 border-primary"
               : "text-tertiary hover:text-paper"
@@ -230,7 +230,7 @@ export default function ConnectionsPage() {
         <button
           type="button"
           onClick={() => switchTab("topics")}
-          className={`flex-1 py-3 text-center text-sm font-semibold transition-colors ${
+          className={`flex-1 px-4 py-3 text-center text-sm font-semibold transition-colors ${
             activeTab === "topics"
               ? "text-primary border-b-2 border-primary"
               : "text-tertiary hover:text-paper"

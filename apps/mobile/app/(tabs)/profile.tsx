@@ -10,7 +10,7 @@ import { api, getImageUrl, getAvatarUri, getApiBaseUrl, getWebAppBaseUrl } from 
 import { PostItem } from '../../components/PostItem';
 import { CollectionCard } from '../../components/CollectionCard';
 import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, toColor, toDimension, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, toColor, toDimension, toDimensionValue, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { ListFooterLoader } from '../../components/ListFooterLoader';
 import { formatCompactNumber } from '../../utils/format';
 import { useAuth } from '../../context/auth';
@@ -308,7 +308,7 @@ export default function ProfileScreen() {
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -393,7 +393,7 @@ export default function ProfileScreen() {
           renderItem={activeTab === 'collections' ? renderCollectionItem : renderItem}
           ListHeaderComponent={
             <View style={styles.profileListHeader}>
-              <View style={[styles.profileHeaderContainer, { paddingTop: insets.top + 4 }]}>
+              <View style={[styles.profileHeaderContainer, { paddingTop: insets.top }]}>
                 {/* Top Action Buttons */}
                 <View style={styles.headerBar}>
                   {isSelf ? (
@@ -836,7 +836,6 @@ const styles = createStyles({
   profileHeaderContainer: {
     width: '100%',
     backgroundColor: COLORS.ink,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
   },
   profileListHeader: {
@@ -853,6 +852,7 @@ const styles = createStyles({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
     paddingBottom: SPACING.s,
   },
   profileHeaderContent: {
@@ -1135,7 +1135,7 @@ const styles = createStyles({
     flexShrink: 0,
     alignItems: 'center',
     paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.xs,
+    paddingHorizontal: SPACING.s,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },

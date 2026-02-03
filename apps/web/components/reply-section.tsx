@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Avatar } from "./avatar";
 import { OverflowMenu } from "./overflow-menu";
 import { useAuth } from "@/components/auth-provider";
+import { useToast } from "@/components/ui/toast";
 
 interface Reply {
   id: string;
@@ -35,6 +36,7 @@ function ReplySectionInner({
   isPublic = false,
 }: ReplySectionProps) {
   const { user } = useAuth();
+  const { error: toastError } = useToast();
   const canReply = Boolean(user) && !isPublic;
   const [replies, setReplies] = useState<Reply[]>([]);
   const [childrenByParent, setChildrenByParent] = useState<
@@ -170,7 +172,7 @@ function ReplySectionInner({
       setReplyText(body);
       setShowReplyBox(true);
       if (parentReplyId) setReplyingToReplyId(parentReplyId);
-      alert("Failed to post reply. Please try again.");
+      toastError("Failed to post reply. Please try again.");
     }
   };
 

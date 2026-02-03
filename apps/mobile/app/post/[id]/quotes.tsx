@@ -9,10 +9,10 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../utils/api';
-import { COLORS, SPACING, FONTS, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
+import { COLORS, SPACING, FONTS, LAYOUT, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { PostPreviewRow } from '../../../components/PostPreviewRow';
+import { SourceOrPostCard } from '../../../components/SourceOrPostCard';
 import { CenteredEmptyState } from '../../../components/EmptyState';
 import { ListFooterLoader } from '../../../components/ListFooterLoader';
 import { Post } from '../../../types';
@@ -20,6 +20,10 @@ import { Post } from '../../../types';
 export default function PostQuotesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const handlePostPress = (item: Post) => {
+    if (item.title) router.push(`/post/${item.id}/reading`);
+    else router.push(`/post/${item.id}`);
+  };
   const params = useLocalSearchParams();
   const { t } = useTranslation();
   const postId = params.id as string;
@@ -97,7 +101,21 @@ export default function PostQuotesScreen() {
       <FlatList
         data={quotes}
         keyExtractor={(item: Post) => item.id}
-        renderItem={({ item }: { item: Post }) => <PostPreviewRow post={item} />}
+        renderItem={({ item }: { item: Post }) => {
+          const bodyPreview = (item.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+          const title = item.title ?? bodyPreview || 'Post';
+          const subtitle = item.author?.displayName || item.author?.handle || '';
+          return (
+            <View style={styles.itemWrap}>
+              <SourceOrPostCard
+                type="post"
+                title={title}
+                subtitle={subtitle || undefined}
+                onPress={() => handlePostPress(item)}
+              />
+            </View>
+          );
+        }}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: insets.bottom + 24 },
@@ -122,7 +140,8 @@ export default function PostQuotesScreen() {
 const styles = createStyles({
   container: { flex: 1, backgroundColor: COLORS.ink },
   center: { justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { paddingTop: SPACING.m },
+  scrollContent: { paddingTop: SPACING.m, paddingHorizontal: LAYOUT.contentPaddingHorizontal },
+  itemWrap: { marginBottom: SPACING.s },
   postTitleLabel: {
     fontSize: 13,
     color: COLORS.tertiary,

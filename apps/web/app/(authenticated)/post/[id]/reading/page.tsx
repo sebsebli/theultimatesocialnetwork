@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ReadingMode } from "@/components/reading-mode";
 import { cookies } from "next/headers";
 
@@ -35,16 +35,7 @@ export default async function ReadingModePage(props: {
   const post = await getPost(params.id);
 
   if (!post) {
-    return (
-      <div className="min-h-screen bg-ink flex flex-col items-center justify-center px-6">
-        <p className="text-secondary mb-4">
-          This post is private or does not exist.
-        </p>
-        <Link href="/home" className="text-primary hover:underline font-medium">
-          Go back
-        </Link>
-      </div>
-    );
+    notFound();
   }
 
   return <ReadingMode post={post} />;

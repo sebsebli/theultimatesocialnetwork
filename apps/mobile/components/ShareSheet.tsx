@@ -9,8 +9,13 @@ import * as Clipboard from 'expo-clipboard';
 import { useToast } from '../context/ToastContext';
 import { api, getWebAppBaseUrl } from '../utils/api';
 
+export interface ShareSheetOpenOptions {
+  /** When true, public URL options (Copy link, Share via...) are hidden; only DM options shown. */
+  authorIsProtected?: boolean;
+}
+
 export interface ShareSheetRef {
-  open: (postId: string) => void;
+  open: (postId: string, options?: ShareSheetOpenOptions) => void;
   close: () => void;
 }
 
@@ -25,6 +30,7 @@ interface ThreadItem {
 const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>) => {
   const [visible, setVisible] = useState(false);
   const [postId, setPostId] = useState<string | null>(null);
+  const [authorIsProtected, setAuthorIsProtected] = useState(false);
   const [threads, setThreads] = useState<ThreadItem[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
   const router = useRouter();
@@ -33,8 +39,9 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
   const { showSuccess } = useToast();
 
   useImperativeHandle(ref, () => ({
-    open: (id: string) => {
+    open: (id: string, options?: ShareSheetOpenOptions) => {
       setPostId(id);
+      setAuthorIsProtected(options?.authorIsProtected === true);
       setVisible(true);
     },
     close: () => setVisible(false),
@@ -147,20 +154,24 @@ const ShareSheet = forwardRef((props: {}, ref: React.ForwardedRef<ShareSheetRef>
             <Text style={styles.optionText}>{t('messages.newMessage', 'New message')}</Text>
           </Pressable>
 
-          <Text style={styles.sectionLabel}>{t('post.otherWays', 'Other ways')}</Text>
-          <Pressable style={styles.option} onPress={handleCopyLink}>
-            <View style={styles.iconContainer}>
-              <MaterialIcons name="content-copy" size={HEADER.iconSize} color={COLORS.primary} />
-            </View>
-            <Text style={styles.optionText}>{t('post.copyLink', 'Copy Link')}</Text>
-          </Pressable>
+          {!authorIsProtected && (
+            <>
+              <Text style={styles.sectionLabel}>{t('post.otherWays', 'Other ways')}</Text>
+              <Pressable style={styles.option} onPress={handleCopyLink}>
+                <View style={styles.iconContainer}>
+                  <MaterialIcons name="content-copy" size={HEADER.iconSize} color={COLORS.primary} />
+                </View>
+                <Text style={styles.optionText}>{t('post.copyLink', 'Copy Link')}</Text>
+              </Pressable>
 
-          <Pressable style={styles.option} onPress={handleShareSystem}>
-            <View style={styles.iconContainer}>
-              <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.primary} />
-            </View>
-            <Text style={styles.optionText}>{t('post.shareSystem', 'Share via...')}</Text>
-          </Pressable>
+              <Pressable style={styles.option} onPress={handleShareSystem}>
+                <View style={styles.iconContainer}>
+                  <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.primary} />
+                </View>
+                <Text style={styles.optionText}>{t('post.shareSystem', 'Share via...')}</Text>
+              </Pressable>
+            </>
+          )}
 
           <Pressable style={styles.cancelButton} onPress={() => setVisible(false)}>
             <Text style={styles.cancelText}>{t('common.cancel', 'Cancel')}</Text>

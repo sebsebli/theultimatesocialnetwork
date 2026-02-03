@@ -164,7 +164,9 @@
     "publishedSuccess": "Udgivet",
     "linkToTopic": "LINK TIL EMNE",
     "references": "{{count}} refs",
-    "startTypingToSeeSuggestions": "Skriv for at søge..."
+    "startTypingToSeeSuggestions": "Skriv for at søge...",
+    "sourcesCount": "Kilder {{used}}/{{max}}",
+    "tooManySources": "For mange kilder (max {{max}}). Du har {{count}}."
   },
   "post": {
     "like": "Synes om",

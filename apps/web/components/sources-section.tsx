@@ -240,6 +240,25 @@ function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
                       className="!h-8 !w-8"
                     />
                   )
+                ) : source.type === "external" &&
+                  (source.imageUrl ?? null) != null ? (
+                  // External link with OG image (may be external URL)
+                  source.imageUrl!.startsWith("http") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={source.imageUrl!}
+                      alt=""
+                      className="w-8 h-8 object-cover rounded-full"
+                    />
+                  ) : (
+                    <Image
+                      src={getImageUrl(source.imageUrl!)}
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 object-cover rounded-full"
+                    />
+                  )
                 ) : source.type === "topic" &&
                   (source.imageKey ?? null) != null ? (
                   <Image
@@ -316,6 +335,20 @@ function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
                   )
                 )}
               </div>
+              <svg
+                className="w-5 h-5 shrink-0 text-tertiary group-hover:text-primary transition-colors"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
             </Link>
           );
         })}

@@ -29,10 +29,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/auth';
 import AddToCollectionSheet, { AddToCollectionSheetRef } from '../../../components/AddToCollectionSheet';
 import ShareSheet, { ShareSheetRef } from '../../../components/ShareSheet';
+import { SourceOrPostCard } from '../../../components/SourceOrPostCard';
 import { ReportModal } from '../../../components/ReportModal';
 import { OptionsActionSheet } from '../../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../../components/ConfirmModal';
-import { PostPreviewRow } from '../../../components/PostPreviewRow';
 import { EmptyState, emptyStateCenterWrapStyle } from '../../../components/EmptyState';
 import { useToast } from '../../../context/ToastContext';
 import {
@@ -53,7 +53,7 @@ interface Post {
   headerImageKey?: string | null;
   replyCount?: number;
   quoteCount?: number;
-  author?: { id?: string; displayName?: string; handle?: string; avatarUrl?: string | null; avatarKey?: string | null };
+  author?: { id?: string; displayName?: string; handle?: string; avatarUrl?: string | null; avatarKey?: string | null; isProtected?: boolean };
   isLiked?: boolean;
   isKept?: boolean;
   lang?: string | null;
@@ -490,7 +490,7 @@ export default function ReadingModeScreen() {
 
             <Pressable
               style={styles.actionBtn}
-              onPress={() => shareSheetRef.current?.open(postId)}
+              onPress={() => shareSheetRef.current?.open(postId, { authorIsProtected: post?.author?.isProtected === true })}
             >
               <MaterialIcons name="ios-share" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
             </Pressable>
@@ -587,9 +587,20 @@ export default function ReadingModeScreen() {
             </View>
           ) : (
             <View style={styles.quotedList}>
-              {quotedBy.map((p: any) => (
-                <PostPreviewRow key={p.id} post={p} fullWidth />
-              ))}
+              {quotedBy.map((p: any) => {
+                const bodyPreview = (p.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+                const title = p.title ?? bodyPreview || 'Post';
+                const subtitle = p.author?.displayName || p.author?.handle || '';
+                return (
+                  <SourceOrPostCard
+                    key={p.id}
+                    type="post"
+                    title={title}
+                    subtitle={subtitle || undefined}
+                    onPress={() => (p.title ? router.push(`/post/${p.id}/reading`) : router.push(`/post/${p.id}`))}
+                  />
+                );
+              })}
             </View>
           )}
         </View>

@@ -5,9 +5,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { getImageUrl, getAvatarUri } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../constants/theme';
 
-const TOPIC_CIRCLE_SIZE = 56;
+const TOPIC_HEADER_ASPECT = 16 / 9;
 
-/** Topic card: circle with last article image (or icon), topic title, last article preview line, meta + follow. */
+/** Topic card: header image from most recent post (or placeholder), then title, excerpt, meta + follow. */
 const TopicCardInner = ({ item, onPress, onFollow }: { item: any; onPress: () => void; onFollow?: () => void }) => {
   const { t } = useTranslation();
   const recent = item.recentPost;
@@ -30,22 +30,20 @@ const TopicCardInner = ({ item, onPress, onFollow }: { item: any; onPress: () =>
 
   return (
     <Pressable onPress={onPress} style={({ pressed }: { pressed: boolean }) => [styles.topicCard, pressed && styles.topicCardPressed]}>
-      <View style={styles.topicRow}>
-        <View style={styles.topicCircleWrap}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.topicCircleImage} resizeMode="cover" />
-          ) : (
-            <View style={styles.topicCirclePlaceholder}>
-              <MaterialIcons name="tag" size={HEADER.iconSize} color={COLORS.tertiary} />
-            </View>
-          )}
-        </View>
-        <View style={styles.topicContent}>
-          <Text style={styles.topicTitle} numberOfLines={1}>{item.title}</Text>
-          {lastArticlePreview ? (
-            <Text style={styles.topicLastArticle} numberOfLines={1}>{lastArticlePreview}</Text>
-          ) : null}
-        </View>
+      <View style={[styles.topicHeaderWrap, { aspectRatio: TOPIC_HEADER_ASPECT }]}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.topicHeaderImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.topicHeaderPlaceholder}>
+            <MaterialIcons name="tag" size={28} color={COLORS.tertiary} />
+          </View>
+        )}
+      </View>
+      <View style={styles.topicBody}>
+        <Text style={styles.topicTitle} numberOfLines={1}>{item.title}</Text>
+        {lastArticlePreview ? (
+          <Text style={styles.topicLastArticle} numberOfLines={2}>{lastArticlePreview}</Text>
+        ) : null}
       </View>
       <View style={styles.topicFooter}>
         {meta ? <Text style={styles.topicMeta} numberOfLines={1}>{meta}</Text> : null}
@@ -127,34 +125,24 @@ const styles = createStyles({
   topicCardPressed: {
     opacity: 0.9,
   },
-  topicRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.l,
-    gap: SPACING.m,
-  },
-  topicCircleWrap: {
-    width: TOPIC_CIRCLE_SIZE,
-    height: TOPIC_CIRCLE_SIZE,
-    borderRadius: TOPIC_CIRCLE_SIZE / 2,
+  topicHeaderWrap: {
+    width: '100%',
     backgroundColor: COLORS.divider,
-    overflow: 'hidden',
   },
-  topicCircleImage: {
-    width: TOPIC_CIRCLE_SIZE,
-    height: TOPIC_CIRCLE_SIZE,
+  topicHeaderImage: {
+    width: '100%',
+    height: '100%',
   },
-  topicCirclePlaceholder: {
-    width: TOPIC_CIRCLE_SIZE,
-    height: TOPIC_CIRCLE_SIZE,
-    borderRadius: TOPIC_CIRCLE_SIZE / 2,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+  topicHeaderPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(110, 122, 138, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  topicContent: {
-    flex: 1,
-    minWidth: 0,
+  topicBody: {
+    padding: SPACING.l,
+    paddingBottom: SPACING.s,
   },
   topicTitle: {
     fontSize: 17,
@@ -166,7 +154,7 @@ const styles = createStyles({
     fontSize: 13,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    marginTop: 2,
+    marginTop: 4,
   },
   topicFooter: {
     flexDirection: 'row',

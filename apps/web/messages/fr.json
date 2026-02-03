@@ -164,7 +164,9 @@
     "publishedSuccess": "Publié",
     "linkToTopic": "LIEN VERS SUJET",
     "references": "{{count}} refs",
-    "startTypingToSeeSuggestions": "Tapez pour chercher..."
+    "startTypingToSeeSuggestions": "Tapez pour chercher...",
+    "sourcesCount": "Sources {{used}}/{{max}}",
+    "tooManySources": "Trop de sources (max {{max}}). Vous en avez {{count}}."
   },
   "post": {
     "like": "J'aime",

@@ -154,7 +154,9 @@
     "publishedSuccess": "Veröffentlicht",
     "linkToTopic": "LINK ZUM THEMA",
     "references": "{{count}} Referenzen",
-    "startTypingToSeeSuggestions": "Tippen zum Suchen..."
+    "startTypingToSeeSuggestions": "Tippen zum Suchen...",
+    "sourcesCount": "Quellen {{used}}/{{max}}",
+    "tooManySources": "Zu viele Quellen (max {{max}}). Sie haben {{count}}."
   },
   "post": {
     "moreContent": "...",

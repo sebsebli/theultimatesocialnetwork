@@ -232,7 +232,7 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
             ) : null}
           </View>
           {maxBodyLines != null ? (
-            <View style={[styles.bodyClipWrap, { maxHeight: maxBodyLines * 26 }]}>
+            <View style={[styles.bodyClipWrap, { maxHeight: maxBodyLines * 26 }]} collapsable={false}>
               <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
               <LinearGradient
                 colors={['transparent', COLORS.ink]}
@@ -377,7 +377,7 @@ const styles = createStyles({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 44,
+    height: 80,
   },
   moreIndicator: {
     fontSize: 18,

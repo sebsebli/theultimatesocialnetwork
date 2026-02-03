@@ -10,7 +10,7 @@ import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
-import { PostPreviewRow } from '../../components/PostPreviewRow';
+import { SourceOrPostCard } from '../../components/SourceOrPostCard';
 import { PostItem } from '../../components/PostItem';
 import { PostContent } from '../../components/PostContent';
 import { MarkdownText } from '../../components/MarkdownText';
@@ -385,53 +385,49 @@ export default function PostDetailScreen() {
         {mergedSources.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('post.sources', 'Sources')}</Text>
-            {mergedSources.map((source: any, index: number) => (
-              <Pressable
-                key={source.type === 'external' && source.url ? `ext-${source.url}` : (source.id ?? `i-${index}`)}
-                style={styles.sourceItem}
-                onPress={async () => {
-                  if (source.type === 'external' && source.url) {
-                    Linking.openURL(source.url).catch((err: any) => {
-                      console.error('Failed to open URL', err);
-                      showError(t('post.failedOpenUrl', 'Failed to open URL'));
-                    });
-                  } else if (source.type === 'post') {
-                    router.push(`/post/${source.id}`);
-                  } else if (source.type === 'topic') {
-                    router.push(`/topic/${encodeURIComponent(source.slug)}`);
-                  } else if (source.type === 'user') {
-                    router.push(`/user/${source.handle}`);
-                  }
-                }}
-                accessibilityLabel={`${t('post.source', 'Source')} ${index + 1}: ${source.title || source.url}`}
-                accessibilityRole="link"
-              >
-                <Text style={styles.sourceNumber}>{index + 1}</Text>
-                <View style={styles.sourceIcon}>
-                  <Text style={styles.sourceIconText}>
-                    {source.type === 'external' && source.url
-                      ? (new URL(source.url).hostname).charAt(0).toUpperCase()
-                      : (source.title || '?').charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.sourceContent}>
-                  <Text style={styles.sourceDomain}>
-                    {source.type === 'external' && source.url
-                      ? new URL(source.url).hostname
-                      : source.type === 'user' ? 'User'
-                        : source.type === 'topic' ? 'Topic'
-                          : 'Post'}
-                  </Text>
-                  <Text style={styles.sourceTitle} numberOfLines={1}>
-                    {source.alias || source.title || source.handle || source.url}
-                  </Text>
-                  {source.type === 'external' && source.description ? (
-                    <Text style={styles.sourceDescription} numberOfLines={2}>{source.description}</Text>
-                  ) : null}
-                </View>
-                <MaterialIcons name="open-in-new" size={HEADER.iconSize} color={COLORS.tertiary} />
-              </Pressable>
-            ))}
+            <View style={styles.sourcesList}>
+              {mergedSources.map((source: any, index: number) => {
+                const title = source.alias || source.title || source.handle || source.url || source.slug || '';
+                const subtitle =
+                  source.type === 'external' && source.url
+                    ? (source.description?.trim()
+                        ? source.description.trim()
+                        : (() => {
+                            try {
+                              return new URL(source.url).hostname.replace('www.', '');
+                            } catch {
+                              return '';
+                            }
+                          })())
+                    : source.type === 'user'
+                      ? `@${source.handle}`
+                      : source.type === 'topic'
+                        ? t('post.topic', 'Topic')
+                        : '';
+                return (
+                  <SourceOrPostCard
+                    key={source.type === 'external' && source.url ? `ext-${source.url}` : (source.id ?? `i-${index}`)}
+                    type={source.type}
+                    title={title}
+                    subtitle={subtitle || undefined}
+                    onPress={() => {
+                      if (source.type === 'external' && source.url) {
+                        Linking.openURL(source.url).catch((err: any) => {
+                          console.error('Failed to open URL', err);
+                          showError(t('post.failedOpenUrl', 'Failed to open URL'));
+                        });
+                      } else if (source.type === 'post') {
+                        router.push(`/post/${source.id}`);
+                      } else if (source.type === 'topic') {
+                        router.push(`/topic/${encodeURIComponent(source.slug)}`);
+                      } else if (source.type === 'user') {
+                        router.push(`/user/${source.handle}`);
+                      }
+                    }}
+                  />
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -441,9 +437,22 @@ export default function PostDetailScreen() {
               <Text style={styles.sectionTitle}>{t('post.referencedBy', 'Referenced by')}</Text>
               <Text style={styles.sectionCount}>{referencedBy.length} {t('post.replies')}</Text>
             </View>
-            {referencedBy.slice(0, 2).map((refPost) => (
-              <PostPreviewRow key={refPost.id} post={refPost} />
-            ))}
+            <View style={styles.sourcesList}>
+              {referencedBy.slice(0, 2).map((refPost) => {
+                const bodyPreview = (refPost.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+                const title = refPost.title ?? bodyPreview || 'Post';
+                const subtitle = refPost.author?.displayName || refPost.author?.handle || '';
+                return (
+                  <SourceOrPostCard
+                    key={refPost.id}
+                    type="post"
+                    title={title}
+                    subtitle={subtitle || undefined}
+                    onPress={() => (refPost.title ? router.push(`/post/${refPost.id}/reading`) : router.push(`/post/${refPost.id}`))}
+                  />
+                );
+              })}
+            </View>
             {referencedBy.length > 2 && (
               <Pressable style={styles.viewAllButton}>
                 <Text style={styles.viewAllText}>{t('post.viewAllReferences')}</Text>
@@ -565,15 +574,17 @@ export default function PostDetailScreen() {
               {kept ? t('post.kept') : t('post.keep')}
             </Text>
           </Pressable>
-          <Pressable
-            style={styles.bottomActionButton}
-            onPress={handleShare}
-            accessibilityLabel={t('post.share')}
-            accessibilityRole="button"
-          >
-            <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.tertiary} />
-            <Text style={styles.bottomActionText}>{t('post.share')}</Text>
-          </Pressable>
+          {!post?.author?.isProtected && (
+            <Pressable
+              style={styles.bottomActionButton}
+              onPress={handleShare}
+              accessibilityLabel={t('post.share')}
+              accessibilityRole="button"
+            >
+              <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <Text style={styles.bottomActionText}>{t('post.share')}</Text>
+            </Pressable>
+          )}
         </View>
       </ScrollView>
 
@@ -804,6 +815,9 @@ const styles = createStyles({
     fontSize: 13,
     color: COLORS.tertiary,
     fontFamily: FONTS.regular,
+  },
+  sourcesList: {
+    gap: SPACING.s,
   },
   sourceItem: {
     flexDirection: 'row',

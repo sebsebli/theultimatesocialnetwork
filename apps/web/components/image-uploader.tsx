@@ -5,10 +5,16 @@ import { useToast } from "./ui/toast";
 
 export interface ImageUploaderProps {
   onUploadComplete: (key: string, url: string, blurhash?: string) => void;
+  /** Notify parent when upload/verification starts or ends (parity with mobile). */
+  onUploadStateChange?: (uploading: boolean) => void;
   id?: string;
 }
 
-function ImageUploaderInner({ onUploadComplete, id }: ImageUploaderProps) {
+function ImageUploaderInner({
+  onUploadComplete,
+  onUploadStateChange,
+  id,
+}: ImageUploaderProps) {
   const { error: toastError } = useToast();
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -57,8 +63,9 @@ function ImageUploaderInner({ onUploadComplete, id }: ImageUploaderProps) {
     };
     reader.readAsDataURL(file);
 
-    // Upload
+    // Upload (API blocks until moderation; show "Uploading & verifying…")
     setUploading(true);
+    onUploadStateChange?.(true);
     try {
       const formData = new FormData();
       formData.append("image", file);
@@ -78,6 +85,7 @@ function ImageUploaderInner({ onUploadComplete, id }: ImageUploaderProps) {
       toastError("Failed to upload image");
     } finally {
       setUploading(false);
+      onUploadStateChange?.(false);
     }
   };
 

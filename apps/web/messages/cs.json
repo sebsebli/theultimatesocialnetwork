@@ -164,7 +164,9 @@
     "publishedSuccess": "Publikováno",
     "linkToTopic": "ODKAZ NA TÉMA",
     "references": "{{count}} odkazů",
-    "startTypingToSeeSuggestions": "Pište pro hledání..."
+    "startTypingToSeeSuggestions": "Pište pro hledání...",
+    "sourcesCount": "Zdroje {{used}}/{{max}}",
+    "tooManySources": "Příliš mnoho zdrojů (max {{max}}). Máte {{count}}."
   },
   "post": {
     "like": "Líbí se",

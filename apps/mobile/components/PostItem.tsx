@@ -129,7 +129,7 @@ function PostItemComponent({
 
   const handleShare = () => {
     Haptics.selectionAsync();
-    shareSheetRef.current?.open(post.id);
+    shareSheetRef.current?.open(post.id, { authorIsProtected: post.author?.isProtected === true });
   };
 
   const handleReport = () => setReportModalVisible(true);

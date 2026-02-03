@@ -110,6 +110,7 @@ export default function ComposeScreen() {
   const BODY_MIN_LENGTH = 3; // Short minimum (e.g. "Yes." or "ok")
   const TITLE_MAX_LENGTH = 40; // Headlines (H1/H2/H3) and link/wikilink aliases
   const MAX_TOPIC_REFS = 15;
+  const MAX_SOURCES = 16; // Total sources (posts + topics + links) per post
 
   const { getDraft, setDraft, clearDraft } = useDrafts();
   const draftKey = quotePostId
@@ -266,9 +267,9 @@ export default function ComposeScreen() {
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [16, 9],
+      aspect: [1, 1],
       quality: 0.8,
       base64: true, // we might need base64 to upload or uri to upload
     });
@@ -850,6 +851,26 @@ export default function ComposeScreen() {
     return list;
   }, [body, referenceMetadata]);
 
+  /** Count of sources (posts + topics + links) for limit display. Match [[...]] and [](url) without requiring backticks so it matches what users actually type. */
+  const sourceCount = useMemo(() => {
+    const seenPost = new Set<string>();
+    const seenTopic = new Set<string>();
+    const seenUrl = new Set<string>();
+    let n = 0;
+    for (const m of body.matchAll(/\[\[post:([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
+      if (!seenPost.has(m[1])) { seenPost.add(m[1]); n++; }
+    }
+    for (const m of body.matchAll(/\[\[(?!post:)([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
+      const slug = m[1].trim();
+      if (!seenTopic.has(slug)) { seenTopic.add(slug); n++; }
+    }
+    for (const m of body.matchAll(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g)) {
+      const url = m[2].trim();
+      if (!seenUrl.has(url)) { seenUrl.add(url); n++; }
+    }
+    return n;
+  }, [body]);
+
   const publishOverlayMessage = publishPhase === 'verifying_image'
     ? t('common.verifyingImage', 'Uploading & verifying image…')
     : t('compose.publishing', 'Publishing…');
@@ -898,6 +919,10 @@ export default function ComposeScreen() {
               }
               if (topicRefCount > MAX_TOPIC_REFS) {
                 showError(t('compose.tooManyRefs', 'Too many topic/post references. Maximum {{max}}.', { max: MAX_TOPIC_REFS }));
+                return;
+              }
+              if (sourceCount > MAX_SOURCES) {
+                showError(t('compose.tooManySources', 'Too many sources. Maximum {{max}} per post.', { max: MAX_SOURCES }));
                 return;
               }
               if (hasOverlongHeading(body.trim())) {
@@ -1012,17 +1037,18 @@ export default function ComposeScreen() {
                 )}
               </View>
             </View>
-            {/* Preview: same card as feed (PostItem with isPreview) */}
+            {/* Preview: full reading layout (same as post reading page) */}
             <ScrollView
               style={styles.previewScroll}
               contentContainerStyle={[styles.previewScrollContent, { paddingBottom: 80 }]}
               showsVerticalScrollIndicator={false}
               showsHorizontalScrollIndicator={false}
             >
-              <PostItem
+              <PostReadingContent
                 post={previewPost}
-                isPreview
-                headerImageUri={headerImage ?? undefined}
+                headerImageUri={headerImage ?? null}
+                sources={previewSources}
+                showActions={false}
               />
             </ScrollView>
           </View>
@@ -1044,6 +1070,7 @@ export default function ComposeScreen() {
                 ? t('compose.charCountMinMax', '{{current}} / {{min}}–{{max}}', { current: body.trim().length, min: BODY_MIN_LENGTH, max: BODY_MAX_LENGTH.toLocaleString() })
                 : t('compose.charCount', '{{current}} / {{max}}', { current: body.trim().length, max: BODY_MAX_LENGTH.toLocaleString() })}
               {topicRefCount > 0 ? ` · ${t('compose.refs', 'Refs')} ${topicRefCount}/${MAX_TOPIC_REFS}` : ''}
+              {` · ${t('compose.sourcesCount', 'Sources {{used}}/{{max}}', { used: sourceCount, max: MAX_SOURCES })}`}
             </Text>
           </View>
           {linkInputEl}

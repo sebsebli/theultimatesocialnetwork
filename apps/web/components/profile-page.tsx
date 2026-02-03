@@ -100,6 +100,7 @@ export function ProfilePage({
     saved: null,
   });
   const { success: toastSuccess, error: toastError } = useToast();
+  const [profileImageUploading, setProfileImageUploading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -390,6 +391,7 @@ export function ProfilePage({
                       onUploadComplete={(key) =>
                         updateProfileImage(key, "header")
                       }
+                      onUploadStateChange={setProfileImageUploading}
                     />
                   </div>
                 </>
@@ -456,9 +458,15 @@ export function ProfilePage({
                     onUploadComplete={(key) =>
                       updateProfileImage(key, "avatar")
                     }
+                    onUploadStateChange={setProfileImageUploading}
                   />
                 </div>
               </>
+            )}
+            {profileImageUploading && (
+              <p className="text-xs text-tertiary animate-pulse mt-2 text-center">
+                Uploading & verifying image…
+              </p>
             )}
           </div>
 
@@ -606,7 +614,7 @@ export function ProfilePage({
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     type="button"
-                    className={`shrink-0 px-2 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap tabular-nums ${
+                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap tabular-nums ${
                       activeTab === tab
                         ? "border-primary text-paper"
                         : "border-transparent text-tertiary hover:text-paper"
@@ -747,55 +755,70 @@ export function ProfilePage({
             {activeTab === "collections" && (
               <div className="space-y-4">
                 {tabData.collections && tabData.collections.length > 0 ? (
-                  tabData.collections.map((collection) => (
-                    <Link
-                      key={collection.id}
-                      href={`/collections/${collection.id}`}
-                      className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
-                    >
-                      {collection.previewImageKey ? (
-                        <div className="relative w-14 h-14 rounded-full overflow-hidden bg-divider shrink-0">
-                          <Image
-                            src={getImageUrlFromKey(collection.previewImageKey)}
-                            alt=""
-                            fill
-                            className="object-cover"
-                            sizes="56px"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-14 h-14 rounded-full bg-divider flex items-center justify-center shrink-0 text-tertiary">
-                          <svg
-                            className="w-6 h-6"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.5}
-                              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  tabData.collections.map((collection) => {
+                    const imageUrl =
+                      (collection.recentPost?.headerImageKey
+                        ? getImageUrlFromKey(
+                            collection.recentPost.headerImageKey,
+                          )
+                        : null) ||
+                      (collection.previewImageKey
+                        ? getImageUrlFromKey(collection.previewImageKey)
+                        : null);
+                    const previewText =
+                      collection.recentPost?.title?.trim() ||
+                      collection.recentPost?.bodyExcerpt?.trim() ||
+                      collection.description ||
+                      "";
+                    return (
+                      <Link
+                        key={collection.id}
+                        href={`/collections/${collection.id}`}
+                        className="flex flex-col rounded-lg overflow-hidden border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                      >
+                        <div className="relative w-full aspect-video shrink-0 bg-divider">
+                          {imageUrl ? (
+                            <Image
+                              src={imageUrl}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 768px) 100vw, 420px"
                             />
-                          </svg>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-tertiary">
+                              <svg
+                                className="w-10 h-10"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                                />
+                              </svg>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-paper mb-0.5 truncate">
-                          {collection.title}
-                        </h3>
-                        <p className="text-secondary text-sm line-clamp-1">
-                          {collection.recentPost?.title?.trim() ||
-                            collection.recentPost?.bodyExcerpt?.trim() ||
-                            collection.description ||
-                            ""}
-                        </p>
-                        <p className="text-tertiary text-xs mt-1">
-                          {collection.itemCount || 0} items
-                        </p>
-                      </div>
-                    </Link>
-                  ))
+                        <div className="p-4">
+                          <h3 className="font-semibold text-paper mb-0.5 truncate">
+                            {collection.title}
+                          </h3>
+                          {previewText ? (
+                            <p className="text-secondary text-sm line-clamp-2">
+                              {previewText}
+                            </p>
+                          ) : null}
+                          <p className="text-tertiary text-xs mt-1">
+                            {collection.itemCount ?? 0} items
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })
                 ) : tabData.collections === null ? (
                   <p className="text-secondary text-sm text-center py-8">
                     Loading...

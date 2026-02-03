@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { getImageUrl, getAvatarUri } from '../utils/api';
 import { MarkdownText } from './MarkdownText';
+import { SourceOrPostCard } from './SourceOrPostCard';
 import {
   COLORS,
   SPACING,
@@ -193,46 +194,17 @@ export function PostReadingContent({
                       ? t('post.topic', 'Topic')
                       : '';
               return (
-                <Pressable
+                <SourceOrPostCard
                   key={
                     source.type === 'external' && source.url
                       ? `ext-${source.url}`
                       : source.id ?? source.handle ?? source.slug ?? `i-${index}`
                   }
-                  style={styles.sourceCard}
+                  type={source.type}
+                  title={title}
+                  subtitle={subtitle || undefined}
                   onPress={() => onSourcePress?.(source)}
-                >
-                  <View style={styles.sourceCardLeft}>
-                    {source.type === 'user' ? (
-                      <View style={styles.sourceAvatar}>
-                        <Text style={styles.sourceAvatarText}>
-                          {(source.title || source.handle ?? '?').charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.sourceIconWrap}>
-                        <MaterialIcons
-                          name={
-                            source.type === 'post' ? 'article' : source.type === 'topic' ? 'tag' : 'link'
-                          }
-                          size={HEADER.iconSize}
-                          color={COLORS.primary}
-                        />
-                      </View>
-                    )}
-                    <View style={styles.sourceCardText}>
-                      <Text style={styles.sourceCardTitle} numberOfLines={1}>
-                        {title}
-                      </Text>
-                      {subtitle ? (
-                        <Text style={styles.sourceCardSubtitle} numberOfLines={2}>
-                          {subtitle}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                  <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
-                </Pressable>
+                />
               );
             })}
           </View>
@@ -355,61 +327,5 @@ const styles = createStyles({
   },
   sourcesList: {
     gap: SPACING.s,
-  },
-  sourceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    padding: SPACING.m,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-  },
-  sourceCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    minWidth: 0,
-  },
-  sourceAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.divider,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.m,
-  },
-  sourceAvatarText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
-    fontFamily: FONTS.semiBold,
-  },
-  sourceIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.m,
-  },
-  sourceCardText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  sourceCardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  sourceCardSubtitle: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-    marginTop: 2,
   },
 });

@@ -174,6 +174,8 @@ export default {
     headlineTooLong: 'Title too long',
     linkTagTitleTooLong: 'Link text too long',
     tooManyRefs: 'Ref limit exceeded',
+    sourcesCount: 'Sources {{used}}/{{max}}',
+    tooManySources: 'Too many sources. Maximum {{max}} per post.',
     linkUrlPlaceholder: 'URL (https://...)',
     linkDisplayTextPlaceholder: 'Text (opt)',
     headerImageAttached: 'Header Image Attached',

@@ -164,7 +164,9 @@
     "publishedSuccess": "Pubblicato",
     "linkToTopic": "LINK A ARGOMENTO",
     "references": "{{count}} rif",
-    "startTypingToSeeSuggestions": "Scrivi per cercare..."
+    "startTypingToSeeSuggestions": "Scrivi per cercare...",
+    "sourcesCount": "Fonti {{used}}/{{max}}",
+    "tooManySources": "Troppe fonti (max {{max}}). Ne hai {{count}}."
   },
   "post": {
     "like": "Mi piace",

@@ -26,6 +26,7 @@ export interface PostDetailProps {
       displayName: string;
       avatarKey?: string | null;
       avatarUrl?: string | null;
+      isProtected?: boolean;
     };
     replyCount: number;
     quoteCount: number;
@@ -43,7 +44,7 @@ export interface PostDetailProps {
 }
 
 function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
-  const { success: toastSuccess } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
   const { user } = useAuth();
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
@@ -104,7 +105,8 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
         throw new Error("Failed to toggle like");
       }
     } catch {
-      setLiked(previous); // Revert on error
+      setLiked(previous);
+      toastError("Failed to update like");
     }
   };
 
@@ -122,7 +124,8 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
         throw new Error("Failed to toggle keep");
       }
     } catch {
-      setKept(previous); // Revert on error
+      setKept(previous);
+      toastError("Failed to update save");
     }
   };
 
@@ -254,11 +257,15 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
             postId={post.id}
             userId={post.author.id}
             isAuthor={isAuthor}
-            onCopyLink={() => {
-              const url = `${window.location.origin}/post/${post.id}`;
-              navigator.clipboard.writeText(url);
-              toastSuccess("Link copied to clipboard");
-            }}
+            onCopyLink={
+              !post.author?.isProtected
+                ? () => {
+                    const url = `${window.location.origin}/post/${post.id}`;
+                    navigator.clipboard.writeText(url);
+                    toastSuccess("Link copied to clipboard");
+                  }
+                : undefined
+            }
           />
         </div>
       </header>
@@ -370,7 +377,16 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
         {/* Meta Row */}
         <div className="flex items-center gap-6 text-sm text-tertiary mb-6">
           {!isPublic && <span>{post.replyCount} replies</span>}
-          <span>{post.quoteCount} quotes</span>
+          {(post.quoteCount ?? 0) > 0 ? (
+            <Link
+              href={`/post/${post.id}/quotes`}
+              className="hover:text-primary transition-colors"
+            >
+              {post.quoteCount} quotes
+            </Link>
+          ) : (
+            <span>{post.quoteCount} quotes</span>
+          )}
           {post.privateLikeCount && post.privateLikeCount > 0 && (
             <span>{post.privateLikeCount} likes</span>
           )}
@@ -514,25 +530,27 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
             </svg>
             <span className="text-sm">Add</span>
           </button>
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          {!post.author?.isProtected && (
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-              />
-            </svg>
-            <span className="text-sm">Share</span>
-          </button>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                />
+              </svg>
+              <span className="text-sm">Share</span>
+            </button>
+          )}
         </div>
       </article>
 

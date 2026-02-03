@@ -111,79 +111,93 @@ function ReferencedBySectionInner({
 
   return (
     <section className="border-t border-divider pt-8 mt-4">
-      <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">
-        Referenced by{" "}
-        <span className="text-tertiary font-normal text-lg ml-2">
-          {quoteCount}
-        </span>
-      </h2>
+      <div className="flex items-center justify-between gap-4 mb-6 border-b border-divider pb-2">
+        <h2 className="text-xl font-bold text-paper">
+          Referenced by{" "}
+          <span className="text-tertiary font-normal text-lg ml-2">
+            {quoteCount}
+          </span>
+        </h2>
+        {quoteCount > 0 && (
+          <Link
+            href={`/post/${postId}/quotes`}
+            className="text-sm font-medium text-primary hover:underline shrink-0"
+          >
+            View all
+          </Link>
+        )}
+      </div>
       {referencedPosts.length > 0 ? (
-        <div className="space-y-4">
-          {referencedPosts.map((post) => (
-            <Link
-              key={post.id}
-              href={`/post/${post.id}`}
-              className="block p-5 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 hover:border-white/10 transition-all group"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <Avatar
-                  avatarKey={post.author.avatarKey}
-                  avatarUrl={post.author.avatarUrl}
-                  displayName={post.author.displayName}
-                  handle={post.author.handle}
-                  size="sm"
-                />
-                <div>
-                  <div className="text-sm font-semibold text-paper group-hover:text-primary transition-colors">
-                    {post.author.displayName}
-                  </div>
-                  <div className="text-xs text-tertiary">
-                    @{post.author.handle}
-                  </div>
-                </div>
-              </div>
-              {post.viewerCanSeeContent === false ? (
-                <div className="min-h-[80px] rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-1 text-tertiary">
-                    <svg
-                      className="w-8 h-8"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-hidden
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                    <span className="text-sm font-semibold text-paper">
-                      Private
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {post.title && (
-                    <h3 className="text-lg font-bold text-paper mb-2 leading-tight">
-                      {post.title}
-                    </h3>
-                  )}
-                  <div className="relative">
-                    <p className="text-[15px] leading-relaxed text-secondary line-clamp-3">
-                      {post.body}
-                    </p>
-                    <div
-                      className="pointer-events-none absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-ink via-ink/80 to-transparent rounded-b"
-                      aria-hidden
+        <div className="space-y-2">
+          {referencedPosts.map((post) => {
+            const title =
+              (post.viewerCanSeeContent !== false && post.title?.trim()) ||
+              "Post";
+            const subtitle =
+              post.viewerCanSeeContent === false
+                ? "Private"
+                : post.body?.trim()
+                  ? `${post.body.slice(0, 80)}${post.body.length > 80 ? "…" : ""}`
+                  : `@${post.author.handle}`;
+            return (
+              <Link
+                key={post.id}
+                href={`/post/${post.id}`}
+                className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 hover:border-white/10 transition-all group"
+              >
+                <div className="shrink-0">
+                  {post.viewerCanSeeContent === false ? (
+                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-tertiary">
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                        />
+                      </svg>
+                    </div>
+                  ) : (
+                    <Avatar
+                      avatarKey={post.author.avatarKey}
+                      avatarUrl={post.author.avatarUrl}
+                      displayName={post.author.displayName}
+                      handle={post.author.handle}
+                      size="sm"
+                      className="!w-10 !h-10"
                     />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-paper truncate group-hover:text-primary transition-colors">
+                    {title}
                   </div>
-                </>
-              )}
-            </Link>
-          ))}
+                  <div className="text-xs text-tertiary truncate mt-0.5">
+                    {subtitle}
+                  </div>
+                </div>
+                <svg
+                  className="w-5 h-5 shrink-0 text-tertiary group-hover:text-primary transition-colors"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </Link>
+            );
+          })}
           {hasMore && (
             <button
               onClick={handleLoadMore}

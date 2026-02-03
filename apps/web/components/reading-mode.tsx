@@ -7,6 +7,9 @@ import { Blurhash } from "react-blurhash";
 import { getImageUrl } from "@/lib/security";
 import { Avatar } from "./avatar";
 import { OfflineToggle } from "./offline-toggle";
+import { useToast } from "./ui/toast";
+import { SourcesSection } from "./sources-section";
+import { ReferencedBySection } from "./referenced-by-section";
 import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
 
 function renderMarkdownForReading(
@@ -85,6 +88,7 @@ export interface ReadingModeProps {
 }
 
 function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
+  const { error: toastError } = useToast();
   const [kept, setKept] = useState(post.isKept ?? false);
 
   useEffect(() => {
@@ -146,6 +150,7 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
       if (previous) onKeep?.();
     } catch {
       setKept(previous);
+      toastError("Failed to update save");
     }
   };
 
@@ -314,110 +319,16 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
               }}
             />
 
-            {/* Bottom Sections */}
-            <div className="mt-16 space-y-12 pt-12 border-t border-divider">
-              {/* Sources */}
-              <section>
-                <h2 className="text-2xl font-semibold mb-6 text-paper">
-                  Sources
-                </h2>
-                <div className="text-secondary text-sm">
-                  {/* Sources are extracted from external links in the body during parsing or passed via props */}
-                  {/* For now, we'll extract them using a simple regex since they aren't passed in the post prop yet */}
-                  {(() => {
-                    const urlRegex = /(https?:\/\/[^\s<]+)/g;
-                    const matches = post.body.match(urlRegex) || [];
-                    const uniqueUrls = Array.from(new Set(matches));
-
-                    if (uniqueUrls.length === 0) {
-                      return (
-                        <div className="flex flex-col items-center justify-center py-10 px-4 bg-white/5 rounded-lg border border-dashed border-divider text-center">
-                          <svg
-                            className="w-12 h-12 text-tertiary mb-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.5}
-                              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-                            />
-                          </svg>
-                          <p className="text-secondary text-sm">
-                            This post doesn&apos;t have any sources.
-                          </p>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <ol className="list-decimal pl-5 space-y-2">
-                        {uniqueUrls.map((url, i) => (
-                          <li key={i}>
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-primary transition-colors underline decoration-primary/50 underline-offset-2"
-                            >
-                              {new URL(url).hostname}
-                            </a>
-                            <span className="text-tertiary ml-2 text-xs truncate inline-block max-w-[300px] align-bottom">
-                              {url}
-                            </span>
-                          </li>
-                        ))}
-                      </ol>
-                    );
-                  })()}
-                </div>
-              </section>
-
-              {/* Referenced By */}
-              <section>
-                <h2 className="text-2xl font-semibold mb-6 text-paper">
-                  Referenced by
-                </h2>
-                <div className="text-secondary text-sm">
-                  {post.quoteCount === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 px-4 bg-white/5 rounded-lg border border-dashed border-divider text-center">
-                      <svg
-                        className="w-12 h-12 text-tertiary mb-3"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
-                        />
-                      </svg>
-                      <p className="text-secondary text-sm">
-                        No posts quote this yet.
-                      </p>
-                    </div>
-                  ) : (
-                    <p>Referenced by {post.quoteCount} posts</p>
-                  )}
-                </div>
-              </section>
-
-              {/* Quoted by — only when post has been quoted */}
-              {post.quoteCount > 0 && (
-                <section>
-                  <h2 className="text-2xl font-semibold mb-6 text-paper">
-                    Quoted by
-                  </h2>
-                  <div className="text-secondary text-sm">
-                    <p>Quoted by {post.quoteCount} posts</p>
-                  </div>
-                </section>
+            {/* Bottom Sections — real data when post.id is not preview (parity with mobile) */}
+            <div className="mt-16 space-y-0 pt-12 border-t border-divider">
+              {post.id && post.id !== "preview" && (
+                <>
+                  <SourcesSection postId={post.id} postBody={post.body} />
+                  <ReferencedBySection
+                    postId={post.id}
+                    quoteCount={post.quoteCount ?? 0}
+                  />
+                </>
               )}
             </div>
           </>

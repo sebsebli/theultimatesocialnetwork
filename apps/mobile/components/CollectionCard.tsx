@@ -5,7 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
 import { getImageUrl } from '../utils/api';
 
-const CIRCLE_SIZE = 56;
+const COLLECTION_HEADER_ASPECT = 16 / 9;
 
 export interface CollectionCardItem {
   id: string;
@@ -53,42 +53,40 @@ function CollectionCardInner({
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
-      <View style={styles.row}>
-        <View style={styles.circleWrap}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.circleImage} resizeMode="cover" />
-          ) : (
-            <View style={styles.circlePlaceholder}>
-              <MaterialIcons name="folder" size={HEADER.iconSize} color={COLORS.tertiary} />
-            </View>
+      <View style={[styles.headerWrap, { aspectRatio: COLLECTION_HEADER_ASPECT }]}>
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.headerImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.headerPlaceholder}>
+            <MaterialIcons name="folder" size={28} color={COLORS.tertiary} />
+          </View>
+        )}
+      </View>
+      <View style={styles.body}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {showMenu && (
+            <Pressable
+              hitSlop={12}
+              style={({ pressed }: { pressed: boolean }) => [styles.menuBtn, pressed && { opacity: 0.7 }]}
+              onPress={(e: { stopPropagation: () => void }) => {
+                e.stopPropagation();
+                onMenuPress?.();
+              }}
+              accessibilityLabel="Options"
+              accessibilityRole="button"
+            >
+              <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
+            </Pressable>
           )}
         </View>
-        <View style={styles.content}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title} numberOfLines={1}>
-              {item.title}
-            </Text>
-            {showMenu && (
-              <Pressable
-                hitSlop={12}
-                style={({ pressed }: { pressed: boolean }) => [styles.menuBtn, pressed && { opacity: 0.7 }]}
-                onPress={(e: { stopPropagation: () => void }) => {
-                  e.stopPropagation();
-                  onMenuPress?.();
-                }}
-                accessibilityLabel="Options"
-                accessibilityRole="button"
-              >
-                <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
-              </Pressable>
-            )}
-          </View>
-          {lastArticlePreview ? (
-            <Text style={styles.lastArticle} numberOfLines={1}>
-              {lastArticlePreview}
-            </Text>
-          ) : null}
-        </View>
+        {lastArticlePreview ? (
+          <Text style={styles.lastArticle} numberOfLines={2}>
+            {lastArticlePreview}
+          </Text>
+        ) : null}
       </View>
       <View style={styles.footer}>
         <Text style={styles.count}>
@@ -114,34 +112,24 @@ const styles = createStyles({
   cardPressed: {
     opacity: 0.9,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.l,
-    gap: SPACING.m,
-  },
-  circleWrap: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-    borderRadius: CIRCLE_SIZE / 2,
+  headerWrap: {
+    width: '100%',
     backgroundColor: COLORS.divider,
-    overflow: 'hidden',
   },
-  circleImage: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
+  headerImage: {
+    width: '100%',
+    height: '100%',
   },
-  circlePlaceholder: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-    borderRadius: CIRCLE_SIZE / 2,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+  headerPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(110, 122, 138, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  content: {
-    flex: 1,
-    minWidth: 0,
+  body: {
+    padding: SPACING.l,
+    paddingBottom: SPACING.s,
   },
   titleRow: {
     flexDirection: 'row',
@@ -162,7 +150,7 @@ const styles = createStyles({
     fontSize: 13,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    marginTop: 2,
+    marginTop: 4,
   },
   footer: {
     paddingHorizontal: SPACING.l,

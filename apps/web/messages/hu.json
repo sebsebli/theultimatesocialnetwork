@@ -164,7 +164,9 @@
     "publishedSuccess": "Közzétéve",
     "linkToTopic": "LINK TÉMÁHOZ",
     "references": "{{count}} hiv",
-    "startTypingToSeeSuggestions": "Gépelj a kereséshez..."
+    "startTypingToSeeSuggestions": "Gépelj a kereséshez...",
+    "sourcesCount": "Források {{used}}/{{max}}",
+    "tooManySources": "Túl sok forrás (max {{max}}). Önnek {{count}} van."
   },
   "post": {
     "like": "Tetszik",

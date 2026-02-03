@@ -374,7 +374,11 @@ export class PostsService {
       return stub;
     }
 
-    if (post.visibility === PostVisibility.PUBLIC) {
+    // Public URLs for posts are only valid when the author's profile is public (not protected).
+    // If the author is protected, only the author or followers may access the post.
+    const authorProtected =
+      (post.author as User | undefined)?.isProtected === true;
+    if (post.visibility === PostVisibility.PUBLIC && !authorProtected) {
       return post;
     }
 
@@ -384,6 +388,19 @@ export class PostsService {
 
     if (post.authorId === viewerId) {
       return post;
+    }
+
+    // Author is protected (private profile): only followers (and author) may access; check follow once for both PUBLIC and FOLLOWERS.
+    if (authorProtected) {
+      const isFollowing = await this.dataSource.query(
+        `SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = $2`,
+        [viewerId, post.authorId],
+      );
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (isFollowing.length > 0) {
+        return post;
+      }
+      throw new NotFoundException('Post not found');
     }
 
     if (post.visibility === PostVisibility.FOLLOWERS) {

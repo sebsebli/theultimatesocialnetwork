@@ -2,6 +2,33 @@ export const BODY_MAX_LENGTH = 10000;
 export const BODY_MIN_LENGTH = 3;
 export const TITLE_MAX_LENGTH = 40;
 export const MAX_TOPIC_REFS = 15;
+/** Max total sources: post refs, topic refs, and markdown links (parity with mobile). */
+export const MAX_SOURCES = 16;
+
+/**
+ * Count sources in body: [[post:id]], [[Topic]], [text](url). Matches API/mobile parsing.
+ */
+export function countSources(body: string): number {
+  const seen = new Set<string>();
+  // [[post:uuid]]
+  const postRe = /\[\[post:([a-f0-9\-]+)\]\]/gi;
+  let m: RegExpExecArray | null;
+  while ((m = postRe.exec(body)) !== null) {
+    seen.add(`post:${m[1].toLowerCase()}`);
+  }
+  // [[Topic]] or [[topic|alias]] (topic refs, not post)
+  const topicRe = /\[\[(?!post:)([^\]]+)\]\]/g;
+  while ((m = topicRe.exec(body)) !== null) {
+    const slug = m[1].split("|")[0].trim().toLowerCase();
+    if (slug) seen.add(`topic:${slug}`);
+  }
+  // [text](http...)
+  const linkRe = /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+  while ((m = linkRe.exec(body)) !== null) {
+    seen.add(m[2]);
+  }
+  return seen.size;
+}
 
 /** Ranges that must not receive headings, bold or italic: wikilinks [[...]] and markdown links [text](url). */
 export const getProtectedRanges = (

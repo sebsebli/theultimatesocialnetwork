@@ -18,7 +18,7 @@ export function extractLinkedPostIds(
   return ids;
 }
 
-/** Author shape for JSON (avoids TypeORM/circular refs). Optionally add avatarUrl from avatarKey. Never expose pending (pre-onboarding) profiles. */
+/** Author shape for JSON (avoids TypeORM/circular refs). Optionally add avatarUrl from avatarKey. Never expose pending (pre-onboarding) profiles. isProtected included so clients can restrict public URL sharing to public profiles. */
 export function authorPlain(
   a:
     | {
@@ -26,6 +26,7 @@ export function authorPlain(
         handle?: string;
         displayName?: string;
         avatarKey?: string | null;
+        isProtected?: boolean;
       }
     | null
     | undefined,
@@ -40,6 +41,9 @@ export function authorPlain(
   };
   if (a.avatarKey != null && a.avatarKey !== '') base.avatarKey = a.avatarKey;
   if (a.avatarKey && getImageUrl) base.avatarUrl = getImageUrl(a.avatarKey);
+  if (typeof (a as { isProtected?: boolean }).isProtected === 'boolean') {
+    base.isProtected = (a as { isProtected: boolean }).isProtected;
+  }
   return base;
 }
 

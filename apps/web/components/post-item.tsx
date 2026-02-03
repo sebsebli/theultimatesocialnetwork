@@ -9,6 +9,7 @@ import { getImageUrl } from "@/lib/security";
 import { Avatar } from "./avatar";
 import { OverflowMenu } from "./overflow-menu";
 import { AddToCollectionModal } from "./add-to-collection-modal";
+import { useToast } from "./ui/toast";
 
 export interface Post {
   id: string;
@@ -20,6 +21,7 @@ export interface Post {
     displayName: string;
     avatarKey?: string | null;
     avatarUrl?: string | null;
+    isProtected?: boolean;
   };
   replyCount: number;
   quoteCount: number;
@@ -50,6 +52,7 @@ function PostItemInner({
 }: PostItemProps) {
   const t = useTranslations("post");
   const tCommon = useTranslations("common");
+  const { error: toastError } = useToast();
   const router = useRouter();
   const showPrivateOverlay = post.viewerCanSeeContent === false;
   const [liked, setLiked] = useState(post.isLiked ?? false);
@@ -82,6 +85,7 @@ function PostItemInner({
       }
     } catch {
       setLiked(previous);
+      toastError("Failed to update like");
     }
   };
 
@@ -106,6 +110,7 @@ function PostItemInner({
       if (previous) onKeep?.();
     } catch {
       setKept(previous);
+      toastError("Failed to update save");
     }
   };
 
@@ -533,43 +538,49 @@ function PostItemInner({
             />
           </svg>
         </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            const url = `${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`;
-            navigator.clipboard?.writeText(url);
-            if (navigator.share) {
-              navigator
-                .share({ url, title: post.title ?? "Post" })
-                .catch(() => {});
-            }
-          }}
-          aria-label="Share post"
-          className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {!post.author?.isProtected && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              const url = `${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`;
+              navigator.clipboard?.writeText(url);
+              if (navigator.share) {
+                navigator
+                  .share({ url, title: post.title ?? "Post" })
+                  .catch(() => {});
+              }
+            }}
+            aria-label="Share post"
+            className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-            />
-          </svg>
-        </button>
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
+            </svg>
+          </button>
+        )}
         <OverflowMenu
           postId={post.id}
           userId={post.author.handle}
           isAuthor={isAuthor}
-          onCopyLink={() => {
-            const url = `${window.location.origin}/post/${post.id}`;
-            navigator.clipboard.writeText(url);
-          }}
+          onCopyLink={
+            !post.author?.isProtected
+              ? () => {
+                  const url = `${window.location.origin}/post/${post.id}`;
+                  navigator.clipboard.writeText(url);
+                }
+              : undefined
+          }
         />
       </div>
 

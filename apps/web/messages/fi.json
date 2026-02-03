@@ -164,7 +164,9 @@
     "publishedSuccess": "Julkaistu",
     "linkToTopic": "LINKKI AIHEESEEN",
     "references": "{{count}} viit",
-    "startTypingToSeeSuggestions": "Kirjoita etsiäksesi..."
+    "startTypingToSeeSuggestions": "Kirjoita etsiäksesi...",
+    "sourcesCount": "Lähteet {{used}}/{{max}}",
+    "tooManySources": "Liikaa lähteitä (max {{max}}). Sinulla on {{count}}."
   },
   "post": {
     "like": "Tykkää",

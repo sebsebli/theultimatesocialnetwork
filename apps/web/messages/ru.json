@@ -164,7 +164,9 @@
     "publishedSuccess": "Опубликовано",
     "linkToTopic": "ССЫЛКА НА ТЕМУ",
     "references": "{{count}} ссылок",
-    "startTypingToSeeSuggestions": "Печатайте для поиска..."
+    "startTypingToSeeSuggestions": "Печатайте для поиска...",
+    "sourcesCount": "Источники {{used}}/{{max}}",
+    "tooManySources": "Слишком много источников (макс. {{max}}). У вас {{count}}."
   },
   "post": {
     "like": "Нравится",

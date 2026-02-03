@@ -310,7 +310,7 @@ export default function UserProfileScreen() {
   if (user.isBlockedByMe) {
     return (
       <View style={styles.container}>
-        <View style={[styles.blockedHeaderBar, { paddingTop: insets.top + 4 }]}>
+        <View style={[styles.blockedHeaderBar, { paddingTop: insets.top }]}>
           <Pressable
             onPress={() => router.back()}
             style={styles.iconButton}
@@ -357,7 +357,7 @@ export default function UserProfileScreen() {
           contentContainerStyle={[styles.privateProfileScrollContent, { paddingBottom: bottomPadding }]}
         >
           <View style={styles.profileListHeader}>
-            <View style={[styles.profileHeaderContainer, styles.profileHeaderContainerBorder, { paddingTop: insets.top + 4 }]}>
+            <View style={[styles.profileHeaderContainer, styles.profileHeaderContainerBorder, { paddingTop: insets.top }]}>
               <View style={styles.headerBar}>
                 <Pressable onPress={() => router.back()} style={styles.iconButton} accessibilityLabel="Go back" accessibilityRole="button">
                   <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
@@ -504,7 +504,7 @@ export default function UserProfileScreen() {
             <View style={[
               styles.profileHeaderContainer,
               user.isProtected && !following && styles.profileHeaderContainerBorder,
-              { paddingTop: insets.top + 4 },
+              { paddingTop: insets.top },
             ]}>
               <View style={styles.headerBar}>
                 <Pressable
@@ -774,7 +774,6 @@ const styles = createStyles({
   profileHeaderContainer: {
     width: '100%',
     backgroundColor: COLORS.ink,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
   },
   /** Border below header (where tab bar would be) for private profile so divider sits above the gate, not under it */
@@ -997,7 +996,7 @@ const styles = createStyles({
     flexShrink: 0,
     alignItems: 'center',
     paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.xs,
+    paddingHorizontal: SPACING.s,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },

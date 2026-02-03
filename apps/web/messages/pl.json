@@ -164,7 +164,9 @@
     "publishedSuccess": "Opublikowano",
     "linkToTopic": "LINK DO TEMATU",
     "references": "{{count}} odn",
-    "startTypingToSeeSuggestions": "Pisz, aby szukać..."
+    "startTypingToSeeSuggestions": "Pisz, aby szukać...",
+    "sourcesCount": "Źródła {{used}}/{{max}}",
+    "tooManySources": "Za dużo źródeł (maks. {{max}}). Masz {{count}}."
   },
   "post": {
     "like": "Lubię",

@@ -164,7 +164,9 @@
     "publishedSuccess": "Gepubliceerd",
     "linkToTopic": "LINK NAAR ONDERWERP",
     "references": "{{count}} refs",
-    "startTypingToSeeSuggestions": "Typ om te zoeken..."
+    "startTypingToSeeSuggestions": "Typ om te zoeken...",
+    "sourcesCount": "Bronnen {{used}}/{{max}}",
+    "tooManySources": "Te veel bronnen (max {{max}}). Je hebt {{count}}."
   },
   "post": {
     "like": "Leuk",

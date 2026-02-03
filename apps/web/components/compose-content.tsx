@@ -3,6 +3,8 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
+import { useToast } from "@/components/ui/toast";
 import { AutocompleteDropdown } from "@/components/autocomplete-dropdown";
 import { useAuth } from "@/components/auth-provider";
 import { ImageUploader } from "@/components/image-uploader";
@@ -20,12 +22,16 @@ import {
   BODY_MIN_LENGTH,
   TITLE_MAX_LENGTH,
   MAX_TOPIC_REFS,
+  MAX_SOURCES,
+  countSources,
 } from "@/utils/compose-helpers";
 
 function ComposeContentInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const t = useTranslations("compose");
+  const { error: toastError } = useToast();
   const quotePostId = searchParams.get("quote");
   const replyToPostId = searchParams.get("replyTo");
 
@@ -35,6 +41,8 @@ function ComposeContentInner() {
   const [headerImageBlurhash, setHeaderImageBlurhash] = useState<string | null>(
     null,
   );
+  const [headerImageUploading, setHeaderImageUploading] =
+    useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
   const [previewBody, setPreviewBody] = useState("");
 
@@ -139,6 +147,11 @@ function ComposeContentInner() {
       alert(`Too many topic/post references. Maximum ${MAX_TOPIC_REFS}.`);
       return;
     }
+    const sourceCount = countSources(trimmedBody);
+    if (sourceCount > MAX_SOURCES) {
+      alert(t("tooManySources", { max: MAX_SOURCES, count: sourceCount }));
+      return;
+    }
     if (hasOverlongHeading(trimmedBody)) {
       alert(
         `Headings (H1, H2, H3) must be at most ${TITLE_MAX_LENGTH} characters.`,
@@ -164,6 +177,9 @@ function ComposeContentInner() {
           localStorage.removeItem(draftKey);
           router.push("/home");
           router.refresh();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          toastError(errData?.message || t("error"));
         }
       } else if (replyToPostId) {
         const res = await fetch(`/api/posts/${replyToPostId}/replies`, {
@@ -175,6 +191,9 @@ function ComposeContentInner() {
           localStorage.removeItem(draftKey);
           router.push(`/post/${replyToPostId}`);
           router.refresh();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          toastError(errData?.message || t("error"));
         }
       } else {
         const res = await fetch("/api/posts", {
@@ -190,10 +209,14 @@ function ComposeContentInner() {
           localStorage.removeItem(draftKey);
           router.push("/home");
           router.refresh();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          toastError(errData?.message || t("error"));
         }
       }
     } catch (error) {
       console.error("Failed to publish", error);
+      toastError(t("error"));
     } finally {
       setIsPublishing(false);
     }
@@ -402,6 +425,12 @@ function ComposeContentInner() {
         </div>
 
         <div className="flex items-center gap-3">
+          <span className="text-xs text-tertiary hidden sm:inline-block">
+            {t("sourcesCount", {
+              used: countSources(body),
+              max: MAX_SOURCES,
+            })}
+          </span>
           <span className="text-xs text-tertiary hidden sm:inline-block">
             {body.length} / {BODY_MAX_LENGTH}
           </span>
@@ -642,9 +671,15 @@ function ComposeContentInner() {
                     setHeaderImageKey(key);
                     if (blurhash) setHeaderImageBlurhash(blurhash);
                   }}
+                  onUploadStateChange={setHeaderImageUploading}
                   id="header-image-upload"
                 />
               </div>
+              {headerImageUploading && (
+                <span className="text-xs text-tertiary animate-pulse">
+                  Uploading & verifying image…
+                </span>
+              )}
             </div>
           </div>
         </div>

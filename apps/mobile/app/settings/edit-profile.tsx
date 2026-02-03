@@ -178,7 +178,7 @@ export default function EditProfileScreen() {
         showError(t('settings.photoPermissionDenied', 'Permission to access photos is required.'));
         return;
       }
-      const pickerOptions = { mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1] as [number, number], quality: 0.8 };
+      const pickerOptions = { mediaTypes: ['images'] as const, allowsEditing: true, aspect: [1, 1] as [number, number], quality: 0.8 };
       const result =
         source === 'camera'
           ? await ImagePicker.launchCameraAsync(pickerOptions)

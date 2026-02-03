@@ -164,7 +164,9 @@
     "publishedSuccess": "Publisert",
     "linkToTopic": "LINK TIL EMNE",
     "references": "{{count}} refs",
-    "startTypingToSeeSuggestions": "Skriv for å søke..."
+    "startTypingToSeeSuggestions": "Skriv for å søke...",
+    "sourcesCount": "Kilder {{used}}/{{max}}",
+    "tooManySources": "For mange kilder (maks {{max}}). Du har {{count}}."
   },
   "post": {
     "like": "Liker",
