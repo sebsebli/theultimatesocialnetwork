@@ -1,6 +1,7 @@
-import React, { useState, useMemo, memo } from 'react';
+import React, { useState, useMemo, memo, isValidElement } from 'react';
 import { Text, View, Modal, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import * as WebBrowser from 'expo-web-browser';
 import { COLORS, SPACING, SIZES, FONTS, createStyles } from '../constants/theme';
 
@@ -8,7 +9,7 @@ const CODE_FONT = Platform.select({ ios: 'Menlo', android: 'monospace' }) ?? 'mo
 
 interface MarkdownTextProps {
   children: string;
-  referenceMetadata?: Record<string, { title?: string }>;
+  referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
   /** When set, only @handle that are in this set render as mention chips; others render as plain text (no @). Omit for published content to render all @ as mentions. */
   validMentionHandles?: Set<string> | null;
   /** When set (e.g. post.title in full view), the first line "# &lt;title&gt;" is not rendered so the title is not shown twice. */
@@ -17,6 +18,7 @@ interface MarkdownTextProps {
 
 function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandles, stripLeadingH1IfMatch: titleToStrip }: MarkdownTextProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [modalVisible, setModalVisible] = useState(false);
   const [targets, setTargets] = useState<string[]>([]);
   const [alias, setAlias] = useState('');
@@ -55,6 +57,20 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
 
   // Supported: H1/H2/H3, bold **, italic _, blockquote > , list - , ordered 1. , inline code `, fenced code ```...```, [[wikilink]], [link](url), @mention
   const parseText = useMemo(() => {
+    /** Single unified rule for [text](url) display: use label when provided, else for external URLs show hostname. Used in composer preview and all reading views. */
+    const getLinkDisplayText = (href: string, linkText: string, isExternal: boolean): string => {
+      const hasCustomLabel = linkText !== href && linkText !== '';
+      if (hasCustomLabel) return linkText || href;
+      if (isExternal) {
+        try {
+          return new URL(href).hostname.replace(/^www\./i, '');
+        } catch {
+          return href.length > 45 ? href.slice(0, 42) + '…' : href;
+        }
+      }
+      return href;
+    };
+
     if (!children) return null;
 
     const parseLineContent = (content: string, lineStyle: any, lineKey: string): any[] => {
@@ -98,34 +114,49 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
           let linkDisplay = aliasVal ?? linkContentVal;
           if (!aliasVal && linkContentVal.startsWith('post:')) {
             const id = linkContentVal.split(':')[1] ?? '';
-            const refTitle = (meta as Record<string, { title?: string }>)[id]?.title ?? (meta as Record<string, { title?: string }>)[id?.toLowerCase?.() ?? '']?.title;
-            linkDisplay = refTitle ?? id.slice(0, 8);
+            const refMeta = (meta as Record<string, { title?: string; deletedAt?: string }>)[id] ?? (meta as Record<string, { title?: string; deletedAt?: string }>)[id?.toLowerCase?.() ?? ''];
+            const refTitle = refMeta?.title;
+            const isDeleted = !!refMeta?.deletedAt;
+            linkDisplay = isDeleted ? (t('post.deletedContent', '(deleted content)')) : (refTitle ?? id.slice(0, 8));
           }
           parts.push(
-            <Pressable
+            <Text
               key={`${lineKey}-${match.index}`}
-              style={({ pressed }: { pressed: boolean }) => [styles.inlineLinkWrap, pressed && styles.inlineLinkPressed]}
+              style={[lineStyle, styles.tagText]}
               onPress={() => handleWikiLinkPress(linkContentVal, aliasVal)}
+              numberOfLines={1}
             >
-              <Text style={[lineStyle, styles.tagText]} numberOfLines={1}>{linkDisplay}</Text>
-            </Pressable>
+              {linkDisplay}
+            </Text>
           );
         } else if (match[10]) {
-          const hrefVal = match[12] != null ? String(match[12]) : '';
-          const linkTextVal = match[11] != null ? String(match[11]) : hrefVal;
+          const hrefVal = match[12] != null ? String(match[12]).trim() : '';
+          const linkTextVal = match[11] != null ? String(match[11]).trim() : hrefVal;
+          const isExternalUrl = hrefVal.startsWith('http');
+          // One unified presentation: same style (secondary + underline) and same open-in-app-browser behavior for all external URLs
+          const displayText = getLinkDisplayText(hrefVal, linkTextVal, isExternalUrl);
           parts.push(
-            <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.inlineLinkWrap, pressed && styles.inlineLinkPressed]} onPress={() => handleLinkPress(hrefVal)}>
-              <Text style={[lineStyle, styles.tagText]} numberOfLines={1}>{linkTextVal}</Text>
-            </Pressable>
+            <Text
+              key={`${lineKey}-${match.index}`}
+              style={[lineStyle, isExternalUrl ? styles.urlLinkText : styles.tagText]}
+              onPress={() => handleLinkPress(hrefVal)}
+              numberOfLines={1}
+            >
+              {displayText}
+            </Text>
           );
         } else if (match[13]) {
           const handle = match[13].substring(1);
           const isValidMention = validMentionHandles == null || validMentionHandles.has(handle);
           if (isValidMention) {
             parts.push(
-              <Pressable key={`${lineKey}-${match.index}`} style={({ pressed }: { pressed: boolean }) => [styles.inlineLinkWrap, pressed && styles.inlineLinkPressed]} onPress={() => router.push(`/user/${handle}`)}>
-                <Text style={[lineStyle, styles.tagText]}>{match[13]}</Text>
-              </Pressable>
+              <Text
+                key={`${lineKey}-${match.index}`}
+                style={[lineStyle, styles.tagText]}
+                onPress={() => router.push(`/user/${handle}`)}
+              >
+                {match[13]}
+              </Text>
             );
           } else {
             // Don't render @ when user wasn't selected from suggestions / doesn't exist — show handle only (no @)
@@ -239,19 +270,31 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
           nodes.push(<View key={lineKey} style={{ height: SPACING.m }} />);
         } else {
           const parts = parseLineContent(content, lineStyle, lineKey);
-          nodes.push(
-            <View
-              key={lineKey}
-              style={[
-                styles.lineRow,
-                (lineStyle === styles.h1 || lineStyle === styles.h2 || lineStyle === styles.h3) && styles.lineRowHeading,
-                lineStyle === styles.blockquote && styles.lineRowBlockquote
-              ]}
-            >
-              {prefix}
-              {parts.length > 0 ? parts : <Text style={lineStyle}>{content}</Text>}
-            </View>
-          );
+          const hasBlockInLine = parts.some((p: any) => isValidElement(p) && (p as { type?: unknown }).type === View);
+          const isHeading = (lineStyle as object) === (styles.h1 as object) || (lineStyle as object) === (styles.h2 as object) || (lineStyle as object) === (styles.h3 as object);
+          const isBlockquote = (lineStyle as object) === (styles.blockquote as object);
+          const lineRowStyle = [
+            styles.lineRow,
+            isHeading && styles.lineRowHeading,
+            isBlockquote && styles.lineRowBlockquote
+          ];
+          if (!hasBlockInLine && parts.length > 0) {
+            nodes.push(
+              <View key={lineKey} style={lineRowStyle}>
+                {prefix}
+                <Text style={lineStyle}>
+                  {parts}
+                </Text>
+              </View>
+            );
+          } else {
+            nodes.push(
+              <View key={lineKey} style={lineRowStyle}>
+                {prefix}
+                {parts.length > 0 ? parts : <Text style={lineStyle}>{content}</Text>}
+              </View>
+            );
+          }
         }
       });
       nodeKey += 1;
@@ -311,15 +354,15 @@ const styles = createStyles({
     fontFamily: FONTS.serifRegular, // Body text = Serif
     marginBottom: SPACING.xs,
   },
-  /* H1/H2/H3: Inter (UI font), H1 > H2 > H3, relaxed spacing */
+  /* H1/H2/H3: distinct sizes – H1 (title-level) > H2 (section) > H3 (subsection) */
   h1: {
-    fontSize: 26,
-    lineHeight: 34,
-    fontWeight: '600',
+    fontSize: 28,
+    lineHeight: 36,
+    fontWeight: '700',
     color: COLORS.paper,
-    fontFamily: FONTS.semiBold, // Header = Sans (Inter)
-    marginTop: SPACING.l,
-    marginBottom: SPACING.s,
+    fontFamily: FONTS.semiBold,
+    marginVertical: SPACING.l,
+    marginBottom: SPACING.l,
     letterSpacing: -0.5,
   },
   h2: {
@@ -327,19 +370,19 @@ const styles = createStyles({
     lineHeight: 30,
     fontWeight: '600',
     color: COLORS.paper,
-    fontFamily: FONTS.semiBold, // Header = Sans (Inter)
-    marginTop: SPACING.m,
-    marginBottom: SPACING.s,
+    fontFamily: FONTS.semiBold,
+    marginVertical: SPACING.l,
+    marginBottom: SPACING.l,
     letterSpacing: -0.3,
   },
   h3: {
-    fontSize: 19,
-    lineHeight: 26,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: '600',
     color: COLORS.paper,
-    fontFamily: FONTS.semiBold, // Header = Sans (Inter)
-    marginTop: SPACING.m,
-    marginBottom: SPACING.xs,
+    fontFamily: FONTS.semiBold,
+    marginVertical: SPACING.m,
+    marginBottom: SPACING.m,
   },
   blockquote: {
     fontSize: 17,
@@ -348,6 +391,7 @@ const styles = createStyles({
     color: COLORS.secondary,
     fontFamily: FONTS.serifRegular, // Quote = Serif
     flex: 1,
+    marginBottom: SPACING.xs,
   },
   blockquoteBar: {
     width: 4,
@@ -370,6 +414,7 @@ const styles = createStyles({
     color: COLORS.paper,
     fontFamily: FONTS.serifRegular, // List = Serif
     flex: 1,
+    marginBottom: SPACING.xs,
   },
   bullet: {
     fontSize: 18,
@@ -454,7 +499,14 @@ const styles = createStyles({
   tagText: {
     fontWeight: '700',
     color: COLORS.primary,
-    fontFamily: FONTS.serifSemiBold, // Link in body = Serif SemiBold
+    fontFamily: FONTS.serifSemiBold, // Wikilinks / in-app links = primary
+  },
+  /* External URL links – warm orange, no underline; open in-app browser (composer preview + all reading views) */
+  urlLinkText: {
+    fontWeight: '600',
+    color: COLORS.link ?? '#D97A3C',
+    fontFamily: FONTS.serifSemiBold,
+    textDecorationLine: 'none',
   },
   inlineLinkPressed: {
     opacity: 0.8,

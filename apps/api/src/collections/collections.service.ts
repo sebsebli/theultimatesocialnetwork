@@ -45,40 +45,72 @@ export class CollectionsService {
       .getMany();
 
     const ids = collections.map((c) => c.id);
-    const previewMap = await this.getPreviewImageKeys(ids);
-    return collections.map((c) => ({
-      ...c,
-      previewImageKey: previewMap[c.id] ?? null,
-    }));
+    const latestMap = await this.getLatestItemPreview(ids);
+    return collections.map((c) => {
+      const latest = latestMap[c.id];
+      return {
+        ...c,
+        previewImageKey: latest?.headerImageKey ?? null,
+        recentPost: latest
+          ? {
+              id: latest.postId,
+              title: latest.title ?? null,
+              bodyExcerpt: latest.bodyExcerpt ?? null,
+              headerImageKey: latest.headerImageKey ?? null,
+            }
+          : null,
+      };
+    });
   }
 
-  /** One random post header image key per collection (for list previews). */
-  async getPreviewImageKeys(
-    collectionIds: string[],
-  ): Promise<Record<string, string>> {
+  /** Latest added item per collection (by addedAt DESC). Public for use by users service. */
+  async getLatestItemPreview(collectionIds: string[]): Promise<
+    Record<
+      string,
+      {
+        postId: string;
+        title: string | null;
+        bodyExcerpt: string;
+        headerImageKey: string | null;
+      }
+    >
+  > {
     if (collectionIds.length === 0) return {};
     const items = await this.itemRepo.find({
       where: { collectionId: In(collectionIds) },
       relations: ['post'],
-      select: ['id', 'collectionId'],
+      order: { addedAt: 'DESC' },
     });
-    const byCollection = new Map<
+    const seen = new Set<string>();
+    const out: Record<
       string,
-      { postId: string; headerImageKey: string | null }[]
-    >();
-    for (const item of items) {
-      const key = item.post?.headerImageKey ?? null;
-      if (!key) continue;
-      const list = byCollection.get(item.collectionId) ?? [];
-      list.push({ postId: item.post?.id, headerImageKey: key });
-      byCollection.set(item.collectionId, list);
-    }
-    const out: Record<string, string> = {};
-    for (const [cid, list] of byCollection) {
-      if (list.length > 0) {
-        const random = list[Math.floor(Math.random() * list.length)];
-        if (random?.headerImageKey) out[cid] = random.headerImageKey;
+      {
+        postId: string;
+        title: string | null;
+        bodyExcerpt: string;
+        headerImageKey: string | null;
       }
+    > = {};
+    for (const item of items) {
+      if (seen.has(item.collectionId)) continue;
+      seen.add(item.collectionId);
+      const body = item.post?.body;
+      const bodyExcerpt =
+        body && typeof body === 'string'
+          ? body
+              .replace(/#{1,6}\s*/g, '')
+              .replace(/\*\*([^*]+)\*\*/g, '$1')
+              .replace(/_([^_]+)_/g, '$1')
+              .replace(/\n+/g, ' ')
+              .trim()
+              .slice(0, 120) + (body.length > 120 ? '…' : '')
+          : '';
+      out[item.collectionId] = {
+        postId: item.post?.id ?? '',
+        title: item.post?.title ?? null,
+        bodyExcerpt,
+        headerImageKey: item.post?.headerImageKey ?? null,
+      };
     }
     return out;
   }

@@ -6,6 +6,10 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { UserCard } from "@/components/user-card";
 import { TopicCard } from "@/components/topic-card";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 
 type Tab = "followers" | "following" | "topics";
 
@@ -173,7 +177,7 @@ export default function ConnectionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-ink">
+    <div className="min-h-screen bg-ink flex flex-col">
       <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 py-3">
         <div className="flex items-center justify-between">
           <Link
@@ -236,7 +240,7 @@ export default function ConnectionsPage() {
         </button>
       </div>
 
-      <div className="px-4 py-6 relative">
+      <div className="px-4 py-6 relative flex flex-col flex-1 min-h-[200px]">
         {loading && items.length === 0 && topics.length === 0 ? (
           <p className="text-secondary text-center py-8">Loading...</p>
         ) : error ? (
@@ -252,9 +256,13 @@ export default function ConnectionsPage() {
             )}
             {activeTab === "topics" ? (
               topics.length === 0 && topicSuggestions.length === 0 ? (
-                <p className="text-secondary text-center py-8">
-                  Not following any topics yet.
-                </p>
+                <div className={emptyStateCenterClassName}>
+                  <EmptyState
+                    headline="Not following any topics yet"
+                    subtext="Follow topics to see them here."
+                    compact
+                  />
+                </div>
               ) : (
                 <div className="space-y-2">
                   {topics.length > 0 &&
@@ -288,11 +296,21 @@ export default function ConnectionsPage() {
                 </div>
               )
             ) : items.length === 0 ? (
-              <p className="text-secondary text-center py-8">
-                {activeTab === "followers"
-                  ? "No followers yet."
-                  : "Not following anyone yet."}
-              </p>
+              <div className={emptyStateCenterClassName}>
+                <EmptyState
+                  headline={
+                    activeTab === "followers"
+                      ? "No followers yet"
+                      : "Not following anyone yet"
+                  }
+                  subtext={
+                    activeTab === "followers"
+                      ? "When someone follows this profile, they will show up here."
+                      : "Follow people to see them here."
+                  }
+                  compact
+                />
+              </div>
             ) : (
               <div className="space-y-3">
                 {items.map((person) => (

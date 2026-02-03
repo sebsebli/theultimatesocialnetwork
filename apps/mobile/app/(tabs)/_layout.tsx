@@ -2,7 +2,7 @@ import React from 'react';
 import { Tabs, Redirect, useRouter } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS } from '../../constants/theme';
-import { Text, View, ActivityIndicator } from 'react-native';
+import { Text, View, ActivityIndicator, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/auth';
 import { useSocket } from '../../context/SocketContext';
@@ -89,22 +89,31 @@ export default function TabLayout() {
         })}
         options={{
           title: '',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <View style={{
-              width: 40,
-              height: 40,
-              borderRadius: 8,
-              backgroundColor: COLORS.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <MaterialIcons
-                name="edit"
-                size={20}
-                color={COLORS.ink}
-              />
-            </View>
+          tabBarButton: ({ children: _children, ...props }: { children: React.ReactNode;[key: string]: unknown }) => (
+            <Pressable {...props} style={[{ flex: 1 }, props.style]}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 4 }}>
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    marginTop: -28,
+                    borderRadius: 28,
+                    backgroundColor: COLORS.primary,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 4,
+                    elevation: 6,
+                  }}
+                >
+                  <MaterialIcons name="edit" size={26} color={COLORS.ink} />
+                </View>
+              </View>
+            </Pressable>
           ),
+          tabBarIcon: () => null,
         }}
       />
       <Tabs.Screen

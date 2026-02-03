@@ -8,7 +8,10 @@ import {
   clearAllOfflinePosts,
   OfflinePost,
 } from "@/lib/offline-storage";
-import { EmptyState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 
 function formatSize(bytes: number): string {
@@ -58,7 +61,7 @@ export default function OfflineSettingsPage() {
   };
 
   return (
-    <div className="max-w-[680px] mx-auto min-h-screen border-x border-divider bg-ink">
+    <div className="max-w-[680px] mx-auto min-h-screen border-x border-divider bg-ink flex flex-col">
       <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-6 py-4">
         <div className="flex items-center gap-3">
           <Link href="/settings" className="text-secondary hover:text-paper">
@@ -94,13 +97,15 @@ export default function OfflineSettingsPage() {
         )}
       </div>
 
-      <div className="px-6 py-6">
+      <div className="px-6 py-6 flex-1 flex flex-col min-h-[200px]">
         {state.posts.length === 0 ? (
-          <EmptyState
-            icon="offline_pin"
-            headline="No offline articles"
-            subtext="Download articles from the reading screen to read offline."
-          />
+          <div className={emptyStateCenterClassName}>
+            <EmptyState
+              icon="offline_pin"
+              headline="No offline articles"
+              subtext="Download articles from the reading screen to read offline."
+            />
+          </div>
         ) : (
           <div className="space-y-0">
             {state.posts.map((post) => (

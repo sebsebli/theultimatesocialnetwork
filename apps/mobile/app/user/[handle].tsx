@@ -1,20 +1,21 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform, useWindowDimensions, StyleSheet, type DimensionValue } from 'react-native';
+import { Text, View, FlatList, ScrollView, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform, useWindowDimensions, StyleSheet, type DimensionValue } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, getApiBaseUrl, getWebAppBaseUrl, getImageUrl } from '../../utils/api';
+import { api, getApiBaseUrl, getWebAppBaseUrl, getImageUrl, getAvatarUri } from '../../utils/api';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { ReportModal } from '../../components/ReportModal';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { PostItem } from '../../components/PostItem';
+import { MarkdownText } from '../../components/MarkdownText';
 import { ProfileSkeleton, PostSkeleton } from '../../components/LoadingSkeleton';
-import { EmptyState } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, PROFILE_HEADER_ASPECT_RATIO, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { ListFooterLoader } from '../../components/ListFooterLoader';
 import { formatCompactNumber } from '../../utils/format';
 
@@ -23,7 +24,7 @@ const TAB_BAR_HEIGHT = 50;
 export default function UserProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { handle } = useLocalSearchParams();
   const { t } = useTranslation();
   const { userId: authUserId } = useAuth();
@@ -52,16 +53,14 @@ export default function UserProfileScreen() {
     if (h) loadProfile(1, true);
   }, [handle]);
 
-  // Refetch list when tab changes (posts / replies / quotes / collections), not on initial mount
+  // Refetch list when tab changes. Skip only the very first run when still on default tab (handle effect loads posts).
   const isFirstTabMount = React.useRef(true);
   useEffect(() => {
     if (!user) return;
     if (isFirstTabMount.current) {
       isFirstTabMount.current = false;
-      return;
+      if (activeTab === 'posts') return;
     }
-    setPosts([]);
-    setPage(1);
     loadProfile(1, true);
   }, [activeTab]);
 
@@ -278,7 +277,16 @@ export default function UserProfileScreen() {
     loadProfile(nextPage, false);
   }, [loading, loadingMore, hasMore, page, user]);
 
-  const bottomPadding = TAB_BAR_HEIGHT + insets.bottom + 24;
+  const handleTabChange = useCallback((tab: typeof activeTab) => {
+    if (tab === activeTab) return;
+    setPosts([]);
+    setPage(1);
+    setLoading(true);
+    setHasMore(true);
+    setActiveTab(tab);
+  }, [activeTab]);
+
+  const bottomPadding = TAB_BAR_HEIGHT + insets.bottom + 48;
 
   if (loading && !user) {
     return (
@@ -339,34 +347,166 @@ export default function UserProfileScreen() {
     );
   }
 
-  const profileHeaderImageUrl = (user?.profileHeaderKey ? getImageUrl(user.profileHeaderKey) : null) || user?.profileHeaderUrl || null;
+  // Private profile when not following: only profile header + gate, no posts/tabs/empty state and no followers/following
+  if (user.isProtected && !following) {
+    return (
+      <View style={styles.container}>
+        <ScrollView
+          style={styles.list}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.privateProfileScrollContent, { paddingBottom: bottomPadding }]}
+        >
+          <View style={styles.profileListHeader}>
+            <View style={[styles.profileHeaderContainer, styles.profileHeaderContainerBorder, { paddingTop: insets.top + 10 }]}>
+              <View style={styles.headerBar}>
+                <Pressable onPress={() => router.back()} style={styles.iconButton} accessibilityLabel="Go back" accessibilityRole="button">
+                  <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
+                </Pressable>
+                <Pressable style={styles.iconButton} onPress={() => handleUserMenu()} accessibilityLabel="More options" accessibilityRole="button">
+                  <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
+                </Pressable>
+              </View>
+              <View style={styles.profileHeaderContent}>
+                <View style={styles.avatarContainer}>
+                  <View style={styles.avatar}>
+                    {getAvatarUri(user) ? (
+                      <Image source={{ uri: getAvatarUri(user)! }} style={styles.avatarImage} contentFit="cover" cachePolicy="memory-disk" />
+                    ) : (
+                      <Text style={styles.avatarText}>{user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}</Text>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.identityBlock}>
+                  <Text style={styles.name}>{user.displayName}</Text>
+                  <Text style={styles.handle}>@{user.handle}</Text>
+                </View>
+                {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+                <View style={styles.actions}>
+                  <Pressable
+                    style={[styles.actionButtonOutline, (following || hasPendingFollowRequest) && styles.actionButtonActive]}
+                    onPress={handleFollow}
+                    accessibilityLabel={hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.actionButtonText, (following || hasPendingFollowRequest) && styles.actionButtonTextActive]}>
+                      {hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                    </Text>
+                  </Pressable>
+                  {user.followsMe ? (
+                    <Pressable style={styles.messageButton} onPress={handleMessage} accessibilityLabel={t('profile.message')} accessibilityRole="button">
+                      <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+            </View>
+            <View style={[styles.privateProfileGate, styles.privateProfileGateFill, styles.privateProfileGateNoBorder]}>
+              <View style={styles.privateProfileIconWrap}>
+                <MaterialIcons name="lock" size={32} color={COLORS.tertiary} />
+              </View>
+              <Text style={styles.privateProfileTitle}>{t('profile.privateProfile', 'Private profile')}</Text>
+              <Text style={styles.privateProfileSubtext}>
+                {t('profile.privateProfileHint', 'Follow this account to see their posts, replies, and quotes.')}
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+        <ConfirmModal
+          visible={blockConfirmVisible}
+          title={t('safety.blockUser', 'Block User')}
+          message={t('safety.blockConfirm', `Are you sure you want to block @${user?.handle ?? ''}? You won't see their posts or messages.`)}
+          confirmLabel={t('safety.block', 'Block')}
+          cancelLabel={t('common.cancel')}
+          destructive
+          icon="warning"
+          onConfirm={confirmBlock}
+          onCancel={() => setBlockConfirmVisible(false)}
+        />
+        <ConfirmModal
+          visible={muteConfirmVisible}
+          title={t('safety.muteUser', 'Mute User')}
+          message={t('safety.muteConfirm', `Are you sure you want to mute @${user?.handle ?? ''}? You won't see their posts in your feed.`)}
+          confirmLabel={t('safety.mute', 'Mute')}
+          cancelLabel={t('common.cancel')}
+          icon="volume-off"
+          onConfirm={confirmMute}
+          onCancel={() => setMuteConfirmVisible(false)}
+        />
+        <OptionsActionSheet
+          visible={optionsModalVisible}
+          title={t('profile.options', 'Options for @' + (user?.handle ?? ''))}
+          cancelLabel={t('common.cancel')}
+          options={[
+            { label: t('safety.mute', 'Mute User'), onPress: handleMute, icon: 'volume-off' },
+            { label: t('safety.block', 'Block User'), onPress: handleBlock, destructive: true, icon: 'block' },
+            { label: t('safety.report', 'Report User'), onPress: () => openReportModal(user.id, 'USER'), destructive: true, icon: 'flag' },
+            { label: t('profile.shareProfile', 'Share profile'), onPress: handleShareProfile, icon: 'share' },
+            { label: t('profile.rssFeed', 'RSS Feed'), onPress: handleOpenRssFeed, icon: 'rss-feed' },
+          ]}
+          onCancel={() => setOptionsModalVisible(false)}
+        />
+        <ReportModal
+          visible={reportModalVisible}
+          targetType={reportTargetType}
+          onClose={() => { setReportModalVisible(false); setReportTargetId(null); }}
+          onReport={handleReportSubmit}
+          title={t('safety.reportTitle', 'Report')}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <FlatList
+        key={activeTab}
         style={styles.list}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: bottomPadding }}
-        data={(user?.isProtected && !following) ? [] : posts}
+        contentInset={{ top: insets.top }}
+        contentOffset={Platform.OS === 'ios' ? { x: 0, y: -insets.top } : undefined}
+        contentContainerStyle={[
+          { paddingBottom: bottomPadding },
+          (activeTab === 'replies' ? (posts as any[]).filter((r: any) => r?.post) : (posts as any[]).filter((p: any) => !!p?.author)).length === 0 && { flexGrow: 1 },
+        ]}
+        data={
+          activeTab === 'replies'
+            ? (posts as any[]).filter((r: any) => r?.post)
+            : (posts as any[]).filter((p: any) => !!p?.author)
+        }
         keyExtractor={(item: any) => item.id}
-        renderItem={({ item }: { item: any }) => <PostItem post={item} />}
+        renderItem={({ item }: { item: any }) =>
+          activeTab === 'replies' ? (
+            <Pressable
+              style={({ pressed }: { pressed: boolean }) => [styles.replyRow, pressed && styles.replyRowPressed]}
+              onPress={() => item.post?.id && router.push(`/post/${item.post.id}/comments`)}
+            >
+              <View style={styles.replyBodyWrap}>
+                <MarkdownText>{item.body}</MarkdownText>
+              </View>
+              {item.post && (
+                <View style={styles.replyToWrap}>
+                  <Text style={styles.replyToLabel} numberOfLines={1}>
+                    {item.post.title ? `In reply to: ${item.post.title}` : t('profile.inReplyToPost', 'Reply to post')}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          ) : (
+            <PostItem
+              post={activeTab === 'saved' ? { ...item, isKept: true } : item}
+              onKeep={activeTab === 'saved' && isOwnProfile ? () => setPosts((prev) => prev.filter((p: any) => p.id !== item.id)) : undefined}
+            />
+          )
+        }
         ListHeaderComponent={
           <View style={styles.profileListHeader}>
-            <View style={[styles.profileHeaderContainer, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
-              {profileHeaderImageUrl ? (
-                <Image
-                  source={{ uri: profileHeaderImageUrl }}
-                  style={styles.profileHeaderBackground}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                />
-              ) : (
-                <View style={styles.profileHeaderBackgroundBlack} />
-              )}
-              <View style={styles.profileHeaderOverlay} />
-
-              <View style={[styles.headerBar, { paddingTop: insets.top + 10 }]}>
+            <View style={[
+              styles.profileHeaderContainer,
+              user.isProtected && !following && styles.profileHeaderContainerBorder,
+              { paddingTop: Platform.OS === 'ios' ? 10 : insets.top + 10 },
+            ]}>
+              <View style={styles.headerBar}>
                 <Pressable
                   onPress={() => router.back()}
                   style={styles.iconButton}
@@ -388,9 +528,9 @@ export default function UserProfileScreen() {
               <View style={styles.profileHeaderContent}>
                 <View style={styles.avatarContainer}>
                   <View style={styles.avatar}>
-                    {(user.avatarKey || user.avatarUrl) ? (
+                    {getAvatarUri(user) ? (
                       <Image
-                        source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
+                        source={{ uri: getAvatarUri(user)! }}
                         style={styles.avatarImage}
                         contentFit="cover"
                         cachePolicy="memory-disk"
@@ -436,30 +576,32 @@ export default function UserProfileScreen() {
                   ) : null}
                 </View>
 
-                <View style={styles.followersFollowingRow}>
-                  <Pressable
-                    onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
-                    style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
-                  >
-                    <Text style={styles.followersFollowingText}>
-                      {formatCompactNumber(user.followerCount)} {t('profile.followers').toLowerCase()}
-                    </Text>
-                  </Pressable>
-                  <Text style={styles.followersFollowingText}> · </Text>
-                  <Pressable
-                    onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
-                    style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
-                  >
-                    <Text style={styles.followersFollowingText}>
-                      {formatCompactNumber(user.followingCount)} {t('profile.following').toLowerCase()}
-                    </Text>
-                  </Pressable>
-                </View>
+                {!(user.isProtected && !following) ? (
+                  <View style={styles.followersFollowingRow}>
+                    <Pressable
+                      onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
+                      style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
+                    >
+                      <Text style={styles.followersFollowingText}>
+                        {formatCompactNumber(user.followerCount)} {t('profile.followers').toLowerCase()}
+                      </Text>
+                    </Pressable>
+                    <Text style={styles.followersFollowingText}> · </Text>
+                    <Pressable
+                      onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
+                      style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
+                    >
+                      <Text style={styles.followersFollowingText}>
+                        {formatCompactNumber(user.followingCount)} {t('profile.following').toLowerCase()}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ) : null}
               </View>
             </View>
 
             {user.isProtected && !following ? (
-              <View style={styles.privateProfileGate}>
+              <View style={[styles.privateProfileGate, styles.privateProfileGateFill, styles.privateProfileGateNoBorder, { minHeight: Math.max(200, screenHeight - 320) }]}>
                 <View style={styles.privateProfileIconWrap}>
                   <MaterialIcons name="lock" size={32} color={COLORS.tertiary} />
                 </View>
@@ -470,58 +612,75 @@ export default function UserProfileScreen() {
               </View>
             ) : (
               <View style={styles.tabsContainer}>
-                {(isOwnProfile
-                  ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
-                  : (['posts', 'replies', 'quotes', 'collections'] as const)
-                ).map((tab) => {
-                  const count = tab === 'posts' ? (user.postCount ?? 0)
-                    : tab === 'replies' ? (user.replyCount ?? 0)
-                      : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
-                        : tab === 'saved' ? (user.keepsCount ?? 0)
-                          : (user.collectionCount ?? 0);
-                  return (
-                    <Pressable
-                      key={tab}
-                      style={[styles.tab, activeTab === tab && styles.tabActive]}
-                      onPress={() => setActiveTab(tab)}
-                      accessibilityLabel={count > 0 ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: activeTab === tab }}
-                    >
-                      <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                        {t(`profile.${tab}`)}{count > 0 ? ` (${formatCompactNumber(count)})` : ''}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+                <ScrollView
+                  horizontal
+                  showsVerticalScrollIndicator={false}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.tabsContent}
+                  style={styles.tabsScrollView}
+                >
+                  {(isOwnProfile
+                    ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
+                    : (['posts', 'replies', 'quotes', 'collections'] as const)
+                  ).map((tab) => {
+                    const count = tab === 'posts' ? (user.postCount ?? 0)
+                      : tab === 'replies' ? (user.replyCount ?? 0)
+                        : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
+                          : tab === 'saved' ? (user.keepsCount ?? 0)
+                            : (user.collectionCount ?? 0);
+                    return (
+                      <Pressable
+                        key={tab}
+                        style={[styles.tab, activeTab === tab && styles.tabActive]}
+                        onPress={() => handleTabChange(tab)}
+                        accessibilityLabel={count > 0 ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: activeTab === tab }}
+                      >
+                        <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                          {t(`profile.${tab}`)}{count > 0 ? ` (${formatCompactNumber(count)})` : ''}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
               </View>
             )}
           </View>
         }
         ListEmptyComponent={
-          <EmptyState
-            icon={
-              activeTab === 'saved' ? 'bookmark-outline'
-                : activeTab === 'collections' ? 'folder-open'
-                  : activeTab === 'replies' ? 'chat-bubble-outline'
-                    : activeTab === 'quotes' ? 'format-quote'
-                      : 'article'
-            }
-            headline={
-              activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
-                : activeTab === 'collections' ? t('profile.noCollections', 'No public collections')
-                  : activeTab === 'replies' ? t('profile.noReplies', 'No replies yet')
-                    : activeTab === 'quotes' ? t('profile.noQuotes', 'No quotes yet')
-                      : t('profile.noPosts', 'No posts yet')
-            }
-            subtext={
-              activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
-                : activeTab === 'collections' ? t('profile.noCollectionsHint', 'Public collections will appear here.')
-                  : activeTab === 'replies' ? t('profile.noRepliesHint', 'Replies will show here.')
-                    : activeTab === 'quotes' ? t('profile.noQuotesHint', 'Quotes will show here.')
-                      : t('profile.noPostsHintView', 'Posts will appear here.')
-            }
-          />
+          <View style={emptyStateCenterWrapStyle}>
+            {loading && posts.length === 0 ? (
+              <View style={styles.tabLoadingWrap}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.tabLoadingText}>{t('common.loading')}</Text>
+              </View>
+            ) : (
+              <EmptyState
+                icon={
+                  activeTab === 'saved' ? 'bookmark-outline'
+                    : activeTab === 'collections' ? 'folder-open'
+                      : activeTab === 'replies' ? 'chat-bubble-outline'
+                        : activeTab === 'quotes' ? 'format-quote'
+                          : 'article'
+                }
+                headline={
+                  activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
+                    : activeTab === 'collections' ? t('profile.noCollections', 'No public collections')
+                      : activeTab === 'replies' ? t('profile.noReplies', 'No replies yet')
+                        : activeTab === 'quotes' ? t('profile.noQuotes', 'No quotes yet')
+                          : t('profile.noPosts', 'No posts yet')
+                }
+                subtext={
+                  activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
+                    : activeTab === 'collections' ? t('profile.noCollectionsHint', 'Public collections will appear here.')
+                      : activeTab === 'replies' ? t('profile.noRepliesHint', 'Replies will show here.')
+                        : activeTab === 'quotes' ? t('profile.noQuotesHint', 'Quotes will show here.')
+                          : t('profile.noPostsHintView', 'Posts will appear here.')
+                }
+              />
+            )}
+          </View>
         }
         ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
         refreshControl={
@@ -595,11 +754,6 @@ const styles = createStyles({
     alignItems: 'center',
     paddingHorizontal: HEADER.barPaddingHorizontal as DimensionValue,
     paddingBottom: SPACING.s,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
   },
   blockedHeaderBar: {
     flexDirection: 'row',
@@ -609,38 +763,60 @@ const styles = createStyles({
     paddingBottom: HEADER.barPaddingBottom as DimensionValue,
     backgroundColor: COLORS.ink,
   },
-  profileListHeader: {},
+  privateProfileScrollContent: {
+    flexGrow: 1,
+  },
+  profileListHeader: {
+    flex: 1,
+  },
   profileHeaderContainer: {
-    position: 'relative',
     width: '100%',
-    overflow: 'hidden',
-  },
-  profileHeaderBackground: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  profileHeaderBackgroundBlack: {
-    ...StyleSheet.absoluteFillObject,
     backgroundColor: COLORS.ink,
-  },
-  profileHeaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  profileHeaderContent: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    top: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
+  },
+  /** Border below header (where tab bar would be) for private profile so divider sits above the gate, not under it */
+  profileHeaderContainerBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  profileHeaderContent: {
+    alignItems: 'center',
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     gap: SPACING.l,
-    zIndex: 5,
   },
   list: {
     flex: 1,
+  },
+  tabLoadingWrap: {
+    paddingVertical: SPACING.xxxl,
+    alignItems: 'center',
+    gap: SPACING.m,
+  },
+  tabLoadingText: {
+    fontSize: 16,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+  },
+  replyRow: {
+    paddingVertical: SPACING.m,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  replyRowPressed: { opacity: 0.8 },
+  replyBodyWrap: { marginBottom: SPACING.xs },
+  replyBody: {
+    fontSize: 15,
+    color: COLORS.paper,
+    fontFamily: FONTS.serifRegular,
+    lineHeight: 22,
+  },
+  replyToWrap: { flexDirection: 'row', alignItems: 'center' },
+  replyToLabel: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
   },
   iconButton: {
     padding: SPACING.s,
@@ -798,16 +974,23 @@ const styles = createStyles({
     right: -12,
   },
   tabsContainer: {
-    flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     backgroundColor: COLORS.ink,
     opacity: 0.95,
   },
+  tabsScrollView: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  tabsContent: {
+    gap: SPACING.xl,
+    paddingRight: SPACING.l,
+  },
   tab: {
-    flex: 1,
     alignItems: 'center',
     paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.xs,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -831,6 +1014,14 @@ const styles = createStyles({
     paddingHorizontal: SPACING.xl,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+  },
+  /** When used with gate fill (private profile), border is on header above; no border under the indicator */
+  privateProfileGateNoBorder: {
+    borderBottomWidth: 0,
+    borderBottomColor: 'transparent',
+  },
+  privateProfileGateFill: {
+    flex: 1,
   },
   privateProfileIconWrap: {
     width: 56,

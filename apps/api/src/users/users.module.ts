@@ -4,6 +4,7 @@ import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { User } from '../entities/user.entity';
 import { AccountDeletionRequest } from '../entities/account-deletion-request.entity';
+import { EmailChangeRequest } from '../entities/email-change-request.entity';
 import { DataExport } from '../entities/data-export.entity';
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
@@ -28,6 +29,7 @@ import { UploadModule } from '../upload/upload.module';
 import { CollectionsModule } from '../collections/collections.module';
 import { SafetyModule } from '../safety/safety.module';
 import { TopicsModule } from '../topics/topics.module';
+import { InteractionsModule } from '../interactions/interactions.module';
 import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
@@ -35,6 +37,7 @@ import { defaultQueueConfig } from '../common/queue-config';
     TypeOrmModule.forFeature([
       User,
       AccountDeletionRequest,
+      EmailChangeRequest,
       DataExport,
       Post,
       Reply,
@@ -56,6 +59,7 @@ import { defaultQueueConfig } from '../common/queue-config';
     CollectionsModule,
     SafetyModule,
     TopicsModule,
+    InteractionsModule,
   ],
   controllers: [UsersController],
   providers: [

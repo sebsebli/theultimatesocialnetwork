@@ -52,12 +52,12 @@ export function SignupOverlay() {
       {/* Blurry Backdrop (Gradient fade) */}
       <div className="absolute inset-0 bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C]/95 to-transparent h-[120%] -top-[20%] pointer-events-none backdrop-blur-md" />
 
-      <div className="relative z-[91] max-w-[1200px] mx-auto px-6 pb-8 pt-12 md:pb-12 md:pt-16 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="relative z-[91] max-w-[1200px] mx-auto pl-6 pr-16 md:pr-20 pb-8 pt-12 md:pb-12 md:pt-16 flex flex-col md:flex-row items-center justify-between gap-6">
         <button
           onClick={() => {
             setDismissed(true);
           }}
-          className="absolute top-8 right-8 p-2 text-[#6E6E73] hover:text-[#F2F2F2] transition-colors bg-[#1A1A1D]/50 hover:bg-[#1A1A1D] rounded-full"
+          className="absolute top-8 right-6 p-2 text-[#6E6E73] hover:text-[#F2F2F2] transition-colors bg-[#1A1A1D]/50 hover:bg-[#1A1A1D] rounded-full"
           aria-label="Close"
         >
           <svg

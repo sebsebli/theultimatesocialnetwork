@@ -32,7 +32,11 @@ export interface PostDetailProps {
     privateLikeCount?: number;
     headerImageKey?: string | null;
     readingTimeMinutes?: number;
-    referenceMetadata?: Record<string, { title?: string }>;
+    referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
+    /** When set, post was soft-deleted; show "deleted on ..." placeholder */
+    deletedAt?: string;
+    /** When false, content is redacted (FOLLOWERS-only and viewer doesn't follow); show private message */
+    viewerCanSeeContent?: boolean;
   };
   /** When true, viewer is not authenticated; hide actions and comments */
   isPublic?: boolean;
@@ -155,6 +159,74 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
     }
   };
 
+  const showPrivateContent = post.viewerCanSeeContent !== false;
+
+  if (post.deletedAt) {
+    const deletedDate = new Date(post.deletedAt);
+    const formattedDate = deletedDate.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    return (
+      <div className="min-h-screen flex flex-col">
+        <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 py-3">
+          <div className="flex items-center justify-between">
+            <Link
+              href={isPublic ? "/" : "/home"}
+              className="text-secondary hover:text-paper"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </Link>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center px-6 py-12">
+          <div className="text-center max-w-md">
+            <div className="mb-4 text-tertiary">
+              <svg
+                className="w-12 h-12 mx-auto"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </div>
+            <p className="text-paper font-medium mb-2">
+              This post has been deleted
+            </p>
+            <p className="text-secondary text-sm mb-6">
+              It was deleted on {formattedDate}.
+            </p>
+            <Link
+              href={isPublic ? "/" : "/home"}
+              className="text-primary hover:underline font-medium"
+            >
+              Go back
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -229,40 +301,69 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
 
         {/* Body */}
         <div className="mb-6">
-          {post.title && (
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold leading-tight text-paper">
-                {post.title}
-              </h1>
-              <Link
-                href={`/post/${post.id}/reading`}
-                className="text-primary text-sm font-medium hover:underline"
-              >
-                Reading mode
-              </Link>
+          {!showPrivateContent ? (
+            <div className="min-h-[200px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-3 text-tertiary">
+                <svg
+                  className="w-12 h-12"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
+                </svg>
+                <p className="text-paper font-medium">
+                  This post is only visible to followers
+                </p>
+                <p className="text-sm text-secondary">
+                  Follow the author to see the full content.
+                </p>
+              </div>
             </div>
-          )}
-          <div
-            className="text-[18px] leading-relaxed text-secondary font-normal prose prose-invert max-w-none"
-            dangerouslySetInnerHTML={{
-              __html: renderMarkdown(
-                stripLeadingH1IfMatch(post.body, post.title ?? undefined),
-                {
-                  referenceMetadata: post.referenceMetadata ?? undefined,
-                },
-              ),
-            }}
-          />
-          {post.headerImageKey && (
-            <div className="relative w-full aspect-video rounded-2xl bg-white/5 mt-4 overflow-hidden shadow-2xl">
-              <Image
-                src={getImageUrl(post.headerImageKey)}
-                alt="Post header"
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 672px"
+          ) : (
+            <>
+              {post.title && (
+                <div className="flex items-center justify-between mb-4">
+                  <h1 className="text-2xl font-bold leading-tight text-paper">
+                    {post.title}
+                  </h1>
+                  <Link
+                    href={`/post/${post.id}/reading`}
+                    className="text-primary text-sm font-medium hover:underline"
+                  >
+                    Reading mode
+                  </Link>
+                </div>
+              )}
+              <div
+                className="text-[18px] leading-relaxed text-secondary font-normal prose prose-invert max-w-none"
+                dangerouslySetInnerHTML={{
+                  __html: renderMarkdown(
+                    stripLeadingH1IfMatch(post.body, post.title ?? undefined),
+                    {
+                      referenceMetadata: post.referenceMetadata ?? undefined,
+                    },
+                  ),
+                }}
               />
-            </div>
+              {post.headerImageKey && (
+                <div className="relative w-full aspect-video rounded-2xl bg-white/5 mt-4 overflow-hidden shadow-2xl">
+                  <Image
+                    src={getImageUrl(post.headerImageKey)}
+                    alt="Post header"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 672px"
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -435,10 +536,11 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
         </div>
       </article>
 
-      {/* Sections: Sources -> ReferencedBy -> Replies (Mobile Order) */}
+      {/* Sections: Sources -> ReferencedBy -> Replies (Mobile Order). Hide Sources when content is private. */}
       <div className={`px-5 py-6 space-y-8 ${isPublic ? "pb-24" : ""}`}>
-        {/* Sources Section */}
-        <SourcesSection postId={post.id} />
+        {showPrivateContent && (
+          <SourcesSection postId={post.id} postBody={post.body} />
+        )}
 
         {/* Referenced by — only when post has been quoted */}
         {(post.quoteCount ?? 0) > 0 && (

@@ -55,15 +55,17 @@ function ComposeContentInner() {
       ? `citewalk_draft_reply_${replyToPostId}`
       : "citewalk_draft_new";
 
-  // Load draft on mount
+  // Load draft on mount; when opening for quote with no draft, insert cite link (parity with mobile)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(draftKey);
-      if (saved) {
+      if (saved && saved.trim()) {
         setBody(saved);
+      } else if (quotePostId) {
+        setBody(`[[post:${quotePostId}]]\n\n`);
       }
     }
-  }, [draftKey]);
+  }, [draftKey, quotePostId]);
 
   // Save draft on change
   useEffect(() => {

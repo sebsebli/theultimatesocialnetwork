@@ -10,6 +10,7 @@ import {
   DefaultValuePipe,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { TopicsService } from './topics.service';
 import { TopicFollowsService } from './topic-follows.service';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -28,11 +29,12 @@ export class TopicsController {
   }
 
   @Get(':slug')
+  @UseGuards(OptionalJwtAuthGuard)
   async findOne(
     @Param('slug') slug: string,
     @CurrentUser() user?: { id: string },
   ) {
-    const topic = await this.topicsService.findOne(slug);
+    const topic = await this.topicsService.findOne(slug, user?.id);
     if (!topic) {
       throw new Error('Topic not found');
     }
@@ -48,27 +50,26 @@ export class TopicsController {
   }
 
   @Get(':slug/posts')
+  @UseGuards(OptionalJwtAuthGuard)
   async getPosts(
     @Param('slug') slug: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @CurrentUser() user: { id: string } | undefined,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number = 20,
     @Query('sort') sort: 'ranked' | 'recent' = 'recent',
   ) {
     try {
-      const topic = await this.topicsService.findOne(slug);
+      const topic = await this.topicsService.findOne(slug, user?.id);
       if (!topic) return { items: [], hasMore: false };
 
       const offset = (page - 1) * limit;
-      const posts = await this.topicsService.getTopicPosts(
+      return this.topicsService.getTopicPosts(
         topic.id,
         sort,
         limit,
         offset,
+        user?.id,
       );
-      return {
-        items: posts,
-        hasMore: posts.length === limit,
-      };
     } catch (err) {
       console.error('topics getPosts error', slug, err);
       return { items: [], hasMore: false };
@@ -76,12 +77,14 @@ export class TopicsController {
   }
 
   @Get(':slug/people')
+  @UseGuards(OptionalJwtAuthGuard)
   async getPeople(
     @Param('slug') slug: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @CurrentUser() user: { id: string } | undefined,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number = 20,
   ) {
-    const topic = await this.topicsService.findOne(slug);
+    const topic = await this.topicsService.findOne(slug, user?.id);
     if (!topic) throw new Error('Topic not found');
 
     const offset = (page - 1) * limit;
@@ -89,6 +92,7 @@ export class TopicsController {
       topic.id,
       limit,
       offset,
+      user?.id,
     );
     return {
       items: people,

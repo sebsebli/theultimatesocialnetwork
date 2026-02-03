@@ -70,6 +70,8 @@ else
   echo -e "${BLUE}🚀 Deploying to LOCAL / DEV${NC}"
   COMPOSE_FILES="-f docker-compose.yml"
   MIGRATION_CMD="npm run migration:run"
+  # No Nginx rate limits for local (agent seeding, load testing)
+  export NGINX_CONFIG_FILE=nginx.local.conf
 fi
 
 COMPOSE_CMD="docker compose $COMPOSE_FILES"
@@ -157,6 +159,12 @@ $COMPOSE_CMD up -d
 
 echo "⏳ Waiting for services..."
 sleep 10
+
+# Image moderation: NSFW detector (Falconsai/nsfw_image_detection) when MODERATION_IMAGE_SERVICE_URL is set; API waits for it via depends_on. No Ollama vision.
+MOD_IMG_URL=$(get_env MODERATION_IMAGE_SERVICE_URL 2>/dev/null || true)
+if [ -n "$MOD_IMG_URL" ]; then
+  echo "🖼️  Image moderation: NSFW detector. API will start once nsfw-detector is healthy."
+fi
 
 # Migrations
 echo "🔄 Running database migrations..."

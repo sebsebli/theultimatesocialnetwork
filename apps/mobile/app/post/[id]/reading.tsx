@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { api, getImageUrl } from '../../../utils/api';
+import { api, getImageUrl, getAvatarUri } from '../../../utils/api';
 import { MarkdownText } from '../../../components/MarkdownText';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles, toDimension, toDimensionValue } from '../../../constants/theme';
 const ACTION_ICON_SIZE = HEADER.iconSize;
@@ -33,7 +33,7 @@ import { ReportModal } from '../../../components/ReportModal';
 import { OptionsActionSheet } from '../../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../../components/ConfirmModal';
 import { PostPreviewRow } from '../../../components/PostPreviewRow';
-import { EmptyState } from '../../../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../../components/EmptyState';
 import { useToast } from '../../../context/ToastContext';
 import {
   savePostForOffline,
@@ -58,6 +58,7 @@ interface Post {
   isKept?: boolean;
   lang?: string | null;
   referenceMetadata?: Record<string, { title?: string }>;
+  deletedAt?: string;
 }
 
 export default function ReadingModeScreen() {
@@ -84,27 +85,38 @@ export default function ReadingModeScreen() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [offlineEnabled, setOfflineEnabled] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [deniedAuthor, setDeniedAuthor] = useState<{ id: string; handle: string; displayName: string; avatarKey?: string | null } | null>(null);
 
   const loadPost = useCallback(async () => {
     if (!postId) return;
     setLoading(true);
+    setAccessDenied(false);
+    setDeniedAuthor(null);
     try {
       const postData = await api.get(`/posts/${postId}`);
       setPost(postData);
       setLiked(!!postData?.isLiked);
       setKept(!!postData?.isKept);
-      const [sourcesData, quotesData, downloaded, enabled] = await Promise.all([
-        api.get(`/posts/${postId}/sources`).catch(() => []),
-        api.get(`/posts/${postId}/quotes`).catch(() => []),
-        isPostDownloaded(postId),
-        getDownloadSavedForOffline(),
-      ]);
-      setSources(Array.isArray(sourcesData) ? sourcesData : []);
-      setQuotedBy(Array.isArray(quotesData) ? quotesData : quotesData?.items ?? []);
-      setIsDownloaded(downloaded);
-      setOfflineEnabled(enabled);
+      if (!postData?.deletedAt) {
+        const [sourcesData, quotesData, downloaded, enabled] = await Promise.all([
+          api.get(`/posts/${postId}/sources`).catch(() => []),
+          api.get(`/posts/${postId}/quotes`).catch(() => []),
+          isPostDownloaded(postId),
+          getDownloadSavedForOffline(),
+        ]);
+        setSources(Array.isArray(sourcesData) ? sourcesData : []);
+        setQuotedBy(Array.isArray(quotesData) ? quotesData : quotesData?.items ?? []);
+        setIsDownloaded(downloaded);
+        setOfflineEnabled(enabled);
+      }
     } catch (error: any) {
       setPost(null);
+      if (error?.status === 403 && error?.data?.author) {
+        setAccessDenied(true);
+        setDeniedAuthor(error.data.author as { id: string; handle: string; displayName: string; avatarKey?: string | null });
+        return;
+      }
       if (error?.status === 404) {
         showError(t('post.notFoundMessage', "This post doesn't exist anymore."));
         router.back();
@@ -123,6 +135,46 @@ export default function ReadingModeScreen() {
   useEffect(() => {
     if ((post?.quoteCount ?? 0) === 0) setSourcesTab('sources');
   }, [post?.quoteCount]);
+
+  // Merge API sources with external links extracted from body so all [text](url) show in Sources
+  const mergedSources = useMemo(() => {
+    const apiExternal = sources.filter((s: any) => s.type === 'external');
+    const apiOther = sources.filter((s: any) => s.type !== 'external');
+    const urlSeen = new Set(apiExternal.map((s: any) => s.url).filter(Boolean));
+    const fromBody: { url: string; title: string | null }[] = [];
+    if (post?.body) {
+      const linkRegex = /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+      let m;
+      while ((m = linkRegex.exec(post.body)) !== null) {
+        const url = m[2];
+        if (!urlSeen.has(url)) {
+          urlSeen.add(url);
+          fromBody.push({ url, title: (m[1]?.trim() || null) ?? null });
+        }
+      }
+    }
+    return [
+      ...apiExternal,
+      ...fromBody.map(({ url, title }) => ({ type: 'external' as const, url, title })),
+      ...apiOther,
+    ];
+  }, [sources, post?.body]);
+
+  // Deduplicate sources: show each source once (API may return one per occurrence in body)
+  const sourcesUnique = useMemo(() => {
+    const seen = new Set<string>();
+    return mergedSources.filter((s: any) => {
+      const key =
+        s.type === 'external' ? (s.url ?? s.id) :
+        s.type === 'post' ? s.id :
+        s.type === 'user' ? (s.handle ?? s.id) :
+        s.type === 'topic' ? (s.slug ?? s.id) :
+        `${s.type}-${s.id ?? s.url ?? s.handle ?? s.slug}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [mergedSources]);
 
   const handleLike = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -221,10 +273,73 @@ export default function ReadingModeScreen() {
     );
   }
 
+  // Private post: either 403 (legacy) or 200 with viewerCanSeeContent false
+  const showPrivateOverlay = (accessDenied && deniedAuthor) || (post && post.viewerCanSeeContent === false && post.author);
+  const privateAuthor = deniedAuthor ?? (post?.author ? { id: post.author.id, handle: post.author.handle ?? '', displayName: post.author.displayName ?? '', avatarKey: post.author.avatarKey ?? null } : null);
+
+  if (showPrivateOverlay && privateAuthor) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
+          <Pressable onPress={() => router.back()} style={styles.overlayIconCircle} accessibilityLabel={t('common.back')}>
+            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
+          </Pressable>
+          <View style={{ flex: 1 }} />
+        </View>
+        <View style={styles.privatePostOverlay}>
+          <View style={styles.privatePostBlur}>
+            <MaterialIcons name="lock" size={48} color={COLORS.tertiary} />
+            <Text style={styles.privatePostTitle}>{t('post.privatePost', 'This is a private post')}</Text>
+            <Text style={styles.privatePostSubtext}>
+              {t('post.privatePostSubtext', 'Only followers can see this post. Follow the author to request access.')}
+            </Text>
+          </View>
+          <Pressable
+            style={styles.privatePostAuthorCard}
+            onPress={() => privateAuthor.handle && router.push(`/user/${privateAuthor.handle}`)}
+          >
+            {getAvatarUri({ avatarKey: privateAuthor.avatarKey }) ? (
+              <Image source={{ uri: getAvatarUri({ avatarKey: privateAuthor.avatarKey })! }} style={styles.privatePostAuthorAvatar} contentFit="cover" />
+            ) : (
+              <View style={styles.privatePostAuthorAvatarPlaceholder}>
+                <Text style={styles.privatePostAuthorInitial}>
+                  {(privateAuthor.displayName || privateAuthor.handle || '?').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View style={styles.privatePostAuthorInfo}>
+              <Text style={styles.privatePostAuthorName} numberOfLines={1}>{privateAuthor.displayName || privateAuthor.handle}</Text>
+              <Text style={styles.privatePostAuthorHandle} numberOfLines={1}>@{privateAuthor.handle}</Text>
+            </View>
+            <Text style={styles.privatePostFollowCta}>{t('profile.follow', 'Follow')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   if (!post) {
     return (
       <View style={[styles.container, styles.center]}>
         <Text style={styles.errorText}>Post not found</Text>
+      </View>
+    );
+  }
+
+  if (post.deletedAt) {
+    const deletedDate = new Date(post.deletedAt);
+    const formattedDate = deletedDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    return (
+      <View style={[styles.container, styles.center]}>
+        <View style={styles.deletedPlaceholder}>
+          <MaterialIcons name="delete-outline" size={48} color={COLORS.tertiary} style={styles.deletedPlaceholderIcon} />
+          <Text style={styles.deletedPlaceholderText}>
+            {t('post.deletedOn', { date: formattedDate, defaultValue: `This post has been deleted on ${formattedDate}.` })}
+          </Text>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>{t('common.goBack')}</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -300,8 +415,8 @@ export default function ReadingModeScreen() {
             style={styles.authorLine}
             onPress={() => post.author?.handle && router.push(`/user/${post.author.handle}`)}
           >
-            {(post.author?.avatarKey || post.author?.avatarUrl) ? (
-              <Image source={{ uri: post.author?.avatarKey ? getImageUrl(post.author.avatarKey) : post.author?.avatarUrl }} style={styles.authorAvatarImage} />
+            {getAvatarUri(post.author) ? (
+              <Image source={{ uri: getAvatarUri(post.author)! }} style={styles.authorAvatarImage} />
             ) : (
               <View style={styles.authorAvatar}>
                 <Text style={styles.avatarText}>
@@ -420,11 +535,11 @@ export default function ReadingModeScreen() {
             )}
           </View>
           {sourcesTab === 'sources' ? (
-            sources.length === 0 ? (
+            sourcesUnique.length === 0 ? (
               <Text style={styles.emptyText}>{t('post.noSources', 'No tagged sources in this post.')}</Text>
             ) : (
               <View style={styles.sourcesList}>
-                {sources.map((source: any, index: number) => {
+                {sourcesUnique.map((source: any, index: number) => {
                   const handleSourcePress = () => {
                     if (source.type === 'external' && source.url) Linking.openURL(source.url).catch(() => { });
                     else if (source.type === 'post' && source.id) router.push(`/post/${source.id}`);
@@ -436,7 +551,7 @@ export default function ReadingModeScreen() {
                     ? (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })()
                     : source.type === 'user' ? `@${source.handle}` : source.type === 'topic' ? t('post.topic', 'Topic') : '';
                   return (
-                    <Pressable key={`${source.type}-${source.id ?? source.handle ?? source.slug ?? source.url ?? index}-${index}`} style={styles.sourceCard} onPress={handleSourcePress}>
+                    <Pressable key={source.type === 'external' && source.url ? `ext-${source.url}` : (source.id ?? source.handle ?? source.slug ?? `i-${index}`)} style={styles.sourceCard} onPress={handleSourcePress}>
                       <View style={styles.sourceCardLeft}>
                         {source.type === 'user' ? (
                           <View style={styles.sourceAvatar}>
@@ -465,11 +580,13 @@ export default function ReadingModeScreen() {
               </View>
             )
           ) : quotedBy.length === 0 ? (
-            <EmptyState icon="format-quote" headline={t('post.noQuotes', 'No one has quoted this post yet.')} compact />
+            <View style={[emptyStateCenterWrapStyle, { minHeight: 220 }]}>
+              <EmptyState icon="format-quote" headline={t('post.noQuotes', 'No one has quoted this post yet.')} compact />
+            </View>
           ) : (
-            <View style={{ gap: 0 }}>
+            <View style={styles.quotedList}>
               {quotedBy.map((p: any) => (
-                <PostPreviewRow key={p.id} post={p} />
+                <PostPreviewRow key={p.id} post={p} fullWidth />
               ))}
             </View>
           )}
@@ -561,6 +678,84 @@ const styles = createStyles({
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     lineHeight: 34,
+  },
+
+  privatePostOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+  },
+  privatePostBlur: {
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.xxl,
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+    minWidth: '100%',
+  },
+  privatePostTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    marginTop: SPACING.l,
+  },
+  privatePostSubtext: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: SPACING.s,
+    textAlign: 'center',
+  },
+  privatePostAuthorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.m,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    width: '100%',
+    gap: SPACING.m,
+  },
+  privatePostAuthorAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  privatePostAuthorAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  privatePostAuthorInitial: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  privatePostAuthorInfo: { flex: 1, minWidth: 0 },
+  privatePostAuthorName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  privatePostAuthorHandle: {
+    fontSize: 14,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    marginTop: 2,
+  },
+  privatePostFollowCta: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
   },
 
   article: {
@@ -678,6 +873,9 @@ const styles = createStyles({
   sourcesList: {
     gap: SPACING.s,
   },
+  quotedList: {
+    gap: SPACING.s,
+  },
   sourceCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -735,4 +933,28 @@ const styles = createStyles({
     marginTop: 2,
   },
   errorText: { color: COLORS.error, fontSize: 16, fontFamily: FONTS.medium },
+  deletedPlaceholder: {
+    alignItems: 'center',
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+  },
+  deletedPlaceholderIcon: {
+    marginBottom: SPACING.l,
+  },
+  deletedPlaceholderText: {
+    fontSize: 16,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
+  },
+  backButton: {
+    marginTop: SPACING.l,
+    paddingVertical: SPACING.m,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+  },
+  backButtonText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+  },
 });

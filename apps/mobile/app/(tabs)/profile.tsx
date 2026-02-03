@@ -1,24 +1,22 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Modal, TextInput, Linking, Share, InteractionManager, Platform, Switch, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, FlatList, Pressable, ScrollView, RefreshControl, ActivityIndicator, Modal, TextInput, Linking, Share, InteractionManager, Platform, Switch, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { api, getImageUrl, getApiBaseUrl, getWebAppBaseUrl } from '../../utils/api';
+import { api, getImageUrl, getAvatarUri, getApiBaseUrl, getWebAppBaseUrl } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
 import { CollectionCard } from '../../components/CollectionCard';
-import { EmptyState } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, PROFILE_HEADER_ASPECT_RATIO, toColor, toDimension, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, toColor, toDimension, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { ListFooterLoader } from '../../components/ListFooterLoader';
 import { formatCompactNumber } from '../../utils/format';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../components/ConfirmModal';
-import { DrawBackgroundModal } from '../../components/DrawBackgroundModal';
-import { ProfileHeaderSection } from '../../components/ProfileHeaderSection';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -40,11 +38,10 @@ export default function ProfileScreen() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'saved' | 'collections'>('posts');
   const [profileLoading, setProfileLoading] = useState(true);
+  const [tabContentLoading, setTabContentLoading] = useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [avatarActionModalVisible, setAvatarActionModalVisible] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [headerEditModalVisible, setHeaderEditModalVisible] = useState(false);
-  const [drawModalVisible, setDrawModalVisible] = useState(false);
   // Collections tab: options sheet, edit modal, delete confirm
   const [collectionOptionsVisible, setCollectionOptionsVisible] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<any>(null);
@@ -155,7 +152,8 @@ export default function ProfileScreen() {
     setPage(1);
     setPosts([]);
     setHasMore(true);
-    loadTabContent(uid, 1, true);
+    setTabContentLoading(true);
+    loadTabContent(uid, 1, true).finally(() => setTabContentLoading(false));
   }, [activeTab, user?.id, loadTabContent]);
 
   const onRefresh = async () => {
@@ -172,6 +170,8 @@ export default function ProfileScreen() {
       loadProfile(nextPage, false).finally(() => setLoadingMore(false));
     }
   }, [refreshing, loadingMore, hasMore, page, handle, activeTab]);
+
+  const listBottomPadding = 50 + insets.bottom + 40;
 
   const handleFollow = async () => {
     if (isSelf) {
@@ -196,10 +196,11 @@ export default function ProfileScreen() {
 
   const renderItem = useCallback(({ item }: { item: any }) => (
     <PostItem
-      post={item}
+      post={activeTab === 'saved' ? { ...item, isKept: true } : item}
       onDeleted={isSelf ? () => setPosts((prev) => prev.filter((p) => p.id !== item.id)) : undefined}
+      onKeep={activeTab === 'saved' && isSelf ? () => setPosts((prev) => prev.filter((p) => p.id !== item.id)) : undefined}
     />
-  ), [isSelf]);
+  ), [isSelf, activeTab]);
 
   const openCollectionOptions = useCallback((collection: any) => {
     Haptics.selectionAsync();
@@ -272,6 +273,7 @@ export default function ProfileScreen() {
         description: item.description,
         itemCount: item.itemCount ?? 0,
         previewImageKey: item.previewImageKey,
+        recentPost: item.recentPost ?? undefined,
       }}
       onPress={() => {
         Haptics.selectionAsync();
@@ -305,19 +307,22 @@ export default function ProfileScreen() {
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
-      if (result.canceled) return;
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
       setAvatarUploading(true);
-      const uploadRes = await api.upload('/upload/profile-picture', result.assets[0]);
-      const key = uploadRes?.key;
-      if (key) {
-        await api.patch('/users/me', { avatarKey: key });
-        setUser((prev: any) => (prev ? { ...prev, avatarUrl: uploadRes?.url ?? getImageUrl(key), avatarKey: key } : prev));
+      const uploadRes = await api.upload('/upload/profile-picture', asset);
+      const key = uploadRes?.key ?? (uploadRes as any)?.data?.key;
+      if (!key || typeof key !== 'string') {
+        showError(t('profile.photoUpdateFailed', 'Failed to update photo.'));
+        return;
       }
+      await api.patch('/users/me', { avatarKey: key });
+      setUser((prev: any) => (prev ? { ...prev, avatarUrl: uploadRes?.url ?? (uploadRes as any)?.url ?? getImageUrl(key), avatarKey: key } : prev));
     } catch (e) {
       console.error(e);
       showError(t('profile.photoUpdateFailed', 'Failed to update photo.'));
@@ -331,7 +336,7 @@ export default function ProfileScreen() {
     setAvatarActionModalVisible(true);
   }, [isSelf]);
 
-  const hasAvatar = !!(user?.avatarKey || user?.avatarUrl);
+  const hasAvatar = !!getAvatarUri(user);
   const closeAvatarAction = useCallback(() => setAvatarActionModalVisible(false), []);
 
   const rssFeedUrl = user?.handle ? `${getApiBaseUrl()}/rss/${encodeURIComponent(user.handle)}` : '';
@@ -356,50 +361,6 @@ export default function ProfileScreen() {
     });
   }, [user?.handle, user?.displayName, t]);
 
-  const removeHeaderImage = useCallback(async () => {
-    if (!isSelf || !user) return;
-    try {
-      await api.patch('/users/me', { profileHeaderKey: null });
-      setUser((prev: any) => (prev ? { ...prev, profileHeaderUrl: null, profileHeaderKey: null } : prev));
-    } catch (e) {
-      console.error(e);
-      showError(t('profile.photoUpdateFailed', 'Failed to remove header.'));
-    }
-    setHeaderEditModalVisible(false);
-  }, [isSelf, user, showError, t]);
-
-  const hasHeaderImage = !!(user?.profileHeaderKey || user?.profileHeaderUrl);
-  const profileHeaderImageUrl = (user?.profileHeaderKey ? getImageUrl(user.profileHeaderKey) : null) || user?.profileHeaderUrl || null;
-
-  const openDrawModal = useCallback(() => {
-    setHeaderEditModalVisible(false);
-    setDrawModalVisible(true);
-  }, []);
-
-  const handleDrawSaved = useCallback((key: string, url?: string) => {
-    setUser((prev: any) =>
-      prev
-        ? {
-          ...prev,
-          profileHeaderKey: key,
-          profileHeaderUrl: url || (prev.profileHeaderUrl ?? undefined),
-        }
-        : prev,
-    );
-    // Refetch to stay in sync; merge so we keep new key/url if server lags
-    api.get('/users/me').then((data: any) => {
-      setUser((prev: any) =>
-        prev
-          ? {
-            ...data,
-            profileHeaderKey: data?.profileHeaderKey ?? prev.profileHeaderKey,
-            profileHeaderUrl: data?.profileHeaderUrl ?? prev.profileHeaderUrl,
-          }
-          : data,
-      );
-    }).catch(() => { });
-  }, []);
-
   return (
     <View style={styles.container}>
       {profileLoading && !user ? (
@@ -422,37 +383,20 @@ export default function ProfileScreen() {
         </View>
       ) : (
         <FlatList
-          data={posts}
+          data={activeTab === 'collections' ? posts : posts.filter((p: any) => !!p?.author)}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
+          contentInset={Platform.OS === 'ios' ? { top: insets.top } : undefined}
+          contentOffset={Platform.OS === 'ios' ? { x: 0, y: -insets.top } : undefined}
           keyExtractor={keyExtractor}
           renderItem={activeTab === 'collections' ? renderCollectionItem : renderItem}
           ListHeaderComponent={
             <View style={styles.profileListHeader}>
-              <View style={[styles.profileHeaderContainer, { width: screenWidth, height: Math.round(screenWidth / PROFILE_HEADER_ASPECT_RATIO) }]}>
-                {profileHeaderImageUrl ? (
-                  <Image
-                    source={{ uri: profileHeaderImageUrl }}
-                    style={styles.profileHeaderBackground}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                  />
-                ) : (
-                  <View style={styles.profileHeaderBackgroundBlack} />
-                )}
-                {/* Overlay for text contrast */}
-                <View style={styles.profileHeaderOverlay} />
-
+              <View style={[styles.profileHeaderContainer, { paddingTop: insets.top + 10 }]}>
                 {/* Top Action Buttons */}
-                <View style={[styles.headerBar, { paddingTop: insets.top + 10 }]}>
+                <View style={styles.headerBar}>
                   {isSelf ? (
-                    <Pressable
-                      onPress={() => setHeaderEditModalVisible(true)}
-                      style={styles.iconButton}
-                      accessibilityLabel={t('profile.editHeader', 'Edit background')}
-                    >
-                      <MaterialIcons name="edit" size={HEADER.iconSize} color={HEADER.iconColor} />
-                    </Pressable>
+                    <View style={styles.iconButton} />
                   ) : (
                     <Pressable onPress={() => router.back()} style={styles.iconButton}>
                       <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
@@ -478,9 +422,9 @@ export default function ProfileScreen() {
                     >
                       {avatarUploading ? (
                         <ActivityIndicator color={COLORS.primary} />
-                      ) : (user.avatarKey || user.avatarUrl) ? (
+                      ) : getAvatarUri(user) ? (
                         <Image
-                          source={{ uri: user.avatarKey ? getImageUrl(user.avatarKey) : user.avatarUrl }}
+                          source={{ uri: getAvatarUri(user)! }}
                           style={styles.avatarImage}
                           contentFit="cover"
                           cachePolicy="memory-disk"
@@ -552,32 +496,42 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
-              {/* Tabs: Posts, Replies, Quotes, Saved (own only), Collections */}
-              <View style={styles.tabsContainer}>
-                {(isSelf
-                  ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
-                  : (['posts', 'replies', 'quotes', 'collections'] as const)
-                ).map((tab) => {
-                  const count = tab === 'posts' ? (user.postCount ?? 0)
-                    : tab === 'replies' ? (user.replyCount ?? 0)
-                      : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
-                        : tab === 'saved' ? (user.keepsCount ?? 0)
-                          : (user.collectionCount ?? 0);
-                  return (
-                    <Pressable
-                      key={tab}
-                      style={[styles.tab, activeTab === tab && styles.tabActive]}
-                      onPress={() => setActiveTab(tab)}
-                      accessibilityLabel={count > 0 ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: activeTab === tab }}
-                    >
-                      <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                        {t(`profile.${tab}`)}{count > 0 ? ` (${formatCompactNumber(count)})` : ''}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+              {/* Tabs: evenly distributed on full width; scroll when many */}
+              <View style={[styles.tabsContainer, { width: screenWidth }]}>
+                <ScrollView
+                  horizontal
+                  showsVerticalScrollIndicator={false}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={[styles.tabsContent, { minWidth: screenWidth }]}
+                  style={styles.tabsScrollView}
+                >
+                  <View style={[styles.tabsRow, { minWidth: screenWidth }]}>
+                    {(isSelf
+                      ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
+                      : (['posts', 'replies', 'quotes', 'collections'] as const)
+                    ).map((tab) => {
+                      const count = tab === 'posts' ? (user.postCount ?? 0)
+                        : tab === 'replies' ? (user.replyCount ?? 0)
+                          : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
+                            : tab === 'saved' ? (user.keepsCount ?? 0)
+                              : (user.collectionCount ?? 0);
+                      return (
+                        <Pressable
+                          key={tab}
+                          style={[styles.tab, activeTab === tab && styles.tabActive]}
+                          onPress={() => setActiveTab(tab)}
+                          accessibilityLabel={count > 0 ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
+                          accessibilityRole="tab"
+                          accessibilityState={{ selected: activeTab === tab }}
+                        >
+                          <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]} numberOfLines={1}>
+                            {t(`profile.${tab}`)}{count > 0 ? ` (${formatCompactNumber(count)})` : ''}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
               </View>
               {isSelf && activeTab === 'saved' && (
                 <Pressable
@@ -606,40 +560,49 @@ export default function ProfileScreen() {
             </View>
           }
           ListEmptyComponent={
-            <EmptyState
-              icon={
-                activeTab === 'saved' ? 'bookmark-outline'
-                  : activeTab === 'collections' ? 'folder-open'
-                    : activeTab === 'replies' ? 'chat-bubble-outline'
-                      : activeTab === 'quotes' ? 'format-quote'
-                        : 'article'
-              }
-              headline={
-                activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
-                  : activeTab === 'collections' ? (isSelf ? t('profile.noCollectionsOwn', 'No collections') : t('profile.noCollections', 'No public collections'))
-                    : activeTab === 'replies' ? t('profile.noReplies', 'No replies yet')
-                      : activeTab === 'quotes' ? t('profile.noQuotes', 'No quotes yet')
-                        : t('profile.noPosts', 'No posts yet')
-              }
-              subtext={
-                activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
-                  : activeTab === 'posts' ? t('profile.noPostsHint', 'Share your first post or quote someone.')
-                    : activeTab === 'collections' ? (isSelf ? t('profile.noCollectionsOwnHint', 'Create a collection to organize your posts.') : t('profile.noCollectionsHint', 'Public collections will appear here.'))
-                      : activeTab === 'replies' ? t('profile.noRepliesHint', 'Replies will show here.')
-                        : activeTab === 'quotes' ? t('profile.noQuotesHint', 'Quotes will show here.')
-                          : undefined
-              }
-              secondaryLabel={
-                activeTab === 'saved' ? t('profile.keepsLibrary', 'Keeps library')
-                  : isSelf && activeTab === 'collections' ? t('collections.create', 'Create collection')
-                    : undefined
-              }
-              onSecondary={
-                activeTab === 'saved' ? () => router.push('/keeps')
-                  : isSelf && activeTab === 'collections' ? () => router.push('/collections')
-                    : undefined
-              }
-            />
+            <View style={emptyStateCenterWrapStyle}>
+              {tabContentLoading ? (
+                <View style={styles.tabLoadingWrap}>
+                  <ActivityIndicator size="large" color={COLORS.primary} />
+                  <Text style={styles.tabLoadingText}>{t('common.loading')}</Text>
+                </View>
+              ) : (
+                <EmptyState
+                  icon={
+                    activeTab === 'saved' ? 'bookmark-outline'
+                      : activeTab === 'collections' ? 'folder-open'
+                        : activeTab === 'replies' ? 'chat-bubble-outline'
+                          : activeTab === 'quotes' ? 'format-quote'
+                            : 'article'
+                  }
+                  headline={
+                    activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
+                      : activeTab === 'collections' ? (isSelf ? t('profile.noCollectionsOwn', 'No collections') : t('profile.noCollections', 'No public collections'))
+                        : activeTab === 'replies' ? t('profile.noReplies', 'No replies yet')
+                          : activeTab === 'quotes' ? t('profile.noQuotes', 'No quotes yet')
+                            : t('profile.noPosts', 'No posts yet')
+                  }
+                  subtext={
+                    activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
+                      : activeTab === 'posts' ? t('profile.noPostsHint', 'Share your first post or quote someone.')
+                        : activeTab === 'collections' ? (isSelf ? t('profile.noCollectionsOwnHint', 'Create a collection to organize your posts.') : t('profile.noCollectionsHint', 'Public collections will appear here.'))
+                          : activeTab === 'replies' ? t('profile.noRepliesHint', 'Replies will show here.')
+                            : activeTab === 'quotes' ? t('profile.noQuotesHint', 'Quotes will show here.')
+                              : undefined
+                  }
+                  secondaryLabel={
+                    activeTab === 'saved' ? t('profile.keepsLibrary', 'Keeps library')
+                      : isSelf && activeTab === 'collections' ? t('collections.create', 'Create collection')
+                        : undefined
+                  }
+                  onSecondary={
+                    activeTab === 'saved' ? () => router.push('/keeps')
+                      : isSelf && activeTab === 'collections' ? () => router.push('/collections')
+                        : undefined
+                  }
+                />
+              )}
+            </View>
           }
           ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
           refreshControl={
@@ -652,16 +615,20 @@ export default function ProfileScreen() {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           {...FLATLIST_DEFAULTS}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: listBottomPadding },
+            (activeTab === 'collections' ? posts : posts.filter((p: any) => !!p?.author)).length === 0 && { flexGrow: 1 },
+          ]}
         />
       )}
 
       <Modal visible={avatarModalVisible} transparent animationType="fade">
         <Pressable style={styles.avatarModalOverlay} onPress={() => setAvatarModalVisible(false)}>
           <View style={styles.avatarModalContent}>
-            {(user?.avatarKey || user?.avatarUrl) ? (
+            {getAvatarUri(user) ? (
               <Image
-                source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
+                source={{ uri: getAvatarUri(user)! }}
                 style={styles.avatarModalImage}
                 contentFit="contain"
                 cachePolicy="memory-disk"
@@ -691,7 +658,11 @@ export default function ProfileScreen() {
             )}
             <Pressable
               style={({ pressed }: { pressed: boolean }) => [styles.actionModalOption, pressed && styles.actionModalOptionPressed]}
-              onPress={() => { closeAvatarAction(); changeAvatar(); }}
+              onPress={() => {
+                closeAvatarAction();
+                // Delay so the modal closes before the image picker opens (avoids picker not showing on iOS/Android)
+                setTimeout(() => changeAvatar(), 350);
+              }}
             >
               <MaterialIcons name="photo-camera" size={HEADER.iconSize} color={HEADER.iconColor} />
               <Text style={styles.actionModalOptionText}>{hasAvatar ? t('profile.changePhoto', 'Change photo') : t('profile.changePhoto', 'Add photo')}</Text>
@@ -790,17 +761,6 @@ export default function ProfileScreen() {
       />
 
       <OptionsActionSheet
-        visible={headerEditModalVisible}
-        title={t('profile.backgroundDraw', 'Background')}
-        options={[
-          { label: t('profile.drawHeader', 'Draw background'), onPress: openDrawModal, icon: 'brush' },
-          ...(hasHeaderImage ? [{ label: t('profile.removePhoto', 'Remove'), onPress: removeHeaderImage, destructive: true as const, icon: 'delete-outline' as const }] : []),
-        ]}
-        cancelLabel={t('common.cancel')}
-        onCancel={() => setHeaderEditModalVisible(false)}
-      />
-
-      <OptionsActionSheet
         visible={profileOptionsVisible}
         title={t('profile.options', 'Options')}
         cancelLabel={t('common.cancel')}
@@ -810,14 +770,6 @@ export default function ProfileScreen() {
           { label: t('profile.rssFeed', 'RSS Feed'), onPress: handleOpenRssFeed, icon: 'rss-feed' },
           ...(isSelf ? [{ label: t('settings.title', 'Settings'), onPress: () => { setProfileOptionsVisible(false); router.push('/settings'); }, icon: 'settings' as const }] : []),
         ]}
-      />
-
-      <DrawBackgroundModal
-        visible={drawModalVisible}
-        onClose={() => setDrawModalVisible(false)}
-        onSaved={handleDrawSaved}
-        profileHeaderUrl={profileHeaderImageUrl}
-        user={user}
       />
     </View>
   );
@@ -832,6 +784,16 @@ const styles = createStyles({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  tabLoadingWrap: {
+    paddingVertical: SPACING.xxxl,
+    alignItems: 'center',
+    gap: SPACING.m,
+  },
+  tabLoadingText: {
+    fontSize: 16,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
   },
   errorText: {
     color: COLORS.error,
@@ -867,45 +829,31 @@ const styles = createStyles({
     paddingBottom: 40,
   },
   profileHeaderContainer: {
-    position: 'relative',
     width: '100%',
-    overflow: 'hidden',
+    backgroundColor: COLORS.ink,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingBottom: SPACING.l,
   },
-  profileHeaderBackground: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  profileHeaderBackgroundBlack: {
-    ...StyleSheet.absoluteFillObject,
+  profileListHeader: {
+    width: '100%',
     backgroundColor: COLORS.ink,
   },
-  profileHeaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)', // Subtle dim for text contrast
+  iconButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.s,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
   },
   profileHeaderContent: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    top: 0,
-    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    paddingBottom: SPACING.l,
     gap: SPACING.l,
-    zIndex: 5,
   },
   avatarContainer: {
     position: 'relative',
@@ -1161,16 +1109,28 @@ const styles = createStyles({
     right: -12,
   },
   tabsContainer: {
-    flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider, // consistent with other borders
     backgroundColor: COLORS.ink, // backdrop blur simul - using ink base
     opacity: 0.95,
   },
+  tabsScrollView: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  tabsContent: {
+    paddingRight: SPACING.l,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   tab: {
-    flex: 1,
+    flexShrink: 0,
     alignItems: 'center',
     paddingVertical: SPACING.m,
+    paddingHorizontal: SPACING.xs,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },

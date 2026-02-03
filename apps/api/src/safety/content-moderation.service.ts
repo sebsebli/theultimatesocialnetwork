@@ -35,29 +35,52 @@ export type ModerationResult = {
   reasonCode?: ModerationReasonCode;
 };
 
-/** Zod schema for text moderation – structured output only (ollama.chat format). */
-const ModerationTextSchema = z.object({
-  safe: z.boolean(),
-  reason: z.string(),
-  confidence: z.number(),
-  reasonCode: z
-    .enum([
-      'SPAM',
-      'ADVERTISING',
-      'HARASSMENT',
-      'REPEATED',
-      'VIOLENCE',
-      'HATE',
-      'OTHER',
-    ])
-    .optional(),
+/** Text moderation response from granite4 (content moderation assistant). */
+const GraniteTextSchema = z.object({
+  type: z.enum(['ban', 'okay']),
+  confidence: z.number().min(0).max(1),
+  reasons: z.array(z.string()),
 });
 
-const ModerationImageSchema = z.object({
-  safe: z.boolean(),
-  reason: z.string(),
-  confidence: z.number(),
-});
+const GRANITE_SYSTEM_PROMPT = `You are a content moderation assistant for a social network.
+
+Your task is to evaluate the given content and decide whether it should be **published** or **blocked**.
+
+You must take a **relatively permissive approach**:
+
+* Default to allowing content.
+* Only return \`"ban"\` when the content **clearly and strongly violates policy**.
+* If the violation is ambiguous, mild, contextual, or borderline, prefer \`"okay"\`.
+
+You must respond **ONLY** with a valid JSON object.
+**Do not include any explanations, comments, or extra text outside the JSON. This is strictly enforced.**
+
+### Response format
+
+{
+  "type": "ban" | "okay",
+  "confidence": 0.0,
+  "reasons": []
+}
+
+### Field definitions
+
+* **type**
+  * \`"ban\`" → the content must NOT be published (use only for clear, severe violations)
+  * \`"okay\`" → the content is allowed to be published
+
+* **confidence**
+  * A number between \`0.0\` and \`1.0\`
+  * \`1.0\` = high confidence in the decision
+  * \`0.0\` = low confidence in the decision
+
+* **reasons**
+  * An **array** of one or more applicable categories
+  * Allowed values: harassment, hate_speech, violence, sexual_content, self_harm, illegal_activity, misinformation, spam, copyright_violation, privacy_violation, other, none
+  * Use \`"none\`" **only** when \`type\` is \`"okay\`" and no policy violations are detected.
+
+### Output rules (strict)
+* Return **ONLY** the JSON object. No markdown. No prose. No explanations. No additional fields.`;
 
 function getConfig() {
   return {
@@ -75,6 +98,9 @@ function getConfig() {
       parseInt(process.env.OLLAMA_CHAT_TIMEOUT_MS || '8000', 10) || 8000,
     ollamaImageTimeoutMs:
       parseInt(process.env.OLLAMA_IMAGE_TIMEOUT_MS || '15000', 10) || 15000,
+    ollamaTextModel: process.env.OLLAMA_TEXT_MODEL || 'granite4:latest',
+    /** Falconsai/nsfw_image_detection service URL. When set, used for image moderation. No Ollama vision. */
+    moderationImageServiceUrl: process.env.MODERATION_IMAGE_SERVICE_URL || '',
   };
 }
 
@@ -114,22 +140,29 @@ export class ContentModerationService implements OnModuleInit {
   }
 
   private async checkOllamaModels() {
+    const cfg = getConfig();
+    if (cfg.moderationImageServiceUrl) {
+      this.hasImageModel = true;
+      this.logger.log(
+        `Image moderation: NSFW detector at ${cfg.moderationImageServiceUrl}`,
+      );
+    }
     try {
       const list = await this.ollama.list();
       const names = (list.models ?? []).map((m) => m.name ?? '');
+      const textBase = cfg.ollamaTextModel.split(':')[0];
       this.hasTextModel = names.some(
         (n: string) =>
-          n.includes('qwen2.5') || n.includes('gemma') || n.includes('llama'),
-      );
-      this.hasImageModel = names.some(
-        (n: string) =>
-          n.includes('qwen2-vl') ||
-          n.includes('moondream') ||
-          n.includes('llava') ||
-          n.includes('minicpm'),
+          n === cfg.ollamaTextModel ||
+          n.startsWith(`${textBase}:`) ||
+          n === textBase ||
+          n.includes('granite') ||
+          n.includes('qwen2.5') ||
+          n.includes('gemma') ||
+          n.includes('llama'),
       );
       this.logger.log(
-        `Ollama: text=${this.hasTextModel}, image=${this.hasImageModel}`,
+        `Ollama: text=${this.hasTextModel} (model=${cfg.ollamaTextModel}), image=${this.hasImageModel}${cfg.moderationImageServiceUrl ? ' (NSFW detector)' : ' (none)'}`,
       );
     } catch (e: unknown) {
       this.logger.warn('Ollama unavailable', (e as Error).message);
@@ -313,15 +346,21 @@ export class ContentModerationService implements OnModuleInit {
   }
 
   private async stage2AIAnalysis(text: string): Promise<ModerationResult> {
-    if (!this.hasTextModel) return this.fallbackContentAnalysis(text);
-
     const cfg = getConfig();
+    if (!this.hasTextModel) {
+      this.logger.warn('Text moderation skipped: model not available.');
+      return {
+        safe: false,
+        reason: `Text moderation not configured. Pull ${cfg.ollamaTextModel} (OLLAMA_TEXT_MODEL).`,
+        confidence: 0,
+        reasonCode: ModerationReasonCode.OTHER,
+      };
+    }
+
     const end = moderationDuration.startTimer({ stage: 'ollama' });
     try {
-      const model = 'qwen2.5:0.5b';
-      const userContent = `You are a content moderator. Most content should be allowed (safe: true).
-ALLOW: controversial opinions, debate, strong views, criticism, satire. ONLY flag (safe: false) clear violations: spam, excessive advertising, harassment/threats, hate speech, incitement to violence, doxxing. When in doubt, safe: true.
-Analyze this text and respond with the required JSON schema only. Text to analyze: ${JSON.stringify(text.substring(0, 300))}`;
+      const contentToEvaluate = text.substring(0, 4000).trim();
+      const userContent = `Content to evaluate:\n\n${contentToEvaluate}`;
 
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(
@@ -331,34 +370,72 @@ Analyze this text and respond with the required JSON schema only. Text to analyz
       );
       const response = await Promise.race([
         this.ollama.chat({
-          model,
-          messages: [{ role: 'user', content: userContent }],
-          format: schemaToFormat(ModerationTextSchema),
+          model: cfg.ollamaTextModel,
+          messages: [
+            { role: 'system', content: GRANITE_SYSTEM_PROMPT },
+            { role: 'user', content: userContent },
+          ],
+          format: schemaToFormat(GraniteTextSchema),
           options: { temperature: 0.1 },
         }),
         timeoutPromise,
       ]);
 
-      const raw = response.message?.content ?? '';
-      const parsed = JSON.parse(raw) as unknown;
-      const result = ModerationTextSchema.parse(parsed);
-      const reasonCode = this.parseReasonCode(result.reasonCode);
+      const raw = (response.message?.content ?? '').trim();
+      const jsonRaw = raw
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '');
+      const parsed = JSON.parse(jsonRaw) as unknown;
+      const result = GraniteTextSchema.parse(parsed);
+      const safe = result.type === 'okay';
+      const reasonCode = safe
+        ? undefined
+        : this.parseReasonFromGranite(
+            result.reasons?.[0] ?? result.reasons?.[1] ?? 'other',
+          );
       end();
-      if (!result.safe) moderationStageCounter.inc({ stage: 'ollama_block' });
+      if (!safe) moderationStageCounter.inc({ stage: 'ollama_block' });
       else moderationStageCounter.inc({ stage: 'ollama_allow' });
       return {
-        safe: result.safe,
-        reason: result.reason || 'AI check',
+        safe,
+        reason: safe
+          ? undefined
+          : result.reasons?.join(', ') || 'Policy violation',
         confidence:
           typeof result.confidence === 'number' ? result.confidence : 0.8,
-        reasonCode: result.safe === false ? reasonCode : undefined,
+        reasonCode,
       };
     } catch (e) {
       end();
       this.logger.warn('Ollama text moderation failed', (e as Error).message);
-      moderationStageCounter.inc({ stage: 'ollama_fallback' });
-      return this.fallbackContentAnalysis(text);
+      moderationStageCounter.inc({ stage: 'ollama_fail' });
+      return {
+        safe: false,
+        reason: 'Text moderation unavailable.',
+        confidence: 0,
+        reasonCode: ModerationReasonCode.OTHER,
+      };
     }
+  }
+
+  /** Map granite reasons (snake_case) to ModerationReasonCode. */
+  private parseReasonFromGranite(reason: string): ModerationReasonCode {
+    const r = (reason || 'other').toLowerCase().trim();
+    const map: Record<string, ModerationReasonCode> = {
+      harassment: ModerationReasonCode.HARASSMENT,
+      hate_speech: ModerationReasonCode.HATE,
+      violence: ModerationReasonCode.VIOLENCE,
+      sexual_content: ModerationReasonCode.OTHER,
+      self_harm: ModerationReasonCode.VIOLENCE,
+      illegal_activity: ModerationReasonCode.OTHER,
+      misinformation: ModerationReasonCode.OTHER,
+      spam: ModerationReasonCode.SPAM,
+      copyright_violation: ModerationReasonCode.OTHER,
+      privacy_violation: ModerationReasonCode.OTHER,
+      other: ModerationReasonCode.OTHER,
+      none: ModerationReasonCode.OTHER,
+    };
+    return map[r] ?? ModerationReasonCode.OTHER;
   }
 
   private parseReasonCode(value: unknown): ModerationReasonCode {
@@ -369,75 +446,89 @@ Analyze this text and respond with the required JSON schema only. Text to analyz
     return ModerationReasonCode.OTHER;
   }
 
+  /** Call Falconsai/nsfw_image_detection service (ViT). Returns { safe, confidence }. */
+  private async callNsfwDetector(
+    buffer: Buffer,
+    cfg: ReturnType<typeof getConfig>,
+  ): Promise<{ safe: boolean; reason?: string; confidence: number }> {
+    const url = `${cfg.moderationImageServiceUrl.replace(/\/$/, '')}/classify`;
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      cfg.ollamaImageTimeoutMs,
+    );
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        body: new Uint8Array(buffer),
+        headers: { 'Content-Type': 'application/octet-stream' },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (!res.ok) {
+        throw new Error(`NSFW detector: ${res.status} ${res.statusText}`);
+      }
+      const json = (await res.json()) as {
+        safe?: boolean;
+        confidence?: number;
+        reason?: string;
+      };
+      return {
+        safe: json.safe === true,
+        reason: json.reason ?? (json.safe ? 'normal' : 'NSFW'),
+        confidence: typeof json.confidence === 'number' ? json.confidence : 0.8,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   private async stage2ImageAnalysis(
     buffer: Buffer,
   ): Promise<{ safe: boolean; reason?: string; confidence: number }> {
-    const visionModel = this.hasImageModel ? 'qwen2-vl' : null;
-    if (!visionModel) return this.fallbackImageAnalysis(buffer);
-
     const cfg = getConfig();
-    const end = moderationDuration.startTimer({ stage: 'ollama_image' });
-    try {
-      const base64 = buffer.toString('base64');
-      const userContent =
-        'Analyze this image for safety: nudity, gore, violence, hate symbols. Respond with the required JSON schema only.';
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Ollama image moderation timeout')),
-          cfg.ollamaImageTimeoutMs,
-        ),
-      );
-      const response = await Promise.race([
-        this.ollama.chat({
-          model: visionModel,
-          messages: [{ role: 'user', content: userContent, images: [base64] }],
-          format: schemaToFormat(ModerationImageSchema),
-          options: { temperature: 0.1 },
-        }),
-        timeoutPromise,
-      ]);
-      const raw = response.message?.content ?? '';
-      const parsed = JSON.parse(raw) as unknown;
-      const result = ModerationImageSchema.parse(parsed);
-      end();
-      return {
-        safe: result.safe,
-        reason: result.reason || 'AI Flagged',
-        confidence:
-          typeof result.confidence === 'number' ? result.confidence : 0.8,
-      };
-    } catch (e) {
-      end();
-      this.logger.warn('Ollama image moderation failed', (e as Error).message);
-      return this.fallbackImageAnalysis(buffer);
-    }
-  }
+    const maxAttempts = 3;
+    const retryDelayMs = 1000;
 
-  private fallbackContentAnalysis(text: string): ModerationResult {
-    const lower = text.toLowerCase();
-    if (['kill', 'murder', 'suicide'].some((w) => lower.includes(w))) {
-      return {
-        safe: false,
-        reason: 'Keyword flag',
-        confidence: 0.6,
-        reasonCode: ModerationReasonCode.VIOLENCE,
-      };
+    // NSFW detector (Falconsai/nsfw_image_detection) when configured; no Ollama vision
+    if (cfg.moderationImageServiceUrl) {
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const end = moderationDuration.startTimer({
+          stage: 'nsfw_detector_image',
+        });
+        try {
+          const result = await this.callNsfwDetector(buffer, cfg);
+          end();
+          return result;
+        } catch (e) {
+          end();
+          this.logger.warn(
+            `NSFW detector failed (attempt ${attempt}/${maxAttempts})`,
+            (e as Error).message,
+          );
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, retryDelayMs));
+            continue;
+          }
+          return {
+            safe: false,
+            reason: 'Image moderation unavailable. Please try again.',
+            confidence: 0,
+          };
+        }
+      }
     }
-    if (lower.includes('hate')) {
-      return {
-        safe: false,
-        reason: 'Keyword flag',
-        confidence: 0.6,
-        reasonCode: ModerationReasonCode.HATE,
-      };
-    }
-    return { safe: true, confidence: 0.5 };
-  }
 
-  private fallbackImageAnalysis(buffer: Buffer) {
-    if (buffer.length < 100)
-      return { safe: false, reason: 'Corrupt', confidence: 1 };
-    return { safe: true, confidence: 0.5 };
+    // No image moderation configured: reject (strictly use MODERATION_IMAGE_SERVICE_URL)
+    this.logger.warn(
+      'Image moderation skipped: MODERATION_IMAGE_SERVICE_URL not set.',
+    );
+    return {
+      safe: false,
+      reason:
+        'Image moderation not configured. Set MODERATION_IMAGE_SERVICE_URL.',
+      confidence: 0,
+    };
   }
 
   async checkContent(
@@ -466,8 +557,13 @@ Analyze this text and respond with the required JSON schema only. Text to analyz
       };
     } catch (e) {
       this.logger.error('checkContent threw', (e as Error).message);
-      moderationStageCounter.inc({ stage: 'error_fail_open' });
-      return { safe: true, confidence: 0.5 };
+      moderationStageCounter.inc({ stage: 'error_fail_closed' });
+      return {
+        safe: false,
+        reason: 'Content moderation error.',
+        confidence: 0,
+        reasonCode: ModerationReasonCode.OTHER,
+      };
     }
   }
 
@@ -476,7 +572,12 @@ Analyze this text and respond with the required JSON schema only. Text to analyz
       return await this.stage2ImageAnalysis(buffer);
     } catch (e) {
       this.logger.error('checkImage threw', (e as Error).message);
-      return this.fallbackImageAnalysis(buffer);
+      // Reject on error (never use mock safe)
+      return {
+        safe: false,
+        reason: 'Image moderation error.',
+        confidence: 0,
+      };
     }
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from "react";
+import { useState, useMemo, memo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -28,7 +28,9 @@ export interface Post {
   privateLikeCount?: number;
   headerImageKey?: string | null;
   headerImageBlurhash?: string | null;
-  referenceMetadata?: Record<string, { title?: string }>;
+  referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
+  /** When false, content is redacted (e.g. FOLLOWERS-only and viewer doesn't follow); show private overlay */
+  viewerCanSeeContent?: boolean;
   media?: { type: string; url: string };
 }
 
@@ -36,18 +38,28 @@ export interface PostItemProps {
   post: Post;
   isAuthor?: boolean;
   isPublic?: boolean;
+  /** When provided, called after successful un-keep so parent can remove from list (e.g. Keeps/Saved tab). */
+  onKeep?: () => void;
 }
 
 function PostItemInner({
   post,
   isAuthor = false,
   isPublic = false,
+  onKeep,
 }: PostItemProps) {
   const t = useTranslations("post");
+  const tCommon = useTranslations("common");
   const router = useRouter();
+  const showPrivateOverlay = post.viewerCanSeeContent === false;
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [kept, setKept] = useState(post.isKept ?? false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
+
+  useEffect(() => {
+    setLiked(post.isLiked ?? false);
+    setKept(post.isKept ?? false);
+  }, [post.id, post.isLiked, post.isKept]);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -91,6 +103,7 @@ function PostItemInner({
       if (!response.ok) {
         throw new Error("Failed to toggle keep");
       }
+      if (previous) onKeep?.();
     } catch {
       setKept(previous);
     }
@@ -183,59 +196,86 @@ function PostItemInner({
         href={post.title ? `/post/${post.id}/reading` : `/post/${post.id}`}
         className="flex flex-col gap-2 cursor-pointer group"
       >
-        {post.title && (
-          <h2 className="text-xl font-bold leading-tight tracking-tight text-paper group-hover:text-primary transition-colors duration-200">
-            {post.title}
-          </h2>
-        )}
-        <div className="relative max-h-[20rem] overflow-hidden">
-          <div
-            className="prose prose-invert max-w-none text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300"
-            dangerouslySetInnerHTML={{
-              __html: renderMarkdown(post.body, {
-                referenceMetadata: post.referenceMetadata,
-              }),
-            }}
-          />
-          {/* Always show fade if content might be long - we rely on max-h + overflow-hidden to cut it off. 
-              Ideally we'd check content length, but for markdown HTML it's hard. 
-              We can assume if body length > 300 chars it might overflow. */}
-          {post.body.length > 300 && (
-            <div
-              className="pointer-events-none absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-ink via-ink/80 to-transparent"
-              aria-hidden
-            />
+        <div className="relative">
+          {showPrivateOverlay ? (
+            <>
+              <div className="min-h-[120px] rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2 text-tertiary">
+                  <svg
+                    className="w-10 h-10"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                  <span className="text-sm font-semibold text-paper">
+                    {tCommon("private")}
+                  </span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {post.title && (
+                <h2 className="text-xl font-bold leading-tight tracking-tight text-paper group-hover:text-primary transition-colors duration-200 mb-1">
+                  {post.title}
+                </h2>
+              )}
+              <div className="relative max-h-[20rem] overflow-hidden mt-1">
+                <div
+                  className="prose prose-invert max-w-none text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300"
+                  dangerouslySetInnerHTML={{
+                    __html: renderMarkdown(post.body, {
+                      referenceMetadata: post.referenceMetadata,
+                    }),
+                  }}
+                />
+                {post.body.length > 300 && (
+                  <div
+                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-ink via-ink/80 to-transparent"
+                    aria-hidden
+                  />
+                )}
+              </div>
+              {post.headerImageKey && (
+                <div className="relative w-full h-[240px] rounded-lg bg-divider mt-4 overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-300">
+                  {post.headerImageBlurhash && (
+                    <Blurhash
+                      hash={post.headerImageBlurhash}
+                      width={32}
+                      height={32}
+                      punch={1}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                      }}
+                    />
+                  )}
+                  <Image
+                    src={getImageUrl(post.headerImageKey)}
+                    alt="Post header"
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-105 z-10"
+                    sizes="(max-width: 768px) 100vw, 680px"
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
-        {post.headerImageKey && (
-          <div className="relative w-full h-[240px] rounded-lg bg-divider mt-4 overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-300">
-            {post.headerImageBlurhash && (
-              <Blurhash
-                hash={post.headerImageBlurhash}
-                width={32}
-                height={32}
-                punch={1}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  height: "100%",
-                }}
-              />
-            )}
-            <Image
-              src={getImageUrl(post.headerImageKey)}
-              alt="Post header"
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105 z-10"
-              sizes="(max-width: 768px) 100vw, 680px"
-            />
-          </div>
-        )}
 
-        {/* Render Rich Media (GIF/Video) */}
-        {post.media && (
+        {/* Render Rich Media (GIF/Video) - only when content visible */}
+        {!showPrivateOverlay && post.media && (
           <div
             className="mb-3 rounded-lg overflow-hidden relative w-full bg-black mt-4"
             onClick={(e) => e.preventDefault()}
@@ -258,8 +298,8 @@ function PostItemInner({
         )}
       </Link>
 
-      {/* Sources Section */}
-      {sources.length > 0 && (
+      {/* Sources Section - hide when private */}
+      {!showPrivateOverlay && sources.length > 0 && (
         <div className="mt-4 pt-3 border-t border-divider/50">
           <h4 className="text-[11px] font-semibold text-tertiary uppercase tracking-wider mb-2">
             Sources & References

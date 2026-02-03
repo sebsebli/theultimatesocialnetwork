@@ -139,6 +139,27 @@ export default function PrivacyPage() {
               <strong>Retention:</strong> Up to 14 days, unless required longer
               for security investigations or legal obligations.
             </p>
+
+            <h3 className="text-lg font-sans font-medium text-[#F2F2F2] mb-2 mt-8">
+              3.5 Session / device information (“Where you’re signed in”)
+            </h3>
+            <p>
+              <strong>Data:</strong> For each sign-in we store a short device or
+              browser description (e.g. device name on the mobile app, or
+              browser and operating system on the web app) and the IP address
+              associated with that session.
+            </p>
+            <p>
+              <strong>Purpose & Legal Basis:</strong> So you can see on which
+              devices and browsers your account is signed in and revoke sessions
+              you do not recognise. Art. 6(1)(f) GDPR (legitimate interest in
+              account security and transparency).
+            </p>
+            <p>
+              <strong>Retention:</strong> Stored for the lifetime of the session
+              (e.g. until you sign out or the session expires). You can revoke
+              any session at any time in Security settings.
+            </p>
           </section>
 
           <section className="mb-12">

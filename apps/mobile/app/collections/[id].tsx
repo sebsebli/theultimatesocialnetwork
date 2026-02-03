@@ -1,30 +1,26 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, Share, ScrollView, Animated, Modal, TextInput, Switch, Image } from 'react-native';
+import { Text, View, Pressable, Share, ScrollView, Animated, Modal, TextInput, Switch, Image } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, getWebAppBaseUrl, getImageUrl } from '../../utils/api';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { PostItem } from '../../components/PostItem';
-import { TopicCollectionHeader, pickRandomHeaderImageKey } from '../../components/TopicCollectionHeader';
-import { EmptyState } from '../../components/EmptyState';
-import { ListFooterLoader } from '../../components/ListFooterLoader';
+import { TopicCollectionHeader } from '../../components/TopicCollectionHeader';
+import { TopicOrCollectionLayout } from '../../components/TopicOrCollectionLayout';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
 import { Collection, CollectionItem } from '../../types';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
-import type { ViewProps } from 'react-native';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../../constants/theme';
 
 const ITEMS_PAGE_SIZE = 20;
-const HERO_FADE_HEIGHT = 200;
-const STICKY_HEADER_APPEAR = 100;
+const HERO_FADE_HEIGHT = 280;
+const STICKY_HEADER_APPEAR = 120;
 const STICKY_FADE_RANGE = 80;
-
-/** Typed Animated.View for React 19 compatibility (JSX element return type). */
-const AnimatedView = Animated.View as (props: ViewProps & { style?: any }) => React.ReactElement | null;
 
 export default function CollectionDetailScreen() {
   const router = useRouter();
@@ -37,7 +33,6 @@ export default function CollectionDetailScreen() {
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [items, setItems] = useState<CollectionItem[]>([]);
-  const [headerImageKey, setHeaderImageKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -50,7 +45,6 @@ export default function CollectionDetailScreen() {
   const [editDescription, setEditDescription] = useState('');
   const [editIsPublic, setEditIsPublic] = useState(true);
   const [editShareSaves, setEditShareSaves] = useState(false);
-  const [stickyVisible, setStickyVisible] = useState(false);
   const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
   const heroOpacity = useMemo(
@@ -201,15 +195,6 @@ export default function CollectionDetailScreen() {
     loadCollection(0, true);
   }, [collectionId]);
 
-  useEffect(() => {
-    if (items.length === 0) return;
-    const key = pickRandomHeaderImageKey(
-      items.map(i => i.post).filter(Boolean),
-      collectionId
-    );
-    setHeaderImageKey(prev => prev ?? key);
-  }, [items, collectionId]);
-
   const renderItem = useCallback(({ item }: { item: CollectionItem }) => {
     if (!item?.post) return null;
     return (
@@ -232,80 +217,43 @@ export default function CollectionDetailScreen() {
   }, [showToast, t]);
 
   const ListEmptyComponent = useMemo(() => (
-    <View style={styles.emptyWrapper}>
-      <EmptyState
-        icon="folder-open"
-        headline={t('collections.emptyDetail', 'No items in this collection')}
-        subtext={t('collections.emptyDetailHint', 'Add posts from the reading screen.')}
-      />
-      <Pressable
-        style={styles.addCitationButton}
-        onPress={handleAddCitationStable}
-        accessibilityLabel={t('collections.addCitation')}
-        accessibilityRole="button"
-      >
-        <MaterialIcons name="add" size={HEADER.iconSize} color={COLORS.primary} />
-        <Text style={styles.addCitationText}>{t('collections.addCitation')}</Text>
-      </Pressable>
+    <View style={emptyStateCenterWrapStyle}>
+      <View style={styles.emptyWrapper}>
+        <EmptyState
+          icon="folder-open"
+          headline={t('collections.emptyDetail', 'No items in this collection')}
+          subtext={t('collections.emptyDetailHint', 'Add posts from the reading screen.')}
+        />
+        <Pressable
+          style={styles.addCitationButton}
+          onPress={handleAddCitationStable}
+          accessibilityLabel={t('collections.addCitation')}
+          accessibilityRole="button"
+        >
+          <MaterialIcons name="add" size={HEADER.iconSize} color={COLORS.primary} />
+          <Text style={styles.addCitationText}>{t('collections.addCitation')}</Text>
+        </Pressable>
+      </View>
     </View>
   ), [t, handleAddCitationStable]);
 
-  const headerBar = (
-    <View style={[styles.headerBar, { paddingTop: insets.top }]}>
-      <Pressable
-        onPress={() => router.back()}
-        style={({ pressed }: { pressed: boolean }) => [styles.backButtonBar, pressed && { opacity: 0.7 }]}
-        accessibilityLabel={t('common.back', 'Go back')}
-        accessibilityRole="button"
-      >
-        <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
-      </Pressable>
-      <Text style={styles.headerBarTitle} numberOfLines={1}>{collection?.title ?? t('collections.title', 'Collection')}</Text>
-      <View style={styles.headerBarSpacer} />
-    </View>
-  );
+  const listData = items.filter((item: CollectionItem) => !!item?.post?.author);
 
-  if (loading) {
+  const headerComponent = useMemo(() => {
+    if (!collection) return null;
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        {headerBar}
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>{t('common.loading')}</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!collection) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        {headerBar}
-        <View style={styles.centered}>
-          <MaterialIcons name="error-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
-          <Text style={styles.errorText}>{t('collections.notFound', 'Collection not found')}</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const listHeader = useMemo(
-    () => (
       <>
-        <AnimatedView style={{ opacity: heroOpacity }}>
-          <TopicCollectionHeader
-            type="collection"
-            title={collection.title}
-            description={collection.description}
-            headerImageKey={headerImageKey}
-            onBack={() => router.back()}
-            onAction={handleShare}
-            actionLabel={t('common.share')}
-            rightAction={isOwner ? 'more' : undefined}
-            onRightAction={isOwner ? () => setMoreOptionsVisible(true) : undefined}
-            metrics={{ itemCount: items.length }}
-          />
-        </AnimatedView>
+        <TopicCollectionHeader
+          type="collection"
+          title={collection.title}
+          description={collection.description}
+          onBack={() => router.back()}
+          onAction={handleShare}
+          actionLabel={t('common.share')}
+          rightAction={isOwner ? 'more' : undefined}
+          onRightAction={isOwner ? () => setMoreOptionsVisible(true) : undefined}
+          metrics={{ itemCount: items.length }}
+        />
         {moreCollections.length > 0 ? (
           <View style={styles.moreSection}>
             <Text style={styles.moreSectionTitle}>{t('collections.moreCollections', 'More collections')}</Text>
@@ -340,179 +288,113 @@ export default function CollectionDetailScreen() {
           </View>
         ) : null}
       </>
-    ),
-    [collection, headerImageKey, isOwner, moreCollections, items.length, shareSaves, heroOpacity, t]
-  );
+    );
+  }, [collection, isOwner, moreCollections, items.length, t]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <AnimatedView
-        style={[styles.stickyBar, { opacity: stickyOpacity, paddingTop: insets.top }]}
-        pointerEvents={stickyVisible ? 'auto' : 'none'}
-      >
-        <View style={styles.stickyBarContent}>
-          <Pressable onPress={() => router.back()} style={styles.stickyBackBtn} accessibilityLabel={t('common.back', 'Back')}>
-            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
-          </Pressable>
-          <Text style={styles.stickyBarTitle} numberOfLines={1}>{collection.title}</Text>
-          <View style={styles.stickyBarSpacer} />
-        </View>
-      </AnimatedView>
-
-      {isOwner && (
-        <OptionsActionSheet
-          visible={moreOptionsVisible}
-          title={t('collections.options', 'Collection Options')}
-          options={[
-            { label: t('collections.edit', 'Edit'), onPress: openEditModal, icon: 'edit' },
-            { label: t('collections.delete', 'Delete Collection'), onPress: () => { setMoreOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true },
-          ]}
-          cancelLabel={t('common.cancel')}
-          onCancel={() => setMoreOptionsVisible(false)}
-        />
-      )}
-      <ConfirmModal
-        visible={deleteConfirmVisible}
-        title={t('collections.delete', 'Delete Collection')}
-        message={t('collections.deleteConfirm', 'Are you sure you want to delete this collection? All items will be removed. This cannot be undone.')}
-        confirmLabel={t('collections.delete', 'Delete Collection')}
-        cancelLabel={t('common.cancel')}
-        destructive
-        onConfirm={handleDeleteCollection}
-        onCancel={() => setDeleteConfirmVisible(false)}
-      />
-
-      <Modal visible={editModalVisible} transparent animationType="slide">
-        <Pressable style={styles.editModalOverlay} onPress={() => setEditModalVisible(false)}>
-          <View style={[styles.editModalContent, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
-            <View style={styles.editModalHandle} />
-            <Text style={styles.editModalTitle}>{t('collections.edit', 'Edit collection')}</Text>
-            <TextInput
-              style={styles.editModalInput}
-              placeholder={t('collections.titlePlaceholder', 'Title')}
-              placeholderTextColor={COLORS.tertiary}
-              value={editTitle}
-              onChangeText={setEditTitle}
-            />
-            <TextInput
-              style={[styles.editModalInput, styles.editModalInputMultiline]}
-              placeholder={t('collections.descPlaceholder', 'Description (optional)')}
-              placeholderTextColor={COLORS.tertiary}
-              value={editDescription}
-              onChangeText={setEditDescription}
-              multiline
-              numberOfLines={2}
-            />
-            <View style={styles.editModalSwitchRow}>
-              <Text style={styles.editModalSwitchLabel}>{t('collections.visibility', 'Visibility')}</Text>
-              <Switch
-                value={editIsPublic}
-                onValueChange={setEditIsPublic}
-                trackColor={{ false: COLORS.tertiary + '40', true: COLORS.primary + '99' }}
-                thumbColor={editIsPublic ? COLORS.primary : COLORS.secondary}
-              />
-            </View>
-            <View style={styles.editModalSwitchRow}>
-              <Text style={styles.editModalSwitchLabel}>{t('collections.shareSaves', 'Share saves')}</Text>
-              <Switch
-                value={editShareSaves}
-                onValueChange={setEditShareSaves}
-                trackColor={{ false: COLORS.tertiary + '40', true: COLORS.primary + '99' }}
-                thumbColor={editShareSaves ? COLORS.primary : COLORS.secondary}
-              />
-            </View>
-            <View style={styles.editModalButtons}>
-              <Pressable style={styles.editModalButtonCancel} onPress={() => setEditModalVisible(false)}>
-                <Text style={styles.editModalButtonTextCancel}>{t('common.cancel')}</Text>
-              </Pressable>
-              <Pressable style={[styles.editModalButtonSave, !editTitle.trim() && styles.editModalButtonDisabled]} onPress={handleSaveEdit} disabled={!editTitle.trim()}>
-                <Text style={styles.editModalButtonTextSave}>{t('common.save', 'Save')}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
-
-      <Animated.FlatList
-        style={styles.list}
-        data={items}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
+    <>
+      <TopicOrCollectionLayout
+        title={collection?.title ?? t('collections.title', 'Collection')}
+        loading={loading}
+        notFound={!loading && !collection}
+        notFoundMessage={t('collections.notFound', 'Collection not found')}
+        onBack={() => router.back()}
+        headerComponent={headerComponent}
+        heroOpacity={heroOpacity}
+        stickyOpacity={stickyOpacity}
+        onScroll={() => { }}
+        scrollY={scrollY}
+        data={listData}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        ListHeaderComponent={listHeader}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true, listener: (e: any) => setStickyVisible(e.nativeEvent.contentOffset.y > STICKY_HEADER_APPEAR) }
-        )}
-        scrollEventThrottle={16}
         ListEmptyComponent={ListEmptyComponent}
-        ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={COLORS.primary}
-          />
-        }
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
         onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-        {...FLATLIST_DEFAULTS}
+        hasMore={hasMore}
+        loadingMore={loadingMore}
+        children={
+          <>
+            {isOwner && (
+              <OptionsActionSheet
+                visible={moreOptionsVisible}
+                title={t('collections.options', 'Collection Options')}
+                options={[
+                  { label: t('collections.edit', 'Edit'), onPress: openEditModal, icon: 'edit' },
+                  { label: t('collections.delete', 'Delete Collection'), onPress: () => { setMoreOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true },
+                ]}
+                cancelLabel={t('common.cancel')}
+                onCancel={() => setMoreOptionsVisible(false)}
+              />
+            )}
+            <ConfirmModal
+              visible={deleteConfirmVisible}
+              title={t('collections.delete', 'Delete Collection')}
+              message={t('collections.deleteConfirm', 'Are you sure you want to delete this collection? All items will be removed. This cannot be undone.')}
+              confirmLabel={t('collections.delete', 'Delete Collection')}
+              cancelLabel={t('common.cancel')}
+              destructive
+              onConfirm={handleDeleteCollection}
+              onCancel={() => setDeleteConfirmVisible(false)}
+            />
+            <Modal visible={editModalVisible} transparent animationType="slide">
+              <Pressable style={styles.editModalOverlay} onPress={() => setEditModalVisible(false)}>
+                <View style={[styles.editModalContent, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
+                  <View style={styles.editModalHandle} />
+                  <Text style={styles.editModalTitle}>{t('collections.edit', 'Edit collection')}</Text>
+                  <TextInput
+                    style={styles.editModalInput}
+                    placeholder={t('collections.titlePlaceholder', 'Title')}
+                    placeholderTextColor={COLORS.tertiary}
+                    value={editTitle}
+                    onChangeText={setEditTitle}
+                  />
+                  <TextInput
+                    style={[styles.editModalInput, styles.editModalInputMultiline]}
+                    placeholder={t('collections.descPlaceholder', 'Description (optional)')}
+                    placeholderTextColor={COLORS.tertiary}
+                    value={editDescription}
+                    onChangeText={setEditDescription}
+                    multiline
+                    numberOfLines={2}
+                  />
+                  <View style={styles.editModalSwitchRow}>
+                    <Text style={styles.editModalSwitchLabel}>{t('collections.visibility', 'Visibility')}</Text>
+                    <Switch
+                      value={editIsPublic}
+                      onValueChange={setEditIsPublic}
+                      trackColor={{ false: COLORS.tertiary + '40', true: COLORS.primary + '99' }}
+                      thumbColor={editIsPublic ? COLORS.primary : COLORS.secondary}
+                    />
+                  </View>
+                  <View style={styles.editModalSwitchRow}>
+                    <Text style={styles.editModalSwitchLabel}>{t('collections.shareSaves', 'Share saves')}</Text>
+                    <Switch
+                      value={editShareSaves}
+                      onValueChange={setEditShareSaves}
+                      trackColor={{ false: COLORS.tertiary + '40', true: COLORS.primary + '99' }}
+                      thumbColor={editShareSaves ? COLORS.primary : COLORS.secondary}
+                    />
+                  </View>
+                  <View style={styles.editModalButtons}>
+                    <Pressable style={styles.editModalButtonCancel} onPress={() => setEditModalVisible(false)}>
+                      <Text style={styles.editModalButtonTextCancel}>{t('common.cancel')}</Text>
+                    </Pressable>
+                    <Pressable style={[styles.editModalButtonSave, !editTitle.trim() && styles.editModalButtonDisabled]} onPress={handleSaveEdit} disabled={!editTitle.trim()}>
+                      <Text style={styles.editModalButtonTextSave}>{t('common.save', 'Save')}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </Pressable>
+            </Modal>
+          </>
+        }
       />
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = createStyles({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.ink,
-  },
-  headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    backgroundColor: COLORS.ink,
-  },
-  backButtonBar: {
-    padding: SPACING.s,
-    marginLeft: -SPACING.s,
-  },
-  headerBarTitle: {
-    flex: 1,
-    fontSize: HEADER.titleSize,
-    fontWeight: '600',
-    color: COLORS.paper,
-    marginLeft: SPACING.s,
-    fontFamily: FONTS.semiBold,
-  },
-  headerBarSpacer: {
-    width: 40,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SPACING.xl,
-  },
-  list: {
-    flex: 1,
-  },
-  loadingText: {
-    color: COLORS.secondary,
-    textAlign: 'center',
-    marginTop: 20,
-    fontFamily: FONTS.regular,
-  },
-  errorText: {
-    color: COLORS.error,
-    textAlign: 'center',
-    marginTop: 20,
-    fontFamily: FONTS.regular,
-  },
   emptyWrapper: {
     paddingVertical: SPACING.xxxl,
   },
@@ -564,10 +446,6 @@ const styles = createStyles({
     fontSize: 15,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-  },
-  footerLoader: {
-    paddingVertical: SPACING.l,
-    alignItems: 'center',
   },
   moreSection: {
     paddingVertical: SPACING.m,
@@ -626,37 +504,6 @@ const styles = createStyles({
     fontSize: 12,
     color: COLORS.tertiary,
     fontFamily: FONTS.regular,
-  },
-  stickyBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    backgroundColor: COLORS.ink,
-  },
-  stickyBarContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.m,
-  },
-  stickyBackBtn: {
-    padding: SPACING.s,
-    marginLeft: -SPACING.s,
-  },
-  stickyBarTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.paper,
-    marginLeft: SPACING.s,
-    fontFamily: FONTS.semiBold,
-  },
-  stickyBarSpacer: {
-    width: 40,
   },
   shareSavesRow: {
     flexDirection: 'row',

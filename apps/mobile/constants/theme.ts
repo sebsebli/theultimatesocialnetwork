@@ -1,5 +1,5 @@
 /** Design tokens from @citewalk/design-tokens – single source of truth with web */
-import { StyleSheet, type DimensionValue, type ColorValue } from 'react-native';
+import { StyleSheet, Platform, type DimensionValue, type ColorValue } from 'react-native';
 import {
   COLORS as TOKEN_COLORS,
   SPACING as TOKEN_SPACING,
@@ -36,6 +36,8 @@ export const FONTS = {
   // IBM Plex Serif - for content (feed text, articles, intro)
   serifRegular: 'IBMPlexSerif_400Regular',
   serifSemiBold: 'IBMPlexSerif_600SemiBold',
+  // Monospace (e.g. 2FA codes, inline code)
+  mono: Platform.select({ ios: 'Menlo', android: 'monospace' }) ?? 'monospace',
 };
 
 /** Fixed profile header aspect ratio (width : height). Same on profile and draw modal so drawing matches header. 1 (square) allows enough room for avatar + bio. */

@@ -30,18 +30,18 @@ export async function createPersona(
   character: CharacterDef,
   usedHandles: Set<string>,
 ): Promise<Persona> {
-  const sys = `You create a concrete persona for a social reading network. The persona must fit the character type and feel like a real person.
+  const sys = `You create a concrete persona for a social reading network. The persona must fit the character type and feel like a real person. They will write realistic articles and posts about real-world topics—never about the platform or "being online".
 Return ONLY valid JSON with exactly these keys (no markdown, no extra text):
 - displayName: string (e.g. "Marcus Chen", "Elena Fisher")
 - handle: string (lowercase letters, numbers, underscore only; 2–30 chars; e.g. "marcus_c", "elena_writes")
-- bio: string (1–3 sentences for profile; fits the character)
-- behavior: string (2–4 sentences describing how this person posts, replies, and interacts online; their tone and habits)`;
+- bio: string (one short sentence or a few words; max 160 characters; plain text only—no markdown)
+- behavior: string (2–4 sentences: how this person writes and interacts; their tone and habits; the kinds of real-world topics they naturally write about, e.g. a chef might write about recipes and ingredients, a traveler about destinations—concrete themes that fit their type)`;
 
   const user = `Character type: ${character.label}.
 Description: ${character.description}
-Topics they care about: ${character.topics.join(', ')}
+Example topics/themes for this type: ${character.topics.join(', ')}
 
-Create a unique persona. Pick a handle that is NOT in this list: ${Array.from(usedHandles).slice(-20).join(', ') || '(none)'}.
+Create a unique persona. Give them concrete topics or themes they would naturally write about (fitting their type). Pick a handle that is NOT in this list: ${Array.from(usedHandles).slice(-20).join(', ') || '(none)'}.
 Return only the JSON object.`;
 
   const response = await openai.chat.completions.create({
@@ -71,7 +71,7 @@ Return only the JSON object.`;
   return {
     displayName: (parsed.displayName ?? character.label).slice(0, 100),
     handle: finalHandle,
-    bio: (parsed.bio ?? character.description.slice(0, 200)).slice(0, 500),
+    bio: (parsed.bio ?? character.description.slice(0, 160)).slice(0, 160),
     behavior: (parsed.behavior ?? character.description).slice(0, 600),
   };
 }

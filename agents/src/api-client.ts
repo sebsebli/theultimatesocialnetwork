@@ -42,6 +42,10 @@ export interface ApiClient {
    */
   seedAgent(body: SeedAgentBody): Promise<AuthTokens>;
   /**
+   * List agent users (email @agents.local) for --resume-from-db.
+   */
+  listAgentUsers(): Promise<{ email: string; handle: string; displayName: string; bio: string }[]>;
+  /**
    * Get a JWT for an existing user by email (admin). Use for --resume so agents don't need magic link.
    */
   getAgentToken(email: string): Promise<AuthTokens>;
@@ -177,6 +181,13 @@ export function createApiClient(config: ApiConfig): ApiClient {
         body: JSON.stringify(body),
         admin: true,
       });
+    },
+
+    async listAgentUsers() {
+      return fetchJson<{ email: string; handle: string; displayName: string; bio: string }[]>(
+        '/admin/agents',
+        { method: 'GET', admin: true },
+      );
     },
 
     async getAgentToken(email: string) {

@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
-import { EmptyState } from './EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from './EmptyState';
 import { Collection } from '../types';
 
 export interface AddToCollectionSheetRef {
@@ -121,7 +121,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
               showsVerticalScrollIndicator={false}
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item: Collection) => item.id}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={collections.length === 0 ? [styles.listContent, { flexGrow: 1 }] : styles.listContent}
               renderItem={({ item }: { item: Collection }) => (
                 <Pressable
                   style={({ pressed }: { pressed: boolean }) => [styles.item, pressed && styles.itemPressed]}
@@ -145,12 +145,14 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
               )}
               {...FLATLIST_DEFAULTS}
               ListEmptyComponent={!creating ? (
-                <EmptyState
-                  icon="folder-open"
-                  headline={t('collections.empty', 'No collections yet')}
-                  subtext={t('collections.emptyHint', 'Create one below.')}
-                  compact
-                />
+                <View style={emptyStateCenterWrapStyle}>
+                  <EmptyState
+                    icon="folder-open"
+                    headline={t('collections.empty', 'No collections yet')}
+                    subtext={t('collections.emptyHint', 'Create one below.')}
+                    compact
+                  />
+                </View>
               ) : null}
             />
           )}

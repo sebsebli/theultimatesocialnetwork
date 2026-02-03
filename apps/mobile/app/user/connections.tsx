@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { TopicCard } from '../../components/ExploreCards';
 import { UserCard } from '../../components/UserCard';
-import { EmptyState } from '../../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
 
 export default function ConnectionsScreen() {
   const { t } = useTranslation();
@@ -48,7 +48,7 @@ export default function ConnectionsScreen() {
       } else {
         if (handle) {
           try {
-            data = await api.get(`${baseUrl}/topics`);
+            data = await api.get(`${baseUrl}/followed-topics`);
           } catch {
             data = [];
           }
@@ -178,12 +178,13 @@ export default function ConnectionsScreen() {
   };
 
   const EmptyComponent = () => (
-    <EmptyState
-      icon="people"
-      headline={t('common.noResults', 'Nothing here.')}
-      subtext={activeTab === 'topics' ? t('profile.noTopicsHint', 'Follow topics to see them here.') : t('profile.noConnectionsHint', 'Connections will appear here.')}
-    >
-      {suggestions.length > 0 && (
+    <View style={emptyStateCenterWrapStyle}>
+      <EmptyState
+        icon="people"
+        headline={t('common.noResults', 'Nothing here.')}
+        subtext={activeTab === 'topics' ? t('profile.noTopicsHint', 'Follow topics to see them here.') : t('profile.noConnectionsHint', 'Connections will appear here.')}
+      >
+        {suggestions.length > 0 && (
         <View style={styles.suggestionsContainer}>
           <Text style={styles.suggestionsHeader}>{activeTab === 'topics' ? t('profile.topicsToFollow', 'Topics to follow') : t('home.suggestedPeople', 'Suggested for you')}</Text>
           {suggestions.map(item => (
@@ -209,12 +210,13 @@ export default function ConnectionsScreen() {
           ))}
         </View>
       )}
-    </EmptyState>
+      </EmptyState>
+    </View>
   );
 
   if (isPrivate) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.container}>
         <ScreenHeader title={t('profile.connections')} paddingTop={insets.top} />
         <View style={styles.privateState}>
           <MaterialIcons name="lock" size={HEADER.iconSize} color={COLORS.secondary} />
@@ -226,8 +228,20 @@ export default function ConnectionsScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <ScreenHeader title={t('profile.connections', 'Connections')} paddingTop={insets.top} />
+
+      <View style={styles.searchContainer}>
+        <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={t('common.search', 'Search...')}
+          placeholderTextColor={COLORS.tertiary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          includeFontPadding={false}
+        />
+      </View>
 
       <View style={styles.tabs}>
         {['followers', 'following', 'topics'].map((tab) => (
@@ -246,25 +260,13 @@ export default function ConnectionsScreen() {
         ))}
       </View>
 
-      <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder={t('common.search', 'Search...')}
-          placeholderTextColor={COLORS.tertiary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          includeFontPadding={false}
-        />
-      </View>
-
       <FlatList
         data={filteredItems}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         renderItem={renderItem}
         keyExtractor={(item: { id: string }) => item.id}
-        contentContainerStyle={{ paddingBottom: SPACING.l }}
+        contentContainerStyle={[{ paddingBottom: SPACING.l }, filteredItems.length === 0 && { flexGrow: 1 }]}
         ListHeaderComponent={
           loading ? (
             <View style={styles.loadingBar}>

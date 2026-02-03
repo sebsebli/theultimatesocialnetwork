@@ -288,6 +288,28 @@ export class PostsService {
       }
     }
 
+    // 4b. Extract markdown links [text](url) and save as ExternalSource if not already present
+    const existingExternal = await manager.find(ExternalSource, {
+      where: { postId: post.id },
+      select: ['url'],
+    });
+    const existingUrls = new Set(existingExternal.map((e) => e.url));
+    const markdownLinkRegex = /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+    let mdMatch;
+    while ((mdMatch = markdownLinkRegex.exec(post.body)) !== null) {
+      const url = mdMatch[2];
+      const linkText = mdMatch[1].trim() || null;
+      if (!existingUrls.has(url)) {
+        await manager.save(ExternalSource, {
+          postId: post.id,
+          url,
+          title: linkText,
+        });
+        existingUrls.add(url);
+        fetch(`https://web.archive.org/save/${url}`).catch(() => {});
+      }
+    }
+
     // 5. Extract & Process Mentions @handle
     const mentionRegex = /@(\w+)/g;
     let mentionMatch;
@@ -334,10 +356,22 @@ export class PostsService {
     const post = await this.postRepo.findOne({
       where: { id },
       relations: ['author'],
+      withDeleted: true,
     });
 
     if (!post) {
       throw new NotFoundException('Post not found');
+    }
+
+    // Deleted posts stay in graph for references; return stub so client can show "deleted on ..." placeholder
+    if (post.deletedAt != null) {
+      const stub = { ...post } as Post & { viewerCanSeeContent?: boolean };
+      stub.body = '';
+      stub.title = null;
+      stub.headerImageKey = null;
+      stub.headerImageBlurhash = null;
+      stub.viewerCanSeeContent = false;
+      return stub;
     }
 
     if (post.visibility === PostVisibility.PUBLIC) {
@@ -361,25 +395,42 @@ export class PostsService {
       if (isFollowing.length > 0) {
         return post;
       }
+      // Viewer cannot see content: return post with redacted body/title/header so client can show blurred overlay
+      const redacted = { ...post } as Post & { viewerCanSeeContent?: boolean };
+      redacted.body = '';
+      redacted.title = null;
+      redacted.headerImageKey = null;
+      redacted.headerImageBlurhash = null;
+      redacted.viewerCanSeeContent = false;
+      return redacted;
     }
 
     throw new NotFoundException('Post not found');
   }
 
-  /** Return id -> { title } for linked post display (e.g. [[post:id]]). Keys normalized to lowercase for case-insensitive lookup. */
+  /** Return id -> { title?, deletedAt? } for linked post display (e.g. [[post:id]]). Includes soft-deleted posts so clients can show "(deleted content)" when no alias. Keys normalized to lowercase. */
   async getTitlesForPostIds(
     ids: string[],
-  ): Promise<Record<string, { title?: string }>> {
+  ): Promise<Record<string, { title?: string; deletedAt?: string }>> {
     if (ids.length === 0) return {};
     const unique = Array.from(new Set(ids));
     const posts = await this.postRepo.find({
       where: unique.map((id) => ({ id })),
-      select: ['id', 'title'],
+      select: ['id', 'title', 'deletedAt'],
+      withDeleted: true,
     });
-    const out: Record<string, { title?: string }> = {};
+    const out: Record<string, { title?: string; deletedAt?: string }> = {};
     for (const p of posts) {
       const key = (p.id ?? '').toLowerCase();
-      if (key) out[key] = { title: p.title ?? undefined };
+      if (key) {
+        out[key] = {
+          title: p.title ?? undefined,
+          deletedAt:
+            p.deletedAt != null
+              ? new Date(p.deletedAt).toISOString()
+              : undefined,
+        };
+      }
     }
     return out;
   }

@@ -5,6 +5,7 @@ import {
   signInTokenTemplates,
   inviteCodeTemplates,
   accountDeletionTemplates,
+  emailChangeTemplates,
   dataExportTemplates,
 } from './email-templates';
 import { buildEmailHtml } from './email-layout';
@@ -251,6 +252,75 @@ export class EmailService {
     } catch (error) {
       this.logger.error(
         `Failed to send account deletion confirmation to ${to}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async sendEmailChangeConfirmation(
+    to: string,
+    confirmUrl: string,
+    newEmail: string,
+    lang: string = 'en',
+  ): Promise<boolean> {
+    const t = emailChangeTemplates[lang] || emailChangeTemplates['en'];
+    const subject = t.subject;
+
+    if (!this.transporter) {
+      this.logger.warn(
+        `[DEV] Email suppressed (SMTP not configured). To: ${to}, Confirm URL: ${confirmUrl}`,
+      );
+      return false;
+    }
+
+    const safeEmail = newEmail
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    const bodyHtml = [
+      `<p style="margin:0 0 12px 0;color:#A8A8AA;font-size:16px;line-height:1.6;">${t.body}</p>`,
+      `<p style="margin:12px 0 0 0;color:#6E6E73;font-size:14px;">New email: ${safeEmail}</p>`,
+      `<p style="margin:16px 0 0 0;"><a href="${confirmUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}" style="display:inline-block;background:#6E7A8A;color:#F2F2F2;text-decoration:none;font-size:16px;font-weight:600;padding:14px 24px;border-radius:12px;">${t.buttonLabel}</a></p>`,
+    ].join('');
+    const baseUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'https://citewalk.com';
+    const html = buildEmailHtml({
+      title: t.title,
+      bodyHtml,
+      footerText: t.ignore,
+      baseUrl,
+      logoUrl: `${baseUrl.replace(/\/$/, '')}/logo_transparent.png`,
+      helpEmail: 'hello@citewalk.com',
+      companyName:
+        this.configService.get<string>('EMAIL_COMPANY_NAME') || 'Citewalk',
+      companyAddress:
+        this.configService.get<string>('EMAIL_COMPANY_ADDRESS') || undefined,
+      unsubscribeUrl:
+        this.configService.get<string>('EMAIL_PREFERENCES_URL') || undefined,
+      reasonText:
+        'You received this because you requested to change your Citewalk account email.',
+    });
+    const text = [t.title, t.body, t.buttonLabel, confirmUrl, t.ignore].join(
+      '\n\n',
+    );
+
+    try {
+      await this.transporter.sendMail({
+        from:
+          this.configService.get<string>('SMTP_FROM') ||
+          '"Citewalk" <noreply@citewalk.com>',
+        to,
+        subject,
+        html,
+        text,
+      });
+      this.logger.log(`Email change confirmation sent to ${to}`);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Failed to send email change confirmation to ${to}:`,
         error,
       );
       throw error;

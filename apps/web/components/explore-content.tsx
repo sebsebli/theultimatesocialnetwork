@@ -7,7 +7,10 @@ import { PostItem, Post } from "./post-item";
 import { TopicCard } from "./topic-card";
 import { UserCard } from "./user-card";
 import { WhyLabel } from "./why-label";
-import { EmptyState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 
 const EXPLORE_TABS = [
   "quoted",
@@ -288,11 +291,13 @@ function ExploreContentInner() {
           <p className="text-secondary text-sm">Finding context...</p>
         </div>
       ) : activeItems.length === 0 ? (
-        <EmptyState
-          icon="explore"
-          headline="No content yet"
-          subtext="Try another filter or check back later."
-        />
+        <div className={emptyStateCenterClassName}>
+          <EmptyState
+            icon="explore"
+            headline="No content yet"
+            subtext="Try another filter or check back later."
+          />
+        </div>
       ) : (
         <div className={tab === "topics" ? "space-y-2" : "space-y-4"}>
           {tab === "topics" &&

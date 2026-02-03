@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Delete,
   Param,
   UseGuards,
   ParseUUIDPipe,
@@ -49,6 +50,15 @@ export class InteractionsController {
     return this.interactionsService.toggleLike(user.id, postId);
   }
 
+  @Delete(':id/like')
+  @UseGuards(AuthGuard('jwt'))
+  async unlike(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) postId: string,
+  ) {
+    return this.interactionsService.removeLike(user.id, postId);
+  }
+
   @Post(':id/keep')
   @UseGuards(AuthGuard('jwt'))
   async keep(
@@ -56,5 +66,14 @@ export class InteractionsController {
     @Param('id', ParseUUIDPipe) postId: string,
   ) {
     return this.interactionsService.toggleKeep(user.id, postId);
+  }
+
+  @Delete(':id/keep')
+  @UseGuards(AuthGuard('jwt'))
+  async unkeep(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) postId: string,
+  ) {
+    return this.interactionsService.removeKeep(user.id, postId);
   }
 }

@@ -9,7 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { MarkdownText } from './MarkdownText';
 import { Avatar } from './Avatar';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
-import { getImageUrl } from '../utils/api';
+import { getImageUrl, getAvatarUri } from '../utils/api';
 
 import { Post } from '../types';
 
@@ -22,11 +22,14 @@ interface PostContentProps {
   referenceMetadata?: Record<string, { title?: string }>;
   /** When set, body is truncated to this many lines with a gradient fade overlay (no ellipsis). */
   maxBodyLines?: number;
+  /** When true, show blurred overlay with "Private" over the content (author row stays visible). */
+  isPrivateForViewer?: boolean;
 }
 
 const HEADER_IMAGE_ASPECT = 4 / 3;
 
-function PostContentInner({ post, onMenuPress, disableNavigation = false, headerImageUri, showSources = false, referenceMetadata = {}, maxBodyLines }: PostContentProps) {
+function PostContentInner({ post, onMenuPress, disableNavigation = false, headerImageUri, showSources = false, referenceMetadata = {}, maxBodyLines, isPrivateForViewer }: PostContentProps) {
+  const showPrivateOverlay = isPrivateForViewer === true || post.viewerCanSeeContent === false;
   const router = useRouter();
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
@@ -177,12 +180,7 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
         <Avatar
           name={post.author.displayName}
           size={40}
-          uri={
-            (post.author as any)?.avatarUrl ||
-            ((post.author as any)?.avatarKey
-              ? getImageUrl((post.author as any).avatarKey)
-              : null)
-          }
+          uri={getAvatarUri(post.author as { avatarKey?: string | null; avatarUrl?: string | null })}
         />
         <View style={styles.authorInfo}>
           <View style={styles.nameRow}>
@@ -202,48 +200,64 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
         )}
       </Pressable>
 
-      {/* Content */}
-      <Pressable
-        onPress={handlePostPress}
-        disabled={disableNavigation}
-        style={({ pressed }: { pressed: boolean }) => [styles.content, pressed && !disableNavigation && { opacity: 0.9 }]}
-      >
-        {imageSource ? (
-          <View style={[styles.headerImageWrap, { height: headerImageHeight }]}>
-            <Image
-              source={imageSource}
-              style={[styles.headerImage, { height: headerImageHeight }]}
-              contentFit="cover"
-              transition={300}
-              placeholder={post.headerImageBlurhash}
-              placeholderContentFit="cover"
-              cachePolicy="memory-disk"
-            />
-            {(post.title != null && post.title !== '') && (
-              <View style={styles.headerImageOverlay}>
-                <Text style={styles.headerImageTitle} numberOfLines={2}>{post.title}</Text>
+      {/* Content: whole card tappable to open post (body links still receive touches first) */}
+      <View style={styles.contentWrap}>
+        <Pressable
+          onPress={handlePostPress}
+          disabled={disableNavigation}
+          style={({ pressed }: { pressed: boolean }) => [styles.content, pressed && !disableNavigation && { opacity: 0.95 }]}
+        >
+          <View style={styles.headerTappable}>
+            {imageSource ? (
+              <View style={[styles.headerImageWrap, { height: headerImageHeight }]}>
+                <Image
+                  source={imageSource}
+                  style={[styles.headerImage, { height: headerImageHeight }]}
+                  contentFit="cover"
+                  transition={300}
+                  placeholder={post.headerImageBlurhash}
+                  placeholderContentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+                {(post.title != null && post.title !== '') && (
+                  <View style={styles.headerImageOverlay}>
+                    <Text style={styles.headerImageTitle} numberOfLines={2}>{post.title}</Text>
+                  </View>
+                )}
               </View>
-            )}
+            ) : post.title != null && post.title !== '' ? (
+              <Text style={styles.title}>{post.title}</Text>
+            ) : !imageSource && (post.title == null || post.title === '') ? (
+              <Text style={styles.readPostLink}>{t('post.readArticle', 'Read')}</Text>
+            ) : null}
           </View>
-        ) : post.title != null && post.title !== '' ? (
-          <Text style={styles.title}>{post.title}</Text>
-        ) : null}
-        {hasMoreLines ? (
-          <View style={[styles.bodyClipWrap, maxBodyLines != null && { maxHeight: maxBodyLines * 26 }]}>
+          {maxBodyLines != null ? (
+            <View style={[styles.bodyClipWrap, { maxHeight: maxBodyLines * 26 }]}>
+              <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
+              <LinearGradient
+                colors={['transparent', COLORS.ink]}
+                style={styles.bodyFadeGradient}
+                pointerEvents="none"
+              />
+            </View>
+          ) : (
             <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
-            <LinearGradient
-              colors={['transparent', COLORS.ink]}
-              style={styles.bodyFadeGradient}
-              pointerEvents="none"
-            />
+          )}
+        </Pressable>
+
+        {showPrivateOverlay && (
+          <View style={styles.privateOverlay} pointerEvents="none">
+            <View style={styles.privateOverlayInner}>
+              <MaterialIcons name="lock" size={32} color={COLORS.paper} style={styles.privateOverlayIcon} />
+              <Text style={styles.privateOverlayText}>{t('common.private', 'Private')}</Text>
+              <Text style={styles.privateOverlaySubtext}>{t('post.privateOnlyFollowers', 'Only followers can see this post')}</Text>
+            </View>
           </View>
-        ) : (
-          <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
         )}
-      </Pressable>
+      </View>
 
       {/* Sources Section */}
-      {showSources && sources.length > 0 && (
+      {showSources && sources.length > 0 && !showPrivateOverlay && (
         <View style={styles.sourcesSection}>
           <Text style={styles.sourcesHeader}>{t('post.sources', 'Sources')}</Text>
           {sources.map((source, index) => (
@@ -283,6 +297,40 @@ const styles = createStyles({
   container: {
     gap: SPACING.m,
   },
+  contentWrap: {
+    position: 'relative',
+  },
+  privateOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: SIZES.borderRadius,
+    minHeight: 120,
+  },
+  privateOverlayInner: {
+    alignItems: 'center',
+    paddingHorizontal: SPACING.l,
+  },
+  privateOverlayIcon: {
+    marginBottom: SPACING.s,
+  },
+  privateOverlayText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    marginBottom: SPACING.xs,
+  },
+  privateOverlaySubtext: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -310,7 +358,15 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   content: {
-    gap: SPACING.s,
+    gap: SPACING.m,
+  },
+  headerTappable: {
+    gap: SPACING.m,
+  },
+  readPostLink: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontFamily: FONTS.medium,
   },
   bodyClipWrap: {
     position: 'relative',
@@ -321,7 +377,7 @@ const styles = createStyles({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
+    height: 44,
   },
   moreIndicator: {
     fontSize: 18,
@@ -330,10 +386,10 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   title: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '700',
     color: COLORS.paper,
-    lineHeight: 30,
+    lineHeight: 36,
     fontFamily: FONTS.semiBold,
     letterSpacing: -0.5,
   },
@@ -358,11 +414,11 @@ const styles = createStyles({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   headerImageTitle: {
-    fontSize: 20,
+    fontSize: 26,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
-    lineHeight: 26,
+    lineHeight: 32,
   },
   sourcesSection: {
     marginTop: SPACING.m,

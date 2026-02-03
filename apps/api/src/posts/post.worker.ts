@@ -9,10 +9,12 @@ import { Worker, Job } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Post } from '../entities/post.entity';
+import { ExternalSource } from '../entities/external-source.entity';
 import { Follow } from '../entities/follow.entity';
 import { NotificationType } from '../entities/notification.entity';
+import { MetadataService } from '../metadata/metadata.service';
 import { Neo4jService } from '../database/neo4j.service';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { EmbeddingService } from '../shared/embedding.service';
@@ -40,6 +42,8 @@ export class PostWorker
 
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
+    @InjectRepository(ExternalSource)
+    private externalSourceRepo: Repository<ExternalSource>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
     private configService: ConfigService,
     private neo4jService: Neo4jService,
@@ -47,6 +51,7 @@ export class PostWorker
     private embeddingService: EmbeddingService,
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
+    private metadataService: MetadataService,
     @Inject('REDIS_CLIENT') private redis: Redis,
   ) {}
 
@@ -266,6 +271,26 @@ export class PostWorker
         }
         page++;
       } while (followers.length === BATCH_SIZE);
+
+      // 4. Fetch URL metadata for external sources that have no title
+      const sourcesWithoutTitle = await this.externalSourceRepo.find({
+        where: { postId, title: IsNull() },
+        select: ['id', 'url'],
+      });
+      for (const source of sourcesWithoutTitle) {
+        try {
+          const og = await this.metadataService.getOpenGraph(source.url);
+          if (og.title) {
+            await this.externalSourceRepo.update(source.id, {
+              title: og.title,
+            });
+          }
+        } catch (e) {
+          this.logger.debug(
+            `Failed to fetch metadata for ${source.url}: ${(e as Error).message}`,
+          );
+        }
+      }
 
       workerJobCounter.inc({ worker: 'post', status: 'success' });
       end();

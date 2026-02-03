@@ -10,7 +10,7 @@ import { useAuth } from '../../../context/auth';
 import { useToast } from '../../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { EmptyState } from '../../../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../../components/EmptyState';
 
 export default function NewMessageScreen() {
   const router = useRouter();
@@ -30,7 +30,7 @@ export default function NewMessageScreen() {
       try {
         const res = await api.get('/users/me/suggested?limit=20');
         const list = Array.isArray(res) ? res : [];
-        setSuggested(list.filter((u: any) => u.id && u.id !== currentUserId));
+        setSuggested(list.filter((u: any) => u.id && u.id !== currentUserId && !u.handle?.startsWith?.('__pending_')));
       } catch (error) {
         console.error(error);
         setSuggested([]);
@@ -51,7 +51,7 @@ export default function NewMessageScreen() {
       try {
         const res = await api.get(`/search/users?q=${encodeURIComponent(query.trim())}&limit=20`);
         const hits = res.hits || [];
-        setResults(hits.filter((u: any) => u.id !== currentUserId));
+        setResults(hits.filter((u: any) => u.id !== currentUserId && !u.handle?.startsWith?.('__pending_')));
       } catch (error) {
         console.error(error);
         setResults([]);
@@ -122,15 +122,20 @@ export default function NewMessageScreen() {
               onPress={() => handleSelectUser(item)}
             />
           )}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={[
+            { paddingBottom: 40 },
+            (query.trim() ? results : suggested).length === 0 && { flexGrow: 1 },
+          ]}
           ListEmptyComponent={
-            query.length > 0 ? (
-              <EmptyState icon="search-off" headline={t('common.noResults')} compact />
-            ) : suggestedLoading ? (
-              <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
-            ) : (
-              <EmptyState icon="person-add" headline={t('messages.noSuggested', 'No suggested people to message.')} compact />
-            )
+            <View style={emptyStateCenterWrapStyle}>
+              {query.length > 0 ? (
+                <EmptyState icon="search-off" headline={t('common.noResults')} compact />
+              ) : suggestedLoading ? (
+                <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
+              ) : (
+                <EmptyState icon="person-add" headline={t('messages.noSuggested', 'No suggested people to message.')} compact />
+              )}
+            </View>
           }
           {...FLATLIST_DEFAULTS}
         />

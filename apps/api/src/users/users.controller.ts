@@ -235,6 +235,47 @@ export class UsersController {
     return this.usersService.confirmAccountDeletion(token);
   }
 
+  /** Confirm email change via token from email link. No auth required. */
+  @Post('confirm-email')
+  async confirmEmail(@Body() body: { token: string }) {
+    const token = body?.token?.trim();
+    if (!token) {
+      throw new NotFoundException('Missing token.');
+    }
+    return this.usersService.confirmEmailChange(token);
+  }
+
+  /** GET confirm-email?token=xxx — for link in email; returns HTML so user sees result in browser. */
+  @Get('confirm-email')
+  async confirmEmailGet(@Query('token') token: string, @Res() res: Response) {
+    const t = token?.trim();
+    if (!t) {
+      res
+        .status(400)
+        .contentType('text/html')
+        .send(
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invalid link</title></head><body style="font-family:system-ui;background:#0B0B0C;color:#F2F2F2;padding:2rem;text-align:center;"><h1>Invalid link</h1><p>This confirmation link is invalid or missing a token.</p></body></html>',
+        );
+      return;
+    }
+    try {
+      await this.usersService.confirmEmailChange(t);
+      res
+        .status(200)
+        .contentType('text/html')
+        .send(
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Email updated</title></head><body style="font-family:system-ui;background:#0B0B0C;color:#F2F2F2;padding:2rem;text-align:center;"><h1>Email updated</h1><p>Your Citewalk account email has been updated. You can close this page.</p></body></html>',
+        );
+    } catch {
+      res
+        .status(400)
+        .contentType('text/html')
+        .send(
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invalid or expired link</title></head><body style="font-family:system-ui;background:#0B0B0C;color:#F2F2F2;padding:2rem;text-align:center;"><h1>Invalid or expired link</h1><p>This confirmation link is invalid or has already been used.</p></body></html>',
+        );
+    }
+  }
+
   /** GET confirm-deletion?token=xxx — for link in email; returns HTML so user sees result in browser. */
   @Get('confirm-deletion')
   async confirmDeletionGet(
@@ -424,56 +465,68 @@ export class UsersController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('type') type: 'posts' | 'replies' | 'quotes' = 'posts',
   ) {
-    return this.usersService.getUserPosts(user.id, page, limit, type);
+    return this.usersService.getUserPosts(user.id, page, limit, type, user.id);
   }
 
   @Get(':id/posts')
+  @UseGuards(OptionalJwtAuthGuard)
   async getUserPosts(
     @Param('id') id: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('type') type: 'posts' | 'replies' | 'quotes' = 'posts',
+    @CurrentUser() user?: { id: string },
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query('type') type?: 'posts' | 'replies' | 'quotes',
   ) {
     if (id === 'me') {
       throw new NotFoundException('Use GET /users/me/posts for current user');
     }
     const userId = await this.usersService.resolveUserId(id);
     if (!userId) throw new NotFoundException('User not found');
-    return this.usersService.getUserPosts(userId, page, limit, type);
+    return this.usersService.getUserPosts(
+      userId,
+      page ?? 1,
+      limit ?? 20,
+      type ?? 'posts',
+      user?.id,
+    );
   }
 
   @Get(':id/replies')
+  @UseGuards(OptionalJwtAuthGuard)
   async getReplies(
     @Param('id') id: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @CurrentUser() user?: { id: string },
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
     const userId = await this.usersService.resolveUserId(id);
     if (!userId) throw new NotFoundException('User not found');
-    const result = await this.usersService.getUserPosts(
+    return this.usersService.getUserPosts(
       userId,
-      page,
-      limit,
+      page ?? 1,
+      limit ?? 20,
       'replies',
+      user?.id,
     );
-    return result;
   }
 
   @Get(':id/quotes')
+  @UseGuards(OptionalJwtAuthGuard)
   async getQuotes(
     @Param('id') id: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @CurrentUser() user?: { id: string },
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
   ) {
     const userId = await this.usersService.resolveUserId(id);
     if (!userId) throw new NotFoundException('User not found');
-    const result = await this.usersService.getUserPosts(
+    return this.usersService.getUserPosts(
       userId,
-      page,
-      limit,
+      page ?? 1,
+      limit ?? 20,
       'quotes',
+      user?.id,
     );
-    return result;
   }
 
   @Get(':id/collections')
@@ -528,6 +581,7 @@ export class UsersController {
     @CurrentUser() currentUser?: { id: string },
   ) {
     const user = await this.usersService.findByHandle(handle, currentUser?.id);
+    if (!user) throw new NotFoundException('User not found');
     const plain = userToPlain(user) as Record<string, unknown>;
     const avatarUrl =
       user?.avatarKey != null

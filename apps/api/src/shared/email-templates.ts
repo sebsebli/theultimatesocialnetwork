@@ -401,6 +401,125 @@ export const accountDeletionTemplates: Record<string, AccountDeletionTemplate> =
     },
   };
 
+export interface EmailChangeTemplate {
+  subject: string;
+  title: string;
+  body: string;
+  buttonLabel: string;
+  ignore: string;
+}
+
+export const emailChangeTemplates: Record<string, EmailChangeTemplate> = {
+  en: {
+    subject: 'Confirm New Email Address',
+    title: 'Change Email',
+    body: 'You requested to change your Citewalk account email to this address. Click the link below to confirm. This link expires in 24 hours.',
+    buttonLabel: 'Confirm New Email',
+    ignore: 'If you did not request this, you can ignore this email.',
+  },
+  de: {
+    subject: 'Neue E-Mail-Adresse bestätigen',
+    title: 'E-Mail ändern',
+    body: 'Sie haben angefordert, die E-Mail-Adresse Ihres Citewalk-Kontos zu ändern. Klicken Sie auf den Link unten zur Bestätigung. Der Link ist 24 Stunden gültig.',
+    buttonLabel: 'Neue E-Mail bestätigen',
+    ignore:
+      'Wenn Sie das nicht angefordert haben, können Sie diese E-Mail ignorieren.',
+  },
+  fr: {
+    subject: 'Confirmer la nouvelle adresse e-mail',
+    title: "Changer l'e-mail",
+    body: "Vous avez demandé à changer l'adresse e-mail de votre compte Citewalk. Cliquez sur le lien ci-dessous pour confirmer. Ce lien expire dans 24 heures.",
+    buttonLabel: 'Confirmer la nouvelle adresse',
+    ignore:
+      "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.",
+  },
+  es: {
+    subject: 'Confirmar nueva dirección de correo',
+    title: 'Cambiar correo',
+    body: 'Has solicitado cambiar el correo de tu cuenta Citewalk. Haz clic en el enlace de abajo para confirmar. El enlace caduca en 24 horas.',
+    buttonLabel: 'Confirmar nuevo correo',
+    ignore: 'Si no has solicitado esto, puedes ignorar este correo.',
+  },
+  it: {
+    subject: 'Conferma nuovo indirizzo email',
+    title: 'Cambia email',
+    body: "Hai richiesto di cambiare l'email del tuo account Citewalk. Clicca sul link qui sotto per confermare. Questo link scade in 24 ore.",
+    buttonLabel: 'Conferma nuova email',
+    ignore: 'Se non hai richiesto questo, puoi ignorare questa email.',
+  },
+  pt: {
+    subject: 'Confirmar novo endereço de e-mail',
+    title: 'Alterar e-mail',
+    body: 'Você solicitou alterar o e-mail da sua conta Citewalk. Clique no link abaixo para confirmar. Este link expira em 24 horas.',
+    buttonLabel: 'Confirmar novo e-mail',
+    ignore: 'Se você não solicitou isso, pode ignorar este e-mail.',
+  },
+  nl: {
+    subject: 'Bevestig nieuw e-mailadres',
+    title: 'E-mail wijzigen',
+    body: 'U heeft verzocht het e-mailadres van uw Citewalk-account te wijzigen. Klik op de onderstaande link om te bevestigen. Deze link verloopt over 24 uur.',
+    buttonLabel: 'Nieuw e-mailadres bevestigen',
+    ignore: 'Als u dit niet heeft aangevraagd, kunt u deze e-mail negeren.',
+  },
+  pl: {
+    subject: 'Potwierdź nowy adres e-mail',
+    title: 'Zmień e-mail',
+    body: 'Zażądałeś zmiany adresu e-mail swojego konta Citewalk. Kliknij poniższy link, aby potwierdzić. Link wygasa za 24 godziny.',
+    buttonLabel: 'Potwierdź nowy e-mail',
+    ignore: 'Jeśli tego nie zażądałeś, możesz zignorować ten e-mail.',
+  },
+  ru: {
+    subject: 'Подтвердите новый адрес электронной почты',
+    title: 'Изменить email',
+    body: 'Вы запросили смену email вашего аккаунта Citewalk. Нажмите на ссылку ниже для подтверждения. Ссылка действительна 24 часа.',
+    buttonLabel: 'Подтвердить новый email',
+    ignore: 'Если вы этого не запрашивали, можете проигнорировать это письмо.',
+  },
+  cs: {
+    subject: 'Potvrdit novou e-mailovou adresu',
+    title: 'Změnit e-mail',
+    body: 'Požádali jste o změnu e-mailu vašeho účtu Citewalk. Klikněte na odkaz níže pro potvrzení. Odkaz vyprší za 24 hodin.',
+    buttonLabel: 'Potvrdit nový e-mail',
+    ignore: 'Pokud jste o to nežádali, můžete tento e-mail ignorovat.',
+  },
+  da: {
+    subject: 'Bekræft ny e-mailadresse',
+    title: 'Skift e-mail',
+    body: 'Du har anmodet om at ændre e-mailadressen på din Citewalk-konto. Klik på linket nedenfor for at bekræfte. Dette link udløber om 24 timer.',
+    buttonLabel: 'Bekræft ny e-mail',
+    ignore: 'Hvis du ikke har anmodet om dette, kan du ignorere denne e-mail.',
+  },
+  fi: {
+    subject: 'Vahvista uusi sähköpostiosoite',
+    title: 'Vaihda sähköposti',
+    body: 'Olet pyytänyt Citewalk-tilisi sähköpostiosoitteen vaihtamista. Napsauta alla olevaa linkkiä vahvistaaksesi. Linkki vanhenee 24 tunnissa.',
+    buttonLabel: 'Vahvista uusi sähköposti',
+    ignore: 'Jos et pyytänyt tätä, voit jättää tämän sähköpostin huomiotta.',
+  },
+  hu: {
+    subject: 'Új e-mail cím megerősítése',
+    title: 'E-mail módosítása',
+    body: 'Kérted a Citewalk fiókod e-mail címének megváltoztatását. Kattints az alábbi linkre a megerősítéshez. A link 24 óráig érvényes.',
+    buttonLabel: 'Új e-mail megerősítése',
+    ignore: 'Ha nem te kérted, figyelmen kívül hagyhatod ezt az e-mailt.',
+  },
+  no: {
+    subject: 'Bekreft ny e-postadresse',
+    title: 'Endre e-post',
+    body: 'Du har bedt om å endre e-postadressen til Citewalk-kontoen din. Klikk på lenken nedenfor for å bekrefte. Denne lenken utløper om 24 timer.',
+    buttonLabel: 'Bekreft ny e-post',
+    ignore: 'Hvis du ikke ba om dette, kan du ignorere denne e-posten.',
+  },
+  sv: {
+    subject: 'Bekräfta ny e-postadress',
+    title: 'Ändra e-post',
+    body: 'Du har begärt att ändra e-postadressen för ditt Citewalk-konto. Klicka på länken nedan för att bekräfta. Länken går ut om 24 timmar.',
+    buttonLabel: 'Bekräfta ny e-post',
+    ignore:
+      'Om du inte begärde detta kan du ignorera det här e-postmeddelandet.',
+  },
+};
+
 export interface DataExportTemplate {
   subject: string;
   title: string;

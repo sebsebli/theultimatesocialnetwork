@@ -50,9 +50,15 @@ function PostItemComponent({
   const { isOffline } = useNetworkStatus();
   const { showSuccess, showError } = useToast();
   const { userId } = useAuth();
-  const [liked, setLiked] = React.useState(false);
-  const [kept, setKept] = React.useState(false);
+  const [liked, setLiked] = React.useState(post.isLiked ?? false);
+  const [kept, setKept] = React.useState(post.isKept ?? false);
   const scaleValue = useRef(new Animated.Value(1)).current;
+
+  // Sync from server when post prop changes (e.g. refetched feed with updated isLiked/isKept)
+  React.useEffect(() => {
+    setLiked(post.isLiked ?? false);
+    setKept(post.isKept ?? false);
+  }, [post.id, post.isLiked, post.isKept]);
   const collectionSheetRef = useRef<AddToCollectionSheetRef>(null);
   const shareSheetRef = useRef<ShareSheetRef>(null);
   const [reportModalVisible, setReportModalVisible] = useState(false);
@@ -78,16 +84,18 @@ function PostItemComponent({
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       animateLike();
-      setLiked(!liked); // Optimistic update
+      const next = !liked;
+      setLiked(next); // Optimistic update
 
       if (isOffline) {
         await queueAction({
           type: 'like',
           endpoint: `/posts/${post.id}/like`,
-          method: 'POST',
+          method: next ? 'POST' : 'DELETE',
         });
       } else {
-        await api.post(`/posts/${post.id}/like`);
+        if (next) await api.post(`/posts/${post.id}/like`);
+        else await api.delete(`/posts/${post.id}/like`);
       }
       onLike?.();
     } catch (error) {
@@ -99,16 +107,18 @@ function PostItemComponent({
   const handleKeep = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setKept(!kept); // Optimistic update
+      const next = !kept;
+      setKept(next); // Optimistic update
 
       if (isOffline) {
         await queueAction({
           type: 'keep',
           endpoint: `/posts/${post.id}/keep`,
-          method: 'POST',
+          method: next ? 'POST' : 'DELETE',
         });
       } else {
-        await api.post(`/posts/${post.id}/keep`);
+        if (next) await api.post(`/posts/${post.id}/keep`);
+        else await api.delete(`/posts/${post.id}/keep`);
       }
       onKeep?.();
     } catch (error) {
@@ -173,14 +183,8 @@ function PostItemComponent({
     }
   };
 
-  // Handle missing author data gracefully
-  if (!post.author) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.metaText}>{t('post.dataIncomplete', 'Post data incomplete')}</Text>
-      </View>
-    ) as React.JSX.Element;
-  }
+  // Never show "data incomplete" — hide incomplete posts entirely
+  if (!post.author) return null;
 
   return (
     <View style={styles.container}>

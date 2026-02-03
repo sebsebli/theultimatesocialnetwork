@@ -9,11 +9,30 @@ import { useBetaMode } from "@/context/beta-mode-provider";
 const TAGLINE = "History is written by those who write.";
 const ERROR_COLOR = "#B85C5C";
 
+function getDeviceInfo(): string {
+  if (typeof navigator === "undefined") return "Citewalk Web";
+  const ua = navigator.userAgent;
+  let browser = "Browser";
+  if (ua.includes("Chrome") && !ua.includes("Edg")) browser = "Chrome";
+  else if (ua.includes("Firefox")) browser = "Firefox";
+  else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
+  else if (ua.includes("Edg")) browser = "Edge";
+  let os = "Unknown";
+  if (ua.includes("Win")) os = "Windows";
+  else if (ua.includes("Mac")) os = "Mac";
+  else if (ua.includes("Linux")) os = "Linux";
+  else if (ua.includes("Android")) os = "Android";
+  else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+  return `${browser} on ${os}`;
+}
+
 function SignInForm() {
   const searchParams = useSearchParams();
   const { betaMode } = useBetaMode();
   const codeFromUrl = searchParams.get("code");
-  const showInviteInput = betaMode || !!codeFromUrl;
+  const [showInviteInput, setShowInviteInput] = useState(
+    () => betaMode || !!codeFromUrl,
+  );
 
   const [email, setEmail] = useState("");
   const [inviteCode, setInviteCode] = useState(codeFromUrl ?? "");
@@ -152,7 +171,11 @@ function SignInForm() {
       const res = await fetch("/api/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, token }),
+        body: JSON.stringify({
+          email,
+          token,
+          deviceInfo: getDeviceInfo(),
+        }),
       });
       if (!res.ok) throw new Error("Invalid code or expired.");
 
@@ -188,7 +211,11 @@ function SignInForm() {
       const res = await fetch("/api/auth/2fa/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: totpCode, tempToken }),
+        body: JSON.stringify({
+          token: totpCode,
+          tempToken,
+          deviceInfo: getDeviceInfo(),
+        }),
       });
 
       if (!res.ok) throw new Error("Invalid 2FA code.");
@@ -487,9 +514,9 @@ function SignInForm() {
 function SignInPageContent() {
   return (
     <div className="min-h-screen bg-ink flex flex-col md:flex-row">
-      {/* Desktop: left panel — branding */}
-      <div className="hidden md:flex md:flex-1 md:flex-col md:justify-center md:px-12 lg:px-16 xl:px-24 md:border-r md:border-divider">
-        <div className="max-w-md">
+      {/* Desktop: left panel — branding, vertically centered with right */}
+      <div className="hidden md:flex md:flex-1 md:flex-col md:justify-center md:items-center md:px-12 lg:px-16 xl:px-24 md:border-r md:border-divider">
+        <div className="max-w-md w-full flex flex-col items-center text-center">
           <Image
             src="/icon.png"
             alt="Citewalk"
@@ -508,7 +535,7 @@ function SignInPageContent() {
             No password. We&apos;ll email you a code to sign in or create your
             account.
           </p>
-          <div className="mt-12 flex flex-wrap gap-6 text-sm font-medium text-secondary">
+          <div className="mt-12 flex flex-wrap gap-6 text-sm font-medium text-secondary justify-center">
             <Link href="/about" className="hover:text-paper transition-colors">
               About
             </Link>
@@ -525,12 +552,20 @@ function SignInPageContent() {
               Roadmap
             </Link>
           </div>
+          <a
+            href="https://ko-fi.com/sebastianlindner"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-12 text-sm font-medium text-paper hover:text-primary transition-colors"
+          >
+            Support me
+          </a>
         </div>
       </div>
 
-      {/* Mobile: centered branding + form. Desktop: form panel */}
-      <div className="flex-1 flex flex-col py-8 px-6 md:py-12 md:px-10 lg:px-16 md:justify-center md:min-w-0">
-        <div className="flex flex-col justify-center items-center gap-8 md:items-stretch md:max-w-md md:mx-auto w-full">
+      {/* Mobile: centered branding + form. Desktop: form panel vertically centered with left */}
+      <div className="flex-1 flex flex-col min-h-0 py-8 px-6 md:py-12 md:px-10 lg:px-16 md:min-w-0">
+        <div className="flex-1 flex flex-col justify-center min-h-0 items-center gap-8 md:items-stretch md:max-w-md md:mx-auto w-full">
           <div className="flex flex-col items-center gap-4 text-center md:hidden">
             <Image
               src="/icon.png"
@@ -553,7 +588,7 @@ function SignInPageContent() {
           </div>
         </div>
 
-        <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-8 pb-2 mt-auto text-xs font-medium text-tertiary md:justify-start md:max-w-md md:mx-auto">
+        <footer className="flex-shrink-0 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-8 pb-2 text-xs font-medium text-tertiary md:justify-start md:max-w-md md:mx-auto">
           <Link href="/about" className="hover:text-paper transition-colors">
             About
           </Link>

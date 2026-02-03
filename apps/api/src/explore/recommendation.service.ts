@@ -11,6 +11,7 @@ import { Like } from '../entities/like.entity';
 import { Keep } from '../entities/keep.entity';
 import { EmbeddingService } from '../shared/embedding.service';
 import { MeilisearchService } from '../search/meilisearch.service';
+import { ExploreService } from './explore.service';
 
 // Define the shape of user exploration preferences
 interface ExplorePreferences {
@@ -50,6 +51,7 @@ export class RecommendationService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private embeddingService: EmbeddingService,
     private meilisearchService: MeilisearchService,
+    private exploreService: ExploreService,
   ) {}
 
   /**
@@ -314,6 +316,12 @@ export class RecommendationService {
       }
     }
 
+    // Enforce visibility: exclude posts from protected accounts unless viewer follows
+    resultPosts = await this.exploreService.filterPostsVisibleToViewer(
+      resultPosts,
+      userId,
+    );
+
     // Cache the results
     try {
       await this.cacheManager.set(cacheKey, resultPosts, 300000); // 5 min TTL
@@ -325,7 +333,7 @@ export class RecommendationService {
   }
 
   /**
-   * Get trending posts (fallback for new users)
+   * Get trending posts (fallback for new users). Excludes posts from protected accounts.
    */
   private async getTrendingPosts(limit: number): Promise<Post[]> {
     return this.postRepo
@@ -333,6 +341,7 @@ export class RecommendationService {
       .leftJoinAndSelect('post.author', 'author')
       .where('post.visibility = :visibility', { visibility: 'PUBLIC' })
       .andWhere('post.deleted_at IS NULL')
+      .andWhere('(author.is_protected = false OR author.is_protected IS NULL)')
       .orderBy('post.quote_count', 'DESC')
       .addOrderBy('post.created_at', 'DESC')
       .take(limit)
@@ -384,12 +393,14 @@ export class RecommendationService {
       | Record<string, unknown>
       | undefined;
     if (explore?.recommendationsEnabled === false) {
-      return this.userRepo
+      const users = await this.userRepo
         .createQueryBuilder('user')
         .where('user.id != :userId', { userId })
+        .andWhere('user.is_protected = false')
         .orderBy('user.follower_count', 'DESC')
         .take(limit)
         .getMany();
+      return users;
     }
 
     // Check cache
@@ -428,10 +439,11 @@ export class RecommendationService {
     let resultUsers: User[];
 
     if (candidateUserIds.length === 0) {
-      // Fallback: return users with most followers
+      // Fallback: return users with most followers (exclude protected)
       resultUsers = await this.userRepo
         .createQueryBuilder('user')
         .where('user.id != :userId', { userId })
+        .andWhere('user.is_protected = false')
         .orderBy('user.follower_count', 'DESC')
         .take(limit)
         .getMany();
@@ -439,6 +451,15 @@ export class RecommendationService {
       // Get full user objects
       const users = await this.userRepo.find({
         where: { id: In(candidateUserIds) },
+        select: [
+          'id',
+          'handle',
+          'displayName',
+          'avatarKey',
+          'isProtected',
+          'followerCount',
+          'followingCount',
+        ],
       });
 
       // Sort by topic overlap
@@ -446,8 +467,31 @@ export class RecommendationService {
       resultUsers = similarUsers
         .map((su) => userMap.get(su.authorId))
         .filter((u): u is User => u !== undefined)
-        .slice(0, limit);
+        .slice(0, limit * 2);
     }
+
+    // Exclude protected users unless the viewer follows them
+    const protectedUsers = resultUsers.filter(
+      (u) => u.isProtected && u.id !== userId,
+    );
+    if (protectedUsers.length > 0) {
+      const followees = await this.followRepo.find({
+        where: {
+          followerId: userId,
+          followeeId: In(protectedUsers.map((u) => u.id)),
+        },
+        select: ['followeeId'],
+      });
+      const followingSet = new Set(followees.map((f) => f.followeeId));
+      resultUsers = resultUsers.filter(
+        (u) => !u.isProtected || u.id === userId || followingSet.has(u.id),
+      );
+    } else {
+      resultUsers = resultUsers.filter(
+        (u) => !u.isProtected || u.id === userId,
+      );
+    }
+    resultUsers = resultUsers.slice(0, limit);
 
     // Cache
     try {

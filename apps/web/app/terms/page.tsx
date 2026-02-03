@@ -148,7 +148,7 @@ export default function TermsPage() {
           {/* 4 */}
           <section className="mb-12">
             <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
-              4. Messaging & Data Security
+              4. Messaging, Sessions & Data Security
             </h2>
             <p>
               The Service does not provide end-to-end encryption. Messages may
@@ -159,6 +159,16 @@ export default function TermsPage() {
               Users are solely responsible for deciding what information they
               share. We assume no liability for damages resulting from the
               nature of message storage.
+            </p>
+            <h3 className="text-lg font-sans font-medium text-[#F2F2F2] mb-2 mt-8">
+              4.1 Sessions &amp; device information
+            </h3>
+            <p>
+              To show you where your account is signed in and to let you revoke
+              sessions, we store per sign-in: a short device or browser
+              description (e.g. device name on mobile, browser and OS on web)
+              and your IP address. This is described in our Privacy Policy. By
+              using the Service you agree to this processing.
             </p>
           </section>
 

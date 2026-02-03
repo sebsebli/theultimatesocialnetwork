@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, In } from 'typeorm';
+import { Repository, IsNull, In, Not, Like as TypeOrmLike } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
@@ -19,34 +19,44 @@ import { Notification } from '../entities/notification.entity';
 import { Collection } from '../entities/collection.entity';
 import { NotificationPref } from '../entities/notification-pref.entity';
 import { AccountDeletionRequest } from '../entities/account-deletion-request.entity';
+import { EmailChangeRequest } from '../entities/email-change-request.entity';
 import { DataExport } from '../entities/data-export.entity';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { CollectionsService } from '../collections/collections.service';
 import { EmailService } from '../shared/email.service';
 import { UploadService } from '../upload/upload.service';
+import { InteractionsService } from '../interactions/interactions.service';
 import {
   postToPlain,
   replyToPlain,
   extractLinkedPostIds,
 } from '../shared/post-serializer';
+import { isPendingUser } from '../shared/is-pending-user';
 
 const QUOTES_BADGE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-/** Return id -> { title } for linked post display. Keys normalized to lowercase for case-insensitive lookup. */
+/** Return id -> { title?, deletedAt? } for linked post display. Includes soft-deleted posts so clients can show "(deleted content)". Keys normalized to lowercase. */
 async function getTitlesForPostIds(
   postRepo: Repository<Post>,
   ids: string[],
-): Promise<Record<string, { title?: string }>> {
+): Promise<Record<string, { title?: string; deletedAt?: string }>> {
   if (ids.length === 0) return {};
   const unique = Array.from(new Set(ids));
   const posts = await postRepo.find({
     where: unique.map((id) => ({ id })),
-    select: ['id', 'title'],
+    select: ['id', 'title', 'deletedAt'],
+    withDeleted: true,
   });
-  const out: Record<string, { title?: string }> = {};
+  const out: Record<string, { title?: string; deletedAt?: string }> = {};
   for (const p of posts) {
     const key = (p.id ?? '').toLowerCase();
-    if (key) out[key] = { title: p.title ?? undefined };
+    if (key) {
+      out[key] = {
+        title: p.title ?? undefined,
+        deletedAt:
+          p.deletedAt != null ? new Date(p.deletedAt).toISOString() : undefined,
+      };
+    }
   }
   return out;
 }
@@ -75,6 +85,8 @@ export class UsersService {
     private notifPrefRepo: Repository<NotificationPref>,
     @InjectRepository(AccountDeletionRequest)
     private deletionRequestRepo: Repository<AccountDeletionRequest>,
+    @InjectRepository(EmailChangeRequest)
+    private emailChangeRequestRepo: Repository<EmailChangeRequest>,
     @InjectRepository(DataExport)
     private dataExportRepo: Repository<DataExport>,
     private meilisearch: MeilisearchService,
@@ -82,6 +94,7 @@ export class UsersService {
     private emailService: EmailService,
     private configService: ConfigService,
     private uploadService: UploadService,
+    private interactionsService: InteractionsService,
   ) {}
 
   /**
@@ -139,6 +152,8 @@ export class UsersService {
     });
 
     if (!user) return null;
+    // Never show pending (pre-onboarding) profiles to others
+    if (isPendingUser(user) && user.id !== viewerId) return null;
 
     let posts = await this.postRepo.find({
       where: { authorId: user.id, deletedAt: IsNull() },
@@ -256,14 +271,15 @@ export class UsersService {
       }
     }
 
-    // Email change: validate format and uniqueness
+    // Email change: require confirmation — do not update email directly; send confirmation to new address
     if (updates.email != null && updates.email !== user.email) {
+      const newEmail = updates.email.trim().toLowerCase();
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(updates.email)) {
+      if (!emailRegex.test(newEmail)) {
         throw new BadRequestException('Please enter a valid email address.');
       }
       const existing = await this.userRepo.findOne({
-        where: { email: updates.email },
+        where: { email: newEmail },
         select: ['id'],
       });
       if (existing && existing.id !== id) {
@@ -271,6 +287,33 @@ export class UsersService {
           'This email is already in use by another account.',
         );
       }
+      // Invalidate any existing pending email change for this user
+      await this.emailChangeRequestRepo
+        .createQueryBuilder()
+        .delete()
+        .where('user_id = :userId', { userId: id })
+        .andWhere('consumed_at IS NULL')
+        .execute();
+      const req = EmailChangeRequest.createForUser(id, newEmail, 24);
+      await this.emailChangeRequestRepo.save(req);
+      const baseUrl =
+        this.configService.get<string>('API_URL') ||
+        this.configService.get<string>('FRONTEND_URL') ||
+        '';
+      const path = this.configService.get<string>('API_URL')
+        ? '/users/confirm-email'
+        : '/confirm-email';
+      const confirmUrl = baseUrl
+        ? `${baseUrl.replace(/\/$/, '')}${path}?token=${req.token}`
+        : '';
+      const lang = (user.languages && user.languages[0]) || 'en';
+      await this.emailService.sendEmailChangeConfirmation(
+        newEmail,
+        confirmUrl,
+        newEmail,
+        lang,
+      );
+      delete updates.email;
     }
 
     await this.userRepo.update(id, updates);
@@ -411,11 +454,16 @@ export class UsersService {
     }
     const users = await this.userRepo.find({ where: { id: In(ids) } });
     const byId = new Map<string, User>(users.map((u) => [u.id, u]));
-    return ids.map((id) => byId.get(id)).filter((u): u is User => u != null);
+    const list = ids
+      .map((id) => byId.get(id))
+      .filter((u): u is User => u != null);
+    // Never show pending (pre-onboarding) users in suggestions
+    return list.filter((u) => !isPendingUser(u));
   }
 
   private async getSuggestedFallback(limit: number) {
     return this.userRepo.find({
+      where: { handle: Not(TypeOrmLike('__pending_%')) },
       order: { followerCount: 'DESC' },
       take: limit,
     });
@@ -513,6 +561,7 @@ export class UsersService {
     page: number,
     limit: number,
     type: 'posts' | 'replies' | 'quotes' = 'posts',
+    viewerId?: string,
   ): Promise<{ items: unknown[]; hasMore: boolean }> {
     const skip = (page - 1) * limit;
     if (type === 'posts') {
@@ -524,8 +573,12 @@ export class UsersService {
         take: limit + 1,
       });
       const hasMore = posts.length > limit;
-      const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
       const slice = posts.slice(0, limit);
+      const postIds = slice.map((p) => p.id).filter(Boolean);
+      const { likedIds, keptIds } = viewerId
+        ? await this.interactionsService.getLikeKeepForViewer(viewerId, postIds)
+        : { likedIds: new Set<string>(), keptIds: new Set<string>() };
+      const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
       const items = await Promise.all(
         slice.map(async (p) => {
           const linkedIds = extractLinkedPostIds(p.body);
@@ -533,7 +586,13 @@ export class UsersService {
             linkedIds.length > 0
               ? await getTitlesForPostIds(this.postRepo, linkedIds)
               : undefined;
-          return postToPlain(p, getImageUrl, referenceMetadata);
+          const viewerState = viewerId
+            ? {
+                isLiked: likedIds.has(p.id),
+                isKept: keptIds.has(p.id),
+              }
+            : undefined;
+          return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
         }),
       );
       return { items, hasMore };
@@ -568,8 +627,12 @@ export class UsersService {
         .take(limit + 1)
         .getMany();
       const hasMore = quoters.length > limit;
-      const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
       const slice = quoters.slice(0, limit);
+      const postIds = slice.map((p) => p.id).filter(Boolean);
+      const { likedIds, keptIds } = viewerId
+        ? await this.interactionsService.getLikeKeepForViewer(viewerId, postIds)
+        : { likedIds: new Set<string>(), keptIds: new Set<string>() };
+      const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
       const items = await Promise.all(
         slice.map(async (p) => {
           const linkedIds = extractLinkedPostIds(p.body);
@@ -577,7 +640,13 @@ export class UsersService {
             linkedIds.length > 0
               ? await getTitlesForPostIds(this.postRepo, linkedIds)
               : undefined;
-          return postToPlain(p, getImageUrl, referenceMetadata);
+          const viewerState = viewerId
+            ? {
+                isLiked: likedIds.has(p.id),
+                isKept: keptIds.has(p.id),
+              }
+            : undefined;
+          return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
         }),
       );
       return { items, hasMore };
@@ -692,6 +761,42 @@ export class UsersService {
     await this.deletionRequestRepo.save(req);
 
     await this.deleteUser(req.userId);
+    return { success: true };
+  }
+
+  /** Confirm email change with token from email link. Updates user email and marks request consumed. */
+  async confirmEmailChange(token: string): Promise<{ success: true }> {
+    const req = await this.emailChangeRequestRepo.findOne({
+      where: { token },
+      relations: ['user'],
+    });
+    if (!req) {
+      throw new BadRequestException('Invalid or expired confirmation link.');
+    }
+    if (req.consumedAt) {
+      throw new BadRequestException('This link has already been used.');
+    }
+    if (new Date() > req.expiresAt) {
+      throw new BadRequestException('This confirmation link has expired.');
+    }
+    const existing = await this.userRepo.findOne({
+      where: { email: req.newEmail },
+      select: ['id'],
+    });
+    if (existing && existing.id !== req.userId) {
+      throw new BadRequestException(
+        'This email is already in use by another account.',
+      );
+    }
+    req.consumedAt = new Date();
+    await this.emailChangeRequestRepo.save(req);
+    await this.userRepo.update(req.userId, { email: req.newEmail });
+    const user = await this.userRepo.findOneOrFail({
+      where: { id: req.userId },
+    });
+    this.meilisearch
+      .indexUser(user)
+      .catch((err) => console.error('Failed to update user index', err));
     return { success: true };
   }
 
@@ -922,7 +1027,7 @@ export class UsersService {
   private static readonly UUID_REGEX =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-  /** Resolve handle or UUID to user id. Returns null if not found. */
+  /** Resolve handle or UUID to user id. Returns null if not found or if user is pending (pre-onboarding). */
   async resolveUserId(idOrHandle: string): Promise<string | null> {
     if (!idOrHandle) return null;
     const isUuid = UsersService.UUID_REGEX.test(idOrHandle.trim());
@@ -930,9 +1035,11 @@ export class UsersService {
       where: isUuid
         ? [{ id: idOrHandle }, { handle: idOrHandle }]
         : [{ handle: idOrHandle }],
-      select: ['id'],
+      select: ['id', 'handle'],
     });
-    return user?.id ?? null;
+    if (!user) return null;
+    if (isPendingUser(user)) return null;
+    return user.id;
   }
 
   /** Whether the viewer can see the owner's collections (profile public, or viewer follows owner). */
@@ -1010,21 +1117,32 @@ export class UsersService {
     const collections = await qb.getMany();
     const slice = collections.slice(0, limit);
     const ids = slice.map((c) => c.id);
-    const previewMap = await this.collectionsService.getPreviewImageKeys(ids);
+    const latestMap = await this.collectionsService.getLatestItemPreview(ids);
     type CollectionWithItemCount = (typeof slice)[number] & {
       itemCount?: number;
     };
-    const items = slice.map((c: CollectionWithItemCount) => ({
-      id: c.id,
-      title: c.title,
-      description: c.description,
-      isPublic: c.isPublic,
-      shareSaves: c.shareSaves,
-      createdAt: c.createdAt,
-      ownerId: c.ownerId,
-      itemCount: c.itemCount ?? 0,
-      previewImageKey: previewMap[c.id] ?? null,
-    }));
+    const items = slice.map((c: CollectionWithItemCount) => {
+      const latest = latestMap[c.id];
+      return {
+        id: c.id,
+        title: c.title,
+        description: c.description,
+        isPublic: c.isPublic,
+        shareSaves: c.shareSaves,
+        createdAt: c.createdAt,
+        ownerId: c.ownerId,
+        itemCount: c.itemCount ?? 0,
+        previewImageKey: latest?.headerImageKey ?? null,
+        recentPost: latest
+          ? {
+              id: latest.postId,
+              title: latest.title ?? null,
+              bodyExcerpt: latest.bodyExcerpt ?? null,
+              headerImageKey: latest.headerImageKey ?? null,
+            }
+          : null,
+      };
+    });
     return { items, hasMore: collections.length > limit };
   }
 
@@ -1034,7 +1152,7 @@ export class UsersService {
       relations: ['followee'],
       order: { createdAt: 'DESC' },
     });
-    return follows.map((f) => f.followee);
+    return follows.map((f) => f.followee).filter((u) => !isPendingUser(u));
   }
 
   async getFollowers(userId: string) {
@@ -1043,7 +1161,7 @@ export class UsersService {
       relations: ['follower'],
       order: { createdAt: 'DESC' },
     });
-    return follows.map((f) => f.follower);
+    return follows.map((f) => f.follower).filter((u) => !isPendingUser(u));
   }
 
   async removeFollower(userId: string, followerId: string) {

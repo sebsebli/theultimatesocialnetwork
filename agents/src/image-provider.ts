@@ -117,6 +117,12 @@ export async function getAvatarImage(
   return null;
 }
 
+/** Fallback avatar when no Pixabay/Pexels key: fetch a random-but-stable image by seed (e.g. handle). */
+export async function getPlaceholderAvatarImage(seed: string): Promise<Buffer | null> {
+  const url = `https://picsum.photos/seed/${encodeURIComponent(seed)}/400/400`;
+  return fetchImageBuffer(url);
+}
+
 /** Get one image buffer for header (landscape). Prefer Pexels landscape, else Pixabay horizontal. */
 export async function getHeaderImage(
   config: ImageProviderConfig,

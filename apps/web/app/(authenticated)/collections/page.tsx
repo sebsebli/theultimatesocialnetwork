@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CreateCollectionModal } from "@/components/create-collection-modal";
 import { getImageUrl } from "@/lib/security";
-import { EmptyState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 
 interface Collection {
   id: string;
@@ -13,6 +16,12 @@ interface Collection {
   isPublic?: boolean;
   itemCount: number;
   previewImageKey?: string | null;
+  recentPost?: {
+    id?: string;
+    title?: string | null;
+    bodyExcerpt?: string | null;
+    headerImageKey?: string | null;
+  } | null;
 }
 
 export default function CollectionsPage() {
@@ -40,7 +49,7 @@ export default function CollectionsPage() {
   };
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-ink">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 md:px-6 py-3">
         <div className="flex items-center justify-between">
@@ -70,18 +79,20 @@ export default function CollectionsPage() {
       </header>
 
       {/* Collections List */}
-      <div className="px-6 py-6 space-y-4">
+      <div className="px-6 py-6 space-y-4 flex-1 flex flex-col min-h-[200px]">
         {loading ? (
           <div className="text-center py-12">
             <p className="text-secondary text-sm">Loading...</p>
           </div>
         ) : collections.length === 0 ? (
-          <EmptyState
-            icon="folder_open"
-            headline="No collections yet"
-            actionLabel="Create collection"
-            onAction={() => setShowCreateModal(true)}
-          />
+          <div className={emptyStateCenterClassName}>
+            <EmptyState
+              icon="folder_open"
+              headline="No collections yet"
+              actionLabel="Create collection"
+              onAction={() => setShowCreateModal(true)}
+            />
+          </div>
         ) : (
           collections.map((collection) => (
             <Link
@@ -121,9 +132,13 @@ export default function CollectionsPage() {
                     <h3 className="text-paper font-semibold mb-1 group-hover:text-primary transition-colors truncate">
                       {collection.title}
                     </h3>
-                    {collection.description && (
+                    {(collection.recentPost?.title ??
+                      collection.recentPost?.bodyExcerpt ??
+                      collection.description) && (
                       <p className="text-secondary text-sm line-clamp-1">
-                        {collection.description}
+                        {collection.recentPost?.title?.trim() ||
+                          collection.recentPost?.bodyExcerpt?.trim() ||
+                          collection.description}
                       </p>
                     )}
                   </div>
@@ -158,6 +173,6 @@ export default function CollectionsPage() {
         onClose={() => setShowCreateModal(false)}
         onCreated={loadCollections}
       />
-    </>
+    </div>
   );
 }

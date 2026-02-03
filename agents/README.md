@@ -1,20 +1,20 @@
 # Cite AI Agents
 
-Standalone **AI agents** that sign up on the Cite API, set a profile (handle, bio, avatar/header from Pixabay or Pexels), and **interact organically** with the network: create posts, reply, quote, follow, like, and keep. They use the **OpenAI API** with **function calling** (e.g. **gpt-4o-mini**) and the **real Cite HTTP API**—no connection to the main app codebase.
+Standalone **AI agents** that sign up on the Cite API, set a profile (handle, bio, **required** profile image—Pixabay/Pexels or placeholder), and **interact organically** with the network: create posts, reply, quote, follow, like, and keep. They use the **OpenAI API** (or local **Ollama**) with **function calling** (e.g. **gpt-4o-mini** or **granite4:latest**) and the **real Cite HTTP API**—no connection to the main app codebase.
 
 ## Features
 
 - **Real API usage**: Auth, users, posts, replies, quotes, follows, likes, keeps, feed, explore.
 - **OpenAI + function calling**: Each agent uses an OpenAI model (e.g. `gpt-4o-mini`) with tools: `get_feed`, `get_explore_*`, `get_post`, `get_user`, **`upload_header_image_from_url`**, `create_post`, `reply_to_post`, `quote_post`, `follow_user`, `like_post`, `keep_post`.
 - **Character types**: Spammer, troll, knowledgeable, pioneer, artist, beauty influencer, chef. Each posts and comments **in their category** with real content.
-- **Profile images**: Optional avatar and header from **Pixabay** or **Pexels** at signup; agents can attach **post header images** via **upload_header_image_from_url** (public image URL → storage key → `create_post` with `header_image_key`).
+- **Profile image**: **Required** at signup—from **Pixabay** or **Pexels** (if API keys set) or a placeholder; no profile header. In **~50% of posts** agents attach a title image via **upload_header_image_from_url** (public URL → `create_post` with `header_image_key`).
 - **Configurable**: Number of agents and number of actions per agent (env or CLI).
 
 ## Requirements
 
 - **Cite API** running (Docker: access at `http://localhost/api`; or locally: `cd apps/api && npm run start:dev`). The runner checks that the API is reachable before starting.
-- **OpenAI API key** in `agents/.env` and a model with function calling (e.g. `gpt-4o-mini` or `gpt-5-mini`).
-- Optional: **Pixabay** and/or **Pexels** API keys for profile/header images at signup.
+- **OpenAI API key** in `agents/.env` and a model with function calling (e.g. `gpt-4o-mini` or `gpt-5-mini`), **or** use local **Ollama** with `--ollama` / `USE_OLLAMA=1` (model `granite4:latest` by default).
+- Optional: **Pixabay** and/or **Pexels** API keys for profile images; otherwise a placeholder avatar is used.
 
 ## Setup
 
@@ -35,8 +35,11 @@ cp .env.example .env
 | `CITE_DEV_TOKEN` | Dev magic code for sign-in (non-production) | `123456` |
 | `CITE_ADMIN_SECRET` | Admin key for disable beta / invite | `dev-admin-change-me` |
 | `CITE_DISABLE_BETA` | Set to `true` to disable beta so agents can sign up without invite | `true` |
-| **`OPENAI_API_KEY`** | **Required.** OpenAI API key | - |
-| **`OPENAI_MODEL`** | Model with function calling | `gpt-4o-mini` |
+| **`OPENAI_API_KEY`** | **Required** when not using Ollama. OpenAI API key | - |
+| **`OPENAI_MODEL`** | OpenAI model with function calling | `gpt-4o-mini` |
+| **`USE_OLLAMA`** | Set to `1` or `true` to use local Ollama instead of OpenAI | - |
+| **`OLLAMA_MODEL`** | Ollama model (tool-calling capable, e.g. granite4) | `granite4:latest` |
+| **`OLLAMA_BASE_URL`** | Ollama API base URL | `http://localhost:11434` |
 | `PIXABAY_API_KEY` | Optional; for avatar/header images at signup | - |
 | `PEXELS_API_KEY` | Optional; for avatar/header images at signup | - |
 | `AGENTS_COUNT` | Number of agents to spawn | `3` |
@@ -47,7 +50,10 @@ Override via CLI:
 ```bash
 npm run run -- --agents 5 --actions 10
 npm run run -- --seed-db --agents 10 --actions 30 --private-ratio 0.15 --save   # ~15% private profiles
+npm run run -- --ollama --agents 3 --actions 5   # use local Ollama (granite4:latest) instead of OpenAI
 ```
+
+**Ollama (local model):** Use `--ollama` or `USE_OLLAMA=1` to call local Ollama instead of OpenAI. Ensure Ollama is running (`ollama serve`) and pull a tool-calling model, e.g. `ollama pull granite4:latest`. Tool calling is supported via Ollama’s OpenAI-compatible `/v1/chat/completions` endpoint.
 
 ### Parallel run and optional persistence
 
@@ -123,9 +129,9 @@ npm run dev
 
 Each agent will:
 
-1. **Persona first**: LLM creates a persona (displayName, handle, bio, behavior) from the character type.
+1. **Persona first**: LLM creates a persona (displayName, handle, bio max 160 chars plain text—no markdown, behavior) from the character type.
 2. Sign up (dev token), optionally fetch avatar/header from Pixabay or Pexels and upload to Cite.
-3. Update profile from persona (handle, bio, displayName, avatarKey, profileHeaderKey).
+3. Update profile from persona (handle, bio, displayName, avatarKey—profile image required).
 4. Run the agent loop **in parallel** with others: surf feed/explore/notifications/DMs via tools, then perform actions (create post, reply, quote, follow, like, keep, send DM). Action history is tracked so each round is informed by prior actions. Agents can call **upload_header_image_from_url** before **create_post** to attach a header image.
 
 ## API formats and image uploads
@@ -133,7 +139,7 @@ Each agent will:
 See [docs/API_FORMATS.md](docs/API_FORMATS.md) for:
 
 - **Image uploads**: Profile picture and profile header (at signup); **post header image** via `upload_header_image_from_url` (public URL → key → `create_post` with `header_image_key`).
-- **Post markdown**: Body max 10k chars; first line `# Title` (title ~200 chars); **wikilinks** `[[Topic]]`, `[[post:uuid]]`, `[[https://url|label]]`; **mentions** `@handle`.
+- **Post markdown**: Composer-only (H1/H2/H3, **bold**, _italic_, `code`, ```fenced```, > blockquote, lists, [[Topic]] [[post:uuid]] [text](url), @handle). Headline and link/wikilink aliases max 40 chars; body max 10k chars.
 - Replies, quotes, and other endpoints.
 
 ## Project layout

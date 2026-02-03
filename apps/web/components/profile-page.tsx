@@ -9,7 +9,10 @@ import { ProfileOptionsMenu } from "./profile-options-menu";
 import { ImageUploader } from "./image-uploader";
 import { PublicSignInBar } from "./public-sign-in-bar";
 import { formatCompactNumber } from "@/lib/format";
-import { EmptyState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 
 interface Reply {
@@ -29,6 +32,13 @@ interface Collection {
   description?: string;
   isPublic?: boolean;
   itemCount: number;
+  previewImageKey?: string | null;
+  recentPost?: {
+    id?: string;
+    title?: string | null;
+    bodyExcerpt?: string | null;
+    headerImageKey?: string | null;
+  } | null;
 }
 
 interface SavedItem {
@@ -136,7 +146,8 @@ export function ProfilePage({
           const res = await fetch(`/api/keeps?limit=20`);
           if (res.ok && isMounted) {
             const data = await res.json();
-            setTabData((prev) => ({ ...prev, saved: data.items || [] }));
+            const items = Array.isArray(data) ? data : (data?.items ?? []);
+            setTabData((prev) => ({ ...prev, saved: items }));
           }
         } catch {
           /* ignore */
@@ -291,7 +302,7 @@ export function ProfilePage({
       : tabs;
 
   return (
-    <div className={`min-h-screen ${isPublic ? "pb-24" : "pb-20"}`}>
+    <div className={`min-h-screen ${isPublic ? "pb-28" : "pb-28"}`}>
       {/* Profile Top Section (Header + Avatar + Info) */}
       <div className="relative">
         {/* Header Image Background: fixed 16:9 aspect ratio */}
@@ -575,7 +586,7 @@ export function ProfilePage({
       {!(!isSelf && user.isProtected && !following) && (
         <>
           <div className="sticky top-0 z-10 bg-ink border-b border-divider">
-            <div className="flex px-6 overflow-x-auto no-scrollbar">
+            <div className="flex gap-6 px-6 overflow-x-auto overflow-y-hidden no-scrollbar pr-8">
               {visibleTabs.map((tab) => {
                 const count =
                   tab === "posts"
@@ -666,7 +677,13 @@ export function ProfilePage({
                     />
                   ))
                 ) : (
-                  <EmptyState icon="article" headline="No posts yet" compact />
+                  <div className={emptyStateCenterClassName}>
+                    <EmptyState
+                      icon="article"
+                      headline="No posts yet"
+                      compact
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -689,11 +706,13 @@ export function ProfilePage({
                     Loading...
                   </p>
                 ) : (
-                  <EmptyState
-                    icon="chat_bubble_outline"
-                    headline="No replies yet"
-                    compact
-                  />
+                  <div className={emptyStateCenterClassName}>
+                    <EmptyState
+                      icon="chat_bubble_outline"
+                      headline="No replies yet"
+                      compact
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -713,11 +732,13 @@ export function ProfilePage({
                     Loading...
                   </p>
                 ) : (
-                  <EmptyState
-                    icon="format_quote"
-                    headline="No quotes received yet"
-                    compact
-                  />
+                  <div className={emptyStateCenterClassName}>
+                    <EmptyState
+                      icon="format_quote"
+                      headline="No quotes received yet"
+                      compact
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -729,19 +750,49 @@ export function ProfilePage({
                     <Link
                       key={collection.id}
                       href={`/collections/${collection.id}`}
-                      className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+                      className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
                     >
-                      <h3 className="font-semibold text-paper mb-1">
-                        {collection.title}
-                      </h3>
-                      {collection.description && (
-                        <p className="text-secondary text-sm">
-                          {collection.description}
-                        </p>
+                      {collection.previewImageKey ? (
+                        <div className="relative w-14 h-14 rounded-full overflow-hidden bg-divider shrink-0">
+                          <Image
+                            src={getImageUrlFromKey(collection.previewImageKey)}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="56px"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-divider flex items-center justify-center shrink-0 text-tertiary">
+                          <svg
+                            className="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                            />
+                          </svg>
+                        </div>
                       )}
-                      <p className="text-tertiary text-xs mt-2">
-                        {collection.itemCount || 0} items
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-paper mb-0.5 truncate">
+                          {collection.title}
+                        </h3>
+                        <p className="text-secondary text-sm line-clamp-1">
+                          {collection.recentPost?.title?.trim() ||
+                            collection.recentPost?.bodyExcerpt?.trim() ||
+                            collection.description ||
+                            ""}
+                        </p>
+                        <p className="text-tertiary text-xs mt-1">
+                          {collection.itemCount || 0} items
+                        </p>
+                      </div>
                     </Link>
                   ))
                 ) : tabData.collections === null ? (
@@ -749,11 +800,13 @@ export function ProfilePage({
                     Loading...
                   </p>
                 ) : (
-                  <EmptyState
-                    icon="folder_open"
-                    headline="No collections yet"
-                    compact
-                  />
+                  <div className={emptyStateCenterClassName}>
+                    <EmptyState
+                      icon="folder_open"
+                      headline="No collections yet"
+                      compact
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -763,7 +816,18 @@ export function ProfilePage({
                 {tabData.saved && tabData.saved.length > 0 ? (
                   tabData.saved.map((item) => (
                     <div key={item.post.id} className="border-b border-divider">
-                      <PostItem post={item.post} />
+                      <PostItem
+                        post={{ ...item.post, isKept: true }}
+                        onKeep={() =>
+                          setTabData((prev) => ({
+                            ...prev,
+                            saved:
+                              prev.saved?.filter(
+                                (s) => s.post.id !== item.post.id,
+                              ) ?? [],
+                          }))
+                        }
+                      />
                     </div>
                   ))
                 ) : tabData.saved === null ? (
@@ -771,12 +835,14 @@ export function ProfilePage({
                     Loading...
                   </p>
                 ) : (
-                  <EmptyState
-                    icon="bookmark_border"
-                    headline="No saved posts yet"
-                    subtext="Bookmark posts to see them here."
-                    compact
-                  />
+                  <div className={emptyStateCenterClassName}>
+                    <EmptyState
+                      icon="bookmark_border"
+                      headline="No saved posts yet"
+                      subtext="Bookmark posts to see them here."
+                      compact
+                    />
+                  </div>
                 )}
               </div>
             )}

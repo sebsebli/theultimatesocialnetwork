@@ -19,7 +19,7 @@ import ViewShot, { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, PROFILE_HEADER_ASPECT_RATIO, HEADER, MODAL, FONTS, LAYOUT, SIZES, createStyles } from '../constants/theme';
-import { api, getImageUrl } from '../utils/api';
+import { api, getImageUrl, getAvatarUri } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { formatCompactNumber } from '../utils/format';
 
@@ -147,9 +147,9 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
             <View style={styles.ghostContent} pointerEvents="none">
               <View style={styles.avatarContainer}>
                 <View style={styles.avatar}>
-                  {(user.avatarKey || user.avatarUrl) ? (
+                  {getAvatarUri(user) ? (
                     <Image
-                      source={{ uri: user.avatarUrl || (user.avatarKey ? getImageUrl(user.avatarKey) : null) }}
+                      source={{ uri: getAvatarUri(user)! }}
                       style={styles.avatarImage}
                       contentFit="cover"
                       cachePolicy="memory-disk"

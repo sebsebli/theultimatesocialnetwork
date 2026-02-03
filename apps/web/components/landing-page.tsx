@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import Script from "next/script";
 import { MdArrowForward } from "react-icons/md";
 import {
   hasCookieConsent,
@@ -312,27 +311,17 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
             >
               AI Safety
             </Link>
+            <a
+              href="https://ko-fi.com/sebastianlindner"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#F2F2F2] transition-colors"
+            >
+              Support me
+            </a>
           </div>
         </div>
       </footer>
-
-      <Script
-        src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
-        strategy="afterInteractive"
-        onLoad={() => {
-          const w = window as unknown as {
-            kofiWidgetOverlay?: { draw: (id: string, opts: object) => void };
-          };
-          if (typeof w.kofiWidgetOverlay !== "undefined") {
-            w.kofiWidgetOverlay.draw("sebastianlindner", {
-              type: "floating-chat",
-              "floating-chat.donateButton.text": "Support me",
-              "floating-chat.donateButton.background-color": "#1A1A1D",
-              "floating-chat.donateButton.text-color": "#fff",
-            });
-          }
-        }}
-      />
     </div>
   );
 }

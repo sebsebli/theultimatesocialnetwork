@@ -11,6 +11,7 @@ import { Repository, In, DataSource } from 'typeorm';
 import { Topic } from '../entities/topic.entity';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
+import { Follow } from '../entities/follow.entity';
 import { PostTopic } from '../entities/post-topic.entity';
 import { MeilisearchService } from './meilisearch.service';
 import { CurrentUser } from '../shared/current-user.decorator';
@@ -24,6 +25,7 @@ export class SearchController {
     @InjectRepository(Topic) private topicRepo: Repository<Topic>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
+    @InjectRepository(Follow) private followRepo: Repository<Follow>,
     private dataSource: DataSource,
     private readonly uploadService: UploadService,
   ) {}
@@ -61,11 +63,41 @@ export class SearchController {
     const ids = hits.map((h) => h.id).filter(Boolean) as string[];
     const posts = await this.postRepo.find({
       where: { id: In(ids) },
-      select: ['id', 'headerImageKey'],
+      relations: ['author'],
+      select: {
+        id: true,
+        headerImageKey: true,
+        authorId: true,
+        author: { id: true, isProtected: true },
+      },
     });
     const byId = new Map(posts.map((p) => [p.id, p]));
+    const authorIds = [
+      ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
+    ];
+    let followingSet = new Set<string>();
+    if (_user?.id && authorIds.length > 0) {
+      const follows = await this.followRepo.find({
+        where: { followerId: _user.id, followeeId: In(authorIds) },
+        select: ['followeeId'],
+      });
+      followingSet = new Set(follows.map((f) => f.followeeId));
+    }
+    const visiblePostIds = new Set(
+      posts
+        .filter((p) => {
+          const author = p.author;
+          if (!author) return false;
+          if (!author.isProtected) return true;
+          return _user?.id != null && followingSet.has(author.id);
+        })
+        .map((p) => p.id),
+    );
+    const filteredHits = hits.filter(
+      (h) => h.id != null && visiblePostIds.has(h.id),
+    );
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
-    const hydrated = hits.map((h) => {
+    const hydrated = filteredHits.map((h) => {
       const post = h.id != null ? byId.get(h.id) : undefined;
       const headerImageKey =
         post?.headerImageKey ??
@@ -101,21 +133,26 @@ export class SearchController {
     const ids = hits.map((h) => h.id).filter(Boolean) as string[];
     const users = await this.userRepo.find({
       where: { id: In(ids) },
-      select: ['id', 'avatarKey'],
+      select: ['id', 'avatarKey', 'handle'],
     });
     const byId = new Map(users.map((u) => [u.id, u]));
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
-    const hydrated = hits.map((h) => {
-      const u = h.id != null ? byId.get(h.id) : undefined;
-      const avatarKey = u?.avatarKey ?? h.avatarKey ?? null;
-      const avatarUrl =
-        avatarKey != null && avatarKey !== '' ? getImageUrl(avatarKey) : null;
-      return {
-        ...h,
-        avatarKey: avatarKey ?? undefined,
-        avatarUrl: avatarUrl ?? undefined,
-      };
-    });
+    const hydrated = hits
+      .filter((h) => {
+        const u = h.id != null ? byId.get(h.id) : undefined;
+        return u != null && !u.handle?.startsWith('__pending_');
+      })
+      .map((h) => {
+        const u = h.id != null ? byId.get(h.id) : undefined;
+        const avatarKey = u?.avatarKey ?? h.avatarKey ?? null;
+        const avatarUrl =
+          avatarKey != null && avatarKey !== '' ? getImageUrl(avatarKey) : null;
+        return {
+          ...h,
+          avatarKey: avatarKey ?? undefined,
+          avatarUrl: avatarUrl ?? undefined,
+        };
+      });
     return { ...res, hits: hydrated };
   }
 

@@ -6,7 +6,9 @@ import {
   HttpStatus,
   UseGuards,
   UnauthorizedException,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { VerifyDto } from './dto/verify.dto';
@@ -17,6 +19,14 @@ import { AuthGuard } from '@nestjs/passport';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { User } from '../entities/user.entity';
 import { JwtService } from '@nestjs/jwt';
+
+function getClientIp(req: Request): string | undefined {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded.split(',')[0]?.trim();
+  if (Array.isArray(forwarded) && forwarded[0])
+    return String(forwarded[0]).split(',')[0]?.trim();
+  return req.ip ?? req.socket?.remoteAddress;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -35,8 +45,13 @@ export class AuthController {
   @Post('verify')
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
-  async verify(@Body() dto: VerifyDto) {
-    return this.authService.verifyToken(dto.email, dto.token);
+  async verify(@Req() req: Request, @Body() dto: VerifyDto) {
+    const ipAddress = getClientIp(req);
+    const deviceInfo = dto.deviceInfo?.trim() || undefined;
+    return this.authService.verifyToken(dto.email, dto.token, undefined, {
+      ipAddress,
+      deviceInfo,
+    });
   }
 
   @Post('2fa/setup')
@@ -53,7 +68,7 @@ export class AuthController {
 
   @Post('2fa/login')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  async login2FA(@Body() dto: Login2FADto) {
+  async login2FA(@Req() req: Request, @Body() dto: Login2FADto) {
     // Verify temp token manually since it's not a full session token
     let payload: { isPartial?: boolean; sub?: string };
     try {
@@ -66,7 +81,12 @@ export class AuthController {
       throw new UnauthorizedException('Invalid token type');
     }
 
-    return this.authService.verify2FALogin(payload.sub, dto.token);
+    const ipAddress = getClientIp(req);
+    const deviceInfo = dto.deviceInfo?.trim() || undefined;
+    return this.authService.verify2FALogin(payload.sub, dto.token, {
+      ipAddress,
+      deviceInfo,
+    });
   }
 
   @Post('logout')

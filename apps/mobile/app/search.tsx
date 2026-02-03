@@ -7,7 +7,7 @@ import { api } from '../utils/api';
 import { PostItem } from '../components/PostItem';
 import { TopicCard } from '../components/ExploreCards';
 import { UserCard } from '../components/UserCard';
-import { EmptyState } from '../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
 import { SectionHeader } from '../components/SectionHeader';
 import { ListFooterLoader } from '../components/ListFooterLoader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -116,16 +116,18 @@ export default function SearchScreen() {
 
   const flatListData = useMemo(() => {
     if (activeType === 'all' && !topicSlug) {
+      const postsWithAuthor = allResults.posts.filter((p: any) => !!p?.author);
       return [
-        ...(allResults.posts.length ? [{ type: 'section', key: 'posts', title: t('search.posts', 'Posts') }] : []),
-        ...allResults.posts.map((p: any) => ({ type: 'post', ...p, key: p.id })),
+        ...(postsWithAuthor.length ? [{ type: 'section', key: 'posts', title: t('search.posts', 'Posts') }] : []),
+        ...postsWithAuthor.map((p: any) => ({ type: 'post', ...p, key: p.id })),
         ...(allResults.users.length ? [{ type: 'section', key: 'people', title: t('search.people', 'People') }] : []),
         ...allResults.users.map((u: any) => ({ type: 'user', ...u, key: u.id })),
         ...(allResults.topics.length ? [{ type: 'section', key: 'topics', title: t('search.topics', 'Topics') }] : []),
         ...allResults.topics.map((tpc: any) => ({ type: 'topic', ...tpc, key: tpc.id })),
       ];
     }
-    return results.map((r: any) => ({ ...r, type: activeType === 'posts' ? 'post' : activeType === 'people' ? 'user' : 'topic' }));
+    const list = activeType === 'posts' ? results.filter((r: any) => !!r?.author) : results;
+    return list.map((r: any) => ({ ...r, type: activeType === 'posts' ? 'post' : activeType === 'people' ? 'user' : 'topic' }));
   }, [activeType, allResults, results, t, topicSlug]);
 
   const renderItem = useCallback(({ item }: { item: any }) => {
@@ -145,7 +147,7 @@ export default function SearchScreen() {
       return (
         <TopicCard
           item={item}
-          onPress={() => router.push(`/topic/${encodeURIComponent(item.slug)}`)}
+          onPress={() => router.push(`/topic/${encodeURIComponent(item.slug || item.id)}`)}
         />
       );
     }
@@ -220,18 +222,21 @@ export default function SearchScreen() {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.3}
         ListEmptyComponent={
-          loading ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>{t('common.loading')}</Text>
-            </View>
-          ) : (
-            <EmptyState
-              icon="search"
-              headline={query ? t('search.noResults', 'No results') : (topicSlug ? t('search.typeToSearchInTopic', 'Type to search in this topic') : t('search.startTyping', 'Search posts, people, topics'))}
-              subtext={query ? t('search.noResultsHint', 'Try different keywords.') : undefined}
-            />
-          )
+          <View style={emptyStateCenterWrapStyle}>
+            {loading ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>{t('common.loading')}</Text>
+              </View>
+            ) : (
+              <EmptyState
+                icon="search"
+                headline={query ? t('search.noResults', 'No results') : (topicSlug ? t('search.typeToSearchInTopic', 'Type to search in this topic') : t('search.startTyping', 'Search posts, people, topics'))}
+                subtext={query ? t('search.noResultsHint', 'Try different keywords.') : undefined}
+              />
+            )}
+          </View>
         }
+        contentContainerStyle={flatListData.length === 0 ? { flexGrow: 1 } : undefined}
         ListFooterComponent={
           <ListFooterLoader
             visible={

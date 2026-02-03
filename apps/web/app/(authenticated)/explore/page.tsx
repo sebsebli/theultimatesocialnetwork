@@ -78,7 +78,7 @@ function ExplorePageContent() {
 
       {/* Tabs */}
       <div className="pt-1 pb-3 bg-ink border-b border-divider overflow-x-auto overflow-y-hidden min-w-0 no-scrollbar">
-        <div className="flex flex-nowrap px-4 gap-6 md:gap-8 min-w-max">
+        <div className="flex flex-nowrap px-4 pr-8 gap-6 md:gap-8 min-w-max">
           {tabs.map(({ id, label }) => (
             <Link
               key={id}

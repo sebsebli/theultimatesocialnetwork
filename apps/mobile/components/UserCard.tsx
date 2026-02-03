@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { View, Text, Pressable, Image } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { getImageUrl } from '../utils/api';
+import { getImageUrl, getAvatarUri } from '../utils/api';
 import { COLORS, SPACING, FONTS, LAYOUT, createStyles } from '../constants/theme';
 
 /**
@@ -35,8 +35,8 @@ function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.row}>
         <View style={styles.avatar}>
-          {(item.avatarKey || item.avatarUrl) ? (
-            <Image source={{ uri: item.avatarKey ? getImageUrl(item.avatarKey) : item.avatarUrl! }} style={styles.avatarImage} />
+          {getAvatarUri(item) ? (
+            <Image source={{ uri: getAvatarUri(item)! }} style={styles.avatarImage} />
           ) : (
             <Text style={styles.avatarText}>
               {(item.displayName || item.handle || '?').charAt(0).toUpperCase()}

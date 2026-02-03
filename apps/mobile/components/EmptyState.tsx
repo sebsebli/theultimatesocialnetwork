@@ -20,6 +20,21 @@ export interface EmptyStateProps {
   compact?: boolean;
 }
 
+/** Use as wrapper for EmptyState when used as ListEmptyComponent so it stays vertically centered. */
+export const emptyStateCenterWrapStyle = { flex: 1, justifyContent: 'center' as const };
+
+/**
+ * EmptyState wrapped in a full-height centering View. Use for ListEmptyComponent so the empty state is vertically centered in the list.
+ * Ensure the list's contentContainerStyle includes flexGrow: 1 when the list is empty.
+ */
+export function CenteredEmptyState(props: EmptyStateProps) {
+  return (
+    <View style={emptyStateCenterWrapStyle}>
+      <EmptyStateInner {...props} />
+    </View>
+  );
+}
+
 /**
  * Modern empty state used everywhere: home, explore, profile, search, lists.
  * Minimal, social-network style: icon + headline + subtext + optional actions.

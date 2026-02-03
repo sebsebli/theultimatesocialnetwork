@@ -69,15 +69,25 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [chatSearchQuery, setChatSearchQuery] = useState("");
-  const [chatSearchResults, setChatSearchResults] = useState<ChatSearchHit[]>([]);
+  const [chatSearchResults, setChatSearchResults] = useState<ChatSearchHit[]>(
+    [],
+  );
   const [chatSearchLoading, setChatSearchLoading] = useState(false);
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [newMessageQuery, setNewMessageQuery] = useState("");
-  const [newMessageSuggestions, setNewMessageSuggestions] = useState<UserOption[]>([]);
-  const [newMessageSearchResults, setNewMessageSearchResults] = useState<UserOption[]>([]);
+  const [newMessageSuggestions, setNewMessageSuggestions] = useState<
+    UserOption[]
+  >([]);
+  const [newMessageSearchResults, setNewMessageSearchResults] = useState<
+    UserOption[]
+  >([]);
   const [newMessageLoading, setNewMessageLoading] = useState(false);
-  const chatSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const newMessageSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const newMessageSearchTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const { on, off } = useRealtime();
 
   const loadThreads = useCallback(async () => {
@@ -154,11 +164,14 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
       setChatSearchResults([]);
       return;
     }
-    if (chatSearchTimeoutRef.current) clearTimeout(chatSearchTimeoutRef.current);
+    if (chatSearchTimeoutRef.current)
+      clearTimeout(chatSearchTimeoutRef.current);
     chatSearchTimeoutRef.current = setTimeout(async () => {
       setChatSearchLoading(true);
       try {
-        const res = await fetch(`/api/messages/search?q=${encodeURIComponent(q)}&limit=15`);
+        const res = await fetch(
+          `/api/messages/search?q=${encodeURIComponent(q)}&limit=15`,
+        );
         if (res.ok) {
           const data = await res.json();
           setChatSearchResults(Array.isArray(data) ? data : []);
@@ -170,7 +183,8 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
       }
     }, 300);
     return () => {
-      if (chatSearchTimeoutRef.current) clearTimeout(chatSearchTimeoutRef.current);
+      if (chatSearchTimeoutRef.current)
+        clearTimeout(chatSearchTimeoutRef.current);
     };
   }, [chatSearchQuery]);
 
@@ -180,7 +194,13 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
     setNewMessageLoading(true);
     fetch("/api/users/suggested?limit=10")
       .then((res) => (res.ok ? res.json() : []))
-      .then((list: UserOption[]) => setNewMessageSuggestions(Array.isArray(list) ? list : []))
+      .then((list: UserOption[]) =>
+        setNewMessageSuggestions(
+          (Array.isArray(list) ? list : []).filter(
+            (u) => !u.handle?.startsWith?.("__pending_"),
+          ),
+        ),
+      )
       .catch(() => setNewMessageSuggestions([]))
       .finally(() => setNewMessageLoading(false));
   }, [showNewMessage]);
@@ -192,21 +212,29 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
       setNewMessageSearchResults([]);
       return;
     }
-    if (newMessageSearchTimeoutRef.current) clearTimeout(newMessageSearchTimeoutRef.current);
+    if (newMessageSearchTimeoutRef.current)
+      clearTimeout(newMessageSearchTimeoutRef.current);
     newMessageSearchTimeoutRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search/users?q=${encodeURIComponent(q)}&limit=12`);
+        const res = await fetch(
+          `/api/search/users?q=${encodeURIComponent(q)}&limit=12`,
+        );
         if (res.ok) {
           const data = await res.json();
           const hits = data.hits || data;
-          setNewMessageSearchResults(Array.isArray(hits) ? hits : []);
+          setNewMessageSearchResults(
+            (Array.isArray(hits) ? hits : []).filter(
+              (u: UserOption) => !u.handle?.startsWith?.("__pending_"),
+            ),
+          );
         }
       } catch {
         setNewMessageSearchResults([]);
       }
     }, 300);
     return () => {
-      if (newMessageSearchTimeoutRef.current) clearTimeout(newMessageSearchTimeoutRef.current);
+      if (newMessageSearchTimeoutRef.current)
+        clearTimeout(newMessageSearchTimeoutRef.current);
     };
   }, [newMessageQuery]);
 
@@ -226,7 +254,10 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
         setSelectedThread(thread.id);
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Could not start conversation. You may need to follow each other.");
+        alert(
+          err.error ||
+            "Could not start conversation. You may need to follow each other.",
+        );
       }
     } catch {
       alert("Could not start conversation. Please try again.");
@@ -369,17 +400,19 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
               className={`flex ${msg.senderId === thread.otherUser.id ? "justify-start" : "justify-end"}`}
             >
               <div
-                className={`max-w-[70%] px-4 py-2 rounded-lg ${msg.senderId === thread.otherUser.id
+                className={`max-w-[70%] px-4 py-2 rounded-lg ${
+                  msg.senderId === thread.otherUser.id
                     ? "bg-white/5 text-paper"
                     : "bg-primary text-white"
-                  }`}
+                }`}
               >
                 <p className="text-sm">{msg.body}</p>
                 <p
-                  className={`text-xs mt-1 ${msg.senderId === thread.otherUser.id
+                  className={`text-xs mt-1 ${
+                    msg.senderId === thread.otherUser.id
                       ? "text-tertiary"
                       : "text-primary/70"
-                    }`}
+                  }`}
                 >
                   {formatTime(msg.createdAt)}
                 </p>
@@ -431,8 +464,18 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
                 }}
                 className="text-tertiary hover:text-paper"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -470,8 +513,12 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
                             className="shrink-0"
                           />
                           <div>
-                            <div className="font-medium text-paper">{u.displayName || u.handle}</div>
-                            <div className="text-xs text-tertiary">@{u.handle}</div>
+                            <div className="font-medium text-paper">
+                              {u.displayName || u.handle}
+                            </div>
+                            <div className="text-xs text-tertiary">
+                              @{u.handle}
+                            </div>
                           </div>
                         </button>
                       ))}
@@ -479,11 +526,15 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
                 )
               ) : (
                 <>
-                  <p className="text-xs font-semibold text-tertiary uppercase tracking-wider">Suggested</p>
+                  <p className="text-xs font-semibold text-tertiary uppercase tracking-wider">
+                    Suggested
+                  </p>
                   {newMessageLoading ? (
                     <p className="text-secondary text-sm">Loading...</p>
                   ) : newMessageSuggestions.length === 0 ? (
-                    <p className="text-secondary text-sm">No suggestions. Search by name or handle above.</p>
+                    <p className="text-secondary text-sm">
+                      No suggestions. Search by name or handle above.
+                    </p>
                   ) : (
                     <div className="space-y-1">
                       {newMessageSuggestions
@@ -504,8 +555,12 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
                               className="shrink-0"
                             />
                             <div>
-                              <div className="font-medium text-paper">{u.displayName || u.handle}</div>
-                              <div className="text-xs text-tertiary">@{u.handle}</div>
+                              <div className="font-medium text-paper">
+                                {u.displayName || u.handle}
+                              </div>
+                              <div className="text-xs text-tertiary">
+                                @{u.handle}
+                              </div>
                             </div>
                           </button>
                         ))}
@@ -564,7 +619,9 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
                   className="shrink-0"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-paper truncate">{hit.otherUser.displayName}</div>
+                  <div className="font-medium text-paper truncate">
+                    {hit.otherUser.displayName}
+                  </div>
                   <p className="text-xs text-tertiary truncate">{hit.body}</p>
                 </div>
               </button>

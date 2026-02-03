@@ -326,6 +326,18 @@ html {
   color: var(--primary-dark);
 }
 
+/* External URL links [text](url): warm orange, no underline (parity with mobile design tokens) */
+.prose .prose-link-external {
+  color: #D97A3C;
+  text-decoration: none;
+}
+.prose .prose-link-external:hover {
+  color: #e08d52;
+}
+.prose .prose-link-external:visited {
+  color: #D97A3C;
+}
+
 .prose p {
   margin-bottom: 1.25em;
 }

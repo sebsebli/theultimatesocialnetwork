@@ -12,9 +12,12 @@ import { Mute } from '../entities/mute.entity';
 import { TopicFollow } from '../entities/topic-follow.entity';
 import { SharedModule } from '../shared/shared.module';
 import { UploadModule } from '../upload/upload.module';
+import { InteractionsModule } from '../interactions/interactions.module';
+import { ExploreModule } from '../explore/explore.module';
 
 @Module({
   imports: [
+    ExploreModule,
     TypeOrmModule.forFeature([
       Post,
       Follow,
@@ -27,6 +30,7 @@ import { UploadModule } from '../upload/upload.module';
     ]),
     SharedModule,
     UploadModule,
+    InteractionsModule,
   ],
   controllers: [FeedController],
   providers: [FeedService],

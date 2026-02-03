@@ -1,6 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/** Use as wrapper for EmptyState in list content so it centers vertically (e.g. flex-1 min-h). */
+export const emptyStateCenterClassName =
+  "flex-1 flex flex-col items-center justify-center min-h-[200px]";
+
 interface EmptyStateProps {
   icon?: React.ReactNode;
   headline: string;

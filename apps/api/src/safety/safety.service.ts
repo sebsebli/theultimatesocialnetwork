@@ -436,7 +436,7 @@ export class SafetyService {
       return this.contentModeration.checkImage(buffer);
     }
 
-    // Fallback if ContentModerationService not injected
+    // No moderation service: reject (never allow unmoderated images)
     if (buffer.length < 100) {
       return {
         safe: false,
@@ -444,6 +444,10 @@ export class SafetyService {
         confidence: 1.0,
       };
     }
-    return { safe: true, confidence: 0.5 };
+    return {
+      safe: false,
+      reason: 'Image moderation not available.',
+      confidence: 0,
+    };
   }
 }

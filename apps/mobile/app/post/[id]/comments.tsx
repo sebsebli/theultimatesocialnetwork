@@ -22,7 +22,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { MarkdownText } from '../../../components/MarkdownText';
 import { ReportModal } from '../../../components/ReportModal';
-import { EmptyState } from '../../../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../../components/EmptyState';
 import { useComposerSearch } from '../../../hooks/useComposerSearch';
 
 const COMMENT_MIN_LENGTH = 2;
@@ -170,9 +170,12 @@ export default function PostCommentsScreen() {
       setCommentDraft('');
       showSuccess(t('post.commentPosted', 'Comment posted'));
       await loadReplies();
-    } catch (error) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch (error: any) {
       console.error('Failed to post comment', error);
-      showError(t('post.commentFailed'));
+      const message = error?.data?.message ?? error?.message ?? t('post.commentFailed');
+      showError(typeof message === 'string' ? message : t('post.commentFailed'));
+      setCommentDraft(body);
     } finally {
       setSubmittingComment(false);
     }
@@ -258,7 +261,7 @@ export default function PostCommentsScreen() {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }, replies.length === 0 && { flexGrow: 1 }]}
         keyboardShouldPersistTaps="handled"
       >
         {postTitle ? (
@@ -268,13 +271,15 @@ export default function PostCommentsScreen() {
         ) : null}
 
         {replies.length === 0 ? (
-          <EmptyState
-            icon="chat-bubble-outline"
-            headline={isAuthenticated ? t('post.noComments', 'No comments yet. Be the first.') : t('post.signInToComment', 'Sign in to comment')}
-            subtext={isAuthenticated ? t('post.noCommentsSubtext', 'Add a comment below to start the discussion.') : t('post.signInToCommentSubtext', 'Sign in to join the discussion and add a comment.')}
-            actionLabel={!isAuthenticated ? t('common.signIn', 'Sign in') : undefined}
-            onAction={!isAuthenticated ? () => router.push('/(tabs)/profile') : undefined}
-          />
+          <View style={emptyStateCenterWrapStyle}>
+            <EmptyState
+              icon="chat-bubble-outline"
+              headline={isAuthenticated ? t('post.noComments', 'No comments yet. Be the first.') : t('post.signInToComment', 'Sign in to comment')}
+              subtext={isAuthenticated ? t('post.noCommentsSubtext', 'Add a comment below to start the discussion.') : t('post.signInToCommentSubtext', 'Sign in to join the discussion and add a comment.')}
+              actionLabel={!isAuthenticated ? t('common.signIn', 'Sign in') : undefined}
+              onAction={!isAuthenticated ? () => router.push('/(tabs)/profile') : undefined}
+            />
+          </View>
         ) : null}
         {(Array.isArray(replies) ? replies : []).map((reply) => (
           <View

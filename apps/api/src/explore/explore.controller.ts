@@ -50,27 +50,26 @@ export class ExploreController {
   ) {
     const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
     const pageNum = Math.max(1, parseInt(page || '1', 10) || 1);
-    let list: User[];
-    if (user?.id && (!sort || sort === 'recommended')) {
+    if (user?.id && (!sort || sort === 'recommended') && pageNum === 1) {
       try {
-        list = await this.recommendationService.getRecommendedPeople(
+        const list = await this.recommendationService.getRecommendedPeople(
           user.id,
-          limitNum,
+          limitNum + 1,
         );
+        const hasMore = list.length > limitNum;
+        const items = this.withAvatar(list.slice(0, limitNum));
+        return { items, hasMore };
       } catch (err) {
         console.error('explore/people recommended error', err);
-        list = await this.exploreService.getPeople(user.id, limitNum, {
-          sort: 'cited',
-        });
       }
-    } else {
-      list = await this.exploreService.getPeople(user?.id, limitNum, { sort });
     }
-    const items = this.withAvatar(list);
-    if (pageNum > 1) {
-      return { items: [], hasMore: false };
-    }
-    return { items, hasMore: false };
+    const result = await this.exploreService.getPeople(user?.id, {
+      sort,
+      page: pageNum,
+      limit: limitNum,
+    });
+    const items = this.withAvatar(result.items);
+    return { items, hasMore: result.hasMore };
   }
 
   @Get('quoted-now')
@@ -82,7 +81,8 @@ export class ExploreController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.exploreService.getQuotedNow(user?.id, 20, {
+    const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+    return this.exploreService.getQuotedNow(user?.id, limitNum, {
       lang,
       sort,
       page,
@@ -99,7 +99,8 @@ export class ExploreController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.exploreService.getDeepDives(user?.id, 20, {
+    const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+    return this.exploreService.getDeepDives(user?.id, limitNum, {
       lang,
       sort,
       page,
@@ -117,7 +118,8 @@ export class ExploreController {
     @Query('limit') limit?: string,
   ) {
     try {
-      return await this.exploreService.getNewsroom(user?.id, 20, {
+      const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+      return await this.exploreService.getNewsroom(user?.id, limitNum, {
         lang,
         sort,
         page,
@@ -125,7 +127,7 @@ export class ExploreController {
       });
     } catch (err) {
       console.error('explore/newsroom error', err);
-      return [];
+      return { items: [], hasMore: false };
     }
   }
 

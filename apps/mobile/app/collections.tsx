@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { CollectionCard } from '../components/CollectionCard';
-import { EmptyState } from '../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
 import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
 
@@ -61,6 +61,7 @@ export default function CollectionsScreen() {
         description: item.description,
         itemCount: item.itemCount,
         previewImageKey: item.previewImageKey,
+        recentPost: (item as any).recentPost ?? undefined,
       }}
       onPress={() => {
         Haptics.selectionAsync();
@@ -112,12 +113,14 @@ export default function CollectionsScreen() {
       />
 
       {collections.length === 0 ? (
-        <EmptyState
-          icon="folder-open"
-          headline={t('collections.empty')}
-          actionLabel={t('collections.create')}
-          onAction={() => setModalVisible(true)}
-        />
+        <View style={emptyStateCenterWrapStyle}>
+          <EmptyState
+            icon="folder-open"
+            headline={t('collections.empty')}
+            actionLabel={t('collections.create')}
+            onAction={() => setModalVisible(true)}
+          />
+        </View>
       ) : (
         <FlatList
           data={collections}

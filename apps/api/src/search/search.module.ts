@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Post } from '../entities/post.entity';
 import { Topic } from '../entities/topic.entity';
 import { User } from '../entities/user.entity';
+import { Follow } from '../entities/follow.entity';
 import { PostTopic } from '../entities/post-topic.entity';
 import { DmMessage } from '../entities/dm-message.entity';
 import { DmThread } from '../entities/dm-thread.entity';
@@ -16,6 +17,7 @@ import { UploadModule } from '../upload/upload.module';
       Post,
       Topic,
       User,
+      Follow,
       PostTopic,
       DmMessage,
       DmThread,

@@ -28,5 +28,6 @@ import Redis from 'ioredis';
       inject: [ConfigService],
     },
   ],
+  exports: [InteractionsService],
 })
 export class InteractionsModule {}

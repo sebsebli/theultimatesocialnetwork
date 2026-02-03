@@ -103,7 +103,7 @@ export default function OnboardingProfilePage() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Your public name"
-              className="w-full h-14 px-5 bg-white/5 border border-white/10 rounded-xl text-paper text-lg placeholder-tertiary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-inner"
+              className="w-full h-14 px-5 bg-white/5 border border-white/10 rounded-xl text-paper text-lg tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-inner"
               required
             />
           </div>
@@ -141,10 +141,11 @@ export default function OnboardingProfilePage() {
                   setHandle(value);
                 }}
                 placeholder="username"
-                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner ${handleAvailable === false
+                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner ${
+                  handleAvailable === false
                     ? "border-red-500/50 focus:ring-red-500/30"
                     : "border-white/10 focus:ring-primary/50"
-                  }`}
+                }`}
                 required
                 minLength={3}
               />
@@ -177,10 +178,11 @@ export default function OnboardingProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsProtected(false)}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${!isProtected
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                  !isProtected
                     ? "bg-primary/10 border-primary/40 shadow-lg"
                     : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
-                  }`}
+                }`}
               >
                 <span className="font-bold text-paper mb-1">Open</span>
                 <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">
@@ -190,10 +192,11 @@ export default function OnboardingProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsProtected(true)}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${isProtected
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                  isProtected
                     ? "bg-primary/10 border-primary/40 shadow-lg"
                     : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
-                  }`}
+                }`}
               >
                 <span className="font-bold text-paper mb-1">Protected</span>
                 <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">

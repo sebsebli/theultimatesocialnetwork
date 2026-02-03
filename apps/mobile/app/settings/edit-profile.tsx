@@ -139,6 +139,12 @@ export default function EditProfileScreen() {
 
   const showAvatarActions = () => setAvatarActionSheetVisible(true);
 
+  /** Close the avatar sheet first, then run fn after a short delay so the image picker can present (avoids modal conflict). */
+  const closeAvatarSheetAndThen = useCallback((fn: () => void) => {
+    setAvatarActionSheetVisible(false);
+    setTimeout(fn, 450);
+  }, []);
+
   const removeAvatar = async () => {
     try {
       setAvatarUploading(true);
@@ -154,9 +160,9 @@ export default function EditProfileScreen() {
   };
 
   const avatarOptions = [
-    { label: t('settings.takePhoto', 'Take photo'), onPress: () => pickImage('camera'), icon: 'camera-alt' as const },
-    { label: t('settings.choosePhoto', 'Choose from library'), onPress: () => pickImage('library'), icon: 'photo-library' as const },
-    ...(avatarKey || avatarUrl || avatarLocalUri ? [{ label: t('settings.removePhoto', 'Remove photo'), onPress: removeAvatar, destructive: true as const, icon: 'delete-outline' as const }] : []),
+    { label: t('settings.takePhoto', 'Take photo'), onPress: () => closeAvatarSheetAndThen(() => pickImage('camera')), icon: 'camera-alt' as const },
+    { label: t('settings.choosePhoto', 'Choose from library'), onPress: () => closeAvatarSheetAndThen(() => pickImage('library')), icon: 'photo-library' as const },
+    ...(avatarKey || avatarUrl || avatarLocalUri ? [{ label: t('settings.removePhoto', 'Remove photo'), onPress: () => closeAvatarSheetAndThen(removeAvatar), destructive: true as const, icon: 'delete-outline' as const }] : []),
   ];
 
   const pickImage = async (source: 'camera' | 'library') => {
@@ -169,17 +175,23 @@ export default function EditProfileScreen() {
         showError(t('settings.photoPermissionDenied', 'Permission to access photos is required.'));
         return;
       }
+      const pickerOptions = { mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1] as [number, number], quality: 0.8 };
       const result =
         source === 'camera'
-          ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 })
-          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+          ? await ImagePicker.launchCameraAsync(pickerOptions)
+          : await ImagePicker.launchImageLibraryAsync(pickerOptions);
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
       setAvatarUploading(true);
-      const uploadRes = await api.upload<{ key: string; url: string }>('/upload/profile-picture', asset);
-      await api.patch('/users/me', { avatarKey: uploadRes.key });
-      setAvatarUrl(uploadRes.url);
-      setAvatarKey(uploadRes.key ?? null);
+      const uploadRes = await api.upload<{ key?: string; url?: string }>('/upload/profile-picture', asset);
+      const key = uploadRes?.key ?? (uploadRes as any)?.data?.key;
+      if (!key || typeof key !== 'string') {
+        showError(t('profile.photoUpdateFailed', 'Failed to update photo.'));
+        return;
+      }
+      await api.patch('/users/me', { avatarKey: key });
+      setAvatarUrl((uploadRes?.url ?? (uploadRes as any)?.url) || getImageUrl(key));
+      setAvatarKey(key);
       setAvatarLocalUri(asset.uri);
       showSuccess(t('settings.photoUpdated', 'Profile photo updated.'));
     } catch (err: any) {

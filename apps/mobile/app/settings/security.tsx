@@ -23,10 +23,10 @@ export default function SecuritySettingsScreen() {
   const { t } = useTranslation();
   const { showSuccess, showError } = useToast();
   const insets = useSafeAreaInsets();
-  
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
-  
+
   // 2FA State
   const [is2FASetupOpen, setIs2FASetupOpen] = useState(false);
   const [qrValue, setQrValue] = useState<string | null>(null);
@@ -85,12 +85,19 @@ export default function SecuritySettingsScreen() {
 
   const start2FASetup = async () => {
     try {
-      const data = await api.post<{ otpauthUrl: string; secret: string }>('/auth/2fa/setup');
-      setQrValue(data.otpauthUrl);
-      setSecret(data.secret);
+      const data = await api.post<{ otpauthUrl?: string; secret?: string }>('/auth/2fa/setup');
+      const url = data?.otpauthUrl ?? (data as any)?.otpauth_url;
+      const sec = data?.secret ?? (data as any)?.secret;
+      if (!url || !sec) {
+        showError(t('security.2faSetupFailed', 'Could not start 2FA setup. Try again.'));
+        return;
+      }
+      setQrValue(url);
+      setSecret(sec);
       setIs2FASetupOpen(true);
-    } catch {
-      showError(t('common.error', 'Network error'));
+    } catch (e: any) {
+      const msg = e?.message ?? t('common.error', 'Network error');
+      showError(msg);
     }
   };
 
@@ -99,16 +106,17 @@ export default function SecuritySettingsScreen() {
     setVerifyLoading(true);
     try {
       await api.post('/auth/2fa/confirm', {
-        token: totpCode,
-        secret,
+        token: String(totpCode).trim(),
+        secret: String(secret).trim(),
       });
       showSuccess(t('security.2faEnabled', '2FA Enabled Successfully'));
       setIs2FASetupOpen(false);
       setQrValue(null);
       setSecret(null);
       setTotpCode('');
-    } catch {
-      showError(t('security.invalidCode', 'Invalid code. Try again.'));
+    } catch (e: any) {
+      const msg = e?.message ?? t('security.invalidCode', 'Invalid code. Try again.');
+      showError(msg);
     } finally {
       setVerifyLoading(false);
     }
@@ -119,7 +127,7 @@ export default function SecuritySettingsScreen() {
       <ScreenHeader title={t('security.title', 'Security')} titleIcon="security" paddingTop={insets.top} />
 
       <ScrollView contentContainerStyle={styles.content}>
-        
+
         {/* 2FA Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('security.2faTitle', 'Two-Factor Authentication')}</Text>
@@ -127,7 +135,7 @@ export default function SecuritySettingsScreen() {
             <Text style={styles.description}>
               {t('security.2faDesc', 'Secure your account with an authenticator app.')}
             </Text>
-            
+
             {!is2FASetupOpen ? (
               <Pressable style={styles.button} onPress={start2FASetup}>
                 <Text style={styles.buttonText}>{t('security.enable2fa', 'Enable 2FA')}</Text>
@@ -140,18 +148,18 @@ export default function SecuritySettingsScreen() {
                   </View>
                 )}
                 <Text style={styles.secretText}>{t('security.secret', 'Secret')}: {secret}</Text>
-                
+
                 <TextInput
                   style={styles.input}
                   placeholder="000000"
                   placeholderTextColor={COLORS.tertiary}
                   value={totpCode}
-                  onChangeText={(val) => setTotpCode(val.replace(/\D/g, '').slice(0,6))}
+                  onChangeText={(val: string) => setTotpCode(val.replace(/\D/g, '').slice(0, 6))}
                   keyboardType="number-pad"
                 />
-                
-                <Pressable 
-                  style={[styles.button, (!totpCode || verifyLoading) && styles.buttonDisabled]} 
+
+                <Pressable
+                  style={[styles.button, (!totpCode || verifyLoading) && styles.buttonDisabled]}
                   onPress={confirm2FA}
                   disabled={verifyLoading || totpCode.length !== 6}
                 >
@@ -172,7 +180,7 @@ export default function SecuritySettingsScreen() {
               <Text style={styles.revokeAllText}>{t('security.revokeAll', 'Revoke all')}</Text>
             </Pressable>
           </View>
-          
+
           <View style={styles.sessionsList}>
             {loadingSessions ? (
               <ActivityIndicator color={COLORS.primary} />

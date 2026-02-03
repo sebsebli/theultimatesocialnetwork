@@ -32,6 +32,8 @@ type Source =
 
 interface SourcesSectionProps {
   postId: string;
+  /** When provided, merge external links [text](url) from body into sources (parity with mobile). */
+  postBody?: string | null;
 }
 
 function sourceHref(source: Source): string {
@@ -76,8 +78,26 @@ function sourceSubtitle(source: Source): string | null {
   return null;
 }
 
-function SourcesSectionInner({ postId }: SourcesSectionProps) {
-  const [sources, setSources] = useState<Source[]>([]);
+/** Extract [text](https://url) links from markdown body for sources parity with mobile. */
+function extractExternalLinksFromBody(
+  body: string,
+): Array<{ url: string; title: string | null }> {
+  const out: Array<{ url: string; title: string | null }> = [];
+  const linkRegex = /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+  const seen = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = linkRegex.exec(body)) !== null) {
+    const url = m[2];
+    if (seen.has(url)) continue;
+    seen.add(url);
+    const title = (m[1]?.trim() || null) ?? null;
+    out.push({ url, title });
+  }
+  return out;
+}
+
+function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
+  const [apiSources, setApiSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -91,7 +111,7 @@ function SourcesSectionInner({ postId }: SourcesSectionProps) {
       const res = await fetch(`/api/posts/${postId}/sources`);
       if (res.ok) {
         const data = await res.json();
-        setSources(data);
+        setApiSources(Array.isArray(data) ? data : []);
       }
     } catch {
       // ignore
@@ -99,6 +119,23 @@ function SourcesSectionInner({ postId }: SourcesSectionProps) {
       setLoading(false);
     }
   };
+
+  const sources = (() => {
+    const fromApi = apiSources;
+    if (!postBody || typeof postBody !== "string") return fromApi;
+    const fromBody = extractExternalLinksFromBody(postBody);
+    const urlSeen = new Set(
+      fromApi
+        .filter(
+          (s): s is { type: "external"; url: string } => s.type === "external",
+        )
+        .map((s) => s.url),
+    );
+    const externalFromBody: Source[] = fromBody
+      .filter(({ url }) => !urlSeen.has(url))
+      .map(({ url, title }) => ({ type: "external", id: url, url, title }));
+    return [...fromApi, ...externalFromBody];
+  })();
 
   if (loading) {
     return (
@@ -150,7 +187,11 @@ function SourcesSectionInner({ postId }: SourcesSectionProps) {
 
           return (
             <Link
-              key={`${source.type}-${source.id}`}
+              key={
+                source.type === "external"
+                  ? `ext-${source.url}`
+                  : `${source.type}-${source.id}`
+              }
               href={href}
               target={isExternal ? "_blank" : undefined}
               rel={isExternal ? "noopener noreferrer" : undefined}

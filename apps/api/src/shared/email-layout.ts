@@ -63,8 +63,9 @@ const STYLES = {
 };
 
 const RESPONSIVE_STYLES = `
-  body { background-color: ${C.INK} !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
-  .email-wrapper { width: 100% !important; background-color: ${C.INK} !important; }
+  body { background-color: #0B0B0C !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .email-wrapper { width: 100% !important; background-color: #0B0B0C !important; }
+  .inner-cell { background-color: #0B0B0C !important; }
   .code-box { font-size: 24px !important; padding: 20px !important; letter-spacing: 4px !important; }
   @media only screen and (max-width: 480px) {
     .inner-cell { padding: 30px 16px !important; }
@@ -168,15 +169,15 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
   <![endif]-->
   <style type="text/css">${RESPONSIVE_STYLES}</style>
 </head>
-<body style="${STYLES.wrapper}" bgcolor="${C.INK}">
+<body style="${STYLES.wrapper}" bgcolor="#0B0B0C">
   <center>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper" bgcolor="${C.INK}">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper" bgcolor="#0B0B0C">
       <tr>
-        <td align="center" valign="top">
+        <td align="center" valign="top" bgcolor="#0B0B0C">
           <!-- Main Container -->
-          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background-color:#0B0B0C;" bgcolor="#0B0B0C">
             <tr>
-              <td class="inner-cell" style="${STYLES.innerCell}">
+              <td class="inner-cell" style="${STYLES.innerCell}" bgcolor="#0B0B0C">
                 
                 <!-- Header -->
                 <div style="${STYLES.header}">

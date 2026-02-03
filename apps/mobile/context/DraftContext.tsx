@@ -25,11 +25,8 @@ export function DraftProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  return (
-    <DraftContext.Provider value={{ getDraft, setDraft, clearDraft }}>
-      {children}
-    </DraftContext.Provider>
-  );
+  const value = { getDraft, setDraft, clearDraft };
+  return React.createElement(DraftContext.Provider, { value }, children);
 }
 
 export function useDrafts() {

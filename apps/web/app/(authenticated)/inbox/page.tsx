@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MessagesTab } from "@/components/messages-tab";
 import { useRealtime } from "@/context/realtime-provider";
-import { EmptyState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 
 interface Notification {
@@ -176,9 +179,11 @@ export default function InboxPage() {
         </button>
       </div>
 
-      <div className="px-4 py-4 pb-20 md:pb-0">
+      <div className="px-4 py-4 pb-20 md:pb-0 flex flex-1 flex-col min-h-0">
         {activeTab === "notifications" && (
-          <div className="space-y-4">
+          <div
+            className={`space-y-4 ${notifications.length === 0 ? "flex flex-1 flex-col min-h-[200px]" : ""}`}
+          >
             {loading && notifications.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-secondary text-sm">
@@ -186,11 +191,13 @@ export default function InboxPage() {
                 </p>
               </div>
             ) : notifications.length === 0 ? (
-              <EmptyState
-                icon="notifications_none"
-                headline="No notifications yet"
-                subtext="When someone follows you, replies, or mentions you, it will show up here."
-              />
+              <div className={emptyStateCenterClassName}>
+                <EmptyState
+                  icon="notifications_none"
+                  headline="No notifications yet"
+                  subtext="When someone follows you, replies, or mentions you, it will show up here."
+                />
+              </div>
             ) : (
               <>
                 {notifications.map((notif) => (

@@ -10,7 +10,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ErrorState } from '../../../components/ErrorState';
 import { useSocket } from '../../../context/SocketContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { EmptyState } from '../../../components/EmptyState';
+import { CenteredEmptyState } from '../../../components/EmptyState';
 
 interface ThreadItem {
   id: string;
@@ -216,8 +216,8 @@ export default function MessagesScreen() {
             showsVerticalScrollIndicator={false}
             renderItem={renderSearchHit}
             keyExtractor={(item: ChatSearchHit) => item.id}
-            contentContainerStyle={styles.listContent}
-            ListEmptyComponent={<EmptyState icon="search-off" headline={t('search.noResults', 'No results')} compact />}
+            contentContainerStyle={[styles.listContent, searchResults.length === 0 && { flexGrow: 1 }]}
+            ListEmptyComponent={<CenteredEmptyState icon="search-off" headline={t('search.noResults', 'No results')} compact />}
             {...FLATLIST_DEFAULTS}
           />
         )
@@ -228,11 +228,11 @@ export default function MessagesScreen() {
           showsHorizontalScrollIndicator={false}
           renderItem={renderThreadItem}
           keyExtractor={(item: ThreadItem) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, threads.length === 0 && { flexGrow: 1 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
           }
-          ListEmptyComponent={<EmptyState icon="chat-bubble-outline" headline={t('inbox.noMessages')} compact />}
+          ListEmptyComponent={<CenteredEmptyState icon="chat-bubble-outline" headline={t('inbox.noMessages')} compact />}
           {...FLATLIST_DEFAULTS}
         />
       )}

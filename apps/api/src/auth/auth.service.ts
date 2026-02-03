@@ -76,7 +76,22 @@ export class AuthService {
     return { success: true, message: 'Verification code sent' };
   }
 
-  async verifyToken(email: string, token: string) {
+  async verifyToken(
+    email: string,
+    token: string,
+    _lang?: string,
+    sessionMeta?: { ipAddress?: string; deviceInfo?: string },
+  ) {
+    // Dev backdoor: accept configured dev token in non-production even when Redis has a code
+    // (e.g. agents call login then verify with CITE_DEV_TOKEN; login stores a new code, so we must accept dev token here)
+    if (this.configService.get('NODE_ENV') !== 'production') {
+      const devToken = this.configService.get<string>('DEV_TOKEN') ?? '123456';
+      if (token && token === devToken) {
+        const user = await this.validateOrCreateUser(email);
+        return this.generateTokens(user, sessionMeta);
+      }
+    }
+
     const key = `auth:${email}`;
     const attemptsKey = `auth:attempts:${email}`;
 
@@ -94,11 +109,6 @@ export class AuthService {
     const storedData = await this.redis.get(key);
 
     if (!storedData) {
-      // Check for dev backdoor
-      if (token === '123456' && process.env.NODE_ENV !== 'production') {
-        const user = await this.validateOrCreateUser(email);
-        return this.generateTokens(user);
-      }
       throw new UnauthorizedException('Code expired or not found');
     }
 
@@ -138,7 +148,7 @@ export class AuthService {
       };
     }
 
-    const tokens = await this.generateTokens(user);
+    const tokens = await this.generateTokens(user, sessionMeta);
 
     // Clear used token and attempts after success
     await this.redis.del(key);
@@ -195,7 +205,10 @@ export class AuthService {
     return user;
   }
 
-  async generateTokens(user: User) {
+  async generateTokens(
+    user: User,
+    sessionMeta?: { ipAddress?: string; deviceInfo?: string },
+  ) {
     const sessionId = uuidv4();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
@@ -208,11 +221,13 @@ export class AuthService {
     };
     const accessToken = this.jwtService.sign(payload);
 
-    // Store Session
+    // Store Session (device/browser and IP for "Where you're signed in")
     await this.sessionRepo.save({
       id: sessionId,
       userId: user.id,
       tokenHash: accessToken.slice(-10), // Store partial hash or full if needed for revocation
+      ipAddress: sessionMeta?.ipAddress ?? null,
+      deviceInfo: sessionMeta?.deviceInfo ?? null,
       expiresAt,
     });
 
@@ -231,12 +246,20 @@ export class AuthService {
   // --- 2FA Methods ---
 
   async generate2FASecret(userId: string) {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['id', 'email', 'handle'],
+    });
     if (!user) throw new UnauthorizedException();
 
     /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment -- otplib from require() */
     const secret = authenticator.generateSecret();
-    const otpauthUrl = authenticator.keyuri(user.email, 'Citewalk', secret);
+    const accountName =
+      (user.email && user.email.trim()) ||
+      (user.handle && user.handle.trim()) ||
+      user.id ||
+      'user';
+    const otpauthUrl = authenticator.keyuri(accountName, 'Citewalk', secret);
 
     return { secret, otpauthUrl };
   }
@@ -253,7 +276,11 @@ export class AuthService {
     return { success: true };
   }
 
-  async verify2FALogin(userId: string, token: string) {
+  async verify2FALogin(
+    userId: string,
+    token: string,
+    sessionMeta?: { ipAddress?: string; deviceInfo?: string },
+  ) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
       select: [
@@ -278,6 +305,6 @@ export class AuthService {
     });
     if (!isValid) throw new UnauthorizedException('Invalid 2FA code');
 
-    return this.generateTokens(user);
+    return this.generateTokens(user, sessionMeta);
   }
 }

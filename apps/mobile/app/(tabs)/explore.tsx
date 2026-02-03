@@ -9,7 +9,7 @@ import { TopicCard } from '../../components/ExploreCards';
 import { UserCard } from '../../components/UserCard';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, toDimension, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
 import { ListFooterLoader } from '../../components/ListFooterLoader';
 import { useAuth } from '../../context/auth';
 import * as Haptics from 'expo-haptics';
@@ -24,8 +24,6 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('quoted');
-  type SortOption = 'recommended' | 'newest' | 'cited';
-  const [sort, setSort] = useState<SortOption>('recommended');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<any[]>([]);
@@ -76,14 +74,14 @@ export default function ExploreScreen() {
     }
   }, [params.tab, params.q]);
 
-  // When tab or sort changes: load content for current tab/sort
+  // When tab changes: load content for current tab (always recommended)
   useEffect(() => {
     if (isAuthenticated) {
       setPage(1);
       setData([]);
       loadContent(1, true, undefined);
     }
-  }, [activeTab, sort, isAuthenticated]);
+  }, [activeTab, isAuthenticated]);
 
   // When search query changes: debounce then run search for active tab; if cleared, load explore feed
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -158,7 +156,7 @@ export default function ExploreScreen() {
         else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
         else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
         else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
-        const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort };
+        const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort: 'recommended' };
         const qs = new URLSearchParams(params).toString();
         const res = await api.get(`${endpoint}?${qs}`);
         const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
@@ -346,26 +344,9 @@ export default function ExploreScreen() {
           ))}
         </ScrollView>
       </View>
-      <View key="explore-sort" style={styles.sortRow}>
-        {(['recommended', 'newest', 'cited'] as const).map((opt) => (
-          <Pressable
-            key={opt}
-            onPress={() => { Haptics.selectionAsync(); setSort(opt); }}
-            style={[styles.sortChip, sort === opt && styles.sortChipActive]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: sort === opt }}
-          >
-            <Text style={[styles.sortChipText, sort === opt && styles.sortChipTextActive]}>
-              {opt === 'recommended' ? t('explore.sortRelevance', 'Relevance') :
-                opt === 'newest' ? t('explore.sortLatest', 'Latest') :
-                  t('explore.sortCited', 'Most cited')}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
       <View key="explore-spacer" style={{ height: SPACING.m }} />
     </View>
-  ), [insets.top, activeTab, sort, t, searchQuery]);
+  ), [insets.top, activeTab, t, searchQuery]);
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
@@ -373,24 +354,26 @@ export default function ExploreScreen() {
         <ErrorState onRetry={() => loadContent(1, true)} onDismiss={() => setError(false)} />
       ) : (
         <FlatList
-          data={data}
+          data={['quoted', 'deep-dives', 'newsroom'].includes(activeTab) ? data.filter((item: any) => !!item?.author) : data}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           keyExtractor={keyExtractor}
           ListHeaderComponent={listHeader}
           renderItem={renderItem}
           ListEmptyComponent={
-            loading ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>{t('common.loading')}</Text>
-              </View>
-            ) : (
-              <EmptyState
-                icon="explore"
-                headline={t('explore.noContent', 'No content yet')}
-                subtext={t('explore.noContentHint', 'Try another filter or check back later.')}
-              />
-            )
+            <View style={emptyStateCenterWrapStyle}>
+              {loading ? (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyText}>{t('common.loading')}</Text>
+                </View>
+              ) : (
+                <EmptyState
+                  icon="explore"
+                  headline={t('explore.noContent', 'No content yet')}
+                  subtext={t('explore.noContentHint', 'Try another filter or check back later.')}
+                />
+              )}
+            </View>
           }
           ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
           refreshControl={
@@ -402,7 +385,10 @@ export default function ExploreScreen() {
           }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.2}
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={[
+            { paddingBottom: 80 },
+            (['quoted', 'deep-dives', 'newsroom'].includes(activeTab) ? data.filter((item: any) => !!item?.author) : data).length === 0 && { flexGrow: 1 },
+          ]}
           {...FLATLIST_DEFAULTS}
           initialNumToRender={12}
           maxToRenderPerBatch={12}
@@ -452,34 +438,6 @@ const styles = createStyles({
   tabsContainer: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
-  },
-  sortRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-    paddingVertical: SPACING.m,
-    paddingHorizontal: toDimension(HEADER.barPaddingHorizontal),
-  },
-  sortChip: {
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.m,
-    borderRadius: SIZES.borderRadius,
-    backgroundColor: COLORS.hover,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-  },
-  sortChipActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.hover,
-  },
-  sortChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.tertiary,
-    fontFamily: FONTS.semiBold,
-  },
-  sortChipTextActive: {
-    color: COLORS.primary,
   },
   tabsScrollView: {
     flexGrow: 0,

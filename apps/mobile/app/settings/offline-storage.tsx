@@ -14,7 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { EmptyState } from '../../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import {
   getAllOfflinePosts,
@@ -102,11 +102,13 @@ export default function OfflineStorageScreen() {
       </View>
 
       {posts.length === 0 ? (
-        <EmptyState
-          icon="offline-pin"
-          headline={t('settings.noOfflineArticles', 'No offline articles')}
-          subtext={t('settings.noOfflineHint', 'Download articles from the reading screen to read offline.')}
-        />
+        <View style={emptyStateCenterWrapStyle}>
+          <EmptyState
+            icon="offline-pin"
+            headline={t('settings.noOfflineArticles', 'No offline articles')}
+            subtext={t('settings.noOfflineHint', 'Download articles from the reading screen to read offline.')}
+          />
+        </View>
       ) : (
         <FlatList
           data={posts}

@@ -12,7 +12,10 @@ import { TopicFollow } from '../entities/topic-follow.entity';
 import { FeedItem } from './feed-item.entity';
 import { postToPlain, extractLinkedPostIds } from '../shared/post-serializer';
 import type { ReferenceMetadata } from '../shared/post-serializer';
+import { isPendingUser } from '../shared/is-pending-user';
 import { UploadService } from '../upload/upload.service';
+import { InteractionsService } from '../interactions/interactions.service';
+import { ExploreService } from '../explore/explore.service';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -33,6 +36,8 @@ export class FeedService {
     private topicFollowRepo: Repository<TopicFollow>,
     @Inject('REDIS_CLIENT') private redis: Redis,
     private uploadService: UploadService,
+    private interactionsService: InteractionsService,
+    private exploreService: ExploreService,
   ) {}
 
   async getHomeFeed(
@@ -130,14 +135,21 @@ export class FeedService {
             relations: ['author'],
           });
 
-          // Maintain order from Redis list
+          // Maintain order from Redis list; exclude posts from pending (pre-onboarding) authors
           const postMap = new Map(posts.map((p) => [p.id, p]));
           const orderedPosts = cachedIds
             .map((id) => postMap.get(id))
-            .filter((p): p is Post => !!p && !p.deletedAt); // Filter deleted
+            .filter(
+              (p): p is Post => !!p && !p.deletedAt && !isPendingUser(p.author),
+            );
 
           if (orderedPosts.length > 0) {
-            feedItems = orderedPosts.map((post) => ({
+            const visible =
+              await this.exploreService.filterPostsVisibleToViewer(
+                orderedPosts,
+                userId,
+              );
+            feedItems = visible.map((post) => ({
               type: 'post',
               data: post,
             }));
@@ -154,9 +166,10 @@ export class FeedService {
     if (!usedCache) {
       const query = this.postRepo
         .createQueryBuilder('post')
-        .leftJoinAndSelect('post.author', 'author')
+        .innerJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
         .andWhere("post.status = 'PUBLISHED'")
+        .andWhere("author.handle NOT LIKE '__pending_%'")
         .andWhere('post.author_id NOT IN (:...excluded)', {
           excluded:
             excludedUserIds.size > 0
@@ -206,7 +219,11 @@ export class FeedService {
       nextCursorResult =
         hasMore && last?.createdAt ? last.createdAt.toISOString() : undefined;
 
-      feedItems = slice.map((post) => ({
+      const visible = await this.exploreService.filterPostsVisibleToViewer(
+        slice,
+        userId,
+      );
+      feedItems = visible.map((post) => ({
         type: 'post',
         data: post,
       }));
@@ -231,20 +248,33 @@ export class FeedService {
         .limit(10)
         .getMany();
 
-      for (const save of recentSaves) {
-        if (save.collection?.owner && save.post) {
-          feedItems.push({
-            type: 'saved_by',
-            data: {
-              userId: save.collection.owner.id,
-              userName:
-                save.collection.owner.displayName ||
-                save.collection.owner.handle,
-              collectionId: save.collection.id,
-              collectionName: save.collection.title,
-              post: save.post,
-            },
-          });
+      const savesWithPost = recentSaves.filter(
+        (s) =>
+          s.collection?.owner && s.post && !isPendingUser(s.collection.owner),
+      );
+      if (savesWithPost.length > 0) {
+        const savedPosts = savesWithPost.map((s) => s.post);
+        const visibleSaved =
+          await this.exploreService.filterPostsVisibleToViewer(
+            savedPosts,
+            userId,
+          );
+        const visibleSavedIds = new Set(visibleSaved.map((p) => p.id));
+        for (const save of savesWithPost) {
+          if (save.post && visibleSavedIds.has(save.post.id)) {
+            feedItems.push({
+              type: 'saved_by',
+              data: {
+                userId: save.collection.owner.id,
+                userName:
+                  save.collection.owner.displayName ||
+                  save.collection.owner.handle,
+                collectionId: save.collection.id,
+                collectionName: save.collection.title,
+                post: save.post,
+              },
+            });
+          }
         }
       }
     }
@@ -264,18 +294,24 @@ export class FeedService {
 
     // Re-slice because adding "Saved By" might exceed limit
     const trimmed = feedItems.slice(0, limit);
-    const items = (await this.toPlainFeedItems(trimmed)) as FeedItem[];
+    const items = (await this.toPlainFeedItems(trimmed, userId)) as FeedItem[];
     return { items, nextCursor: nextCursorResult };
   }
 
-  /** Return plain objects with avatarUrl/headerImageUrl and referenceMetadata for linked post titles. */
-  private async toPlainFeedItems(items: FeedItem[]): Promise<unknown[]> {
+  /** Return plain objects with avatarUrl/headerImageUrl, referenceMetadata, and viewer isLiked/isKept. */
+  private async toPlainFeedItems(
+    items: FeedItem[],
+    viewerId: string,
+  ): Promise<unknown[]> {
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
     const posts: Post[] = [];
     for (const item of items) {
       if (item.type === 'post') posts.push(item.data);
       else if (item.data.post) posts.push(item.data.post);
     }
+    const postIds = posts.map((p) => p.id).filter(Boolean);
+    const { likedIds, keptIds } =
+      await this.interactionsService.getLikeKeepForViewer(viewerId, postIds);
     const allLinkedIds = new Set<string>();
     const postToLinkedIds = new Map<string, string[]>();
     for (const p of posts) {
@@ -304,17 +340,23 @@ export class FeedService {
         }),
         {} as ReferenceMetadata,
       );
+    const viewerState = (postId: string) => ({
+      isLiked: likedIds.has(postId),
+      isKept: keptIds.has(postId),
+    });
     return items
       .map((item) => {
         if (item.type === 'post') {
           const refMeta = getRefMeta(postToLinkedIds.get(item.data.id));
-          const data = postToPlain(item.data, getImageUrl, refMeta);
+          const vs = viewerState(item.data.id);
+          const data = postToPlain(item.data, getImageUrl, refMeta, vs);
           return data ? { type: 'post' as const, data } : null;
         }
         const d = item.data;
         const refMeta = d.post
           ? getRefMeta(postToLinkedIds.get(d.post.id))
           : undefined;
+        const vs = d.post ? viewerState(d.post.id) : undefined;
         return {
           type: 'saved_by' as const,
           data: {
@@ -323,7 +365,7 @@ export class FeedService {
             collectionId: d.collectionId ?? '',
             collectionName: d.collectionName ?? '',
             post: d.post
-              ? postToPlain(d.post, getImageUrl, refMeta)
+              ? postToPlain(d.post, getImageUrl, refMeta, vs)
               : undefined,
           },
         };

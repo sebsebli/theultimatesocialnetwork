@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
+import { Repository, DataSource, In, Not, Like } from 'typeorm';
 import { Topic } from '../entities/topic.entity';
 import { User } from '../entities/user.entity';
-import { Post } from '../entities/post.entity';
+import { Post, PostVisibility } from '../entities/post.entity';
+import { isPendingUser } from '../shared/is-pending-user';
 import { PostEdge, EdgeType } from '../entities/post-edge.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
@@ -80,6 +81,79 @@ export class ExploreService {
     const languages = user?.languages?.length ? user.languages : [];
     const followedTopicIds = new Set(topicFollows.map((f) => f.topicId));
     return { languages, followedTopicIds };
+  }
+
+  /**
+   * Filter posts to only those visible to the viewer.
+   * - PUBLIC posts: visible only if author is not protected, or viewer is author or follows author.
+   * - FOLLOWERS posts: visible only if viewer is the author or follows the author.
+   * - When viewerId is absent: only PUBLIC posts from non-protected accounts.
+   */
+  async filterPostsVisibleToViewer(
+    posts: Post[],
+    viewerId?: string,
+  ): Promise<Post[]> {
+    if (posts.length === 0) return posts;
+    const authorIds = [
+      ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
+    ] as string[];
+    const authorProtected = new Map<string, boolean>();
+    if (authorIds.length > 0) {
+      const users = await this.userRepo.find({
+        where: { id: In(authorIds) },
+        select: ['id', 'isProtected'],
+      });
+      for (const u of users) {
+        authorProtected.set(u.id, u.isProtected);
+      }
+    }
+    const isAuthorProtected = (authorId: string) =>
+      authorProtected.get(authorId) === true;
+
+    if (!viewerId) {
+      return posts.filter(
+        (p) =>
+          p.visibility === PostVisibility.PUBLIC &&
+          !isAuthorProtected(p.authorId),
+      );
+    }
+
+    const followersOnlyAuthorIds = [
+      ...new Set(
+        posts
+          .filter(
+            (p) =>
+              p.visibility === PostVisibility.FOLLOWERS &&
+              p.authorId !== viewerId,
+          )
+          .map((p) => p.authorId)
+          .filter(Boolean),
+      ),
+    ];
+    const protectedAuthorIds = authorIds.filter(
+      (id) => id !== viewerId && isAuthorProtected(id),
+    );
+    const authorIdsToCheck = [
+      ...new Set([...followersOnlyAuthorIds, ...protectedAuthorIds]),
+    ];
+    let followingSet = new Set<string>();
+    if (authorIdsToCheck.length > 0) {
+      const follows = await this.followRepo.find({
+        where: { followerId: viewerId, followeeId: In(authorIdsToCheck) },
+        select: ['followeeId'],
+      });
+      followingSet = new Set(follows.map((f) => f.followeeId));
+    }
+    return posts.filter((p) => {
+      if (p.authorId === viewerId) return true;
+      if (isAuthorProtected(p.authorId) && !followingSet.has(p.authorId))
+        return false;
+      if (p.visibility === PostVisibility.PUBLIC) return true;
+      if (p.visibility === PostVisibility.FOLLOWERS) {
+        return followingSet.has(p.authorId);
+      }
+      return false;
+    });
   }
 
   /** Re-rank posts by user preferences: language match and followed topics. Skipped when user has recommendations disabled. */
@@ -243,6 +317,7 @@ export class ExploreService {
             select: [
               'id',
               'authorId',
+              'visibility',
               'title',
               'body',
               'headerImageKey',
@@ -250,6 +325,8 @@ export class ExploreService {
             ],
           })
         : [];
+    const visiblePosts = await this.filterPostsVisibleToViewer(posts, userId);
+    const visiblePostIds = new Set(visiblePosts.map((p) => p.id));
     const postMap = new Map(posts.map((p) => [p.id, p]));
 
     function bodyExcerpt(body: string, maxLen = 120): string {
@@ -267,7 +344,8 @@ export class ExploreService {
 
     return result.map((t) => {
       const postId = topicToPostId.get(t.id);
-      const post = postId ? postMap.get(postId) : undefined;
+      const post =
+        postId && visiblePostIds.has(postId) ? postMap.get(postId) : undefined;
       const recentPost = post
         ? {
             id: post.id,
@@ -301,8 +379,14 @@ export class ExploreService {
     });
   }
 
-  async getPeople(userId?: string, limit = 20, filter?: { sort?: string }) {
+  async getPeople(
+    userId?: string,
+    filter?: { sort?: string; page?: number; limit?: number },
+  ): Promise<{ items: User[]; hasMore: boolean }> {
     const sortBy = filter?.sort || 'recommended';
+    const limitNum = Math.min(50, Math.max(1, filter?.limit ?? 20));
+    const pageNum = Math.max(1, filter?.page ?? 1);
+    const skip = (pageNum - 1) * limitNum;
     const order: Record<string, 'ASC' | 'DESC'> =
       sortBy === 'newest'
         ? { createdAt: 'DESC' }
@@ -311,12 +395,45 @@ export class ExploreService {
           : { followerCount: 'DESC' };
 
     const users = await this.userRepo.find({
-      take: limit,
+      where: { handle: Not(Like('__pending_%')) },
+      skip,
+      take: limitNum + 1,
       order,
       relations: [],
+      select: [
+        'id',
+        'handle',
+        'displayName',
+        'avatarKey',
+        'isProtected',
+        'createdAt',
+        'followerCount',
+        'followingCount',
+      ],
     });
 
-    return users.map((u) => ({
+    let filtered: User[];
+    if (userId) {
+      const protectedUserIds = users
+        .filter((u) => u.isProtected && u.id !== userId)
+        .map((u) => u.id);
+      let followingSet = new Set<string>();
+      if (protectedUserIds.length > 0) {
+        const followees = await this.followRepo.find({
+          where: { followerId: userId, followeeId: In(protectedUserIds) },
+          select: ['followeeId'],
+        });
+        followingSet = new Set(followees.map((f) => f.followeeId));
+      }
+      filtered = users.filter(
+        (u) => !u.isProtected || u.id === userId || followingSet.has(u.id),
+      );
+    } else {
+      filtered = users.filter((u) => !u.isProtected);
+    }
+
+    const hasMore = filtered.length > limitNum;
+    const items = filtered.slice(0, limitNum).map((u) => ({
       ...u,
       reasons:
         sortBy === 'newest'
@@ -325,6 +442,7 @@ export class ExploreService {
             ? ['Most followed']
             : ['Topic overlap', 'Frequently quoted'],
     }));
+    return { items, hasMore };
   }
 
   /**
@@ -347,20 +465,22 @@ export class ExploreService {
     if (filter?.sort === 'newest') {
       const query = this.postRepo
         .createQueryBuilder('post')
-        .leftJoinAndSelect('post.author', 'author')
+        .innerJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
+        .andWhere("author.handle NOT LIKE '__pending_%'")
         .orderBy('post.created_at', 'DESC')
         .skip(skip)
         .take(limitNum + 1);
       if (langFilter?.length) {
         query.andWhere('post.lang IN (:...langs)', { langs: langFilter });
       }
-      const posts = await query.getMany();
+      let posts = await query.getMany();
+      posts = await this.filterPostsVisibleToViewer(posts, userId);
       const hasMore = posts.length > limitNum;
       const items = posts
         .slice(0, limitNum)
-        .map((p) => ({ ...p, reasons: ['Latest'] }));
-      return hasMore ? { items, hasMore: true } : items;
+        .map((p) => ({ ...p, reasons: ['Latest'] as string[] }));
+      return { items, hasMore };
     }
 
     if (filter?.sort === 'cited') {
@@ -368,12 +488,20 @@ export class ExploreService {
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
-        .orderBy('post.quote_count', 'DESC');
+        .andWhere("author.handle NOT LIKE '__pending_%'")
+        .orderBy('post.quote_count', 'DESC')
+        .skip(skip)
+        .take(limitNum + 1);
       if (langFilter?.length) {
         query.andWhere('post.lang IN (:...langs)', { langs: langFilter });
       }
-      const posts = await query.take(limit).getMany();
-      return posts.map((p) => ({ ...p, reasons: ['Most cited'] }));
+      let posts = await query.getMany();
+      posts = await this.filterPostsVisibleToViewer(posts, userId);
+      const hasMore = posts.length > limitNum;
+      const items = posts
+        .slice(0, limitNum)
+        .map((p) => ({ ...p, reasons: ['Most cited'] as string[] }));
+      return { items, hasMore };
     }
 
     // Recommended (Default Algo)
@@ -402,21 +530,26 @@ export class ExploreService {
       .setParameters({ sixHoursAgo, twentyFourHoursAgo })
       .groupBy('edge.to_post_id')
       .orderBy('score', 'DESC')
-      .limit(limit)
+      .offset(skip)
+      .limit(limitNum + 1)
       .getRawMany<{ postId: string; score: number }>();
 
     if (scoredIds.length === 0) {
-      return [];
+      return { items: [], hasMore: false };
     }
 
-    const topPostIds = scoredIds.map((s) => s.postId);
+    const hasMoreAlgo = scoredIds.length > limitNum;
+    const topPostIds = scoredIds.slice(0, limitNum).map((s) => s.postId);
 
-    // Fetch full post data
+    // Fetch full post data (exclude pending authors)
     const query = this.postRepo
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .where('post.id IN (:...ids)', { ids: topPostIds })
-      .andWhere('post.deleted_at IS NULL');
+      .andWhere('post.deleted_at IS NULL')
+      .andWhere(
+        "(author.handle IS NULL OR author.handle NOT LIKE '__pending_%')",
+      );
 
     if (langFilter?.length) {
       query.andWhere('post.lang IN (:...langs)', { langs: langFilter });
@@ -428,32 +561,44 @@ export class ExploreService {
       )
       .getMany();
 
-    let result: (Post & { reasons?: string[] })[] = posts.map((p) => ({
-      ...p,
-      reasons: ['Cited today', 'High quote velocity'],
-    }));
+    let result: (Post & { reasons?: string[] })[] = posts
+      .filter((p) => !isPendingUser(p.author))
+      .map((p) => ({
+        ...p,
+        reasons: ['Cited today', 'High quote velocity'],
+      }));
+    result = await this.filterPostsVisibleToViewer(result, userId);
     if (userId) {
       result = await this.applyPostPreferences(result, userId);
     }
-    return result;
+    return { items: result, hasMore: hasMoreAlgo };
   }
 
   /**
    * Get topic "Start here" posts - most cited posts in topic
    * Score = quote_count * 1.0 + backlinks * 0.2 + replies * 0.1
+   * @param viewerId Optional; when provided, FOLLOWERS-only posts are included only if viewer follows the author.
    */
-  async getTopicStartHere(topicId: string, limit = 10) {
-    // Get posts in topic
+  async getTopicStartHere(
+    topicId: string,
+    limit = 10,
+    viewerId?: string,
+  ): Promise<Post[]> {
+    // Get posts in topic (exclude pending authors)
     const posts = await this.postRepo
       .createQueryBuilder('post')
       .leftJoin('post_topics', 'pt', 'pt.post_id = post.id')
       .where('pt.topic_id = :topicId', { topicId })
       .andWhere('post.deleted_at IS NULL')
-      .leftJoinAndSelect('post.author', 'author')
+      .innerJoinAndSelect('post.author', 'author')
+      .andWhere("author.handle NOT LIKE '__pending_%'")
       .getMany();
 
+    const visible = await this.filterPostsVisibleToViewer(posts, viewerId);
+
     // Get backlink counts from Neo4j or Postgres
-    const postIds = posts.map((p) => p.id);
+    const postIds = visible.map((p) => p.id);
+    if (postIds.length === 0) return [];
     const backlinks = await this.postEdgeRepo
       .createQueryBuilder('edge')
       .select('edge.to_post_id', 'postId')
@@ -468,7 +613,7 @@ export class ExploreService {
     );
 
     // Calculate scores
-    const scored = posts.map((post) => ({
+    const scored = visible.map((post) => ({
       post,
       score:
         (post.quoteCount || 0) * 1.0 +
@@ -502,36 +647,43 @@ export class ExploreService {
     if (filter?.sort === 'newest') {
       const query = this.postRepo
         .createQueryBuilder('post')
-        .leftJoinAndSelect('post.author', 'author')
+        .innerJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
+        .andWhere("author.handle NOT LIKE '__pending_%'")
         .orderBy('post.created_at', 'DESC')
         .skip(skip)
         .take(limitNum + 1);
       if (langFilter?.length) {
         query.andWhere('post.lang IN (:...langs)', { langs: langFilter });
       }
-      const posts = await query.getMany();
+      let posts = await query.getMany();
+      posts = await this.filterPostsVisibleToViewer(posts, userId);
       const hasMore = posts.length > limitNum;
       const items = posts
         .slice(0, limitNum)
-        .map((p) => ({ ...p, reasons: ['Latest'] }));
-      return hasMore ? { items, hasMore: true } : items;
+        .map((p) => ({ ...p, reasons: ['Latest'] as string[] }));
+      return { items, hasMore };
     }
 
     if (filter?.sort === 'cited') {
       const query = this.postRepo
         .createQueryBuilder('post')
-        .leftJoinAndSelect('post.author', 'author')
+        .innerJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
+        .andWhere("author.handle NOT LIKE '__pending_%'")
         .orderBy('post.quote_count', 'DESC')
-        .take(limit);
+        .skip(skip)
+        .take(limitNum + 1);
       if (langFilter?.length) {
         query.andWhere('post.lang IN (:...langs)', { langs: langFilter });
       }
-      return (await query.getMany()).map((p) => ({
-        ...p,
-        reasons: ['Most cited'],
-      }));
+      let posts = await query.getMany();
+      posts = await this.filterPostsVisibleToViewer(posts, userId);
+      const hasMore = posts.length > limitNum;
+      const items = posts
+        .slice(0, limitNum)
+        .map((p) => ({ ...p, reasons: ['Most cited'] as string[] }));
+      return { items, hasMore };
     }
 
     // Default Algo: Get top posts by backlink count directly from DB
@@ -542,14 +694,16 @@ export class ExploreService {
       .where('edge.edge_type = :type', { type: EdgeType.LINK })
       .groupBy('edge.to_post_id')
       .orderBy('count', 'DESC')
-      .limit(limit)
+      .offset(skip)
+      .limit(limitNum + 1)
       .getRawMany<{ postId: string; count: string }>();
 
     if (rankedIds.length === 0) {
-      return [];
+      return { items: [], hasMore: false };
     }
 
-    const postIds = rankedIds.map((r) => r.postId);
+    const hasMoreAlgo = rankedIds.length > limitNum;
+    const postIds = rankedIds.slice(0, limitNum).map((r) => r.postId);
 
     // Fetch full post data for these IDs
     const langFilterDeep = await this.getEffectiveLangFilter(userId, filter);
@@ -558,7 +712,10 @@ export class ExploreService {
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
       .where('post.id IN (:...ids)', { ids: postIds })
-      .andWhere('post.deleted_at IS NULL');
+      .andWhere('post.deleted_at IS NULL')
+      .andWhere(
+        "(author.handle IS NULL OR author.handle NOT LIKE '__pending_%')",
+      );
 
     if (langFilterDeep?.length) {
       query.andWhere('post.lang IN (:...langs)', { langs: langFilterDeep });
@@ -566,19 +723,20 @@ export class ExploreService {
 
     const posts = await query.getMany();
 
-    // Sort by original count order
+    // Sort by original count order; exclude pending authors
     const sortedPosts = postIds
       .map((id) => posts.find((p) => p.id === id))
-      .filter((p) => p !== undefined);
+      .filter((p): p is Post => p !== undefined && !isPendingUser(p.author));
 
     let result: (Post & { reasons?: string[] })[] = sortedPosts.map((p) => ({
       ...p,
       reasons: ['Many backlinks', 'Link chain'],
     }));
+    result = await this.filterPostsVisibleToViewer(result, userId);
     if (userId) {
       result = await this.applyPostPreferences(result, userId);
     }
-    return result;
+    return { items: result, hasMore: hasMoreAlgo };
   }
 
   /**
@@ -604,8 +762,9 @@ export class ExploreService {
       const query = this.postRepo
         .createQueryBuilder('post')
         .innerJoin('external_sources', 'source', 'source.post_id = post.id')
-        .leftJoinAndSelect('post.author', 'author')
+        .innerJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
+        .andWhere("author.handle NOT LIKE '__pending_%'")
         .orderBy('post.created_at', 'DESC')
         .skip(skip)
         .take(limitNum + 1);
@@ -614,12 +773,13 @@ export class ExploreService {
           langs: langFilterNewsroom,
         });
       }
-      const posts = await query.getMany();
+      let posts = await query.getMany();
+      posts = await this.filterPostsVisibleToViewer(posts, userId);
       const hasMore = posts.length > limitNum;
       const items = posts
         .slice(0, limitNum)
         .map((p) => ({ ...p, reasons: ['Latest'] as string[] }));
-      return hasMore ? { items, hasMore: true } : items;
+      return { items, hasMore };
     }
 
     // Most cited: posts with sources by quote count
@@ -629,7 +789,8 @@ export class ExploreService {
         .innerJoin('external_sources', 'source', 'source.post_id = post.id')
         .where('post.deleted_at IS NULL')
         .orderBy('post.quote_count', 'DESC')
-        .take(limitNum);
+        .skip(skip)
+        .take(limitNum + 1);
       if (langFilterNewsroom?.length) {
         idQuery.andWhere('post.lang IN (:...langs)', {
           langs: langFilterNewsroom,
@@ -638,15 +799,25 @@ export class ExploreService {
       const ids = await idQuery
         .select('post.id')
         .getRawMany<{ post_id: string }>();
-      if (ids.length === 0) return [];
-      const postIds = ids.map((i) => i.post_id);
-      const posts = await this.postRepo
+      if (ids.length === 0) return { items: [], hasMore: false };
+      const hasMore = ids.length > limitNum;
+      const postIds = ids.slice(0, limitNum).map((i) => i.post_id);
+      let posts = await this.postRepo
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.id IN (:...ids)', { ids: postIds })
+        .andWhere(
+          "(author.handle IS NULL OR author.handle NOT LIKE '__pending_%')",
+        )
         .orderBy('post.quote_count', 'DESC')
         .getMany();
-      return posts.map((p) => ({ ...p, reasons: ['Most cited'] }));
+      posts = posts.filter((p) => !isPendingUser(p.author));
+      posts = await this.filterPostsVisibleToViewer(posts, userId);
+      const items = posts.map((p) => ({
+        ...p,
+        reasons: ['Most cited'] as string[],
+      }));
+      return { items, hasMore };
     }
 
     // Default: recent posts with sources (recommended order)
@@ -665,27 +836,35 @@ export class ExploreService {
     const ids = await idQuery
       .select('DISTINCT post.id', 'id')
       .orderBy(orderBy, 'DESC')
-      .limit(limitNum)
+      .offset(skip)
+      .limit(limitNum + 1)
       .getRawMany<{ id: string }>();
 
-    if (ids.length === 0) return [];
+    if (ids.length === 0) return { items: [], hasMore: false };
+
+    const hasMoreDefault = ids.length > limitNum;
+    const idList = ids.slice(0, limitNum).map((i) => i.id);
 
     const finalPosts = await this.postRepo
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
-      .where('post.id IN (:...ids)', {
-        ids: ids.map((i) => i.id),
-      })
+      .where('post.id IN (:...ids)', { ids: idList })
+      .andWhere(
+        "(author.handle IS NULL OR author.handle NOT LIKE '__pending_%')",
+      )
       .orderBy(orderBy, 'DESC')
       .getMany();
 
-    let result: (Post & { reasons?: string[] })[] = finalPosts.map((p) => ({
-      ...p,
-      reasons: ['Recent sources', 'External links'],
-    }));
+    let result: (Post & { reasons?: string[] })[] = finalPosts
+      .filter((p) => !isPendingUser(p.author))
+      .map((p) => ({
+        ...p,
+        reasons: ['Recent sources', 'External links'],
+      }));
+    result = await this.filterPostsVisibleToViewer(result, userId);
     if (userId) {
       result = await this.applyPostPreferences(result, userId);
     }
-    return result;
+    return { items: result, hasMore: hasMoreDefault };
   }
 }

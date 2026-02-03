@@ -13,7 +13,7 @@ import { COLORS, SPACING, FONTS, createStyles, FLATLIST_DEFAULTS } from '../../.
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { PostPreviewRow } from '../../../components/PostPreviewRow';
-import { EmptyState } from '../../../components/EmptyState';
+import { CenteredEmptyState } from '../../../components/EmptyState';
 import { ListFooterLoader } from '../../../components/ListFooterLoader';
 import { Post } from '../../../types';
 
@@ -96,9 +96,13 @@ export default function PostQuotesScreen() {
 
       <FlatList
         data={quotes}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <PostPreviewRow post={item} />}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+        keyExtractor={(item: Post) => item.id}
+        renderItem={({ item }: { item: Post }) => <PostPreviewRow post={item} />}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 24 },
+          quotes.length === 0 && { flexGrow: 1 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
@@ -106,7 +110,7 @@ export default function PostQuotesScreen() {
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
         ListEmptyComponent={
-          !loading ? <EmptyState icon="format-quote" headline={t('post.noQuotesYet', 'No one has quoted this post yet.')} /> : null
+          !loading ? <CenteredEmptyState icon="format-quote" headline={t('post.noQuotesYet', 'No one has quoted this post yet.')} /> : null
         }
         ListFooterComponent={<ListFooterLoader visible={loadingMore} />}
         {...FLATLIST_DEFAULTS}

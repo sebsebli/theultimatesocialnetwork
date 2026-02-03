@@ -149,9 +149,9 @@ export function stripLeadingH1IfMatch(
   return body;
 }
 
-/** Optional metadata for resolving post link labels when no alias is provided (e.g. post title by id). */
+/** Optional metadata for resolving post link labels when no alias is provided (e.g. post title by id). deletedAt means show "(deleted content)". */
 export interface RenderMarkdownOptions {
-  referenceMetadata?: Record<string, { title?: string }>;
+  referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
 }
 
 /**
@@ -229,11 +229,14 @@ export function renderMarkdown(
     if (target.type === "post") {
       const safeId = target.target.replace(/[^a-zA-Z0-9-]/g, "");
       const id = target.target;
-      const refTitle =
-        referenceMetadata?.[id]?.title ??
-        referenceMetadata?.[id?.toLowerCase?.() ?? ""]?.title;
-      const displayText =
-        explicitAlias || refTitle || target.target.slice(0, 8);
+      const refMeta =
+        referenceMetadata?.[id] ??
+        referenceMetadata?.[id?.toLowerCase?.() ?? ""];
+      const refTitle = refMeta?.title;
+      const isDeleted = !!refMeta?.deletedAt;
+      const displayText = isDeleted
+        ? "(deleted content)"
+        : explicitAlias || refTitle || target.target.slice(0, 8);
       const safeDisplay = escapeText(displayText);
       return `<a href="/post/${safeId}" class="prose-tag inline hover:underline">${safeDisplay}</a>`;
     }
@@ -248,11 +251,11 @@ export function renderMarkdown(
     }
   });
 
-  // Markdown links – inline, same style as body text (no linebreak)
+  // Markdown links [text](url) – external URL style: orange, no underline (parity with mobile)
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, text, url) => {
     const safeUrl = sanitizeUrl(url);
     const safeText = escapeText(text);
-    return `<a href="${safeUrl}" class="prose-tag inline hover:underline" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
+    return `<a href="${safeUrl}" class="prose-tag prose-link-external inline" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
   });
 
   // Bold

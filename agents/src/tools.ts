@@ -121,12 +121,12 @@ export const AGENT_TOOLS: Array<{
       function: {
         name: 'create_post',
         description:
-          'Create a new post. Body must be valid markdown: first line "# Title" (title max ~200 chars), ## for sections, [[Topic]] for topics, [[post:UUID]] to link another post, [[https://url|label]] for external links, @handle to mention. Max 10000 chars. Pass header_image_key if you got one from upload_header_image_from_url.',
+          'Create a new post. Write realistic, standalone content about real-world topics (fit your character); do not mention the platform, app, feed, or "being online". Sometimes reference real websites as [https://url](link text) (e.g. [https://example.com](click here)). Body: only composer markdown (# ## ###, **bold**, _italic_, `code`, ```fenced```, > blockquote, -/1. lists, [[Topic]] [[post:UUID]], [https://url](link text), @handle). Headline and link/wikilink aliases max 40 chars. Body max 10000 chars. Pass header_image_key if from upload_header_image_from_url.',
         parameters: {
           type: 'object',
           required: ['body'],
           properties: {
-            body: { type: 'string', description: 'Post body in markdown (see format in system prompt)' },
+            body: { type: 'string', description: 'Post body: realistic article; sometimes include real URLs as [https://url](link text) (e.g. [https://example.com](click here)); composer markdown only; headline and aliases max 40 chars' },
             visibility: {
               type: 'string',
               enum: ['PUBLIC', 'FOLLOWERS'],

@@ -3,11 +3,12 @@ import 'dotenv/config';
 /**
  * Spawn N AI agents (optionally in parallel). For each agent:
  * 1. Create a persona (LLM generates handle, displayName, bio, behavior from character type).
- * 2. Sign up and set profile from persona (bio, handle, displayName; avatar/header from Pixabay/Pexels).
+ * 2. Sign up and set profile from persona (bio, handle, displayName; profile image required—Pixabay/Pexels or placeholder).
  * 3. Run the agent loop: persona is "called" many times with network context (feed, explore, notifications, DMs);
  *    each round they surf, then do one action; we track action history and inject it each round.
  *
  * With --resume: load stored personas and run their loops in parallel (re-auth with stored email).
+ * With --resume-from-db: list agent users from API (GET /admin/agents) and run their loops (no personas file).
  * With --save: after a fresh run, save personas to a JSON file so you can --resume next time.
  *
  * Usage:
@@ -15,19 +16,24 @@ import 'dotenv/config';
  *   npm run run -- --agents 5 --actions 10
  *   npm run run -- --agents 3 --actions 5 --save
  *   npm run run -- --resume --actions 5
+ *   npm run run -- --resume-from-db --actions 40
  *   npm run run -- --resume --personas-file ./my-personas.json
  *   npm run run -- --seed-db --agents 3 --actions 5
  *
  * With --seed-db: create agent users directly in DB (admin POST /admin/agents/seed).
  * No signup/tokenization; user is written to DB, indexed in Meilisearch, and Neo4j user node created.
  *
- * Requires: Cite API running, OPENAI_API_KEY set. For --seed-db, CITE_ADMIN_SECRET required.
- * Optional: PIXABAY_API_KEY or PEXELS_API_KEY for profile/header images.
+ * Requires: Cite API running; OPENAI_API_KEY set (or use --ollama for local Ollama).
+ * For --seed-db, CITE_ADMIN_SECRET required.
+ * Optional: PIXABAY_API_KEY or PEXELS_API_KEY for profile images; otherwise a placeholder avatar is used.
+ *
+ * Ollama: use --ollama or USE_OLLAMA=1 to use local Ollama (e.g. granite4:latest) instead of OpenAI.
+ * Set OLLAMA_MODEL (default granite4:latest) and OLLAMA_BASE_URL (default http://localhost:11434).
  */
 
 import OpenAI from 'openai';
 import { createApiClient, devSignup } from './api-client.js';
-import { getAvatarImage, getHeaderImage } from './image-provider.js';
+import { getAvatarImage, getPlaceholderAvatarImage } from './image-provider.js';
 import { randomCharacter, getCharacterByType } from './characters.js';
 import { createPersona } from './persona.js';
 import { runAgentLoop } from './agent.js';
@@ -46,9 +52,11 @@ function getConfig() {
   let actionsPerAgent = parseInt(env.ACTIONS_PER_AGENT ?? '8', 10);
   let save = env.CITE_AGENTS_SAVE === 'true' || env.CITE_AGENTS_SAVE === '1';
   let resume = env.CITE_AGENTS_RESUME === 'true' || env.CITE_AGENTS_RESUME === '1';
+  let resumeFromDb = env.CITE_AGENTS_RESUME_FROM_DB === 'true' || env.CITE_AGENTS_RESUME_FROM_DB === '1';
   let seedDb = env.CITE_AGENTS_SEED_DB === 'true' || env.CITE_AGENTS_SEED_DB === '1';
   let resumeBatchSize = parseInt(env.CITE_AGENTS_RESUME_BATCH_SIZE ?? '5', 10);
   let privateRatio = parseFloat(env.CITE_AGENTS_PRIVATE_RATIO ?? '0.15');
+  let useOllama = env.USE_OLLAMA === 'true' || env.USE_OLLAMA === '1';
   let personasFile: string | undefined;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--agents' && args[i + 1]) {
@@ -61,6 +69,8 @@ function getConfig() {
       save = true;
     } else if (args[i] === '--resume') {
       resume = true;
+    } else if (args[i] === '--resume-from-db') {
+      resumeFromDb = true;
     } else if (args[i] === '--seed-db') {
       seedDb = true;
     } else if (args[i] === '--resume-batch-size' && args[i + 1]) {
@@ -72,6 +82,8 @@ function getConfig() {
     } else if (args[i] === '--personas-file' && args[i + 1]) {
       personasFile = args[i + 1];
       i++;
+    } else if (args[i] === '--ollama') {
+      useOllama = true;
     }
   }
   return {
@@ -81,12 +93,16 @@ function getConfig() {
     disableBeta: env.CITE_DISABLE_BETA === 'true' || env.CITE_DISABLE_BETA === '1',
     openaiApiKey: env.OPENAI_API_KEY ?? '',
     openaiModel: env.OPENAI_MODEL ?? 'gpt-4o-mini',
+    useOllama,
+    ollamaModel: env.OLLAMA_MODEL ?? 'granite4:latest',
+    ollamaBaseUrl: (env.OLLAMA_BASE_URL ?? 'http://localhost:11434').replace(/\/$/, ''),
     pixabayApiKey: env.PIXABAY_API_KEY,
     pexelsApiKey: env.PEXELS_API_KEY,
     agentsCount: Math.max(1, agentsCount),
     actionsPerAgent: Math.max(1, actionsPerAgent),
     save,
     resume,
+    resumeFromDb,
     seedDb,
     resumeBatchSize: Math.max(1, resumeBatchSize),
     privateRatio,
@@ -137,12 +153,13 @@ async function runResumedAgent(
     return 0;
   }
 
+  const model = config.useOllama ? config.ollamaModel : config.openaiModel;
   console.log(`[${index + 1}/${total}] Resumed ${stored.displayName} (@${stored.handle}) — ${config.actionsPerAgent} actions...`);
   let actionsDone = 0;
   try {
     actionsDone = await runAgentLoop({
       openai,
-      model: config.openaiModel,
+      model,
       api,
       ctx: {
         token,
@@ -168,13 +185,18 @@ async function runResumedAgent(
 
 async function main() {
   const config = getConfig();
+  const model = config.useOllama ? config.ollamaModel : config.openaiModel;
+  const provider = config.useOllama ? 'Ollama' : 'OpenAI';
+
   console.log('Cite Agents Runner');
   console.log('  API:', config.citeApiUrl);
-  console.log('  OpenAI model:', config.openaiModel);
+  console.log(`  LLM: ${provider} (${model})`);
   console.log('  Actions per agent:', config.actionsPerAgent);
   if (config.resume) {
     console.log('  Mode: resume (load personas from file)');
     console.log('  Personas file:', config.personasFile);
+  } else if (config.resumeFromDb) {
+    console.log('  Mode: resume-from-db (list agent users from API, run loops)');
   } else {
     console.log('  Agents (parallel):', config.agentsCount);
     if (config.seedDb) {
@@ -183,19 +205,24 @@ async function main() {
     }
     if (config.save) console.log('  Save personas: yes');
   }
-  if (!config.openaiApiKey) {
-    console.error('OPENAI_API_KEY is required.');
+  if (!config.useOllama && !config.openaiApiKey) {
+    console.error('OPENAI_API_KEY is required (or use --ollama for local Ollama).');
     process.exit(1);
   }
   if (config.seedDb && !config.citeAdminSecret) {
     console.error('CITE_ADMIN_SECRET is required when using --seed-db.');
     process.exit(1);
   }
-  if (config.resume && !config.citeAdminSecret && !config.citeDevToken) {
-    console.error('For --resume set CITE_ADMIN_SECRET (for admin token) or CITE_DEV_TOKEN (for dev verify).');
+  if ((config.resume || config.resumeFromDb) && !config.citeAdminSecret && !config.citeDevToken) {
+    console.error('For --resume / --resume-from-db set CITE_ADMIN_SECRET (for admin token) or CITE_DEV_TOKEN (for dev verify).');
     process.exit(1);
   }
-  const openai = new OpenAI({ apiKey: config.openaiApiKey });
+  const openai = config.useOllama
+    ? new OpenAI({
+      baseURL: `${config.ollamaBaseUrl}/v1`,
+      apiKey: 'ollama',
+    })
+    : new OpenAI({ apiKey: config.openaiApiKey });
 
   const api = createApiClient({
     baseUrl: config.citeApiUrl,
@@ -247,6 +274,44 @@ async function main() {
     pexelsApiKey: config.pexelsApiKey,
   };
 
+  if (config.resumeFromDb) {
+    let list: { email: string; handle: string; displayName: string; bio: string }[];
+    try {
+      list = await api.listAgentUsers();
+    } catch (e) {
+      console.error('Failed to list agent users:', (e as Error).message);
+      process.exit(1);
+    }
+    if (list.length === 0) {
+      console.log('No agent users (@agents.local) in the API. Seed some with --seed-db first.');
+      return;
+    }
+    const storedPersonas: StoredPersona[] = list.map((u) => ({
+      characterType: 'knowledgeable',
+      displayName: u.displayName,
+      handle: u.handle,
+      bio: u.bio,
+      behavior: '',
+      email: u.email,
+      createdAt: new Date().toISOString(),
+    }));
+    const batchSize = config.resumeBatchSize;
+    console.log(`Resuming ${storedPersonas.length} agent(s) from DB in batches of ${batchSize}...\n`);
+    for (let offset = 0; offset < storedPersonas.length; offset += batchSize) {
+      const chunk = storedPersonas.slice(offset, offset + batchSize);
+      await Promise.all(
+        chunk.map((stored, j) =>
+          runResumedAgent(offset + j, storedPersonas.length, config, openai, api, stored),
+        ),
+      );
+      if (offset + batchSize < storedPersonas.length) {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
+    console.log('\nAll agents finished.');
+    return;
+  }
+
   if (config.resume) {
     const personas = await loadPersonas(config.personasFile);
     if (personas.length === 0) {
@@ -285,7 +350,7 @@ async function main() {
 
     let persona;
     try {
-      persona = await createPersona(openai, config.openaiModel, character, usedHandles);
+      persona = await createPersona(openai, model, character, usedHandles);
     } catch (e) {
       console.error('Persona creation failed:', (e as Error).message);
       continue;
@@ -339,47 +404,39 @@ async function main() {
         }
       }
 
+      // Profile image is required: Pixabay/Pexels or placeholder (can be anything).
       let avatarKey: string | null = null;
-      let profileHeaderKey: string | null = null;
       const avatarQuery = character.avatarQuery ?? 'portrait';
-      const headerQuery = character.headerQuery ?? 'landscape';
-
-      if (imageConfig.pixabayApiKey || imageConfig.pexelsApiKey) {
-        try {
-          const avatarImg = await getAvatarImage(imageConfig, avatarQuery);
-          if (avatarImg) {
-            const up = await api.uploadProfilePicture(
-              token,
-              avatarImg.buffer,
-              `avatar-${persona.handle}.jpg`,
-            );
-            avatarKey = up.key;
-          }
-          const headerImg = await getHeaderImage(imageConfig, headerQuery);
-          if (headerImg) {
-            const up = await api.uploadProfileHeader(
-              token,
-              headerImg.buffer,
-              `header-${persona.handle}.jpg`,
-            );
-            profileHeaderKey = up.key;
-          }
-        } catch {
-          // ignore
+      try {
+        let avatarBuffer: Buffer | null = null;
+        const avatarImg = await getAvatarImage(imageConfig, avatarQuery);
+        if (avatarImg) avatarBuffer = avatarImg.buffer;
+        if (!avatarBuffer) avatarBuffer = await getPlaceholderAvatarImage(persona.handle);
+        if (avatarBuffer) {
+          const up = await api.uploadProfilePicture(
+            token,
+            avatarBuffer,
+            `avatar-${persona.handle}.jpg`,
+          );
+          avatarKey = up.key;
         }
+      } catch (e) {
+        console.error(`[${index + 1}] Profile image upload failed:`, (e as Error).message);
+        return null;
+      }
+      if (!avatarKey) {
+        console.error(`[${index + 1}] No profile image available (upload or placeholder failed).`);
+        return null;
       }
 
-      if (!config.seedDb || avatarKey != null || profileHeaderKey != null) {
-        try {
-          await api.updateMe(token, {
-            ...(config.seedDb ? {} : { handle: persona.handle, displayName: persona.displayName, bio: persona.bio }),
-            avatarKey: avatarKey ?? undefined,
-            profileHeaderKey: profileHeaderKey ?? undefined,
-          });
-        } catch (e) {
-          console.error(`[${index + 1}] Profile update failed:`, (e as Error).message);
-          return null;
-        }
+      try {
+        await api.updateMe(token, {
+          ...(config.seedDb ? {} : { handle: persona.handle, displayName: persona.displayName, bio: persona.bio }),
+          avatarKey,
+        });
+      } catch (e) {
+        console.error(`[${index + 1}] Profile update failed:`, (e as Error).message);
+        return null;
       }
 
       console.log(`[${index + 1}/${agentsToRun.length}] ${persona.displayName} (@${persona.handle}) — ${config.actionsPerAgent} actions...`);
@@ -387,7 +444,7 @@ async function main() {
       try {
         actionsDone = await runAgentLoop({
           openai,
-          model: config.openaiModel,
+          model,
           api,
           ctx: {
             token,

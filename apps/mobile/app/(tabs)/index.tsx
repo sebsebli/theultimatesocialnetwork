@@ -11,7 +11,7 @@ import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
+import { CenteredEmptyState } from '../../components/EmptyState';
 import { Avatar } from '../../components/Avatar';
 import { useSocket } from '../../context/SocketContext';
 import { UserCard } from '../../components/UserCard';
@@ -62,7 +62,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!loading && posts.length === 0) {
-      api.get('/users/suggested?limit=5').then(res => setSuggestions(Array.isArray(res) ? res : [])).catch(() => { });
+      api.get('/users/suggested?limit=5').then(res => setSuggestions((Array.isArray(res) ? res : []).filter((u: any) => !u.handle?.startsWith?.('__pending_')))).catch(() => { });
     }
   }, [loading, posts.length]);
 
@@ -118,6 +118,8 @@ export default function HomeScreen() {
               handle: t('post.unknownUser', 'Unknown'),
               displayName: t('post.unknownUser', 'Unknown')
             },
+            isLiked: post.isLiked,
+            isKept: post.isKept ?? true,
             _isSavedBy: true,
             _savedBy: item.data,
           };
@@ -130,6 +132,8 @@ export default function HomeScreen() {
             handle: t('post.unknownUser', 'Unknown'),
             displayName: t('post.unknownUser', 'Unknown')
           },
+          isLiked: post.isLiked,
+          isKept: post.isKept,
         };
       });
 
@@ -257,14 +261,17 @@ export default function HomeScreen() {
         <ErrorState onRetry={handleRefresh} onDismiss={() => setError(false)} />
       ) : (
         <FlatList
-          data={posts}
+          data={posts.filter((p: Post) => !!p?.author)}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           keyExtractor={keyExtractor}
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={[
+            { paddingBottom: 80 },
+            posts.filter((p: Post) => !!p?.author).length === 0 && { flexGrow: 1 },
+          ]}
           renderItem={({ item }: { item: Post }) => renderItem({ item })}
           ListEmptyComponent={
-            <EmptyState
+            <CenteredEmptyState
               icon="home"
               headline={t('home.emptyHeadline', 'Your timeline is quiet.')}
               subtext={t('home.emptySubtext', 'Follow people and topics to see posts here.')}
@@ -291,7 +298,7 @@ export default function HomeScreen() {
                   )}
                 </View>
               )}
-            </EmptyState>
+            </CenteredEmptyState>
           }
           ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
           refreshControl={

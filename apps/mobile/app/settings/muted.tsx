@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { COLORS, SPACING, SIZES, FONTS, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
-import { EmptyState } from '../../components/EmptyState';
+import { CenteredEmptyState } from '../../components/EmptyState';
 
 export default function MutedUsersScreen() {
   const router = useRouter();
@@ -103,13 +103,13 @@ export default function MutedUsersScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
         ListEmptyComponent={
-          <EmptyState
+          <CenteredEmptyState
             icon="notifications-off"
             headline={t('safety.noMuted', 'No muted users')}
             subtext={t('safety.noMutedHint', 'Muted accounts will appear here.')}
           />
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, muted.length === 0 && { flexGrow: 1 }]}
         {...FLATLIST_DEFAULTS}
       />
 

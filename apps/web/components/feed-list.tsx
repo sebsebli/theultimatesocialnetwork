@@ -5,7 +5,10 @@ import { PostItem, type Post } from "./post-item";
 import { SavedByItem } from "./saved-by-item";
 import { InviteNudge } from "./invite-nudge";
 import { useToast } from "@/components/ui/toast";
-import { EmptyState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 
 // Bypass ESM static analysis for these legacy packages
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -141,12 +144,21 @@ export function FeedList({ initialPosts }: FeedListProps) {
           userName={d.userName}
           collectionId={d.collectionId}
           collectionName={d.collectionName}
-          post={d.post}
+          post={{ ...d.post, isKept: true }}
         />
       );
     } else {
       const postItem = withType.type === "post" ? withType.data : item;
-      content = <PostItem post={postItem as Post} />;
+      const post = postItem as Post;
+      content = (
+        <PostItem
+          post={{
+            ...post,
+            isLiked: post.isLiked,
+            isKept: post.isKept,
+          }}
+        />
+      );
     }
 
     return (
@@ -160,14 +172,16 @@ export function FeedList({ initialPosts }: FeedListProps) {
 
   if (posts.length === 0) {
     return (
-      <EmptyState
-        icon="home"
-        headline="Your timeline is quiet"
-        subtext="Follow people."
-        compact
-      >
-        <InviteNudge />
-      </EmptyState>
+      <div className={emptyStateCenterClassName}>
+        <EmptyState
+          icon="home"
+          headline="Your timeline is quiet"
+          subtext="Follow people."
+          compact
+        >
+          <InviteNudge />
+        </EmptyState>
+      </div>
     );
   }
 

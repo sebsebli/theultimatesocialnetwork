@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Like } from '../entities/like.entity';
 import { Keep } from '../entities/keep.entity';
@@ -89,6 +89,31 @@ export class InteractionsService {
     await this.redis.del('post:views:active_set');
   }
 
+  /** Batch-load which of the given postIds the viewer has liked and kept. Returns sets of post IDs. */
+  async getLikeKeepForViewer(
+    userId: string,
+    postIds: string[],
+  ): Promise<{ likedIds: Set<string>; keptIds: Set<string> }> {
+    const unique = Array.from(new Set(postIds.filter(Boolean)));
+    if (unique.length === 0) {
+      return { likedIds: new Set(), keptIds: new Set() };
+    }
+    const [likes, keeps] = await Promise.all([
+      this.likeRepo.find({
+        where: { userId, postId: In(unique) },
+        select: ['postId'],
+      }),
+      this.keepRepo.find({
+        where: { userId, postId: In(unique) },
+        select: ['postId'],
+      }),
+    ]);
+    return {
+      likedIds: new Set(likes.map((l) => l.postId)),
+      keptIds: new Set(keeps.map((k) => k.postId)),
+    };
+  }
+
   async toggleLike(userId: string, postId: string) {
     const post = await this.postRepo.findOne({
       where: { id: postId },
@@ -119,6 +144,15 @@ export class InteractionsService {
     }
   }
 
+  async removeLike(userId: string, postId: string) {
+    const existing = await this.likeRepo.findOne({ where: { userId, postId } });
+    if (existing) {
+      await this.likeRepo.remove(existing);
+      await this.postRepo.decrement({ id: postId }, 'privateLikeCount', 1);
+    }
+    return { liked: false };
+  }
+
   async toggleKeep(userId: string, postId: string) {
     const post = await this.postRepo.findOne({
       where: { id: postId },
@@ -134,5 +168,13 @@ export class InteractionsService {
       await this.keepRepo.save({ userId, postId });
       return { kept: true };
     }
+  }
+
+  async removeKeep(userId: string, postId: string) {
+    const existing = await this.keepRepo.findOne({ where: { userId, postId } });
+    if (existing) {
+      await this.keepRepo.remove(existing);
+    }
+    return { kept: false };
   }
 }

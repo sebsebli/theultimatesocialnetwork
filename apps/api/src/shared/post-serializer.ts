@@ -1,6 +1,7 @@
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
 import { User } from '../entities/user.entity';
+import { isPendingUser } from './is-pending-user';
 
 /** Extract post IDs referenced in body via [[post:id]] or [[post:id|alias]]. */
 export function extractLinkedPostIds(
@@ -17,7 +18,7 @@ export function extractLinkedPostIds(
   return ids;
 }
 
-/** Author shape for JSON (avoids TypeORM/circular refs). Optionally add avatarUrl from avatarKey. */
+/** Author shape for JSON (avoids TypeORM/circular refs). Optionally add avatarUrl from avatarKey. Never expose pending (pre-onboarding) profiles. */
 export function authorPlain(
   a:
     | {
@@ -31,6 +32,7 @@ export function authorPlain(
   getImageUrl?: (key: string) => string,
 ) {
   if (!a || typeof a !== 'object') return undefined;
+  if (isPendingUser(a)) return undefined;
   const base: Record<string, unknown> = {
     id: a.id ?? '',
     handle: a.handle ?? '',
@@ -41,27 +43,41 @@ export function authorPlain(
   return base;
 }
 
-export type ReferenceMetadata = Record<string, { title?: string }>;
+export type ReferenceMetadata = Record<
+  string,
+  { title?: string; deletedAt?: string }
+>;
 
-/** Post as plain object so response is always JSON-serializable. getImageUrl for author.avatarUrl and post.headerImageUrl. referenceMetadata for linked post titles ([[post:id]] display text). */
+export type PostViewerState = { isLiked?: boolean; isKept?: boolean };
+
+/** Post as plain object so response is always JSON-serializable. getImageUrl for author.avatarUrl and post.headerImageUrl. referenceMetadata for linked post titles ([[post:id]] display text). viewerState adds isLiked/isKept for the current user when present. When viewerCanSeeContent is false or post is deleted, body/title/header are redacted. deletedAt included when set so client can show "deleted on ..." placeholder. */
 export function postToPlain(
   p: Post | null | undefined,
   getImageUrl?: (key: string) => string,
   referenceMetadata?: ReferenceMetadata | null,
+  viewerState?: PostViewerState | null,
+  viewerCanSeeContent = true,
 ): Record<string, unknown> | null {
   if (!p || typeof p !== 'object') return null;
+  const deletedAt = (p as { deletedAt?: Date | null }).deletedAt;
+  const isDeleted = deletedAt != null;
+  const canShowContent = viewerCanSeeContent && !isDeleted;
   const headerImageUrl =
-    p.headerImageKey && getImageUrl ? getImageUrl(p.headerImageKey) : undefined;
+    canShowContent && p.headerImageKey && getImageUrl
+      ? getImageUrl(p.headerImageKey)
+      : undefined;
   const out: Record<string, unknown> = {
     id: p.id ?? '',
     authorId: p.authorId ?? '',
     author: authorPlain(p.author ?? null, getImageUrl),
     visibility: p.visibility ?? 'PUBLIC',
-    body: p.body ?? '',
-    title: p.title ?? null,
-    headerImageKey: p.headerImageKey ?? null,
+    body: canShowContent ? (p.body ?? '') : '',
+    title: canShowContent ? (p.title ?? null) : null,
+    headerImageKey: canShowContent ? (p.headerImageKey ?? null) : null,
     headerImageUrl: headerImageUrl ?? null,
-    headerImageBlurhash: p.headerImageBlurhash ?? null,
+    headerImageBlurhash: canShowContent
+      ? (p.headerImageBlurhash ?? null)
+      : null,
     lang: p.lang ?? null,
     createdAt:
       p.createdAt != null ? new Date(p.createdAt).toISOString() : undefined,
@@ -72,9 +88,19 @@ export function postToPlain(
     privateLikeCount: p.privateLikeCount ?? 0,
     viewCount: p.viewCount ?? 0,
     readingTimeMinutes: p.readingTimeMinutes ?? 0,
+    viewerCanSeeContent: canShowContent,
+    ...(isDeleted && { deletedAt: new Date(deletedAt).toISOString() }),
   };
-  if (referenceMetadata != null && Object.keys(referenceMetadata).length > 0) {
+  if (
+    referenceMetadata != null &&
+    Object.keys(referenceMetadata).length > 0 &&
+    canShowContent
+  ) {
     out.referenceMetadata = referenceMetadata;
+  }
+  if (viewerState != null) {
+    if (viewerState.isLiked !== undefined) out.isLiked = viewerState.isLiked;
+    if (viewerState.isKept !== undefined) out.isKept = viewerState.isKept;
   }
   return out;
 }

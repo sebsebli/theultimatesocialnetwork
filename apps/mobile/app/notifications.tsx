@@ -9,7 +9,7 @@ import { ListFooterLoader } from '../components/ListFooterLoader';
 import { useSocket } from '../context/SocketContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { EmptyState } from '../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
 
 /** Notifications-only screen (bell). Messages are in the Messages tab. */
 export default function NotificationsScreen() {
@@ -133,19 +133,22 @@ export default function NotificationsScreen() {
         keyExtractor={(item: any) => item.id}
         renderItem={renderNotification}
         ListEmptyComponent={
-          loading ? (
-            <View style={styles.emptyState}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={[styles.emptyText, { marginTop: SPACING.l }]}>{t('common.loading')}</Text>
-            </View>
-          ) : (
-            <EmptyState
-              icon="notifications-none"
-              headline={t('notifications.empty', 'No notifications yet')}
-              subtext={t('notifications.emptySubtext', 'When someone follows you, replies, or mentions you, it will show up here.')}
-            />
-          )
+          <View style={emptyStateCenterWrapStyle}>
+            {loading ? (
+              <View style={styles.emptyState}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={[styles.emptyText, { marginTop: SPACING.l }]}>{t('common.loading')}</Text>
+              </View>
+            ) : (
+              <EmptyState
+                icon="notifications-none"
+                headline={t('notifications.empty', 'No notifications yet')}
+                subtext={t('notifications.emptySubtext', 'When someone follows you, replies, or mentions you, it will show up here.')}
+              />
+            )}
+          </View>
         }
+        contentContainerStyle={notifications.length === 0 ? { flexGrow: 1 } : undefined}
         ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
         refreshControl={
           <RefreshControl

@@ -24,20 +24,27 @@ export type SearchResult = {
   replyCount?: number;
 };
 
+export type SuggestionType = 'none' | 'topic' | 'mention';
+
 export function useComposerSearch() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [query, setQuery] = useState('');
+  const [type, setType] = useState<SuggestionType>('none');
   const searchRequestId = useRef(0);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const search = useCallback((query: string, type: 'topic' | 'mention') => {
+  const search = useCallback((q: string, searchType: 'topic' | 'mention') => {
     const requestId = ++searchRequestId.current;
 
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
     }
 
-    if (!query.trim()) {
+    setQuery(q);
+    setType(searchType);
+
+    if (!q.trim()) {
       setResults([]);
       setIsSearching(false);
       return;
@@ -52,9 +59,9 @@ export function useComposerSearch() {
 
       try {
         let newResults: SearchResult[] = [];
-        const encodedQ = encodeURIComponent(query);
+        const encodedQ = encodeURIComponent(q);
 
-        if (type === 'topic') {
+        if (searchType === 'topic') {
           const [topicRes, postRes] = await Promise.all([
             api.get(`/search/topics?q=${encodedQ}`),
             api.get(`/search/posts?q=${encodedQ}`)
@@ -94,7 +101,7 @@ export function useComposerSearch() {
             return true;
           });
           newResults = [...dedupedTopics, ...dedupedPosts];
-        } else if (type === 'mention') {
+        } else if (searchType === 'mention') {
           const res = await api.get(`/search/users?q=${encodedQ}`);
 
           if (searchRequestId.current !== requestId) return;
@@ -124,12 +131,21 @@ export function useComposerSearch() {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     setResults([]);
     setIsSearching(false);
+    setType('none');
+    setQuery('');
   }, []);
 
   return {
     results,
     isSearching,
     search,
-    clearSearch
+    clearSearch,
+    clear: clearSearch,
+    query,
+    type,
+    setQuery,
+    setType,
+    setSuggestionType: setType,
+    suggestionType: type,
   };
 }

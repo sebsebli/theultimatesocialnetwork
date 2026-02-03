@@ -20,12 +20,12 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
-import { api, getImageUrl } from '../../utils/api';
+import { api, getImageUrl, getAvatarUri } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/auth';
 import { useComposerSearch } from '../../hooks/useComposerSearch';
 import { MarkdownText } from '../../components/MarkdownText';
-import { PostArticleBlock } from '../../components/PostArticleBlock';
+import { PostItem } from '../../components/PostItem';
 import { Avatar } from '../../components/Avatar';
 import { Post } from '../../types';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, LAYOUT, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
@@ -116,7 +116,12 @@ export default function ComposeScreen() {
       ? `reply_${replyToPostId}`
       : 'new_post';
 
-  const [body, setBodyState] = useState(() => getDraft(draftKey));
+  const [body, setBodyState] = useState(() => {
+    const draft = getDraft(draftKey);
+    if (draft != null && draft.trim() !== '') return draft;
+    if (quotePostId) return `[[post:${quotePostId}]]\n\n`;
+    return '';
+  });
 
   const setBody = (text: string) => {
     setBodyState(text);
@@ -138,7 +143,7 @@ export default function ComposeScreen() {
       if (quotePostId) {
         try {
           const res = await api.get(`/posts/${quotePostId}`);
-          setQuotedPost(res.data);
+          setQuotedPost(res?.data ?? res);
         } catch (e) { console.error(e); }
       } else if (replyToPostId) {
         // We might want to show what we are replying to?
@@ -148,6 +153,18 @@ export default function ComposeScreen() {
     };
     fetchContextPost();
   }, [quotePostId, replyToPostId]);
+
+  // When quoted post loads, optionally add title as alias to the cite link (one-time, only if body is still the initial link)
+  const quotedPostAliasAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!quotePostId || !quotedPost?.title || quotedPostAliasAppliedRef.current) return;
+    const bareLink = `[[post:${quotePostId}]]`;
+    const trimmed = body.trim();
+    if (trimmed !== bareLink && !trimmed.startsWith(bareLink + '\n')) return;
+    quotedPostAliasAppliedRef.current = true;
+    const alias = quotedPost.title.trim().replace(/\|/g, ' ').slice(0, TITLE_MAX_LENGTH);
+    if (alias) setBody(`[[post:${quotePostId}|${alias}]]\n\n`);
+  }, [quotePostId, quotedPost?.title, body]);
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [pendingPublish, setPendingPublish] = useState(false); // To show confirmation/preview state
@@ -328,10 +345,20 @@ export default function ComposeScreen() {
     setShowLinkInput(true);
   };
 
+  /** Ensure URL has http:// or https:// so the renderer recognizes it as a link */
+  const ensureUrlScheme = (url: string) => {
+    const u = url.trim();
+    if (!u) return u;
+    if (/^https?:\/\//i.test(u)) return u;
+    return 'https://' + u;
+  };
+
   const addLink = () => {
-    if (!linkUrl) return;
-    const text = linkText || linkUrl;
-    const markdown = `[${text}](${linkUrl})`;
+    const raw = (linkUrl || '').trim();
+    if (!raw) return;
+    const url = ensureUrlScheme(raw);
+    const text = linkText || url;
+    const markdown = `[${text}](${url})`;
     // Replace selection or insert
     const newBody = body.slice(0, selection.start) + markdown + body.slice(selection.end);
     setBody(newBody);
@@ -426,11 +453,12 @@ export default function ComposeScreen() {
         formData.append('file', { uri: headerImageAsset.uri, name: filename, type } as any);
 
         // This endpoint needs to exist in API.
-        const uploadRes = await api.post('/uploads/image', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        imageKey = uploadRes.data.key;
-        imageBlurhash = uploadRes.data.blurhash;
+        const uploadRes = await api.request('/uploads/image', {
+          method: 'POST',
+          body: formData,
+        }) as { data?: { key?: string; blurhash?: string } };
+        imageKey = uploadRes.data?.key;
+        imageBlurhash = uploadRes.data?.blurhash;
       }
 
       const bodyToPublish = body.trim();
@@ -465,10 +493,8 @@ export default function ComposeScreen() {
 
       showSuccess(t('compose.publishedSuccess', 'Published successfully'));
 
-      // Navigate away
-      if (quotePostId) router.replace(`/post/${quotePostId}/reading`);
-      else if (replyToPostId) router.replace(`/post/${replyToPostId}`);
-      else router.back();
+      // Navigate away (do not open the quoted/reply post; just go back)
+      router.back();
 
     } catch (error: any) {
       console.error('Failed to publish', error);
@@ -570,8 +596,8 @@ export default function ComposeScreen() {
 
   const SuggestionsView = () => {
     if (suggestionType === 'none') return null;
-    let list: any[] = suggestionType === 'mention' && userId
-      ? suggestions.filter((item: any) => item.id !== userId)
+    let list: any[] = suggestionType === 'mention'
+      ? suggestions.filter((item: any) => (item.id !== userId && !item.handle?.startsWith?.('__pending_')))
       : suggestions;
     if (suggestionType === 'topic') {
       const seen = new Set<string>();
@@ -609,7 +635,7 @@ export default function ComposeScreen() {
           {suggestionType === 'mention' ? (
             <Avatar
               size={40}
-              uri={item.avatarKey ? getImageUrl(item.avatarKey) : item.avatarUrl}
+              uri={getAvatarUri({ avatarKey: item.avatarKey, avatarUrl: item.avatarUrl })}
               name={(item.displayName || item.handle) ?? ''}
             />
           ) : item.type === 'post' && (item.headerImageKey || item.headerImageUrl) ? (
@@ -850,11 +876,7 @@ export default function ComposeScreen() {
     >
       <View style={styles.header}>
         <Pressable
-          onPress={() => {
-            if (quotePostId) router.replace(`/post/${quotePostId}/reading`);
-            else if (replyToPostId) router.replace(`/post/${replyToPostId}`);
-            else router.back();
-          }}
+          onPress={() => router.back()}
           style={styles.closeBtn}
         >
           <Text style={[styles.closeText, { color: HEADER.cancelColor }]}>{t('common.cancel')}</Text>
@@ -1003,106 +1025,18 @@ export default function ComposeScreen() {
                 )}
               </View>
             </View>
-            {/* Article preview: same layout as post/[id]/reading.tsx */}
+            {/* Preview: same card as feed (PostItem with isPreview) */}
             <ScrollView
               style={styles.previewScroll}
-              contentContainerStyle={[styles.previewScrollContent, styles.previewReadingContent]}
+              contentContainerStyle={[styles.previewScrollContent, { paddingBottom: 80 }]}
               showsVerticalScrollIndicator={false}
               showsHorizontalScrollIndicator={false}
             >
-              {headerImage ? (
-                <View style={[styles.previewHeroWrap, { height: screenWidth * (3 / 4) }]}>
-                  <ExpoImage
-                    source={{ uri: headerImage }}
-                    style={[styles.previewHeroImage, { width: screenWidth, height: screenWidth * (3 / 4) }]}
-                    contentFit="cover"
-                  />
-                  {sanitizedTitle ? (
-                    <View style={styles.previewHeroTitleOverlay}>
-                      <Text style={styles.previewHeroTitleText} numberOfLines={2}>{sanitizedTitle}</Text>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-              <PostArticleBlock
+              <PostItem
                 post={previewPost}
-                hasHero={!!headerImage}
-                authorSubtitle={t('compose.preview', 'Preview')}
-                referenceMetadata={referenceMetadata}
-                validMentionHandles={confirmedMentionHandles}
+                isPreview
+                headerImageUri={headerImage ?? undefined}
               />
-              {/* Sources / Quoted by: same section as reading page */}
-              <View style={styles.previewSection}>
-                <View style={styles.previewTabsRow}>
-                  <View style={[styles.previewTabBtn, styles.previewTabBtnActive]}>
-                    <Text style={[styles.previewTabBtnText, styles.previewTabBtnTextActive]}>
-                      {t('post.sources', 'Sources')}
-                    </Text>
-                  </View>
-                  <View style={styles.previewTabBtn}>
-                    <Text style={styles.previewTabBtnText}>
-                      {t('post.quotedBy', 'Quoted by')} (0)
-                    </Text>
-                  </View>
-                </View>
-                {previewSources.length === 0 ? (
-                  <Text style={styles.previewEmptyText}>
-                    {t('post.noSources', 'No tagged sources in this post.')}
-                  </Text>
-                ) : (
-                  <View style={styles.previewSourcesList}>
-                    {previewSources.map((source: any, index: number) => {
-                      const onPress = () => {
-                        if (source.type === 'external' && source.url) {
-                          Linking.openURL(source.url).catch(() => { });
-                        } else if (source.type === 'post' && source.id) {
-                          setPreviewMode(false);
-                          router.push(`/post/${source.id}`);
-                        } else if (source.type === 'topic' && source.slug) {
-                          setPreviewMode(false);
-                          router.push(`/topic/${encodeURIComponent(source.slug)}`);
-                        }
-                      };
-                      const title = source.title || source.url || source.slug || '';
-                      const subtitle = source.type === 'external' && source.url
-                        ? (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })()
-                        : source.type === 'topic' ? t('post.topic', 'Topic') : '';
-                      const postPreview = source.type === 'post' && source.id ? sourcePreviews.postById[source.id] : null;
-                      const topicPreview = source.type === 'topic' && source.slug ? sourcePreviews.topicBySlug[normalizeTopicSlug(source.slug)] : null;
-                      const hasPostImage = postPreview && (postPreview.headerImageKey ?? postPreview.authorAvatarKey);
-                      const hasTopicImage = topicPreview?.imageKey;
-                      return (
-                        <Pressable key={`${source.type}-${source.id ?? source.slug ?? source.url ?? index}`} style={styles.previewSourceCard} onPress={onPress}>
-                          <View style={styles.previewSourceCardLeft}>
-                            <View style={styles.previewSourceIconWrap}>
-                              {source.type === 'post' && hasPostImage ? (
-                                postPreview!.headerImageKey ? (
-                                  <Image source={{ uri: getImageUrl(postPreview!.headerImageKey!) }} style={styles.previewSourceCircleImage} resizeMode="cover" />
-                                ) : (
-                                  <Avatar uri={getImageUrl(postPreview!.authorAvatarKey!)} name={title} size={40} style={styles.previewSourceCircleImage} />
-                                )
-                              ) : source.type === 'topic' && hasTopicImage ? (
-                                <Image source={{ uri: getImageUrl(topicPreview!.imageKey!) }} style={styles.previewSourceCircleImage} resizeMode="cover" />
-                              ) : (
-                                <MaterialIcons
-                                  name={source.type === 'post' ? 'article' : source.type === 'topic' ? 'tag' : 'link'}
-                                  size={HEADER.iconSize}
-                                  color={COLORS.primary}
-                                />
-                              )}
-                            </View>
-                            <View style={styles.previewSourceCardText}>
-                              <Text style={styles.previewSourceCardTitle} numberOfLines={1}>{title}</Text>
-                              {subtitle ? <Text style={styles.previewSourceCardSubtitle} numberOfLines={1}>{subtitle}</Text> : null}
-                            </View>
-                          </View>
-                          <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
             </ScrollView>
           </View>
         </Modal>
@@ -1241,10 +1175,10 @@ const styles = createStyles({
   suggestionSubText: { color: COLORS.secondary, fontSize: 13 },
 
   linkInputWrap: { backgroundColor: COLORS.ink },
-  linkInputContainer: { padding: SPACING.m },
+  linkInputContainer: { padding: SPACING.m, paddingBottom: SPACING.xl },
   linkInputRow: { flexDirection: 'row', gap: 8 },
   linkField: { flex: 1, backgroundColor: COLORS.hover, color: COLORS.paper, padding: 12, borderRadius: 8, fontSize: 16 },
-  linkDisplayField: { marginTop: 8, minHeight: 56, textAlignVertical: 'top' },
+  linkDisplayField: { marginTop: 8, marginBottom: SPACING.s, minHeight: 56, textAlignVertical: 'top' },
   linkAddButton: { backgroundColor: COLORS.primary, padding: 12, borderRadius: 8, justifyContent: 'center' },
   linkCloseButton: { backgroundColor: COLORS.hover, padding: 12, borderRadius: 8, justifyContent: 'center' },
 
@@ -1306,11 +1240,9 @@ const styles = createStyles({
     fontFamily: FONTS.semiBold,
   },
   previewScroll: { flex: 1 },
-  previewScrollContent: { paddingBottom: 40 },
-  previewReadingContent: { paddingTop: SPACING.xl, paddingBottom: 80 },
-  /* Reading-page layout: hero (full width) */
+  previewScrollContent: {},
+  /* Reading-page layout: hero (full width), match reading.tsx */
   previewHeroWrap: {
-    width: '100%',
     alignSelf: 'center',
     marginBottom: SPACING.l,
     position: 'relative' as const,
@@ -1374,30 +1306,32 @@ const styles = createStyles({
     fontStyle: 'italic',
   },
   previewSourcesList: {
-    gap: 0,
+    gap: SPACING.s,
   },
   previewSourceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.m,
-    paddingHorizontal: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.m,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
   },
   previewSourceCardLeft: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.m,
+    flex: 1,
     minWidth: 0,
   },
   previewSourceIconWrap: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.hover,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: SPACING.m,
     overflow: 'hidden',
   },
   previewSourceCircleImage: {
@@ -1410,14 +1344,14 @@ const styles = createStyles({
     minWidth: 0,
   },
   previewSourceCardTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   previewSourceCardSubtitle: {
     fontSize: 13,
-    color: COLORS.secondary,
+    color: COLORS.tertiary,
     fontFamily: FONTS.regular,
     marginTop: 2,
   },

@@ -3,9 +3,9 @@ import { View, Text, Pressable, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
-import { getApiBaseUrl } from '../utils/api';
+import { getImageUrl } from '../utils/api';
 
-const PREVIEW_ASPECT = 16 / 9;
+const CIRCLE_SIZE = 56;
 
 export interface CollectionCardItem {
   id: string;
@@ -13,6 +13,12 @@ export interface CollectionCardItem {
   description?: string | null;
   itemCount: number;
   previewImageKey?: string | null;
+  recentPost?: {
+    id?: string;
+    title?: string | null;
+    bodyExcerpt?: string | null;
+    headerImageKey?: string | null;
+  } | null;
 }
 
 interface CollectionCardProps {
@@ -31,9 +37,13 @@ function CollectionCardInner({
   showMenu = false,
 }: CollectionCardProps) {
   const { t } = useTranslation();
-  const imageUri = item.previewImageKey
-    ? `${getApiBaseUrl()}/images/${encodeURIComponent(item.previewImageKey)}`
-    : null;
+  const imageUrl =
+    (item.recentPost?.headerImageKey ? getImageUrl(item.recentPost.headerImageKey) : null) ||
+    (item.previewImageKey ? getImageUrl(item.previewImageKey) : null) ||
+    null;
+  const latestTitle = (item.recentPost?.title ?? '').trim() || null;
+  const latestExcerpt = (item.recentPost?.bodyExcerpt ?? '').trim() || null;
+  const lastArticlePreview = latestTitle || latestExcerpt || (item.description ?? '').trim() || null;
 
   return (
     <Pressable
@@ -43,47 +53,47 @@ function CollectionCardInner({
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
-      <View style={styles.previewWrap}>
-        {imageUri ? (
-          <Image
-            source={{ uri: imageUri }}
-            style={styles.previewImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.previewPlaceholder}>
-            <MaterialIcons name="folder" size={48} color={COLORS.tertiary} />
-          </View>
-        )}
-      </View>
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={1}>
-            {item.title}
-          </Text>
-          {showMenu && (
-            <Pressable
-              hitSlop={12}
-              style={({ pressed }: { pressed: boolean }) => [styles.menuBtn, pressed && { opacity: 0.7 }]}
-              onPress={(e: { stopPropagation: () => void }) => {
-                e.stopPropagation();
-                onMenuPress?.();
-              }}
-              accessibilityLabel="Options"
-              accessibilityRole="button"
-            >
-              <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
-            </Pressable>
+      <View style={styles.row}>
+        <View style={styles.circleWrap}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.circleImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.circlePlaceholder}>
+              <MaterialIcons name="folder" size={HEADER.iconSize} color={COLORS.tertiary} />
+            </View>
           )}
         </View>
+        <View style={styles.content}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {showMenu && (
+              <Pressable
+                hitSlop={12}
+                style={({ pressed }: { pressed: boolean }) => [styles.menuBtn, pressed && { opacity: 0.7 }]}
+                onPress={(e: { stopPropagation: () => void }) => {
+                  e.stopPropagation();
+                  onMenuPress?.();
+                }}
+                accessibilityLabel="Options"
+                accessibilityRole="button"
+              >
+                <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
+              </Pressable>
+            )}
+          </View>
+          {lastArticlePreview ? (
+            <Text style={styles.lastArticle} numberOfLines={1}>
+              {lastArticlePreview}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      <View style={styles.footer}>
         <Text style={styles.count}>
           {t('collections.itemCount', { count: item.itemCount })}
         </Text>
-        {item.description ? (
-          <Text style={styles.description} numberOfLines={2}>
-            {item.description}
-          </Text>
-        ) : null}
       </View>
     </Pressable>
   );
@@ -104,29 +114,39 @@ const styles = createStyles({
   cardPressed: {
     opacity: 0.9,
   },
-  previewWrap: {
-    width: '100%',
-    aspectRatio: PREVIEW_ASPECT,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.l,
+    gap: SPACING.m,
+  },
+  circleWrap: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
     backgroundColor: COLORS.divider,
+    overflow: 'hidden',
   },
-  previewImage: {
-    width: '100%',
-    height: '100%',
+  circleImage: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
   },
-  previewPlaceholder: {
-    width: '100%',
-    height: '100%',
+  circlePlaceholder: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    borderRadius: CIRCLE_SIZE / 2,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   content: {
-    padding: SPACING.l,
+    flex: 1,
+    minWidth: 0,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.s,
-    marginBottom: SPACING.xs,
   },
   title: {
     flex: 1,
@@ -138,16 +158,21 @@ const styles = createStyles({
   menuBtn: {
     padding: SPACING.xs,
   },
+  lastArticle: {
+    fontSize: 13,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: 2,
+  },
+  footer: {
+    paddingHorizontal: SPACING.l,
+    paddingVertical: SPACING.m,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+  },
   count: {
     fontSize: 13,
     color: COLORS.tertiary,
     fontFamily: FONTS.regular,
-    marginBottom: SPACING.xs,
-  },
-  description: {
-    fontSize: 14,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-    lineHeight: 20,
   },
 });

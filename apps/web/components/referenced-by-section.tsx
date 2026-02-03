@@ -16,6 +16,8 @@ interface ReferencedPost {
   };
   quoteCount: number;
   createdAt: string;
+  /** When false, content is redacted; show private overlay */
+  viewerCanSeeContent?: boolean;
 }
 
 export interface ReferencedBySectionProps {
@@ -140,14 +142,46 @@ function ReferencedBySectionInner({
                   </div>
                 </div>
               </div>
-              {post.title && (
-                <h3 className="text-lg font-bold text-paper mb-2 leading-tight">
-                  {post.title}
-                </h3>
+              {post.viewerCanSeeContent === false ? (
+                <div className="min-h-[80px] rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-1 text-tertiary">
+                    <svg
+                      className="w-8 h-8"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      />
+                    </svg>
+                    <span className="text-sm font-semibold text-paper">
+                      Private
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {post.title && (
+                    <h3 className="text-lg font-bold text-paper mb-2 leading-tight">
+                      {post.title}
+                    </h3>
+                  )}
+                  <div className="relative">
+                    <p className="text-[15px] leading-relaxed text-secondary line-clamp-3">
+                      {post.body}
+                    </p>
+                    <div
+                      className="pointer-events-none absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-ink via-ink/80 to-transparent rounded-b"
+                      aria-hidden
+                    />
+                  </div>
+                </>
               )}
-              <p className="text-[15px] leading-relaxed text-secondary line-clamp-3">
-                {post.body}
-              </p>
             </Link>
           ))}
           {hasMore && (

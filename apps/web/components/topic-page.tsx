@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { getImageUrl } from "@/lib/security";
 import { PostItem, Post } from "./post-item";
 import { TopicCard } from "./topic-card";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 
 const HERO_FADE_HEIGHT = 280;
 const STICKY_HEADER_APPEAR = 120;
@@ -296,9 +300,13 @@ function TopicPageInner({ topic }: TopicPageProps) {
                 )}
               </>
             ) : (
-              <p className="text-secondary text-sm py-12 text-center bg-white/5 rounded-lg border border-dashed border-divider">
-                No discussions in this topic yet.
-              </p>
+              <div className={emptyStateCenterClassName}>
+                <EmptyState
+                  headline="No discussions in this topic yet"
+                  subtext="Be the first to share a post here."
+                  compact
+                />
+              </div>
             )}
           </div>
         </section>

@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import * as WebBrowser from 'expo-web-browser';
+import * as Device from 'expo-device';
 import { api } from '../utils/api';
 import { useAuth } from '../context/auth';
 import { useToast } from '../context/ToastContext';
@@ -140,9 +141,13 @@ export default function IndexScreen() {
 
     setLoading(true);
     try {
+      const deviceInfo = Device.deviceName
+        ? `${Device.deviceName} (${Platform.OS})`
+        : `Citewalk Mobile (${Platform.OS})`;
       const response = await api.post('/auth/verify', {
         email: email.trim().toLowerCase(),
-        token: token.trim()
+        token: token.trim(),
+        deviceInfo,
       });
 
       // Handle 2FA Challenge
@@ -176,9 +181,13 @@ export default function IndexScreen() {
     if (!totpCode.trim()) return;
     setLoading(true);
     try {
+      const deviceInfo = Device.deviceName
+        ? `${Device.deviceName} (${Platform.OS})`
+        : `Citewalk Mobile (${Platform.OS})`;
       const response = await api.post('/auth/2fa/login', {
         token: totpCode.trim(),
-        tempToken
+        tempToken,
+        deviceInfo,
       });
       const { accessToken, user } = response;
       await SecureStore.setItemAsync('user', JSON.stringify(user));

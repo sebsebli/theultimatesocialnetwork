@@ -82,7 +82,9 @@ function AutocompleteDropdownInner({
           const data = await res.json();
           const userItems: AutocompleteItem[] = (data.hits || [])
             .filter(
-              (u: { id: string }) => !excludeUserId || u.id !== excludeUserId,
+              (u: { id: string; handle?: string }) =>
+                (!excludeUserId || u.id !== excludeUserId) &&
+                !u.handle?.startsWith?.("__pending_"),
             )
             .map(
               (u: {

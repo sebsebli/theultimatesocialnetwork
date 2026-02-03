@@ -9,7 +9,7 @@ import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { COLORS, SPACING, SIZES, FONTS, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
-import { EmptyState } from '../../components/EmptyState';
+import { CenteredEmptyState } from '../../components/EmptyState';
 
 export default function BlockedUsersScreen() {
   const router = useRouter();
@@ -112,13 +112,13 @@ export default function BlockedUsersScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
         ListEmptyComponent={
-          <EmptyState
+          <CenteredEmptyState
             icon="block"
             headline={t('safety.noBlocked', 'No blocked users')}
             subtext={t('safety.noBlockedHint', 'Blocked accounts will appear here.')}
           />
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, blocked.length === 0 && { flexGrow: 1 }]}
         {...FLATLIST_DEFAULTS}
       />
 

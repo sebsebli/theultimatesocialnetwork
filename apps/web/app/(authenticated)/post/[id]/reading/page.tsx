@@ -1,18 +1,26 @@
+import Link from "next/link";
 import { ReadingMode } from "@/components/reading-mode";
+import { cookies } from "next/headers";
 
 async function getPost(id: string) {
   const API_URL = process.env.API_URL || "http://localhost:3000";
-  const DEV_TOKEN = process.env.DEV_TOKEN || "";
+  const token = (await cookies()).get("token")?.value;
+
+  const headers: HeadersInit = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
 
   try {
     const res = await fetch(`${API_URL}/posts/${id}`, {
       cache: "no-store",
-      headers: {
-        Authorization: `Bearer ${DEV_TOKEN}`,
-      },
+      headers,
     });
     if (res.ok) {
       return await res.json();
+    }
+    if (res.status === 403 || res.status === 404) {
+      return null;
     }
   } catch (e) {
     console.error("Failed to fetch post", e);
@@ -28,8 +36,13 @@ export default async function ReadingModePage(props: {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-ink flex items-center justify-center">
-        <p className="text-secondary">Post not found</p>
+      <div className="min-h-screen bg-ink flex flex-col items-center justify-center px-6">
+        <p className="text-secondary mb-4">
+          This post is private or does not exist.
+        </p>
+        <Link href="/home" className="text-primary hover:underline font-medium">
+          Go back
+        </Link>
       </div>
     );
   }

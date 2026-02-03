@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Text, View, ScrollView, Pressable, RefreshControl, Platform, Share, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, getWebAppBaseUrl } from '../../utils/api';
+import { api, getWebAppBaseUrl, getAvatarUri } from '../../utils/api';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
@@ -39,8 +40,32 @@ export default function PostDetailScreen() {
   const [replyOptionsVisible, setReplyOptionsVisible] = useState(false);
   const [replyOptionsReplyId, setReplyOptionsReplyId] = useState<string | null>(null);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [deniedAuthor, setDeniedAuthor] = useState<{ id: string; handle: string; displayName: string; avatarKey?: string | null } | null>(null);
 
-  // Scroll ref for deep linking (basic implementation)
+  // Merge API sources with external links extracted from body so all [text](url) show in Sources
+  const mergedSources = useMemo(() => {
+    const apiExternal = sources.filter((s: any) => s.type === 'external');
+    const apiOther = sources.filter((s: any) => s.type !== 'external');
+    const urlSeen = new Set(apiExternal.map((s: any) => s.url).filter(Boolean));
+    const fromBody: { url: string; title: string | null }[] = [];
+    if (post?.body) {
+      const linkRegex = /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+      let m;
+      while ((m = linkRegex.exec(post.body)) !== null) {
+        const url = m[2];
+        if (!urlSeen.has(url)) {
+          urlSeen.add(url);
+          fromBody.push({ url, title: (m[1]?.trim() || null) ?? null });
+        }
+      }
+    }
+    return [
+      ...apiExternal,
+      ...fromBody.map(({ url, title }) => ({ type: 'external' as const, url, title })),
+      ...apiOther,
+    ];
+  }, [sources, post?.body]);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -77,6 +102,8 @@ export default function PostDetailScreen() {
   }, [id]);
 
   const loadPost = async () => {
+    setAccessDenied(false);
+    setDeniedAuthor(null);
     try {
       // Step 1: Load main post content first for instant display
       const postRes = await api.get(`/posts/${id}`);
@@ -85,18 +112,26 @@ export default function PostDetailScreen() {
       setKept(postRes.isKept || false);
       setLoading(false); // Show content now
 
-      // Step 2: Load supplementary data in background
-      Promise.all([
-        api.get(`/posts/${id}/replies`),
-        api.get(`/posts/${id}/referenced-by`),
-        api.get(`/posts/${id}/sources`),
-      ]).then(([repliesRes, referencedRes, sourcesRes]) => {
-        setReplies(Array.isArray(repliesRes) ? repliesRes : []);
-        setReferencedBy(Array.isArray(referencedRes) ? referencedRes : []);
-        setSources(Array.isArray(sourcesRes) ? sourcesRes : []);
-      });
+      // Step 2: Load supplementary data in background (skip for deleted posts)
+      if (!postRes.deletedAt) {
+        Promise.all([
+          api.get(`/posts/${id}/replies`),
+          api.get(`/posts/${id}/referenced-by`),
+          api.get(`/posts/${id}/sources`),
+        ]).then(([repliesRes, referencedRes, sourcesRes]) => {
+          setReplies(Array.isArray(repliesRes) ? repliesRes : []);
+          setReferencedBy(Array.isArray(referencedRes) ? referencedRes : []);
+          setSources(Array.isArray(sourcesRes) ? sourcesRes : []);
+        });
+      }
     } catch (error: any) {
       setLoading(false);
+      setPost(null);
+      if (error?.status === 403 && error?.data?.author) {
+        setAccessDenied(true);
+        setDeniedAuthor(error.data.author as { id: string; handle: string; displayName: string; avatarKey?: string | null });
+        return;
+      }
       if (error?.status === 404) {
         showError(t('post.notFoundMessage', "This post doesn't exist anymore."));
         router.back();
@@ -209,6 +244,42 @@ export default function PostDetailScreen() {
     );
   }
 
+  if (accessDenied && deniedAuthor) {
+    return (
+      <View style={styles.container}>
+        <ScreenHeader title={t('post.thread')} paddingTop={insets.top} />
+        <View style={styles.privatePostOverlay}>
+          <View style={styles.privatePostBlur}>
+            <MaterialIcons name="lock" size={48} color={COLORS.tertiary} />
+            <Text style={styles.privatePostTitle}>{t('post.privatePost', 'This is a private post')}</Text>
+            <Text style={styles.privatePostSubtext}>
+              {t('post.privatePostSubtext', 'Only followers can see this post. Follow the author to request access.')}
+            </Text>
+          </View>
+          <Pressable
+            style={styles.privatePostAuthorCard}
+            onPress={() => deniedAuthor.handle && router.push(`/user/${deniedAuthor.handle}`)}
+          >
+            {getAvatarUri({ avatarKey: deniedAuthor.avatarKey }) ? (
+              <Image source={{ uri: getAvatarUri({ avatarKey: deniedAuthor.avatarKey })! }} style={styles.privatePostAuthorAvatar} contentFit="cover" />
+            ) : (
+              <View style={styles.privatePostAuthorAvatarPlaceholder}>
+                <Text style={styles.privatePostAuthorInitial}>
+                  {(deniedAuthor.displayName || deniedAuthor.handle || '?').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View style={styles.privatePostAuthorInfo}>
+              <Text style={styles.privatePostAuthorName} numberOfLines={1}>{deniedAuthor.displayName || deniedAuthor.handle}</Text>
+              <Text style={styles.privatePostAuthorHandle} numberOfLines={1}>@{deniedAuthor.handle}</Text>
+            </View>
+            <Text style={styles.privatePostFollowCta}>{t('profile.follow', 'Follow')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   if (!post) {
     return (
       <View style={styles.container}>
@@ -216,6 +287,26 @@ export default function PostDetailScreen() {
         <Pressable style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backButtonText}>{t('common.goBack')}</Text>
         </Pressable>
+      </View>
+    );
+  }
+
+  // Deleted post: show placeholder so graph references still resolve to a page
+  if (post.deletedAt) {
+    const deletedDate = new Date(post.deletedAt);
+    const formattedDate = deletedDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    return (
+      <View style={styles.container}>
+        <ScreenHeader title={t('post.thread')} paddingTop={insets.top} />
+        <View style={styles.deletedPlaceholder}>
+          <MaterialIcons name="delete-outline" size={48} color={COLORS.tertiary} style={styles.deletedPlaceholderIcon} />
+          <Text style={styles.deletedPlaceholderText}>
+            {t('post.deletedOn', { date: formattedDate, defaultValue: `This post has been deleted on ${formattedDate}.` })}
+          </Text>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>{t('common.goBack')}</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -291,12 +382,12 @@ export default function PostDetailScreen() {
           </View>
         </View>
 
-        {sources.length > 0 && (
+        {mergedSources.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('post.sources', 'Sources')}</Text>
-            {sources.map((source: any, index: number) => (
+            {mergedSources.map((source: any, index: number) => (
               <Pressable
-                key={source.id || index}
+                key={source.type === 'external' && source.url ? `ext-${source.url}` : (source.id ?? `i-${index}`)}
                 style={styles.sourceItem}
                 onPress={async () => {
                   if (source.type === 'external' && source.url) {
@@ -530,6 +621,83 @@ const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
+  },
+  privatePostOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+  },
+  privatePostBlur: {
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.xxl,
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
+    minWidth: '100%',
+  },
+  privatePostTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    marginTop: SPACING.l,
+  },
+  privatePostSubtext: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: SPACING.s,
+    textAlign: 'center',
+  },
+  privatePostAuthorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.m,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    width: '100%',
+    gap: SPACING.m,
+  },
+  privatePostAuthorAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  privatePostAuthorAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  privatePostAuthorInitial: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+  },
+  privatePostAuthorInfo: { flex: 1, minWidth: 0 },
+  privatePostAuthorName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  privatePostAuthorHandle: {
+    fontSize: 14,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    marginTop: 2,
+  },
+  privatePostFollowCta: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
   },
   placeholder: {
     width: SIZES.iconLarge,
@@ -767,5 +935,21 @@ const styles = createStyles({
     color: COLORS.primary,
     fontSize: 16,
     fontFamily: FONTS.semiBold,
+  },
+  deletedPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+  },
+  deletedPlaceholderIcon: {
+    marginBottom: SPACING.l,
+  },
+  deletedPlaceholderText: {
+    fontSize: 16,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    textAlign: 'center',
+    marginBottom: SPACING.xl,
   },
 });

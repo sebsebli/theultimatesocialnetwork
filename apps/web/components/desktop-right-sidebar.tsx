@@ -39,7 +39,14 @@ function DesktopRightSidebarInner() {
 
         if (usersRes.ok) {
           const data = await usersRes.json();
-          setUsers(Array.isArray(data) ? data.slice(0, 3) : []);
+          setUsers(
+            (Array.isArray(data) ? data : [])
+              .filter(
+                (u: { handle?: string }) =>
+                  !u.handle?.startsWith?.("__pending_"),
+              )
+              .slice(0, 3),
+          );
         }
       } catch {
         // ignore

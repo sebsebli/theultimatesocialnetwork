@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { PostItem } from '../components/PostItem';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { EmptyState } from '../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
 import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
 import { ListFooterLoader } from '../components/ListFooterLoader';
@@ -94,7 +94,10 @@ export default function KeepsScreen() {
 
   const renderItem = useCallback(({ item }: { item: any }) => (
     <View style={styles.keepContainer}>
-      <PostItem post={item.post} />
+      <PostItem
+        post={{ ...item.post, isKept: true }}
+        onKeep={() => setKeeps(prev => prev.filter((k: any) => k.post?.id !== item.post?.id))}
+      />
       <View style={styles.keepActions}>
         <Pressable
           style={styles.addButton}
@@ -182,26 +185,29 @@ export default function KeepsScreen() {
       </View>
 
       <FlatList
-        data={keeps}
+        data={keeps.filter((item: any) => !!item?.post?.author)}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListEmptyComponent={
-          loading ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>{t('common.loading')}</Text>
-            </View>
-          ) : (
-            <EmptyState
-              icon="bookmark-border"
-              headline={t('keeps.empty')}
-              subtext={t('keeps.emptyHint')}
-              secondaryLabel={t('keeps.explorePosts')}
-              onSecondary={() => router.push('/(tabs)/explore')}
-            />
-          )
+          <View style={emptyStateCenterWrapStyle}>
+            {loading ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>{t('common.loading')}</Text>
+              </View>
+            ) : (
+              <EmptyState
+                icon="bookmark-border"
+                headline={t('keeps.empty')}
+                subtext={t('keeps.emptyHint')}
+                secondaryLabel={t('keeps.explorePosts')}
+                onSecondary={() => router.push('/(tabs)/explore')}
+              />
+            )}
+          </View>
         }
+        contentContainerStyle={keeps.filter((item: any) => !!item?.post?.author).length === 0 ? { flexGrow: 1 } : undefined}
         ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
         refreshControl={
           <RefreshControl

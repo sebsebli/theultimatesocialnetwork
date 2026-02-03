@@ -1,0 +1,7 @@
+# Falconsai/nsfw_image_detection - ViT for NSFW image classification
+# https://huggingface.co/Falconsai/nsfw_image_detection
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+transformers==4.46.3
+pillow==11.0.0
+# CPU-only torch for smaller image (install separately in Dockerfile)

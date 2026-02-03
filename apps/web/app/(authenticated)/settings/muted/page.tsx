@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { EmptyState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 
 interface MutedUser {
   id: string;
@@ -47,7 +50,7 @@ export default function MutedPage() {
   };
 
   return (
-    <div className="max-w-[680px] mx-auto min-h-screen border-x border-divider bg-ink">
+    <div className="max-w-[680px] mx-auto min-h-screen border-x border-divider bg-ink flex flex-col">
       <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-6 py-4">
         <div className="flex items-center gap-3">
           <Link href="/settings" className="text-secondary hover:text-paper">
@@ -69,17 +72,19 @@ export default function MutedPage() {
         </div>
       </header>
 
-      <div className="px-6 py-6">
+      <div className="px-6 py-6 flex-1 flex flex-col min-h-[200px]">
         {loading ? (
           <div className="text-center py-12">
             <p className="text-secondary text-sm">Loading...</p>
           </div>
         ) : muted.length === 0 ? (
-          <EmptyState
-            icon="volume_off"
-            headline="No muted accounts"
-            subtext="You haven't muted anyone yet."
-          />
+          <div className={emptyStateCenterClassName}>
+            <EmptyState
+              icon="volume_off"
+              headline="No muted accounts"
+              subtext="You haven't muted anyone yet."
+            />
+          </div>
         ) : (
           <div className="space-y-4">
             {muted.map((user) => (

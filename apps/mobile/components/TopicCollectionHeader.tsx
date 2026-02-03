@@ -1,10 +1,7 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, Pressable, Image, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
-import { getImageUrl } from '../utils/api';
-/** Same header image format as collection/topic: 4:3 aspect ratio. */
-const HEADER_ASPECT = 3 / 4;
 
 export type TopicCollectionType = 'topic' | 'collection';
 
@@ -12,8 +9,6 @@ export interface TopicCollectionHeaderProps {
   type: TopicCollectionType;
   title: string;
   description?: string | null;
-  /** Optional header image key (e.g. from a random post). */
-  headerImageKey?: string | null;
   onBack: () => void;
   onAction?: () => void;
   actionLabel?: string;
@@ -38,7 +33,6 @@ function TopicCollectionHeaderInner({
   type,
   title,
   description,
-  headerImageKey,
   onBack,
   onAction,
   actionLabel,
@@ -48,49 +42,38 @@ function TopicCollectionHeaderInner({
   onRightAction,
   children,
 }: TopicCollectionHeaderProps) {
-  const { width: screenWidth } = useWindowDimensions();
-  const headerHeight = Math.round(screenWidth * HEADER_ASPECT);
   const typeLabel = type === 'topic' ? 'TOPIC' : 'COLLECTION';
 
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.header, { height: headerHeight }]}>
-        {headerImageKey ? (
-          <Image
-            source={{ uri: getImageUrl(headerImageKey) }}
-            style={StyleSheet.flatten([styles.heroImage, { height: headerHeight }])}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={[StyleSheet.absoluteFillObject, styles.heroPlaceholder]} />
-        )}
-
-        <Pressable
-          onPress={onBack}
-          style={styles.backButton}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <View style={styles.iconCircle}>
-            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-          </View>
-        </Pressable>
-
-        {rightAction === 'search' && onRightAction && (
-          <Pressable style={styles.rightButton} onPress={onRightAction}>
+      <View style={styles.header}>
+        <View style={styles.headerBar}>
+          <Pressable
+            onPress={onBack}
+            style={styles.backButton}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
             <View style={styles.iconCircle}>
-              <MaterialIcons name="search" size={HEADER.iconSize} color={HEADER.iconColor} />
+              <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
             </View>
           </Pressable>
-        )}
-        {rightAction === 'more' && onRightAction && (
-          <Pressable style={styles.rightButton} onPress={onRightAction} accessibilityLabel="More options">
-            <View style={styles.iconCircle}>
-              <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-            </View>
-          </Pressable>
-        )}
-
+          <View style={styles.headerBarSpacer} />
+          {rightAction === 'search' && onRightAction && (
+            <Pressable style={styles.rightButton} onPress={onRightAction}>
+              <View style={styles.iconCircle}>
+                <MaterialIcons name="search" size={HEADER.iconSize} color={HEADER.iconColor} />
+              </View>
+            </Pressable>
+          )}
+          {rightAction === 'more' && onRightAction && (
+            <Pressable style={styles.rightButton} onPress={onRightAction} accessibilityLabel="More options">
+              <View style={styles.iconCircle}>
+                <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
+              </View>
+            </Pressable>
+          )}
+        </View>
         <View style={styles.overlay}>
           <View style={styles.overlayContent}>
             <Text style={styles.typeLabel}>{typeLabel}</Text>
@@ -148,46 +131,33 @@ const styles = createStyles({
     marginBottom: SPACING.m,
   },
   header: {
-    position: 'relative',
     width: '100%',
+    paddingHorizontal: SPACING.l,
+    paddingTop: SPACING.s,
+    paddingBottom: SPACING.l,
   },
-  heroImage: {
-    width: '100%',
-    opacity: 0.7,
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.m,
   },
-  heroPlaceholder: {
-    backgroundColor: COLORS.hover,
+  headerBarSpacer: {
+    flex: 1,
   },
-  backButton: {
-    position: 'absolute',
-    top: SPACING.l,
-    left: HEADER.barPaddingHorizontal,
-    zIndex: 10,
-  },
-  rightButton: {
-    position: 'absolute',
-    top: SPACING.l,
-    right: HEADER.barPaddingHorizontal,
-    zIndex: 10,
-  },
+  backButton: {},
+  rightButton: {},
   iconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: COLORS.hover,
     justifyContent: 'center',
     alignItems: 'center',
   },
   overlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: SPACING.l,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   overlayContent: {
     flex: 1,
@@ -196,7 +166,7 @@ const styles = createStyles({
   typeLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.8)',
+    color: COLORS.tertiary,
     letterSpacing: 0.5,
     marginBottom: 2,
     fontFamily: FONTS.semiBold,
@@ -204,18 +174,15 @@ const styles = createStyles({
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
   },
   metricsRow: {
     flexDirection: 'row',
     marginTop: 4,
   },
   metricText: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: COLORS.secondary,
     fontSize: 13,
     fontFamily: FONTS.regular,
   },
@@ -224,7 +191,7 @@ const styles = createStyles({
     paddingVertical: 8,
     borderRadius: SIZES.borderRadiusPill,
     borderWidth: 1,
-    borderColor: '#FFF',
+    borderColor: COLORS.primary,
     backgroundColor: 'transparent',
   },
   actionButtonActive: {
@@ -234,11 +201,11 @@ const styles = createStyles({
   actionButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   actionButtonTextActive: {
-    color: '#FFFFFF',
+    color: COLORS.ink,
   },
   descriptionBlock: {
     flexDirection: 'row',
@@ -265,18 +232,3 @@ const styles = createStyles({
   },
 });
 
-/**
- * Pick a stable "random" header image key from posts that have one.
- * Uses a simple hash of the seed (e.g. slug/id) so the same feed shows the same image.
- */
-export function pickRandomHeaderImageKey(
-  posts: { headerImageKey?: string | null }[],
-  seed: string
-): string | null {
-  const withImages = posts.filter((p) => p?.headerImageKey);
-  if (withImages.length === 0) return null;
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h << 5) - h + seed.charCodeAt(i);
-  const idx = Math.abs(h) % withImages.length;
-  return withImages[idx]?.headerImageKey ?? null;
-}

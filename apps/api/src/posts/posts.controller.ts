@@ -20,12 +20,16 @@ import { CurrentUser } from '../shared/current-user.decorator';
 import { postToPlain, extractLinkedPostIds } from '../shared/post-serializer';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { UploadService } from '../upload/upload.service';
+import { InteractionsService } from '../interactions/interactions.service';
+import { ExploreService } from '../explore/explore.service';
 
 @Controller('posts')
 export class PostsController {
   constructor(
     private readonly postsService: PostsService,
     private readonly uploadService: UploadService,
+    private readonly interactionsService: InteractionsService,
+    private readonly exploreService: ExploreService,
   ) {}
 
   @Post()
@@ -79,7 +83,24 @@ export class PostsController {
       linkedIds.length > 0
         ? await this.postsService.getTitlesForPostIds(linkedIds)
         : undefined;
-    const plain = postToPlain(post, getImageUrl, referenceMetadata);
+    let viewerState: { isLiked?: boolean; isKept?: boolean } | undefined;
+    if (user?.id && post?.id) {
+      const { likedIds, keptIds } =
+        await this.interactionsService.getLikeKeepForViewer(user.id, [post.id]);
+      viewerState = {
+        isLiked: likedIds.has(post.id),
+        isKept: keptIds.has(post.id),
+      };
+    }
+    const viewerCanSeeContent =
+      (post as { viewerCanSeeContent?: boolean }).viewerCanSeeContent !== false;
+    const plain = postToPlain(
+      post,
+      getImageUrl,
+      referenceMetadata,
+      viewerState,
+      viewerCanSeeContent,
+    );
     return plain ?? {};
   }
 
@@ -89,15 +110,44 @@ export class PostsController {
   }
 
   @Get(':id/referenced-by')
-  async getReferencedBy(@Param('id', ParseUUIDPipe) id: string) {
+  @UseGuards(OptionalJwtAuthGuard)
+  async getReferencedBy(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user?: { id: string },
+  ) {
     const posts = await this.postsService.getReferencedBy(id);
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
-    return posts.map((p) => postToPlain(p, getImageUrl)).filter(Boolean);
+    const visible = await this.exploreService.filterPostsVisibleToViewer(
+      posts,
+      user?.id,
+    );
+    const visibleIds = new Set(visible.map((p) => p.id));
+    return posts
+      .map((p) =>
+        postToPlain(p, getImageUrl, undefined, undefined, visibleIds.has(p.id)),
+      )
+      .filter(Boolean);
   }
 
   @Get(':id/quotes')
-  async getQuotes(@Param('id', ParseUUIDPipe) id: string) {
-    return this.postsService.getQuotes(id);
+  @UseGuards(OptionalJwtAuthGuard)
+  async getQuotes(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user?: { id: string },
+  ) {
+    const posts = await this.postsService.getQuotes(id);
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+    const visible = await this.exploreService.filterPostsVisibleToViewer(
+      posts,
+      user?.id,
+    );
+    const visibleIds = new Set(visible.map((p) => p.id));
+    const items = posts
+      .map((p) =>
+        postToPlain(p, getImageUrl, undefined, undefined, visibleIds.has(p.id)),
+      )
+      .filter(Boolean);
+    return { items, hasMore: false };
   }
 
   @Delete(':id')

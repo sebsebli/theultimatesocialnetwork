@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Topic } from '../entities/topic.entity';
 import { Post } from '../entities/post.entity';
 import { PostTopic } from '../entities/post-topic.entity';
+import { User } from '../entities/user.entity';
+import { Follow } from '../entities/follow.entity';
+import { ExternalSource } from '../entities/external-source.entity';
 import { ExploreService } from '../explore/explore.service';
 
 @Injectable()
@@ -14,18 +17,30 @@ export class TopicsService {
     @InjectRepository(Topic) private topicRepo: Repository<Topic>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(PostTopic) private postTopicRepo: Repository<PostTopic>,
+    @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Follow) private followRepo: Repository<Follow>,
+    @InjectRepository(ExternalSource)
+    private externalSourceRepo: Repository<ExternalSource>,
     private exploreService: ExploreService,
   ) {}
 
-  async findOne(slug: string) {
+  async findOne(slugOrId: string, viewerId?: string) {
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        slugOrId,
+      );
     const topic = await this.topicRepo.findOne({
-      where: { slug },
+      where: isUuid ? { id: slugOrId } : { slug: slugOrId },
     });
 
     if (!topic) return null;
 
-    // Get "Start here" posts (most cited) - re-using explore service logic
-    const startHere = await this.exploreService.getTopicStartHere(topic.id, 10);
+    // Get "Start here" posts (most cited) - re-using explore service logic; filter by viewer visibility
+    const startHere = await this.exploreService.getTopicStartHere(
+      topic.id,
+      10,
+      viewerId,
+    );
 
     return {
       ...topic,
@@ -43,6 +58,7 @@ export class TopicsService {
     sort: 'ranked' | 'recent',
     limit = 20,
     offset = 0,
+    viewerId?: string,
   ) {
     let topicId = topicIdOrSlug;
 
@@ -60,8 +76,7 @@ export class TopicsService {
       if (topic) {
         topicId = topic.id;
       } else {
-        // If strictly a slug and not found, return empty
-        return [];
+        return { items: [], hasMore: false };
       }
     }
 
@@ -97,13 +112,28 @@ export class TopicsService {
       query.orderBy('post.created_at', 'DESC');
     }
 
-    return query.skip(offset).take(limit).getMany();
+    const posts = await query
+      .skip(offset)
+      .take(limit + 1)
+      .getMany();
+    const visible = await this.exploreService.filterPostsVisibleToViewer(
+      posts,
+      viewerId,
+    );
+    const hasMore = visible.length > limit;
+    const items = visible.slice(0, limit);
+    return { items, hasMore };
   }
 
-  async getTopicPeople(topicId: string, limit = 20, offset = 0) {
-    // Find authors who post frequently in this topic and have high engagement
-    // This is a complex query, usually done via Neo4j or materialized view.
-    // Simple Postgres approximation:
+  async getTopicPeople(
+    topicId: string,
+    limit = 20,
+    offset = 0,
+    viewerId?: string,
+  ) {
+    // Find authors who post frequently in this topic and have high engagement.
+    // Fetch extra rows so we can filter out protected users when needed.
+    const fetchLimit = viewerId ? limit * 2 : limit;
     const builder = this.postRepo.manager
       .createQueryBuilder()
       .select('author.id', 'id')
@@ -120,7 +150,7 @@ export class TopicsService {
       .groupBy('author.id')
       .orderBy('"totalQuotes"', 'DESC')
       .addOrderBy('"postCount"', 'DESC')
-      .limit(limit)
+      .limit(fetchLimit)
       .offset(offset);
 
     const raw = await builder.getRawMany<{
@@ -130,7 +160,32 @@ export class TopicsService {
       postCount: string;
       totalQuotes: string;
     }>();
-    return raw.map((r) => ({
+    if (raw.length === 0) return [];
+
+    const authorIds = [...new Set(raw.map((r) => r.id))];
+    const users = await this.userRepo.find({
+      where: { id: In(authorIds) },
+      select: ['id', 'isProtected'],
+    });
+    const protectedSet = new Set(
+      users.filter((u) => u.isProtected).map((u) => u.id),
+    );
+    let followingSet = new Set<string>();
+    if (viewerId && protectedSet.size > 0) {
+      const followees = await this.followRepo.find({
+        where: {
+          followerId: viewerId,
+          followeeId: In([...protectedSet]),
+        },
+        select: ['followeeId'],
+      });
+      followingSet = new Set(followees.map((f) => f.followeeId));
+    }
+    const visible = raw.filter(
+      (r) =>
+        !protectedSet.has(r.id) || r.id === viewerId || followingSet.has(r.id),
+    );
+    return visible.slice(0, limit).map((r) => ({
       id: r.id,
       handle: r.handle,
       displayName: r.displayName,
@@ -139,13 +194,45 @@ export class TopicsService {
     }));
   }
 
-  getTopicSources(topicId: string, limit = 20, offset = 0): Promise<unknown[]> {
-    void topicId;
-    void limit;
-    void offset;
-    // Find external sources linked in posts in this topic
-    // This requires a join with external_sources
-    // For now, return empty list to avoid breaking if entity missing.
-    return Promise.resolve([]);
+  async getTopicSources(
+    topicIdOrSlug: string,
+    limit = 20,
+    offset = 0,
+  ): Promise<
+    { id: string; url: string; title: string | null; createdAt: Date }[]
+  > {
+    let topicId = topicIdOrSlug;
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        topicIdOrSlug,
+      );
+    if (!isUUID) {
+      const topic = await this.topicRepo.findOne({
+        where: { slug: topicIdOrSlug },
+      });
+      if (!topic) return [];
+      topicId = topic.id;
+    }
+
+    const rows = await this.externalSourceRepo
+      .createQueryBuilder('es')
+      .innerJoin('post_topics', 'pt', 'pt.post_id = es.post_id')
+      .innerJoin(Post, 'p', 'p.id = es.post_id AND p.deleted_at IS NULL')
+      .where('pt.topic_id = :topicId', { topicId })
+      .select('es.id', 'id')
+      .addSelect('es.url', 'url')
+      .addSelect('es.title', 'title')
+      .addSelect('es.created_at', 'createdAt')
+      .orderBy('es.created_at', 'DESC')
+      .skip(offset)
+      .take(limit)
+      .getRawMany<{
+        id: string;
+        url: string;
+        title: string | null;
+        createdAt: Date;
+      }>();
+
+    return rows;
   }
 }

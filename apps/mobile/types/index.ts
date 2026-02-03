@@ -29,8 +29,12 @@ export interface Post {
   headerImageBlurhash?: string;
   readingTimeMinutes?: number;
   visibility: 'PUBLIC' | 'FOLLOWERS';
-  /** Linked post id -> { title } for [[post:id]] display text (from API). */
-  referenceMetadata?: Record<string, { title?: string }>;
+  /** When false, viewer cannot see post body (e.g. FOLLOWERS-only and viewer doesn't follow). Show blurred/private overlay. */
+  viewerCanSeeContent?: boolean;
+  /** When set, post was soft-deleted; show "deleted on ..." placeholder. */
+  deletedAt?: string;
+  /** Linked post id -> { title?, deletedAt? } for [[post:id]] display text (from API). */
+  referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
   // UI helper props
   _isSavedBy?: boolean;
   _savedBy?: {

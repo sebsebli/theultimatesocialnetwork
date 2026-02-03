@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Notification } from '../entities/notification.entity';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
+import { isPendingUser } from '../shared/is-pending-user';
 
 @Injectable()
 export class NotificationsService {
@@ -45,11 +46,14 @@ export class NotificationsService {
     const actorMap = new Map(actors.map((u) => [u.id, u]));
     const postMap = new Map(posts.map((p) => [p.id, p]));
 
-    return notifications.map((notif) => ({
-      ...notif,
-      actor: notif.actorUserId ? actorMap.get(notif.actorUserId) : null,
-      post: notif.postId ? postMap.get(notif.postId) : null,
-    }));
+    return notifications.map((notif) => {
+      const actor = notif.actorUserId ? actorMap.get(notif.actorUserId) : null;
+      return {
+        ...notif,
+        actor: actor && !isPendingUser(actor) ? actor : null,
+        post: notif.postId ? postMap.get(notif.postId) : null,
+      };
+    });
   }
 
   async markAsRead(userId: string, notificationId: string) {

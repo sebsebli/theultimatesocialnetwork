@@ -1,26 +1,27 @@
 import React, { memo } from 'react';
 import { View, Text, Pressable, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { getImageUrl } from '../utils/api';
+import { MaterialIcons } from '@expo/vector-icons';
+import { getImageUrl, getAvatarUri } from '../utils/api';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../constants/theme';
 
-const TOPIC_IMAGE_ASPECT = 16 / 9;
+const TOPIC_CIRCLE_SIZE = 56;
 
-/** Topic card: same style as people/posts — hero image (from recent article), topic + recent article title/excerpt, follow. */
+/** Topic card: circle with last article image (or icon), topic title, last article preview line, meta + follow. */
 const TopicCardInner = ({ item, onPress, onFollow }: { item: any; onPress: () => void; onFollow?: () => void }) => {
   const { t } = useTranslation();
   const recent = item.recentPost;
   const imageUrl =
     (recent?.headerImageKey ? getImageUrl(recent.headerImageKey) : null) ||
-    (item.headerImageKey ? getImageUrl(item.headerImageKey) : null) ||
     (item.recentPostImageKey ? getImageUrl(item.recentPostImageKey) : null) ||
     (item.latestPostImageKey ? getImageUrl(item.latestPostImageKey) : null) ||
-    (item.recentPost?.headerImageKey ? getImageUrl(item.recentPost.headerImageKey) : null) ||
+    (item.headerImageKey ? getImageUrl(item.headerImageKey) : null) ||
+    (item.imageKey ? getImageUrl(item.imageKey) : null) ||
     (item as any).headerImageUrl ||
     (item.recentPost?.headerImageUrl ? item.recentPost.headerImageUrl : null);
-  const latestTitle = recent?.title?.trim() || null;
-  const latestExcerpt = (recent?.bodyExcerpt || item.recentPostExcerpt || '').trim() || null;
-  const latestAuthor = recent?.author ? `@${recent.author.handle}` : null;
+  const latestTitle = (recent?.title ?? '').trim() || null;
+  const latestExcerpt = (recent?.bodyExcerpt ?? item.recentPostExcerpt ?? '').trim() || null;
+  const lastArticlePreview = latestTitle || latestExcerpt || (item.description ?? '').trim() || null;
 
   const meta = [
     item.postCount != null && `${item.postCount} ${t('profile.posts', 'posts').toLowerCase()}`,
@@ -28,70 +29,37 @@ const TopicCardInner = ({ item, onPress, onFollow }: { item: any; onPress: () =>
   ].filter(Boolean).join(' · ');
 
   return (
-    <Pressable onPress={onPress} style={styles.topicCard}>
-      {imageUrl ? (
-        <>
-          <View style={styles.topicHeroWrap}>
-            <Image source={{ uri: imageUrl }} style={styles.topicHeroImage} resizeMode="cover" />
-            <View style={styles.topicHeroGradient} />
-            <View style={styles.topicHeroTextWrap}>
-              <Text style={styles.topicHeroTitle} numberOfLines={2}>{item.title}</Text>
-              {latestTitle ? (
-                <Text style={styles.topicHeroLatest} numberOfLines={1}>{latestTitle}</Text>
-              ) : latestExcerpt ? (
-                <Text style={styles.topicHeroLatest} numberOfLines={1}>{latestExcerpt}</Text>
-              ) : null}
+    <Pressable onPress={onPress} style={({ pressed }: { pressed: boolean }) => [styles.topicCard, pressed && styles.topicCardPressed]}>
+      <View style={styles.topicRow}>
+        <View style={styles.topicCircleWrap}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.topicCircleImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.topicCirclePlaceholder}>
+              <MaterialIcons name="tag" size={HEADER.iconSize} color={COLORS.tertiary} />
             </View>
-          </View>
-          <View style={styles.topicFooter}>
-            {meta ? <Text style={styles.topicMeta} numberOfLines={1}>{meta}</Text> : null}
-            {onFollow != null && (
-              <Pressable
-                style={[styles.topicFollowBtn, item.isFollowing && styles.followingButton]}
-                onPress={(e: { stopPropagation?: () => void }) => { e?.stopPropagation?.(); onFollow(); }}
-              >
-                <Text style={[styles.followButtonText, item.isFollowing && styles.followingButtonText]}>
-                  {item.isFollowing ? t('profile.following') : t('profile.follow')}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        </>
-      ) : (
-        <>
-          <View style={styles.topicContent}>
-            <Text style={styles.topicTitle} numberOfLines={2}>{item.title}</Text>
-            {(latestTitle || latestExcerpt) ? (
-              <View style={styles.topicLatestBlock}>
-                {latestTitle ? (
-                  <Text style={styles.topicLatestTitle} numberOfLines={2}>{latestTitle}</Text>
-                ) : null}
-                {latestExcerpt ? (
-                  <Text style={styles.topicLatestExcerpt} numberOfLines={2}>{latestExcerpt}</Text>
-                ) : null}
-                {latestAuthor ? (
-                  <Text style={styles.topicLatestAuthor} numberOfLines={1}>{latestAuthor}</Text>
-                ) : null}
-              </View>
-            ) : item.description ? (
-              <Text style={styles.topicDescription} numberOfLines={2}>{item.description}</Text>
-            ) : null}
-          </View>
-          <View style={styles.topicFooter}>
-            {meta ? <Text style={styles.topicMeta} numberOfLines={1}>{meta}</Text> : null}
-            {onFollow != null && (
-              <Pressable
-                style={[styles.topicFollowBtn, item.isFollowing && styles.followingButton]}
-                onPress={(e: { stopPropagation?: () => void }) => { e?.stopPropagation?.(); onFollow(); }}
-              >
-                <Text style={[styles.followButtonText, item.isFollowing && styles.followingButtonText]}>
-                  {item.isFollowing ? t('profile.following') : t('profile.follow')}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        </>
-      )}
+          )}
+        </View>
+        <View style={styles.topicContent}>
+          <Text style={styles.topicTitle} numberOfLines={1}>{item.title}</Text>
+          {lastArticlePreview ? (
+            <Text style={styles.topicLastArticle} numberOfLines={1}>{lastArticlePreview}</Text>
+          ) : null}
+        </View>
+      </View>
+      <View style={styles.topicFooter}>
+        {meta ? <Text style={styles.topicMeta} numberOfLines={1}>{meta}</Text> : null}
+        {onFollow != null && (
+          <Pressable
+            style={[styles.topicFollowBtn, item.isFollowing && styles.followingButton]}
+            onPress={(e: { stopPropagation?: () => void }) => { e?.stopPropagation?.(); onFollow(); }}
+          >
+            <Text style={[styles.followButtonText, item.isFollowing && styles.followingButtonText]}>
+              {item.isFollowing ? t('profile.following') : t('profile.follow')}
+            </Text>
+          </Pressable>
+        )}
+      </View>
     </Pressable>
   );
 };
@@ -107,7 +75,7 @@ export interface PersonCardProps {
 }
 
 function PersonCardInner({ item, onPress, onFollow, fullWidth }: PersonCardProps) {
-  const avatarUri = (item.avatarKey ? getImageUrl(item.avatarKey) : null) || item.avatarUrl || null;
+  const avatarUri = getAvatarUri(item);
   const initial = (item.displayName || item.handle || '?').charAt(0).toUpperCase();
   return (
     <Pressable onPress={onPress} style={[styles.personCard, fullWidth && styles.personCardFullWidth]}>
@@ -156,93 +124,49 @@ const styles = createStyles({
     borderWidth: 1,
     borderColor: COLORS.divider,
   },
-  topicHeroWrap: {
-    width: '100%',
-    aspectRatio: TOPIC_IMAGE_ASPECT,
-    backgroundColor: COLORS.divider,
-    position: 'relative',
+  topicCardPressed: {
+    opacity: 0.9,
   },
-  topicHeroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  topicHeroGradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '65%',
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  topicHeroTextWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+  topicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: SPACING.l,
-    paddingTop: 40,
+    gap: SPACING.m,
   },
-  topicHeroTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-    textShadowColor: 'rgba(0,0,0,0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+  topicCircleWrap: {
+    width: TOPIC_CIRCLE_SIZE,
+    height: TOPIC_CIRCLE_SIZE,
+    borderRadius: TOPIC_CIRCLE_SIZE / 2,
+    backgroundColor: COLORS.divider,
+    overflow: 'hidden',
   },
-  topicHeroLatest: {
-    fontSize: 14,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-    marginTop: 4,
-    opacity: 0.95,
-    textShadowColor: 'rgba(0,0,0,0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+  topicCircleImage: {
+    width: TOPIC_CIRCLE_SIZE,
+    height: TOPIC_CIRCLE_SIZE,
+  },
+  topicCirclePlaceholder: {
+    width: TOPIC_CIRCLE_SIZE,
+    height: TOPIC_CIRCLE_SIZE,
+    borderRadius: TOPIC_CIRCLE_SIZE / 2,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topicContent: {
-    paddingHorizontal: SPACING.l,
-    paddingTop: SPACING.l,
-    paddingBottom: SPACING.s,
+    flex: 1,
+    minWidth: 0,
   },
   topicTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
-  topicLatestBlock: {
-    marginTop: SPACING.m,
-    paddingTop: SPACING.m,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-  },
-  topicLatestTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  topicLatestExcerpt: {
+  topicLastArticle: {
     fontSize: 13,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  topicLatestAuthor: {
-    fontSize: 12,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-    marginTop: 6,
-  },
-  topicDescription: {
-    fontSize: 13,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-    lineHeight: 18,
-    marginTop: SPACING.s,
+    marginTop: 2,
   },
   topicFooter: {
     flexDirection: 'row',

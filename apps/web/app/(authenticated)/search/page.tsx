@@ -6,7 +6,10 @@ import { fetchWithRetry } from "@/lib/fetchWithRetry";
 import { PostItem, type Post } from "@/components/post-item";
 import { UserCard } from "@/components/user-card";
 import { TopicCard } from "@/components/topic-card";
-import { EmptyState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  emptyStateCenterClassName,
+} from "@/components/ui/empty-state";
 
 type SearchTab = "all" | "posts" | "people" | "topics";
 
@@ -373,12 +376,16 @@ function SearchContent() {
             <p className="text-secondary text-sm">Searching...</p>
           </div>
         ) : !query ? (
-          <EmptyState
-            icon="search"
-            headline={topicSlug ? `Search in ${topicSlug}` : "Search Citewalk"}
-            subtext="Find people, topics, and posts."
-            compact
-          />
+          <div className={emptyStateCenterClassName}>
+            <EmptyState
+              icon="search"
+              headline={
+                topicSlug ? `Search in ${topicSlug}` : "Search Citewalk"
+              }
+              subtext="Find people, topics, and posts."
+              compact
+            />
+          </div>
         ) : (
           <div className="flex flex-col">
             {activeTab === "all" && !topicSlug ? (
@@ -426,11 +433,13 @@ function SearchContent() {
                 {results.posts.length === 0 &&
                   results.users.length === 0 &&
                   results.topics.length === 0 && (
-                    <EmptyState
-                      icon="search_off"
-                      headline="No results found"
-                      subtext={`We couldn't find anything matching "${query}"`}
-                    />
+                    <div className={emptyStateCenterClassName}>
+                      <EmptyState
+                        icon="search_off"
+                        headline="No results found"
+                        subtext={`We couldn't find anything matching "${query}"`}
+                      />
+                    </div>
                   )}
               </>
             ) : (
@@ -443,11 +452,13 @@ function SearchContent() {
                         <PostItem key={post.id} post={post} />
                       ))
                     ) : (
-                      <EmptyState
-                        icon="article"
-                        headline="No posts found"
-                        subtext="Try adjusting your search terms."
-                      />
+                      <div className={emptyStateCenterClassName}>
+                        <EmptyState
+                          icon="article"
+                          headline="No posts found"
+                          subtext="Try adjusting your search terms."
+                        />
+                      </div>
                     )}
                   </div>
                 )}
@@ -458,11 +469,13 @@ function SearchContent() {
                         <UserCard key={user.id} person={user} />
                       ))
                     ) : (
-                      <EmptyState
-                        icon="person_search"
-                        headline="No people found"
-                        subtext="Try searching by handle or name."
-                      />
+                      <div className={emptyStateCenterClassName}>
+                        <EmptyState
+                          icon="person_search"
+                          headline="No people found"
+                          subtext="Try searching by handle or name."
+                        />
+                      </div>
                     )}
                   </div>
                 )}
@@ -473,11 +486,13 @@ function SearchContent() {
                         <TopicCard key={topic.id} topic={topic} />
                       ))
                     ) : (
-                      <EmptyState
-                        icon="tag"
-                        headline="No topics found"
-                        subtext="Try a different topic name."
-                      />
+                      <div className={emptyStateCenterClassName}>
+                        <EmptyState
+                          icon="tag"
+                          headline="No topics found"
+                          subtext="Try a different topic name."
+                        />
+                      </div>
                     )}
                   </div>
                 )}

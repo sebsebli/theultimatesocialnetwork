@@ -38,9 +38,9 @@ function ImageUploaderInner({ onUploadComplete, id }: ImageUploaderProps) {
   };
 
   const handleFile = async (file: File) => {
-    // Validate file type
-    if (!file.type.match(/^image\/(jpeg|jpg|webp)$/)) {
-      toastError("Only JPG and WEBP images are allowed");
+    // Validate file type (JPG, PNG, WEBP for parity with mobile)
+    if (!file.type.match(/^image\/(jpeg|jpg|png|webp)$/)) {
+      toastError("Only JPG, PNG and WEBP images are allowed");
       return;
     }
 
@@ -92,7 +92,7 @@ function ImageUploaderInner({ onUploadComplete, id }: ImageUploaderProps) {
         ref={fileInputRef}
         id={id}
         type="file"
-        accept="image/jpeg,image/jpg,image/webp"
+        accept="image/jpeg,image/jpg,image/png,image/webp"
         onChange={handleFileSelect}
         className="hidden"
       />

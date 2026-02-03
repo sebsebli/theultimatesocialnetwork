@@ -8,7 +8,7 @@ import { useSocket } from '../../../context/SocketContext';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../../components/ScreenHeader';
-import { EmptyState } from '../../../components/EmptyState';
+import { CenteredEmptyState } from '../../../components/EmptyState';
 
 export default function ChatScreen() {
   const { threadId, initialMessage } = useLocalSearchParams<{ threadId: string; initialMessage?: string }>();
@@ -97,8 +97,8 @@ export default function ChatScreen() {
         renderItem={renderItem}
         keyExtractor={(item: { id: string }) => item.id}
         inverted
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={!loading ? <EmptyState icon="chat-bubble-outline" headline={t('messages.noMessagesYet', 'No messages yet')} compact /> : null}
+        contentContainerStyle={[styles.listContent, messages.length === 0 && { flexGrow: 1 }]}
+        ListEmptyComponent={!loading ? <CenteredEmptyState icon="chat-bubble-outline" headline={t('messages.noMessagesYet', 'No messages yet')} compact /> : null}
         {...FLATLIST_DEFAULTS}
       />
 

@@ -169,7 +169,7 @@ export class MessagesService {
       .getRawMany<ThreadRawResult>();
 
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
-    return (threads || []).map((t) => {
+    const list = (threads || []).map((t) => {
       const avatarKey = t.otherUser_avatar_key ?? null;
       const avatarUrl = avatarKey ? getImageUrl(avatarKey) : null;
       return {
@@ -191,6 +191,8 @@ export class MessagesService {
         createdAt: t.thread_created_at,
       };
     });
+    // Never show pending (pre-onboarding) users in chat list
+    return list.filter((t) => !t.otherUser?.handle?.startsWith('__pending_'));
   }
 
   async getMessages(userId: string, threadId: string) {

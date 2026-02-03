@@ -17,6 +17,8 @@ const COLORS = {
   error: '#B85C5C',
   like: '#EF4444',
   overlay: 'rgba(0, 0, 0, 0.5)',
+  /** External URL links – warm orange, no underline */
+  link: '#D97A3C',
 };
 
 const SPACING = {
@@ -37,8 +39,8 @@ const SIZES = {
   avatarSmall: 32,
   avatarMedium: 40,
   avatarLarge: 80,
-  borderRadius: 12,
-  borderRadiusPill: 20,
+  borderRadius: 8,
+  borderRadiusPill: 16,
 };
 
 const LAYOUT = {

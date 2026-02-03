@@ -89,6 +89,8 @@ import * as Joi from 'joi';
         /** Global throttle: requests per IP per window. Default 60/min for abuse mitigation. */
         THROTTLE_LIMIT: Joi.number().min(1).max(1000).default(60),
         THROTTLE_TTL_MS: Joi.number().min(1000).max(3600000).default(60000),
+        /** Dev-only: accept this token in POST /auth/verify (e.g. 123456). Agents use CITE_DEV_TOKEN. */
+        DEV_TOKEN: Joi.string().optional(),
       }),
     }),
     ScheduleModule.forRoot(),

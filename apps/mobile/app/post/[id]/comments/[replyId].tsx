@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Text,
   View,
@@ -20,7 +20,7 @@ import { useToast } from '../../../../context/ToastContext';
 import { ScreenHeader } from '../../../../components/ScreenHeader';
 import { MarkdownText } from '../../../../components/MarkdownText';
 import { ReportModal } from '../../../../components/ReportModal';
-import { EmptyState } from '../../../../components/EmptyState';
+import { EmptyState, emptyStateCenterWrapStyle } from '../../../../components/EmptyState';
 
 const COMMENT_MIN_LENGTH = 2;
 const COMMENT_MAX_LENGTH = 1000;
@@ -59,6 +59,7 @@ export default function SubcommentsScreen() {
   const [loading, setLoading] = useState(true);
   const [reportReplyId, setReportReplyId] = useState<string | null>(null);
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
+  const scrollRef = useRef<ScrollView>(null);
 
   const loadParentAndReplies = useCallback(async () => {
     if (!postId || !parentReplyId) {
@@ -121,9 +122,12 @@ export default function SubcommentsScreen() {
       setCommentDraft('');
       showSuccess(t('post.commentPosted', 'Comment posted'));
       await loadReplies();
-    } catch (error) {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch (error: any) {
       console.error('Failed to post reply', error);
-      showError(t('post.commentFailed'));
+      const message = error?.data?.message ?? error?.message ?? t('post.commentFailed');
+      showError(typeof message === 'string' ? message : t('post.commentFailed'));
+      setCommentDraft(body);
     } finally {
       setSubmittingComment(false);
     }
@@ -213,10 +217,11 @@ export default function SubcommentsScreen() {
       />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }, replies.length === 0 && { flexGrow: 1 }]}
         keyboardShouldPersistTaps="handled"
       >
         {parentReply && (
@@ -262,11 +267,13 @@ export default function SubcommentsScreen() {
         </Text>
 
         {replies.length === 0 ? (
-          <EmptyState
-            icon="chat-bubble-outline"
-            headline={isAuthenticated ? t('post.noRepliesYet', 'No replies yet. Be the first.') : t('post.signInToComment', 'Sign in to reply')}
-            subtext={isAuthenticated ? t('post.addReplyBelow', 'Add a reply below.') : undefined}
-          />
+          <View style={emptyStateCenterWrapStyle}>
+            <EmptyState
+              icon="chat-bubble-outline"
+              headline={isAuthenticated ? t('post.noRepliesYet', 'No replies yet. Be the first.') : t('post.signInToComment', 'Sign in to reply')}
+              subtext={isAuthenticated ? t('post.addReplyBelow', 'Add a reply below.') : undefined}
+            />
+          </View>
         ) : null}
         {(Array.isArray(replies) ? replies : []).map((reply) => (
           <View key={reply.id} style={styles.commentRow}>

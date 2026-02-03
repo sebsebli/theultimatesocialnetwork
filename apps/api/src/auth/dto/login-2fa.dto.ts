@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, Length } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  Length,
+  IsOptional,
+  MaxLength,
+} from 'class-validator';
 
 export class Login2FADto {
   @IsString()
@@ -9,4 +15,10 @@ export class Login2FADto {
   @IsString()
   @IsNotEmpty()
   tempToken: string;
+
+  /** Optional device/browser description for "Where you're signed in". */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  deviceInfo?: string;
 }

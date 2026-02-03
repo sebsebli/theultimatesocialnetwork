@@ -17,6 +17,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { SharedModule } from '../shared/shared.module';
 import { SafetyModule } from '../safety/safety.module';
 import { UploadModule } from '../upload/upload.module';
+import { MetadataModule } from '../metadata/metadata.module';
+import { InteractionsModule } from '../interactions/interactions.module';
+import { ExploreModule } from '../explore/explore.module';
 import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
@@ -29,6 +32,9 @@ import { defaultQueueConfig } from '../common/queue-config';
     SharedModule,
     SafetyModule,
     UploadModule,
+    MetadataModule,
+    InteractionsModule,
+    ExploreModule,
   ],
   controllers: [PostsController],
   providers: [

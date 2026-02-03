@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+// Legacy API: copyAsync works with photo library URIs (ph://) on iOS
+import * as FileSystemLegacy from 'expo-file-system/legacy';
 
 /** In dev, use Metro host so device/simulator can reach the API on the same machine. */
 function getDevApiUrlFromMetroHost(): string | null {
@@ -73,6 +75,18 @@ export function getImageUrl(key: string): string {
   return `${base}/images/${encodeURIComponent(key.trim())}`;
 }
 
+/** Avatar URI for a user; prefer avatarKey so URL uses app's API base (works on device). */
+export function getAvatarUri(user: { avatarKey?: string | null; avatarUrl?: string | null } | null | undefined): string | null {
+  if (!user) return null;
+  if (user.avatarKey && typeof user.avatarKey === 'string' && user.avatarKey.trim()) {
+    return getImageUrl(user.avatarKey.trim());
+  }
+  if (user.avatarUrl && typeof user.avatarUrl === 'string' && user.avatarUrl.trim()) {
+    return user.avatarUrl.trim();
+  }
+  return null;
+}
+
 const TOKEN_KEY = 'jwt';
 const ONBOARDING_KEY = 'onboarding_complete';
 const ONBOARDING_STAGE_KEY = 'onboarding_stage';
@@ -116,11 +130,14 @@ export const setOnboardingStage = async (stage: OnboardingStage) => {
   await SecureStore.setItemAsync(ONBOARDING_STAGE_KEY, stage);
 };
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status?: number;
-  constructor(message: string, status?: number) {
+  /** Response body for 4xx (e.g. 403 with author info for private post). */
+  data?: Record<string, unknown>;
+  constructor(message: string, status?: number, data?: Record<string, unknown>) {
     super(message);
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -234,15 +251,18 @@ class ApiClient {
           }
           const errorText = await response.text();
           let errorMessage = `API Error: ${response.status}`;
+          let errorData: Record<string, unknown> | undefined;
           try {
-            const errorJson = JSON.parse(errorText);
-            const m = errorJson.error?.message ?? errorJson.message;
+            const errorJson = JSON.parse(errorText) as Record<string, unknown>;
+            const errObj = errorJson.error as Record<string, unknown> | undefined;
+            const m = (errObj?.message ?? errorJson['message']) as string | string[] | undefined;
             errorMessage = Array.isArray(m) ? (m[0] ?? errorMessage) : (m || errorMessage);
+            errorData = errorJson;
           } catch (e) {
             // Keep text
           }
-          showApiErrorToast(errorMessage);
-          throw new ApiError(errorMessage, response.status);
+          if (response.status !== 403) showApiErrorToast(errorMessage);
+          throw new ApiError(errorMessage, response.status, errorData);
         }
 
         if (response.status === 204) return null;
@@ -328,14 +348,41 @@ class ApiClient {
   }
 
   async upload<T = any>(endpoint: string, file: any): Promise<T> {
+    let uri = file.uri;
+    if (!uri || typeof uri !== 'string') {
+      throw new Error('Upload file must have a uri');
+    }
+    // On iOS, photo library assets (ph://) are not readable by fetch; copy to cache first.
+    const isFileUri = uri.startsWith('file://');
+    const cacheDir = FileSystemLegacy.cacheDirectory;
+    if (!isFileUri && cacheDir && typeof FileSystemLegacy.copyAsync === 'function') {
+      try {
+        const ext = uri.split('?')[0].includes('.') ? uri.split('.').pop()?.toLowerCase() ?? 'jpg' : 'jpg';
+        const safeExt = ext === 'png' || ext === 'gif' || ext === 'webp' ? ext : 'jpg';
+        const destUri = `${cacheDir}upload_${Date.now()}.${safeExt}`;
+        await FileSystemLegacy.copyAsync({ from: uri, to: destUri });
+        uri = destUri;
+      } catch (e) {
+        console.warn('Copy asset to cache failed, trying original uri', e);
+      }
+    }
+    // React Native iOS: some versions need uri without file:// for FormData to attach the body correctly.
+    const uploadUri = Platform.OS === 'ios' && uri.startsWith('file://') ? uri.replace('file://', '') : uri;
+
     const formData = new FormData();
-    const uriParts = file.uri.split('.');
-    const fileType = uriParts[uriParts.length - 1];
+    const pathSegment = uri.split('?')[0];
+    const ext = pathSegment.includes('.') ? pathSegment.split('.').pop()?.toLowerCase() ?? 'jpg' : 'jpg';
+    const safeExt = ext === 'png' || ext === 'gif' || ext === 'webp' ? ext : 'jpg';
+    const fileName = file.fileName && typeof file.fileName === 'string'
+      ? file.fileName
+      : `photo.${safeExt}`;
+    let mime = file.mimeType ?? (file.type && String(file.type).includes('/') ? file.type : null) ?? `image/${safeExt}`;
+    if (!mime || !mime.includes('/')) mime = `image/${safeExt}`;
 
     formData.append('image', {
-      uri: file.uri,
-      name: file.fileName || `photo.${fileType}` || 'image.jpg',
-      type: file.type || `image/${fileType}` || 'image/jpeg',
+      uri: uploadUri,
+      name: fileName,
+      type: mime,
     } as any);
 
     return this.request(endpoint, {
