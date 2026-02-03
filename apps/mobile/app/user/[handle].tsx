@@ -310,7 +310,7 @@ export default function UserProfileScreen() {
   if (user.isBlockedByMe) {
     return (
       <View style={styles.container}>
-        <View style={[styles.blockedHeaderBar, { paddingTop: insets.top + SPACING.s }]}>
+        <View style={[styles.blockedHeaderBar, { paddingTop: insets.top + 4 }]}>
           <Pressable
             onPress={() => router.back()}
             style={styles.iconButton}
@@ -357,7 +357,7 @@ export default function UserProfileScreen() {
           contentContainerStyle={[styles.privateProfileScrollContent, { paddingBottom: bottomPadding }]}
         >
           <View style={styles.profileListHeader}>
-            <View style={[styles.profileHeaderContainer, styles.profileHeaderContainerBorder, { paddingTop: insets.top + 10 }]}>
+            <View style={[styles.profileHeaderContainer, styles.profileHeaderContainerBorder, { paddingTop: insets.top + 4 }]}>
               <View style={styles.headerBar}>
                 <Pressable onPress={() => router.back()} style={styles.iconButton} accessibilityLabel="Go back" accessibilityRole="button">
                   <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
@@ -504,7 +504,7 @@ export default function UserProfileScreen() {
             <View style={[
               styles.profileHeaderContainer,
               user.isProtected && !following && styles.profileHeaderContainerBorder,
-              { paddingTop: Platform.OS === 'ios' ? 10 : insets.top + 10 },
+              { paddingTop: insets.top + 4 },
             ]}>
               <View style={styles.headerBar}>
                 <Pressable
@@ -611,14 +611,15 @@ export default function UserProfileScreen() {
                 </Text>
               </View>
             ) : (
-              <View style={styles.tabsContainer}>
+              <View style={[styles.tabsContainer, { width: screenWidth }]}>
                 <ScrollView
                   horizontal
                   showsVerticalScrollIndicator={false}
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.tabsContent}
+                  contentContainerStyle={[styles.tabsContent, { minWidth: screenWidth }]}
                   style={styles.tabsScrollView}
                 >
+                  <View style={[styles.tabsRow, { minWidth: screenWidth }]}>
                   {(isOwnProfile
                     ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
                     : (['posts', 'replies', 'quotes', 'collections'] as const)
@@ -637,12 +638,13 @@ export default function UserProfileScreen() {
                         accessibilityRole="tab"
                         accessibilityState={{ selected: activeTab === tab }}
                       >
-                        <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                        <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]} numberOfLines={1}>
                           {t(`profile.${tab}`)}{count > 0 ? ` (${formatCompactNumber(count)})` : ''}
                         </Text>
                       </Pressable>
                     );
                   })}
+                  </View>
                 </ScrollView>
               </View>
             )}
@@ -984,10 +986,15 @@ const styles = createStyles({
     flexShrink: 0,
   },
   tabsContent: {
-    gap: SPACING.xl,
     paddingRight: SPACING.l,
   },
+  tabsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   tab: {
+    flexShrink: 0,
     alignItems: 'center',
     paddingVertical: SPACING.m,
     paddingHorizontal: SPACING.xs,

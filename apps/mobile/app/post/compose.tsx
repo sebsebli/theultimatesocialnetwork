@@ -27,6 +27,8 @@ import { useComposerSearch } from '../../hooks/useComposerSearch';
 import { MarkdownText } from '../../components/MarkdownText';
 import { PostItem } from '../../components/PostItem';
 import { Avatar } from '../../components/Avatar';
+import { ImageVerifyingOverlay } from '../../components/ImageVerifyingOverlay';
+import { PostReadingContent } from '../../components/PostReadingContent';
 import { Post } from '../../types';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, LAYOUT, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { Image as ExpoImage } from 'expo-image';
@@ -167,6 +169,7 @@ export default function ComposeScreen() {
   }, [quotePostId, quotedPost?.title, body]);
 
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishPhase, setPublishPhase] = useState<'idle' | 'verifying_image' | 'publishing'>('idle');
   const [pendingPublish, setPendingPublish] = useState(false); // To show confirmation/preview state
   const [previewMode, setPreviewMode] = useState(false);
 
@@ -423,43 +426,20 @@ export default function ComposeScreen() {
 
     setIsPublishing(true);
     setPendingPublish(false); // Hide preview/confirm modal while sending
-    setPreviewMode(false); // Or keep it open with spinner? Better to close and show spinner in main view or global. 
-    // Actually, let's keep preview open but show loading state there if we were in preview. 
-    // But design says "Publish" is in header of main screen too. 
-    // Let's assume we are in main screen or preview screen. 
+    setPreviewMode(false);
 
     try {
-      let imageKey = undefined;
-      let imageBlurhash = undefined;
+      let imageKey: string | undefined;
+      let imageBlurhash: string | undefined;
 
-      // Upload image if present
+      // Upload header image first (runs AI safety check); show "Verifying image..." during this phase
       if (headerImageAsset) {
-        // 1. Get presigned URL
-        // We need an endpoint for this or use a generic upload one.
-        // Assuming POST /uploads exists or similar.
-        // For Citewalk, we might upload to API which pipes to MinIO.
-        // Let's assume api.post('/uploads') returns { key, url }.
-
-        // Actually, let's use a FormData upload to /uploads/image if supported, 
-        // or the presigned url flow. 
-        // The API spec doesn't explicitly detail the upload endpoint, 
-        // but let's assume standard multipart/form-data to /uploads/image.
-
-        const formData = new FormData();
-        const filename = headerImageAsset.uri.split('/').pop() || 'header.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-        formData.append('file', { uri: headerImageAsset.uri, name: filename, type } as any);
-
-        // This endpoint needs to exist in API.
-        const uploadRes = await api.request('/uploads/image', {
-          method: 'POST',
-          body: formData,
-        }) as { data?: { key?: string; blurhash?: string } };
-        imageKey = uploadRes.data?.key;
-        imageBlurhash = uploadRes.data?.blurhash;
+        setPublishPhase('verifying_image');
+        const uploadRes = await api.upload('/upload/header-image', headerImageAsset) as { key?: string; url?: string; blurhash?: string };
+        imageKey = uploadRes?.key;
+        imageBlurhash = uploadRes?.blurhash;
       }
+      setPublishPhase('publishing');
 
       const bodyToPublish = body.trim();
 
@@ -501,6 +481,7 @@ export default function ComposeScreen() {
       showError(t('compose.error', 'Failed to publish. Please try again.'));
     } finally {
       setIsPublishing(false);
+      setPublishPhase('idle');
     }
   };
 
@@ -869,11 +850,17 @@ export default function ComposeScreen() {
     return list;
   }, [body, referenceMetadata]);
 
+  const publishOverlayMessage = publishPhase === 'verifying_image'
+    ? t('common.verifyingImage', 'Uploading & verifying image…')
+    : t('compose.publishing', 'Publishing…');
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={[styles.container, { paddingTop: insets.top }]} // Use insets.top for status bar padding
     >
+      <ImageVerifyingOverlay visible={isPublishing} message={publishOverlayMessage} />
+
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}

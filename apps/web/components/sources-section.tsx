@@ -7,7 +7,14 @@ import { getImageUrl } from "@/lib/security";
 import { Avatar } from "./avatar";
 
 type Source =
-  | { type: "external"; id: string; url: string; title?: string }
+  | {
+      type: "external";
+      id: string;
+      url: string;
+      title?: string;
+      description?: string;
+      imageUrl?: string;
+    }
   | {
       type: "post";
       id: string;
@@ -75,6 +82,13 @@ function sourceSubtitle(source: Source): string | null {
   }
   if (source.type === "topic") return "Topic";
   if (source.type === "user") return "Profile";
+  return null;
+}
+
+function sourceDescription(source: Source): string | null {
+  if (source.type === "external" && source.description?.trim()) {
+    return source.description.trim();
+  }
   return null;
 }
 
@@ -183,6 +197,7 @@ function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
           const href = sourceHref(source);
           const label = sourceLabel(source);
           const subtitle = sourceSubtitle(source);
+          const description = sourceDescription(source);
           const isExternal = source.type === "external";
 
           return (
@@ -289,10 +304,16 @@ function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
                 <div className="text-sm font-semibold text-paper truncate group-hover:text-primary transition-colors">
                   {label}
                 </div>
-                {subtitle && source.type === "external" && (
-                  <div className="text-xs text-tertiary/70 truncate mt-0.5">
-                    {source.url}
+                {description ? (
+                  <div className="text-xs text-tertiary/80 line-clamp-2 mt-0.5">
+                    {description}
                   </div>
+                ) : (
+                  isExternal && (
+                    <div className="text-xs text-tertiary/70 truncate mt-0.5">
+                      {source.url}
+                    </div>
+                  )
                 )}
               </div>
             </Link>

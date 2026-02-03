@@ -17,6 +17,7 @@ import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { ImageVerifyingOverlay } from '../../components/ImageVerifyingOverlay';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -392,7 +393,7 @@ export default function ProfileScreen() {
           renderItem={activeTab === 'collections' ? renderCollectionItem : renderItem}
           ListHeaderComponent={
             <View style={styles.profileListHeader}>
-              <View style={[styles.profileHeaderContainer, { paddingTop: insets.top + 10 }]}>
+              <View style={[styles.profileHeaderContainer, { paddingTop: insets.top + 4 }]}>
                 {/* Top Action Buttons */}
                 <View style={styles.headerBar}>
                   {isSelf ? (
@@ -623,6 +624,8 @@ export default function ProfileScreen() {
         />
       )}
 
+      <ImageVerifyingOverlay visible={avatarUploading} />
+
       <Modal visible={avatarModalVisible} transparent animationType="fade">
         <Pressable style={styles.avatarModalOverlay} onPress={() => setAvatarModalVisible(false)}>
           <View style={styles.avatarModalContent}>
@@ -660,8 +663,10 @@ export default function ProfileScreen() {
               style={({ pressed }: { pressed: boolean }) => [styles.actionModalOption, pressed && styles.actionModalOptionPressed]}
               onPress={() => {
                 closeAvatarAction();
-                // Delay so the modal closes before the image picker opens (avoids picker not showing on iOS/Android)
-                setTimeout(() => changeAvatar(), 350);
+                // Wait for modal to fully unmount, then open picker (avoids picker not showing after sheet dismiss)
+                InteractionManager.runAfterInteractions(() => {
+                  setTimeout(() => changeAvatar(), 500);
+                });
               }}
             >
               <MaterialIcons name="photo-camera" size={HEADER.iconSize} color={HEADER.iconColor} />

@@ -38,7 +38,7 @@ function ProfileHeaderSectionInner({
         <View style={styles.backgroundBlack} />
       )}
       <View style={styles.overlay} />
-      <View style={[styles.bar, { paddingTop: safeAreaTop + 10 }]}>
+      <View style={[styles.bar, { paddingTop: safeAreaTop + 4 }]}>
         {!isSelf ? (
           <Pressable onPress={onBack} style={styles.iconButton}>
             <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />

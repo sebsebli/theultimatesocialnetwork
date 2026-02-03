@@ -112,6 +112,8 @@ function AppContent({ onReady }: { onReady?: () => void }) {
         }}
       />
       <Stack.Screen name="post/[id]" options={{ presentation: 'card' }} />
+      <Stack.Screen name="topic/[slug]" options={{ presentation: 'card' }} />
+      <Stack.Screen name="collections/[id]" options={{ presentation: 'card' }} />
     </Stack>
   );
 }

@@ -679,6 +679,8 @@ export class PostsService {
         type: 'external',
         id: e.id,
         title: e.title,
+        description: e.description ?? undefined,
+        imageUrl: e.imageUrl ?? undefined,
         url: e.url,
         createdAt: e.createdAt,
       })),

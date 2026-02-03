@@ -548,7 +548,9 @@ export default function ReadingModeScreen() {
                   };
                   const title = source.title || source.url || source.handle || source.slug || '';
                   const subtitle = source.type === 'external' && source.url
-                    ? (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })()
+                    ? (source.description && source.description.trim()
+                        ? source.description.trim()
+                        : (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })())
                     : source.type === 'user' ? `@${source.handle}` : source.type === 'topic' ? t('post.topic', 'Topic') : '';
                   return (
                     <Pressable key={source.type === 'external' && source.url ? `ext-${source.url}` : (source.id ?? source.handle ?? source.slug ?? `i-${index}`)} style={styles.sourceCard} onPress={handleSourcePress}>
@@ -570,7 +572,7 @@ export default function ReadingModeScreen() {
                         )}
                         <View style={styles.sourceCardText}>
                           <Text style={styles.sourceCardTitle} numberOfLines={1}>{title}</Text>
-                          {subtitle ? <Text style={styles.sourceCardSubtitle} numberOfLines={1}>{subtitle}</Text> : null}
+                          {subtitle ? <Text style={styles.sourceCardSubtitle} numberOfLines={2}>{subtitle}</Text> : null}
                         </View>
                       </View>
                       <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />

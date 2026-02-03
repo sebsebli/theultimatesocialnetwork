@@ -576,6 +576,7 @@ export default {
     loadFailed: 'Archive error',
   },
   common: {
+    verifyingImage: 'Uploading & verifying image…',
     "loading": "Processing...",
     "error": "Error",
     "cancel": "Cancel",

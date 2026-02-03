@@ -425,6 +425,9 @@ export default function PostDetailScreen() {
                   <Text style={styles.sourceTitle} numberOfLines={1}>
                     {source.alias || source.title || source.handle || source.url}
                   </Text>
+                  {source.type === 'external' && source.description ? (
+                    <Text style={styles.sourceDescription} numberOfLines={2}>{source.description}</Text>
+                  ) : null}
                 </View>
                 <MaterialIcons name="open-in-new" size={HEADER.iconSize} color={COLORS.tertiary} />
               </Pressable>
@@ -848,6 +851,12 @@ const styles = createStyles({
     fontSize: 14,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
+  },
+  sourceDescription: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    marginTop: 2,
   },
   viewAllButton: {
     padding: SPACING.m,

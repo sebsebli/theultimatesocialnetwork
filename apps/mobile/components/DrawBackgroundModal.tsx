@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, PROFILE_HEADER_ASPECT_RATIO, HEADER, MODAL, FONTS, LAYOUT, SIZES, createStyles } from '../constants/theme';
 import { api, getImageUrl, getAvatarUri } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { ImageVerifyingOverlay } from './ImageVerifyingOverlay';
 import { formatCompactNumber } from '../utils/format';
 
 type Point = { x: number; y: number };
@@ -133,6 +134,7 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
 
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+      <ImageVerifyingOverlay visible={saving} />
       <View style={styles.overlay}>
         {/* Backdrop only below the draw area: tap to close; top (draw area) stays transparent so profile shows through */}
         <Pressable

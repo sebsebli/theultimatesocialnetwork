@@ -9,7 +9,7 @@ import { Worker, Job } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Post } from '../entities/post.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { Follow } from '../entities/follow.entity';
@@ -272,18 +272,33 @@ export class PostWorker
         page++;
       } while (followers.length === BATCH_SIZE);
 
-      // 4. Fetch URL metadata for external sources that have no title
-      const sourcesWithoutTitle = await this.externalSourceRepo.find({
-        where: { postId, title: IsNull() },
-        select: ['id', 'url'],
+      // 4. Fetch URL metadata for external sources missing title or description
+      const allSources = await this.externalSourceRepo.find({
+        where: { postId },
+        select: ['id', 'url', 'title', 'description'],
       });
-      for (const source of sourcesWithoutTitle) {
+      const toEnrich = allSources.filter(
+        (s) => s.title == null || s.description == null,
+      );
+      for (const source of toEnrich) {
         try {
           const og = await this.metadataService.getOpenGraph(source.url);
-          if (og.title) {
-            await this.externalSourceRepo.update(source.id, {
-              title: og.title,
-            });
+          const updates: Partial<{
+            title: string | null;
+            description: string | null;
+            imageUrl: string | null;
+          }> = {};
+          // Prefer existing title (e.g. user's link text); fill from OG only when missing
+          if (
+            (source.title == null || source.title.trim() === '') &&
+            og.title?.trim()
+          )
+            updates.title = og.title.trim();
+          if (og.description != null && og.description !== '')
+            updates.description = og.description;
+          if (og.image != null && og.image !== '') updates.imageUrl = og.image;
+          if (Object.keys(updates).length > 0) {
+            await this.externalSourceRepo.update(source.id, updates);
           }
         } catch (e) {
           this.logger.debug(

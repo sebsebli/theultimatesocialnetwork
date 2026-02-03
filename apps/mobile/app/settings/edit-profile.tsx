@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image, InteractionManager } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { api, getImageUrl } from '../../utils/api';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
+import { ImageVerifyingOverlay } from '../../components/ImageVerifyingOverlay';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, createStyles } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -139,10 +140,12 @@ export default function EditProfileScreen() {
 
   const showAvatarActions = () => setAvatarActionSheetVisible(true);
 
-  /** Close the avatar sheet first, then run fn after a short delay so the image picker can present (avoids modal conflict). */
+  /** Close the avatar sheet first, then run fn after interactions + delay so the image picker can present (avoids modal conflict). */
   const closeAvatarSheetAndThen = useCallback((fn: () => void) => {
     setAvatarActionSheetVisible(false);
-    setTimeout(fn, 450);
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(fn, 500);
+    });
   }, []);
 
   const removeAvatar = async () => {
@@ -348,6 +351,8 @@ export default function EditProfileScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      <ImageVerifyingOverlay visible={avatarUploading} />
 
       <OptionsActionSheet
         visible={avatarActionSheetVisible}

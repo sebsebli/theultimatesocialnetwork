@@ -29,6 +29,14 @@ export class ExternalSource {
   @Column({ type: 'text', nullable: true })
   title: string | null;
 
+  /** Open Graph / meta description (fetched asynchronously by post worker). */
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  /** Open Graph image URL (optional, for future rich previews). */
+  @Column({ name: 'image_url', type: 'text', nullable: true })
+  imageUrl: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

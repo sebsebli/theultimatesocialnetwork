@@ -585,8 +585,8 @@ export function ProfilePage({
       {/* Tabs */}
       {!(!isSelf && user.isProtected && !following) && (
         <>
-          <div className="sticky top-0 z-10 bg-ink border-b border-divider">
-            <div className="flex gap-6 px-6 overflow-x-auto overflow-y-hidden no-scrollbar pr-8">
+          <div className="sticky top-0 z-10 bg-ink border-b border-divider w-full">
+            <div className="flex justify-between items-center w-full px-4 md:px-6 overflow-x-auto overflow-y-hidden no-scrollbar min-w-0">
               {visibleTabs.map((tab) => {
                 const count =
                   tab === "posts"
@@ -605,7 +605,8 @@ export function ProfilePage({
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap tabular-nums ${
+                    type="button"
+                    className={`shrink-0 px-2 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap tabular-nums ${
                       activeTab === tab
                         ? "border-primary text-paper"
                         : "border-transparent text-tertiary hover:text-paper"
