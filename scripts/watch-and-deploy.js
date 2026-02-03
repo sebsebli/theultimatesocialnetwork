@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Watch apps/api and infra/docker; run infra/docker/deploy.sh dev on changes.
+ * Watch apps/api and infra/docker; run scripts/deploy.sh local on changes.
  * Run from repo root: npm run deploy:watch
  */
 const fs = require('fs');
@@ -18,8 +18,8 @@ let timeout = null;
 
 function runDeploy() {
   console.log('\n[watch-and-deploy] Changes detected — redeploying...\n');
-  const child = spawn('./deploy.sh', ['dev'], {
-    cwd: path.join(ROOT, 'infra', 'docker'),
+  const child = spawn('./scripts/deploy.sh', ['local'], {
+    cwd: ROOT,
     stdio: 'inherit',
     shell: true,
   });

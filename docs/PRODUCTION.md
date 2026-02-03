@@ -2,7 +2,7 @@
 
 Use this checklist before deploying to production.
 
-**Docker production:** See `infra/docker/README-PRODUCTION.md` for step-by-step setup (`.env`, SSL certs, `./deploy.sh prod`, Prometheus).
+**Docker production:** See `infra/docker/README-PRODUCTION.md` for step-by-step setup (`.env`, SSL certs, `./scripts/deploy.sh prod`, Prometheus).
 
 ## Environment & Secrets
 

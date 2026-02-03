@@ -33,16 +33,15 @@ A production-grade, full-stack social network built for verified information and
 
 ### Docker Deployment (Recommended)
 
-Deploy the entire stack with Docker:
+Deploy the entire stack with Docker (one script: `scripts/deploy.sh` — local, production, migrations, MinIO, SSL, Ollama, backups, NSFW detector):
 
 ```bash
-cd infra/docker
-cp .env.example .env
-# Edit .env with your configuration
-./deploy.sh dev  # or 'prod' for production
+# From repo root (required):
+cd infra/docker && cp .env.example .env   # first time: edit .env
+./scripts/deploy.sh local   # dev full stack (or: prod for production; --web-only for web-only)
 ```
 
-Or manually:
+Or run compose manually from `infra/docker`:
 ```bash
 cd infra/docker
 cp .env.example .env

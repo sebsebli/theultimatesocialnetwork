@@ -41,7 +41,7 @@ Summary of production-ready behaviour across API, web, mobile, and infra.
 
 ## Infra (Docker)
 
-- **deploy.sh prod**
+- **./scripts/deploy.sh prod**
   - Validates: JWT_SECRET, METRICS_SECRET, CITEWALK_ADMIN_SECRET, **CORS_ORIGINS**, **FRONTEND_URL** (HTTPS).
   - SSL via Certbot when certs missing; optional auto-renewal cron.
   - Migrations run on deploy.
@@ -53,7 +53,7 @@ Summary of production-ready behaviour across API, web, mobile, and infra.
 1. **infra/docker**
    - [ ] `.env` has all required production values (see README-PRODUCTION.md).
    - [ ] CORS_ORIGINS and FRONTEND_URL set; FRONTEND_URL is HTTPS.
-   - [ ] SSL certs in place; `./deploy.sh prod` succeeds.
+   - [ ] SSL certs in place; `./scripts/deploy.sh prod` succeeds.
 2. **API**
    - [ ] CORS_ORIGINS is set in production (API will not start without it).
    - [ ] METRICS_SECRET set if you scrape /metrics.

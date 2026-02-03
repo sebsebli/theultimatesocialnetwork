@@ -141,13 +141,19 @@ function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
     const urlSeen = new Set(
       fromApi
         .filter(
-          (s): s is { type: "external"; url: string } => s.type === "external",
+          (s): s is Extract<Source, { type: "external" }> =>
+            s.type === "external",
         )
         .map((s) => s.url),
     );
     const externalFromBody: Source[] = fromBody
       .filter(({ url }) => !urlSeen.has(url))
-      .map(({ url, title }) => ({ type: "external", id: url, url, title }));
+      .map(({ url, title }) => ({
+        type: "external",
+        id: url,
+        url,
+        ...(title != null ? { title } : {}),
+      }));
     return [...fromApi, ...externalFromBody];
   })();
 

@@ -3,7 +3,7 @@
   "private": true,
   "description": "Root package for husky + lint-staged only. Each app (apps/api, apps/web) has its own package.json and deps.",
   "scripts": {
-    "deploy:dev": "cd infra/docker && ./deploy.sh dev",
+    "deploy:dev": "./scripts/deploy.sh local",
     "deploy:watch": "node scripts/watch-and-deploy.js"
   },
   "devDependencies": {

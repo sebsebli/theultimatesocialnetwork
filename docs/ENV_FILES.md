@@ -9,7 +9,7 @@ This repo has several `.env` files because different parts of the system run in 
 | File | Used by | When |
 |------|--------|------|
 | **`.env`** (repo root) | API, DB migrations, scripts | Running the API and web from the repo (e.g. `npm run start:dev` in `apps/api`) |
-| **`infra/docker/.env`** | Docker Compose | Running `docker compose up` (or `./deploy.sh`) from **`infra/docker`** |
+| **`infra/docker/.env`** | Docker Compose | Running `docker compose up` or `./scripts/deploy.sh` from **repo root** |
 | **`apps/mobile/.env`** | Expo / React Native | Running the mobile app (e.g. `npx expo start` in `apps/mobile`) |
 | **`apps/web/.env`** or **`.env.local`** | Next.js | Running the web app (e.g. `npm run dev` in `apps/web`) — optional; Next loads from `apps/web` by default |
 
@@ -33,12 +33,12 @@ This repo has several `.env` files because different parts of the system run in 
 
 - **Who uses it**
   - **Docker Compose** only. In `infra/docker/docker-compose.yml`, the API service has `env_file: - .env`. Paths in Compose are relative to the compose file, so that is **`infra/docker/.env`**.
-  - `./deploy.sh` (run from `infra/docker`) checks for **this** `.env` and copies from `infra/docker/.env.example` if missing.
+  - `./scripts/deploy.sh` (run from repo root) checks for **this** `.env` in `infra/docker/` and copies from `infra/docker/.env.example` if missing.
 - **Typical contents**
   - Same variable names as root `.env`, but values for **containers**: e.g. `DATABASE_URL=postgres://postgres:postgres@db:5432/postgres`, `REDIS_URL=redis://redis:6379`, `MINIO_ENDPOINT=minio`, `OLLAMA_HOST=http://ollama:11434`.
   - `JWT_SECRET`, `CITE_ADMIN_SECRET`, `FRONTEND_URL`, SMTP, etc. for the API running inside Docker.
 - **When you use it**
-  - When you run the stack with Docker from `infra/docker` (`docker compose up` or `./deploy.sh`). **Do not** point this file at `localhost` for DB/Redis/MinIO; use service names (`db`, `redis`, `minio`, etc.).
+  - When you run the stack with Docker (`./scripts/deploy.sh` or `docker compose up` from `infra/docker`). **Do not** point this file at `localhost` for DB/Redis/MinIO; use service names (`db`, `redis`, `minio`, etc.).
 
 So:
 - **Root `.env`** = “I’m running API and services on my machine.”

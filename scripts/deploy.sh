@@ -1,10 +1,19 @@
 #!/bin/bash
-# Unified Citewalk deploy: local/dev (full stack, no SSL) or production (full stack + SSL).
-# Usage: ./scripts/deploy.sh [local|prod] [--web-only] [--no-cache]
-#   local (default) - full stack, dev compose, migrations, MinIO setup, no SSL
-#   prod           - full stack, prod compose, secret checks, SSL + cron, migrations
-#   --web-only     - rebuild and restart only the web app (npm build + docker build web)
-#   --no-cache     - pass --no-cache to docker build (useful for local)
+# Official Citewalk deploy: one script for local, production, web-only, API, migrations, MinIO, SSL, Ollama, backups, NSFW.
+# Run from repo root only: ./scripts/deploy.sh [local|prod] [--web-only] [--no-cache]
+#
+# Production (./scripts/deploy.sh prod) starts and initializes:
+#   - SSL: init-ssl-certbot.sh if certs missing; SSL renewal cron (daily 3 AM)
+#   - Ollama: container runs init-ollama.sh (pulls granite4, qwen3-embedding) then serves
+#   - Backup: backup-full container runs backup-full.sh every 6 hours (db, neo4j, minio)
+#   - NSFW detector: image built with Falconsai/nsfw_image_detection pre-downloaded; API waits for healthy
+#   - Migrations, MinIO (local only), full stack (nginx SSL, api, web, db, redis, meilisearch, minio, neo4j)
+#
+# Usage:
+#   local (default) - full stack, dev compose, migrations, MinIO, no SSL
+#   prod            - full stack, prod compose, secret checks, SSL + cron, migrations
+#   --web-only      - rebuild and restart only the web app (npm build + docker build web)
+#   --no-cache      - pass --no-cache to docker build (useful for local)
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -156,6 +165,16 @@ $COMPOSE_CMD build $NO_CACHE
 # Start
 echo "🚀 Starting services..."
 $COMPOSE_CMD up -d
+
+if [ "$MODE" = "prod" ]; then
+  echo ""
+  echo "📋 Production stack starting (all run automatically):"
+  echo "   • SSL: certs in ssl/; renewal cron will be installed"
+  echo "   • Ollama: init-ollama.sh pulls granite4 + qwen3-embedding, then serves"
+  echo "   • Backup: backup-full runs every 6h (db, neo4j, minio → volumes/backups)"
+  echo "   • NSFW detector: Falconsai/nsfw_image_detection (model in image); API waits for healthy"
+  echo ""
+fi
 
 echo "⏳ Waiting for services..."
 sleep 10

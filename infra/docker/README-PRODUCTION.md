@@ -1,6 +1,6 @@
 # Production setup (Docker)
 
-Use this when deploying Citewalk with `./deploy.sh prod`. Production uses HTTPS (Nginx + SSL) and enforces strong secrets.
+Use this when deploying Citewalk with `./scripts/deploy.sh prod` (run from repo root). Production uses HTTPS (Nginx + SSL) and enforces strong secrets.
 
 ## 1. Copy and fill `.env`
 
@@ -25,7 +25,7 @@ Never commit `.env`; it is in `.gitignore`.
 
 ## 2. SSL certificates (citewalk.com)
 
-**Automatic (recommended on Hetzner):** If `ssl/cert.pem` and `ssl/key.pem` are missing, `./deploy.sh prod` will run Certbot in Docker to obtain Let's Encrypt certificates. Add to `.env`: `CERTBOT_EMAIL=hello@citewalk.com` (required for auto SSL). Optional: `CERTBOT_DOMAIN=citewalk.com`, `CERTBOT_STAGING=1` (for testing). Ensure **port 80** is free when Certbot runs; domain must point to the server's IP. **Renewal is automatic:** when using Terraform/cloud-init (Hetzner), a daily cron job runs at 3 AM to renew certs; otherwise add the cron yourself (see “SSL renewal” below).
+**Automatic (recommended on Hetzner):** If `ssl/cert.pem` and `ssl/key.pem` are missing, `./scripts/deploy.sh prod` will run Certbot in Docker to obtain Let's Encrypt certificates. Add to `.env`: `CERTBOT_EMAIL=hello@citewalk.com` (required for auto SSL). Optional: `CERTBOT_DOMAIN=citewalk.com`, `CERTBOT_STAGING=1` (for testing). Ensure **port 80** is free when Certbot runs; domain must point to the server's IP. **Renewal is automatic:** when using Terraform/cloud-init (Hetzner), a daily cron job runs at 3 AM to renew certs; otherwise add the cron yourself (see “SSL renewal” below).
 
 **Manual:** Place your TLS certificate and private key in `./ssl/`:
 
@@ -41,14 +41,14 @@ cp /etc/letsencrypt/live/citewalk.com/privkey.pem ssl/key.pem
 chmod 600 ssl/key.pem
 ```
 
-If you use manual certs, `./deploy.sh prod` will fail until these files exist.
+If you use manual certs, `./scripts/deploy.sh prod` will fail until these files exist.
 
 ## 3. Deploy
 
-From `infra/docker`:
+From **repo root**:
 
 ```bash
-./deploy.sh prod
+./scripts/deploy.sh prod
 ```
 
 The script will:
@@ -126,6 +126,6 @@ The API will not start in production without **CORS_ORIGINS** set in `.env` (val
 - [ ] `.env` filled with production values (JWT_SECRET, METRICS_SECRET, CITE_ADMIN_SECRET, FRONTEND_URL, NEXT_PUBLIC_API_URL, CORS_ORIGINS, SMTP).
 - [ ] FRONTEND_URL is HTTPS. CORS_ORIGINS is non-empty (comma-separated HTTPS origins).
 - [ ] `ssl/cert.pem` and `ssl/key.pem` in place.
-- [ ] `./deploy.sh prod` runs without errors.
+- [ ] `./scripts/deploy.sh prod` runs without errors.
 - [ ] HTTPS works; HTTP redirects to HTTPS.
 - [ ] Prometheus (if used) uses METRICS_SECRET as Bearer or X-Metrics-Secret.

@@ -24,4 +24,4 @@ runcmd:
   - mkdir -p /opt/citewalk
   # After cloning repo to /opt/citewalk, cron will auto-renew SSL daily.
   # - git clone ... /opt/citewalk
-  # - cd /opt/citewalk/infra/docker && ./deploy.sh prod
+  # - cd /opt/citewalk && ./scripts/deploy.sh prod
