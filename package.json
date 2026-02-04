@@ -24,6 +24,10 @@
     "apps/web/**/*.{ts,tsx}": [
       "node scripts/lint-staged-eslint.js",
       "npx prettier --write"
+    ],
+    "apps/mobile/**/*.{ts,tsx}": [
+      "node scripts/lint-staged-mobile-typecheck.js",
+      "npx prettier --write"
     ]
   }
 }

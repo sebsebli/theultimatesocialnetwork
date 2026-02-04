@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Text,
   View,
@@ -10,22 +10,38 @@ import {
   Platform,
   type NativeSyntheticEvent,
   type TextInputSelectionChangeEventData,
-} from 'react-native';
-import { useRouter, useLocalSearchParams, usePathname, useSegments } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../../../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../../context/auth';
-import { useToast } from '../../../context/ToastContext';
-import { ScreenHeader } from '../../../components/ScreenHeader';
-import { MarkdownText } from '../../../components/MarkdownText';
-import { ReportModal } from '../../../components/ReportModal';
-import { OptionsActionSheet } from '../../../components/OptionsActionSheet';
-import { ConfirmModal } from '../../../components/ConfirmModal';
-import { EmptyState, emptyStateCenterWrapStyle } from '../../../components/EmptyState';
-import { useComposerSearch } from '../../../hooks/useComposerSearch';
+} from "react-native";
+import {
+  useRouter,
+  useLocalSearchParams,
+  usePathname,
+  useSegments,
+} from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { api } from "../../../utils/api";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  LAYOUT,
+  createStyles,
+} from "../../../constants/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../../context/auth";
+import { useToast } from "../../../context/ToastContext";
+import { ScreenHeader } from "../../../components/ScreenHeader";
+import { MarkdownText } from "../../../components/MarkdownText";
+import { ReportModal } from "../../../components/ReportModal";
+import { OptionsActionSheet } from "../../../components/OptionsActionSheet";
+import { ConfirmModal } from "../../../components/ConfirmModal";
+import {
+  EmptyState,
+  emptyStateCenterWrapStyle,
+} from "../../../components/EmptyState";
+import { useComposerSearch } from "../../../hooks/useComposerSearch";
 
 const COMMENT_MIN_LENGTH = 2;
 const COMMENT_MAX_LENGTH = 1000;
@@ -44,14 +60,15 @@ interface Reply {
 
 function normalizeParam(value: unknown): string | undefined {
   if (value == null) return undefined;
-  if (typeof value === 'string') return value || undefined;
-  if (Array.isArray(value) && value.length > 0) return String(value[0]) || undefined;
+  if (typeof value === "string") return value || undefined;
+  if (Array.isArray(value) && value.length > 0)
+    return String(value[0]) || undefined;
   return undefined;
 }
 
 /** Get post id from pathname (e.g. /post/abc-123/comments or post/abc-123/comments -> abc-123). Nested dynamic routes may not receive params.id. */
 function getPostIdFromPathname(pathname: string): string | undefined {
-  if (!pathname || typeof pathname !== 'string') return undefined;
+  if (!pathname || typeof pathname !== "string") return undefined;
   const match = pathname.match(/\/?post\/([^/]+)/);
   return match ? match[1] : undefined;
 }
@@ -62,15 +79,31 @@ export default function PostCommentsScreen() {
   const params = useLocalSearchParams();
   const pathname = usePathname();
   const segments = useSegments();
-  const replyIdFromParams = typeof params.replyId === 'string' ? params.replyId : Array.isArray(params.replyId) ? params.replyId[0] : undefined;
+  const replyIdFromParams =
+    typeof params.replyId === "string"
+      ? params.replyId
+      : Array.isArray(params.replyId)
+        ? params.replyId[0]
+        : undefined;
   const { t } = useTranslation();
   const { isAuthenticated, userId } = useAuth();
   const { showSuccess, showError } = useToast();
   // postId: pathname/params can be missing for nested routes; also use URL segments (e.g. ['post', 'xyz', 'comments'])
-  const postIdFromSegments = Array.isArray(segments) && segments[0] === 'post' && segments[1] && segments[2] === 'comments' ? String(segments[1]) : undefined;
-  const postId = getPostIdFromPathname(pathname ?? '') ?? normalizeParam(params.id) ?? postIdFromSegments;
+  const segs = segments as string[];
+  const postIdFromSegments =
+    Array.isArray(segs) &&
+    segs.length >= 3 &&
+    segs[0] === "post" &&
+    segs[1] &&
+    segs[2] === "comments"
+      ? String(segs[1])
+      : undefined;
+  const postId =
+    getPostIdFromPathname(pathname ?? "") ??
+    normalizeParam(params.id) ??
+    postIdFromSegments;
   const [replies, setReplies] = useState<Reply[]>([]);
-  const [commentDraft, setCommentDraft] = useState('');
+  const [commentDraft, setCommentDraft] = useState("");
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [submittingComment, setSubmittingComment] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -81,18 +114,26 @@ export default function PostCommentsScreen() {
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
   const scrollRef = useRef<ScrollView>(null);
   const hasScrolledToReply = useRef(false);
-  const { results: mentionResults, search: searchMentions, isSearching: mentionSearching } = useComposerSearch();
+  const {
+    results: mentionResults,
+    search: searchMentions,
+    isSearching: mentionSearching,
+  } = useComposerSearch();
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
 
   const loadReplies = useCallback(async () => {
     if (!postId) return;
     try {
-      const raw = await api.get<Reply[] | { items?: Reply[] }>(`/posts/${postId}/replies`);
+      const raw = await api.get<Reply[] | { items?: Reply[] }>(
+        `/posts/${postId}/replies`,
+      );
       const list = Array.isArray(raw) ? raw : (raw?.items ?? []);
       setReplies(list);
-      setLikedReplies(new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)));
+      setLikedReplies(
+        new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)),
+      );
     } catch (e) {
-      console.error('Failed to load comments', e);
+      console.error("Failed to load comments", e);
       setReplies([]);
     }
   }, [postId]);
@@ -111,13 +152,18 @@ export default function PostCommentsScreen() {
       setPostTitle(postData?.title ?? null);
       const list = Array.isArray(repliesData)
         ? repliesData
-        : (repliesData && typeof repliesData === 'object' && 'items' in repliesData && Array.isArray((repliesData as any).items))
+        : repliesData &&
+            typeof repliesData === "object" &&
+            "items" in repliesData &&
+            Array.isArray((repliesData as any).items)
           ? (repliesData as any).items
           : [];
       setReplies(list);
-      setLikedReplies(new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)));
+      setLikedReplies(
+        new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)),
+      );
     } catch (error) {
-      console.error('Failed to load comments', error);
+      console.error("Failed to load comments", error);
       setReplies([]);
     } finally {
       setLoading(false);
@@ -131,63 +177,103 @@ export default function PostCommentsScreen() {
   // Parse @ mention: when user types @ or @query before cursor, show mention dropdown
   useEffect(() => {
     const beforeCursor = commentDraft.slice(0, selection.start);
-    const lastAt = beforeCursor.lastIndexOf('@');
-    if (lastAt !== -1 && (lastAt === 0 || /[\s\n]/.test(beforeCursor[lastAt - 1] ?? ''))) {
+    const lastAt = beforeCursor.lastIndexOf("@");
+    if (
+      lastAt !== -1 &&
+      (lastAt === 0 || /[\s\n]/.test(beforeCursor[lastAt - 1] ?? ""))
+    ) {
       const afterAt = beforeCursor.slice(lastAt + 1);
-      const segment = (afterAt.split(/[\s\n]/)[0] ?? '').slice(0, 50);
-      if (!segment.includes(' ')) {
+      const segment = (afterAt.split(/[\s\n]/)[0] ?? "").slice(0, 50);
+      if (!segment.includes(" ")) {
         setMentionQuery(segment);
-        searchMentions(segment, 'mention');
+        searchMentions(segment, "mention");
         return;
       }
     }
     setMentionQuery(null);
   }, [commentDraft, selection.start]);
 
-  const handleMentionSelect = useCallback((item: { handle?: string }) => {
-    if (!item.handle) return;
-    const beforeCursor = commentDraft.slice(0, selection.start);
-    const lastAt = beforeCursor.lastIndexOf('@');
-    if (lastAt === -1) {
+  const handleMentionSelect = useCallback(
+    (item: { handle?: string }) => {
+      if (!item.handle) return;
+      const beforeCursor = commentDraft.slice(0, selection.start);
+      const lastAt = beforeCursor.lastIndexOf("@");
+      if (lastAt === -1) {
+        setMentionQuery(null);
+        return;
+      }
+      const afterAt = beforeCursor.slice(lastAt + 1);
+      const segment = afterAt.split(/[\s\n]/)[0] ?? "";
+      const insertion = `@${item.handle} `;
+      const newDraft =
+        commentDraft.slice(0, lastAt) +
+        insertion +
+        commentDraft.slice(selection.start);
+      setCommentDraft(newDraft);
       setMentionQuery(null);
-      return;
-    }
-    const afterAt = beforeCursor.slice(lastAt + 1);
-    const segment = (afterAt.split(/[\s\n]/)[0] ?? '');
-    const insertion = `@${item.handle} `;
-    const newDraft = commentDraft.slice(0, lastAt) + insertion + commentDraft.slice(selection.start);
-    setCommentDraft(newDraft);
-    setMentionQuery(null);
-    setSelection({ start: lastAt + insertion.length, end: lastAt + insertion.length });
-  }, [commentDraft, selection.start]);
+      setSelection({
+        start: lastAt + insertion.length,
+        end: lastAt + insertion.length,
+      });
+    },
+    [commentDraft, selection.start],
+  );
 
   const submitComment = async () => {
     const body = commentDraft.trim();
     if (!body || !isAuthenticated || !postId) return;
     if (body.length < COMMENT_MIN_LENGTH) {
-      showError(t('post.commentTooShort', 'Comment must be at least {{min}} characters.', { min: COMMENT_MIN_LENGTH }));
+      showError(
+        t(
+          "post.commentTooShort",
+          "Comment must be at least {{min}} characters.",
+          { min: COMMENT_MIN_LENGTH },
+        ),
+      );
       return;
     }
     if (body.length > COMMENT_MAX_LENGTH) {
-      showError(t('post.commentTooLong', 'Comment must be at most {{max}} characters.', { max: COMMENT_MAX_LENGTH }));
+      showError(
+        t(
+          "post.commentTooLong",
+          "Comment must be at most {{max}} characters.",
+          { max: COMMENT_MAX_LENGTH },
+        ),
+      );
       return;
     }
     setSubmittingComment(true);
     try {
-      const created = await api.post<Reply>(`/posts/${postId}/replies`, { body });
-      setCommentDraft('');
-      showSuccess(t('post.commentPosted', 'Comment posted'));
+      const created = await api.post<Reply>(`/posts/${postId}/replies`, {
+        body,
+      });
+      setCommentDraft("");
+      showSuccess(t("post.commentPosted", "Comment posted"));
       // Optimistic: prepend new reply so list updates immediately
-      if (created && typeof created === 'object' && 'id' in created) {
+      if (created && typeof created === "object" && "id" in created) {
         const r = created as Reply;
-        setReplies((prev) => [...prev, { ...r, author: r.author ?? { id: userId ?? '', displayName: '', handle: '' }, authorId: r.authorId ?? userId }]);
+        setReplies((prev) => [
+          ...prev,
+          {
+            ...r,
+            author: r.author ?? {
+              id: userId ?? "",
+              displayName: "",
+              handle: "",
+            },
+            authorId: r.authorId ?? userId ?? undefined,
+          },
+        ]);
       }
       await loadReplies();
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error: any) {
-      console.error('Failed to post comment', error);
-      const message = error?.data?.message ?? error?.message ?? t('post.commentFailed');
-      showError(typeof message === 'string' ? message : t('post.commentFailed'));
+      console.error("Failed to post comment", error);
+      const message =
+        error?.data?.message ?? error?.message ?? t("post.commentFailed");
+      showError(
+        typeof message === "string" ? message : t("post.commentFailed"),
+      );
       setCommentDraft(body);
     } finally {
       setSubmittingComment(false);
@@ -216,21 +302,25 @@ export default function PostCommentsScreen() {
         else next.delete(replyId);
         return next;
       });
-      showError(t('post.reportError', 'Failed'));
+      showError(t("post.reportError", "Failed"));
     }
   };
 
-  const handleReportCommentSubmit = async (replyId: string, reason: string, comment?: string) => {
+  const handleReportCommentSubmit = async (
+    replyId: string,
+    reason: string,
+    comment?: string,
+  ) => {
     try {
-      await api.post('/safety/report', {
+      await api.post("/safety/report", {
         targetId: replyId,
-        targetType: 'REPLY',
+        targetType: "REPLY",
         reason,
         comment,
       });
-      showSuccess(t('post.reportSuccess', 'Post reported successfully'));
+      showSuccess(t("post.reportSuccess", "Post reported successfully"));
     } catch (e) {
-      showError(t('post.reportError', 'Failed to report post'));
+      showError(t("post.reportError", "Failed to report post"));
       throw e;
     }
   };
@@ -240,10 +330,17 @@ export default function PostCommentsScreen() {
     try {
       await api.delete(`/posts/${postId}/replies/${replyToDeleteId}`);
       setReplies((prev) => prev.filter((r) => r.id !== replyToDeleteId));
-      showSuccess(t('post.commentDeleted', 'Comment deleted'));
+      showSuccess(t("post.commentDeleted", "Comment deleted"));
     } catch (e: any) {
-      const msg = e?.data?.message ?? e?.message ?? t('post.commentDeleteFailed', 'Failed to delete comment');
-      showError(typeof msg === 'string' ? msg : t('post.commentDeleteFailed', 'Failed to delete comment'));
+      const msg =
+        e?.data?.message ??
+        e?.message ??
+        t("post.commentDeleteFailed", "Failed to delete comment");
+      showError(
+        typeof msg === "string"
+          ? msg
+          : t("post.commentDeleteFailed", "Failed to delete comment"),
+      );
     } finally {
       setReplyToDeleteId(null);
     }
@@ -252,10 +349,12 @@ export default function PostCommentsScreen() {
   if (!postId) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ScreenHeader title={t('post.comments')} paddingTop={insets.top} />
-        <Text style={styles.errorText}>{t('post.postNotFound', 'Post not found')}</Text>
+        <ScreenHeader title={t("post.comments")} paddingTop={insets.top} />
+        <Text style={styles.errorText}>
+          {t("post.postNotFound", "Post not found")}
+        </Text>
         <Pressable style={styles.backLink} onPress={() => router.back()}>
-          <Text style={styles.backLinkText}>{t('common.close')}</Text>
+          <Text style={styles.backLinkText}>{t("common.close")}</Text>
         </Pressable>
       </View>
     );
@@ -264,7 +363,7 @@ export default function PostCommentsScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ScreenHeader title={t('post.comments')} paddingTop={insets.top} />
+        <ScreenHeader title={t("post.comments")} paddingTop={insets.top} />
         <View style={[styles.center, { flex: 1 }]}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
@@ -275,11 +374,11 @@ export default function PostCommentsScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       <ScreenHeader
-        title={`${t('post.comments')}${replies.length > 0 ? ` (${replies.length})` : ''}`}
+        title={`${t("post.comments")}${replies.length > 0 ? ` (${replies.length})` : ""}`}
         showBack={true}
         paddingTop={insets.top}
       />
@@ -289,7 +388,11 @@ export default function PostCommentsScreen() {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }, replies.length === 0 && { flexGrow: 1 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 100 },
+          replies.length === 0 && { flexGrow: 1 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {postTitle ? (
@@ -302,39 +405,72 @@ export default function PostCommentsScreen() {
           <View style={emptyStateCenterWrapStyle}>
             <EmptyState
               icon="chat-bubble-outline"
-              headline={isAuthenticated ? t('post.noComments', 'No comments yet. Be the first.') : t('post.signInToComment', 'Sign in to comment')}
-              subtext={isAuthenticated ? t('post.noCommentsSubtext', 'Add a comment below to start the discussion.') : t('post.signInToCommentSubtext', 'Sign in to join the discussion and add a comment.')}
-              actionLabel={!isAuthenticated ? t('common.signIn', 'Sign in') : undefined}
-              onAction={!isAuthenticated ? () => router.push('/(tabs)/profile') : undefined}
+              headline={
+                isAuthenticated
+                  ? t("post.noComments", "No comments yet. Be the first.")
+                  : t("post.signInToComment", "Sign in to comment")
+              }
+              subtext={
+                isAuthenticated
+                  ? t(
+                      "post.noCommentsSubtext",
+                      "Add a comment below to start the discussion.",
+                    )
+                  : t(
+                      "post.signInToCommentSubtext",
+                      "Sign in to join the discussion and add a comment.",
+                    )
+              }
+              actionLabel={
+                !isAuthenticated ? t("common.signIn", "Sign in") : undefined
+              }
+              onAction={
+                !isAuthenticated
+                  ? () => router.push("/(tabs)/profile")
+                  : undefined
+              }
             />
           </View>
         ) : null}
         {(Array.isArray(replies) ? replies : []).map((reply) => (
           <View
             key={reply.id}
-            style={[styles.commentRow, replyIdFromParams === reply.id && styles.commentRowHighlight]}
+            style={[
+              styles.commentRow,
+              replyIdFromParams === reply.id && styles.commentRowHighlight,
+            ]}
             onLayout={
               replyIdFromParams === reply.id && !hasScrolledToReply.current
                 ? (e: { nativeEvent: { layout: { y: number } } }) => {
-                  hasScrolledToReply.current = true;
-                  const y = e.nativeEvent.layout.y;
-                  scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
-                }
+                    hasScrolledToReply.current = true;
+                    const y = e.nativeEvent.layout.y;
+                    scrollRef.current?.scrollTo({
+                      y: Math.max(0, y - 80),
+                      animated: true,
+                    });
+                  }
                 : undefined
             }
           >
             <View style={styles.commentAuthorRow}>
               <Pressable
-                onPress={() => reply.author?.handle && router.push(`/user/${reply.author.handle}`)}
+                onPress={() =>
+                  reply.author?.handle &&
+                  router.push(`/user/${reply.author.handle}`)
+                }
                 style={styles.commentAuthorLeft}
               >
                 <View style={styles.commentAvatar}>
                   <Text style={styles.avatarTextSmall}>
-                    {reply.author?.displayName?.charAt(0) || reply.author?.handle?.charAt(0) || '?'}
+                    {reply.author?.displayName?.charAt(0) ||
+                      reply.author?.handle?.charAt(0) ||
+                      "?"}
                   </Text>
                 </View>
                 <Text style={styles.commentAuthorName} numberOfLines={1}>
-                  {reply.author?.displayName || reply.author?.handle || t('post.unknownUser')}
+                  {reply.author?.displayName ||
+                    reply.author?.handle ||
+                    t("post.unknownUser")}
                 </Text>
               </Pressable>
               <Pressable
@@ -342,16 +478,20 @@ export default function PostCommentsScreen() {
                 hitSlop={12}
                 style={styles.menuButton}
               >
-                <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
+                <MaterialIcons
+                  name="more-horiz"
+                  size={HEADER.iconSize}
+                  color={COLORS.tertiary}
+                />
               </Pressable>
             </View>
             <View style={styles.commentMeta}>
               <Text style={styles.commentTime}>
                 {new Date(reply.createdAt).toLocaleDateString(undefined, {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}
               </Text>
             </View>
@@ -362,39 +502,67 @@ export default function PostCommentsScreen() {
                   <View style={styles.commentLikeRow}>
                     <Pressable
                       style={styles.commentLikeBtn}
-                      onPress={() => handleLikeReply(reply.id, likedReplies.has(reply.id))}
+                      onPress={() =>
+                        handleLikeReply(reply.id, likedReplies.has(reply.id))
+                      }
                     >
                       <MaterialIcons
-                        name={likedReplies.has(reply.id) ? 'favorite' : 'favorite-border'}
+                        name={
+                          likedReplies.has(reply.id)
+                            ? "favorite"
+                            : "favorite-border"
+                        }
                         size={HEADER.iconSize}
-                        color={likedReplies.has(reply.id) ? COLORS.like : COLORS.tertiary}
+                        color={
+                          likedReplies.has(reply.id)
+                            ? COLORS.like
+                            : COLORS.tertiary
+                        }
                       />
                       <Text style={styles.commentLikeLabel}>
-                        {(reply.authorId === userId || reply.author?.id === userId) &&
-                          reply.privateLikeCount !== undefined &&
-                          reply.privateLikeCount > 0
-                          ? t('post.privateLikedBy', { count: reply.privateLikeCount, defaultValue: `Liked by ${reply.privateLikeCount}` })
-                          : t('post.like')}
+                        {(reply.authorId === userId ||
+                          reply.author?.id === userId) &&
+                        reply.privateLikeCount !== undefined &&
+                        reply.privateLikeCount > 0
+                          ? t("post.privateLikedBy", {
+                              count: reply.privateLikeCount,
+                              defaultValue: `Liked by ${reply.privateLikeCount}`,
+                            })
+                          : t("post.like")}
                       </Text>
                     </Pressable>
                   </View>
                 )}
                 <Pressable
                   style={styles.repliesLink}
-                  onPress={() => router.push(`/post/${postId}/comments/${reply.id}`)}
+                  onPress={() =>
+                    router.push(`/post/${postId}/comments/${reply.id}`)
+                  }
                   accessibilityLabel={
                     (reply.subreplyCount ?? 0) > 0
-                      ? t('post.viewReplies', 'View {{count}} replies', { count: reply.subreplyCount })
-                      : t('post.reply', 'Reply')
+                      ? t("post.viewReplies", "View {{count}} replies", {
+                          count: reply.subreplyCount,
+                        })
+                      : t("post.reply", "Reply")
                   }
                 >
-                  <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.primary} />
+                  <MaterialIcons
+                    name="chat-bubble-outline"
+                    size={HEADER.iconSize}
+                    color={COLORS.primary}
+                  />
                   <Text style={styles.repliesLinkText}>
                     {(reply.subreplyCount ?? 0) > 0
-                      ? t('post.replyCountLabel', '{{count}} replies', { count: reply.subreplyCount })
-                      : t('post.reply', 'Reply')}
+                      ? t("post.replyCountLabel", "{{count}} replies", {
+                          count: reply.subreplyCount,
+                        })
+                      : t("post.reply", "Reply")}
                   </Text>
-                  <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+                  <MaterialIcons
+                    name="chevron-right"
+                    size={HEADER.iconSize}
+                    color={COLORS.tertiary}
+                  />
                 </Pressable>
               </View>
             </View>
@@ -403,19 +571,24 @@ export default function PostCommentsScreen() {
       </ScrollView>
 
       {/* Add comment - fixed at bottom; always visible so users see where to comment */}
-      <View style={[styles.commentInputBar, { paddingBottom: insets.bottom + SPACING.m }]}>
+      <View
+        style={[
+          styles.commentInputBar,
+          { paddingBottom: insets.bottom + SPACING.m },
+        ]}
+      >
         {isAuthenticated ? (
           <>
             <View style={styles.commentInputWrap}>
               <TextInput
                 style={styles.commentInput}
-                placeholder={t('post.addComment')}
+                placeholder={t("post.addComment")}
                 placeholderTextColor={COLORS.tertiary}
                 value={commentDraft}
                 onChangeText={setCommentDraft}
-                onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) =>
-                  setSelection(e.nativeEvent.selection)
-                }
+                onSelectionChange={(
+                  e: NativeSyntheticEvent<TextInputSelectionChangeEventData>,
+                ) => setSelection(e.nativeEvent.selection)}
                 multiline
                 maxLength={COMMENT_MAX_LENGTH}
                 editable={!submittingComment}
@@ -423,25 +596,47 @@ export default function PostCommentsScreen() {
               {mentionQuery !== null && (
                 <View style={styles.mentionDropdown}>
                   {mentionSearching ? (
-                    <ActivityIndicator size="small" color={COLORS.primary} style={styles.mentionDropdownLoader} />
+                    <ActivityIndicator
+                      size="small"
+                      color={COLORS.primary}
+                      style={styles.mentionDropdownLoader}
+                    />
                   ) : (
                     mentionResults
-                      .filter((r: any) => r.type === 'mention' && r.id !== userId)
+                      .filter(
+                        (r: any) => r.type === "mention" && r.id !== userId,
+                      )
                       .slice(0, 8)
                       .map((item: any) => (
                         <Pressable
                           key={item.id}
-                          style={({ pressed }: { pressed: boolean }) => [styles.mentionItem, pressed && styles.mentionItemPressed]}
+                          style={({ pressed }: { pressed: boolean }) => [
+                            styles.mentionItem,
+                            pressed && styles.mentionItemPressed,
+                          ]}
                           onPress={() => handleMentionSelect(item)}
                         >
                           <View style={styles.mentionItemAvatar}>
-                            <Text style={styles.mentionItemAvatarText} numberOfLines={1}>
+                            <Text
+                              style={styles.mentionItemAvatarText}
+                              numberOfLines={1}
+                            >
                               {(item.displayName || item.handle)?.charAt(0)}
                             </Text>
                           </View>
                           <View style={{ flex: 1, minWidth: 0 }}>
-                            <Text style={styles.mentionItemLabel} numberOfLines={1}>{item.displayName || item.handle}</Text>
-                            <Text style={styles.mentionItemHandle} numberOfLines={1}>@{item.handle}</Text>
+                            <Text
+                              style={styles.mentionItemLabel}
+                              numberOfLines={1}
+                            >
+                              {item.displayName || item.handle}
+                            </Text>
+                            <Text
+                              style={styles.mentionItemHandle}
+                              numberOfLines={1}
+                            >
+                              @{item.handle}
+                            </Text>
                           </View>
                         </Pressable>
                       ))
@@ -455,39 +650,76 @@ export default function PostCommentsScreen() {
             <Pressable
               style={[
                 styles.commentPostBtn,
-                (commentDraft.trim().length < COMMENT_MIN_LENGTH || commentDraft.length > COMMENT_MAX_LENGTH || submittingComment) && styles.commentPostBtnDisabled,
+                (commentDraft.trim().length < COMMENT_MIN_LENGTH ||
+                  commentDraft.length > COMMENT_MAX_LENGTH ||
+                  submittingComment) &&
+                  styles.commentPostBtnDisabled,
               ]}
               onPress={submitComment}
-              disabled={commentDraft.trim().length < COMMENT_MIN_LENGTH || commentDraft.length > COMMENT_MAX_LENGTH || submittingComment}
+              disabled={
+                commentDraft.trim().length < COMMENT_MIN_LENGTH ||
+                commentDraft.length > COMMENT_MAX_LENGTH ||
+                submittingComment
+              }
             >
               <Text style={styles.commentPostBtnText}>
-                {submittingComment ? t('common.loading') : t('post.postComment')}
+                {submittingComment
+                  ? t("common.loading")
+                  : t("post.postComment")}
               </Text>
             </Pressable>
           </>
         ) : (
           <Pressable
             style={styles.commentInputPlaceholder}
-            onPress={() => router.push('/(tabs)/profile')}
-            accessibilityLabel={t('post.signInToComment')}
+            onPress={() => router.push("/(tabs)/profile")}
+            accessibilityLabel={t("post.signInToComment")}
             accessibilityRole="button"
           >
-            <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} style={styles.commentPlaceholderIcon} />
-            <Text style={styles.commentInputPlaceholderText}>{t('post.signInToComment')}</Text>
+            <MaterialIcons
+              name="chat-bubble-outline"
+              size={HEADER.iconSize}
+              color={COLORS.tertiary}
+              style={styles.commentPlaceholderIcon}
+            />
+            <Text style={styles.commentInputPlaceholderText}>
+              {t("post.signInToComment")}
+            </Text>
           </Pressable>
         )}
       </View>
 
       <OptionsActionSheet
         visible={!!replyMenuReplyId}
-        title={t('post.commentActions', 'Comment')}
+        title={t("post.commentActions", "Comment")}
         options={[
-          ...(replyMenuReplyId && userId && (replies.find((r) => r.id === replyMenuReplyId)?.authorId === userId || replies.find((r) => r.id === replyMenuReplyId)?.author?.id === userId)
-            ? [{ label: t('post.deleteComment', 'Delete comment'), onPress: () => { setReplyToDeleteId(replyMenuReplyId); setReplyMenuReplyId(null); }, destructive: true as const }]
+          ...(replyMenuReplyId &&
+          userId &&
+          (replies.find((r) => r.id === replyMenuReplyId)?.authorId ===
+            userId ||
+            replies.find((r) => r.id === replyMenuReplyId)?.author?.id ===
+              userId)
+            ? [
+                {
+                  label: t("post.deleteComment", "Delete comment"),
+                  onPress: () => {
+                    setReplyToDeleteId(replyMenuReplyId);
+                    setReplyMenuReplyId(null);
+                  },
+                  destructive: true as const,
+                },
+              ]
             : []),
-          { label: t('post.reportComment', 'Report'), onPress: () => { if (replyMenuReplyId) setReportReplyId(replyMenuReplyId); setReplyMenuReplyId(null); }, icon: 'flag' as const },
+          {
+            label: t("post.reportComment", "Report"),
+            onPress: () => {
+              if (replyMenuReplyId) setReportReplyId(replyMenuReplyId);
+              setReplyMenuReplyId(null);
+            },
+            icon: "flag" as const,
+          },
         ]}
-        cancelLabel={t('common.cancel')}
+        cancelLabel={t("common.cancel")}
         onCancel={() => setReplyMenuReplyId(null)}
       />
       <ReportModal
@@ -498,15 +730,18 @@ export default function PostCommentsScreen() {
             ? handleReportCommentSubmit(reportReplyId, reason, comment)
             : Promise.resolve()
         }
-        title={t('post.reportTitle', 'Report Comment')}
+        title={t("post.reportTitle", "Report Comment")}
         targetType="REPLY"
       />
       <ConfirmModal
         visible={!!replyToDeleteId}
-        title={t('post.deleteComment', 'Delete comment')}
-        message={t('post.deleteCommentConfirm', 'Are you sure you want to delete this comment? This cannot be undone.')}
-        confirmLabel={t('post.deleteComment', 'Delete comment')}
-        cancelLabel={t('common.cancel')}
+        title={t("post.deleteComment", "Delete comment")}
+        message={t(
+          "post.deleteCommentConfirm",
+          "Are you sure you want to delete this comment? This cannot be undone.",
+        )}
+        confirmLabel={t("post.deleteComment", "Delete comment")}
+        cancelLabel={t("common.cancel")}
         destructive
         onConfirm={handleDeleteReply}
         onCancel={() => setReplyToDeleteId(null)}
@@ -517,12 +752,25 @@ export default function PostCommentsScreen() {
 
 const styles = createStyles({
   container: { flex: 1, backgroundColor: COLORS.ink },
-  center: { justifyContent: 'center', alignItems: 'center' },
+  center: { justifyContent: "center", alignItems: "center" },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: LAYOUT.contentPaddingHorizontal, paddingTop: SPACING.l },
-  errorText: { color: COLORS.tertiary, fontSize: 16, fontFamily: FONTS.medium, textAlign: 'center', marginHorizontal: SPACING.l },
+  scrollContent: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: SPACING.l,
+  },
+  errorText: {
+    color: COLORS.tertiary,
+    fontSize: 16,
+    fontFamily: FONTS.medium,
+    textAlign: "center",
+    marginHorizontal: SPACING.l,
+  },
   backLink: { marginTop: SPACING.m },
-  backLinkText: { color: COLORS.primary, fontSize: 16, fontFamily: FONTS.semiBold },
+  backLinkText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+  },
   postTitleLabel: {
     fontSize: 13,
     color: COLORS.tertiary,
@@ -544,14 +792,14 @@ const styles = createStyles({
     borderRadius: SIZES.borderRadius,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   mentionDropdownLoader: {
     padding: SPACING.m,
   },
   mentionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.s,
     paddingVertical: SPACING.s,
     paddingHorizontal: SPACING.m,
@@ -564,12 +812,12 @@ const styles = createStyles({
     height: 28,
     borderRadius: 14,
     backgroundColor: COLORS.divider,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   mentionItemAvatarText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
@@ -584,14 +832,14 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   commentAuthorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: SPACING.xs,
   },
   commentAuthorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.s,
     flex: 1,
   },
@@ -600,12 +848,12 @@ const styles = createStyles({
     height: 28,
     borderRadius: 14,
     backgroundColor: COLORS.hover,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarTextSmall: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
@@ -628,12 +876,12 @@ const styles = createStyles({
   },
   commentLikeRow: {
     marginTop: SPACING.s,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   commentLikeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingVertical: 2,
     paddingRight: SPACING.s,
@@ -644,15 +892,15 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   commentActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: SPACING.m,
     marginTop: SPACING.s,
   },
   repliesLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingVertical: 2,
     paddingRight: SPACING.s,
@@ -663,8 +911,8 @@ const styles = createStyles({
     fontFamily: FONTS.medium,
   },
   commentInputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     gap: SPACING.m,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingTop: SPACING.m,
@@ -674,7 +922,7 @@ const styles = createStyles({
   },
   commentInputWrap: {
     flex: 1,
-    position: 'relative',
+    position: "relative",
   },
   commentInput: {
     minHeight: 44,
@@ -691,7 +939,7 @@ const styles = createStyles({
     borderColor: COLORS.divider,
   },
   commentCharCount: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 6,
     right: SPACING.m,
     fontSize: 11,
@@ -700,8 +948,8 @@ const styles = createStyles({
   },
   commentInputPlaceholder: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     minHeight: 44,
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
@@ -720,13 +968,13 @@ const styles = createStyles({
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingVertical: SPACING.m,
     borderRadius: SIZES.borderRadius,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 44,
   },
   commentPostBtnDisabled: { opacity: 0.5 },
   commentPostBtnText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.ink,
     fontFamily: FONTS.semiBold,
   },

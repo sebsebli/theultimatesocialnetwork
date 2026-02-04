@@ -1,27 +1,52 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Text, View, Pressable, Share, TextInput, Animated } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import { api, getWebAppBaseUrl, getImageUrl } from '../../utils/api';
-import { useAuth } from '../../context/auth';
-import { PostItem } from '../../components/PostItem';
-import { UserCard } from '../../components/UserCard';
-import { TopicCard } from '../../components/ExploreCards';
-import { SourceOrPostCard } from '../../components/SourceOrPostCard';
-import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
-import { TopicCollectionHeader } from '../../components/TopicCollectionHeader';
-import { TopicOrCollectionLayout } from '../../components/TopicOrCollectionLayout';
-import { OptionsActionSheet } from '../../components/OptionsActionSheet';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, SEARCH_BAR } from '../../constants/theme';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import {
+  Text,
+  View,
+  Pressable,
+  Share,
+  TextInput,
+  Animated,
+  ScrollView,
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import * as WebBrowser from "expo-web-browser";
+import { api, getWebAppBaseUrl, getImageUrl } from "../../utils/api";
+import { useAuth } from "../../context/auth";
+import { PostItem } from "../../components/PostItem";
+import { UserCard } from "../../components/UserCard";
+import { TopicCard } from "../../components/ExploreCards";
+import { SourceOrPostCard } from "../../components/SourceOrPostCard";
+import {
+  EmptyState,
+  emptyStateCenterWrapStyle,
+} from "../../components/EmptyState";
+import { TopicCollectionHeader } from "../../components/TopicCollectionHeader";
+import { TopicOrCollectionLayout } from "../../components/TopicOrCollectionLayout";
+import { OptionsActionSheet } from "../../components/OptionsActionSheet";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  createStyles,
+  SEARCH_BAR,
+} from "../../constants/theme";
 
 const HERO_FADE_HEIGHT = 280;
 const STICKY_HEADER_APPEAR = 120;
 const STICKY_FADE_RANGE = 80;
 const PAGE_SIZE = 20;
 
-type TabKey = 'recent' | 'discussed' | 'sources' | 'people';
+type TabKey = "recent" | "discussed" | "sources" | "people";
 
 /**
  * Topic detail: header (like post views), overlayed title, tab bar (Most recent, Most discussed, Sources, People), search bar, lazy load.
@@ -29,7 +54,7 @@ type TabKey = 'recent' | 'discussed' | 'sources' | 'people';
 export default function TopicScreen() {
   const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug: string }>();
-  const slugStr = (Array.isArray(slug) ? slug?.[0] : slug) ?? '';
+  const slugStr = (Array.isArray(slug) ? slug?.[0] : slug) ?? "";
   const { t } = useTranslation();
   const { userId } = useAuth();
 
@@ -41,8 +66,8 @@ export default function TopicScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>('recent');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<TabKey>("recent");
+  const [searchQuery, setSearchQuery] = useState("");
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
   const [moreTopics, setMoreTopics] = useState<any[]>([]);
   const onEndReachedFiredRef = useRef(false);
@@ -54,16 +79,19 @@ export default function TopicScreen() {
       scrollY.interpolate({
         inputRange: [0, HERO_FADE_HEIGHT],
         outputRange: [1, 0],
-        extrapolate: 'clamp',
+        extrapolate: "clamp",
       }),
     [scrollY],
   );
   const stickyOpacity = useMemo(
     () =>
       scrollY.interpolate({
-        inputRange: [STICKY_HEADER_APPEAR, STICKY_HEADER_APPEAR + STICKY_FADE_RANGE],
+        inputRange: [
+          STICKY_HEADER_APPEAR,
+          STICKY_HEADER_APPEAR + STICKY_FADE_RANGE,
+        ],
         outputRange: [0, 1],
-        extrapolate: 'clamp',
+        extrapolate: "clamp",
       }),
     [scrollY],
   );
@@ -82,7 +110,7 @@ export default function TopicScreen() {
       if (!slugStr) return;
       const slugEnc = encodeURIComponent(slugStr);
       const isSearch = searchQuery.trim().length > 0;
-      const isPostsTab = activeTab === 'recent' || activeTab === 'discussed';
+      const isPostsTab = activeTab === "recent" || activeTab === "discussed";
 
       if (reset) {
         setPage(1);
@@ -100,7 +128,11 @@ export default function TopicScreen() {
           const hits = res.hits || [];
           const list = hits.map((h: any) => ({
             ...h,
-            author: h.author || { id: h.authorId, handle: h.author?.handle || '', displayName: h.author?.displayName || '' },
+            author: h.author || {
+              id: h.authorId,
+              handle: h.author?.handle || "",
+              displayName: h.author?.displayName || "",
+            },
           }));
           if (reset) setItems(list);
           else setItems((prev) => [...prev, ...list]);
@@ -108,41 +140,41 @@ export default function TopicScreen() {
           return;
         }
 
-        if (activeTab === 'recent') {
+        if (activeTab === "recent") {
           const res = await api.get(
             `/topics/${slugEnc}/posts?sort=recent&page=${pageNum}&limit=${PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
           if (reset) setItems(list);
           else setItems((prev) => [...prev, ...list]);
-          setHasMore(list.length >= PAGE_SIZE && (res?.hasMore !== false));
-        } else if (activeTab === 'discussed') {
+          setHasMore(list.length >= PAGE_SIZE && res?.hasMore !== false);
+        } else if (activeTab === "discussed") {
           const res = await api.get(
             `/topics/${slugEnc}/posts?sort=ranked&page=${pageNum}&limit=${PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
           if (reset) setItems(list);
           else setItems((prev) => [...prev, ...list]);
-          setHasMore(list.length >= PAGE_SIZE && (res?.hasMore !== false));
-        } else if (activeTab === 'people') {
+          setHasMore(list.length >= PAGE_SIZE && res?.hasMore !== false);
+        } else if (activeTab === "people") {
           const res = await api.get(
             `/topics/${slugEnc}/people?page=${pageNum}&limit=${PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
           if (reset) setItems(list);
           else setItems((prev) => [...prev, ...list]);
-          setHasMore(list.length >= PAGE_SIZE && (res?.hasMore !== false));
-        } else if (activeTab === 'sources') {
+          setHasMore(list.length >= PAGE_SIZE && res?.hasMore !== false);
+        } else if (activeTab === "sources") {
           const res = await api.get(
             `/topics/${slugEnc}/sources?page=${pageNum}&limit=${PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
           if (reset) setItems(list);
           else setItems((prev) => [...prev, ...list]);
-          setHasMore(list.length >= PAGE_SIZE && (res?.hasMore !== false));
+          setHasMore(list.length >= PAGE_SIZE && res?.hasMore !== false);
         }
       } catch (err) {
-        console.error('Topic loadTabData error', err);
+        console.error("Topic loadTabData error", err);
         if (reset) setTopic(null);
         setHasMore(false);
       }
@@ -160,7 +192,7 @@ export default function TopicScreen() {
     // Clear previous topic immediately so we never show an old topic when slug changes
     setTopic(null);
     setItems([]);
-    setSearchQuery('');
+    setSearchQuery("");
     setPage(1);
     setHasMore(true);
     let cancelled = false;
@@ -187,7 +219,10 @@ export default function TopicScreen() {
     };
   }, [slugStr, router]);
 
-  const prevSearchAndTabRef = useRef({ searchQuery: '', activeTab: 'recent' as TabKey });
+  const prevSearchAndTabRef = useRef({
+    searchQuery: "",
+    activeTab: "recent" as TabKey,
+  });
   useEffect(() => {
     if (!topic) return;
     const prev = prevSearchAndTabRef.current;
@@ -196,11 +231,14 @@ export default function TopicScreen() {
     prevSearchAndTabRef.current = { searchQuery, activeTab };
     if (!searchChanged && !tabChanged) return;
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      setPage(1);
-      loadTabData(1, true);
-      searchDebounceRef.current = null;
-    }, searchChanged ? 400 : 0);
+    searchDebounceRef.current = setTimeout(
+      () => {
+        setPage(1);
+        loadTabData(1, true);
+        searchDebounceRef.current = null;
+      },
+      searchChanged ? 400 : 0,
+    );
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
@@ -227,7 +265,7 @@ export default function TopicScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: any }) => {
-      if (activeTab === 'people') {
+      if (activeTab === "people") {
         return (
           <UserCard
             item={{
@@ -243,9 +281,10 @@ export default function TopicScreen() {
           />
         );
       }
-      if (activeTab === 'sources') {
-        const title = item.title || (item.url ? new URL(item.url).hostname : 'External');
-        const subtitle = item.url || '';
+      if (activeTab === "sources") {
+        const title =
+          item.title || (item.url ? new URL(item.url).hostname : "External");
+        const subtitle = item.url || "";
         return (
           <SourceOrPostCard
             type="external"
@@ -262,17 +301,32 @@ export default function TopicScreen() {
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
-  const listData = (activeTab === 'recent' || activeTab === 'discussed') ? items.filter((p: any) => !!p?.author) : items;
+  const listData =
+    activeTab === "recent" || activeTab === "discussed"
+      ? items.filter((p: any) => !!p?.author)
+      : items;
 
   const ListEmptyComponent = useMemo(() => {
     if (loading) return null;
     const emptyContent =
-      activeTab === 'people' ? (
-        <EmptyState icon="people-outline" headline={t('topic.emptyPeople')} subtext={t('topic.emptyPeopleSubtext')} />
-      ) : activeTab === 'sources' ? (
-        <EmptyState icon="link" headline={t('topic.emptySources')} subtext={t('topic.emptySourcesSubtext')} />
+      activeTab === "people" ? (
+        <EmptyState
+          icon="people-outline"
+          headline={t("topic.emptyPeople")}
+          subtext={t("topic.emptyPeopleSubtext")}
+        />
+      ) : activeTab === "sources" ? (
+        <EmptyState
+          icon="link"
+          headline={t("topic.emptySources")}
+          subtext={t("topic.emptySourcesSubtext")}
+        />
       ) : (
-        <EmptyState icon="article" headline={t('topic.emptyPosts')} subtext={t('topic.emptyPostsSubtext')} />
+        <EmptyState
+          icon="article"
+          headline={t("topic.emptyPosts")}
+          subtext={t("topic.emptyPostsSubtext")}
+        />
       );
     return <View style={emptyStateCenterWrapStyle}>{emptyContent}</View>;
   }, [loading, activeTab, t]);
@@ -285,7 +339,7 @@ export default function TopicScreen() {
       else await api.post(`/topics/${slugEnc}/follow`);
       setIsFollowing(!isFollowing);
     } catch (error) {
-      console.error('Failed to toggle follow', error);
+      console.error("Failed to toggle follow", error);
     }
   }, [slugStr, userId, isFollowing]);
 
@@ -294,23 +348,27 @@ export default function TopicScreen() {
     if (!slugStr) return;
     const url = `${getWebAppBaseUrl()}/topic/${encodeURIComponent(slugStr)}`;
     Share.share({
-      message: `${t('topic.shareTopicMessage', { defaultValue: 'Check out this topic', slug: slugStr })}\n${url}`,
+      message: `${t("topic.shareTopicMessage", { defaultValue: "Check out this topic", slug: slugStr })}\n${url}`,
       url,
-      title: t('topic.shareTopic', 'Share topic'),
+      title: t("topic.shareTopic", "Share topic"),
     }).catch(() => {});
   }, [slugStr, t]);
 
   const handleSearchInTopic = useCallback(() => {
     setMoreOptionsVisible(false);
-    router.push({ pathname: '/search', params: { topicSlug: slugStr } });
+    router.push({ pathname: "/search", params: { topicSlug: slugStr } });
   }, [router, slugStr]);
 
   useEffect(() => {
     api
-      .get('/explore/topics?limit=10')
+      .get("/explore/topics?limit=10")
       .then((data: any) => {
-        const list = Array.isArray(data) ? data : data?.items ?? [];
-        setMoreTopics(list.filter((tpc: any) => (tpc.slug || tpc.id) !== slugStr).slice(0, 10));
+        const list = Array.isArray(data) ? data : (data?.items ?? []);
+        setMoreTopics(
+          list
+            .filter((tpc: any) => (tpc.slug || tpc.id) !== slugStr)
+            .slice(0, 10),
+        );
       })
       .catch(() => {});
   }, [slugStr]);
@@ -318,10 +376,10 @@ export default function TopicScreen() {
   const headerComponent = useMemo(() => {
     if (!topic) return null;
     const tabs: { key: TabKey; label: string }[] = [
-      { key: 'recent', label: t('topic.recent', 'Most recent') },
-      { key: 'discussed', label: t('topic.discussed', 'Most discussed') },
-      { key: 'sources', label: t('topic.sources', 'Sources') },
-      { key: 'people', label: t('topic.people', 'People') },
+      { key: "recent", label: t("topic.recent", "Most recent") },
+      { key: "discussed", label: t("topic.discussed", "Most discussed") },
+      { key: "sources", label: t("topic.sources", "Sources") },
+      { key: "people", label: t("topic.people", "People") },
     ];
     return (
       <>
@@ -338,26 +396,39 @@ export default function TopicScreen() {
           }
           onBack={() => router.back()}
           onAction={userId ? handleFollow : undefined}
-          actionLabel={isFollowing ? t('profile.following') : t('profile.follow')}
+          actionLabel={
+            isFollowing ? t("profile.following") : t("profile.follow")
+          }
           isActionActive={isFollowing}
-          metrics={{ postCount: topic.postCount, contributorCount: topic.contributorCount }}
+          metrics={{
+            postCount: topic.postCount,
+            contributorCount: topic.contributorCount,
+          }}
           rightAction="more"
           onRightAction={() => setMoreOptionsVisible(true)}
         >
           <View style={styles.searchRow}>
             <View style={SEARCH_BAR.container}>
-              <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons
+                name="search"
+                size={HEADER.iconSize}
+                color={COLORS.tertiary}
+              />
               <TextInput
                 style={SEARCH_BAR.input}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder={t('topic.searchInTopic', 'Search in topic')}
+                placeholder={t("topic.searchInTopic", "Search in topic")}
                 placeholderTextColor={COLORS.tertiary}
                 returnKeyType="search"
               />
               {searchQuery.length > 0 ? (
-                <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                  <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+                <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
+                  <MaterialIcons
+                    name="close"
+                    size={20}
+                    color={COLORS.tertiary}
+                  />
                 </Pressable>
               ) : null}
             </View>
@@ -371,15 +442,24 @@ export default function TopicScreen() {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: activeTab === tab.key }}
               >
-                <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>{tab.label}</Text>
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === tab.key && styles.tabTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
               </Pressable>
             ))}
           </View>
         </TopicCollectionHeader>
         {moreTopics.length > 0 ? (
           <View style={styles.moreSection}>
-            <Text style={styles.moreSectionTitle}>{t('topic.moreTopics', 'More topics')}</Text>
-            <Animated.ScrollView
+            <Text style={styles.moreSectionTitle}>
+              {t("topic.moreTopics", "More topics")}
+            </Text>
+            <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.moreScrollContent}
@@ -388,13 +468,27 @@ export default function TopicScreen() {
                 <View key={tpc.id || tpc.slug} style={styles.moreCardWrap}>
                   <TopicCard
                     item={tpc}
-                    onPress={() => router.push(`/topic/${encodeURIComponent(tpc.slug || tpc.id)}`)}
+                    onPress={() =>
+                      router.push(
+                        `/topic/${encodeURIComponent(tpc.slug || tpc.id)}`,
+                      )
+                    }
                     onFollow={async () => {
                       try {
-                        if (tpc.isFollowing) await api.delete(`/topics/${encodeURIComponent(tpc.slug)}/follow`);
-                        else await api.post(`/topics/${encodeURIComponent(tpc.slug)}/follow`);
+                        if (tpc.isFollowing)
+                          await api.delete(
+                            `/topics/${encodeURIComponent(tpc.slug)}/follow`,
+                          );
+                        else
+                          await api.post(
+                            `/topics/${encodeURIComponent(tpc.slug)}/follow`,
+                          );
                         setMoreTopics((prev) =>
-                          prev.map((x) => ((x.id || x.slug) === (tpc.id || tpc.slug) ? { ...x, isFollowing: !tpc.isFollowing } : x)),
+                          prev.map((x) =>
+                            (x.id || x.slug) === (tpc.id || tpc.slug)
+                              ? { ...x, isFollowing: !tpc.isFollowing }
+                              : x,
+                          ),
                         );
                       } catch (e) {
                         /* ignore */
@@ -403,19 +497,29 @@ export default function TopicScreen() {
                   />
                 </View>
               ))}
-            </Animated.ScrollView>
+            </ScrollView>
           </View>
         ) : null}
       </>
     );
-  }, [topic, isFollowing, moreTopics, activeTab, searchQuery, t, handleFollow, router, userId]);
+  }, [
+    topic,
+    isFollowing,
+    moreTopics,
+    activeTab,
+    searchQuery,
+    t,
+    handleFollow,
+    router,
+    userId,
+  ]);
 
   return (
     <TopicOrCollectionLayout
-      title={topic?.title ?? t('topic.title', 'Topic')}
+      title={topic?.title ?? t("topic.title", "Topic")}
       loading={loading}
       notFound={!loading && !topic}
-      notFoundMessage={t('topic.notFound', 'Topic not found')}
+      notFoundMessage={t("topic.notFound", "Topic not found")}
       onBack={() => router.back()}
       headerComponent={headerComponent}
       heroOpacity={heroOpacity}
@@ -434,12 +538,20 @@ export default function TopicScreen() {
       children={
         <OptionsActionSheet
           visible={moreOptionsVisible}
-          title={topic?.title ?? ''}
+          title={topic?.title ?? ""}
           options={[
-            { label: t('topic.searchInTopic', 'Search in topic'), onPress: handleSearchInTopic, icon: 'search' },
-            { label: t('topic.shareTopic', 'Share topic'), onPress: handleShareTopic, icon: 'share' },
+            {
+              label: t("topic.searchInTopic", "Search in topic"),
+              onPress: handleSearchInTopic,
+              icon: "search",
+            },
+            {
+              label: t("topic.shareTopic", "Share topic"),
+              onPress: handleShareTopic,
+              icon: "share",
+            },
           ]}
-          cancelLabel={t('common.cancel', 'Cancel')}
+          cancelLabel={t("common.cancel", "Cancel")}
           onCancel={() => setMoreOptionsVisible(false)}
         />
       }
@@ -455,23 +567,23 @@ const styles = createStyles({
     borderBottomColor: COLORS.divider,
   },
   tabsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
   tab: {
     flex: 1,
     paddingVertical: SPACING.m,
-    alignItems: 'center',
+    alignItems: "center",
     borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderBottomColor: "transparent",
   },
   tabActive: {
     borderBottomColor: COLORS.primary,
   },
   tabText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.tertiary,
     fontFamily: FONTS.semiBold,
   },
@@ -485,9 +597,9 @@ const styles = createStyles({
   },
   moreSectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.tertiary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     paddingHorizontal: SPACING.l,
     marginBottom: SPACING.s,

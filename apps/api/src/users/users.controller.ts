@@ -463,9 +463,17 @@ export class UsersController {
     @CurrentUser() user: { id: string },
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('cursor') cursor?: string,
     @Query('type') type: 'posts' | 'replies' | 'quotes' | 'cited' = 'posts',
   ) {
-    return this.usersService.getUserPosts(user.id, page, limit, type, user.id);
+    return this.usersService.getUserPosts(
+      user.id,
+      page,
+      limit,
+      type,
+      user.id,
+      cursor,
+    );
   }
 
   @Get(':id/posts')
@@ -475,6 +483,7 @@ export class UsersController {
     @CurrentUser() user?: { id: string },
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query('cursor') cursor?: string,
     @Query('type') type?: 'posts' | 'replies' | 'quotes' | 'cited',
   ) {
     if (id === 'me') {
@@ -488,6 +497,7 @@ export class UsersController {
       limit ?? 20,
       type ?? 'posts',
       user?.id,
+      cursor,
     );
   }
 

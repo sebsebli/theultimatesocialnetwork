@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Run ESLint from the correct app directory so each app's eslint.config is found.
- * lint-staged passes file paths; we group by app (apps/api, apps/web) and run
+ * lint-staged passes file paths; we group by app (apps/api, apps/web, apps/mobile) and run
  * eslint --fix from that app's cwd.
  */
 const { spawnSync } = require('child_process');

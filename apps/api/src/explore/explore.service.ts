@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, Not, Like } from 'typeorm';
 import { Topic } from '../entities/topic.entity';
@@ -11,6 +11,7 @@ import { ExternalSource } from '../entities/external-source.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { TopicFollow } from '../entities/topic-follow.entity';
 import { PostTopic } from '../entities/post-topic.entity';
+import Redis from 'ioredis';
 
 interface TopicRawRow {
   topic_id: string;
@@ -20,6 +21,8 @@ interface TopicRawRow {
 
 @Injectable()
 export class ExploreService {
+  private readonly logger = new Logger(ExploreService.name);
+
   constructor(
     @InjectRepository(Topic) private topicRepo: Repository<Topic>,
     @InjectRepository(User) private userRepo: Repository<User>,
@@ -34,7 +37,29 @@ export class ExploreService {
     private postTopicRepo: Repository<PostTopic>,
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
+    @Inject('REDIS_CLIENT') private redis: Redis,
   ) {}
+
+  /** Helper for caching simple paginated results (1-5 min TTL). */
+  private async cached<T>(
+    key: string,
+    ttlSeconds: number,
+    fetcher: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      const cached = await this.redis.get(key);
+      if (cached) return JSON.parse(cached) as T;
+    } catch (e) {
+      this.logger.warn(`Cache read failed for ${key}`, e);
+    }
+    const result = await fetcher();
+    try {
+      await this.redis.setex(key, ttlSeconds, JSON.stringify(result));
+    } catch (e) {
+      this.logger.warn(`Cache write failed for ${key}`, e);
+    }
+    return result;
+  }
 
   /** Resolve effective language filter: profile languages when lang is "my" or omitted and user is logged in. */
   private async getEffectiveLangFilter(
@@ -198,37 +223,41 @@ export class ExploreService {
     const pageNum = Math.max(1, parseInt(filter?.page || '1', 10) || 1);
     const skip = (pageNum - 1) * limitNum;
 
-    const { entities, raw } = await this.topicRepo
-      .createQueryBuilder('topic')
-      .addSelect(
-        (sq) =>
-          sq
-            .select('COUNT(*)', 'cnt')
-            .from('post_topics', 'pt')
-            .where('pt.topic_id = topic.id'),
-        'postCount',
-      )
-      .addSelect(
-        (sq) =>
-          sq
-            .select('COUNT(*)', 'cnt')
-            .from('topic_follows', 'tf')
-            .where('tf.topic_id = topic.id'),
-        'followerCount',
-      )
-      .orderBy('topic.created_at', 'DESC')
-      .skip(skip)
-      .take(limitNum + 1)
-      .getRawAndEntities();
+    const cacheKey = `explore:topics:generic:${skip}:${limitNum}`;
+    let mapped = await this.cached(cacheKey, 300, async () => {
+      const { entities, raw } = await this.topicRepo
+        .createQueryBuilder('topic')
+        .addSelect(
+          (sq) =>
+            sq
+              .select('COUNT(*)', 'cnt')
+              .from('post_topics', 'pt')
+              .where('pt.topic_id = topic.id'),
+          'postCount',
+        )
+        .addSelect(
+          (sq) =>
+            sq
+              .select('COUNT(*)', 'cnt')
+              .from('topic_follows', 'tf')
+              .where('tf.topic_id = topic.id'),
+          'followerCount',
+        )
+        .orderBy('topic.created_at', 'DESC')
+        .skip(skip)
+        .take(limitNum + 1)
+        .getRawAndEntities();
 
-    let mapped = entities.map((t) => {
-      const r = (raw as TopicRawRow[]).find((x) => x.topic_id === t.id);
-      return {
-        ...t,
-        postCount: r ? parseInt(r.postCount, 10) : 0,
-        followerCount: r ? parseInt(r.followerCount, 10) : 0,
-      };
+      return entities.map((t) => {
+        const r = (raw as TopicRawRow[]).find((x) => x.topic_id === t.id);
+        return {
+          ...t,
+          postCount: r ? parseInt(r.postCount, 10) : 0,
+          followerCount: r ? parseInt(r.followerCount, 10) : 0,
+        };
+      });
     });
+
     let followedTopicIds = new Set<string>();
     if (userId) {
       const follows = await this.topicFollowRepo.find({
@@ -487,20 +516,25 @@ export class ExploreService {
 
     // Calculate scores in DB using CASE statements
     const scoreExpr = `SUM(CASE WHEN edge.created_at >= :sixHoursAgo THEN 1.0 ELSE 0.3 END)`;
-    const scoredIds = await this.postEdgeRepo
-      .createQueryBuilder('edge')
-      .select('edge.to_post_id', 'postId')
-      .addSelect(scoreExpr, 'score')
-      .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
-      .andWhere('edge.created_at >= :twentyFourHoursAgo', {
-        twentyFourHoursAgo,
-      })
-      .setParameters({ sixHoursAgo, twentyFourHoursAgo })
-      .groupBy('edge.to_post_id')
-      .orderBy(scoreExpr, 'DESC')
-      .offset(skip)
-      .limit(limitNum + 1)
-      .getRawMany<{ postId: string; score: number }>();
+
+    // Cache the aggregation result (heavy query)
+    const cacheKey = `explore:quoted-now:ids:${skip}:${limitNum}`;
+    const scoredIds = await this.cached(cacheKey, 300, () =>
+      this.postEdgeRepo
+        .createQueryBuilder('edge')
+        .select('edge.to_post_id', 'postId')
+        .addSelect(scoreExpr, 'score')
+        .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
+        .andWhere('edge.created_at >= :twentyFourHoursAgo', {
+          twentyFourHoursAgo,
+        })
+        .setParameters({ sixHoursAgo, twentyFourHoursAgo })
+        .groupBy('edge.to_post_id')
+        .orderBy(scoreExpr, 'DESC')
+        .offset(skip)
+        .limit(limitNum + 1)
+        .getRawMany<{ postId: string; score: number }>(),
+    );
 
     if (scoredIds.length === 0) {
       return { items: [], hasMore: false };
@@ -655,16 +689,19 @@ export class ExploreService {
     }
 
     // Default Algo: Get top posts by backlink count directly from DB
-    const rankedIds = await this.postEdgeRepo
-      .createQueryBuilder('edge')
-      .select('edge.to_post_id', 'postId')
-      .addSelect('COUNT(*)', 'count')
-      .where('edge.edge_type = :type', { type: EdgeType.LINK })
-      .groupBy('edge.to_post_id')
-      .orderBy('COUNT(*)', 'DESC')
-      .offset(skip)
-      .limit(limitNum + 1)
-      .getRawMany<{ postId: string; count: string }>();
+    const cacheKey = `explore:deep-dives:ids:${skip}:${limitNum}`;
+    const rankedIds = await this.cached(cacheKey, 300, () =>
+      this.postEdgeRepo
+        .createQueryBuilder('edge')
+        .select('edge.to_post_id', 'postId')
+        .addSelect('COUNT(*)', 'count')
+        .where('edge.edge_type = :type', { type: EdgeType.LINK })
+        .groupBy('edge.to_post_id')
+        .orderBy('COUNT(*)', 'DESC')
+        .offset(skip)
+        .limit(limitNum + 1)
+        .getRawMany<{ postId: string; count: string }>(),
+    );
 
     if (rankedIds.length === 0) {
       return { items: [], hasMore: false };
@@ -801,12 +838,15 @@ export class ExploreService {
       });
     }
 
-    const ids = await idQuery
-      .select('DISTINCT post.id', 'id')
-      .orderBy(orderBy, 'DESC')
-      .offset(skip)
-      .limit(limitNum + 1)
-      .getRawMany<{ id: string }>();
+    const cacheKey = `explore:newsroom:ids:${skip}:${limitNum}:${langFilterNewsroom?.join(',') || 'all'}`;
+    const ids = await this.cached(cacheKey, 300, () =>
+      idQuery
+        .select('DISTINCT post.id', 'id')
+        .orderBy(orderBy, 'DESC')
+        .offset(skip)
+        .limit(limitNum + 1)
+        .getRawMany<{ id: string }>(),
+    );
 
     if (ids.length === 0) return { items: [], hasMore: false };
 

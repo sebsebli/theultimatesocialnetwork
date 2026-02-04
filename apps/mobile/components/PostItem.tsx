@@ -1,22 +1,32 @@
-import React, { useRef, memo, useState } from 'react';
-import { Text, View, Pressable, Platform, Animated } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { api } from '../utils/api';
-import { queueAction } from '../utils/offlineQueue';
-import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/auth';
-import AddToCollectionSheet, { AddToCollectionSheetRef } from './AddToCollectionSheet';
-import ShareSheet, { ShareSheetRef } from './ShareSheet';
-import { ConfirmModal } from './ConfirmModal';
-import { OptionsActionSheet } from './OptionsActionSheet';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../constants/theme';
-import { PostContent } from './PostContent';
+import React, { useRef, memo, useState } from "react";
+import { Text, View, Pressable, Platform, Animated } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { api } from "../utils/api";
+import { queueAction } from "../utils/offlineQueue";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
+import { useToast } from "../context/ToastContext";
+import { useAuth } from "../context/auth";
+import AddToCollectionSheet, {
+  AddToCollectionSheetRef,
+} from "./AddToCollectionSheet";
+import ShareSheet, { ShareSheetRef } from "./ShareSheet";
+import { ConfirmModal } from "./ConfirmModal";
+import { OptionsActionSheet } from "./OptionsActionSheet";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  LAYOUT,
+  createStyles,
+} from "../constants/theme";
+import { PostContent } from "./PostContent";
 
-import { Post } from '../types';
+import { Post } from "../types";
 
 interface PostItemProps {
   post: Post;
@@ -89,9 +99,9 @@ function PostItemComponent({
 
       if (isOffline) {
         await queueAction({
-          type: 'like',
+          type: "like",
           endpoint: `/posts/${post.id}/like`,
-          method: next ? 'POST' : 'DELETE',
+          method: next ? "POST" : "DELETE",
         });
       } else {
         if (next) await api.post(`/posts/${post.id}/like`);
@@ -99,7 +109,7 @@ function PostItemComponent({
       }
       onLike?.();
     } catch (error) {
-      console.error('Failed to like', error);
+      console.error("Failed to like", error);
       setLiked(liked); // Revert on error
     }
   };
@@ -112,9 +122,9 @@ function PostItemComponent({
 
       if (isOffline) {
         await queueAction({
-          type: 'keep',
+          type: "keep",
           endpoint: `/posts/${post.id}/keep`,
-          method: next ? 'POST' : 'DELETE',
+          method: next ? "POST" : "DELETE",
         });
       } else {
         if (next) await api.post(`/posts/${post.id}/keep`);
@@ -122,22 +132,31 @@ function PostItemComponent({
       }
       onKeep?.();
     } catch (error) {
-      console.error('Failed to keep', error);
+      console.error("Failed to keep", error);
       setKept(kept); // Revert on error
     }
   };
 
   const handleShare = () => {
     Haptics.selectionAsync();
-    shareSheetRef.current?.open(post.id, { authorIsProtected: post.author?.isProtected === true });
+    shareSheetRef.current?.open(post.id, {
+      authorIsProtected: post.author?.isProtected === true,
+    });
   };
 
   const handleReport = () => setReportModalVisible(true);
 
   // Use placeholder author when API omits it (e.g. pending user) so the post preview always shows
-  const author = post.author ?? (post.authorId
-    ? { id: post.authorId, handle: t('post.unknownUser', 'Unknown'), displayName: t('post.unknownUser', 'Unknown') }
-    : null);
+  const authorId = post.author?.id ?? (post as { authorId?: string }).authorId;
+  const author =
+    post.author ??
+    (authorId
+      ? {
+          id: authorId,
+          handle: t("post.unknownUser", "Unknown"),
+          displayName: t("post.unknownUser", "Unknown"),
+        }
+      : null);
   if (!author) return null;
 
   const postWithAuthor = author !== post.author ? { ...post, author } : post;
@@ -145,12 +164,12 @@ function PostItemComponent({
   const handleDeletePost = async () => {
     try {
       await api.delete(`/posts/${post.id}`);
-      showSuccess(t('post.deleted', 'Post deleted'));
+      showSuccess(t("post.deleted", "Post deleted"));
       setDeleteConfirmVisible(false);
       setOptionsModalVisible(false);
       onDeleted?.();
     } catch (error) {
-      showError(t('post.deleteFailed', 'Failed to delete post'));
+      showError(t("post.deleteFailed", "Failed to delete post"));
       throw error;
     }
   };
@@ -161,30 +180,36 @@ function PostItemComponent({
     try {
       if (isOffline) {
         await queueAction({
-          type: 'report',
+          type: "report",
           endpoint: `/safety/report`,
-          method: 'POST',
-          data: { targetId: post.id, targetType: 'POST', reason: 'Reported via mobile app' },
+          method: "POST",
+          data: {
+            targetId: post.id,
+            targetType: "POST",
+            reason: "Reported via mobile app",
+          },
         });
       } else {
         await api.post(`/safety/report`, {
           targetId: post.id,
-          targetType: 'POST',
-          reason: 'Reported via mobile app',
+          targetType: "POST",
+          reason: "Reported via mobile app",
         });
       }
-      showSuccess(t('post.reportSuccess', 'Post reported successfully'));
+      showSuccess(t("post.reportSuccess", "Post reported successfully"));
     } catch (error) {
-      console.error('Failed to report', error);
-      showError(t('post.reportError', 'Failed to report post'));
+      console.error("Failed to report", error);
+      showError(t("post.reportError", "Failed to report post"));
       throw error;
     }
   };
 
   const handleMenu = () => {
     Haptics.selectionAsync();
-    if (Platform.OS === 'web') {
-      const result = window.confirm(t('post.reportMessage', 'Are you sure you want to report this post?'));
+    if (Platform.OS === "web") {
+      const result = window.confirm(
+        t("post.reportMessage", "Are you sure you want to report this post?"),
+      );
       if (result) handleReport();
     } else {
       setOptionsModalVisible(true);
@@ -206,14 +231,23 @@ function PostItemComponent({
       {isPreview ? null : (
         <>
           {/* Private Feedback Line (Author Only) - never show like count to non-creators */}
-          {userId === author.id && post.privateLikeCount !== undefined && post.privateLikeCount > 0 && (
-            <View style={styles.privateFeedback}>
-              <MaterialIcons name="favorite" size={HEADER.iconSize} color={COLORS.like} />
-              <Text style={styles.privateFeedbackText}>
-                {t('post.privateLikedBy', { count: post.privateLikeCount, defaultValue: `Private: Liked by ${post.privateLikeCount} people` })}
-              </Text>
-            </View>
-          )}
+          {userId === author.id &&
+            post.privateLikeCount !== undefined &&
+            post.privateLikeCount > 0 && (
+              <View style={styles.privateFeedback}>
+                <MaterialIcons
+                  name="favorite"
+                  size={HEADER.iconSize}
+                  color={COLORS.like}
+                />
+                <Text style={styles.privateFeedbackText}>
+                  {t("post.privateLikedBy", {
+                    count: post.privateLikeCount,
+                    defaultValue: `Private: Liked by ${post.privateLikeCount} people`,
+                  })}
+                </Text>
+              </View>
+            )}
 
           {/* Action Row - Matching Stitch Reference + Like */}
           <View style={styles.actions}>
@@ -235,7 +269,11 @@ function PostItemComponent({
                 router.push(`/post/${post.id}/comments`);
               }}
             >
-              <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons
+                name="chat-bubble-outline"
+                size={HEADER.iconSize}
+                color={COLORS.tertiary}
+              />
               {post.replyCount > 0 && (
                 <Text style={styles.actionCount}>{post.replyCount}</Text>
               )}
@@ -244,11 +282,18 @@ function PostItemComponent({
             <Pressable
               style={styles.actionButton}
               onPress={() => {
-                router.push({ pathname: '/post/compose', params: { quote: post.id } });
+                router.push({
+                  pathname: "/post/compose",
+                  params: { quote: post.id },
+                });
                 onQuote?.();
               }}
             >
-              <MaterialIcons name="format-quote" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons
+                name="format-quote"
+                size={HEADER.iconSize}
+                color={COLORS.tertiary}
+              />
               {post.quoteCount > 0 && (
                 <Text style={styles.actionCount}>{post.quoteCount}</Text>
               )}
@@ -268,19 +313,27 @@ function PostItemComponent({
                 onAddToCollection?.();
                 collectionSheetRef.current?.open(post.id);
               }}
-              accessibilityLabel={t('post.add')}
+              accessibilityLabel={t("post.add")}
               accessibilityRole="button"
             >
-              <MaterialIcons name="add-circle-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons
+                name="add-circle-outline"
+                size={HEADER.iconSize}
+                color={COLORS.tertiary}
+              />
             </Pressable>
 
             <Pressable
               style={styles.actionButton}
               onPress={handleShare}
-              accessibilityLabel={t('post.share')}
+              accessibilityLabel={t("post.share")}
               accessibilityRole="button"
             >
-              <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons
+                name="ios-share"
+                size={HEADER.iconSize}
+                color={COLORS.tertiary}
+              />
             </Pressable>
           </View>
 
@@ -288,30 +341,56 @@ function PostItemComponent({
           <ShareSheet ref={shareSheetRef} />
           <ConfirmModal
             visible={reportModalVisible}
-            title={t('post.reportTitle', 'Report Post')}
-            message={t('post.reportMessage', 'Are you sure you want to report this post?')}
-            confirmLabel={t('post.report', 'Report')}
-            cancelLabel={t('common.cancel')}
+            title={t("post.reportTitle", "Report Post")}
+            message={t(
+              "post.reportMessage",
+              "Are you sure you want to report this post?",
+            )}
+            confirmLabel={t("post.report", "Report")}
+            cancelLabel={t("common.cancel")}
             destructive
             onConfirm={confirmReport}
             onCancel={() => setReportModalVisible(false)}
           />
           <OptionsActionSheet
             visible={optionsModalVisible}
-            title={t('post.options', 'Post Options')}
+            title={t("post.options", "Post Options")}
             options={[
-              ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setOptionsModalVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const, icon: 'delete-outline' as const }] : []),
-              { label: t('post.report', 'Report Post'), onPress: () => { setOptionsModalVisible(false); setReportModalVisible(true); }, destructive: true, icon: 'flag' },
+              ...(isOwnPost
+                ? [
+                    {
+                      label: t("post.delete", "Delete Post"),
+                      onPress: () => {
+                        setOptionsModalVisible(false);
+                        setDeleteConfirmVisible(true);
+                      },
+                      destructive: true as const,
+                      icon: "delete-outline" as const,
+                    },
+                  ]
+                : []),
+              {
+                label: t("post.report", "Report Post"),
+                onPress: () => {
+                  setOptionsModalVisible(false);
+                  setReportModalVisible(true);
+                },
+                destructive: true,
+                icon: "flag",
+              },
             ]}
-            cancelLabel={t('common.cancel')}
+            cancelLabel={t("common.cancel")}
             onCancel={() => setOptionsModalVisible(false)}
           />
           <ConfirmModal
             visible={deleteConfirmVisible}
-            title={t('post.delete', 'Delete Post')}
-            message={t('post.deleteConfirm', 'Are you sure you want to delete this post? This cannot be undone.')}
-            confirmLabel={t('post.delete', 'Delete Post')}
-            cancelLabel={t('common.cancel')}
+            title={t("post.delete", "Delete Post")}
+            message={t(
+              "post.deleteConfirm",
+              "Are you sure you want to delete this post? This cannot be undone.",
+            )}
+            confirmLabel={t("post.delete", "Delete Post")}
+            cancelLabel={t("common.cancel")}
             destructive
             icon="warning"
             onConfirm={handleDeletePost}
@@ -325,7 +404,9 @@ function PostItemComponent({
 
 // Wrap with memo and type assert to satisfy React 19's strict JSX checking
 // PostItemComponent returns JSX.Element | null, but memo() expects ReactNode
-const MemoizedPostItem = memo(PostItemComponent as React.ComponentType<PostItemProps>) as typeof PostItemComponent;
+const MemoizedPostItem = memo(
+  PostItemComponent as React.ComponentType<PostItemProps>,
+) as typeof PostItemComponent;
 
 // Type assertion: component always returns JSX.Element, never undefined
 export const PostItem = MemoizedPostItem;
@@ -346,8 +427,8 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   privateFeedback: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     marginBottom: SPACING.s,
   },
@@ -357,15 +438,15 @@ const styles = createStyles({
     fontFamily: FONTS.medium,
   },
   actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: SPACING.s, // pt-2
     paddingRight: SPACING.l, // pr-4
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4, // gap-1
     padding: SPACING.xs,
     // Clean look matching web app - no background

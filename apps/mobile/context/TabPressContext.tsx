@@ -1,6 +1,6 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useState } from "react";
 
-type TabKey = 'index' | 'explore' | 'messages' | 'profile';
+type TabKey = "index" | "explore" | "messages" | "profile";
 
 type TabPressContextValue = {
   /** Count for each tab; when it increments, that tab's screen should scroll to top and refresh. */
@@ -19,16 +19,17 @@ const initialCounts: Record<TabKey, number> = {
 const TabPressContext = createContext<TabPressContextValue | null>(null);
 
 export function TabPressProvider({ children }: { children: React.ReactNode }) {
-  const [tabPressCounts, setTabPressCounts] = useState<Record<TabKey, number>>(initialCounts);
+  const [tabPressCounts, setTabPressCounts] =
+    useState<Record<TabKey, number>>(initialCounts);
 
   const emitTabPress = useCallback((tab: TabKey) => {
     setTabPressCounts((prev) => ({ ...prev, [tab]: prev[tab] + 1 }));
   }, []);
 
-  return (
-    <TabPressContext.Provider value={{ tabPressCounts, emitTabPress }}>
-      {children}
-    </TabPressContext.Provider>
+  return React.createElement(
+    TabPressContext.Provider,
+    { value: { tabPressCounts, emitTabPress } },
+    children,
   );
 }
 

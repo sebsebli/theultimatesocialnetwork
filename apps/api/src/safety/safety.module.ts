@@ -4,6 +4,7 @@ import { SafetyController } from './safety.controller';
 import { SafetyAdminController } from './safety-admin.controller';
 import { SafetyService } from './safety.service';
 import { ContentModerationService } from './content-moderation.service';
+import { TrustService } from './trust.service';
 import { AdminKeyGuard } from '../invites/admin-key.guard';
 import { SharedModule } from '../shared/shared.module';
 import { Block } from '../entities/block.entity';
@@ -28,7 +29,12 @@ import { ModerationRecord } from '../entities/moderation-record.entity';
     ]),
   ],
   controllers: [SafetyController, SafetyAdminController],
-  providers: [SafetyService, ContentModerationService, AdminKeyGuard],
-  exports: [SafetyService, ContentModerationService],
+  providers: [
+    SafetyService,
+    ContentModerationService,
+    TrustService,
+    AdminKeyGuard,
+  ],
+  exports: [SafetyService, ContentModerationService, TrustService],
 })
 export class SafetyModule {}

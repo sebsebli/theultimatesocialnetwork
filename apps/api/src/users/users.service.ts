@@ -562,18 +562,34 @@ export class UsersService {
     limit: number,
     type: 'posts' | 'replies' | 'quotes' | 'cited' = 'posts',
     viewerId?: string,
-  ): Promise<{ items: unknown[]; hasMore: boolean }> {
-    const skip = (page - 1) * limit;
+    cursor?: string,
+  ): Promise<{ items: unknown[]; hasMore: boolean; nextCursor?: string }> {
+    const skip = cursor ? 0 : (page - 1) * limit;
+    const cursorDate = cursor ? new Date(cursor) : undefined;
+
     if (type === 'posts') {
-      const posts = await this.postRepo.find({
-        where: { authorId: userId, deletedAt: IsNull() },
-        relations: ['author'],
-        order: { createdAt: 'DESC' },
-        skip,
-        take: limit + 1,
-      });
+      const qb = this.postRepo
+        .createQueryBuilder('post')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('post.author_id = :userId', { userId })
+        .andWhere('post.deleted_at IS NULL');
+
+      if (cursorDate && !isNaN(cursorDate.getTime())) {
+        qb.andWhere('post.created_at < :cursor', { cursor: cursorDate });
+      }
+
+      const posts = await qb
+        .orderBy('post.created_at', 'DESC')
+        .skip(skip)
+        .take(limit + 1)
+        .getMany();
+
       const hasMore = posts.length > limit;
       const slice = posts.slice(0, limit);
+      const last = slice[slice.length - 1];
+      const nextCursor =
+        hasMore && last?.createdAt ? last.createdAt.toISOString() : undefined;
+
       const postIds = slice.map((p) => p.id).filter(Boolean);
       const { likedIds, keptIds } = viewerId
         ? await this.interactionsService.getLikeKeepForViewer(viewerId, postIds)
@@ -595,40 +611,63 @@ export class UsersService {
           return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
         }),
       );
-      return { items, hasMore };
+      return { items, hasMore, nextCursor };
     }
     if (type === 'replies') {
-      const replies = await this.replyRepo.find({
-        where: { authorId: userId },
-        relations: ['post', 'post.author'],
-        order: { createdAt: 'DESC' },
-        skip,
-        take: limit + 1,
-      });
+      const qb = this.replyRepo
+        .createQueryBuilder('reply')
+        .leftJoinAndSelect('reply.post', 'post')
+        .leftJoinAndSelect('post.author', 'postAuthor')
+        .where('reply.author_id = :userId', { userId });
+
+      if (cursorDate && !isNaN(cursorDate.getTime())) {
+        qb.andWhere('reply.created_at < :cursor', { cursor: cursorDate });
+      }
+
+      const replies = await qb
+        .orderBy('reply.created_at', 'DESC')
+        .skip(skip)
+        .take(limit + 1)
+        .getMany();
+
       const hasMore = replies.length > limit;
+      const slice = replies.slice(0, limit);
+      const last = slice[slice.length - 1];
+      const nextCursor =
+        hasMore && last?.createdAt ? last.createdAt.toISOString() : undefined;
+
       const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
-      const items = replies
-        .slice(0, limit)
-        .map((r) => replyToPlain(r, getImageUrl));
-      return { items, hasMore };
+      const items = slice.map((r) => replyToPlain(r, getImageUrl));
+      return { items, hasMore, nextCursor };
     }
     // type === 'quotes': posts that quote posts authored by userId (same join pattern as getQuotes)
     if (type === 'quotes') {
       try {
-        const quoters = await this.postRepo
+        const qb = this.postRepo
           .createQueryBuilder('quoter')
           .innerJoin(PostEdge, 'edge', 'edge.from_post_id = quoter.id')
           .innerJoin('posts', 'quoted', 'quoted.id = edge.to_post_id')
           .where('edge.edge_type = :edgeType', { edgeType: EdgeType.QUOTE })
           .andWhere('quoted.author_id = :userId', { userId })
           .andWhere('quoter.deleted_at IS NULL')
-          .leftJoinAndSelect('quoter.author', 'author')
+          .leftJoinAndSelect('quoter.author', 'author');
+
+        if (cursorDate && !isNaN(cursorDate.getTime())) {
+          qb.andWhere('quoter.created_at < :cursor', { cursor: cursorDate });
+        }
+
+        const quoters = await qb
           .orderBy('quoter.created_at', 'DESC')
           .skip(skip)
           .take(limit + 1)
           .getMany();
+
         const hasMore = quoters.length > limit;
         const slice = quoters.slice(0, limit);
+        const last = slice[slice.length - 1];
+        const nextCursor =
+          hasMore && last?.createdAt ? last.createdAt.toISOString() : undefined;
+
         const postIds = slice.map((p) => p.id).filter(Boolean);
         const { likedIds, keptIds } = viewerId
           ? await this.interactionsService.getLikeKeepForViewer(
@@ -654,7 +693,7 @@ export class UsersService {
             return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
           }),
         );
-        return { items, hasMore };
+        return { items, hasMore, nextCursor };
       } catch (err) {
         console.error('getUserPosts quotes error', err);
         return { items: [], hasMore: false };
@@ -663,7 +702,7 @@ export class UsersService {
     // type === 'cited': posts that this user has cited (outgoing quotes). Query from Post (cited) via PostEdge so we use the same entity pattern as 'quotes'.
     if (type === 'cited') {
       try {
-        const citedPosts = await this.postRepo
+        const qb = this.postRepo
           .createQueryBuilder('cited')
           .innerJoin(PostEdge, 'edge', 'edge.to_post_id = cited.id')
           .innerJoin(
@@ -677,10 +716,16 @@ export class UsersService {
           .orderBy('edge.created_at', 'DESC')
           .setParameter('userId', userId)
           .skip(skip)
-          .take(limit + 1)
-          .getMany();
+          .take(limit + 1);
+
+        if (cursorDate && !isNaN(cursorDate.getTime())) {
+          qb.andWhere('edge.created_at < :cursor', { cursor: cursorDate });
+        }
+
+        const citedPosts = await qb.getMany();
         const hasMore = citedPosts.length > limit;
         const slice = citedPosts.slice(0, limit);
+
         const postIds = slice.map((p) => p.id).filter(Boolean);
         const { likedIds, keptIds } = viewerId
           ? await this.interactionsService.getLikeKeepForViewer(
@@ -706,7 +751,7 @@ export class UsersService {
             return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
           }),
         );
-        return { items, hasMore };
+        return { items, hasMore, nextCursor: undefined };
       } catch (err) {
         console.error('getUserPosts cited error', err);
         return { items: [], hasMore: false };

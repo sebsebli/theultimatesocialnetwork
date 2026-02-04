@@ -696,18 +696,21 @@ export class PostsService {
 
   async getSources(postId: string) {
     const [external, edges, mentions, topics] = await Promise.all([
-      this.externalSourceRepo.find({ where: { postId } }),
+      this.externalSourceRepo.find({ where: { postId }, take: 100 }),
       this.dataSource.getRepository(PostEdge).find({
         where: { fromPostId: postId, edgeType: EdgeType.LINK },
         relations: ['toPost', 'toPost.author'],
+        take: 100,
       }),
       this.mentionRepo.find({
         where: { postId },
         relations: ['mentionedUser'],
+        take: 100,
       }),
       this.dataSource.getRepository(PostTopic).find({
         where: { postId },
         relations: ['topic'],
+        take: 100,
       }),
     ]);
 

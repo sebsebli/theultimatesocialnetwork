@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets, In } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Post } from '../entities/post.entity';
 import { Follow } from '../entities/follow.entity';
 import { CollectionItem } from '../entities/collection-item.entity';
@@ -17,6 +17,7 @@ import { UploadService } from '../upload/upload.service';
 import { InteractionsService } from '../interactions/interactions.service';
 import { ExploreService } from '../explore/explore.service';
 import Redis from 'ioredis';
+import { feedDuration } from '../common/metrics';
 
 @Injectable()
 export class FeedService {
@@ -47,15 +48,19 @@ export class FeedService {
     includeSavedBy = false,
     cursor?: string,
   ): Promise<{ items: FeedItem[]; nextCursor?: string }> {
+    const end = feedDuration.startTimer({ type: 'home' });
     try {
-      return await this.getHomeFeedInternal(
+      const result = await this.getHomeFeedInternal(
         userId,
         limit,
         offset,
         includeSavedBy,
         cursor,
       );
+      end();
+      return result;
     } catch (err) {
+      end();
       this.logger.error(
         `Feed load failed for user ${userId}`,
         err instanceof Error ? err.stack : String(err),
@@ -84,10 +89,13 @@ export class FeedService {
       excludedUserIds.add(b.blockerId === userId ? b.blockedId : b.blockerId);
     });
     mutes.forEach((m) => excludedUserIds.add(m.mutedId));
+    // Always exclude deleted/placeholder users from feed
+    excludedUserIds.add('00000000-0000-0000-0000-000000000000');
 
     // Basic chronological feed: Posts from people I follow
     const follows = await this.followRepo.find({
       where: { followerId: userId },
+      select: ['followeeId'],
     });
     const followingIds = follows
       .map((f) => f.followeeId)
@@ -103,130 +111,133 @@ export class FeedService {
     // Always include self
     followingIds.push(userId);
 
-    // If following no one and no topics, return empty (or could return global feed? No, definition is follow-only)
     if (followingIds.length === 0 && followedTopicIds.length === 0)
       return { items: [] };
 
     let feedItems: FeedItem[] = [];
-    let usedCache = false;
     let nextCursorResult: string | undefined;
 
-    // 1. Try Redis Cache (Fan-out Read) for recent posts (only when no cursor — cursor implies DB for deep pagination)
-    // Note: Redis feed usually only stores USER follows push model. Topic follows usually pull model.
-    // If we want mixed feed, we likely skip cache if we have topics, or we need to merge.
-    // For now, let's skip cache if we have topic follows, or assume cache only has user feed and we need DB for topics.
-    // Simplest robust way: Use DB fallback if topics are followed, OR just use DB for now for topics.
-    // Given the request "So when following a topic, I see the newest posts on homescreen", let's prioritize correctness over cache for now.
-    // If topic follows exist, force DB pull (or implementing complex merge).
-    // Let's force DB pull if topic follows exist to ensure they appear.
+    // Split queries strategy: Users vs Topics
+    // This avoids complex OR clauses that confuse the query planner.
 
-    if (!cursor && offset < 500 && followedTopicIds.length === 0) {
-      try {
-        const cacheKey = `feed:${userId}`;
-        const cachedIds = await this.redis.lrange(
-          cacheKey,
-          offset,
-          offset + limit - 1,
-        );
+    const cursorDate = cursor ? new Date(cursor) : undefined;
+    const dbLimit = limit + 1; // fetch one extra to detect hasMore
 
-        if (cachedIds.length > 0) {
-          const posts = await this.postRepo.find({
-            where: { id: In(cachedIds) },
-            relations: ['author'],
-          });
-
-          // Maintain order from Redis list; exclude posts from pending (pre-onboarding) authors
-          const postMap = new Map(posts.map((p) => [p.id, p]));
-          const orderedPosts = cachedIds
-            .map((id) => postMap.get(id))
-            .filter(
-              (p): p is Post => !!p && !p.deletedAt && !isPendingUser(p.author),
-            );
-
-          if (orderedPosts.length > 0) {
-            const visible =
-              await this.exploreService.filterPostsVisibleToViewer(
-                orderedPosts,
-                userId,
-              );
-            feedItems = visible.map((post) => ({
-              type: 'post',
-              data: post,
-            }));
-            usedCache = true;
-          }
-        }
-      } catch (e) {
-        console.warn('Feed cache read failed', e);
-      }
-    }
-
-    // 2. DB Fallback (Pull Model) if cache miss or empty (or if we have topics)
-    // Cursor-based: when cursor is provided (ISO date), use WHERE created_at < cursor for stable deep pagination
-    if (!usedCache) {
-      const query = this.postRepo
+    const fetchUserPosts = async () => {
+      if (followingIds.length === 0) return [];
+      const qb = this.postRepo
         .createQueryBuilder('post')
         .innerJoinAndSelect('post.author', 'author')
-        .where('post.deleted_at IS NULL')
+        .where('post.author_id IN (:...followingIds)', { followingIds })
+        .andWhere('post.deleted_at IS NULL')
         .andWhere("post.status = 'PUBLISHED'")
-        .andWhere("author.handle NOT LIKE '__pending_%'")
-        .andWhere('post.author_id NOT IN (:...excluded)', {
-          excluded:
-            excludedUserIds.size > 0
-              ? Array.from(excludedUserIds)
-              : ['00000000-0000-0000-0000-000000000000'],
+        .andWhere("author.handle NOT LIKE '__pending_%'"); // Ensure author is valid
+
+      if (excludedUserIds.size > 0) {
+        qb.andWhere('post.author_id NOT IN (:...excluded)', {
+          excluded: Array.from(excludedUserIds),
         });
-
-      query.andWhere(
-        new Brackets((qb) => {
-          // Posts by followed users (or self)
-          qb.where('post.author_id = :userId', { userId }).orWhere(
-            'post.author_id IN (:...followingIds)',
-            {
-              followingIds:
-                followingIds.length > 0
-                  ? followingIds
-                  : ['00000000-0000-0000-0000-000000000000'],
-            },
-          );
-
-          // OR Posts in followed topics
-          if (followedTopicIds.length > 0) {
-            qb.orWhere(
-              `EXISTS (SELECT 1 FROM post_topics pt WHERE pt.post_id = post.id AND pt.topic_id = ANY(:followedTopicIds))`,
-              { followedTopicIds },
-            );
-          }
-        }),
-      );
-
-      if (cursor) {
-        const cursorDate = new Date(cursor);
-        if (!Number.isNaN(cursorDate.getTime())) {
-          query.andWhere('post.created_at < :cursor', { cursor: cursorDate });
-        }
       }
 
-      const posts = await query
+      if (cursorDate && !isNaN(cursorDate.getTime())) {
+        qb.andWhere('post.created_at < :cursor', { cursor: cursorDate });
+      }
+
+      return qb
         .orderBy('post.created_at', 'DESC')
-        .skip(cursor ? 0 : offset)
-        .take(limit + 1) // always fetch one extra to know if there's a next page and to return nextCursor
+        .take(dbLimit)
+        .skip(cursor ? 0 : offset) // Only use offset if no cursor
         .getMany();
+    };
 
-      const hasMore = posts.length > limit;
-      const slice = hasMore ? posts.slice(0, limit) : posts;
-      const last = slice[slice.length - 1];
-      nextCursorResult =
-        hasMore && last?.createdAt ? last.createdAt.toISOString() : undefined;
+    const fetchTopicPosts = async () => {
+      if (followedTopicIds.length === 0) return [];
+      const qb = this.postRepo
+        .createQueryBuilder('post')
+        .innerJoinAndSelect('post.author', 'author')
+        // Use INNER JOIN for topic filtering - efficient with index on post_topic(topic_id)
+        .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
+        .where('pt.topic_id IN (:...followedTopicIds)', { followedTopicIds })
+        .andWhere('post.deleted_at IS NULL')
+        .andWhere("post.status = 'PUBLISHED'")
+        .andWhere("author.handle NOT LIKE '__pending_%'");
 
-      const visible = await this.exploreService.filterPostsVisibleToViewer(
-        slice,
-        userId,
-      );
-      feedItems = visible.map((post) => ({
-        type: 'post',
-        data: post,
-      }));
+      if (excludedUserIds.size > 0) {
+        qb.andWhere('post.author_id NOT IN (:...excluded)', {
+          excluded: Array.from(excludedUserIds),
+        });
+      }
+
+      if (cursorDate && !isNaN(cursorDate.getTime())) {
+        qb.andWhere('post.created_at < :cursor', { cursor: cursorDate });
+      }
+
+      // Dedup at query level if possible? No, we will dedup in memory.
+      return qb
+        .orderBy('post.created_at', 'DESC')
+        .take(dbLimit)
+        .skip(cursor ? 0 : offset)
+        .getMany();
+    };
+
+    const [userPosts, topicPosts] = await Promise.all([
+      fetchUserPosts(),
+      fetchTopicPosts(),
+    ]);
+
+    // Merge and Dedup
+    const allPosts = [...userPosts, ...topicPosts];
+    const uniquePostsMap = new Map<string, Post>();
+    for (const p of allPosts) {
+      if (!uniquePostsMap.has(p.id)) uniquePostsMap.set(p.id, p);
+    }
+    const uniquePosts = Array.from(uniquePostsMap.values());
+
+    // Sort descending
+    uniquePosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    // Check pagination
+    // If we have cursor, we took dbLimit. If uniquePosts > limit, we have more?
+    // Not necessarily. We might have fetched 21 user posts and 21 topic posts.
+    // We strictly take 'limit' from the top.
+
+    const postsSlice = uniquePosts.slice(0, limit);
+    const visiblePosts = await this.exploreService.filterPostsVisibleToViewer(
+      postsSlice,
+      userId,
+    );
+
+    feedItems = visiblePosts.map((post) => ({
+      type: 'post',
+      data: post,
+    }));
+
+    // Determine next cursor from the LAST item in the FULL fetched set (before visibility filter? No, effectively the last item considered)
+    // Actually, simply: if uniquePosts.length > limit, the next cursor is the createdAt of the item at index `limit`.
+    // But wait, if we drop items due to visibility, the cursor should be based on the last item *returned*?
+    // No, cursor is based on the source list order.
+    // However, for robustness, we use the timestamp of the last item in the *returned* list as the next cursor.
+    // BUT if we filter out items, we might end up with fewer than limit.
+    // This is the classic "filtering after pagination" problem.
+    // For now, we accept that pages might be slightly shorter than limit.
+    // We use the timestamp of the last considered item (uniquePosts[limit-1]) or similar.
+
+    if (uniquePosts.length > limit) {
+      // We have more.
+      const lastItem = uniquePosts[limit - 1]; // The last item that fits in the page
+      nextCursorResult = lastItem.createdAt.toISOString();
+    } else {
+      // We exhausted what we fetched.
+      // Note: Since we fetched limit+1 from each source, if both sources returned < limit+1, we likely exhausted both?
+      // Not necessarily.
+      // Correct logic with split queries is tricky for "hasMore".
+      // Conservative approach: If EITHER source returned limit+1, there *might* be more.
+      // But we merged them.
+      // If uniquePosts.length > limit, we definitely have a next page.
+      if (userPosts.length > limit || topicPosts.length > limit) {
+        const lastItem = uniquePosts[limit - 1];
+        nextCursorResult = lastItem?.createdAt.toISOString();
+      }
     }
 
     // Add "Saved by X" items if enabled (Interleave)
@@ -295,6 +306,11 @@ export class FeedService {
     // Re-slice because adding "Saved By" might exceed limit
     const trimmed = feedItems.slice(0, limit);
     const items = (await this.toPlainFeedItems(trimmed, userId)) as FeedItem[];
+
+    // Ensure nextCursor is not older than the last item we returned?
+    // Actually, if we interleave "saved by" (which are 24h recent), they might push older posts out.
+    // Pagination should follow the "main" stream (posts).
+
     return { items, nextCursor: nextCursorResult };
   }
 

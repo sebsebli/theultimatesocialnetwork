@@ -25,6 +25,7 @@ import {
 } from '../entities/moderation-record.entity';
 
 import { ContentModerationService } from './content-moderation.service';
+import { TrustService } from './trust.service';
 
 /**
  * Safety and content moderation. Content moderation is applied to:
@@ -46,6 +47,7 @@ export class SafetyService {
     @Optional()
     @Inject(ContentModerationService)
     private contentModeration?: ContentModerationService,
+    @Inject(TrustService) private trustService?: TrustService,
   ) {}
 
   /**
@@ -409,6 +411,14 @@ export class SafetyService {
     needsStage2?: boolean;
     reasonCode?: ModerationReasonCode;
   }> {
+    // Trusted user check: if trusted, force "onlyFast" unless explicit override
+    if (userId && this.trustService && !options.onlyFast) {
+      const isTrusted = await this.trustService.isTrusted(userId);
+      if (isTrusted) {
+        options = { ...options, onlyFast: true };
+      }
+    }
+
     // Use ContentModerationService for two-stage moderation
     if (!this.contentModeration) {
       // Fallback if ContentModerationService not injected

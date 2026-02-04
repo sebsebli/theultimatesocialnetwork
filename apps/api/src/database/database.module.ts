@@ -30,6 +30,11 @@ import { Neo4jService } from './neo4j.service';
                     ca: configService.get('DB_CA_CERT'),
                   }
                 : false,
+          extra: {
+            max: 20, // Connection pool size
+            statement_timeout: 30000, // 30s timeout
+            idle_in_transaction_session_timeout: 10000, // 10s
+          },
         };
       },
     }),

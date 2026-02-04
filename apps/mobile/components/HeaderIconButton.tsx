@@ -1,20 +1,23 @@
-import React from 'react';
-import { Pressable, StyleSheet, ViewStyle } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { HEADER, createStyles } from '../constants/theme';
+import React from "react";
+import { Pressable, StyleSheet, ViewStyle } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { HEADER, createStyles } from "../constants/theme";
 
 export interface HeaderIconButtonProps {
   onPress: () => void;
   icon: keyof typeof MaterialIcons.glyphMap;
   accessibilityLabel: string;
-  accessibilityRole?: 'button';
+  accessibilityRole?: "button";
   style?: ViewStyle;
-  iconColor?: string;
+  iconColor?: string | number;
 }
 
-const SIZE = typeof HEADER.iconCircleSize === 'number' ? HEADER.iconCircleSize : 40;
+const SIZE =
+  typeof HEADER.iconCircleSize === "number" ? HEADER.iconCircleSize : 40;
 const RADIUS = SIZE / 2;
-const BG = (HEADER as { iconCircleBackground?: string }).iconCircleBackground ?? 'rgba(0,0,0,0.35)';
+const BG =
+  (HEADER as { iconCircleBackground?: string }).iconCircleBackground ??
+  "rgba(0,0,0,0.35)";
 
 const styles = createStyles({
   circle: {
@@ -22,8 +25,8 @@ const styles = createStyles({
     height: SIZE,
     borderRadius: RADIUS,
     backgroundColor: BG,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginHorizontal: 4,
   },
   circlePressed: { opacity: 0.7 },
@@ -42,18 +45,26 @@ export function HeaderIconButton({
   onPress,
   icon,
   accessibilityLabel,
-  accessibilityRole = 'button',
+  accessibilityRole = "button",
   style,
   iconColor = HEADER.iconColor,
 }: HeaderIconButtonProps) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }: { pressed: boolean }) => [styles.circle, pressed && styles.circlePressed, style]}
+      style={({ pressed }: { pressed: boolean }) => [
+        styles.circle,
+        pressed && styles.circlePressed,
+        style,
+      ]}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
     >
-      <MaterialIcons name={icon} size={HEADER.iconSize} color={iconColor} />
+      <MaterialIcons
+        name={icon}
+        size={HEADER.iconSize}
+        color={typeof iconColor === "string" ? iconColor : String(iconColor)}
+      />
     </Pressable>
   );
 }

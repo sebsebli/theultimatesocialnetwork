@@ -31,3 +31,9 @@ export const moderationDuration = new Histogram({
   help: 'Content moderation check duration',
   labelNames: ['stage'],
 });
+
+export const feedDuration = new Histogram({
+  name: 'cite_feed_duration_seconds',
+  help: 'Feed generation duration',
+  labelNames: ['type'], // 'home', 'explore'
+});
