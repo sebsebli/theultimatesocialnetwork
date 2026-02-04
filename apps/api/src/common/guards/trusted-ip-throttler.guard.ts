@@ -30,19 +30,42 @@ function getClientIp(req: {
   return req.ip;
 }
 
+/** Skip throttle for admin requests (X-Admin-Key) or authenticated requests (Bearer token). */
+function isAdminOrAuthenticated(req: {
+  headers?: Record<string, string | string[] | undefined>;
+}): boolean {
+  const adminKey = req.headers?.['x-admin-key'];
+  if (adminKey && typeof adminKey === 'string' && adminKey.length > 0)
+    return true;
+  const auth = req.headers?.[authorization];
+  const h = Array.isArray(auth) ? auth[0] : auth;
+  if (typeof h === 'string' && h.startsWith('Bearer ')) return true;
+  return false;
+}
+const authorization = 'authorization';
+
 /**
- * Throttler guard that skips rate limiting for requests from localhost / same server
- * (testing, admin, demo agents). Other IPs are limited as configured.
+ * Throttler guard that skips rate limiting for:
+ * - Non-production (NODE_ENV !== 'production'): always skip — only enforce in production.
+ * - Requests from localhost / same server (testing, admin, demo agents).
+ * - Admin requests (X-Admin-Key) or authenticated requests (Authorization: Bearer) so agent seed and uploads are not throttled.
+ * Other IPs in production are limited as configured.
  */
 @Injectable()
 export class TrustedIpThrottlerGuard extends ThrottlerGuard {
   protected override async shouldSkip(
     context: ExecutionContext,
   ): Promise<boolean> {
+    if (process.env.NODE_ENV !== 'production') {
+      return true;
+    }
     const request = context.switchToHttp().getRequest<{
       ip?: string;
       headers?: Record<string, string | string[] | undefined>;
     }>();
+    if (isAdminOrAuthenticated(request)) {
+      return true;
+    }
     const ip = getClientIp(request);
     if (isTrustedIp(ip)) {
       return true;

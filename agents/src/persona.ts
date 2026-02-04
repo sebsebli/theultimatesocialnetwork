@@ -92,3 +92,103 @@ Return only the JSON object.`;
     behavior: (parsed.behavior ?? character.description).slice(0, 600),
   };
 }
+
+export interface RealPersonaResult {
+  persona: Persona;
+  character: CharacterDef;
+  topics: string[];
+}
+
+/**
+ * Ask the LLM to create one realistic social network persona (no fixed character type).
+ * Returns persona + a synthetic CharacterDef so the agent loop can run the same way.
+ */
+export async function createRealSocialPersona(
+  openai: OpenAI | undefined,
+  gemini: GoogleGenAI | undefined,
+  model: string,
+  usedHandles: Set<string>,
+): Promise<RealPersonaResult> {
+  const sys = `You create ONE concrete, realistic social network persona—like a real person on Twitter, Instagram, or a reading app. They must feel like a distinct individual, not a generic type. Invent someone who could exist in the real world: varied professions, hobbies, and styles (e.g. a parent who posts about kids and recipes, a dev who shares code and hot takes, a journalist, a foodie, a hobbyist, a local activist, a book club lead, a fitness coach, a traveler, an artist, a skeptic, a mentor—anything). They will write realistic posts about real-world topics—never about "the platform" or "being online".
+Return ONLY valid JSON with exactly these keys (no markdown, no extra text):
+- displayName: string (e.g. "Marcus Chen", "Elena Fisher", "Jamie O'Brien")
+- handle: string (lowercase letters, numbers, underscore only; 2–30 chars; e.g. "marcus_c", "elena_writes", "jamie_ob")
+- bio: string (one short sentence or a few words; max 160 characters; plain text only—no markdown)
+- behavior: string (2–4 sentences: how this person writes and interacts; their tone, habits, and the kinds of real-world topics they naturally post about)
+- topics: string[] (3–6 concrete topics or themes they post about, e.g. ["sourdough", "parenting", "weekend hikes", "minimalism"])
+- label: string (short archetype, e.g. "Food blogger", "Tech commentator", "Parent blogger", "Travel photographer")`;
+
+  const user = `Create one unique, realistic social network persona. Make them feel like a real person with specific interests and voice.
+Pick a handle that is NOT in this list: ${Array.from(usedHandles).slice(-30).join(', ') || '(none)'}.
+Return only the JSON object.`;
+
+  let content = '';
+
+  if (gemini) {
+    const response = await gemini.models.generateContent({
+      model,
+      contents: user,
+      config: {
+        systemInstruction: sys,
+        responseMimeType: 'application/json',
+      },
+    });
+    content = response.text ?? '';
+  } else if (openai) {
+    const response = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: user },
+      ],
+    });
+    content = response.choices?.[0]?.message?.content?.trim() ?? '';
+  } else {
+    throw new Error('No LLM client provided for persona creation');
+  }
+
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  const jsonStr = jsonMatch ? jsonMatch[0] : content;
+  let parsed: {
+    displayName?: string;
+    handle?: string;
+    bio?: string;
+    behavior?: string;
+    topics?: string[];
+    label?: string;
+  };
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    parsed = {};
+  }
+
+  const rawTopics = Array.isArray(parsed.topics) ? parsed.topics : [];
+  const topics = rawTopics.filter((t): t is string => typeof t === 'string').slice(0, 8);
+
+  const handle = normalizeHandle(parsed.handle ?? 'user_' + Math.random().toString(36).slice(2, 8));
+  const finalHandle = usedHandles.has(handle)
+    ? handle + '_' + Math.random().toString(36).slice(2, 5)
+    : handle;
+
+  const persona: Persona = {
+    displayName: (parsed.displayName ?? parsed.label ?? 'User').slice(0, 100),
+    handle: finalHandle,
+    bio: (parsed.bio ?? 'Real person on the internet.').slice(0, 160),
+    behavior: (parsed.behavior ?? '').slice(0, 600),
+  };
+
+  const character: CharacterDef = {
+    type: 'custom',
+    label: (parsed.label ?? persona.displayName).slice(0, 80),
+    description: [persona.bio, persona.behavior].filter(Boolean).join(' ').slice(0, 500) || 'Real social network persona.',
+    postBias: 0.45,
+    replyBias: 0.35,
+    interactBias: 0.2,
+    topics: topics.length > 0 ? topics : ['personal', 'interests', 'daily life'],
+    avatarQuery: 'person portrait',
+    headerQuery: 'lifestyle',
+  };
+
+  return { persona, character, topics };
+}

@@ -4,6 +4,7 @@
   "description": "Root package for husky + lint-staged only. Each app (apps/api, apps/web) has its own package.json and deps.",
   "scripts": {
     "deploy:dev": "./scripts/deploy.sh local",
+    "deploy:api": "./scripts/deploy.sh local --api-only",
     "deploy:watch": "node scripts/watch-and-deploy.js"
   },
   "devDependencies": {

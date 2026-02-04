@@ -3,7 +3,7 @@
  */
 
 import OpenAI from 'openai';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, createPartFromFunctionResponse } from '@google/genai';
 import type { ApiClient } from './api-client.js';
 import { AGENT_TOOLS, type AgentToolName } from './tools.js';
 import type { CharacterDef } from './characters.js';
@@ -76,6 +76,8 @@ You MUST **interact with the network**:
 4.  **Use Real External Links**: Include plausible external links \`[https://url](text)\` to Wikipedia, news sites, or tools relevant to your topic.
 
 **Real post IDs only**: \`[[post:UUID]]\` and \`quote_post\`/\`reply_to_post\` require a real post id from \`get_feed\`, \`get_explore_*\`, or \`get_user_posts\`. Never invent post ids.
+
+You MUST create at least 2 new posts (create_post) during this session. The rest of your actions can be replies, quotes, follows, likes, etc., but create_post at least twice.
 
 Use the provided tools to read content first (get_feed, get_explore_*, get_user_posts, get_post, get_user, get_notifications, get_dm_threads), then ONE action per turn: create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, or send_dm. For create_post you may call upload_header_image_from_url first. Each of those actions counts toward your goal.
 
@@ -261,6 +263,8 @@ export interface AgentLoopOptions {
   api: ApiClient;
   ctx: AgentContext;
   maxActions: number;
+  /** Each agent must create at least this many posts (create_post). Default 2. */
+  minPosts?: number;
   /** Called after each action; use to track history. */
   onAction?: (name: AgentToolName, args: Record<string, unknown>, summary: string) => void;
 }
@@ -275,7 +279,7 @@ function getGeminiTools() {
 }
 
 async function runGeminiLoop(options: AgentLoopOptions): Promise<number> {
-  const { gemini, model, api, ctx, maxActions, onAction } = options;
+  const { gemini, model, api, ctx, maxActions, minPosts = 2, onAction } = options;
   if (!gemini) throw new Error('Gemini client not provided');
   const chats = gemini.chats;
   if (!chats) throw new Error('Gemini chats not available');
@@ -295,18 +299,19 @@ async function runGeminiLoop(options: AgentLoopOptions): Promise<number> {
         parts: [{
           text: `You are ${ctx.displayName} (@${ctx.handle}). Your persona: ${ctx.persona.behavior}
 
-You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.`
+You have ${maxActions} actions. You MUST create at least ${minPosts} new posts (create_post) during this session. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.`
         }],
       },
     ],
   });
 
   let actionsUsed = 0;
-  const maxTurns = 80;
+  let createPostCount = 0;
+  const maxTurns = 85;
   let turns = 0;
   const actionHistory: string[] = [];
 
-  while (actionsUsed < maxActions && turns < maxTurns) {
+  while ((actionsUsed < maxActions || createPostCount < minPosts) && turns < maxTurns) {
     turns++;
 
     let userMsgText = '';
@@ -314,42 +319,53 @@ You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, 
       userMsgText = "Start interactions.";
     } else {
       const remaining = maxActions - actionsUsed;
-      if (remaining <= 0) break;
       const historyBlurb = actionHistory.length > 0 ? `What you've done so far: ${actionHistory.join('; ')}. ` : '';
-      userMsgText = `${historyBlurb}You have ${remaining} actions left. Check get_notifications and get_dm_threads. Continue: surf or act.`;
+      const postReminder =
+        createPostCount < minPosts
+          ? ` You MUST create at least ${minPosts} posts (create_post). So far you have created ${createPostCount}. Use create_post for your next action if you have not reached the minimum.`
+          : '';
+      if (remaining <= 0 && createPostCount >= minPosts) break;
+      if (remaining > 0) {
+        userMsgText = `${historyBlurb}You have ${remaining} actions left.${postReminder} Check get_notifications and get_dm_threads. Continue: surf or act.`;
+      } else {
+        userMsgText = `${historyBlurb}You have used all actions but you MUST create at least ${minPosts} posts. You have created ${createPostCount}. Use create_post now.`;
+      }
     }
 
     try {
-      const result = await chat.sendMessage({ message: userMsgText } as Parameters<typeof chat.sendMessage>[0]);
-      const response = result as { functionCalls?: Array<{ name?: string; args?: Record<string, unknown> }> };
+      const result = await chat.sendMessage({ message: userMsgText });
+      const response = result as { functionCalls?: Array<{ id?: string; name?: string; args?: Record<string, unknown> }> };
       const calls = response.functionCalls ?? [];
       if (calls.length > 0) {
-        const toolOutputs: any[] = [];
+        const parts: ReturnType<typeof createPartFromFunctionResponse>[] = [];
 
         for (const call of calls) {
-          const name = call.name as AgentToolName;
-          const args = call.args as Record<string, unknown>;
+          const name = (call.name ?? '') as AgentToolName;
+          const args = (call.args ?? {}) as Record<string, unknown>;
 
           const outputText = await executeTool(name, args, api, ctx);
-          let responseData: any;
+          let responseData: unknown;
           try {
             responseData = JSON.parse(outputText);
           } catch {
             responseData = { result: outputText };
           }
-          toolOutputs.push({
-            name: name,
-            response: { content: responseData }
-          });
+          // Gemini expects function response as a JSON object; avoid nested "content" to prevent invalid Part.data
+          const responseObj: Record<string, unknown> =
+            typeof responseData === 'object' && responseData !== null && !Array.isArray(responseData)
+              ? (responseData as Record<string, unknown>)
+              : { result: String(responseData) };
+          parts.push(createPartFromFunctionResponse(call.id ?? `fc-${parts.length}`, name, responseObj));
 
           if (ACTION_TOOLS.has(name)) {
             actionsUsed++;
+            if (name === 'create_post') createPostCount++;
             const summary = formatActionSummary(name, args);
             actionHistory.push(summary);
             onAction?.(name, args, summary);
           }
         }
-        await chat.sendMessage({ message: toolOutputs } as Parameters<typeof chat.sendMessage>[0]);
+        await chat.sendMessage({ message: parts });
       }
     } catch (e) {
       console.error('Gemini loop error', e);
@@ -365,7 +381,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<number> {
     return runGeminiLoop(options);
   }
 
-  const { openai, model, api, ctx, maxActions, onAction } = options;
+  const { openai, model, api, ctx, maxActions, minPosts = 2, onAction } = options;
   if (!openai) throw new Error('OpenAI client not provided');
 
   const tools = AGENT_TOOLS.map((t) => ({
@@ -386,15 +402,16 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<number> {
       role: 'user',
       content: `You are ${ctx.displayName} (@${ctx.handle}). Your persona: ${ctx.persona.behavior}
 
-You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.`,
+You have ${maxActions} actions. You MUST create at least ${minPosts} new posts (create_post) during this session. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.`,
     },
   ];
 
   let actionsUsed = 0;
-  const maxTurns = 80;
+  let createPostCount = 0;
+  const maxTurns = 85;
   let turns = 0;
 
-  while (actionsUsed < maxActions && turns < maxTurns) {
+  while ((actionsUsed < maxActions || createPostCount < minPosts) && turns < maxTurns) {
     turns++;
 
     const response = await openai.chat.completions.create({
@@ -444,6 +461,7 @@ You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, 
         });
         if (ACTION_TOOLS.has(name)) {
           actionsUsed++;
+          if (name === 'create_post') createPostCount++;
           const summary = formatActionSummary(name, args);
           actionHistory.push(summary);
           onAction?.(name, args, summary);
@@ -451,22 +469,44 @@ You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, 
       }
     } else {
       const remaining = maxActions - actionsUsed;
-      if (remaining <= 0) break;
       const historyBlurb = actionHistory.length > 0 ? `What you've done so far: ${actionHistory.join('; ')}. ` : '';
-      messages.push({
-        role: 'user',
-        content: `${historyBlurb}You have ${remaining} actions left. Check get_notifications and get_dm_threads for reactions and DMs. Use a tool: surf (get_feed, get_explore_*, get_notifications, get_dm_threads) or perform an action (create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, send_dm).`,
-      });
+      const postReminder =
+        createPostCount < minPosts
+          ? ` You MUST create at least ${minPosts} posts (create_post). So far you have created ${createPostCount}. Use create_post for your next action if you have not reached the minimum.`
+          : '';
+      if (remaining <= 0 && createPostCount >= minPosts) break;
+      if (remaining > 0) {
+        messages.push({
+          role: 'user',
+          content: `${historyBlurb}You have ${remaining} actions left.${postReminder} Check get_notifications and get_dm_threads for reactions and DMs. Use a tool: surf (get_feed, get_explore_*, get_notifications, get_dm_threads) or perform an action (create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, send_dm).`,
+        });
+      } else {
+        messages.push({
+          role: 'user',
+          content: `${historyBlurb}You have used all actions but you MUST create at least ${minPosts} posts. You have created ${createPostCount}. Use create_post now.`,
+        });
+      }
       continue;
     }
 
     const remaining = maxActions - actionsUsed;
-    if (remaining <= 0) break;
     const historyBlurb = actionHistory.length > 0 ? `What you've done so far: ${actionHistory.join('; ')}. ` : '';
-    messages.push({
-      role: 'user',
-      content: `${historyBlurb}You have ${remaining} actions left. Check get_notifications and get_dm_threads for reactions and DMs. Continue: surf if needed, then perform another action (create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, send_dm). Act according to your persona and what you've already done.`,
-    });
+    const postReminder =
+      createPostCount < minPosts
+        ? ` You MUST create at least ${minPosts} posts (create_post). So far you have created ${createPostCount}. Use create_post for your next action if you have not reached the minimum.`
+        : '';
+    if (remaining <= 0 && createPostCount >= minPosts) break;
+    if (remaining > 0) {
+      messages.push({
+        role: 'user',
+        content: `${historyBlurb}You have ${remaining} actions left.${postReminder} Check get_notifications and get_dm_threads for reactions and DMs. Continue: surf if needed, then perform another action (create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, send_dm). Act according to your persona and what you've already done.`,
+      });
+    } else {
+      messages.push({
+        role: 'user',
+        content: `${historyBlurb}You have used all actions but you MUST create at least ${minPosts} posts. You have created ${createPostCount}. Use create_post now.`,
+      });
+    }
   }
 
   return actionsUsed;

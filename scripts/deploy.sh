@@ -1,6 +1,10 @@
 #!/bin/bash
 # Official Citewalk deploy: one script for local, production, web-only, API, migrations, MinIO, SSL, Ollama, backups, NSFW.
-# Run from repo root only: ./scripts/deploy.sh [local|prod] [--web-only] [--no-cache]
+# Run from repo root only: ./scripts/deploy.sh [local|prod] [--web-only|--api-only] [--no-cache]
+#
+# Compose files used:
+#   local:  docker-compose.yml (includes PgBouncer; API connects via pgbouncer)
+#   prod:   docker-compose.yml + docker-compose.prod.yml
 #
 # Production (./scripts/deploy.sh prod) starts and initializes:
 #   - SSL: init-ssl-certbot.sh if certs missing; SSL renewal cron (daily 3 AM)
@@ -13,6 +17,7 @@
 #   local (default) - full stack, dev compose, migrations, MinIO, no SSL
 #   prod            - full stack, prod compose, secret checks, SSL + cron, migrations
 #   --web-only      - rebuild and restart only the web app (npm build + docker build web)
+#   --api-only      - rebuild and restart only the API (docker build api + up -d api)
 #   --no-cache      - pass --no-cache to docker build (useful for local)
 set -e
 
@@ -23,10 +28,12 @@ DOCKER_DIR="$PROJECT_ROOT/infra/docker"
 # Parse arguments
 MODE="${1:-local}"
 WEB_ONLY=false
+API_ONLY=false
 NO_CACHE=""
 for arg in "$@"; do
   case "$arg" in
     --web-only) WEB_ONLY=true ;;
+    --api-only) API_ONLY=true ;;
     --no-cache)  NO_CACHE="--no-cache" ;;
   esac
 done
@@ -66,6 +73,33 @@ if [ "$WEB_ONLY" = true ]; then
   echo -e "${RED}❌ Web app failed to start within $timeout seconds${NC}"
   docker compose -f "$DOCKER_DIR/docker-compose.yml" logs web --tail 50
   exit 1
+fi
+
+# -----------------------------------------------------------------------------
+# --api-only: rebuild and restart API only
+# -----------------------------------------------------------------------------
+if [ "$API_ONLY" = true ]; then
+  echo -e "${BLUE}🚀 Deploying API only...${NC}"
+  cd "$DOCKER_DIR"
+  if [ "$MODE" = "prod" ]; then
+    COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
+    MIGRATION_CMD="npm run migration:run:prod"
+  else
+    COMPOSE_FILES="-f docker-compose.yml"
+    MIGRATION_CMD="npm run migration:run"
+  fi
+  echo "🐳 Building API image..."
+  docker compose $COMPOSE_FILES build $NO_CACHE api
+  echo "▶️  Restarting API..."
+  docker compose $COMPOSE_FILES up -d api
+  echo "⏳ Waiting for API to be up..."
+  sleep 5
+  if docker compose $COMPOSE_FILES exec -T api $MIGRATION_CMD 2>/dev/null; then
+    echo -e "${GREEN}✅ Migrations completed${NC}"
+  fi
+  echo -e "${GREEN}✅ API redeployed${NC}"
+  docker compose $COMPOSE_FILES ps api
+  exit 0
 fi
 
 # -----------------------------------------------------------------------------
@@ -193,10 +227,26 @@ else
   echo -e "${YELLOW}⚠️  Migrations may have failed or none to run${NC}"
 fi
 
-# Local: MinIO setup
-if [ "$MODE" = "local" ] && [ -f "$PROJECT_ROOT/scripts/setup-minio.sh" ]; then
-  echo "📦 Setting up MinIO bucket..."
-  bash "$PROJECT_ROOT/scripts/setup-minio.sh" && echo -e "${GREEN}✅ MinIO configured${NC}" || true
+# MinIO bucket: create from inside API container (works for both local and prod; no host mc/localhost needed)
+echo "🪣 Ensuring MinIO bucket exists..."
+if $COMPOSE_CMD exec -T api node -e "
+const MinIO = require('minio');
+const client = new MinIO.Client({
+  endPoint: process.env.MINIO_ENDPOINT || 'minio',
+  port: parseInt(process.env.MINIO_PORT || '9000', 10),
+  useSSL: process.env.MINIO_USE_SSL === 'true',
+  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin'
+});
+const bucket = process.env.MINIO_BUCKET || 'citewalk-images';
+client.bucketExists(bucket).then(exists => {
+  if (!exists) return client.makeBucket(bucket).then(() => console.log('Bucket', bucket, 'created'));
+  console.log('Bucket', bucket, 'already exists');
+}).catch(err => { console.error(err.message || err); process.exit(1); });
+" 2>/dev/null; then
+  echo -e "${GREEN}✅ MinIO bucket ready${NC}"
+else
+  echo -e "${YELLOW}⚠️  MinIO bucket check failed (API will create on first upload if needed)${NC}"
 fi
 
 # Production: SSL renewal cron

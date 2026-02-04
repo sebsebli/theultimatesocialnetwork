@@ -1,0 +1,42 @@
+---
+description: Always redeploy after API or infra changes so the running stack picks up fixes
+alwaysApply: true
+---
+
+# Redeploy after API or infra changes
+
+When you change code in **apps/api** or **infra/docker** (compose, Dockerfiles, nginx, etc.), you **must** redeploy so the running Docker stack uses the new code.
+
+## Commands (run from repo root)
+
+- **API only** (fast; use after API changes):
+  ```bash
+  npm run deploy:api
+  ```
+  or
+  ```bash
+  ./scripts/deploy.sh local --api-only
+  ```
+
+- **Web only** (after apps/web changes):
+  ```bash
+  ./scripts/deploy.sh local --web-only
+  ```
+
+- **Full stack** (local):
+  ```bash
+  npm run deploy:dev
+  ```
+  or
+  ```bash
+  ./scripts/deploy.sh local
+  ```
+
+- **Production**:
+  ```bash
+  ./scripts/deploy.sh prod
+  ```
+
+## Rule
+
+After editing any file under `apps/api/` or `infra/docker/`, run **npm run deploy:api** (for API changes) or the appropriate deploy command, unless the user explicitly says not to redeploy.

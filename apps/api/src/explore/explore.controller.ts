@@ -2,11 +2,12 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ExploreService } from './explore.service';
 import { RecommendationService } from './recommendation.service';
 import { UploadService } from '../upload/upload.service';
-import { userToPlain } from '../shared/post-serializer';
+import { userToPlain, postToPlain } from '../shared/post-serializer';
 import { AuthGuard } from '@nestjs/passport';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { User } from '../entities/user.entity';
+import { Post } from '../entities/post.entity';
 
 @Controller('explore')
 export class ExploreController {
@@ -15,6 +16,23 @@ export class ExploreController {
     private readonly recommendationService: RecommendationService,
     private readonly uploadService: UploadService,
   ) {}
+
+  /** Serialize post list to plain objects (avoids 500 from raw TypeORM entities; consistent image URLs). */
+  private withPostPlains(result: {
+    items: (Post & { reasons?: string[] })[];
+    hasMore: boolean;
+  }): { items: Record<string, unknown>[]; hasMore: boolean } {
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+    const items = result.items
+      .map((p) => {
+        const plain = postToPlain(p, getImageUrl);
+        if (!plain) return null;
+        if (p.reasons?.length) return { ...plain, reasons: p.reasons };
+        return plain;
+      })
+      .filter((x): x is Record<string, unknown> => x != null);
+    return { items, hasMore: result.hasMore };
+  }
 
   /** Map User[] to plain objects with avatarKey and avatarUrl so clients always get profile pictures. */
   private withAvatar(list: User[]): Record<string, unknown>[] {
@@ -81,13 +99,23 @@ export class ExploreController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
-    return this.exploreService.getQuotedNow(user?.id, limitNum, {
-      lang,
-      sort,
-      page,
-      limit,
-    });
+    try {
+      const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+      const result = await this.exploreService.getQuotedNow(
+        user?.id,
+        limitNum,
+        {
+          lang,
+          sort,
+          page,
+          limit,
+        },
+      );
+      return this.withPostPlains(result);
+    } catch (err) {
+      console.error('explore/quoted-now error', err);
+      return { items: [], hasMore: false };
+    }
   }
 
   @Get('trending')
@@ -96,9 +124,18 @@ export class ExploreController {
     @CurrentUser() user?: { id: string },
     @Query('limit') limit?: string,
   ) {
-    const limitNum = limit ? parseInt(limit, 10) : 20;
-    const posts = await this.exploreService.getTrending(user?.id, limitNum);
-    return { items: posts };
+    try {
+      const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+      const posts = await this.exploreService.getTrending(user?.id, limitNum);
+      const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+      const items = posts
+        .map((p) => postToPlain(p, getImageUrl) ?? null)
+        .filter(Boolean);
+      return { items };
+    } catch (err) {
+      console.error('explore/trending error', err);
+      return { items: [] };
+    }
   }
 
   @Get('deep-dives')
@@ -110,13 +147,23 @@ export class ExploreController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
-    return this.exploreService.getDeepDives(user?.id, limitNum, {
-      lang,
-      sort,
-      page,
-      limit,
-    });
+    try {
+      const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+      const result = await this.exploreService.getDeepDives(
+        user?.id,
+        limitNum,
+        {
+          lang,
+          sort,
+          page,
+          limit,
+        },
+      );
+      return this.withPostPlains(result);
+    } catch (err) {
+      console.error('explore/deep-dives error', err);
+      return { items: [], hasMore: false };
+    }
   }
 
   @Get('newsroom')
@@ -130,12 +177,13 @@ export class ExploreController {
   ) {
     try {
       const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
-      return await this.exploreService.getNewsroom(user?.id, limitNum, {
+      const result = await this.exploreService.getNewsroom(user?.id, limitNum, {
         lang,
         sort,
         page,
         limit,
       });
+      return this.withPostPlains(result);
     } catch (err) {
       console.error('explore/newsroom error', err);
       return { items: [], hasMore: false };
@@ -149,8 +197,17 @@ export class ExploreController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
-    return this.exploreService.getNewest(user?.id, limitNum, { page, limit });
+    try {
+      const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+      const result = await this.exploreService.getNewest(user?.id, limitNum, {
+        page,
+        limit,
+      });
+      return this.withPostPlains(result);
+    } catch (err) {
+      console.error('explore/newest error', err);
+      return { items: [], hasMore: false };
+    }
   }
 
   @Get('for-you')
@@ -159,10 +216,20 @@ export class ExploreController {
     @CurrentUser() user: { id: string },
     @Query('limit') limit?: string,
   ) {
-    return this.recommendationService.getRecommendedPosts(
-      user.id,
-      limit ? parseInt(limit, 10) : 20,
-    );
+    try {
+      const posts = await this.recommendationService.getRecommendedPosts(
+        user.id,
+        limit ? parseInt(limit, 10) : 20,
+      );
+      const result = this.withPostPlains({
+        items: posts,
+        hasMore: false,
+      });
+      return { items: result.items };
+    } catch (err) {
+      console.error('explore/for-you error', err);
+      return { items: [] };
+    }
   }
 
   @Get('recommended-people')

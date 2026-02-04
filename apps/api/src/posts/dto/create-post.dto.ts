@@ -34,4 +34,9 @@ export class CreatePostDto {
     width?: number;
     height?: number;
   };
+
+  /** Optional; API ignores and uses PUBLIC. Allowed so clients (e.g. agents) can send it without validation error. */
+  @IsOptional()
+  @IsString()
+  visibility?: string;
 }

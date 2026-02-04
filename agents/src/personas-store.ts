@@ -14,6 +14,8 @@ export interface StoredPersona {
   email: string;
   /** When this persona was first created (ISO string). */
   createdAt?: string;
+  /** For custom/real personas: topics they post about (used when resuming). */
+  topics?: string[];
 }
 
 const DEFAULT_PATH = 'data/personas.json';

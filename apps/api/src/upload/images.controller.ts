@@ -13,11 +13,10 @@ export class ImagesController {
 
   @Get('*')
   async streamImage(@Req() req: Request, @Res() res: Response) {
-    const path = (req.url ?? req.path ?? '')
-      .replace(/^\/images\/?/, '')
-      .split('?')[0]
-      ?.trim();
-    const rawKey = path ? decodeURIComponent(path) : '';
+    const path = ((req.url ?? req.path ?? '').split('?')[0] ?? '').trim();
+    // Path can be /api/images/key or /images/key (global prefix may be stripped by reverse proxy)
+    const suffix = path.replace(/^.*\/images\/?/i, '');
+    const rawKey = suffix ? decodeURIComponent(suffix) : '';
     const key = rawKey.replace(/^\/+/, '').trim();
     // Reject path traversal and invalid keys (defense in depth)
     if (!key || key.includes('..')) {
@@ -31,7 +30,9 @@ export class ImagesController {
           ? 'image/jpeg'
           : ext === 'png'
             ? 'image/png'
-            : 'image/webp';
+            : ext === 'gif'
+              ? 'image/gif'
+              : 'image/webp';
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=86400');
       stream.pipe(res);

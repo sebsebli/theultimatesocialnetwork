@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as MinIO from 'minio';
 import sharp, { type ResizeOptions } from 'sharp';
@@ -26,7 +31,8 @@ interface ResizeSpec {
 const STORED_IMAGE_EXT = '.webp';
 
 @Injectable()
-export class UploadService {
+export class UploadService implements OnModuleInit {
+  private readonly logger = new Logger(UploadService.name);
   private minioClient: MinIO.Client;
   private bucketName: string;
 
@@ -43,6 +49,45 @@ export class UploadService {
     });
     this.bucketName =
       this.configService.get('MINIO_BUCKET') || 'citewalk-images';
+  }
+
+  async onModuleInit(): Promise<void> {
+    await this.ensureBucket();
+  }
+
+  /** Ensure the MinIO bucket exists; create it if not. Safe to call repeatedly. */
+  private async ensureBucket(): Promise<void> {
+    try {
+      const exists = await this.minioClient.bucketExists(this.bucketName);
+      if (!exists) {
+        await this.minioClient.makeBucket(this.bucketName);
+        this.logger.log(`MinIO bucket "${this.bucketName}" created.`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const code = (err as { code?: string })?.code;
+      const isBucketMissing =
+        code === 'NoSuchBucket' ||
+        code === 'NotFound' ||
+        msg.includes('does not exist') ||
+        msg.includes('NoSuchBucket');
+      if (isBucketMissing) {
+        try {
+          await this.minioClient.makeBucket(this.bucketName);
+          this.logger.log(
+            `MinIO bucket "${this.bucketName}" created (after missing).`,
+          );
+        } catch (makeErr) {
+          this.logger.warn(
+            `MinIO makeBucket failed: ${makeErr instanceof Error ? makeErr.message : String(makeErr)}`,
+          );
+        }
+        return;
+      }
+      this.logger.warn(
+        `MinIO bucket "${this.bucketName}" check failed: ${msg}. Uploads may retry bucket creation.`,
+      );
+    }
   }
 
   async uploadHeaderImage(
@@ -137,13 +182,35 @@ export class UploadService {
 
     const key = `uploads/${uuidv4()}${STORED_IMAGE_EXT}`;
 
-    await this.minioClient.putObject(
-      this.bucketName,
-      key,
-      processedImage,
-      processedImage.length,
-      { 'Content-Type': 'image/webp' },
-    );
+    try {
+      await this.minioClient.putObject(
+        this.bucketName,
+        key,
+        processedImage,
+        processedImage.length,
+        { 'Content-Type': 'image/webp' },
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const code = (err as { code?: string })?.code;
+      const isBucketMissing =
+        code === 'NoSuchBucket' ||
+        code === 'NotFound' ||
+        msg.includes('does not exist') ||
+        msg.includes('NoSuchBucket');
+      if (isBucketMissing) {
+        await this.ensureBucket();
+        await this.minioClient.putObject(
+          this.bucketName,
+          key,
+          processedImage,
+          processedImage.length,
+          { 'Content-Type': 'image/webp' },
+        );
+      } else {
+        throw err;
+      }
+    }
 
     return { key, blurhash: blurhashStr };
   }

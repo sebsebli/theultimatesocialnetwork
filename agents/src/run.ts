@@ -19,6 +19,8 @@ import 'dotenv/config';
  *   npm run run -- --resume-from-db --actions 40
  *   npm run run -- --resume --personas-file ./my-personas.json
  *   npm run run -- --seed-db --agents 3 --actions 5
+ *   npm run run -- --real-personas --agents 20 --actions 30  (LLM creates N real social network personas)
+ *   npm run run -- --run-batch-size 5  (default 8; lower if API returns 503)
  *
  * With --seed-db: create agent users directly in DB (admin POST /admin/agents/seed).
  * No signup/tokenization; user is written to DB, indexed in Meilisearch, and Neo4j user node created.
@@ -35,8 +37,8 @@ import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import { createApiClient, devSignup } from './api-client.js';
 import { getAvatarImage, getPlaceholderAvatarImage } from './image-provider.js';
-import { randomCharacter, getCharacterByType } from './characters.js';
-import { createPersona } from './persona.js';
+import { randomCharacter, getCharacterByType, characterFromStoredPersona } from './characters.js';
+import { createPersona, createRealSocialPersona } from './persona.js';
 import { runAgentLoop } from './agent.js';
 import {
   loadPersonas,
@@ -56,9 +58,11 @@ function getConfig() {
   let resumeFromDb = env.CITE_AGENTS_RESUME_FROM_DB === 'true' || env.CITE_AGENTS_RESUME_FROM_DB === '1';
   let seedDb = env.CITE_AGENTS_SEED_DB === 'true' || env.CITE_AGENTS_SEED_DB === '1';
   let resumeBatchSize = parseInt(env.CITE_AGENTS_RESUME_BATCH_SIZE ?? '5', 10);
+  let runBatchSize = parseInt(env.CITE_AGENTS_RUN_BATCH_SIZE ?? '8', 10);
   let privateRatio = parseFloat(env.CITE_AGENTS_PRIVATE_RATIO ?? '0.15');
   let useOllama = env.USE_OLLAMA === 'true' || env.USE_OLLAMA === '1';
   let useGemini = env.USE_GEMINI === 'true' || env.USE_GEMINI === '1';
+  let realPersonas = env.CITE_AGENTS_REAL_PERSONAS === 'true' || env.CITE_AGENTS_REAL_PERSONAS === '1';
   let personasFile: string | undefined;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--agents' && args[i + 1]) {
@@ -78,6 +82,9 @@ function getConfig() {
     } else if (args[i] === '--resume-batch-size' && args[i + 1]) {
       resumeBatchSize = Math.max(1, parseInt(args[i + 1], 10));
       i++;
+    } else if (args[i] === '--run-batch-size' && args[i + 1]) {
+      runBatchSize = Math.max(1, parseInt(args[i + 1], 10));
+      i++;
     } else if (args[i] === '--private-ratio' && args[i + 1]) {
       privateRatio = Math.max(0, Math.min(1, parseFloat(args[i + 1])));
       i++;
@@ -88,6 +95,8 @@ function getConfig() {
       useOllama = true;
     } else if (args[i] === '--gemini') {
       useGemini = true;
+    } else if (args[i] === '--real-personas') {
+      realPersonas = true;
     }
   }
   return {
@@ -113,13 +122,43 @@ function getConfig() {
     resumeFromDb,
     seedDb,
     resumeBatchSize: Math.max(1, resumeBatchSize),
+    runBatchSize: Math.max(1, runBatchSize),
     privateRatio,
+    realPersonas,
     personasFile: personasFile ?? getPersonasFilePath(),
+    minPostsPerAgent: Math.max(0, parseInt(env.CITE_AGENTS_MIN_POSTS ?? '2', 10)),
   };
 }
 
 function randomId(): string {
   return Math.random().toString(36).slice(2, 8);
+}
+
+const API_RETRY_MAX = 4;
+const API_RETRY_BASE_MS = 2000;
+
+function isRetryableApiError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return msg.includes('503') || msg.includes('500') || msg.includes('502') || msg.includes('fetch failed');
+}
+
+async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= API_RETRY_MAX; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (attempt < API_RETRY_MAX && isRetryableApiError(e)) {
+        const delayMs = API_RETRY_BASE_MS * Math.pow(2, attempt - 1);
+        console.warn(`${label}: retry ${attempt}/${API_RETRY_MAX} in ${delayMs / 1000}s (${(e as Error).message.slice(0, 60)}...)`);
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
 }
 
 /** Run one agent from a stored persona (re-auth, then loop only). */
@@ -132,7 +171,10 @@ async function runResumedAgent(
   api: ReturnType<typeof createApiClient>,
   stored: StoredPersona,
 ): Promise<number> {
-  const character = getCharacterByType(stored.characterType);
+  const character =
+    stored.characterType === 'custom'
+      ? characterFromStoredPersona(stored.displayName, stored.bio, stored.behavior, stored.topics ?? [])
+      : getCharacterByType(stored.characterType);
   if (!character) {
     console.warn(`[${index + 1}/${total}] Unknown characterType "${stored.characterType}", skipping.`);
     return 0;
@@ -188,6 +230,7 @@ async function runResumedAgent(
         imageConfig: { pixabayApiKey: config.pixabayApiKey, pexelsApiKey: config.pexelsApiKey },
       },
       maxActions: config.actionsPerAgent,
+      minPosts: config.minPostsPerAgent,
       onAction: () => process.stdout.write('.'),
     });
   } catch (e) {
@@ -206,6 +249,7 @@ async function main() {
   console.log('  API:', config.citeApiUrl);
   console.log(`  LLM: ${provider} (${model})`);
   console.log('  Actions per agent:', config.actionsPerAgent);
+  console.log('  Min posts per agent:', config.minPostsPerAgent);
   if (config.resume) {
     console.log('  Mode: resume (load personas from file)');
     console.log('  Personas file:', config.personasFile);
@@ -213,6 +257,8 @@ async function main() {
     console.log('  Mode: resume-from-db (list agent users from API, run loops)');
   } else {
     console.log('  Agents (parallel):', config.agentsCount);
+    console.log('  Run batch size:', config.runBatchSize, '(seed/upload in batches to avoid 503)');
+    if (config.realPersonas) console.log('  Personas: LLM-created real social network personas');
     if (config.seedDb) {
       console.log('  Seed DB: yes (profiles written directly, Meilisearch + Neo4j)');
       if (config.privateRatio > 0) console.log('  Private profiles (isProtected):', Math.round(config.privateRatio * 100) + '%');
@@ -274,7 +320,9 @@ async function main() {
         console.error('Start the API (e.g. from apps/api: npm run start:dev) and try again.');
       } else if (msg.includes('404') || msg.includes('<!DOCTYPE html>')) {
         console.error('Got 404 or HTML from', config.citeApiUrl, '— wrong server or path.');
-        console.error('Set CITE_API_URL to the API base (e.g. http://localhost/api for Docker, http://localhost:3000 for local API), not the web app.');
+        console.error('Set CITE_API_URL to the API base URL (including /api):');
+        console.error('  Docker:  CITE_API_URL=http://localhost/api       (ensure stack is running: npm run deploy:dev)');
+        console.error('  Local:   CITE_API_URL=http://localhost:3000/api   (run API in apps/api first)');
       } else {
         console.error('API check failed:', msg.slice(0, 200));
       }
@@ -362,32 +410,59 @@ async function main() {
   const usedHandles = new Set<string>();
   const agentsToRun: Array<{
     index: number;
-    character: ReturnType<typeof randomCharacter>;
-    persona: Awaited<ReturnType<typeof createPersona>> & { handle: string };
+    character: import('./characters.js').CharacterDef;
+    persona: { displayName: string; handle: string; bio: string; behavior: string };
     email: string;
+    topics?: string[];
   }> = [];
 
   for (let a = 0; a < config.agentsCount; a++) {
-    const character = randomCharacter();
-    console.log(`Creating persona ${a + 1}/${config.agentsCount}: ${character.label}`);
+    if (config.realPersonas) {
+      console.log(`Creating real social persona ${a + 1}/${config.agentsCount}...`);
+      let result;
+      try {
+        result = await createRealSocialPersona(openai, gemini, model, usedHandles);
+      } catch (e) {
+        console.error('Real persona creation failed:', (e as Error).message);
+        continue;
+      }
+      let handle = result.persona.handle;
+      const available = await api.checkHandleAvailable(handle);
+      if (!available?.available) {
+        handle = result.persona.handle + '_' + randomId();
+      }
+      usedHandles.add(handle);
+      const persona = { ...result.persona, handle };
+      const email = `agent.${handle}.${randomId()}@agents.local`;
+      agentsToRun.push({
+        index: a,
+        character: result.character,
+        persona,
+        email,
+        topics: result.topics,
+      });
+    } else {
+      const character = randomCharacter();
+      console.log(`Creating persona ${a + 1}/${config.agentsCount}: ${character.label}`);
 
-    let persona;
-    try {
-      persona = await createPersona(openai, gemini, model, character, usedHandles);
-    } catch (e) {
-      console.error('Persona creation failed:', (e as Error).message);
-      continue;
-    }
+      let persona;
+      try {
+        persona = await createPersona(openai, gemini, model, character, usedHandles);
+      } catch (e) {
+        console.error('Persona creation failed:', (e as Error).message);
+        continue;
+      }
 
-    let handle = persona.handle;
-    const available = await api.checkHandleAvailable(handle);
-    if (!available?.available) {
-      handle = persona.handle + '_' + randomId();
+      let handle = persona.handle;
+      const available = await api.checkHandleAvailable(handle);
+      if (!available?.available) {
+        handle = persona.handle + '_' + randomId();
+      }
+      usedHandles.add(handle);
+      persona = { ...persona, handle };
+      const email = `agent.${handle}.${randomId()}@agents.local`;
+      agentsToRun.push({ index: a, character, persona, email });
     }
-    usedHandles.add(handle);
-    persona = { ...persona, handle };
-    const email = `agent.${handle}.${randomId()}@agents.local`;
-    agentsToRun.push({ index: a, character, persona, email });
   }
 
   if (agentsToRun.length === 0) {
@@ -395,112 +470,129 @@ async function main() {
     return;
   }
 
-  console.log(`\nRunning ${agentsToRun.length} agent(s) in parallel...\n`);
+  const runBatchSize = config.runBatchSize;
+  if (agentsToRun.length > runBatchSize) {
+    console.log(`\nRunning ${agentsToRun.length} agent(s) in batches of ${runBatchSize} (avoids API overload).\n`);
+  } else {
+    console.log(`\nRunning ${agentsToRun.length} agent(s)...\n`);
+  }
 
-  const results = await Promise.all(
-    agentsToRun.map(async ({ index, character, persona, email }) => {
-      let token: string;
-      let storedEmail: string;
-      if (config.citeAgentSecret) {
-        try {
-          const auth = await api.authViaAgentApi(email);
-          token = auth.accessToken;
-          storedEmail = (auth.user as { email?: string }).email ?? email;
-        } catch (e) {
-          console.error(`[${index + 1}] Agent API Auth failed:`, (e as Error).message);
-          return null;
-        }
-      } else if (config.seedDb) {
-        try {
-          const isProtected = Math.random() < config.privateRatio;
-          const auth = await api.seedAgent({
-            handle: persona.handle,
-            displayName: persona.displayName,
-            bio: persona.bio,
-            isProtected,
-          });
-          token = auth.accessToken;
-          storedEmail = (auth.user as { email?: string }).email ?? email;
-        } catch (e) {
-          console.error(`[${index + 1}] Seed agent failed:`, (e as Error).message);
-          return null;
-        }
-      } else {
-        try {
-          const auth = await devSignup(api, email, config.citeDevToken);
-          token = auth.accessToken;
-          storedEmail = email;
-        } catch (e) {
-          console.error(`[${index + 1}] Signup failed:`, (e as Error).message);
-          return null;
-        }
-      }
+  const results: Array<{ stored: StoredPersona; actionsDone: number } | null> = [];
 
-      // Profile image is required: Pixabay/Pexels or placeholder (can be anything).
-      let avatarKey: string | null = null;
-      const avatarQuery = character.avatarQuery ?? 'portrait';
-      try {
+  for (let offset = 0; offset < agentsToRun.length; offset += runBatchSize) {
+    const chunk = agentsToRun.slice(offset, offset + runBatchSize);
+    const batchResults = await Promise.all(
+      chunk.map(async ({ index, character, persona, email, topics }) => {
+        let token: string;
+        let storedEmail: string;
+        if (config.citeAgentSecret) {
+          try {
+            const auth = await withRetry(() => api.authViaAgentApi(email), `[${index + 1}] Agent API Auth`);
+            token = auth.accessToken;
+            storedEmail = (auth.user as { email?: string }).email ?? email;
+          } catch (e) {
+            console.error(`[${index + 1}] Agent API Auth failed:`, (e as Error).message);
+            return null;
+          }
+        } else if (config.seedDb) {
+          try {
+            const isProtected = Math.random() < config.privateRatio;
+            const auth = await withRetry(
+              () =>
+                api.seedAgent({
+                  handle: persona.handle,
+                  displayName: persona.displayName,
+                  bio: persona.bio,
+                  isProtected,
+                }),
+              `[${index + 1}] Seed agent`,
+            );
+            token = auth.accessToken;
+            storedEmail = (auth.user as { email?: string }).email ?? email;
+          } catch (e) {
+            console.error(`[${index + 1}] Seed agent failed:`, (e as Error).message);
+            return null;
+          }
+        } else {
+          try {
+            const auth = await withRetry(
+              () => devSignup(api, email, config.citeDevToken),
+              `[${index + 1}] Signup`,
+            );
+            token = auth.accessToken;
+            storedEmail = email;
+          } catch (e) {
+            console.error(`[${index + 1}] Signup failed:`, (e as Error).message);
+            return null;
+          }
+        }
+
+        const avatarQuery = character.avatarQuery ?? 'portrait';
         let avatarBuffer: Buffer | null = null;
         const avatarImg = await getAvatarImage(imageConfig, avatarQuery);
         if (avatarImg) avatarBuffer = avatarImg.buffer;
         if (!avatarBuffer) avatarBuffer = await getPlaceholderAvatarImage(persona.handle);
-        if (avatarBuffer) {
-          const up = await api.uploadProfilePicture(
-            token,
-            avatarBuffer,
-            `avatar-${persona.handle}.jpg`,
+        if (!avatarBuffer) {
+          console.error(`[${index + 1}] No profile image available (upload or placeholder failed).`);
+          return null;
+        }
+        let avatarKey: string | null = null;
+        try {
+          const up = await withRetry(
+            () => api.uploadProfilePicture(token, avatarBuffer!, `avatar-${persona.handle}.jpg`),
+            `[${index + 1}] Profile upload`,
           );
           avatarKey = up.key;
+        } catch (e) {
+          console.error(`[${index + 1}] Profile image upload failed:`, (e as Error).message);
+          return null;
         }
-      } catch (e) {
-        console.error(`[${index + 1}] Profile image upload failed:`, (e as Error).message);
-        return null;
-      }
-      if (!avatarKey) {
-        console.error(`[${index + 1}] No profile image available (upload or placeholder failed).`);
-        return null;
-      }
 
-      try {
-        await api.updateMe(token, {
-          ...(config.seedDb ? {} : { handle: persona.handle, displayName: persona.displayName, bio: persona.bio }),
-          avatarKey,
-        });
-      } catch (e) {
-        console.error(`[${index + 1}] Profile update failed:`, (e as Error).message);
-        return null;
-      }
+        try {
+          await withRetry(
+            () =>
+              api.updateMe(token, {
+                ...(config.seedDb ? {} : { handle: persona.handle, displayName: persona.displayName, bio: persona.bio }),
+                avatarKey,
+              }),
+            `[${index + 1}] Profile update`,
+          );
+        } catch (e) {
+          console.error(`[${index + 1}] Profile update failed:`, (e as Error).message);
+          return null;
+        }
 
-      console.log(`[${index + 1}/${agentsToRun.length}] ${persona.displayName} (@${persona.handle}) — ${config.actionsPerAgent} actions...`);
-      let actionsDone = 0;
-      try {
-        actionsDone = await runAgentLoop({
-          openai,
-          gemini,
-          model,
-          api,
-          ctx: {
-            token,
-            handle: persona.handle,
-            displayName: persona.displayName,
-            character,
-            persona: {
-              displayName: persona.displayName,
+        console.log(`[${index + 1}/${agentsToRun.length}] ${persona.displayName} (@${persona.handle}) — ${config.actionsPerAgent} actions...`);
+        let actionsDone = 0;
+        try {
+          actionsDone = await runAgentLoop({
+            openai,
+            gemini,
+            model,
+            api,
+            ctx: {
+              token,
               handle: persona.handle,
-              bio: persona.bio,
-              behavior: persona.behavior,
+              displayName: persona.displayName,
+              character,
+              persona: {
+                displayName: persona.displayName,
+                handle: persona.handle,
+                bio: persona.bio,
+                behavior: persona.behavior,
+              },
+              imageConfig,
             },
-            imageConfig,
-          },
-          maxActions: config.actionsPerAgent, onAction: () => process.stdout.write('.'),
-        });
-      } catch (e) {
-        console.error(`[${index + 1}] Agent loop error:`, (e as Error).message);
-      }
-      console.log(` [${index + 1}/${agentsToRun.length}] Done. Actions: ${actionsDone}`);
+            maxActions: config.actionsPerAgent,
+            minPosts: config.minPostsPerAgent,
+            onAction: () => process.stdout.write('.'),
+          });
+        } catch (e) {
+          console.error(`[${index + 1}] Agent loop error:`, (e as Error).message);
+        }
+        console.log(` [${index + 1}/${agentsToRun.length}] Done. Actions: ${actionsDone}`);
 
-      return {
-        stored: {
+        const storedPersona: StoredPersona = {
           characterType: character.type,
           displayName: persona.displayName,
           handle: persona.handle,
@@ -508,11 +600,35 @@ async function main() {
           behavior: persona.behavior,
           email: storedEmail,
           createdAt: new Date().toISOString(),
-        } satisfies StoredPersona,
-        actionsDone,
-      };
-    }),
-  );
+        };
+        if (topics?.length) storedPersona.topics = topics;
+        return { stored: storedPersona, actionsDone };
+      }),
+    );
+    results.push(...batchResults);
+
+    // Save personas after each batch so progress isn't lost if the run is interrupted
+    if (config.save) {
+      const succeededSoFar = results.filter((r): r is NonNullable<typeof r> => r != null);
+      if (succeededSoFar.length > 0) {
+        const newPersonas = succeededSoFar.map((r) => r.stored);
+        const existing = await loadPersonas(config.personasFile);
+        const byHandle = new Map<string, StoredPersona>();
+        for (const p of existing) byHandle.set(p.handle, p);
+        for (const p of newPersonas) byHandle.set(p.handle, p);
+        const merged = Array.from(byHandle.values());
+        await savePersonas(config.personasFile, merged);
+        const batchEnd = Math.min(offset + runBatchSize, agentsToRun.length);
+        if (batchEnd < agentsToRun.length) {
+          console.log(`\nSaved ${merged.length} persona(s) to ${config.personasFile} (${batchEnd}/${agentsToRun.length} agents done so far).`);
+        }
+      }
+    }
+
+    if (offset + runBatchSize < agentsToRun.length) {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
 
   const succeeded = results.filter((r): r is NonNullable<typeof r> => r != null);
   if (config.save && succeeded.length > 0) {
