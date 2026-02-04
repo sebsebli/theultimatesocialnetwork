@@ -23,7 +23,7 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
 function ExplorePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const activeTab = searchParams.get("tab") || "quoted";
+  const activeTab = searchParams.get("tab") || "trending";
   const currentSort = searchParams.get("sort") || "recommended";
 
   const isActive = (tab: string) => activeTab === tab;
@@ -37,6 +37,8 @@ function ExplorePageContent() {
   };
 
   const tabs: { id: string; label: string }[] = [
+    { id: "trending", label: "Trending" },
+    { id: "newest", label: "Latest" },
     { id: "quoted", label: "Quoted Now" },
     { id: "deep-dives", label: "Deep Dives" },
     { id: "newsroom", label: "Newsroom" },
