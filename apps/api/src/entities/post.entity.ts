@@ -27,13 +27,13 @@ export class Post {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'author_id', type: 'uuid' })
+  @Column({ name: 'author_id', type: 'uuid', nullable: true })
   @Index() // FK lookup
-  authorId: string;
+  authorId: string | null;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'author_id' })
-  author: User;
+  author: User | null;
 
   @Column({
     type: 'enum',

@@ -23,6 +23,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { api, getImageUrl, getAvatarUri } from "../../utils/api";
 import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/auth";
+import { useSettings } from "../../context/SettingsContext";
 import { useComposerSearch } from "../../hooks/useComposerSearch";
 import { MarkdownText } from "../../components/MarkdownText";
 import { PostItem } from "../../components/PostItem";
@@ -266,6 +267,8 @@ export default function ComposeScreen() {
     setQuery: setSuggestionQuery,
     setType: setSuggestionType,
   } = useComposerSearch();
+  
+  const { smartCiteEnabled } = useSettings();
 
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -707,7 +710,8 @@ export default function ComposeScreen() {
         return;
       }
       if (suggestionType !== "topic") setSuggestionType("topic");
-      search(query, "topic");
+      // @ts-ignore - Argument count mismatch until hook is updated
+      search(query, "topic", smartCiteEnabled);
       return;
     }
 

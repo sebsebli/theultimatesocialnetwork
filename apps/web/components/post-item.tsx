@@ -10,6 +10,8 @@ import { getPostDisplayTitle } from "@/utils/compose-helpers";
 import { Avatar } from "./avatar";
 import { OverflowMenu } from "./overflow-menu";
 import { AddToCollectionModal } from "./add-to-collection-modal";
+import { ReportModal } from "./report-modal";
+import { ShareModal } from "./share-modal";
 import { useToast } from "./ui/toast";
 
 export interface Post {
@@ -59,6 +61,8 @@ function PostItemInner({
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [kept, setKept] = useState(post.isKept ?? false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     setLiked(post.isLiked ?? false);
@@ -547,13 +551,7 @@ function PostItemInner({
             type="button"
             onClick={(e) => {
               e.preventDefault();
-              const url = `${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`;
-              navigator.clipboard?.writeText(url);
-              if (navigator.share) {
-                navigator
-                  .share({ url, title: post.title ?? "Post" })
-                  .catch(() => {});
-              }
+              setShowShareModal(true);
             }}
             aria-label="Share post"
             className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -577,6 +575,7 @@ function PostItemInner({
           postId={post.id}
           userId={post.author.handle}
           isAuthor={isAuthor}
+          onReport={() => setShowReportModal(true)}
           onCopyLink={
             !post.author?.isProtected
               ? () => {
@@ -592,6 +591,19 @@ function PostItemInner({
         postId={post.id}
         isOpen={showCollectionModal}
         onClose={() => setShowCollectionModal(false)}
+      />
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetId={post.id}
+        targetType="POST"
+      />
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        url={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`}
+        title={post.title || undefined}
+        authorIsProtected={post.author?.isProtected}
       />
     </article>
   );

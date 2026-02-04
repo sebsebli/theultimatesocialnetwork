@@ -12,7 +12,11 @@ import { Avatar } from "./avatar";
 import { ReplySection } from "./reply-section";
 import { SourcesSection } from "./sources-section";
 import { ReferencedBySection } from "./referenced-by-section";
+import { GraphView } from "./graph-view";
 import { OverflowMenu } from "./overflow-menu";
+import { AddToCollectionModal } from "./add-to-collection-modal";
+import { ReportModal } from "./report-modal";
+import { ShareModal } from "./share-modal";
 import { PublicSignInBar } from "./public-sign-in-bar";
 import { useAuth } from "./auth-provider";
 
@@ -51,6 +55,9 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
   const { user } = useAuth();
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
+  const [showAddToCollection, setShowAddToCollection] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
 
   const isAuthor = !!user && user.id === post.author.id;
@@ -68,7 +75,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
   useEffect(() => {
     // Track view on mount
     if (!isPublic) {
-      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => {});
+      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => { });
     }
 
     // Track read time on unmount
@@ -81,7 +88,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ duration }),
           keepalive: true, // Ensure request sends even if navigating away
-        }).catch(() => {});
+        }).catch(() => { });
       }
     };
   }, [post.id, isPublic]);
@@ -148,21 +155,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/post/${post.id}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: post.title || "Post on Citewalk",
-          text: `Check out this post by @${post.author.handle}`,
-          url,
-        });
-      } catch {
-        // ignore
-      }
-    } else {
-      navigator.clipboard.writeText(url);
-      toastSuccess("Link copied to clipboard");
-    }
+    setShowShareModal(true);
   };
 
   const showPrivateContent = post.viewerCanSeeContent !== false;
@@ -260,13 +253,14 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
             postId={post.id}
             userId={post.author.id}
             isAuthor={isAuthor}
+            onReport={() => setShowReportModal(true)}
             onCopyLink={
               !post.author?.isProtected
                 ? () => {
-                    const url = `${window.location.origin}/post/${post.id}`;
-                    navigator.clipboard.writeText(url);
-                    toastSuccess("Link copied to clipboard");
-                  }
+                  const url = `${window.location.origin}/post/${post.id}`;
+                  navigator.clipboard.writeText(url);
+                  toastSuccess("Link copied to clipboard");
+                }
                 : undefined
             }
           />
@@ -312,7 +306,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
         {/* Body */}
         <div className="mb-6">
           {!showPrivateContent ? (
-            <div className="min-h-[200px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center py-12">
+            <div className="min-h-[200px] rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center py-12 px-4">
               <div className="flex flex-col items-center gap-3 text-tertiary">
                 <svg
                   className="w-12 h-12"
@@ -331,10 +325,33 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
                 <p className="text-paper font-medium">
                   This post is only visible to followers
                 </p>
-                <p className="text-sm text-secondary">
+                <p className="text-sm text-secondary text-center">
                   Follow the author to see the full content.
                 </p>
               </div>
+              <Link
+                href={`/user/${post.author.handle}`}
+                className="mt-6 flex items-center gap-3 w-full max-w-md p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+              >
+                <Avatar
+                  avatarKey={post.author.avatarKey}
+                  avatarUrl={post.author.avatarUrl}
+                  displayName={post.author.displayName}
+                  handle={post.author.handle}
+                  size="md"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-paper truncate">
+                    {post.author.displayName}
+                  </p>
+                  <p className="text-sm text-tertiary truncate">
+                    @{post.author.handle}
+                  </p>
+                </div>
+                <span className="text-sm font-semibold text-primary shrink-0">
+                  Follow
+                </span>
+              </Link>
             </div>
           ) : (
             <>
@@ -396,18 +413,37 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
               href={`/post/${post.id}/quotes`}
               className="hover:text-primary transition-colors"
             >
-              {post.quoteCount} quotes
+              {post.quoteCount} cites
             </Link>
           ) : (
-            <span>{post.quoteCount} quotes</span>
+            <span>{post.quoteCount} cites</span>
           )}
           {post.privateLikeCount && post.privateLikeCount > 0 && (
             <span>{post.privateLikeCount} likes</span>
           )}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-divider">
+        {/* Actions — order matches mobile: Read, Reply, Quote, Like, Keep, Add, Share */}
+        <div className="flex items-center justify-between pt-4 border-t border-divider flex-wrap gap-2">
+          <Link
+            href={`/post/${post.id}/reading`}
+            className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
+            </svg>
+            <span className="text-sm">{t("readArticle")}</span>
+          </Link>
           <button
             onClick={handleLike}
             className={`flex items-center gap-2 hover:text-primary transition-colors ${liked ? "text-red-500" : "text-tertiary"}`}
@@ -520,12 +556,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
           <button
             onClick={() => {
               if (isPublic) window.location.href = "/sign-in";
-              // Add logic if we had the modal state here, but PostDetail doesn't seem to have AddToCollectionModal state?
-              // Ah, PostDetail doesn't have the modal imported or state.
-              // Let's just redirect for now or implement if needed.
-              // PostItem has it. PostDetail might need it.
-              // For now, if public -> sign in. If private -> do nothing (missing feature in PostDetail? or I missed it).
-              // I'll leave it as "Add" button that redirects if public.
+              else setShowAddToCollection(true);
             }}
             className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
           >
@@ -568,11 +599,13 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
         </div>
       </article>
 
-      {/* Sections: Sources -> ReferencedBy -> Replies (Mobile Order). Hide Sources when content is private. */}
+      {/* Sections: Sources -> Graph -> ReferencedBy -> Replies (Mobile Order). Hide Sources when content is private. */}
       <div className={`px-5 py-6 space-y-8 ${isPublic ? "pb-24" : ""}`}>
         {showPrivateContent && (
           <SourcesSection postId={post.id} postBody={post.body} />
         )}
+
+        <GraphView postId={post.id} />
 
         {/* Referenced by — only when post has been quoted */}
         {(post.quoteCount ?? 0) > 0 && (
@@ -595,6 +628,25 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
       {isPublic && (
         <PublicSignInBar message="Sign in to like, reply, and comment" />
       )}
+
+      <AddToCollectionModal
+        postId={post.id}
+        isOpen={showAddToCollection}
+        onClose={() => setShowAddToCollection(false)}
+      />
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetId={post.id}
+        targetType="POST"
+      />
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        url={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`}
+        title={post.title || undefined}
+        authorIsProtected={post.author?.isProtected}
+      />
     </div>
   );
 }

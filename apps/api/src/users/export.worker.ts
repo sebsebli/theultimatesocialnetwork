@@ -149,6 +149,21 @@ export class ExportWorker
       archive.append(JSON.stringify(data.collections, null, 2), {
         name: 'collections.json',
       });
+      if (data.blocks) {
+        archive.append(JSON.stringify(data.blocks, null, 2), {
+          name: 'blocks.json',
+        });
+      }
+      if (data.mutes) {
+        archive.append(JSON.stringify(data.mutes, null, 2), {
+          name: 'mutes.json',
+        });
+      }
+      if (data.directMessages) {
+        archive.append(JSON.stringify(data.directMessages, null, 2), {
+          name: 'direct-messages.json',
+        });
+      }
       if (data.notificationPrefs) {
         archive.append(JSON.stringify(data.notificationPrefs, null, 2), {
           name: 'notification-prefs.json',

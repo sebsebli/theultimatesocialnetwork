@@ -32,6 +32,7 @@ import 'dotenv/config';
  */
 
 import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 import { createApiClient, devSignup } from './api-client.js';
 import { getAvatarImage, getPlaceholderAvatarImage } from './image-provider.js';
 import { randomCharacter, getCharacterByType } from './characters.js';
@@ -57,6 +58,7 @@ function getConfig() {
   let resumeBatchSize = parseInt(env.CITE_AGENTS_RESUME_BATCH_SIZE ?? '5', 10);
   let privateRatio = parseFloat(env.CITE_AGENTS_PRIVATE_RATIO ?? '0.15');
   let useOllama = env.USE_OLLAMA === 'true' || env.USE_OLLAMA === '1';
+  let useGemini = env.USE_GEMINI === 'true' || env.USE_GEMINI === '1';
   let personasFile: string | undefined;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--agents' && args[i + 1]) {
@@ -84,18 +86,24 @@ function getConfig() {
       i++;
     } else if (args[i] === '--ollama') {
       useOllama = true;
+    } else if (args[i] === '--gemini') {
+      useGemini = true;
     }
   }
   return {
     citeApiUrl: env.CITE_API_URL ?? 'http://localhost/api',
     citeAdminSecret: env.CITE_ADMIN_SECRET ?? 'dev-admin-change-me',
     citeDevToken: env.CITE_DEV_TOKEN ?? '123456',
+    citeAgentSecret: env.CITE_AGENT_SECRET,
     disableBeta: env.CITE_DISABLE_BETA === 'true' || env.CITE_DISABLE_BETA === '1',
     openaiApiKey: env.OPENAI_API_KEY ?? '',
     openaiModel: env.OPENAI_MODEL ?? 'gpt-4o-mini',
     useOllama,
     ollamaModel: env.OLLAMA_MODEL ?? 'granite4:latest',
     ollamaBaseUrl: (env.OLLAMA_BASE_URL ?? 'http://localhost:11434').replace(/\/$/, ''),
+    useGemini,
+    geminiApiKey: env.GEMINI_API_KEY ?? '',
+    geminiModel: env.GEMINI_MODEL ?? 'gemini-2.0-flash',
     pixabayApiKey: env.PIXABAY_API_KEY,
     pexelsApiKey: env.PEXELS_API_KEY,
     agentsCount: Math.max(1, agentsCount),
@@ -119,7 +127,8 @@ async function runResumedAgent(
   index: number,
   total: number,
   config: ReturnType<typeof getConfig>,
-  openai: OpenAI,
+  openai: OpenAI | undefined,
+  gemini: GoogleGenAI | undefined,
   api: ReturnType<typeof createApiClient>,
   stored: StoredPersona,
 ): Promise<number> {
@@ -131,7 +140,10 @@ async function runResumedAgent(
 
   let token: string;
   try {
-    if (config.citeAdminSecret) {
+    if (config.citeAgentSecret) {
+      const auth = await api.authViaAgentApi(stored.email);
+      token = auth.accessToken;
+    } else if (config.citeAdminSecret) {
       try {
         const auth = await api.getAgentToken(stored.email);
         token = auth.accessToken;
@@ -153,12 +165,13 @@ async function runResumedAgent(
     return 0;
   }
 
-  const model = config.useOllama ? config.ollamaModel : config.openaiModel;
+  const model = config.useGemini ? config.geminiModel : (config.useOllama ? config.ollamaModel : config.openaiModel);
   console.log(`[${index + 1}/${total}] Resumed ${stored.displayName} (@${stored.handle}) — ${config.actionsPerAgent} actions...`);
   let actionsDone = 0;
   try {
     actionsDone = await runAgentLoop({
       openai,
+      gemini,
       model,
       api,
       ctx: {
@@ -172,6 +185,7 @@ async function runResumedAgent(
           bio: stored.bio,
           behavior: stored.behavior,
         },
+        imageConfig: { pixabayApiKey: config.pixabayApiKey, pexelsApiKey: config.pexelsApiKey },
       },
       maxActions: config.actionsPerAgent,
       onAction: () => process.stdout.write('.'),
@@ -185,8 +199,8 @@ async function runResumedAgent(
 
 async function main() {
   const config = getConfig();
-  const model = config.useOllama ? config.ollamaModel : config.openaiModel;
-  const provider = config.useOllama ? 'Ollama' : 'OpenAI';
+  const model = config.useGemini ? config.geminiModel : (config.useOllama ? config.ollamaModel : config.openaiModel);
+  const provider = config.useGemini ? 'Gemini' : (config.useOllama ? 'Ollama' : 'OpenAI');
 
   console.log('Cite Agents Runner');
   console.log('  API:', config.citeApiUrl);
@@ -205,8 +219,12 @@ async function main() {
     }
     if (config.save) console.log('  Save personas: yes');
   }
-  if (!config.useOllama && !config.openaiApiKey) {
-    console.error('OPENAI_API_KEY is required (or use --ollama for local Ollama).');
+  if (!config.useOllama && !config.useGemini && !config.openaiApiKey) {
+    console.error('OPENAI_API_KEY is required (or use --ollama or --gemini).');
+    process.exit(1);
+  }
+  if (config.useGemini && !config.geminiApiKey) {
+    console.error('GEMINI_API_KEY is required when using --gemini.');
     process.exit(1);
   }
   if (config.seedDb && !config.citeAdminSecret) {
@@ -222,12 +240,17 @@ async function main() {
       baseURL: `${config.ollamaBaseUrl}/v1`,
       apiKey: 'ollama',
     })
-    : new OpenAI({ apiKey: config.openaiApiKey });
+    : (config.openaiApiKey ? new OpenAI({ apiKey: config.openaiApiKey }) : undefined);
+
+  const gemini = config.useGemini
+    ? new GoogleGenAI({ apiKey: config.geminiApiKey })
+    : undefined;
 
   const api = createApiClient({
     baseUrl: config.citeApiUrl,
     adminKey: config.citeAdminSecret,
     devToken: config.citeDevToken,
+    agentSecret: config.citeAgentSecret,
   });
 
   const maxApiRetries = 5;
@@ -301,7 +324,7 @@ async function main() {
       const chunk = storedPersonas.slice(offset, offset + batchSize);
       await Promise.all(
         chunk.map((stored, j) =>
-          runResumedAgent(offset + j, storedPersonas.length, config, openai, api, stored),
+          runResumedAgent(offset + j, storedPersonas.length, config, openai, gemini, api, stored),
         ),
       );
       if (offset + batchSize < storedPersonas.length) {
@@ -324,7 +347,7 @@ async function main() {
       const chunk = personas.slice(offset, offset + batchSize);
       await Promise.all(
         chunk.map((stored, j) =>
-          runResumedAgent(offset + j, personas.length, config, openai, api, stored),
+          runResumedAgent(offset + j, personas.length, config, openai, gemini, api, stored),
         ),
       );
       if (offset + batchSize < personas.length) {
@@ -350,7 +373,7 @@ async function main() {
 
     let persona;
     try {
-      persona = await createPersona(openai, model, character, usedHandles);
+      persona = await createPersona(openai, gemini, model, character, usedHandles);
     } catch (e) {
       console.error('Persona creation failed:', (e as Error).message);
       continue;
@@ -378,7 +401,16 @@ async function main() {
     agentsToRun.map(async ({ index, character, persona, email }) => {
       let token: string;
       let storedEmail: string;
-      if (config.seedDb) {
+      if (config.citeAgentSecret) {
+        try {
+          const auth = await api.authViaAgentApi(email);
+          token = auth.accessToken;
+          storedEmail = (auth.user as { email?: string }).email ?? email;
+        } catch (e) {
+          console.error(`[${index + 1}] Agent API Auth failed:`, (e as Error).message);
+          return null;
+        }
+      } else if (config.seedDb) {
         try {
           const isProtected = Math.random() < config.privateRatio;
           const auth = await api.seedAgent({
@@ -444,6 +476,7 @@ async function main() {
       try {
         actionsDone = await runAgentLoop({
           openai,
+          gemini,
           model,
           api,
           ctx: {
@@ -457,9 +490,9 @@ async function main() {
               bio: persona.bio,
               behavior: persona.behavior,
             },
+            imageConfig,
           },
-          maxActions: config.actionsPerAgent,
-          onAction: () => process.stdout.write('.'),
+          maxActions: config.actionsPerAgent, onAction: () => process.stdout.write('.'),
         });
       } catch (e) {
         console.error(`[${index + 1}] Agent loop error:`, (e as Error).message);

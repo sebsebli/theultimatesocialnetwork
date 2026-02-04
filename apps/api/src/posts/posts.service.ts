@@ -51,6 +51,7 @@ export class PostsService {
     userId: string,
     dto: CreatePostDto,
     skipQueue = false,
+    skipSafety = false,
   ): Promise<Post> {
     // Sanitize HTML in body
     const { default: DOMPurify } = await import('isomorphic-dompurify');
@@ -61,16 +62,18 @@ export class PostsService {
     });
 
     // AI Safety Check (Fast Stage 1 only)
-    const safety = await this.safetyService.checkContent(
-      sanitizedBody,
-      userId,
-      'post',
-      { onlyFast: true },
-    );
-    if (!safety.safe) {
-      throw new BadRequestException(
-        safety.reason || 'Content flagged by safety check',
+    if (!skipSafety) {
+      const safety = await this.safetyService.checkContent(
+        sanitizedBody,
+        userId,
+        'post',
+        { onlyFast: true },
       );
+      if (!safety.safe) {
+        throw new BadRequestException(
+          safety.reason || 'Content flagged by safety check',
+        );
+      }
     }
 
     // Rate Limit: Topic References (Anti-Spam)
@@ -176,7 +179,7 @@ export class PostsService {
             replyCount: true,
             readingTimeMinutes: true,
             status: true,
-            author: { id: true, handle: true, displayName: true },
+            author: { id: true, handle: true, displayName: true, isProtected: true },
           },
         })
         .then((post) => {
@@ -186,13 +189,14 @@ export class PostsService {
             id: post.id,
             title: post.title,
             body: post.body,
-            authorId: post.authorId,
+            authorId: post.authorId || '',
             author: post.author
               ? {
                   displayName: post.author.displayName ?? post.author.handle,
                   handle: post.author.handle,
                 }
               : undefined,
+            authorProtected: post.author?.isProtected,
             lang: post.lang,
             createdAt: post.createdAt,
             quoteCount: post.quoteCount,
@@ -265,44 +269,44 @@ export class PostsService {
           .findOne({
             where: { id: savedPost.id },
             relations: ['author', 'postTopics'],
-            select: {
-              id: true,
-              title: true,
-              body: true,
-              authorId: true,
-              lang: true,
-              createdAt: true,
-              quoteCount: true,
-              replyCount: true,
-              readingTimeMinutes: true,
-              status: true,
-              author: { id: true, handle: true, displayName: true },
-            },
-          })
-          .then((post) => {
-            if (!post) return;
-            const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
-            return this.meilisearch.indexPost({
-              id: post.id,
-              title: post.title,
-              body: post.body,
-              authorId: post.authorId,
-              author: post.author
-                ? {
-                    displayName: post.author.displayName ?? post.author.handle,
-                    handle: post.author.handle,
-                  }
-                : undefined,
-              lang: post.lang,
-              createdAt: post.createdAt,
-              quoteCount: post.quoteCount,
-              replyCount: post.replyCount,
-              readingTimeMinutes: post.readingTimeMinutes,
-              topicIds,
-              status: post.status,
-            });
-          })
-          .catch((err) =>
+                      select: {
+                        id: true,
+                        title: true,
+                        body: true,
+                        authorId: true,
+                        lang: true,
+                        createdAt: true,
+                        quoteCount: true,
+                        replyCount: true,
+                        readingTimeMinutes: true,
+                        status: true,
+                        author: { id: true, handle: true, displayName: true, isProtected: true },
+                      },
+                    })
+                    .then((post) => {
+                      if (!post) return;
+                      const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
+                      return this.meilisearch.indexPost({
+                        id: post.id,
+                        title: post.title,
+                        body: post.body,
+                        authorId: post.authorId || '',
+                        author: post.author
+                          ? {
+                              displayName: post.author.displayName ?? post.author.handle,
+                              handle: post.author.handle,
+                            }
+                          : undefined,
+                        authorProtected: post.author?.isProtected,
+                        lang: post.lang,
+                        createdAt: post.createdAt,
+                        quoteCount: post.quoteCount,
+                        replyCount: post.replyCount,
+                        readingTimeMinutes: post.readingTimeMinutes,
+                        topicIds,
+                        status: post.status,
+                      });
+                    })          .catch((err) =>
             this.logger.warn(
               'Immediate post index on publish failed (worker will index)',
               err,
@@ -473,32 +477,58 @@ export class PostsService {
     // Visibility is from the author's profile only: public profile → all posts visible; protected profile → only followers (and self)
     const authorProtected =
       (post.author as User | undefined)?.isProtected === true;
-    if (!authorProtected) return post;
+    
+    if (authorProtected) {
+      let hasAccess = false;
+      if (viewerId) {
+        if (post.authorId === viewerId) {
+          hasAccess = true;
+        } else {
+          const isFollowing = await this.dataSource.query(
+            `SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = $2`,
+            [viewerId, post.authorId],
+          );
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          hasAccess = isFollowing.length > 0;
+        }
+      }
 
-    if (!viewerId) throw new NotFoundException('Post not found');
-    if (post.authorId === viewerId) return post;
+      if (!hasAccess) {
+        // Return Private Stub
+        const stub = { ...post } as Post & { isPrivateStub?: boolean };
+        stub.body = '';
+        stub.title = null;
+        stub.headerImageKey = null;
+        stub.headerImageBlurhash = null;
+        stub.isPrivateStub = true;
+        return stub;
+      }
+    }
 
-    const isFollowing = await this.dataSource.query(
-      `SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = $2`,
-      [viewerId, post.authorId],
-    );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (isFollowing.length > 0) return post;
-    throw new NotFoundException('Post not found');
+    return post;
   }
 
   /** Return id -> { title?, deletedAt? } for linked post display (e.g. [[post:id]]). Includes soft-deleted posts so clients can show "(deleted content)" when no alias. Keys normalized to lowercase. */
   async getTitlesForPostIds(
     ids: string[],
-  ): Promise<Record<string, { title?: string; deletedAt?: string }>> {
+  ): Promise<Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>> {
     if (ids.length === 0) return {};
     const unique = Array.from(new Set(ids));
     const posts = await this.postRepo.find({
       where: unique.map((id) => ({ id })),
-      select: ['id', 'title', 'deletedAt'],
+      select: {
+        id: true,
+        title: true,
+        deletedAt: true,
+        author: {
+          id: true,
+          isProtected: true,
+        }
+      },
+      relations: ['author'],
       withDeleted: true,
     });
-    const out: Record<string, { title?: string; deletedAt?: string }> = {};
+    const out: Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }> = {};
     for (const p of posts) {
       const key = (p.id ?? '').toLowerCase();
       if (key) {
@@ -508,6 +538,7 @@ export class PostsService {
             p.deletedAt != null
               ? new Date(p.deletedAt).toISOString()
               : undefined,
+          isProtected: p.author?.isProtected === true ? true : undefined,
         };
       }
     }
@@ -553,7 +584,7 @@ export class PostsService {
       id: p.id,
       title: p.title ?? undefined,
       headerImageKey: p.headerImageKey ?? null,
-      authorAvatarKey: authorMap.get(p.authorId) ?? null,
+      authorAvatarKey: p.authorId ? (authorMap.get(p.authorId) ?? null) : null,
     }));
 
     if (uniqueSlugs.length === 0) {
@@ -667,7 +698,7 @@ export class PostsService {
             id: quotedUpdated.id,
             title: quotedUpdated.title,
             body: quotedUpdated.body,
-            authorId: quotedUpdated.authorId,
+            authorId: quotedUpdated.authorId || '',
             author: quotedUpdated.author
               ? {
                   displayName:
@@ -676,6 +707,7 @@ export class PostsService {
                   handle: quotedUpdated.author.handle,
                 }
               : undefined,
+            authorProtected: quotedUpdated.author?.isProtected,
             lang: quotedUpdated.lang,
             createdAt: quotedUpdated.createdAt,
             quoteCount: quotedUpdated.quoteCount,
@@ -839,4 +871,159 @@ export class PostsService {
       .map((edge) => edge.fromPost)
       .filter((post): post is Post => post !== null);
   }
+
+  async getGraph(postId: string) {
+    // 1. Center Node
+    const centerPost = await this.postRepo.findOne({
+      where: { id: postId },
+      relations: ['author'],
+      select: ['id', 'title', 'headerImageKey', 'authorId'],
+    });
+    if (!centerPost) throw new NotFoundException('Post not found');
+
+    const nodes = new Map<string, any>();
+    const edges: Array<{ source: string; target: string; type: string }> = [];
+
+    const addNode = (id: string, type: string, data: any) => {
+      if (!nodes.has(id)) {
+        nodes.set(id, { id, type, ...data });
+      }
+    };
+
+    // Add Center
+    addNode(centerPost.id, 'post', {
+      label: centerPost.title || 'Post',
+      image: centerPost.headerImageKey,
+      author: centerPost.author?.handle,
+      isCenter: true,
+    });
+
+    // 2. L1 Outgoing (Sources)
+    // We re-use getSources logic but optimized for graph (ids only mostly)
+    const sources = await this.getSources(postId);
+    const l1PostIds: string[] = [];
+
+    for (const source of sources) {
+      const s = source as any;
+      addNode(s.id, s.type, {
+        label: s.title || s.handle || s.slug || 'Source',
+        image: s.headerImageKey || s.avatarKey || s.imageKey || s.imageUrl,
+        url: s.url, // for external
+      });
+      edges.push({ source: postId, target: s.id, type: 'cites' });
+      if (s.type === 'post') l1PostIds.push(s.id);
+    }
+
+    // 3. L1 Incoming (Citations/Referenced By)
+    // We limit to 20 to avoid explosion
+    const incomingEdges = await this.dataSource.getRepository(PostEdge).find({
+      where: [
+        { toPostId: postId, edgeType: EdgeType.LINK },
+        { toPostId: postId, edgeType: EdgeType.QUOTE },
+      ],
+      relations: ['fromPost', 'fromPost.author'],
+      take: 20,
+      order: { createdAt: 'DESC' },
+    });
+
+    for (const edge of incomingEdges) {
+      if (!edge.fromPost || edge.fromPost.deletedAt) continue;
+      const p = edge.fromPost;
+      addNode(p.id, 'post', {
+        label: p.title || 'Post',
+        image: p.headerImageKey,
+        author: p.author?.handle,
+      });
+      edges.push({ source: p.id, target: postId, type: edge.edgeType.toLowerCase() }); // 'link' or 'quote'
+      l1PostIds.push(p.id);
+    }
+
+    // 3b. Co-Citations (Other posts linking to the same external URLs)
+    const externalUrls = sources
+      .filter((s: any) => s.type === 'external' && s.url)
+      .map((s: any) => s.url);
+
+    if (externalUrls.length > 0) {
+      const coCitations = await this.externalSourceRepo
+        .createQueryBuilder('source')
+        .innerJoinAndSelect('source.post', 'post')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('source.url IN (:...urls)', { urls: externalUrls })
+        .andWhere('source.post_id != :postId', { postId })
+        .andWhere('post.deleted_at IS NULL')
+        .orderBy('post.created_at', 'DESC')
+        .take(50)
+        .getMany();
+
+      const coCitesPerUrl = new Map<string, number>();
+      
+      for (const coCite of coCitations) {
+        if (!coCite.post) continue;
+        const currentCount = coCitesPerUrl.get(coCite.url) || 0;
+        if (currentCount >= 3) continue; // Limit 3 other posts per URL
+        coCitesPerUrl.set(coCite.url, currentCount + 1);
+
+        addNode(coCite.post.id, 'post', {
+          label: coCite.post.title || 'Post',
+          image: coCite.post.headerImageKey,
+          author: coCite.post.author?.handle,
+          isL2: true, // Treat as L2 (indirect connection via URL)
+        });
+
+        edges.push({ 
+          source: coCite.post.id, 
+          target: coCite.url, 
+          type: 'cites_url' 
+        });
+      }
+    }
+
+    // 4. L2 Connections (Neighbors of L1 Posts)
+    // We only look for *outgoing* from the L1 posts to show what *they* cite.
+    // Showing what cites them might get too noisy.
+    // We limit to 5 per L1 post to keep it readable.
+    if (l1PostIds.length > 0) {
+      const uniqueL1Ids = [...new Set(l1PostIds)];
+      
+      // Bulk fetch edges from these L1 posts
+      // This might return many, so we use a window function or just fetch and filter in JS (easier for small N)
+      // Actually, let's just fetch all edges from these posts, limited to e.g. 200 total
+      const l2Edges = await this.dataSource.getRepository(PostEdge).createQueryBuilder('edge')
+        .leftJoinAndSelect('edge.toPost', 'toPost')
+        .where('edge.fromPostId IN (:...ids)', { ids: uniqueL1Ids })
+        .andWhere('edge.edgeType IN (:...types)', { types: [EdgeType.LINK, EdgeType.QUOTE] })
+        .limit(200) 
+        .getMany();
+
+      const edgesPerPost = new Map<string, number>();
+      
+      for (const edge of l2Edges) {
+        if (!edge.toPost || edge.toPostId === postId) continue; // Don't point back to center (already handled)
+        
+        const currentCount = edgesPerPost.get(edge.fromPostId) || 0;
+        if (currentCount >= 5) continue; // Limit 5 edges per L1 node
+        
+        edgesPerPost.set(edge.fromPostId, currentCount + 1);
+
+        // Add L2 Node (lightweight)
+        addNode(edge.toPostId, 'post', {
+          label: edge.toPost.title || 'Post',
+          isL2: true, // Marker for UI to render smaller
+        });
+
+        edges.push({ 
+          source: edge.fromPostId, 
+          target: edge.toPostId, 
+          type: edge.edgeType.toLowerCase() 
+        });
+      }
+    }
+
+    return {
+      centerId: postId,
+      nodes: Array.from(nodes.values()),
+      edges,
+    };
+  }
 }
+

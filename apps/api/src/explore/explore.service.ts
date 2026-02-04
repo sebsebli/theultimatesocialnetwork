@@ -132,8 +132,8 @@ export class ExploreService {
         authorProtected.set(u.id, u.isProtected);
       }
     }
-    const isAuthorProtected = (authorId: string) =>
-      authorProtected.get(authorId) === true;
+    const isAuthorProtected = (authorId: string | null) =>
+      authorId ? authorProtected.get(authorId) === true : false;
 
     // Visibility is from the author's profile only: public profile → all posts visible; protected profile → only followers (and self)
     if (!viewerId) {
@@ -153,7 +153,7 @@ export class ExploreService {
     }
     return posts.filter((p) => {
       if (p.authorId === viewerId) return true;
-      if (isAuthorProtected(p.authorId)) return followingSet.has(p.authorId);
+      if (isAuthorProtected(p.authorId)) return p.authorId && followingSet.has(p.authorId);
       return true;
     });
   }
@@ -574,6 +574,26 @@ export class ExploreService {
       result = await this.applyPostPreferences(result, userId);
     }
     return { items: result, hasMore: hasMoreAlgo };
+  }
+
+  async getTrending(viewerId?: string, limit = 20): Promise<Post[]> {
+    const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // last 3 days
+    let qb = this.postRepo
+      .createQueryBuilder('post')
+      .innerJoinAndSelect('post.author', 'author')
+      .where('post.created_at >= :since', { since })
+      .andWhere('post.deleted_at IS NULL')
+      .andWhere("post.status = 'PUBLISHED'")
+      .andWhere("author.handle NOT LIKE '__pending_%'");
+
+    const posts = await qb
+      .orderBy('post.quote_count', 'DESC')
+      .addOrderBy('post.reply_count', 'DESC')
+      .addOrderBy('post.created_at', 'DESC')
+      .take(limit * 2)
+      .getMany();
+
+    return this.filterPostsVisibleToViewer(posts, viewerId);
   }
 
   /**

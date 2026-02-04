@@ -28,6 +28,7 @@ import { SafetyModule } from './safety/safety.module';
 import { AdminModule } from './admin/admin.module';
 import { KeepsModule } from './keeps/keeps.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { AgentApiModule } from './agent-api/agent-api.module';
 import { CleanupService } from './cleanup/cleanup.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Post } from './entities/post.entity';
@@ -128,6 +129,7 @@ import * as Joi from 'joi';
     AdminModule,
     KeepsModule,
     RealtimeModule,
+    AgentApiModule,
     // RssModule,
     // MetadataModule,
   ],

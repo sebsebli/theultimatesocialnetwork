@@ -267,7 +267,7 @@ export class SafetyService {
         });
         if (post) {
           content = post.body;
-          authorId = post.authorId;
+          authorId = post.authorId || '';
         }
       } else {
         const reply = await this.replyRepo.findOne({
@@ -309,7 +309,7 @@ export class SafetyService {
         });
         if (post) {
           content = post.body;
-          authorId = post.authorId;
+          authorId = post.authorId || '';
         }
       } else {
         const reply = await this.replyRepo.findOne({

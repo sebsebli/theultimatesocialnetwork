@@ -34,6 +34,8 @@ interface Message {
 interface MessagesTabProps {
   /** When present (e.g. from /inbox?thread=...), open this thread on load */
   initialThreadId?: string | null;
+  /** Pre-fill message input */
+  initialMessage?: string;
 }
 
 interface ChatSearchHit {
@@ -58,7 +60,10 @@ interface UserOption {
   avatarUrl?: string | null;
 }
 
-export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
+export function MessagesTab({
+  initialThreadId,
+  initialMessage,
+}: MessagesTabProps = {}) {
   const { user } = useAuth();
   const { refresh: refreshUnread } = useUnreadMessages();
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -67,7 +72,7 @@ export function MessagesTab({ initialThreadId }: MessagesTabProps = {}) {
     initialThreadId || null,
   );
   const [messages, setMessages] = useState<Message[]>([]);
-  const [messageText, setMessageText] = useState("");
+  const [messageText, setMessageText] = useState(initialMessage || "");
   const [chatSearchQuery, setChatSearchQuery] = useState("");
   const [chatSearchResults, setChatSearchResults] = useState<ChatSearchHit[]>(
     [],

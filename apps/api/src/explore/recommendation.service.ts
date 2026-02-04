@@ -261,7 +261,7 @@ export class RecommendationService {
               const vectorScore = 1.0 / (rank + 1);
 
               // Network boost
-              const followBoost = userProfile.followedUsers.includes(
+              const followBoost = post.authorId && userProfile.followedUsers.includes(
                 post.authorId,
               )
                 ? 0.3 * w.network

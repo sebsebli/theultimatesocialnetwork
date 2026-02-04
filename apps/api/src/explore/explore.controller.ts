@@ -90,6 +90,17 @@ export class ExploreController {
     });
   }
 
+  @Get('trending')
+  @UseGuards(OptionalJwtAuthGuard)
+  async getTrending(
+    @CurrentUser() user?: { id: string },
+    @Query('limit') limit?: string,
+  ) {
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const posts = await this.exploreService.getTrending(user?.id, limitNum);
+    return { items: posts };
+  }
+
   @Get('deep-dives')
   @UseGuards(OptionalJwtAuthGuard)
   async getDeepDives(

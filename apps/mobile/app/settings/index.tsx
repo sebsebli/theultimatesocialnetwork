@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/auth';
+import { useSettings } from '../../context/SettingsContext';
 import { useToast } from '../../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -152,6 +153,21 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('settings.content')}</Text>
+          <View style={styles.switchRow}>
+            <View style={styles.itemLeft}>
+              <MaterialIcons name="auto-fix-high" size={HEADER.iconSize} color={COLORS.secondary} />
+              <View>
+                <Text style={styles.itemLabel}>{t('settings.smartAutocomplete', 'Smart Autocomplete')}</Text>
+                <Text style={styles.itemHint}>{t('settings.smartAutocompleteHint', 'Suggest posts and topics while typing')}</Text>
+              </View>
+            </View>
+            <Switch
+              value={useSettings().smartCiteEnabled}
+              onValueChange={useSettings().setSmartCiteEnabled}
+              trackColor={{ false: COLORS.divider, true: COLORS.primary }}
+              thumbColor={COLORS.paper}
+            />
+          </View>
           <SettingItem
             icon="tune"
             label={t('settings.relevance')}

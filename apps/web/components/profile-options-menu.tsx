@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "./auth-provider";
 import { useToast } from "./ui/toast";
+import { ReportModal } from "./report-modal";
+import { ShareModal } from "./share-modal";
 
 interface ProfileOptionsMenuProps {
   handle: string;
@@ -17,6 +19,8 @@ export function ProfileOptionsMenu({
   isSelf,
 }: ProfileOptionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { signOut } = useAuth();
   const { success, error: toastError } = useToast();
@@ -32,10 +36,8 @@ export function ProfileOptionsMenu({
   }, []);
 
   const handleShare = () => {
-    const url = `${window.location.origin}/user/${handle}`;
-    navigator.clipboard.writeText(url);
+    setShowShareModal(true);
     setIsOpen(false);
-    alert("Profile link copied to clipboard");
   };
 
   const handleBlock = async () => {
@@ -75,26 +77,7 @@ export function ProfileOptionsMenu({
 
   const handleReport = async () => {
     if (!userId) return;
-    const reason = prompt("Reason for reporting:");
-    if (!reason) return;
-    try {
-      const res = await fetch("/api/safety/report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetId: userId,
-          targetType: "USER",
-          reason,
-        }),
-      });
-      if (res.ok) {
-        success("Report submitted");
-      } else {
-        throw new Error();
-      }
-    } catch {
-      toastError("Failed to submit report");
-    }
+    setShowReportModal(true);
     setIsOpen(false);
   };
 
@@ -279,6 +262,18 @@ export function ProfileOptionsMenu({
           </div>
         </div>
       )}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetId={userId || ""}
+        targetType="USER"
+      />
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        url={`${typeof window !== "undefined" ? window.location.origin : ""}/user/${handle}`}
+        title={`@${handle}`}
+      />
     </div>
   );
 }

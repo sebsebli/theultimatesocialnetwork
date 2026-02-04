@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/ui/toast";
 
@@ -23,6 +24,7 @@ interface ReferencedPost {
 
 export default function PostQuotesPage() {
   const params = useParams();
+  const t = useTranslations("post");
   const { error: toastError } = useToast();
   const postId = params.id as string;
   const [postTitle, setPostTitle] = useState<string | null>(null);
@@ -148,7 +150,7 @@ export default function PostQuotesPage() {
           Back to post
         </Link>
         <h1 className="text-lg font-semibold text-paper truncate max-w-[200px]">
-          Quoted by
+          {t("quotedBy")}
         </h1>
         <div className="w-20" />
       </header>
@@ -179,7 +181,7 @@ export default function PostQuotesPage() {
               />
             </svg>
             <p className="text-secondary font-medium">
-              No posts quote this yet.
+              No posts cite this yet.
             </p>
           </div>
         ) : (

@@ -160,6 +160,7 @@ export class AuthService {
   async validateOrCreateUser(
     email: string,
     inviteCode?: string,
+    skipBetaCheck = false,
   ): Promise<User> {
     let user = await this.userRepo.findOne({ where: { email } });
 
@@ -167,7 +168,7 @@ export class AuthService {
     if (!user) {
       // Re-check Beta Mode (race condition safety)
       const isBeta = await this.invitesService.isBetaMode();
-      if (isBeta && !inviteCode) {
+      if (!skipBetaCheck && isBeta && !inviteCode) {
         throw new BadRequestException('Registration requires invite code');
       }
 

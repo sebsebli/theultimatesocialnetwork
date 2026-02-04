@@ -248,33 +248,37 @@ export class MeilisearchService implements OnModuleInit {
           take: this.reindexBatchSize,
         });
         if (posts.length === 0) break;
-        const docs = posts.map((post) => {
-          const author = post.author;
-          const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
-          const searchBody = post.body.substring(0, 5000);
-          return {
-            id: post.id,
-            title: post.title || '',
-            body: searchBody,
-            authorId: post.authorId,
-            author: author
-              ? {
-                  displayName: author.displayName ?? author.handle,
-                  handle: author.handle,
-                  avatarKey:
-                    (author as { avatarKey?: string | null }).avatarKey ?? '',
-                }
-              : { displayName: 'Unknown', handle: 'unknown', avatarKey: '' },
-            lang: post.lang ?? 'en',
-            createdAt: post.createdAt.toISOString(),
-            quoteCount: post.quoteCount,
-            replyCount: post.replyCount,
-            status: post.status ?? 'PUBLISHED',
-            hasLink: searchBody.includes('http') || searchBody.includes('[['),
-            topicIds,
-          };
-        });
-        await postsIndex.addDocuments(docs);
+        const docs = posts
+          .filter((p) => !(p.author as any)?.isProtected)
+          .map((post) => {
+            const author = post.author;
+            const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
+            const searchBody = post.body.substring(0, 5000);
+            return {
+              id: post.id,
+              title: post.title || '',
+              body: searchBody,
+              authorId: post.authorId,
+              author: author
+                ? {
+                    displayName: author.displayName ?? author.handle,
+                    handle: author.handle,
+                    avatarKey:
+                      (author as { avatarKey?: string | null }).avatarKey ?? '',
+                  }
+                : { displayName: 'Unknown', handle: 'unknown', avatarKey: '' },
+              lang: post.lang ?? 'en',
+              createdAt: post.createdAt.toISOString(),
+              quoteCount: post.quoteCount,
+              replyCount: post.replyCount,
+              status: post.status ?? 'PUBLISHED',
+              hasLink: searchBody.includes('http') || searchBody.includes('[['),
+              topicIds,
+            };
+          });
+        if (docs.length > 0) {
+          await postsIndex.addDocuments(docs);
+        }
         totalPosts += posts.length;
         if (posts.length < this.reindexBatchSize) break;
         postOffset += this.reindexBatchSize;
@@ -377,8 +381,9 @@ export class MeilisearchService implements OnModuleInit {
     id: string;
     title?: string | null;
     body: string;
-    authorId: string;
+    authorId: string | null;
     author?: { displayName?: string; handle: string } | null;
+    authorProtected?: boolean;
     lang?: string | null;
     createdAt: Date;
     quoteCount: number;
@@ -389,6 +394,12 @@ export class MeilisearchService implements OnModuleInit {
     status?: string;
   }) {
     try {
+      // If author is protected, remove from index instead of adding
+      if (post.authorProtected) {
+        await this.deletePost(post.id);
+        return;
+      }
+
       const index = this.client.index(this.indexName);
 
       // Clean body of excessive whitespace/markdown for better search
@@ -399,7 +410,7 @@ export class MeilisearchService implements OnModuleInit {
           id: post.id,
           title: post.title || '',
           body: searchBody,
-          authorId: post.authorId,
+          authorId: post.authorId || '',
           author: post.author
             ? {
                 displayName: post.author.displayName || post.author.handle,

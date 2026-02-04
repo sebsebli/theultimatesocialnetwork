@@ -17,10 +17,15 @@ import {
 import { PostRead } from '../entities/post-read.entity';
 import { Notification } from '../entities/notification.entity';
 import { Collection } from '../entities/collection.entity';
+import { CollectionItem } from '../entities/collection-item.entity';
 import { NotificationPref } from '../entities/notification-pref.entity';
 import { AccountDeletionRequest } from '../entities/account-deletion-request.entity';
 import { EmailChangeRequest } from '../entities/email-change-request.entity';
 import { DataExport } from '../entities/data-export.entity';
+import { DmThread } from '../entities/dm-thread.entity';
+import { DmMessage } from '../entities/dm-message.entity';
+import { Block } from '../entities/block.entity';
+import { Mute } from '../entities/mute.entity';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { CollectionsService } from '../collections/collections.service';
 import { EmailService } from '../shared/email.service';
@@ -81,6 +86,8 @@ export class UsersService {
     @InjectRepository(Notification) private notifRepo: Repository<Notification>,
     @InjectRepository(Collection)
     private collectionRepo: Repository<Collection>,
+    @InjectRepository(CollectionItem)
+    private collectionItemRepo: Repository<CollectionItem>,
     @InjectRepository(NotificationPref)
     private notifPrefRepo: Repository<NotificationPref>,
     @InjectRepository(AccountDeletionRequest)
@@ -89,6 +96,10 @@ export class UsersService {
     private emailChangeRequestRepo: Repository<EmailChangeRequest>,
     @InjectRepository(DataExport)
     private dataExportRepo: Repository<DataExport>,
+    @InjectRepository(DmThread) private dmThreadRepo: Repository<DmThread>,
+    @InjectRepository(DmMessage) private dmMessageRepo: Repository<DmMessage>,
+    @InjectRepository(Block) private blockRepo: Repository<Block>,
+    @InjectRepository(Mute) private muteRepo: Repository<Mute>,
     private meilisearch: MeilisearchService,
     private collectionsService: CollectionsService,
     private emailService: EmailService,
@@ -983,10 +994,42 @@ export class UsersService {
     const collections = await this.collectionRepo.find({
       where: { ownerId: userId },
       order: { createdAt: 'DESC' },
+      relations: ['collectionItems', 'collectionItems.post'],
     });
     const notificationPrefs = await this.notifPrefRepo.findOne({
       where: { userId },
     });
+
+    const blocks = await this.blockRepo.find({ where: { blockerId: userId }, relations: ['blocked'] });
+    const mutes = await this.muteRepo.find({ where: { muterId: userId }, relations: ['muted'] });
+
+    const threads = await this.dmThreadRepo.find({
+      where: [
+        { userA: userId },
+        { userB: userId }
+      ],
+    });
+    const threadIds = threads.map(t => t.id);
+    let messages: DmMessage[] = [];
+    if (threadIds.length > 0) {
+      messages = await this.dmMessageRepo.find({
+        where: { threadId: In(threadIds) },
+        order: { createdAt: 'ASC' },
+      });
+    }
+
+    const dmUserIds = new Set<string>();
+    threads.forEach(t => {
+      dmUserIds.add(t.userA);
+      dmUserIds.add(t.userB);
+    });
+    messages.forEach(m => dmUserIds.add(m.senderId));
+    
+    const dmUsers = await this.userRepo.find({
+      where: { id: In([...dmUserIds]) },
+      select: ['id', 'handle', 'displayName']
+    });
+    const userMap = new Map(dmUsers.map(u => [u.id, { handle: u.handle, displayName: u.displayName }]));
 
     return {
       user,
@@ -1000,6 +1043,11 @@ export class UsersService {
       notifications,
       collections,
       notificationPrefs: notificationPrefs ?? null,
+      blocks,
+      mutes,
+      dmThreads: threads,
+      dmMessages: messages,
+      userMap,
       exportedAt: new Date(),
     };
   }
@@ -1088,13 +1136,47 @@ export class UsersService {
       }),
     );
 
-    const collections = (raw.collections ?? []).map((c: Collection) => ({
+    const collections = (raw.collections ?? []).map((c: Collection & { collectionItems?: CollectionItem[] }) => ({
       title: c.title,
       description: c.description ?? null,
       isPublic: c.isPublic ?? false,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
+      items: c.collectionItems?.map((item: any) => ({
+          postTitle: item.post?.title ?? null,
+          addedAt: item.addedAt
+      })) ?? []
     }));
+
+    const blocks = (raw.blocks ?? []).map((b: Block & { blocked?: User }) => ({
+        blockedUser: b.blocked?.handle ?? null,
+        createdAt: b.createdAt
+    }));
+
+    const mutes = (raw.mutes ?? []).map((m: Mute & { muted?: User }) => ({
+        mutedUser: m.muted?.handle ?? null,
+        createdAt: m.createdAt
+    }));
+
+    const dmThreads = (raw.dmThreads ?? []).map((t) => {
+        const otherUserId = t.userA === raw.user?.id ? t.userB : t.userA;
+        const otherUser = raw.userMap?.get(otherUserId);
+        const threadMessages = (raw.dmMessages ?? []).filter(m => m.threadId === t.id).map(m => {
+            const sender = raw.userMap?.get(m.senderId);
+            return {
+                sender: sender?.handle ?? 'unknown',
+                body: m.body,
+                createdAt: m.createdAt,
+                readAt: m.readAt
+            };
+        });
+        return {
+            withUser: otherUser?.handle ?? 'unknown',
+            messages: threadMessages,
+            createdAt: t.createdAt,
+            updatedAt: t.updatedAt
+        };
+    });
 
     const notificationPrefs = raw.notificationPrefs
       ? {
@@ -1122,6 +1204,9 @@ export class UsersService {
       following,
       followers,
       collections,
+      blocks,
+      mutes,
+      directMessages: dmThreads,
       notificationPrefs,
       exportedAt: raw.exportedAt,
     };

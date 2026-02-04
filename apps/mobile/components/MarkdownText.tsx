@@ -9,7 +9,7 @@ const CODE_FONT = Platform.select({ ios: 'Menlo', android: 'monospace' }) ?? 'mo
 
 interface MarkdownTextProps {
   children: string;
-  referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
+  referenceMetadata?: Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>;
   /** When set, only @handle that are in this set render as mention chips; others render as plain text (no @). Omit for published content to render all @ as mentions. */
   validMentionHandles?: Set<string> | null;
   /** When set (e.g. post.title in full view), the first line "# &lt;title&gt;" is not rendered so the title is not shown twice. */
@@ -114,10 +114,16 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
           let linkDisplay = aliasVal ?? linkContentVal;
           if (!aliasVal && linkContentVal.startsWith('post:')) {
             const id = linkContentVal.split(':')[1] ?? '';
-            const refMeta = (meta as Record<string, { title?: string; deletedAt?: string }>)[id] ?? (meta as Record<string, { title?: string; deletedAt?: string }>)[id?.toLowerCase?.() ?? ''];
+            const refMeta = (meta as Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>)[id] ?? (meta as Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>)[id?.toLowerCase?.() ?? ''];
             const refTitle = refMeta?.title;
             const isDeleted = !!refMeta?.deletedAt;
-            linkDisplay = isDeleted ? (t('post.deletedContent', '(deleted content)')) : (refTitle ?? id.slice(0, 8));
+            const isProtected = !!refMeta?.isProtected;
+            
+            if (isDeleted) {
+                linkDisplay = refTitle ? `${refTitle} (deleted)` : t('post.deletedContent', '(deleted content)');
+            } else {
+                linkDisplay = (refTitle ?? id.slice(0, 8)) + (isProtected ? ' (private)' : '');
+            }
           }
           parts.push(
             <Text

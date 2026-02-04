@@ -131,7 +131,7 @@ export class ReplyWorker
 
       // 3. Notifications (Post Author)
       const post = await this.postRepo.findOne({ where: { id: postId } });
-      if (post && post.authorId !== userId) {
+      if (post && post.authorId && post.authorId !== userId) {
         await this.notificationHelper.createNotification({
           userId: post.authorId,
           type: NotificationType.REPLY,

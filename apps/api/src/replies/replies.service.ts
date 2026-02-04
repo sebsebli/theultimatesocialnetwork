@@ -49,6 +49,7 @@ export class RepliesService {
     postId: string,
     body: string,
     parentReplyId?: string,
+    skipSafety = false,
   ) {
     const trimmed = (body ?? '').trim();
     if (trimmed.length < REPLY_BODY_MIN) {
@@ -63,16 +64,18 @@ export class RepliesService {
     }
 
     // AI Safety Check (Fast Stage 1 only)
-    const safety = await this.safetyService.checkContent(
-      trimmed,
-      userId,
-      'reply',
-      { onlyFast: true },
-    );
-    if (!safety.safe) {
-      throw new BadRequestException(
-        safety.reason || 'Reply flagged by safety check',
+    if (!skipSafety) {
+      const safety = await this.safetyService.checkContent(
+        trimmed,
+        userId,
+        'reply',
+        { onlyFast: true },
       );
+      if (!safety.safe) {
+        throw new BadRequestException(
+          safety.reason || 'Reply flagged by safety check',
+        );
+      }
     }
 
     const post = await this.postRepo.findOne({ where: { id: postId } });
@@ -182,7 +185,7 @@ export class RepliesService {
           id: postWithAuthor.id,
           title: postWithAuthor.title,
           body: postWithAuthor.body,
-          authorId: postWithAuthor.authorId,
+          authorId: postWithAuthor.authorId || '',
           author: postWithAuthor.author
             ? {
                 displayName:
@@ -191,6 +194,7 @@ export class RepliesService {
                 handle: postWithAuthor.author.handle,
               }
             : undefined,
+          authorProtected: postWithAuthor.author?.isProtected,
           lang: postWithAuthor.lang,
           createdAt: postWithAuthor.createdAt,
           quoteCount: postWithAuthor.quoteCount,

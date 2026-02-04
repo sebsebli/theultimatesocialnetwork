@@ -151,7 +151,7 @@ export function stripLeadingH1IfMatch(
 
 /** Optional metadata for resolving post link labels when no alias is provided (e.g. post title by id). deletedAt means show "(deleted content)". */
 export interface RenderMarkdownOptions {
-  referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
+  referenceMetadata?: Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>;
 }
 
 /**
@@ -234,11 +234,34 @@ export function renderMarkdown(
         referenceMetadata?.[id?.toLowerCase?.() ?? ""];
       const refTitle = refMeta?.title;
       const isDeleted = !!refMeta?.deletedAt;
+      const isProtected = !!refMeta?.isProtected;
+      
+      let suffix = "";
+      if (isDeleted) suffix = " (deleted)";
+      else if (isProtected) suffix = " (private)";
+
+      // If user provided an alias, use it. Otherwise use title or ID.
+      // Append status suffix (deleted/private) unless explicitly aliased?
+      // Requirement: "contain the title at least and a link that this post has been deleted"
+      // So even if aliased, we might want to know it's deleted? 
+      // Standard practice: if I aliased it, I take responsibility. 
+      // But if no alias (citation), show title + suffix.
+      
+      const baseText = explicitAlias || refTitle || target.target.slice(0, 8);
+      // For deleted/private, if no explicit alias, show title + suffix.
+      // If explicit alias, just show alias? 
+      // User said: "Referenced posts ... should contain the title at least and a link that this post has been deleted".
+      // This usually implies automatic citations.
+      
       const displayText = isDeleted
-        ? "(deleted content)"
-        : explicitAlias || refTitle || target.target.slice(0, 8);
+        ? (refTitle ? `${refTitle} (deleted)` : `(deleted content)`) 
+        : (baseText + (isProtected && !explicitAlias ? suffix : ""));
+
       const safeDisplay = escapeText(displayText);
-      return `<a href="/post/${safeId}" class="prose-tag inline hover:underline">${safeDisplay}</a>`;
+      // Add visual cue class if deleted/private
+      const classes = isDeleted || isProtected ? "prose-tag inline hover:underline opacity-70" : "prose-tag inline hover:underline";
+      
+      return `<a href="/post/${safeId}" class="${classes}">${safeDisplay}</a>`;
     }
 
     const safeAlias = escapeText(target.alias ?? "");

@@ -34,7 +34,7 @@ export function useComposerSearch() {
   const searchRequestId = useRef(0);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const search = useCallback((q: string, searchType: 'topic' | 'mention') => {
+  const search = useCallback((q: string, searchType: 'topic' | 'mention', includePosts = true) => {
     const requestId = ++searchRequestId.current;
 
     if (searchTimeout.current) {
@@ -62,10 +62,14 @@ export function useComposerSearch() {
         const encodedQ = encodeURIComponent(q);
 
         if (searchType === 'topic') {
-          const [topicRes, postRes] = await Promise.all([
-            api.get(`/search/topics?q=${encodedQ}`),
-            api.get(`/search/posts?q=${encodedQ}`)
-          ]);
+          const promises = [api.get(`/search/topics?q=${encodedQ}`)];
+          if (includePosts) {
+            promises.push(api.get(`/search/posts?q=${encodedQ}`));
+          }
+          
+          const results = await Promise.all(promises);
+          const topicRes = results[0];
+          const postRes = includePosts ? results[1] : { hits: [] };
 
           if (searchRequestId.current !== requestId) {
             return;

@@ -32,6 +32,12 @@ import { TopicsModule } from '../topics/topics.module';
 import { InteractionsModule } from '../interactions/interactions.module';
 import { defaultQueueConfig } from '../common/queue-config';
 
+import { DmThread } from '../entities/dm-thread.entity';
+import { DmMessage } from '../entities/dm-message.entity';
+import { Block } from '../entities/block.entity';
+import { Mute } from '../entities/mute.entity';
+import { CollectionItem } from '../entities/collection-item.entity';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -51,6 +57,11 @@ import { defaultQueueConfig } from '../common/queue-config';
       Notification,
       NotificationPref,
       Collection,
+      DmThread,
+      DmMessage,
+      Block,
+      Mute,
+      CollectionItem,
     ]),
     ConfigModule,
     SharedModule,

@@ -131,7 +131,7 @@ export class InteractionsService {
       await this.postRepo.increment({ id: postId }, 'privateLikeCount', 1);
 
       // Notify post author (private notification)
-      if (post.authorId !== userId) {
+      if (post.authorId && post.authorId !== userId) {
         await this.notificationHelper.createNotification({
           userId: post.authorId,
           type: NotificationType.LIKE,

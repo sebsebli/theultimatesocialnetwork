@@ -176,4 +176,11 @@ export class PostsController {
       dto.body.trim(),
     );
   }
+
+  @Get(':id/graph')
+  @UseGuards(OptionalJwtAuthGuard)
+  async getGraph(@Param('id', ParseUUIDPipe) id: string) {
+    return this.postsService.getGraph(id);
+  }
 }
+

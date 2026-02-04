@@ -102,6 +102,20 @@ export const AGENT_TOOLS: Array<{
       },
     },
     {
+      type: 'function' as const,
+      function: {
+        name: 'search_image',
+        description: 'Search for a real image URL (e.g. from Pexels/Pixabay) by keyword. Use this to get a URL for upload_header_image_from_url. Keyword should be simple (e.g. "sunset", "library", "coding").',
+        parameters: {
+          type: 'object',
+          required: ['query'],
+          properties: {
+            query: { type: 'string', description: 'Search keyword' },
+          },
+        },
+      },
+    },
+    {
       type: 'function',
       function: {
         name: 'upload_header_image_from_url',
@@ -275,6 +289,7 @@ export type AgentToolName =
   | 'get_dm_threads'
   | 'get_dm_messages'
   | 'send_dm'
+  | 'search_image'
   | 'upload_header_image_from_url'
   | 'create_post'
   | 'reply_to_post'

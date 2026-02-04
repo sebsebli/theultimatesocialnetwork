@@ -30,8 +30,9 @@ interface Notification {
 export default function InboxPage() {
   const searchParams = useSearchParams();
   const threadIdFromUrl = searchParams.get("thread");
+  const initialMessageFromUrl = searchParams.get("initialMessage");
   const [activeTab, setActiveTab] = useState<"notifications" | "messages">(
-    threadIdFromUrl ? "messages" : "notifications",
+    threadIdFromUrl || initialMessageFromUrl ? "messages" : "notifications",
   );
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -259,7 +260,10 @@ export default function InboxPage() {
         )}
 
         {activeTab === "messages" && (
-          <MessagesTab initialThreadId={threadIdFromUrl || undefined} />
+          <MessagesTab
+            initialThreadId={threadIdFromUrl || undefined}
+            initialMessage={initialMessageFromUrl || undefined}
+          />
         )}
       </div>
     </>

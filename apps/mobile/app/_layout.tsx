@@ -22,6 +22,7 @@ import { AuthProvider, useAuth } from '../context/auth';
 import { ToastProvider, useToast } from '../context/ToastContext';
 import { SocketProvider } from '../context/SocketContext';
 import { DraftProvider } from '../context/DraftContext';
+import { SettingsProvider } from '../context/SettingsContext';
 import { setApiErrorToastHandler } from '../utils/api';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -186,14 +187,16 @@ export default function RootLayout() {
           <ToastProvider>
             <ApiErrorToastRegistration />
             <SocketProvider>
-              <DraftProvider>
-                <ThemeProvider value={MyDarkTheme}>
-                  <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
-                    <OfflineBanner />
-                    <AppContent onReady={handleAppReady} />
-                  </View>
-                </ThemeProvider>
-              </DraftProvider>
+              <SettingsProvider>
+                <DraftProvider>
+                  <ThemeProvider value={MyDarkTheme}>
+                    <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
+                      <OfflineBanner />
+                      <AppContent onReady={handleAppReady} />
+                    </View>
+                  </ThemeProvider>
+                </DraftProvider>
+              </SettingsProvider>
             </SocketProvider>
           </ToastProvider>
         </AuthProvider>

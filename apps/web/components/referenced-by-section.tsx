@@ -103,7 +103,7 @@ function ReferencedBySectionInner({
               d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
             />
           </svg>
-          <p className="text-secondary font-medium">No posts quote this yet.</p>
+          <p className="text-secondary font-medium">No posts cite this yet.</p>
         </div>
       </section>
     );
@@ -204,7 +204,7 @@ function ReferencedBySectionInner({
               disabled={loading}
               className="w-full py-3 mt-4 text-sm font-medium text-tertiary hover:text-paper bg-white/5 hover:bg-white/10 rounded-lg transition-colors border border-white/5"
             >
-              {loading ? "Loading..." : "Load more quotes"}
+              {loading ? "Loading..." : "Load more cites"}
             </button>
           )}
         </div>

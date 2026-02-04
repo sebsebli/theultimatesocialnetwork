@@ -87,17 +87,19 @@ export function ProfilePage({
     !!initialUser.hasPendingFollowRequest,
   );
   const [activeTab, setActiveTab] = useState<
-    "posts" | "replies" | "quotes" | "saved" | "collections"
+    "posts" | "replies" | "quotes" | "cited" | "saved" | "collections"
   >("posts");
   const [loading, setLoading] = useState(false);
   const [tabData, setTabData] = useState<{
     replies: Reply[] | null;
     quotesReceived: Quote[] | null;
+    cited: Post[] | null;
     collections: Collection[] | null;
     saved: SavedItem[] | null;
   }>({
     replies: null,
     quotesReceived: null,
+    cited: null,
     collections: null,
     saved: null,
   });
@@ -126,6 +128,19 @@ export function ProfilePage({
             setTabData((prev) => ({
               ...prev,
               quotesReceived: data.items || data,
+            }));
+          }
+        } catch {
+          /* ignore */
+        }
+      } else if (activeTab === "cited" && !tabData.cited) {
+        try {
+          const res = await fetch(`/api/users/${user.id}/cited`);
+          if (res.ok && isMounted) {
+            const data = await res.json();
+            setTabData((prev) => ({
+              ...prev,
+              cited: data.items || data || [],
             }));
           }
         } catch {
@@ -167,6 +182,7 @@ export function ProfilePage({
     activeTab,
     tabData.replies,
     tabData.quotesReceived,
+    tabData.cited,
     tabData.collections,
     tabData.saved,
     user.id,
@@ -296,13 +312,13 @@ export function ProfilePage({
     );
   }
 
-  type ProfileTab = "posts" | "replies" | "quotes" | "saved" | "collections";
-  const tabs: ProfileTab[] = ["posts", "replies", "quotes", "collections"];
+  type ProfileTab = "posts" | "replies" | "quotes" | "cited" | "saved" | "collections";
+  /** Tab order matches mobile: own profile includes replies + saved; other profiles no replies, no saved */
   const visibleTabs: ProfileTab[] = isPublic
     ? ["posts"]
     : isSelf
-      ? [...tabs, "saved"]
-      : tabs;
+      ? ["posts", "replies", "quotes", "cited", "saved", "collections"]
+      : ["posts", "quotes", "cited", "collections"];
 
   return (
     <div className={`min-h-screen ${isPublic ? "pb-28" : "pb-28"}`}>
@@ -489,11 +505,10 @@ export function ProfilePage({
                 <button
                   onClick={handleFollow}
                   disabled={loading}
-                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${
-                    following || hasPendingFollowRequest
-                      ? "bg-primary border-primary text-white"
-                      : "border-primary text-primary hover:bg-primary/10"
-                  }`}
+                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${following || hasPendingFollowRequest
+                    ? "bg-primary border-primary text-white"
+                    : "border-primary text-primary hover:bg-primary/10"
+                    }`}
                 >
                   {loading
                     ? "..."
@@ -587,7 +602,7 @@ export function ProfilePage({
           </div>
           <p className="text-paper font-semibold text-lg">Private profile</p>
           <p className="text-secondary text-sm text-center max-w-[280px] mt-1">
-            Follow this account to see their posts, replies, and quotes.
+            Follow this account to see their posts, replies, and cites.
           </p>
         </div>
       )}
@@ -609,31 +624,34 @@ export function ProfilePage({
                           ? ((user as { keepsCount?: number }).keepsCount ?? 0)
                           : tab === "collections"
                             ? ((user as { collectionCount?: number })
-                                .collectionCount ?? 0)
-                            : 0;
+                              .collectionCount ?? 0)
+                            : tab === "cited"
+                              ? undefined
+                              : 0;
                 const label =
                   tab === "replies"
                     ? t("comments")
                     : tab === "posts"
                       ? t("posts")
                       : tab === "quotes"
-                        ? t("quotes")
-                        : tab === "saved"
-                          ? t("saved")
-                          : tab === "collections"
-                            ? t("collections")
-                            : tab;
-                const showCount = tab !== "replies" && count > 0;
+                        ? t("cites")
+                        : tab === "cited"
+                          ? t("cited")
+                          : tab === "saved"
+                            ? t("saved")
+                            : tab === "collections"
+                              ? t("collections")
+                              : tab;
+                const showCount = tab !== "replies" && count != null && count > 0;
                 return (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     type="button"
-                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap tabular-nums ${
-                      activeTab === tab
-                        ? "border-primary text-paper"
-                        : "border-transparent text-tertiary hover:text-paper"
-                    }`}
+                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap tabular-nums ${activeTab === tab
+                      ? "border-primary text-paper"
+                      : "border-transparent text-tertiary hover:text-paper"
+                      }`}
                   >
                     {label} {showCount ? `(${formatCompactNumber(count)})` : ""}
                   </button>
@@ -759,7 +777,35 @@ export function ProfilePage({
                   <div className={emptyStateCenterClassName}>
                     <EmptyState
                       icon="format_quote"
-                      headline="No quotes received yet"
+                      headline={t("noCites")}
+                      subtext={t("noCitesHint")}
+                      compact
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "cited" && (
+              <div className="space-y-0">
+                {tabData.cited && tabData.cited.length > 0 ? (
+                  tabData.cited.map((post) => (
+                    <PostItem
+                      key={post.id}
+                      post={post}
+                      isPublic={isPublic}
+                    />
+                  ))
+                ) : tabData.cited === null ? (
+                  <p className="text-secondary text-sm text-center py-8">
+                    Loading...
+                  </p>
+                ) : (
+                  <div className={emptyStateCenterClassName}>
+                    <EmptyState
+                      icon="link"
+                      headline={t("noCited")}
+                      subtext={t("noCitedHint")}
                       compact
                     />
                   </div>
@@ -774,8 +820,8 @@ export function ProfilePage({
                     const imageUrl =
                       (collection.recentPost?.headerImageKey
                         ? getImageUrlFromKey(
-                            collection.recentPost.headerImageKey,
-                          )
+                          collection.recentPost.headerImageKey,
+                        )
                         : null) ||
                       (collection.previewImageKey
                         ? getImageUrlFromKey(collection.previewImageKey)

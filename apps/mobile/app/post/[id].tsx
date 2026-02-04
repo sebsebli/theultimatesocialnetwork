@@ -16,6 +16,7 @@ import { PostContent } from '../../components/PostContent';
 import { MarkdownText } from '../../components/MarkdownText';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { HeaderIconButton } from '../../components/HeaderIconButton';
+import { GraphView } from '../../components/GraphView';
 import { Post } from '../../types';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../../constants/theme';
 
@@ -437,6 +438,8 @@ export default function PostDetailScreen() {
             </View>
           </View>
         )}
+
+        <GraphView postId={post.id} />
 
         {referencedBy.length > 0 && (
           <View style={styles.section}>

@@ -4,6 +4,7 @@
  */
 
 import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 import type { CharacterDef } from './characters.js';
 
 export interface Persona {
@@ -25,7 +26,8 @@ function normalizeHandle(raw: string): string {
 }
 
 export async function createPersona(
-  openai: OpenAI,
+  openai: OpenAI | undefined,
+  gemini: GoogleGenAI | undefined,
   model: string,
   character: CharacterDef,
   usedHandles: Set<string>,
@@ -44,16 +46,31 @@ Example topics/themes for this type: ${character.topics.join(', ')}
 Create a unique persona. Give them concrete topics or themes they would naturally write about (fitting their type). Pick a handle that is NOT in this list: ${Array.from(usedHandles).slice(-20).join(', ') || '(none)'}.
 Return only the JSON object.`;
 
-  const response = await openai.chat.completions.create({
-    model,
-    messages: [
-      { role: 'system', content: sys },
-      { role: 'user', content: user },
-    ],
-    // Omit temperature: some models (e.g. gpt-5-mini) only support default (1).
-  });
+  let content = '';
 
-  const content = response.choices?.[0]?.message?.content?.trim() ?? '';
+  if (gemini) {
+    const response = await gemini.models.generateContent({
+      model,
+      contents: user,
+      config: {
+        systemInstruction: sys,
+        responseMimeType: 'application/json',
+      },
+    });
+    content = response.text ?? '';
+  } else if (openai) {
+    const response = await openai.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: user },
+      ],
+    });
+    content = response.choices?.[0]?.message?.content?.trim() ?? '';
+  } else {
+    throw new Error('No LLM client provided for persona creation');
+  }
+
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   const jsonStr = jsonMatch ? jsonMatch[0] : content;
   let parsed: { displayName?: string; handle?: string; bio?: string; behavior?: string };

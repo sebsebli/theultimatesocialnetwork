@@ -47,7 +47,7 @@ function ExploreListHeader({
   searchFilterTab: SearchFilterTab;
   setSearchFilterTab: (tab: SearchFilterTab) => void;
   activeTab: string;
-  setActiveTab: (tab: 'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom') => void;
+  setActiveTab: (tab: 'trending' | 'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom') => void;
   inputRef: React.RefObject<TextInput | null>;
   styles: Record<string, any>;
   t: (key: string, fallback?: string) => string;
@@ -103,7 +103,7 @@ function ExploreListHeader({
             {(EXPLORE_TABS as readonly string[]).map((tab) => (
               <Pressable
                 key={tab}
-                onPress={() => setActiveTab(tab as 'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom')}
+                onPress={() => setActiveTab(tab as any)}
                 style={[styles.tab, activeTab === tab && styles.tabActive]}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: activeTab === tab }}
@@ -137,7 +137,7 @@ export default function ExploreScreen() {
   const { isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [activeTab, setActiveTab] = useState<'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('newest');
+  const [activeTab, setActiveTab] = useState<'trending' | 'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('trending');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFilterTab, setSearchFilterTab] = useState<SearchFilterTab>('all');
   const [searchPosts, setSearchPosts] = useState<any[]>([]);
@@ -174,7 +174,7 @@ export default function ExploreScreen() {
     return () => clearTimeout(t);
   }, [tabPress?.tabPressCounts?.explore]);
 
-  const EXPLORE_TABS = ['newest', 'quoted', 'deep-dives', 'newsroom', 'topics', 'people'] as const;
+  const EXPLORE_TABS = ['trending', 'newest', 'quoted', 'deep-dives', 'newsroom', 'topics', 'people'] as const;
   const swipeThreshold = 60;
   const panResponder = useMemo(
     () =>
@@ -186,13 +186,13 @@ export default function ExploreScreen() {
         },
         onPanResponderRelease: (_, gestureState) => {
           const { dx } = gestureState;
-          const idx = EXPLORE_TABS.indexOf(activeTab);
+          const idx = EXPLORE_TABS.indexOf(activeTab as any);
           if (dx < -swipeThreshold && idx < EXPLORE_TABS.length - 1) {
             Haptics.selectionAsync();
-            setActiveTab(EXPLORE_TABS[idx + 1]);
+            setActiveTab(EXPLORE_TABS[idx + 1] as any);
           } else if (dx > swipeThreshold && idx > 0) {
             Haptics.selectionAsync();
-            setActiveTab(EXPLORE_TABS[idx - 1]);
+            setActiveTab(EXPLORE_TABS[idx - 1] as any);
           }
         },
       }),
@@ -202,7 +202,7 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (params.tab) {
       const tabName = Array.isArray(params.tab) ? params.tab[0] : params.tab;
-      if (['newest', 'topics', 'people', 'quoted', 'deep-dives', 'newsroom'].includes(tabName)) {
+      if (['trending', 'newest', 'topics', 'people', 'quoted', 'deep-dives', 'newsroom'].includes(tabName)) {
         setActiveTab(tabName as any);
       }
     }
@@ -339,6 +339,7 @@ export default function ExploreScreen() {
     try {
       let endpoint = '/explore/topics';
       if (activeTab === 'newest') endpoint = '/explore/newest';
+      else if (activeTab === 'trending') endpoint = '/explore/trending';
       else if (activeTab === 'people') endpoint = '/explore/people';
       else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
       else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
@@ -473,7 +474,7 @@ export default function ExploreScreen() {
   }, [activeTab]);
 
   const renderItem = useCallback(({ item }: { item: any }) => {
-    if (activeTab === 'newest' || activeTab === 'deep-dives') {
+    if (activeTab === 'newest' || activeTab === 'trending' || activeTab === 'deep-dives') {
       if (!item || !item.id) return null;
       return <PostItem post={item} />;
     } else if (activeTab === 'people') {
@@ -561,7 +562,7 @@ export default function ExploreScreen() {
   const showSearchResults = isSearchActive;
   const listData = showSearchResults
     ? searchFlatData
-    : (['newest', 'quoted', 'deep-dives', 'newsroom'].includes(activeTab) ? data.filter((item: any) => !!item?.author) : data);
+    : (['trending', 'newest', 'quoted', 'deep-dives', 'newsroom'].includes(activeTab) ? data.filter((item: any) => !!item?.author) : data);
   const listKeyExtractor = showSearchResults ? searchKeyExtractor : keyExtractor;
   const listRenderItem = showSearchResults ? searchRenderItem : renderItem;
 

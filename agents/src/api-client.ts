@@ -13,6 +13,7 @@ export interface ApiConfig {
   baseUrl: string;
   adminKey?: string;
   devToken?: string;
+  agentSecret?: string;
 }
 
 export interface AuthTokens {
@@ -29,6 +30,13 @@ export interface SeedAgentBody {
   profileHeaderKey?: string | null;
   /** True = private/protected profile (follow requests). */
   isProtected?: boolean;
+}
+
+export interface CreatePostBody {
+  body: string;
+  visibility?: string;
+  headerImageKey?: string;
+  headerImageBlurhash?: string;
 }
 
 export interface ApiClient {
@@ -79,7 +87,7 @@ export interface ApiClient {
   /** Create post. body: markdown, max 10000 chars; optional visibility PUBLIC|FOLLOWERS, headerImageKey. */
   createPost(
     token: string,
-    body: { body: string; visibility?: string; headerImageKey?: string; headerImageBlurhash?: string },
+    body: CreatePostBody,
   ): Promise<{ id: string }>;
   /** Quote a post (commentary required). */
   quotePost(token: string, postId: string, body: string): Promise<{ id: string }>;
@@ -118,19 +126,27 @@ export interface ApiClient {
   sendMessage(token: string, threadId: string, body: string): Promise<unknown>;
   /** Create or get a thread with another user. */
   createMessageThread(token: string, userId: string): Promise<{ id: string } & unknown>;
+  
+  /** Authenticate via internal agent API (skips beta/invite). */
+  authViaAgentApi(email: string): Promise<AuthTokens>;
+  /** Create post via internal agent API (skips safety). */
+  createPostViaAgentApi(userId: string, body: CreatePostBody): Promise<{ id: string }>;
+  /** Create reply via internal agent API (skips safety). */
+  createReplyViaAgentApi(userId: string, postId: string, body: string): Promise<{ id: string }>;
 }
 
 export function createApiClient(config: ApiConfig): ApiClient {
-  const { baseUrl, adminKey, devToken } = config;
+  const { baseUrl, adminKey, devToken, agentSecret } = config;
   const base = baseUrl.replace(/\/$/, '');
 
   async function fetchJson<T>(
     path: string,
-    options: RequestInit & { token?: string; admin?: boolean } = {},
+    options: RequestInit & { token?: string; admin?: boolean; agent?: boolean } = {},
   ): Promise<T> {
-    const { token, admin, ...rest } = options;
+    const { token, admin, agent, ...rest } = options;
     const headers = new Headers(defaultHeaders(token));
     if (admin && adminKey) headers.set('X-Admin-Key', adminKey);
+    if (agent && agentSecret) headers.set('X-Agent-Secret', agentSecret);
     const res = await fetch(`${base}${path}`, { ...rest, headers } as RequestInit);
     const text = await res.text();
     if (!res.ok) throw new Error(`API ${path}: ${res.status} ${text}`);
@@ -272,15 +288,46 @@ export function createApiClient(config: ApiConfig): ApiClient {
       return { key: out.key };
     },
 
+    async authViaAgentApi(email: string) {
+      return fetchJson<AuthTokens>('/internal/agents/auth', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+        agent: true,
+      });
+    },
+
+    async createPostViaAgentApi(userId: string, dto: CreatePostBody) {
+      return fetchJson<{ id: string }>('/internal/agents/posts', {
+        method: 'POST',
+        body: JSON.stringify({ userId, dto }),
+        agent: true,
+      });
+    },
+
+    async createReplyViaAgentApi(userId: string, postId: string, body: string) {
+      return fetchJson<{ id: string }>('/internal/agents/replies', {
+        method: 'POST',
+        body: JSON.stringify({ userId, postId, body }),
+        agent: true,
+      });
+    },
+
     async createPost(
       authToken: string,
-      body: {
-        body: string;
-        visibility?: string;
-        headerImageKey?: string;
-        headerImageBlurhash?: string;
-      },
+      body: CreatePostBody,
     ) {
+      if (agentSecret) {
+        const parts = authToken.split('.');
+        if (parts.length === 3) {
+          try {
+            const payload = JSON.parse(atob(parts[1]));
+            const userId = payload.sub;
+            if (userId) {
+              return this.createPostViaAgentApi(userId, body);
+            }
+          } catch (e) { /* ignore */ }
+        }
+      }
       return fetchJson<{ id: string }>('/posts', {
         method: 'POST',
         body: JSON.stringify(body),
@@ -302,6 +349,18 @@ export function createApiClient(config: ApiConfig): ApiClient {
       body: string,
       parentReplyId?: string,
     ) {
+      if (agentSecret && !parentReplyId) {
+        const parts = authToken.split('.');
+        if (parts.length === 3) {
+          try {
+            const payload = JSON.parse(atob(parts[1]));
+            const userId = payload.sub;
+            if (userId) {
+              return this.createReplyViaAgentApi(userId, postId, body);
+            }
+          } catch (e) { /* ignore */ }
+        }
+      }
       const payload: { body: string; parentReplyId?: string } = { body };
       if (parentReplyId) payload.parentReplyId = parentReplyId;
       return fetchJson<{ id: string }>(`/posts/${postId}/replies`, {

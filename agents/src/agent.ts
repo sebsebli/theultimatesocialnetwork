@@ -3,9 +3,13 @@
  */
 
 import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 import type { ApiClient } from './api-client.js';
 import { AGENT_TOOLS, type AgentToolName } from './tools.js';
 import type { CharacterDef } from './characters.js';
+import { pixabaySearch, pexelsSearch } from './image-provider.js';
+
+import type { ImageProviderConfig } from './image-provider.js';
 
 const ACTION_TOOLS: Set<AgentToolName> = new Set([
   'create_post',
@@ -15,6 +19,7 @@ const ACTION_TOOLS: Set<AgentToolName> = new Set([
   'like_post',
   'keep_post',
   'send_dm',
+  // search_image and upload are not "actions" that count against limit, they are utilities
 ]);
 
 export interface PersonaProfile {
@@ -29,8 +34,8 @@ export interface AgentContext {
   handle: string;
   displayName: string;
   character: CharacterDef;
-  /** Persona from first-step creation (behavior drives how they act each round). */
   persona: PersonaProfile;
+  imageConfig?: ImageProviderConfig;
 }
 
 const FORMAT_DOC = `
@@ -62,17 +67,19 @@ Your persona (how you actually behave): ${persona.behavior}
 
 **Topics and content**: Come up with great topics that fit your personality and character type—specific, real-world themes (e.g. a chef: recipes, ingredients, restaurants, techniques; a traveler: destinations, tips, stories; a bookworm: specific books, genres, reading habits). Use these when writing posts. Each post should be about a concrete subject that fits who you are.
 
-**Realistic, standalone articles**: Your posts must read like real articles, essays, or blog posts—substantive content about real subjects, ideas, experiences, or expertise. Write in first person when it fits. **Do not mention the social network, the app, the feed, "here", "this platform", following, likes, or the fact that you're posting online.** The content must not be about the platform at all; it must stand on its own (as if it could appear in a newsletter or blog). You may use [[Topic]] for discoverability and [[post:UUID]] or @handle when referencing someone else's idea or post, but the body of your post must be about the topic itself—not meta-commentary about the network.
+**Realistic, standalone articles**: Your posts must read like real articles, essays, or blog posts—substantive content about real subjects, ideas, experiences, or expertise. Write in first person when it fits. **Do not mention the social network, the app, the feed, "here", "this platform", following, likes, or the fact that you're posting online.** The content must not be about the platform at all; it must stand on its own (as if it could appear in a newsletter or blog).
 
-You MUST **reference the network** for discoverability and threads: use [[Topic]] tags (e.g. [[Cooking]], [[AI]], [[Urbanism]]), link to other users' posts with [[post:UUID]] (real id from tools), mention people with @handle when discussing their ideas, and quote/reply to real posts you see in feed or explore. Interact for real: follow users whose posts you like, reply and quote with genuine commentary, like and keep posts, send DMs when it fits.
+You MUST **interact with the network**:
+1.  **Find People**: If your feed is empty, use `get_explore_people` or `get_explore_deep_dives` to find active users.
+2.  **Read & React**: Read their posts (`get_user_posts` or `get_post`). If you find something interesting, **reply** or **quote** it. Do not just post into the void.
+3.  **Cite Real Content**: When you write a post, link to other users' posts using `[[post:UUID]]` (use the REAL ID you found). Mention them with `@handle`.
+4.  **Use Real External Links**: Include plausible external links `[https://url](text)` to Wikipedia, news sites, or tools relevant to your topic.
 
-**Reference each other**: When you create a post, prefer linking to posts you found via get_feed, get_explore_*, or get_user_posts using [[post:UUID]]. Mention other users with @handle when you discuss their ideas. Use [[Topic]] so your post is discoverable. When you quote_post or reply_to_post, use real post ids from the tools and add real commentary—do not invent ids.
-
-**Real post IDs only**: [[post:UUID]] and quote_post/reply_to_post require a real post id from get_feed, get_explore_quoted_now, get_explore_deep_dives, or get_user_posts. Use get_user_posts(handle) after get_explore_people or get_user to get someone's posts and their ids. Never invent post ids.
+**Real post IDs only**: `[[post:UUID]]` and `quote_post`/`reply_to_post` require a real post id from `get_feed`, `get_explore_*`, or `get_user_posts`. Never invent post ids.
 
 Use the provided tools to read content first (get_feed, get_explore_*, get_user_posts, get_post, get_user, get_notifications, get_dm_threads), then ONE action per turn: create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, or send_dm. For create_post you may call upload_header_image_from_url first. Each of those actions counts toward your goal.
 
-When creating posts: write substantive, realistic content about your chosen topic; use [[Topic]] for topics, [[post:UUID]] only with real UUIDs; sometimes include real external links as [https://url](link text) (e.g. [https://example.com](click here)) for sources, tools, or sites that fit the topic to make posts feel realistic; @handle to mention others when relevant. Keep replies short. When quoting, use a real post_id and add real commentary—reference the author with @handle when relevant. Never write posts about "this network", "the app", or "being on here".
+When creating posts: write substantive, realistic content about your chosen topic; use `[[Topic]]` for topics, `[[post:UUID]]` only with real UUIDs; sometimes include real external links as `[https://url](link text)` (e.g. `[https://example.com](click here)`) for sources, tools, or sites that fit the topic to make posts feel realistic; `@handle` to mention others when relevant. Keep replies short. When quoting, use a real post_id and add real commentary—reference the author with `@handle` when relevant. Never write posts about "this network", "the app", or "being on here".
 ${FORMAT_DOC}
 
 After each tool result, either call another tool (e.g. get_post to read full content) or perform one action. Continue until you have used the required number of actions or have nothing left to do.`;
@@ -161,6 +168,26 @@ export async function executeTool(
         const data = await api.getThreadMessages(token, threadId);
         return JSON.stringify(data, null, 0).slice(0, 6000);
       }
+      case 'search_image': {
+        const query = args.query as string;
+        if (!query) return JSON.stringify({ error: 'query required' });
+        const config = ctx.imageConfig;
+        let url: string | undefined;
+        
+        if (config?.pexelsApiKey) {
+           const hits = await pexelsSearch(config.pexelsApiKey, query, { orientation: 'landscape', perPage: 1 });
+           if (hits?.[0]) url = hits[0].url;
+        }
+        if (!url && config?.pixabayApiKey) {
+           const hits = await pixabaySearch(config.pixabayApiKey, query, { orientation: 'horizontal', perPage: 1 });
+           if (hits?.[0]) url = hits[0].url;
+        }
+        
+        if (!url) {
+            url = `https://picsum.photos/seed/${encodeURIComponent(query)}/1200/600`;
+        }
+        return JSON.stringify({ success: true, image_url: url });
+      }
       case 'send_dm': {
         const threadId = args.thread_id as string;
         const body = args.body as string;
@@ -228,7 +255,8 @@ export async function executeTool(
 }
 
 export interface AgentLoopOptions {
-  openai: OpenAI;
+  openai?: OpenAI;
+  gemini?: GoogleGenAI;
   model: string;
   api: ApiClient;
   ctx: AgentContext;
@@ -237,16 +265,105 @@ export interface AgentLoopOptions {
   onAction?: (name: AgentToolName, args: Record<string, unknown>, summary: string) => void;
 }
 
-/** OpenAI chat message type for the loop. */
-type ChatMessage =
-  | { role: 'system'; content: string }
-  | { role: 'user'; content: string }
-  | { role: 'assistant'; content: string | null; tool_calls?: Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }> }
-  | { role: 'tool'; tool_call_id: string; content: string };
+/** Convert OpenAI tools to Gemini FunctionDeclarations */
+function getGeminiTools() {
+  return AGENT_TOOLS.map(t => ({
+    name: t.function.name,
+    description: t.function.description,
+    parameters: t.function.parameters as any,
+  }));
+}
+
+async function runGeminiLoop(options: AgentLoopOptions): Promise<number> {
+  const { gemini, model, api, ctx, maxActions, onAction } = options;
+  if (!gemini) throw new Error('Gemini client not provided');
+
+  const systemInstruction = buildSystemPrompt(ctx.character, ctx.persona);
+  const tools = [{ functionDeclarations: getGeminiTools() }];
+  
+  const chat = gemini.chats.create({
+    model,
+    config: {
+      systemInstruction,
+      tools,
+    },
+    history: [
+      {
+        role: 'user',
+        parts: [{ text: `You are ${ctx.displayName} (@${ctx.handle}). Your persona: ${ctx.persona.behavior}
+
+You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.` }],
+      },
+    ],
+  });
+
+  let actionsUsed = 0;
+  const maxTurns = 80;
+  let turns = 0;
+  const actionHistory: string[] = [];
+
+  while (actionsUsed < maxActions && turns < maxTurns) {
+    turns++;
+    
+    let userMsgText = '';
+    if (turns === 1) {
+       userMsgText = "Start interactions."; 
+    } else {
+        const remaining = maxActions - actionsUsed;
+        if (remaining <= 0) break;
+        const historyBlurb = actionHistory.length > 0 ? `What you've done so far: ${actionHistory.join('; ')}. ` : '';
+        userMsgText = `${historyBlurb}You have ${remaining} actions left. Check get_notifications and get_dm_threads. Continue: surf or act.`;
+    }
+
+    try {
+      const result = await chat.sendMessage(userMsgText);
+      const response = result.response;
+      
+      const calls = response.functionCalls();
+      if (calls && calls.length > 0) {
+        const toolOutputs: any[] = [];
+        
+        for (const call of calls) {
+          const name = call.name as AgentToolName;
+          const args = call.args as Record<string, unknown>;
+          
+          const outputText = await executeTool(name, args, api, ctx);
+          let responseData: any;
+          try {
+             responseData = JSON.parse(outputText);
+          } catch {
+             responseData = { result: outputText };
+          }
+          toolOutputs.push({
+            name: name,
+            response: { content: responseData } 
+          });
+
+          if (ACTION_TOOLS.has(name)) {
+            actionsUsed++;
+            const summary = formatActionSummary(name, args);
+            actionHistory.push(summary);
+            onAction?.(name, args, summary);
+          }
+        }
+        await chat.sendMessage(toolOutputs); 
+      }
+    } catch (e) {
+      console.error('Gemini loop error', e);
+      break;
+    }
+  }
+  return actionsUsed;
+}
 
 /** Run agent loop until maxActions actions are performed or model stops calling action tools. */
 export async function runAgentLoop(options: AgentLoopOptions): Promise<number> {
+  if (options.gemini) {
+    return runGeminiLoop(options);
+  }
+
   const { openai, model, api, ctx, maxActions, onAction } = options;
+  if (!openai) throw new Error('OpenAI client not provided');
 
   const tools = AGENT_TOOLS.map((t) => ({
     type: 'function' as const,

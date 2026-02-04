@@ -104,6 +104,12 @@ export class PostWorker
         return;
       }
 
+      if (!post.authorId) {
+        this.logger.log(`Post ${postId} has no author (anonymized), skipping processing.`);
+        end();
+        return;
+      }
+
       // 0. Async Moderation (Full Stage 2 Check)
       const safety = await this.safetyService.checkContent(
         post.body,
@@ -143,10 +149,11 @@ export class PostWorker
         title: post.title,
         body: post.body,
         authorId: post.authorId,
-        author: {
+        author: post.author ? {
           displayName: post.author.displayName || post.author.handle,
           handle: post.author.handle,
-        },
+        } : undefined,
+        authorProtected: post.author?.isProtected,
         lang: post.lang,
         createdAt: post.createdAt,
         quoteCount: post.quoteCount,
@@ -212,7 +219,7 @@ export class PostWorker
             const quotedPost = await this.postRepo.findOne({
               where: { id: edge.toPostId },
             });
-            if (quotedPost && quotedPost.authorId !== userId) {
+            if (quotedPost && quotedPost.authorId && quotedPost.authorId !== userId) {
               await this.notificationHelper.createNotification({
                 userId: quotedPost.authorId,
                 type: NotificationType.QUOTE,

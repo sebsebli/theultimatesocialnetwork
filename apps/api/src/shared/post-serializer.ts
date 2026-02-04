@@ -65,7 +65,8 @@ export function postToPlain(
   if (!p || typeof p !== 'object') return null;
   const deletedAt = (p as { deletedAt?: Date | null }).deletedAt;
   const isDeleted = deletedAt != null;
-  const canShowContent = viewerCanSeeContent && !isDeleted;
+  const isPrivateStub = (p as { isPrivateStub?: boolean }).isPrivateStub === true;
+  const canShowContent = viewerCanSeeContent && !isDeleted && !isPrivateStub;
   const headerImageUrl =
     canShowContent && p.headerImageKey && getImageUrl
       ? getImageUrl(p.headerImageKey)
@@ -94,6 +95,7 @@ export function postToPlain(
     readingTimeMinutes: p.readingTimeMinutes ?? 0,
     viewerCanSeeContent: canShowContent,
     ...(isDeleted && { deletedAt: new Date(deletedAt).toISOString() }),
+    ...(isPrivateStub && { isPrivateStub: true }),
   };
   if (
     referenceMetadata != null &&
