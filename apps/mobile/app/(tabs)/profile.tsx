@@ -38,7 +38,7 @@ export default function ProfileScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [isSelf, setIsSelf] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'saved' | 'collections'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'cited' | 'saved' | 'collections'>('posts');
   const [profileLoading, setProfileLoading] = useState(true);
   const [tabContentLoading, setTabContentLoading] = useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
@@ -91,6 +91,8 @@ export default function ProfileScreen() {
         postsData = await api.get(`/users/${uid}/replies?page=${pageNum}&limit=20`);
       } else if (activeTab === 'quotes') {
         postsData = await api.get(`/users/${uid}/quotes?page=${pageNum}&limit=20`);
+      } else if (activeTab === 'cited') {
+        postsData = await api.get(`/users/${uid}/cited?page=${pageNum}&limit=20`);
       } else if (activeTab === 'collections') {
         postsData = await api.get(`/users/${uid}/collections?page=${pageNum}&limit=20`);
       } else {
@@ -518,25 +520,26 @@ export default function ProfileScreen() {
                 >
                   <View style={[styles.tabsRow, { minWidth: screenWidth }]}>
                     {(isSelf
-                      ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
-                      : (['posts', 'replies', 'quotes', 'collections'] as const)
+                      ? (['posts', 'replies', 'quotes', 'cited', 'saved', 'collections'] as const)
+                      : (['posts', 'replies', 'quotes', 'cited', 'collections'] as const)
                     ).map((tab) => {
                       const count = tab === 'posts' ? (user.postCount ?? 0)
                         : tab === 'replies' ? (user.replyCount ?? 0)
                           : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
                             : tab === 'saved' ? (user.keepsCount ?? 0)
-                              : (user.collectionCount ?? 0);
+                              : tab === 'cited' ? undefined
+                                : (user.collectionCount ?? 0);
                       return (
                         <Pressable
                           key={tab}
                           style={[styles.tab, activeTab === tab && styles.tabActive]}
                           onPress={() => setActiveTab(tab)}
-                          accessibilityLabel={count > 0 && tab !== 'replies' ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
+                          accessibilityLabel={count != null && count > 0 && tab !== 'replies' ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
                           accessibilityRole="tab"
                           accessibilityState={{ selected: activeTab === tab }}
                         >
                           <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]} numberOfLines={1}>
-                            {t(`profile.${tab}`)}{count > 0 && tab !== 'replies' ? ` (${formatCompactNumber(count)})` : ''}
+                            {t(`profile.${tab}`)}{count != null && count > 0 && tab !== 'replies' ? ` (${formatCompactNumber(count)})` : ''}
                           </Text>
                         </Pressable>
                       );
@@ -584,14 +587,16 @@ export default function ProfileScreen() {
                       : activeTab === 'collections' ? 'folder-open'
                         : activeTab === 'replies' ? 'chat-bubble-outline'
                           : activeTab === 'quotes' ? 'format-quote'
-                            : 'article'
+                            : activeTab === 'cited' ? 'link'
+                              : 'article'
                   }
                   headline={
                     activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
                       : activeTab === 'collections' ? (isSelf ? t('profile.noCollectionsOwn', 'No collections') : t('profile.noCollections', 'No public collections'))
                         : activeTab === 'replies' ? t('profile.noReplies', 'No replies yet')
                           : activeTab === 'quotes' ? t('profile.noQuotes', 'No quotes yet')
-                            : t('profile.noPosts', 'No posts yet')
+                            : activeTab === 'cited' ? t('profile.noCited', 'No cited posts')
+                              : t('profile.noPosts', 'No posts yet')
                   }
                   subtext={
                     activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
@@ -599,7 +604,8 @@ export default function ProfileScreen() {
                         : activeTab === 'collections' ? (isSelf ? t('profile.noCollectionsOwnHint', 'Create a collection to organize your posts.') : t('profile.noCollectionsHint', 'Public collections will appear here.'))
                           : activeTab === 'replies' ? t('profile.noRepliesHint', 'Replies will show here.')
                             : activeTab === 'quotes' ? t('profile.noQuotesHint', 'Quotes will show here.')
-                              : undefined
+                              : activeTab === 'cited' ? t('profile.noCitedHint', 'Posts this user has cited appear here.')
+                                : undefined
                   }
                   secondaryLabel={
                     activeTab === 'saved' ? t('profile.keepsLibrary', 'Keeps library')

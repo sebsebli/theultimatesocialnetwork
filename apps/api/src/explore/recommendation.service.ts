@@ -427,7 +427,7 @@ export class RecommendationService {
         .select('p.author_id', 'authorId')
         .addSelect('COUNT(*)', 'topicOverlap')
         .groupBy('p.author_id')
-        .orderBy('topicOverlap', 'DESC')
+        .orderBy('COUNT(*)', 'DESC')
         .limit(limit * 2)
         .getRawMany<{ authorId: string; topicOverlap: string }>();
     }

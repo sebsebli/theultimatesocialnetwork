@@ -560,7 +560,7 @@ export class UsersService {
     userId: string,
     page: number,
     limit: number,
-    type: 'posts' | 'replies' | 'quotes' = 'posts',
+    type: 'posts' | 'replies' | 'quotes' | 'cited' = 'posts',
     viewerId?: string,
   ): Promise<{ items: unknown[]; hasMore: boolean }> {
     const skip = (page - 1) * limit;
@@ -613,47 +613,106 @@ export class UsersService {
       return { items, hasMore };
     }
     // type === 'quotes': posts that quote posts authored by userId (same join pattern as getQuotes)
-    try {
-      const quoters = await this.postRepo
-        .createQueryBuilder('quoter')
-        .innerJoin(PostEdge, 'edge', 'edge.from_post_id = quoter.id')
-        .innerJoin('posts', 'quoted', 'quoted.id = edge.to_post_id')
-        .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
-        .andWhere('quoted.author_id = :userId', { userId })
-        .andWhere('quoter.deleted_at IS NULL')
-        .leftJoinAndSelect('quoter.author', 'author')
-        .orderBy('quoter.created_at', 'DESC')
-        .skip(skip)
-        .take(limit + 1)
-        .getMany();
-      const hasMore = quoters.length > limit;
-      const slice = quoters.slice(0, limit);
-      const postIds = slice.map((p) => p.id).filter(Boolean);
-      const { likedIds, keptIds } = viewerId
-        ? await this.interactionsService.getLikeKeepForViewer(viewerId, postIds)
-        : { likedIds: new Set<string>(), keptIds: new Set<string>() };
-      const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
-      const items = await Promise.all(
-        slice.map(async (p) => {
-          const linkedIds = extractLinkedPostIds(p.body);
-          const referenceMetadata =
-            linkedIds.length > 0
-              ? await getTitlesForPostIds(this.postRepo, linkedIds)
+    if (type === 'quotes') {
+      try {
+        const quoters = await this.postRepo
+          .createQueryBuilder('quoter')
+          .innerJoin(PostEdge, 'edge', 'edge.from_post_id = quoter.id')
+          .innerJoin('posts', 'quoted', 'quoted.id = edge.to_post_id')
+          .where('edge.edge_type = :edgeType', { edgeType: EdgeType.QUOTE })
+          .andWhere('quoted.author_id = :userId', { userId })
+          .andWhere('quoter.deleted_at IS NULL')
+          .leftJoinAndSelect('quoter.author', 'author')
+          .orderBy('quoter.created_at', 'DESC')
+          .skip(skip)
+          .take(limit + 1)
+          .getMany();
+        const hasMore = quoters.length > limit;
+        const slice = quoters.slice(0, limit);
+        const postIds = slice.map((p) => p.id).filter(Boolean);
+        const { likedIds, keptIds } = viewerId
+          ? await this.interactionsService.getLikeKeepForViewer(
+              viewerId,
+              postIds,
+            )
+          : { likedIds: new Set<string>(), keptIds: new Set<string>() };
+        const getImageUrl = (key: string) =>
+          this.uploadService.getImageUrl(key);
+        const items = await Promise.all(
+          slice.map(async (p) => {
+            const linkedIds = extractLinkedPostIds(p.body);
+            const referenceMetadata =
+              linkedIds.length > 0
+                ? await getTitlesForPostIds(this.postRepo, linkedIds)
+                : undefined;
+            const viewerState = viewerId
+              ? {
+                  isLiked: likedIds.has(p.id),
+                  isKept: keptIds.has(p.id),
+                }
               : undefined;
-          const viewerState = viewerId
-            ? {
-                isLiked: likedIds.has(p.id),
-                isKept: keptIds.has(p.id),
-              }
-            : undefined;
-          return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
-        }),
-      );
-      return { items, hasMore };
-    } catch (err) {
-      console.error('getUserPosts quotes error', err);
-      return { items: [], hasMore: false };
+            return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
+          }),
+        );
+        return { items, hasMore };
+      } catch (err) {
+        console.error('getUserPosts quotes error', err);
+        return { items: [], hasMore: false };
+      }
     }
+    // type === 'cited': posts that this user has cited (outgoing quotes). Query from Post (cited) via PostEdge so we use the same entity pattern as 'quotes'.
+    if (type === 'cited') {
+      try {
+        const citedPosts = await this.postRepo
+          .createQueryBuilder('cited')
+          .innerJoin(PostEdge, 'edge', 'edge.to_post_id = cited.id')
+          .innerJoin(
+            'posts',
+            'fromPost',
+            'fromPost.id = edge.from_post_id AND fromPost.author_id = :userId AND fromPost.deleted_at IS NULL',
+          )
+          .where('edge.edge_type = :edgeType', { edgeType: EdgeType.QUOTE })
+          .andWhere('cited.deleted_at IS NULL')
+          .leftJoinAndSelect('cited.author', 'author')
+          .orderBy('edge.created_at', 'DESC')
+          .setParameter('userId', userId)
+          .skip(skip)
+          .take(limit + 1)
+          .getMany();
+        const hasMore = citedPosts.length > limit;
+        const slice = citedPosts.slice(0, limit);
+        const postIds = slice.map((p) => p.id).filter(Boolean);
+        const { likedIds, keptIds } = viewerId
+          ? await this.interactionsService.getLikeKeepForViewer(
+              viewerId,
+              postIds,
+            )
+          : { likedIds: new Set<string>(), keptIds: new Set<string>() };
+        const getImageUrl = (key: string) =>
+          this.uploadService.getImageUrl(key);
+        const items = await Promise.all(
+          slice.map(async (p) => {
+            const linkedIds = extractLinkedPostIds(p.body);
+            const referenceMetadata =
+              linkedIds.length > 0
+                ? await getTitlesForPostIds(this.postRepo, linkedIds)
+                : undefined;
+            const viewerState = viewerId
+              ? {
+                  isLiked: likedIds.has(p.id),
+                  isKept: keptIds.has(p.id),
+                }
+              : undefined;
+            return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
+          }),
+        );
+        return { items, hasMore };
+      } catch (err) {
+        console.error('getUserPosts cited error', err);
+        return { items: [], hasMore: false };
+      }
+    }
+    return { items: [], hasMore: false };
   }
 
   async getReplies(userId: string) {

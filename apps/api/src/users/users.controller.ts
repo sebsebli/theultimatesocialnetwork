@@ -463,7 +463,7 @@ export class UsersController {
     @CurrentUser() user: { id: string },
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('type') type: 'posts' | 'replies' | 'quotes' = 'posts',
+    @Query('type') type: 'posts' | 'replies' | 'quotes' | 'cited' = 'posts',
   ) {
     return this.usersService.getUserPosts(user.id, page, limit, type, user.id);
   }
@@ -475,7 +475,7 @@ export class UsersController {
     @CurrentUser() user?: { id: string },
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
-    @Query('type') type?: 'posts' | 'replies' | 'quotes',
+    @Query('type') type?: 'posts' | 'replies' | 'quotes' | 'cited',
   ) {
     if (id === 'me') {
       throw new NotFoundException('Use GET /users/me/posts for current user');
@@ -487,6 +487,25 @@ export class UsersController {
       page ?? 1,
       limit ?? 20,
       type ?? 'posts',
+      user?.id,
+    );
+  }
+
+  @Get(':id/cited')
+  @UseGuards(OptionalJwtAuthGuard)
+  async getCited(
+    @Param('id') id: string,
+    @CurrentUser() user?: { id: string },
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+  ) {
+    const userId = await this.usersService.resolveUserId(id);
+    if (!userId) throw new NotFoundException('User not found');
+    return this.usersService.getUserPosts(
+      userId,
+      page ?? 1,
+      limit ?? 20,
+      'cited',
       user?.id,
     );
   }

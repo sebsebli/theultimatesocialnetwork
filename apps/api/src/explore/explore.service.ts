@@ -486,26 +486,18 @@ export class ExploreService {
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     // Calculate scores in DB using CASE statements
+    const scoreExpr = `SUM(CASE WHEN edge.created_at >= :sixHoursAgo THEN 1.0 ELSE 0.3 END)`;
     const scoredIds = await this.postEdgeRepo
       .createQueryBuilder('edge')
       .select('edge.to_post_id', 'postId')
-      .addSelect(
-        `
-        SUM(
-          CASE 
-            WHEN edge.created_at >= :sixHoursAgo THEN 1.0 
-            ELSE 0.3 
-          END
-        )`,
-        'score',
-      )
+      .addSelect(scoreExpr, 'score')
       .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
       .andWhere('edge.created_at >= :twentyFourHoursAgo', {
         twentyFourHoursAgo,
       })
       .setParameters({ sixHoursAgo, twentyFourHoursAgo })
       .groupBy('edge.to_post_id')
-      .orderBy('score', 'DESC')
+      .orderBy(scoreExpr, 'DESC')
       .offset(skip)
       .limit(limitNum + 1)
       .getRawMany<{ postId: string; score: number }>();
@@ -669,7 +661,7 @@ export class ExploreService {
       .addSelect('COUNT(*)', 'count')
       .where('edge.edge_type = :type', { type: EdgeType.LINK })
       .groupBy('edge.to_post_id')
-      .orderBy('count', 'DESC')
+      .orderBy('COUNT(*)', 'DESC')
       .offset(skip)
       .limit(limitNum + 1)
       .getRawMany<{ postId: string; count: string }>();

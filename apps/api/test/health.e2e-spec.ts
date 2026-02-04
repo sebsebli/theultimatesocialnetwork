@@ -12,6 +12,7 @@ describe('HealthController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
     await app.init();
   });
 
@@ -19,9 +20,9 @@ describe('HealthController (e2e)', () => {
     await app.close();
   });
 
-  it('/health (GET) readiness', () => {
+  it('/api/health (GET) readiness', () => {
     return request(app.getHttpServer())
-      .get('/health')
+      .get('/api/health')
       .expect(200)
       .expect((res) => {
         expect(res.body).toHaveProperty('status');
@@ -30,9 +31,9 @@ describe('HealthController (e2e)', () => {
       });
   });
 
-  it('/health/live (GET) liveness', () => {
+  it('/api/health/live (GET) liveness', () => {
     return request(app.getHttpServer())
-      .get('/health/live')
+      .get('/api/health/live')
       .expect(200)
       .expect((res) => {
         expect(res.body).toHaveProperty('status', 'ok');
@@ -40,9 +41,9 @@ describe('HealthController (e2e)', () => {
       });
   });
 
-  it('/metrics (GET)', () => {
+  it('/api/metrics (GET)', () => {
     return request(app.getHttpServer())
-      .get('/metrics')
+      .get('/api/metrics')
       .expect(200)
       .expect('Content-Type', /text\/plain/);
   });

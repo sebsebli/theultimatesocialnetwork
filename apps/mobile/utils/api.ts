@@ -250,16 +250,21 @@ class ApiClient {
             continue;
           }
           const errorText = await response.text();
-          let errorMessage = `API Error: ${response.status}`;
+          let errorMessage: string = `API Error: ${response.status}`;
           let errorData: Record<string, unknown> | undefined;
           try {
             const errorJson = JSON.parse(errorText) as Record<string, unknown>;
             const errObj = errorJson.error as Record<string, unknown> | undefined;
-            const m = (errObj?.message ?? errorJson['message']) as string | string[] | undefined;
-            errorMessage = Array.isArray(m) ? (m[0] ?? errorMessage) : (m || errorMessage);
+            const m = (errObj?.message ?? errorJson['message']) as string | string[] | unknown;
+            const raw =
+              typeof m === 'string' ? m
+                : Array.isArray(m) ? m[0]
+                : m != null && typeof (m as object) === 'object' && 'message' in (m as object) ? (m as { message?: unknown }).message
+                : undefined;
+            errorMessage = typeof raw === 'string' ? raw : `API Error: ${response.status}`;
             errorData = errorJson;
           } catch (e) {
-            // Keep text
+            // Keep default errorMessage
           }
           if (response.status !== 403) showApiErrorToast(errorMessage);
           throw new ApiError(errorMessage, response.status, errorData);

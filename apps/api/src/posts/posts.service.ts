@@ -641,14 +641,7 @@ export class PostsService {
     const quoteBody = `${commentary}\n\n[[post:${quotedPostId}]]`;
 
     // Create post but skip queue until we add the edge
-    const quotePost = await this.create(
-      userId,
-      {
-        body: quoteBody,
-        visibility: PostVisibility.PUBLIC,
-      },
-      true,
-    );
+    const quotePost = await this.create(userId, { body: quoteBody }, true);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();

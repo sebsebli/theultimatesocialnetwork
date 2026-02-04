@@ -18,6 +18,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
+  // All routes under /api so nginx can forward full path without rewriting
+  app.setGlobalPrefix('api');
+
   // Request body size limit (DoS prevention; posts/markdown typically < 1MB)
   app.use(json({ limit: BODY_LIMIT }));
   app.use(urlencoded({ extended: true, limit: BODY_LIMIT }));
@@ -54,7 +57,7 @@ async function bootstrap() {
       next: NextFunction,
     ): void => {
       const path: string = req.path ?? req.url?.split('?')[0] ?? '';
-      if (path === '/metrics') {
+      if (path === '/api/metrics' || path === '/metrics') {
         const authHeader = req.headers['authorization'];
         const secretHeader = req.headers['x-metrics-secret'];
         const provided = Array.isArray(secretHeader)
@@ -161,7 +164,7 @@ async function bootstrap() {
     maxAge: 86400, // 24 hours
   });
 
-  // Swagger API Documentation
+  // Swagger API Documentation (served at /api/docs when global prefix is 'api')
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('Citewalk API')
@@ -172,7 +175,7 @@ async function bootstrap() {
       .addBearerAuth()
       .build();
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document);
+    SwaggerModule.setup('docs', app, document); // under /api/docs
   }
 
   const port = process.env.PORT ?? 3000;

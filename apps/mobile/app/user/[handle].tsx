@@ -46,7 +46,7 @@ export default function UserProfileScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [following, setFollowing] = useState(false);
   const [hasPendingFollowRequest, setHasPendingFollowRequest] = useState(false);
-  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'saved' | 'collections'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'cited' | 'saved' | 'collections'>('posts');
   const loadingMoreRef = React.useRef(false);
 
   // When viewing someone else's profile, replies tab is hidden; switch away if it was selected
@@ -101,6 +101,7 @@ export default function UserProfileScreen() {
         if (activeTab === 'saved') path = `/keeps?page=${pageNum}&limit=20`;
         else if (activeTab === 'replies') path = `/users/${userId}/replies?page=${pageNum}&limit=20`;
         else if (activeTab === 'quotes') path = `/users/${userId}/quotes?page=${pageNum}&limit=20`;
+        else if (activeTab === 'cited') path = `/users/${userId}/cited?page=${pageNum}&limit=20`;
         else if (activeTab === 'collections') path = `/users/${userId}/collections?page=${pageNum}&limit=20`;
         else path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=posts`;
         return api.get(path);
@@ -610,25 +611,26 @@ export default function UserProfileScreen() {
                 >
                   <View style={[styles.tabsRow, { minWidth: screenWidth }]}>
                     {(isOwnProfile
-                      ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
-                      : (['posts', 'quotes', 'collections'] as const)
+                      ? (['posts', 'replies', 'quotes', 'cited', 'saved', 'collections'] as const)
+                      : (['posts', 'quotes', 'cited', 'collections'] as const)
                     ).map((tab) => {
                       const count = tab === 'posts' ? (user.postCount ?? 0)
                         : tab === 'replies' ? (user.replyCount ?? 0)
                           : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
                             : tab === 'saved' ? (user.keepsCount ?? 0)
-                              : (user.collectionCount ?? 0);
+                              : tab === 'cited' ? undefined
+                                : (user.collectionCount ?? 0);
                       return (
                         <Pressable
                           key={tab}
                           style={[styles.tab, activeTab === tab && styles.tabActive]}
                           onPress={() => handleTabChange(tab)}
-                          accessibilityLabel={count > 0 && tab !== 'replies' ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
+                          accessibilityLabel={count != null && count > 0 && tab !== 'replies' ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
                           accessibilityRole="tab"
                           accessibilityState={{ selected: activeTab === tab }}
                         >
                           <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]} numberOfLines={1}>
-                            {t(`profile.${tab}`)}{count > 0 && tab !== 'replies' ? ` (${formatCompactNumber(count)})` : ''}
+                            {t(`profile.${tab}`)}{count != null && count > 0 && tab !== 'replies' ? ` (${formatCompactNumber(count)})` : ''}
                           </Text>
                         </Pressable>
                       );
@@ -653,21 +655,24 @@ export default function UserProfileScreen() {
                     : activeTab === 'collections' ? 'folder-open'
                       : activeTab === 'replies' ? 'chat-bubble-outline'
                         : activeTab === 'quotes' ? 'format-quote'
-                          : 'article'
+                          : activeTab === 'cited' ? 'link'
+                            : 'article'
                 }
                 headline={
                   activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
                     : activeTab === 'collections' ? t('profile.noCollections', 'No public collections')
                       : activeTab === 'replies' ? t('profile.noReplies', 'No replies yet')
                         : activeTab === 'quotes' ? t('profile.noQuotes', 'No quotes yet')
-                          : t('profile.noPosts', 'No posts yet')
+                          : activeTab === 'cited' ? t('profile.noCited', 'No cited posts')
+                            : t('profile.noPosts', 'No posts yet')
                 }
                 subtext={
                   activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
                     : activeTab === 'collections' ? t('profile.noCollectionsHint', 'Public collections will appear here.')
                       : activeTab === 'replies' ? t('profile.noRepliesHint', 'Replies will show here.')
                         : activeTab === 'quotes' ? t('profile.noQuotesHint', 'Quotes will show here.')
-                          : t('profile.noPostsHintView', 'Posts will appear here.')
+                          : activeTab === 'cited' ? t('profile.noCitedHint', 'Posts this user has cited appear here.')
+                            : t('profile.noPostsHintView', 'Posts will appear here.')
                 }
               />
             )}

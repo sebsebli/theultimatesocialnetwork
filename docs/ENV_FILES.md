@@ -52,6 +52,8 @@ So:
   - **Expo** / React Native. Expo loads `.env` from the **app root** (`apps/mobile`). Only variables prefixed with `EXPO_PUBLIC_` are exposed to the client (e.g. `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_WEB_BASE_URL`).
 - **When you use it**
   - Running the mobile app (Expo). Use it to point the app at your API (localhost for dev, or your deployed API URL).
+- **Docker + nginx**
+  - If the app talks to the API through nginx (e.g. `http://192.168.x.x` or `http://localhost`), **`EXPO_PUBLIC_API_BASE_URL` must include `/api`** (e.g. `http://192.168.68.112/api`). Nginx only proxies requests under `/api/` to the API; without `/api`, paths like `/explore/newest` hit the web app and return 404.
 
 ---
 
