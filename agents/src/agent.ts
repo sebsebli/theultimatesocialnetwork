@@ -70,16 +70,16 @@ Your persona (how you actually behave): ${persona.behavior}
 **Realistic, standalone articles**: Your posts must read like real articles, essays, or blog posts—substantive content about real subjects, ideas, experiences, or expertise. Write in first person when it fits. **Do not mention the social network, the app, the feed, "here", "this platform", following, likes, or the fact that you're posting online.** The content must not be about the platform at all; it must stand on its own (as if it could appear in a newsletter or blog).
 
 You MUST **interact with the network**:
-1.  **Find People**: If your feed is empty, use `get_explore_people` or `get_explore_deep_dives` to find active users.
-2.  **Read & React**: Read their posts (`get_user_posts` or `get_post`). If you find something interesting, **reply** or **quote** it. Do not just post into the void.
-3.  **Cite Real Content**: When you write a post, link to other users' posts using `[[post:UUID]]` (use the REAL ID you found). Mention them with `@handle`.
-4.  **Use Real External Links**: Include plausible external links `[https://url](text)` to Wikipedia, news sites, or tools relevant to your topic.
+1.  **Find People**: If your feed is empty, use \`get_explore_people\` or \`get_explore_deep_dives\` to find active users.
+2.  **Read & React**: Read their posts (\`get_user_posts\` or \`get_post\`). If you find something interesting, **reply** or **quote** it. Do not just post into the void.
+3.  **Cite Real Content**: When you write a post, link to other users' posts using \`[[post:UUID]]\` (use the REAL ID you found). Mention them with \`@handle\`.
+4.  **Use Real External Links**: Include plausible external links \`[https://url](text)\` to Wikipedia, news sites, or tools relevant to your topic.
 
-**Real post IDs only**: `[[post:UUID]]` and `quote_post`/`reply_to_post` require a real post id from `get_feed`, `get_explore_*`, or `get_user_posts`. Never invent post ids.
+**Real post IDs only**: \`[[post:UUID]]\` and \`quote_post\`/\`reply_to_post\` require a real post id from \`get_feed\`, \`get_explore_*\`, or \`get_user_posts\`. Never invent post ids.
 
 Use the provided tools to read content first (get_feed, get_explore_*, get_user_posts, get_post, get_user, get_notifications, get_dm_threads), then ONE action per turn: create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, or send_dm. For create_post you may call upload_header_image_from_url first. Each of those actions counts toward your goal.
 
-When creating posts: write substantive, realistic content about your chosen topic; use `[[Topic]]` for topics, `[[post:UUID]]` only with real UUIDs; sometimes include real external links as `[https://url](link text)` (e.g. `[https://example.com](click here)`) for sources, tools, or sites that fit the topic to make posts feel realistic; `@handle` to mention others when relevant. Keep replies short. When quoting, use a real post_id and add real commentary—reference the author with `@handle` when relevant. Never write posts about "this network", "the app", or "being on here".
+When creating posts: write substantive, realistic content about your chosen topic; use \`[[Topic]]\` for topics, \`[[post:UUID]]\` only with real UUIDs; sometimes include real external links as \`[https://url](link text)\` (e.g. \`[https://example.com](click here)\`) for sources, tools, or sites that fit the topic to make posts feel realistic; \`@handle\` to mention others when relevant. Keep replies short. When quoting, use a real post_id and add real commentary—reference the author with \`@handle\` when relevant. Never write posts about "this network", "the app", or "being on here".
 ${FORMAT_DOC}
 
 After each tool result, either call another tool (e.g. get_post to read full content) or perform one action. Continue until you have used the required number of actions or have nothing left to do.`;
@@ -173,18 +173,18 @@ export async function executeTool(
         if (!query) return JSON.stringify({ error: 'query required' });
         const config = ctx.imageConfig;
         let url: string | undefined;
-        
+
         if (config?.pexelsApiKey) {
-           const hits = await pexelsSearch(config.pexelsApiKey, query, { orientation: 'landscape', perPage: 1 });
-           if (hits?.[0]) url = hits[0].url;
+          const hits = await pexelsSearch(config.pexelsApiKey, query, { orientation: 'landscape', perPage: 1 });
+          if (hits?.[0]) url = hits[0].url;
         }
         if (!url && config?.pixabayApiKey) {
-           const hits = await pixabaySearch(config.pixabayApiKey, query, { orientation: 'horizontal', perPage: 1 });
-           if (hits?.[0]) url = hits[0].url;
+          const hits = await pixabaySearch(config.pixabayApiKey, query, { orientation: 'horizontal', perPage: 1 });
+          if (hits?.[0]) url = hits[0].url;
         }
-        
+
         if (!url) {
-            url = `https://picsum.photos/seed/${encodeURIComponent(query)}/1200/600`;
+          url = `https://picsum.photos/seed/${encodeURIComponent(query)}/1200/600`;
         }
         return JSON.stringify({ success: true, image_url: url });
       }
@@ -277,11 +277,13 @@ function getGeminiTools() {
 async function runGeminiLoop(options: AgentLoopOptions): Promise<number> {
   const { gemini, model, api, ctx, maxActions, onAction } = options;
   if (!gemini) throw new Error('Gemini client not provided');
+  const chats = gemini.chats;
+  if (!chats) throw new Error('Gemini chats not available');
 
   const systemInstruction = buildSystemPrompt(ctx.character, ctx.persona);
   const tools = [{ functionDeclarations: getGeminiTools() }];
-  
-  const chat = gemini.chats.create({
+
+  const chat = chats.create({
     model,
     config: {
       systemInstruction,
@@ -290,9 +292,11 @@ async function runGeminiLoop(options: AgentLoopOptions): Promise<number> {
     history: [
       {
         role: 'user',
-        parts: [{ text: `You are ${ctx.displayName} (@${ctx.handle}). Your persona: ${ctx.persona.behavior}
+        parts: [{
+          text: `You are ${ctx.displayName} (@${ctx.handle}). Your persona: ${ctx.persona.behavior}
 
-You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.` }],
+You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.`
+        }],
       },
     ],
   });
@@ -304,39 +308,38 @@ You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, 
 
   while (actionsUsed < maxActions && turns < maxTurns) {
     turns++;
-    
+
     let userMsgText = '';
     if (turns === 1) {
-       userMsgText = "Start interactions."; 
+      userMsgText = "Start interactions.";
     } else {
-        const remaining = maxActions - actionsUsed;
-        if (remaining <= 0) break;
-        const historyBlurb = actionHistory.length > 0 ? `What you've done so far: ${actionHistory.join('; ')}. ` : '';
-        userMsgText = `${historyBlurb}You have ${remaining} actions left. Check get_notifications and get_dm_threads. Continue: surf or act.`;
+      const remaining = maxActions - actionsUsed;
+      if (remaining <= 0) break;
+      const historyBlurb = actionHistory.length > 0 ? `What you've done so far: ${actionHistory.join('; ')}. ` : '';
+      userMsgText = `${historyBlurb}You have ${remaining} actions left. Check get_notifications and get_dm_threads. Continue: surf or act.`;
     }
 
     try {
-      const result = await chat.sendMessage(userMsgText);
-      const response = result.response;
-      
-      const calls = response.functionCalls();
-      if (calls && calls.length > 0) {
+      const result = await chat.sendMessage({ message: userMsgText } as Parameters<typeof chat.sendMessage>[0]);
+      const response = result as { functionCalls?: Array<{ name?: string; args?: Record<string, unknown> }> };
+      const calls = response.functionCalls ?? [];
+      if (calls.length > 0) {
         const toolOutputs: any[] = [];
-        
+
         for (const call of calls) {
           const name = call.name as AgentToolName;
           const args = call.args as Record<string, unknown>;
-          
+
           const outputText = await executeTool(name, args, api, ctx);
           let responseData: any;
           try {
-             responseData = JSON.parse(outputText);
+            responseData = JSON.parse(outputText);
           } catch {
-             responseData = { result: outputText };
+            responseData = { result: outputText };
           }
           toolOutputs.push({
             name: name,
-            response: { content: responseData } 
+            response: { content: responseData }
           });
 
           if (ACTION_TOOLS.has(name)) {
@@ -346,7 +349,7 @@ You have ${maxActions} actions. Each round: (1) Surf—get_feed, get_explore_*, 
             onAction?.(name, args, summary);
           }
         }
-        await chat.sendMessage(toolOutputs); 
+        await chat.sendMessage({ message: toolOutputs } as Parameters<typeof chat.sendMessage>[0]);
       }
     } catch (e) {
       console.error('Gemini loop error', e);
@@ -376,6 +379,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<number> {
 
   const actionHistory: string[] = [];
 
+  type ChatMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
   const messages: ChatMessage[] = [
     { role: 'system', content: buildSystemPrompt(ctx.character, ctx.persona) },
     {
