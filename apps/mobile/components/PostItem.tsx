@@ -134,6 +134,14 @@ function PostItemComponent({
 
   const handleReport = () => setReportModalVisible(true);
 
+  // Use placeholder author when API omits it (e.g. pending user) so the post preview always shows
+  const author = post.author ?? (post.authorId
+    ? { id: post.authorId, handle: t('post.unknownUser', 'Unknown'), displayName: t('post.unknownUser', 'Unknown') }
+    : null);
+  if (!author) return null;
+
+  const postWithAuthor = author !== post.author ? { ...post, author } : post;
+
   const handleDeletePost = async () => {
     try {
       await api.delete(`/posts/${post.id}`);
@@ -147,7 +155,7 @@ function PostItemComponent({
     }
   };
 
-  const isOwnPost = !!userId && post.author?.id === userId;
+  const isOwnPost = !!userId && author.id === userId;
 
   const confirmReport = async () => {
     try {
@@ -183,13 +191,10 @@ function PostItemComponent({
     }
   };
 
-  // Never show "data incomplete" — hide incomplete posts entirely
-  if (!post.author) return null;
-
   return (
     <View style={styles.container}>
       <PostContent
-        post={post}
+        post={postWithAuthor}
         onMenuPress={isPreview ? undefined : handleMenu}
         disableNavigation={isPreview}
         headerImageUri={headerImageUri}
@@ -201,7 +206,7 @@ function PostItemComponent({
       {isPreview ? null : (
         <>
           {/* Private Feedback Line (Author Only) - never show like count to non-creators */}
-          {userId === post.author?.id && post.privateLikeCount !== undefined && post.privateLikeCount > 0 && (
+          {userId === author.id && post.privateLikeCount !== undefined && post.privateLikeCount > 0 && (
             <View style={styles.privateFeedback}>
               <MaterialIcons name="favorite" size={HEADER.iconSize} color={COLORS.like} />
               <Text style={styles.privateFeedbackText}>

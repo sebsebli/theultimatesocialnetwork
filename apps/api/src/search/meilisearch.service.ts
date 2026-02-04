@@ -521,9 +521,13 @@ export class MeilisearchService implements OnModuleInit {
     });
   }
 
-  async searchAll(query: string, limitPerType = 15) {
+  async searchAll(query: string, limitPerType = 15, topicId?: string) {
     const [postsRes, usersRes, topicsRes] = await Promise.all([
-      this.searchPosts(query, { limit: limitPerType, offset: 0 }).catch(() => ({
+      this.searchPosts(query, {
+        limit: limitPerType,
+        offset: 0,
+        topicId,
+      }).catch(() => ({
         hits: [],
       })),
       this.searchUsers(query, limitPerType).then((r) => ({

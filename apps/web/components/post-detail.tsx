@@ -3,9 +3,11 @@
 import { useState, useEffect, memo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useToast } from "./ui/toast";
 import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
 import { getImageUrl } from "@/lib/security";
+import { getPostDisplayTitle } from "@/utils/compose-helpers";
 import { Avatar } from "./avatar";
 import { ReplySection } from "./reply-section";
 import { SourcesSection } from "./sources-section";
@@ -44,6 +46,7 @@ export interface PostDetailProps {
 }
 
 function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
+  const t = useTranslations("post");
   const { success: toastSuccess, error: toastError } = useToast();
   const { user } = useAuth();
   const [liked, setLiked] = useState(false);
@@ -335,24 +338,30 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
             </div>
           ) : (
             <>
-              {post.title && (
-                <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-2xl font-bold leading-tight text-paper">
-                    {post.title}
-                  </h1>
-                  <Link
-                    href={`/post/${post.id}/reading`}
-                    className="text-primary text-sm font-medium hover:underline"
-                  >
-                    Reading mode
-                  </Link>
-                </div>
-              )}
+              {(() => {
+                const displayTitle = getPostDisplayTitle(post);
+                return displayTitle ? (
+                  <div className="flex items-center justify-between mb-4">
+                    <h1 className="text-2xl font-bold leading-tight text-paper">
+                      {displayTitle}
+                    </h1>
+                    <Link
+                      href={`/post/${post.id}/reading`}
+                      className="text-primary text-sm font-medium hover:underline"
+                    >
+                      Reading mode
+                    </Link>
+                  </div>
+                ) : null;
+              })()}
               <div
                 className="text-[18px] leading-relaxed text-secondary font-normal prose prose-invert max-w-none"
                 dangerouslySetInnerHTML={{
                   __html: renderMarkdown(
-                    stripLeadingH1IfMatch(post.body, post.title ?? undefined),
+                    stripLeadingH1IfMatch(
+                      post.body,
+                      (post.title ?? getPostDisplayTitle(post)) || undefined,
+                    ),
                     {
                       referenceMetadata: post.referenceMetadata ?? undefined,
                     },
@@ -376,7 +385,12 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
 
         {/* Meta Row */}
         <div className="flex items-center gap-6 text-sm text-tertiary mb-6">
-          {!isPublic && <span>{post.replyCount} replies</span>}
+          {!isPublic && (
+            <span>
+              {post.replyCount}{" "}
+              {post.replyCount === 1 ? t("comment") : t("comments")}
+            </span>
+          )}
           {(post.quoteCount ?? 0) > 0 ? (
             <Link
               href={`/post/${post.id}/quotes`}

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Blurhash } from "react-blurhash";
 import { renderMarkdown, extractWikilinks } from "@/utils/markdown";
 import { getImageUrl } from "@/lib/security";
+import { getPostDisplayTitle } from "@/utils/compose-helpers";
 import { Avatar } from "./avatar";
 import { OverflowMenu } from "./overflow-menu";
 import { AddToCollectionModal } from "./add-to-collection-modal";
@@ -228,11 +229,14 @@ function PostItemInner({
             </>
           ) : (
             <>
-              {post.title && (
-                <h2 className="text-xl font-bold leading-tight tracking-tight text-paper group-hover:text-primary transition-colors duration-200 mb-1">
-                  {post.title}
-                </h2>
-              )}
+              {(() => {
+                const displayTitle = getPostDisplayTitle(post);
+                return displayTitle ? (
+                  <h2 className="text-xl font-bold leading-tight tracking-tight text-paper group-hover:text-primary transition-colors duration-200 mb-1">
+                    {displayTitle}
+                  </h2>
+                ) : null;
+              })()}
               <div className="relative max-h-[20rem] overflow-hidden mt-1">
                 <div
                   className="prose prose-invert max-w-none text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300"
@@ -318,7 +322,7 @@ function PostItemInner({
                     ? (source.url ?? "#")
                     : source.type === "post"
                       ? `/post/${source.id ?? ""}`
-                      : `/topic/${encodeURIComponent(source.slug ?? "")}`
+                      : `/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? "")}`
                 }
                 target={source.type === "external" ? "_blank" : undefined}
                 rel={

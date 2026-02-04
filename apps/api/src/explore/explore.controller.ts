@@ -131,6 +131,17 @@ export class ExploreController {
     }
   }
 
+  @Get('newest')
+  @UseGuards(OptionalJwtAuthGuard)
+  async getNewest(
+    @CurrentUser() user?: { id: string },
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const limitNum = limit ? Math.min(50, parseInt(limit, 10) || 20) : 20;
+    return this.exploreService.getNewest(user?.id, limitNum, { page, limit });
+  }
+
   @Get('for-you')
   @UseGuards(AuthGuard('jwt'))
   async getForYou(

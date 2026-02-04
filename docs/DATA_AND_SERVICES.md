@@ -34,10 +34,18 @@ Plus incremental migrations for new columns (onboarding, avatar, profile header,
 
 ## Meilisearch (search index)
 
-- **Role:** Full-text and vector search (posts, users, topics, DMs). Data is indexed from Postgres when entities change (workers and services call MeilisearchService).
+- **Role:** Full-text and vector search (posts, users, topics, DMs). **Search does not query the full database** — it only returns documents that have been indexed in Meilisearch. Data is indexed from Postgres when entities change (workers and services call MeilisearchService).
 - **Connection:** `MeilisearchService` (SearchModule), config: `MEILISEARCH_HOST`, `MEILISEARCH_MASTER_KEY`. Indexes created in `onModuleInit`; init errors are logged, app still starts.
 - **Health:** `GET /health` reports `services.meilisearch` (up/down). Meilisearch down does not fail readiness; search endpoints may error or return empty.
 - **Docker:** API `depends_on: meilisearch`; env: `MEILISEARCH_HOST: http://meilisearch:7700`.
+
+### When search might not show results
+
+- **Posts:** Indexed when a post is created or published (immediate best-effort index + worker for embedding/topicIds). If the worker or Redis is down, new posts are still indexed immediately but without vector/topicIds until reindex.
+- **Users:** Indexed on profile update and email change. New users (signup) are not indexed until they complete onboarding or update their profile; users with placeholder handles (`__pending_*`) are excluded from search results.
+- **Topics:** Indexed when created via a post (e.g. first use of `[[topic-slug]]`). Topics created by seed scripts or manually in DB only appear in search after a full reindex.
+- **After restore / empty index:** If the Meilisearch index is empty (e.g. after restore), the API runs a full reindex from Postgres on startup. You can also set `MEILISEARCH_REINDEX_ON_STARTUP=true` to force reindex on every start.
+- **Admin reindex:** `POST /admin/search/reindex` (admin role) triggers a full reindex in the background. Use when search is missing data and you want to sync from Postgres without restarting.
 
 ---
 

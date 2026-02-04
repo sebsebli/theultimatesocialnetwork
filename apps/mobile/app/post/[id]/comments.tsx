@@ -11,7 +11,7 @@ import {
   type NativeSyntheticEvent,
   type TextInputSelectionChangeEventData,
 } from 'react-native';
-import { useRouter, useLocalSearchParams, usePathname } from 'expo-router';
+import { useRouter, useLocalSearchParams, usePathname, useSegments } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../../utils/api';
@@ -22,6 +22,8 @@ import { useToast } from '../../../context/ToastContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
 import { MarkdownText } from '../../../components/MarkdownText';
 import { ReportModal } from '../../../components/ReportModal';
+import { OptionsActionSheet } from '../../../components/OptionsActionSheet';
+import { ConfirmModal } from '../../../components/ConfirmModal';
 import { EmptyState, emptyStateCenterWrapStyle } from '../../../components/EmptyState';
 import { useComposerSearch } from '../../../hooks/useComposerSearch';
 
@@ -47,9 +49,10 @@ function normalizeParam(value: unknown): string | undefined {
   return undefined;
 }
 
-/** Get post id from pathname (e.g. /post/abc-123/comments -> abc-123). Nested dynamic routes may not receive params.id. */
+/** Get post id from pathname (e.g. /post/abc-123/comments or post/abc-123/comments -> abc-123). Nested dynamic routes may not receive params.id. */
 function getPostIdFromPathname(pathname: string): string | undefined {
-  const match = pathname.match(/^\/post\/([^/]+)\/comments/);
+  if (!pathname || typeof pathname !== 'string') return undefined;
+  const match = pathname.match(/\/?post\/([^/]+)/);
   return match ? match[1] : undefined;
 }
 
@@ -58,12 +61,14 @@ export default function PostCommentsScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const pathname = usePathname();
+  const segments = useSegments();
   const replyIdFromParams = typeof params.replyId === 'string' ? params.replyId : Array.isArray(params.replyId) ? params.replyId[0] : undefined;
   const { t } = useTranslation();
   const { isAuthenticated, userId } = useAuth();
   const { showSuccess, showError } = useToast();
-  // postId: params often missing for nested routes, so derive from pathname first
-  const postId = getPostIdFromPathname(pathname ?? '') ?? normalizeParam(params.id);
+  // postId: pathname/params can be missing for nested routes; also use URL segments (e.g. ['post', 'xyz', 'comments'])
+  const postIdFromSegments = Array.isArray(segments) && segments[0] === 'post' && segments[1] && segments[2] === 'comments' ? String(segments[1]) : undefined;
+  const postId = getPostIdFromPathname(pathname ?? '') ?? normalizeParam(params.id) ?? postIdFromSegments;
   const [replies, setReplies] = useState<Reply[]>([]);
   const [commentDraft, setCommentDraft] = useState('');
   const [selection, setSelection] = useState({ start: 0, end: 0 });
@@ -71,6 +76,8 @@ export default function PostCommentsScreen() {
   const [loading, setLoading] = useState(true);
   const [postTitle, setPostTitle] = useState<string | null>(null);
   const [reportReplyId, setReportReplyId] = useState<string | null>(null);
+  const [replyMenuReplyId, setReplyMenuReplyId] = useState<string | null>(null);
+  const [replyToDeleteId, setReplyToDeleteId] = useState<string | null>(null);
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
   const scrollRef = useRef<ScrollView>(null);
   const hasScrolledToReply = useRef(false);
@@ -78,6 +85,7 @@ export default function PostCommentsScreen() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
 
   const loadReplies = useCallback(async () => {
+    if (!postId) return;
     try {
       const raw = await api.get<Reply[] | { items?: Reply[] }>(`/posts/${postId}/replies`);
       const list = Array.isArray(raw) ? raw : (raw?.items ?? []);
@@ -155,7 +163,7 @@ export default function PostCommentsScreen() {
 
   const submitComment = async () => {
     const body = commentDraft.trim();
-    if (!body || !isAuthenticated) return;
+    if (!body || !isAuthenticated || !postId) return;
     if (body.length < COMMENT_MIN_LENGTH) {
       showError(t('post.commentTooShort', 'Comment must be at least {{min}} characters.', { min: COMMENT_MIN_LENGTH }));
       return;
@@ -166,9 +174,14 @@ export default function PostCommentsScreen() {
     }
     setSubmittingComment(true);
     try {
-      await api.post(`/posts/${postId}/replies`, { body });
+      const created = await api.post<Reply>(`/posts/${postId}/replies`, { body });
       setCommentDraft('');
       showSuccess(t('post.commentPosted', 'Comment posted'));
+      // Optimistic: prepend new reply so list updates immediately
+      if (created && typeof created === 'object' && 'id' in created) {
+        const r = created as Reply;
+        setReplies((prev) => [...prev, { ...r, author: r.author ?? { id: userId ?? '', displayName: '', handle: '' }, authorId: r.authorId ?? userId }]);
+      }
       await loadReplies();
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error: any) {
@@ -222,6 +235,20 @@ export default function PostCommentsScreen() {
     }
   };
 
+  const handleDeleteReply = async () => {
+    if (!replyToDeleteId || !postId) return;
+    try {
+      await api.delete(`/posts/${postId}/replies/${replyToDeleteId}`);
+      setReplies((prev) => prev.filter((r) => r.id !== replyToDeleteId));
+      showSuccess(t('post.commentDeleted', 'Comment deleted'));
+    } catch (e: any) {
+      const msg = e?.data?.message ?? e?.message ?? t('post.commentDeleteFailed', 'Failed to delete comment');
+      showError(typeof msg === 'string' ? msg : t('post.commentDeleteFailed', 'Failed to delete comment'));
+    } finally {
+      setReplyToDeleteId(null);
+    }
+  };
+
   if (!postId) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -253,6 +280,7 @@ export default function PostCommentsScreen() {
     >
       <ScreenHeader
         title={`${t('post.comments')}${replies.length > 0 ? ` (${replies.length})` : ''}`}
+        showBack={true}
         paddingTop={insets.top}
       />
 
@@ -310,7 +338,7 @@ export default function PostCommentsScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => setReportReplyId(reply.id)}
+                onPress={() => setReplyMenuReplyId(reply.id)}
                 hitSlop={12}
                 style={styles.menuButton}
               >
@@ -450,6 +478,18 @@ export default function PostCommentsScreen() {
         )}
       </View>
 
+      <OptionsActionSheet
+        visible={!!replyMenuReplyId}
+        title={t('post.commentActions', 'Comment')}
+        options={[
+          ...(replyMenuReplyId && userId && (replies.find((r) => r.id === replyMenuReplyId)?.authorId === userId || replies.find((r) => r.id === replyMenuReplyId)?.author?.id === userId)
+            ? [{ label: t('post.deleteComment', 'Delete comment'), onPress: () => { setReplyToDeleteId(replyMenuReplyId); setReplyMenuReplyId(null); }, destructive: true as const }]
+            : []),
+          { label: t('post.reportComment', 'Report'), onPress: () => { if (replyMenuReplyId) setReportReplyId(replyMenuReplyId); setReplyMenuReplyId(null); }, icon: 'flag' as const },
+        ]}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setReplyMenuReplyId(null)}
+      />
       <ReportModal
         visible={!!reportReplyId}
         onClose={() => setReportReplyId(null)}
@@ -460,6 +500,16 @@ export default function PostCommentsScreen() {
         }
         title={t('post.reportTitle', 'Report Comment')}
         targetType="REPLY"
+      />
+      <ConfirmModal
+        visible={!!replyToDeleteId}
+        title={t('post.deleteComment', 'Delete comment')}
+        message={t('post.deleteCommentConfirm', 'Are you sure you want to delete this comment? This cannot be undone.')}
+        confirmLabel={t('post.deleteComment', 'Delete comment')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={handleDeleteReply}
+        onCancel={() => setReplyToDeleteId(null)}
       />
     </KeyboardAvoidingView>
   );

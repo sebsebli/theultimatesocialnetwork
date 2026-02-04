@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { getImageUrl as getImageUrlFromKey } from "@/lib/security";
 import { PostItem, Post } from "./post-item";
 import { ProfileOptionsMenu } from "./profile-options-menu";
@@ -79,6 +80,7 @@ export function ProfilePage({
   isSelf = false,
   isPublic = false,
 }: ProfilePageProps) {
+  const t = useTranslations("profile");
   const [user, setUser] = useState(initialUser);
   const [following, setFollowing] = useState(!!initialUser.isFollowing);
   const [hasPendingFollowRequest, setHasPendingFollowRequest] = useState(
@@ -609,18 +611,31 @@ export function ProfilePage({
                             ? ((user as { collectionCount?: number })
                                 .collectionCount ?? 0)
                             : 0;
+                const label =
+                  tab === "replies"
+                    ? t("comments")
+                    : tab === "posts"
+                      ? t("posts")
+                      : tab === "quotes"
+                        ? t("quotes")
+                        : tab === "saved"
+                          ? t("saved")
+                          : tab === "collections"
+                            ? t("collections")
+                            : tab;
+                const showCount = tab !== "replies" && count > 0;
                 return (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     type="button"
-                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize whitespace-nowrap tabular-nums ${
+                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap tabular-nums ${
                       activeTab === tab
                         ? "border-primary text-paper"
                         : "border-transparent text-tertiary hover:text-paper"
                     }`}
                   >
-                    {tab} {count > 0 ? `(${formatCompactNumber(count)})` : ""}
+                    {label} {showCount ? `(${formatCompactNumber(count)})` : ""}
                   </button>
                 );
               })}
@@ -705,7 +720,7 @@ export function ProfilePage({
                       <div className="p-4 border-b border-divider hover:bg-white/5 transition-colors">
                         <p className="text-secondary text-sm">{reply.body}</p>
                         <p className="text-tertiary text-xs mt-2">
-                          Reply to post
+                          {t("replyToPost")}
                         </p>
                       </div>
                     </Link>
@@ -718,7 +733,7 @@ export function ProfilePage({
                   <div className={emptyStateCenterClassName}>
                     <EmptyState
                       icon="chat_bubble_outline"
-                      headline="No replies yet"
+                      headline={t("noCommentsYet")}
                       compact
                     />
                   </div>

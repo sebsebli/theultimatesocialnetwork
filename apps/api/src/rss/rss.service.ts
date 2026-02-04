@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Redis from 'ioredis';
 import { User } from '../entities/user.entity';
-import { Post, PostVisibility } from '../entities/post.entity';
+import { Post } from '../entities/post.entity';
 
 /** Max number of items in a profile RSS feed. */
 const RSS_ITEM_LIMIT = 50;
@@ -75,7 +75,7 @@ export class RssService {
     }
 
     const posts = await this.postsRepository.find({
-      where: { authorId: user.id, visibility: PostVisibility.PUBLIC },
+      where: { authorId: user.id },
       order: { createdAt: 'DESC' },
       take: RSS_ITEM_LIMIT,
       select: ['id', 'title', 'createdAt'],

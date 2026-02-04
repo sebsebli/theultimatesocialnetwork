@@ -52,7 +52,7 @@ function sourceHref(source: Source): string {
     case "user":
       return `/user/${source.handle ?? source.id}`;
     case "topic":
-      return `/topic/${encodeURIComponent(source.slug ?? source.id)}`;
+      return `/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? "")}`;
     default:
       return "#";
   }
@@ -68,7 +68,7 @@ function sourceLabel(source: Source): string {
     }
   }
   if (source.type === "user") return source.handle ?? "User";
-  if (source.type === "topic") return source.slug ?? "Topic";
+  if (source.type === "topic") return source.slug ?? source.title ?? "Topic";
   return "Post";
 }
 
@@ -115,6 +115,11 @@ function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (postId === "preview") {
+      setApiSources([]);
+      setLoading(false);
+      return;
+    }
     loadSources();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadSources depends only on postId
   }, [postId]);

@@ -1117,7 +1117,8 @@ export class UsersService {
     const collections = await qb.getMany();
     const slice = collections.slice(0, limit);
     const ids = slice.map((c) => c.id);
-    const latestMap = await this.collectionsService.getLatestItemPreview(ids);
+    const latestMap =
+      await this.collectionsService.getLatestItemPreviewByPostDate(ids);
     type CollectionWithItemCount = (typeof slice)[number] & {
       itemCount?: number;
     };

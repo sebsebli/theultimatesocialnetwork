@@ -57,6 +57,9 @@ const HEADER = {
   iconColor: COLORS.paper,
   saveColor: COLORS.primary,
   cancelColor: COLORS.paper,
+  /** Semi-transparent circle behind header icons (back, more) for consistent look across all screens */
+  iconCircleSize: 40,
+  iconCircleBackground: 'rgba(0,0,0,0.35)',
 };
 
 const MODAL = {

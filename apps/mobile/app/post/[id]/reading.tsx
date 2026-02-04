@@ -30,6 +30,7 @@ import { useAuth } from '../../../context/auth';
 import AddToCollectionSheet, { AddToCollectionSheetRef } from '../../../components/AddToCollectionSheet';
 import ShareSheet, { ShareSheetRef } from '../../../components/ShareSheet';
 import { SourceOrPostCard } from '../../../components/SourceOrPostCard';
+import { HeaderIconButton } from '../../../components/HeaderIconButton';
 import { ReportModal } from '../../../components/ReportModal';
 import { OptionsActionSheet } from '../../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../../components/ConfirmModal';
@@ -59,6 +60,8 @@ interface Post {
   lang?: string | null;
   referenceMetadata?: Record<string, { title?: string }>;
   deletedAt?: string;
+  /** When false, viewer cannot see post body (e.g. FOLLOWERS-only and viewer doesn't follow). */
+  viewerCanSeeContent?: boolean;
 }
 
 export default function ReadingModeScreen() {
@@ -136,8 +139,8 @@ export default function ReadingModeScreen() {
     if ((post?.quoteCount ?? 0) === 0) setSourcesTab('sources');
   }, [post?.quoteCount]);
 
-  // Merge API sources with external links extracted from body so all [text](url) show in Sources
-  const mergedSources = useMemo(() => {
+  // Merge API sources (posts, topics, users/mentions, external) with external links from body; deduplicate
+  const sourcesUnique = useMemo(() => {
     const apiExternal = sources.filter((s: any) => s.type === 'external');
     const apiOther = sources.filter((s: any) => s.type !== 'external');
     const urlSeen = new Set(apiExternal.map((s: any) => s.url).filter(Boolean));
@@ -153,17 +156,13 @@ export default function ReadingModeScreen() {
         }
       }
     }
-    return [
+    const combined = [
       ...apiExternal,
       ...fromBody.map(({ url, title }) => ({ type: 'external' as const, url, title })),
       ...apiOther,
     ];
-  }, [sources, post?.body]);
-
-  // Deduplicate sources: show each source once (API may return one per occurrence in body)
-  const sourcesUnique = useMemo(() => {
     const seen = new Set<string>();
-    return mergedSources.filter((s: any) => {
+    return combined.filter((s: any) => {
       const key =
         s.type === 'external' ? (s.url ?? s.id) :
         s.type === 'post' ? s.id :
@@ -174,7 +173,7 @@ export default function ReadingModeScreen() {
       seen.add(key);
       return true;
     });
-  }, [mergedSources]);
+  }, [sources, post?.body]);
 
   const handleLike = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -281,9 +280,7 @@ export default function ReadingModeScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
-          <Pressable onPress={() => router.back()} style={styles.overlayIconCircle} accessibilityLabel={t('common.back')}>
-            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-          </Pressable>
+          <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel={t('common.back')} />
           <View style={{ flex: 1 }} />
         </View>
         <View style={styles.privatePostOverlay}>
@@ -330,15 +327,18 @@ export default function ReadingModeScreen() {
     const deletedDate = new Date(post.deletedAt);
     const formattedDate = deletedDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
     return (
-      <View style={[styles.container, styles.center]}>
-        <View style={styles.deletedPlaceholder}>
-          <MaterialIcons name="delete-outline" size={48} color={COLORS.tertiary} style={styles.deletedPlaceholderIcon} />
-          <Text style={styles.deletedPlaceholderText}>
-            {t('post.deletedOn', { date: formattedDate, defaultValue: `This post has been deleted on ${formattedDate}.` })}
-          </Text>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>{t('common.goBack')}</Text>
-          </Pressable>
+      <View style={styles.container}>
+        <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
+          <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel={t('common.back')} />
+          <View style={{ flex: 1 }} />
+        </View>
+        <View style={[styles.center, styles.deletedPlaceholderWrap]}>
+          <View style={styles.deletedPlaceholder}>
+            <MaterialIcons name="delete-outline" size={48} color={COLORS.tertiary} style={styles.deletedPlaceholderIcon} />
+            <Text style={styles.deletedPlaceholderText}>
+              {t('post.deletedOn', { date: formattedDate, defaultValue: `This post has been deleted on ${formattedDate}.` })}
+            </Text>
+          </View>
         </View>
       </View>
     );
@@ -353,19 +353,13 @@ export default function ReadingModeScreen() {
     <View style={styles.container}>
       {/* Overlay header: back + more over hero or at top (no home button) */}
       <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
-        <Pressable onPress={() => router.back()} style={styles.overlayIconCircle} accessibilityLabel={t('common.back')}>
-          <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-        </Pressable>
+        <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel={t('common.back')} />
         <View style={{ flex: 1 }} />
-        <Pressable
-          onPress={() => {
-            Haptics.selectionAsync();
-            setMoreOptionsVisible(true);
-          }}
-          style={styles.overlayIconCircle}
-        >
-          <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-        </Pressable>
+        <HeaderIconButton
+          onPress={() => { Haptics.selectionAsync(); setMoreOptionsVisible(true); }}
+          icon="more-horiz"
+          accessibilityLabel={t('profile.options', 'Options')}
+        />
       </View>
 
       <AnimatedScrollView
@@ -544,13 +538,13 @@ export default function ReadingModeScreen() {
                     if (source.type === 'external' && source.url) Linking.openURL(source.url).catch(() => { });
                     else if (source.type === 'post' && source.id) router.push(`/post/${source.id}`);
                     else if (source.type === 'user' && source.handle) router.push(`/user/${source.handle}`);
-                    else if (source.type === 'topic' && source.slug) router.push(`/topic/${encodeURIComponent(source.slug)}`);
+                    else if (source.type === 'topic') router.push(`/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? '')}`);
                   };
                   const title = source.title || source.url || source.handle || source.slug || '';
                   const subtitle = source.type === 'external' && source.url
                     ? (source.description && source.description.trim()
-                        ? source.description.trim()
-                        : (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })())
+                      ? source.description.trim()
+                      : (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })())
                     : source.type === 'user' ? `@${source.handle}` : source.type === 'topic' ? t('post.topic', 'Topic') : '';
                   return (
                     <Pressable key={source.type === 'external' && source.url ? `ext-${source.url}` : (source.id ?? source.handle ?? source.slug ?? `i-${index}`)} style={styles.sourceCard} onPress={handleSourcePress}>
@@ -589,7 +583,7 @@ export default function ReadingModeScreen() {
             <View style={styles.quotedList}>
               {quotedBy.map((p: any) => {
                 const bodyPreview = (p.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
-                const title = p.title ?? bodyPreview || 'Post';
+                const title = (p.title != null && p.title !== '') ? p.title : (bodyPreview || 'Post');
                 const subtitle = p.author?.displayName || p.author?.handle || '';
                 return (
                   <SourceOrPostCard
@@ -654,17 +648,6 @@ const styles = createStyles({
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     zIndex: 10,
   },
-  overlayIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  iconButton: { padding: SPACING.xs },
-
   /* Full-width hero: 4:3 aspect, title overlay */
   heroImageWrap: {
     width: SCREEN_WIDTH,
@@ -958,16 +941,8 @@ const styles = createStyles({
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
     textAlign: 'center',
-    marginBottom: SPACING.xl,
   },
-  backButton: {
-    marginTop: SPACING.l,
-    paddingVertical: SPACING.m,
+  deletedPlaceholderWrap: {
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-  },
-  backButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
   },
 });

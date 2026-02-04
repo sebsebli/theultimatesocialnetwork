@@ -23,3 +23,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+# Shrink context: api/web only need apps/api, apps/web, packages/design-tokens
+apps/mobile
+docs
+agents
+.github
+infra
+scripts
+packages
+!packages/design-tokens

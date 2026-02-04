@@ -6,6 +6,8 @@ import { CollectionItem } from '../entities/collection-item.entity';
 import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
+import { ExternalSource } from '../entities/external-source.entity';
+import { ExploreService } from '../explore/explore.service';
 
 @Injectable()
 export class CollectionsService {
@@ -17,6 +19,9 @@ export class CollectionsService {
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
+    @InjectRepository(ExternalSource)
+    private externalSourceRepo: Repository<ExternalSource>,
+    private exploreService: ExploreService,
   ) {}
 
   async create(
@@ -45,7 +50,7 @@ export class CollectionsService {
       .getMany();
 
     const ids = collections.map((c) => c.id);
-    const latestMap = await this.getLatestItemPreview(ids);
+    const latestMap = await this.getLatestItemPreviewByPostDate(ids);
     return collections.map((c) => {
       const latest = latestMap[c.id];
       return {
@@ -63,8 +68,8 @@ export class CollectionsService {
     });
   }
 
-  /** Latest added item per collection (by addedAt DESC). Public for use by users service. */
-  async getLatestItemPreview(collectionIds: string[]): Promise<
+  /** Latest post per collection by post.created_at DESC (for header image = most recent post). */
+  async getLatestItemPreviewByPostDate(collectionIds: string[]): Promise<
     Record<
       string,
       {
@@ -81,6 +86,12 @@ export class CollectionsService {
       relations: ['post'],
       order: { addedAt: 'DESC' },
     });
+    const withPost = items.filter((i) => i.post && !i.post.deletedAt);
+    withPost.sort(
+      (a, b) =>
+        new Date(b.post.createdAt).getTime() -
+        new Date(a.post.createdAt).getTime(),
+    );
     const seen = new Set<string>();
     const out: Record<
       string,
@@ -91,7 +102,7 @@ export class CollectionsService {
         headerImageKey: string | null;
       }
     > = {};
-    for (const item of items) {
+    for (const item of withPost) {
       if (seen.has(item.collectionId)) continue;
       seen.add(item.collectionId);
       const body = item.post?.body;
@@ -115,6 +126,17 @@ export class CollectionsService {
     return out;
   }
 
+  /** Most recent post (by post.created_at) in this collection for header image. */
+  async getRecentPostForCollection(collectionId: string): Promise<{
+    postId: string;
+    title: string | null;
+    bodyExcerpt: string;
+    headerImageKey: string | null;
+  } | null> {
+    const map = await this.getLatestItemPreviewByPostDate([collectionId]);
+    return map[collectionId] ?? null;
+  }
+
   async findOne(id: string, userId: string, limit?: number, offset?: number) {
     const collection = await this.collectionRepo.findOne({
       where: { id, ownerId: userId },
@@ -123,9 +145,30 @@ export class CollectionsService {
       throw new Error('Collection not found');
     }
 
+    const recent = await this.getRecentPostForCollection(id);
+
     if (limit != null && offset != null) {
-      const { items, hasMore } = await this.getItemsPage(id, limit, offset);
-      return { ...collection, items, hasMore };
+      const { items, hasMore } = await this.getItemsPage(
+        id,
+        limit,
+        offset,
+        'recent',
+        userId,
+      );
+      return {
+        ...collection,
+        previewImageKey: recent?.headerImageKey ?? null,
+        recentPost: recent
+          ? {
+              id: recent.postId,
+              title: recent.title,
+              bodyExcerpt: recent.bodyExcerpt,
+              headerImageKey: recent.headerImageKey,
+            }
+          : null,
+        items,
+        hasMore,
+      };
     }
 
     const items = await this.itemRepo.find({
@@ -134,24 +177,72 @@ export class CollectionsService {
       order: { addedAt: 'DESC' },
     });
 
-    return { ...collection, items };
+    return {
+      ...collection,
+      previewImageKey: recent?.headerImageKey ?? null,
+      recentPost: recent
+        ? {
+            id: recent.postId,
+            title: recent.title,
+            bodyExcerpt: recent.bodyExcerpt,
+            headerImageKey: recent.headerImageKey,
+          }
+        : null,
+      items,
+    };
   }
 
-  /** Paginated items for a collection. Caller must ensure viewer has access. */
+  /** Paginated items for a collection. sort: 'recent' = by post.created_at DESC, 'ranked' = by engagement. Caller must ensure viewer has access. Filters to posts visible to viewer. */
   async getItemsPage(
     collectionId: string,
     limit: number,
     offset: number,
+    sort: 'recent' | 'ranked' = 'recent',
+    viewerId?: string,
   ): Promise<{ items: CollectionItem[]; hasMore: boolean }> {
-    const items = await this.itemRepo.find({
-      where: { collectionId: collectionId },
-      relations: ['post', 'post.author'],
-      order: { addedAt: 'DESC' },
-      take: limit + 1,
-      skip: offset,
-    });
-    const hasMore = items.length > limit;
-    const slice = hasMore ? items.slice(0, limit) : items;
+    const fetchSize = viewerId ? (limit + 1) * 2 : limit + 1;
+    if (sort === 'ranked') {
+      const qb = this.itemRepo
+        .createQueryBuilder('ci')
+        .innerJoinAndSelect('ci.post', 'p')
+        .leftJoinAndSelect('p.author', 'author')
+        .where('ci.collection_id = :collectionId', { collectionId })
+        .andWhere('p.deleted_at IS NULL')
+        .orderBy('(p.quote_count * 3 + p.reply_count)', 'DESC')
+        .addOrderBy('p.created_at', 'DESC')
+        .skip(offset)
+        .take(fetchSize);
+      const items = await qb.getMany();
+      const posts = items.map((i) => i.post).filter(Boolean);
+      const visiblePosts = await this.exploreService.filterPostsVisibleToViewer(
+        posts,
+        viewerId,
+      );
+      const visibleIds = new Set(visiblePosts.map((p) => p.id));
+      const filtered = items.filter((i) => i.post && visibleIds.has(i.post.id));
+      const hasMore = filtered.length > limit;
+      const slice = filtered.slice(0, limit);
+      return { items: slice, hasMore };
+    }
+    const qb = this.itemRepo
+      .createQueryBuilder('ci')
+      .innerJoinAndSelect('ci.post', 'p')
+      .leftJoinAndSelect('p.author', 'author')
+      .where('ci.collection_id = :collectionId', { collectionId })
+      .andWhere('p.deleted_at IS NULL')
+      .orderBy('p.created_at', 'DESC')
+      .skip(offset)
+      .take(fetchSize);
+    const items = await qb.getMany();
+    const posts = items.map((i) => i.post).filter(Boolean);
+    const visiblePosts = await this.exploreService.filterPostsVisibleToViewer(
+      posts,
+      viewerId,
+    );
+    const visibleIds = new Set(visiblePosts.map((p) => p.id));
+    const filtered = items.filter((i) => i.post && visibleIds.has(i.post.id));
+    const hasMore = filtered.length > limit;
+    const slice = filtered.slice(0, limit);
     return { items: slice, hasMore };
   }
 
@@ -202,15 +293,168 @@ export class CollectionsService {
     if (!collection.isPublic && !isFollower) {
       throw new NotFoundException('Collection not found');
     }
+    const recent = await this.getRecentPostForCollection(collectionId);
+    const enrich = (c: typeof collection) => ({
+      ...c,
+      previewImageKey: recent?.headerImageKey ?? null,
+      recentPost: recent
+        ? {
+            id: recent.postId,
+            title: recent.title,
+            bodyExcerpt: recent.bodyExcerpt,
+            headerImageKey: recent.headerImageKey,
+          }
+        : null,
+    });
     if (limit != null && offset != null) {
       const { items, hasMore } = await this.getItemsPage(
         collectionId,
         limit,
         offset,
+        'recent',
+        viewerId,
       );
-      return { ...collection, items, hasMore };
+      return { ...enrich(collection), items, hasMore };
     }
     return this.findOne(collectionId, collection.ownerId);
+  }
+
+  async getCollectionSources(
+    collectionId: string,
+    limit: number,
+    offset: number,
+    viewerId?: string,
+  ): Promise<
+    { id: string; url: string; title: string | null; createdAt: Date }[]
+  > {
+    const qb = this.externalSourceRepo
+      .createQueryBuilder('es')
+      .innerJoin('collection_items', 'ci', 'ci.post_id = es.post_id')
+      .innerJoin(Post, 'p', 'p.id = es.post_id AND p.deleted_at IS NULL')
+      .where('ci.collection_id = :collectionId', { collectionId })
+      .select('es.id', 'id')
+      .addSelect('es.url', 'url')
+      .addSelect('es.title', 'title')
+      .addSelect('es.created_at', 'createdAt')
+      .addSelect('es.post_id', 'postId')
+      .orderBy('es.created_at', 'DESC');
+    if (!viewerId) {
+      qb.innerJoin(
+        User,
+        'postAuthor',
+        'postAuthor.id = p.author_id AND postAuthor.is_protected = false',
+      );
+    }
+    const rows = await qb
+      .skip(offset)
+      .take(viewerId ? limit * 3 : limit)
+      .getRawMany<{
+        id: string;
+        url: string;
+        title: string | null;
+        createdAt: Date;
+        postId: string;
+      }>();
+    if (rows.length === 0) return [];
+    if (!viewerId)
+      return rows.slice(0, limit).map(({ postId: _p, ...r }) => {
+        void _p;
+        return r;
+      });
+    const postIds = [...new Set(rows.map((r) => r.postId))];
+    const posts = await this.postRepo.find({
+      where: { id: In(postIds) },
+      relations: ['author'],
+      select: ['id', 'authorId'],
+    });
+    const visible = await this.exploreService.filterPostsVisibleToViewer(
+      posts,
+      viewerId,
+    );
+    const visiblePostIds = new Set(visible.map((p) => p.id));
+    const filtered = rows.filter((r) => visiblePostIds.has(r.postId));
+    return filtered.slice(0, limit).map(({ postId: _p, ...r }) => {
+      void _p;
+      return r;
+    });
+  }
+
+  async getCollectionContributors(
+    collectionId: string,
+    limit: number,
+    offset: number,
+    viewerId?: string,
+  ): Promise<
+    {
+      id: string;
+      handle: string;
+      displayName: string;
+      postCount: number;
+      totalQuotes: number;
+    }[]
+  > {
+    const fetchLimit = viewerId ? limit * 2 : limit;
+    const builder = this.itemRepo.manager
+      .createQueryBuilder()
+      .select('author.id', 'id')
+      .addSelect('author.handle', 'handle')
+      .addSelect('author.display_name', 'displayName')
+      .addSelect('COUNT(post.id)', 'postCount')
+      .addSelect('COALESCE(SUM(post.quote_count), 0)', 'totalQuotes')
+      .from(CollectionItem, 'ci')
+      .innerJoin(
+        Post,
+        'post',
+        'post.id = ci.post_id AND post.deleted_at IS NULL',
+      )
+      .innerJoin(User, 'author', 'author.id = post.author_id')
+      .where('ci.collection_id = :collectionId', { collectionId })
+      .groupBy('author.id')
+      .addGroupBy('author.handle')
+      .addGroupBy('author.display_name')
+      .orderBy('"totalQuotes"', 'DESC')
+      .addOrderBy('"postCount"', 'DESC')
+      .limit(fetchLimit)
+      .offset(offset);
+
+    const raw = await builder.getRawMany<{
+      id: string;
+      handle: string;
+      displayName: string;
+      postCount: string;
+      totalQuotes: string;
+    }>();
+    if (raw.length === 0) return [];
+    const authorIds = [...new Set(raw.map((r) => r.id))];
+    const users = await this.userRepo.find({
+      where: { id: In(authorIds) },
+      select: ['id', 'isProtected'],
+    });
+    const protectedSet = new Set(
+      users.filter((u) => u.isProtected).map((u) => u.id),
+    );
+    let followingSet = new Set<string>();
+    if (viewerId && protectedSet.size > 0) {
+      const followees = await this.followRepo.find({
+        where: {
+          followerId: viewerId,
+          followeeId: In([...protectedSet]),
+        },
+        select: ['followeeId'],
+      });
+      followingSet = new Set(followees.map((f) => f.followeeId));
+    }
+    const visible = raw.filter(
+      (r) =>
+        !protectedSet.has(r.id) || r.id === viewerId || followingSet.has(r.id),
+    );
+    return visible.slice(0, limit).map((r) => ({
+      id: r.id,
+      handle: r.handle,
+      displayName: r.displayName ?? r.handle,
+      postCount: parseInt(r.postCount, 10),
+      totalQuotes: parseInt(r.totalQuotes, 10),
+    }));
   }
 
   async addItem(collectionId: string, postId: string, note?: string) {

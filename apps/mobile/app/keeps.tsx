@@ -9,7 +9,7 @@ import { PostItem } from '../components/PostItem';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
 import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../constants/theme';
 import { ListFooterLoader } from '../components/ListFooterLoader';
 
 export default function KeepsScreen() {
@@ -148,14 +148,23 @@ export default function KeepsScreen() {
       />
 
       <View style={styles.filters}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder={t('keeps.searchPlaceholder', 'Search keeps...')}
-          placeholderTextColor={COLORS.tertiary}
-          value={search}
-          onChangeText={setSearch}
-          includeFontPadding={false}
-        />
+        <View style={SEARCH_BAR.container}>
+          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <TextInput
+            style={SEARCH_BAR.input}
+            placeholder={t('keeps.searchPlaceholder', 'Search keeps...')}
+            placeholderTextColor={COLORS.tertiary}
+            value={search}
+            onChangeText={setSearch}
+            includeFontPadding={false}
+            returnKeyType="search"
+          />
+          {search.length > 0 ? (
+            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+              <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+            </Pressable>
+          ) : null}
+        </View>
         <View style={styles.filterPills}>
           <Pressable
             style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
@@ -271,19 +280,6 @@ const styles = createStyles({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     gap: SPACING.m,
-  },
-  searchInput: {
-    height: 44,
-    backgroundColor: COLORS.hover,
-    borderWidth: 1,
-    borderColor: COLORS.pressed,
-    borderRadius: SIZES.borderRadius,
-    paddingHorizontal: SPACING.l,
-    paddingVertical: 0,
-    fontSize: 15,
-    color: COLORS.paper,
-    fontFamily: FONTS.regular,
-    textAlignVertical: 'center',
   },
   filterPills: {
     flexDirection: 'row',

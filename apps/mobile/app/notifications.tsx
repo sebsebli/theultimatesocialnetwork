@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { api } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, toColor, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
 import { ListFooterLoader } from '../components/ListFooterLoader';
 import { useSocket } from '../context/SocketContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { HeaderIconButton } from '../components/HeaderIconButton';
 import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
 
 /** Notifications-only screen (bell). Messages are in the Messages tab. */
@@ -107,7 +108,7 @@ export default function NotificationsScreen() {
         paddingTop={insets.top}
         right={
           notifications.length > 0 ? (
-            <Pressable
+            <HeaderIconButton
               onPress={async () => {
                 try {
                   await api.post('/notifications/read-all');
@@ -116,12 +117,9 @@ export default function NotificationsScreen() {
                   console.error('Failed to mark all read', error);
                 }
               }}
-              style={styles.headerAction}
+              icon="done-all"
               accessibilityLabel={t('notifications.markAllRead', 'Mark all read')}
-              accessibilityRole="button"
-            >
-              <Text style={styles.markAllRead}>{t('notifications.markAllRead', 'Mark all read')}</Text>
-            </Pressable>
+            />
           ) : undefined
         }
       />
@@ -169,16 +167,6 @@ const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  headerAction: {
-    padding: SPACING.s,
-    margin: -SPACING.s,
-  },
-  markAllRead: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: toColor(HEADER.saveColor),
-    fontFamily: FONTS.semiBold,
   },
   notification: {
     padding: SPACING.l,

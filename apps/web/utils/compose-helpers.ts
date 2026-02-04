@@ -143,3 +143,22 @@ export const getTitleFromBody = (body: string): string => {
     .slice(0, TITLE_MAX_LENGTH);
   return sanitizedTitle;
 };
+
+/** Display headline for a post: use title when set, otherwise first line of body (strip leading #, max 120 chars). */
+export function getPostDisplayTitle(post: {
+  title?: string | null;
+  body: string;
+}): string {
+  const hasTitle = post.title != null && String(post.title).trim().length > 0;
+  if (hasTitle) return String(post.title).trim();
+  const body = post.body ?? "";
+  const firstLine = body.includes("\n")
+    ? body.slice(0, body.indexOf("\n")).trim()
+    : body.trim();
+  const withoutLeadingHash = firstLine.startsWith("# ")
+    ? firstLine.slice(2).trim()
+    : firstLine.startsWith("#")
+      ? firstLine.slice(1).trim()
+      : firstLine;
+  return withoutLeadingHash.slice(0, 120);
+}

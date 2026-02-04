@@ -13,6 +13,14 @@ import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS, createStyles } from '../constants/theme';
 import { IntroModal, shouldShowIntro, resetIntro } from '../components/IntroModal';
 
+/** Device name for session list (e.g. "Vivian's iPhone XS"). On web or when unavailable, use a friendly fallback. */
+function getDeviceNameForSession(): string {
+  const name = Device.deviceName?.trim();
+  if (name) return name;
+  if (Platform.OS === 'web') return 'Web';
+  return `Citewalk (${Platform.OS})`;
+}
+
 export default function IndexScreen() {
   const router = useRouter();
   const { signIn, isAuthenticated, isLoading, onboardingComplete } = useAuth();
@@ -141,9 +149,7 @@ export default function IndexScreen() {
 
     setLoading(true);
     try {
-      const deviceInfo = Device.deviceName
-        ? `${Device.deviceName} (${Platform.OS})`
-        : `Citewalk Mobile (${Platform.OS})`;
+      const deviceInfo = getDeviceNameForSession();
       const response = await api.post('/auth/verify', {
         email: email.trim().toLowerCase(),
         token: token.trim(),
@@ -181,9 +187,7 @@ export default function IndexScreen() {
     if (!totpCode.trim()) return;
     setLoading(true);
     try {
-      const deviceInfo = Device.deviceName
-        ? `${Device.deviceName} (${Platform.OS})`
-        : `Citewalk Mobile (${Platform.OS})`;
+      const deviceInfo = getDeviceNameForSession();
       const response = await api.post('/auth/2fa/login', {
         token: totpCode.trim(),
         tempToken,

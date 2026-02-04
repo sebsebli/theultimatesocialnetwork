@@ -196,4 +196,15 @@ export class UploadService {
       key,
     ) as Promise<NodeJS.ReadableStream>;
   }
+
+  /**
+   * Remove an uploaded file by key. Only keys under uploads/ are allowed (e.g. header images
+   * uploaded in composer that were never used). Used when user removes the image or leaves without publishing.
+   */
+  async removeUpload(key: string): Promise<void> {
+    if (!key || typeof key !== 'string' || !key.startsWith('uploads/')) {
+      throw new BadRequestException('Invalid or disallowed upload key');
+    }
+    await this.minioClient.removeObject(this.bucketName, key);
+  }
 }

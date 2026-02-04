@@ -6,17 +6,12 @@ import {
   MaxLength,
   IsObject,
 } from 'class-validator';
-import { PostVisibility } from '../../entities/post.entity';
 
 export class CreatePostDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(10000)
   body: string;
-
-  @IsOptional()
-  @IsEnum(PostVisibility)
-  visibility?: PostVisibility;
 
   @IsOptional()
   @IsEnum(['PUBLISHED', 'DRAFT'])

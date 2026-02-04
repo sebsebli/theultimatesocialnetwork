@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Text,
   View,
-  Pressable,
   RefreshControl,
   ActivityIndicator,
   Animated,
@@ -12,8 +11,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import type { ViewProps } from 'react-native';
-import { COLORS, SPACING, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
+import { COLORS, SPACING, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS, toDimensionValue } from '../constants/theme';
 import { ListFooterLoader } from './ListFooterLoader';
+import { HeaderIconButton, headerIconCircleSize, headerIconCircleMarginH } from './HeaderIconButton';
 
 const AnimatedView = Animated.View as (props: ViewProps & { style?: any }) => React.ReactElement | null;
 
@@ -86,14 +86,7 @@ export function TopicOrCollectionLayout({
 
   const headerBar = (
     <View style={[styles.headerBar, { paddingTop: insets.top }]}>
-      <Pressable
-        onPress={onBack}
-        style={({ pressed }: { pressed: boolean }) => [styles.backButtonBar, pressed && { opacity: 0.7 }]}
-        accessibilityLabel={t('common.back', 'Back')}
-        accessibilityRole="button"
-      >
-        <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
-      </Pressable>
+      <HeaderIconButton onPress={onBack} icon="arrow-back" accessibilityLabel={t('common.back', 'Back')} />
       <Text style={styles.headerBarTitle} numberOfLines={1}>{title}</Text>
       <View style={styles.headerBarSpacer} />
     </View>
@@ -130,9 +123,7 @@ export function TopicOrCollectionLayout({
         pointerEvents={stickyVisible ? 'auto' : 'none'}
       >
         <View style={styles.stickyBarContent}>
-          <Pressable onPress={onBack} style={styles.stickyBackBtn} accessibilityLabel={t('common.back', 'Back')}>
-            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={COLORS.paper} />
-          </Pressable>
+          <HeaderIconButton onPress={onBack} icon="arrow-back" accessibilityLabel={t('common.back', 'Back')} />
           <Text style={styles.stickyBarTitle} numberOfLines={1}>{title}</Text>
           <View style={styles.stickyBarSpacer} />
         </View>
@@ -182,15 +173,11 @@ const styles = createStyles({
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
+    paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
+    paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     backgroundColor: COLORS.ink,
-  },
-  backButtonBar: {
-    padding: SPACING.s,
-    marginLeft: -SPACING.s,
   },
   headerBarTitle: {
     flex: 1,
@@ -201,7 +188,7 @@ const styles = createStyles({
     fontFamily: FONTS.semiBold,
   },
   headerBarSpacer: {
-    width: 40,
+    width: headerIconCircleSize + headerIconCircleMarginH * 2,
   },
   centered: {
     flex: 1,
@@ -240,12 +227,9 @@ const styles = createStyles({
   stickyBarContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.m,
-  },
-  stickyBackBtn: {
-    padding: SPACING.s,
-    marginLeft: -SPACING.s,
+    paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
+    paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
+    paddingTop: 0,
   },
   stickyBarTitle: {
     flex: 1,
@@ -256,7 +240,7 @@ const styles = createStyles({
     fontFamily: FONTS.semiBold,
   },
   stickyBarSpacer: {
-    width: 40,
+    width: headerIconCircleSize + headerIconCircleMarginH * 2,
   },
   footerLoader: {
     paddingVertical: SPACING.l,

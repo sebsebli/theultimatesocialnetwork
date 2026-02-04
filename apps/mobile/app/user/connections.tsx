@@ -4,7 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { COLORS, SPACING, FONTS, SIZES, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { COLORS, SPACING, FONTS, SIZES, HEADER, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../../constants/theme';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -232,15 +232,23 @@ export default function ConnectionsScreen() {
       <ScreenHeader title={t('profile.connections', 'Connections')} paddingTop={insets.top} />
 
       <View style={styles.searchContainer}>
-        <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder={t('common.search', 'Search...')}
-          placeholderTextColor={COLORS.tertiary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          includeFontPadding={false}
-        />
+        <View style={SEARCH_BAR.container}>
+          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <TextInput
+            style={SEARCH_BAR.input}
+            placeholder={t('common.search', 'Search...')}
+            placeholderTextColor={COLORS.tertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            includeFontPadding={false}
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 ? (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+              <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.tabs}>
@@ -351,23 +359,8 @@ const styles = createStyles({
     marginLeft: SPACING.s,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
     marginHorizontal: SPACING.l,
     marginBottom: SPACING.m,
-  },
-  searchIcon: {
-    marginLeft: SPACING.m,
-  },
-  searchInput: {
-    flex: 1,
-    padding: SPACING.m,
-    fontSize: 16,
-    color: COLORS.paper,
-    fontFamily: FONTS.regular,
-    textAlignVertical: 'center',
   },
   privateState: {
     flex: 1,

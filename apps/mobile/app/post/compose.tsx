@@ -28,9 +28,10 @@ import { MarkdownText } from '../../components/MarkdownText';
 import { PostItem } from '../../components/PostItem';
 import { Avatar } from '../../components/Avatar';
 import { ImageVerifyingOverlay } from '../../components/ImageVerifyingOverlay';
-import { PostReadingContent } from '../../components/PostReadingContent';
+import { HeaderIconButton, headerIconCircleSize, headerIconCircleMarginH } from '../../components/HeaderIconButton';
+import { ScreenHeader, headerRightCancelStyle } from '../../components/ScreenHeader';
 import { Post } from '../../types';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, LAYOUT, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, LAYOUT, createStyles, FLATLIST_DEFAULTS, toDimension, toDimensionValue } from '../../constants/theme';
 import { Image as ExpoImage } from 'expo-image';
 import { useDrafts } from '../../context/DraftContext';
 
@@ -100,6 +101,13 @@ export default function ComposeScreen() {
   const quotePostId = params.quote as string | undefined;
   const replyToPostId = params.replyTo as string | undefined;
 
+  /** Current user for preview (real handle, displayName, avatar). */
+  const [meUser, setMeUser] = useState<{ id: string; handle: string; displayName: string; avatarKey?: string | null; avatarUrl?: string | null } | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    api.get('/users/me').then((u: any) => setMeUser(u)).catch(() => {});
+  }, [userId]);
+
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
     const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
@@ -133,6 +141,15 @@ export default function ComposeScreen() {
 
   const [headerImage, setHeaderImage] = useState<string | null>(null);
   const [headerImageAsset, setHeaderImageAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  /** After attach we upload in background (with AI check). When done, we have key + blurhash for publish. */
+  const [uploadedHeaderKey, setUploadedHeaderKey] = useState<string | null>(null);
+  const [uploadedHeaderBlurhash, setUploadedHeaderBlurhash] = useState<string | undefined>(undefined);
+  const [headerUploadError, setHeaderUploadError] = useState<string | null>(null);
+  const [headerUploading, setHeaderUploading] = useState(false);
+  const headerUploadIdRef = useRef(0);
+  const publishedWithHeaderKeyRef = useRef<string | null>(null);
+  const uploadedHeaderKeyRef = useRef<string | null>(null);
+  uploadedHeaderKeyRef.current = uploadedHeaderKey;
 
   // When opening quote/reply, load that post data (unless we already have it locally, but API is safer)
   // For quote, we fetch quotedPost. For reply, we fetch replyToPost.
@@ -170,7 +187,7 @@ export default function ComposeScreen() {
   }, [quotePostId, quotedPost?.title, body]);
 
   const [isPublishing, setIsPublishing] = useState(false);
-  const [publishPhase, setPublishPhase] = useState<'idle' | 'verifying_image' | 'publishing'>('idle');
+  const [publishPhase, setPublishPhase] = useState<'idle' | 'publishing'>('idle');
   const [pendingPublish, setPendingPublish] = useState(false); // To show confirmation/preview state
   const [previewMode, setPreviewMode] = useState(false);
 
@@ -213,10 +230,10 @@ export default function ComposeScreen() {
     const postIds = new Set<string>();
     const topicSlugs = new Set<string>();
 
-    for (const m of body.matchAll(/\`\[\[post:([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
+    for (const m of body.matchAll(/\[\[post:([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
       postIds.add(m[1]);
     }
-    for (const m of body.matchAll(/\`\[\[(?!post:)([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
+    for (const m of body.matchAll(/\[\[(?!post:)([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
       topicSlugs.add(normalizeTopicSlug(m[1].trim()));
     }
 
@@ -271,14 +288,57 @@ export default function ComposeScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
-      base64: true, // we might need base64 to upload or uri to upload
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0]) {
-      setHeaderImage(result.assets[0].uri);
-      setHeaderImageAsset(result.assets[0]);
+      const asset = result.assets[0];
+      setHeaderImage(asset.uri);
+      setHeaderImageAsset(asset);
+      setUploadedHeaderKey(null);
+      setUploadedHeaderBlurhash(undefined);
+      setHeaderUploadError(null);
+      setHeaderUploading(true);
+      const uploadId = ++headerUploadIdRef.current;
+      api
+        .upload('/upload/header-image', asset)
+        .then((res: { key?: string; url?: string; blurhash?: string }) => {
+          if (uploadId !== headerUploadIdRef.current) return;
+          setUploadedHeaderKey(res?.key ?? null);
+          setUploadedHeaderBlurhash(res?.blurhash);
+          setHeaderUploadError(null);
+        })
+        .catch((err: any) => {
+          if (uploadId !== headerUploadIdRef.current) return;
+          setHeaderUploadError(err?.message ?? t('compose.imageUploadFailed', 'Image failed to upload'));
+        })
+        .finally(() => {
+          if (uploadId === headerUploadIdRef.current) setHeaderUploading(false);
+        });
     }
   };
+
+  const removeHeaderImage = () => {
+    const key = uploadedHeaderKeyRef.current;
+    if (key) {
+      api.post('/upload/abandon', { key }).catch(() => { });
+    }
+    setHeaderImage(null);
+    setHeaderImageAsset(null);
+    setUploadedHeaderKey(null);
+    setUploadedHeaderBlurhash(undefined);
+    setHeaderUploadError(null);
+  };
+
+  // On unmount: delete uploaded image if user left without publishing
+  useEffect(() => {
+    return () => {
+      const key = uploadedHeaderKeyRef.current;
+      if (key && publishedWithHeaderKeyRef.current !== key) {
+        api.post('/upload/abandon', { key }).catch(() => { });
+      }
+    };
+  }, []);
 
   const insertText = (text: string) => {
     const newBody = body.slice(0, selection.start) + text + body.slice(selection.end);
@@ -415,6 +475,21 @@ export default function ComposeScreen() {
     if (!body.trim()) return;
     if (isPublishing) return;
 
+    if (headerImageAsset) {
+      if (headerUploading) {
+        showError(t('compose.imageUploadingWait', 'Please wait for the image to finish uploading.'));
+        return;
+      }
+      if (headerUploadError) {
+        showError(headerUploadError);
+        return;
+      }
+      if (!uploadedHeaderKey) {
+        showError(t('compose.imageUploadingWait', 'Please wait for the image to finish uploading.'));
+        return;
+      }
+    }
+
     // Validate lengths again
     if (hasOverlongHeading(body)) {
       showError(t('compose.headingTooLong'));
@@ -429,19 +504,11 @@ export default function ComposeScreen() {
     setPendingPublish(false); // Hide preview/confirm modal while sending
     setPreviewMode(false);
 
+    const imageKey = uploadedHeaderKey ?? undefined;
+    const imageBlurhash = uploadedHeaderBlurhash;
+
     try {
-      let imageKey: string | undefined;
-      let imageBlurhash: string | undefined;
-
-      // Upload header image first (runs AI safety check); show "Verifying image..." during this phase
-      if (headerImageAsset) {
-        setPublishPhase('verifying_image');
-        const uploadRes = await api.upload('/upload/header-image', headerImageAsset) as { key?: string; url?: string; blurhash?: string };
-        imageKey = uploadRes?.key;
-        imageBlurhash = uploadRes?.blurhash;
-      }
       setPublishPhase('publishing');
-
       const bodyToPublish = body.trim();
 
       let res;
@@ -471,6 +538,7 @@ export default function ComposeScreen() {
       }
 
       clearDraft(draftKey); // Clear draft on success
+      if (imageKey) publishedWithHeaderKeyRef.current = imageKey;
 
       showSuccess(t('compose.publishedSuccess', 'Published successfully'));
 
@@ -765,8 +833,18 @@ export default function ComposeScreen() {
     return { level, length: stripped.length };
   }, [body, selection.start]);
 
-  const topicRefMatches = body.match(/\`\[\[[^\]]*\]\]/g) || [];
-  const topicRefCount = topicRefMatches.length;
+  /** Unique tag refs ([[post:id]] + [[topic]]) for Ref count and limit; each distinct post/topic counts once (case-insensitive). */
+  const topicRefCount = useMemo(() => {
+    const seenPost = new Set<string>();
+    const seenTopic = new Set<string>();
+    for (const m of body.matchAll(/\[\[post:([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
+      seenPost.add(m[1].toLowerCase());
+    }
+    for (const m of body.matchAll(/\[\[(?!post:)([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
+      seenTopic.add(m[1].trim().toLowerCase());
+    }
+    return seenPost.size + seenTopic.size;
+  }, [body]);
 
   /** Longest heading (H1/H2/H3) content length and longest link/tag alias length; max of both for "titles" limit. */
   const { maxTitleLength } = useMemo(() => {
@@ -795,52 +873,66 @@ export default function ComposeScreen() {
   }, [body]);
 
   const previewPost = useMemo(() => {
+    const wordCount = body.trim().split(/\s+/).filter(Boolean).length;
+    const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+    const author = meUser
+      ? { id: meUser.id, handle: meUser.handle, displayName: meUser.displayName, avatarKey: meUser.avatarKey ?? undefined, avatarUrl: meUser.avatarUrl ?? undefined }
+      : { id: userId ?? 'preview', handle: 'me', displayName: t('compose.previewAuthor', 'Me'), avatarKey: undefined, avatarUrl: undefined };
     const p: Post = {
       id: 'preview',
       body,
       title: sanitizedTitle || undefined,
-      author: {
-        id: userId ?? 'preview',
-        handle: 'me',
-        displayName: t('compose.previewAuthor', 'Me'),
-      },
+      author,
       createdAt: new Date().toISOString(),
       replyCount: 0,
       quoteCount: 0,
       visibility: 'PUBLIC',
+      readingTimeMinutes,
     };
     (p as any).referenceMetadata = referenceMetadata;
     return p;
-  }, [body, sanitizedTitle, referenceMetadata, userId, t]);
+  }, [body, sanitizedTitle, referenceMetadata, userId, meUser, t]);
 
-  /** Sources derived from body for preview: [[post:id]], [[topic]], [text](url). Same shape as API getSources. */
+  /** Sources derived from body for preview: [[post:id]], [[topic]], @handle, [text](url). One entry per unique source (same as sourceCount). */
   const previewSources = useMemo(() => {
-    const list: Array<{ type: 'post' | 'topic' | 'external'; id?: string; title?: string; url?: string; slug?: string }> = [];
+    const list: Array<{ type: 'post' | 'topic' | 'user' | 'external'; id?: string; title?: string; url?: string; slug?: string; handle?: string }> = [];
     const seenPost = new Set<string>();
     const seenTopic = new Set<string>();
+    const seenUser = new Set<string>();
     const seenUrl = new Set<string>();
 
-    // [[post:id|alias]]
-    for (const m of body.matchAll(/\`\[\[post:([^\|\]]+)(?:\|([^\|\]]*))?\]\]/g)) {
+    // [[post:id|alias]] — one per post id (case-insensitive)
+    for (const m of body.matchAll(/\[\[post:([^\|\]]+)(?:\|([^\|\]]*))?\]\]/g)) {
       const id = m[1];
-      if (seenPost.has(id)) continue;
-      seenPost.add(id);
+      const key = id.toLowerCase();
+      if (seenPost.has(key)) continue;
+      seenPost.add(key);
       const alias = m[2]?.trim();
       const title = referenceMetadata[id]?.title || alias || 'Post';
       list.push({ type: 'post', id, title });
     }
 
-    // [[Topic]] or [[Topic|alias]] (not post:)
-    for (const m of body.matchAll(/\`\[\[(?!post:)([^\|\]]+)(?:\|([^\|\]]*))?\]\]/g)) {
+    // [[Topic]] or [[Topic|alias]] — one per topic slug (case-insensitive)
+    for (const m of body.matchAll(/\[\[(?!post:)([^\|\]]+)(?:\|([^\|\]]*))?\]\]/g)) {
       const slug = m[1].trim();
-      if (seenTopic.has(slug)) continue;
-      seenTopic.add(slug);
+      const key = slug.toLowerCase();
+      if (seenTopic.has(key)) continue;
+      seenTopic.add(key);
       const title = m[2]?.trim() || slug;
       list.push({ type: 'topic', slug, title });
     }
 
-    // [text](url)
-    for (const m of body.matchAll(/\`\[([^\]]*)\]\(([^)]+)\)/g)) {
+    // @handle — one per user (case-insensitive; tagging same person twice = one source)
+    for (const m of body.matchAll(/@([a-zA-Z0-9_.]+)/g)) {
+      const handle = m[1];
+      const key = handle.toLowerCase();
+      if (seenUser.has(key)) continue;
+      seenUser.add(key);
+      list.push({ type: 'user', handle, title: `@${handle}` });
+    }
+
+    // [text](url) — one per url
+    for (const m of body.matchAll(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g)) {
       const url = m[2].trim();
       if (seenUrl.has(url)) continue;
       seenUrl.add(url);
@@ -851,100 +943,97 @@ export default function ComposeScreen() {
     return list;
   }, [body, referenceMetadata]);
 
-  /** Count of sources (posts + topics + links) for limit display. Match [[...]] and [](url) without requiring backticks so it matches what users actually type. */
+  /** Count of unique sources for limit (each person/topic/post/url counts once, case-insensitive where applicable). */
   const sourceCount = useMemo(() => {
     const seenPost = new Set<string>();
     const seenTopic = new Set<string>();
+    const seenUser = new Set<string>();
     const seenUrl = new Set<string>();
-    let n = 0;
     for (const m of body.matchAll(/\[\[post:([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
-      if (!seenPost.has(m[1])) { seenPost.add(m[1]); n++; }
+      seenPost.add(m[1].toLowerCase());
     }
     for (const m of body.matchAll(/\[\[(?!post:)([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g)) {
-      const slug = m[1].trim();
-      if (!seenTopic.has(slug)) { seenTopic.add(slug); n++; }
+      seenTopic.add(m[1].trim().toLowerCase());
+    }
+    for (const m of body.matchAll(/@([a-zA-Z0-9_.]+)/g)) {
+      seenUser.add(m[1].toLowerCase());
     }
     for (const m of body.matchAll(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g)) {
-      const url = m[2].trim();
-      if (!seenUrl.has(url)) { seenUrl.add(url); n++; }
+      seenUrl.add(m[2].trim());
     }
-    return n;
+    return seenPost.size + seenTopic.size + seenUser.size + seenUrl.size;
   }, [body]);
 
-  const publishOverlayMessage = publishPhase === 'verifying_image'
-    ? t('common.verifyingImage', 'Uploading & verifying image…')
-    : t('compose.publishing', 'Publishing…');
+  const publishOverlayMessage = t('compose.publishing', 'Publishing…');
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { paddingTop: insets.top }]} // Use insets.top for status bar padding
+      style={styles.container}
     >
       <ImageVerifyingOverlay visible={isPublishing} message={publishOverlayMessage} />
 
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.closeBtn}
-        >
-          <Text style={[styles.closeText, { color: HEADER.cancelColor }]}>{t('common.cancel')}</Text>
-        </Pressable>
-        <View style={styles.headerRight}>
-          <Pressable
-            onPress={() => setPreviewMode(true)}
-            style={[styles.previewBtn, (!body.trim() || body.trim().length < BODY_MIN_LENGTH) && styles.previewBtnDisabled]}
-            disabled={!body.trim() || body.trim().length < BODY_MIN_LENGTH}
-            accessibilityLabel={t('compose.preview')}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.previewBtnText, (!body.trim() || body.trim().length < BODY_MIN_LENGTH) && styles.previewBtnTextDisabled]}>
-              {t('compose.preview', 'Preview')}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              const trimmed = body.trim();
-              if (!trimmed) return;
-              if (trimmed.length < BODY_MIN_LENGTH) {
-                showError(t('compose.bodyTooShort', 'Post must be at least {{min}} characters.', { min: BODY_MIN_LENGTH }));
-                return;
-              }
-              if (trimmed.length > BODY_MAX_LENGTH) {
-                showError(t('compose.bodyTooLong', 'Post is too long. Please shorten it.'));
-                return;
-              }
-              if (titleLength > TITLE_MAX_LENGTH) {
-                showError(t('compose.headlineTooLong', 'Headline is too long. Please keep it under {{max}} characters.', { max: TITLE_MAX_LENGTH }));
-                return;
-              }
-              if (topicRefCount > MAX_TOPIC_REFS) {
-                showError(t('compose.tooManyRefs', 'Too many topic/post references. Maximum {{max}}.', { max: MAX_TOPIC_REFS }));
-                return;
-              }
-              if (sourceCount > MAX_SOURCES) {
-                showError(t('compose.tooManySources', 'Too many sources. Maximum {{max}} per post.', { max: MAX_SOURCES }));
-                return;
-              }
-              if (hasOverlongHeading(body.trim())) {
-                showError(t('compose.headingTooLong', 'Headings (H1, H2, H3) must be at most {{max}} characters.', { max: TITLE_MAX_LENGTH }));
-                return;
-              }
-              if (hasOverlongRefTitle(body.trim())) {
-                showError(t('compose.linkTagTitleTooLong', 'Link and tag titles must be at most {{max}} characters.', { max: TITLE_MAX_LENGTH }));
-                return;
-              }
-              setPreviewMode(true);
-              setPendingPublish(true);
-            }}
-            disabled={!body.trim() || body.trim().length < BODY_MIN_LENGTH || isPublishing}
-            style={[styles.publishBtn, (!body.trim() || body.trim().length < BODY_MIN_LENGTH || isPublishing) && styles.publishBtnDisabled]}
-          >
-            <Text style={styles.publishText}>
-              {isPublishing ? t('compose.publishing', 'Posting...') : t('compose.publish', 'Publish')}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
+      <ScreenHeader
+        title=""
+        paddingTop={insets.top}
+        right={
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={() => setPreviewMode(true)}
+              style={[styles.previewBtn, (!body.trim() || body.trim().length < BODY_MIN_LENGTH) && styles.previewBtnDisabled]}
+              disabled={!body.trim() || body.trim().length < BODY_MIN_LENGTH}
+              accessibilityLabel={t('compose.preview')}
+              accessibilityRole="button"
+            >
+              <Text style={[headerRightCancelStyle, (!body.trim() || body.trim().length < BODY_MIN_LENGTH) && styles.previewBtnTextDisabled]}>
+                {t('compose.preview', 'Preview')}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                const trimmed = body.trim();
+                if (!trimmed) return;
+                if (trimmed.length < BODY_MIN_LENGTH) {
+                  showError(t('compose.bodyTooShort', 'Post must be at least {{min}} characters.', { min: BODY_MIN_LENGTH }));
+                  return;
+                }
+                if (trimmed.length > BODY_MAX_LENGTH) {
+                  showError(t('compose.bodyTooLong', 'Post is too long. Please shorten it.'));
+                  return;
+                }
+                if (titleLength > TITLE_MAX_LENGTH) {
+                  showError(t('compose.headlineTooLong', 'Headline is too long. Please keep it under {{max}} characters.', { max: TITLE_MAX_LENGTH }));
+                  return;
+                }
+                if (topicRefCount > MAX_TOPIC_REFS) {
+                  showError(t('compose.tooManyRefs', 'Too many topic/post references. Maximum {{max}}.', { max: MAX_TOPIC_REFS }));
+                  return;
+                }
+                if (sourceCount > MAX_SOURCES) {
+                  showError(t('compose.tooManySources', 'Too many sources. Maximum {{max}} per post.', { max: MAX_SOURCES }));
+                  return;
+                }
+                if (hasOverlongHeading(body.trim())) {
+                  showError(t('compose.headingTooLong', 'Headings (H1, H2, H3) must be at most {{max}} characters.', { max: TITLE_MAX_LENGTH }));
+                  return;
+                }
+                if (hasOverlongRefTitle(body.trim())) {
+                  showError(t('compose.linkTagTitleTooLong', 'Link and tag titles must be at most {{max}} characters.', { max: TITLE_MAX_LENGTH }));
+                  return;
+                }
+                setPreviewMode(true);
+                setPendingPublish(true);
+              }}
+              disabled={!body.trim() || body.trim().length < BODY_MIN_LENGTH || isPublishing}
+              style={[styles.publishBtn, (!body.trim() || body.trim().length < BODY_MIN_LENGTH || isPublishing) && styles.publishBtnDisabled]}
+            >
+              <Text style={styles.publishText}>
+                {isPublishing ? t('compose.publishing', 'Posting...') : t('compose.publish', 'Publish')}
+              </Text>
+            </Pressable>
+          </View>
+        }
+      />
 
       <Pressable style={{ flex: 1 }} onPress={() => !previewMode && !showLinkInput && textInputRef.current?.focus()}>
         <ScrollView
@@ -967,8 +1056,17 @@ export default function ComposeScreen() {
           {headerImage && !previewMode && (
             <View style={styles.headerImagePreviewRow}>
               <Image source={{ uri: headerImage }} style={styles.headerImageThumb} resizeMode="cover" />
-              <Text style={styles.headerImageLabel} numberOfLines={1}>{t('compose.headerImageAttached', 'Header image attached')}</Text>
-              <Pressable style={styles.removeImgBtn} onPress={() => { setHeaderImage(null); setHeaderImageAsset(null); }}>
+              <Text
+                style={[styles.headerImageLabel, headerUploadError && styles.headerImageLabelError]}
+                numberOfLines={1}
+              >
+                {headerUploading
+                  ? t('common.verifyingImage', 'Uploading & verifying image…')
+                  : headerUploadError
+                    ? headerUploadError
+                    : t('compose.headerImageAttached', 'Header image attached')}
+              </Text>
+              <Pressable style={styles.removeImgBtn} onPress={removeHeaderImage}>
                 <MaterialIcons name="close" size={18} color="white" />
               </Pressable>
             </View>
@@ -998,31 +1096,26 @@ export default function ComposeScreen() {
             style={[
               styles.previewFullscreen,
               {
-                paddingTop: insets.top,
                 paddingBottom: insets.bottom,
                 width: screenWidth,
                 minHeight: screenHeight,
               },
             ]}
           >
-            {/* Handle bar + header */}
-            <View style={styles.previewHeader}>
-              <View style={styles.previewHandle} />
+            {/* Header bar: same layout as ScreenHeader / reading overlay (back + title + right) */}
+            <View style={[styles.previewHeader, { paddingTop: insets.top }]}>
               <View style={styles.previewHeaderRow}>
-                <Pressable
-                  style={styles.previewCloseBar}
+                <HeaderIconButton
                   onPress={() => { setPreviewMode(false); setPendingPublish(false); }}
+                  icon="close"
                   accessibilityLabel={t('common.close')}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.previewCloseText}>{t('common.close', 'Close')}</Text>
-                </Pressable>
+                />
                 <Text style={styles.previewTitle} numberOfLines={1}>
                   {pendingPublish ? t('compose.confirmPublish', 'Confirm & Publish') : t('compose.preview', 'Preview')}
                 </Text>
                 {pendingPublish ? (
                   <Pressable
-                    style={[styles.previewPublishBtn, isPublishing && styles.previewPublishBtnDisabled]}
+                    style={[styles.previewHeaderSide, styles.previewHeaderSideRight, styles.previewPublishBtn, isPublishing && styles.previewPublishBtnDisabled]}
                     onPress={handlePublish}
                     disabled={isPublishing}
                     accessibilityLabel={t('compose.confirmPublish')}
@@ -1033,23 +1126,149 @@ export default function ComposeScreen() {
                     </Text>
                   </Pressable>
                 ) : (
-                  <View style={styles.previewHeaderSpacer} />
+                  <View style={[styles.previewHeaderSide, styles.previewHeaderSideRight]} />
                 )}
               </View>
             </View>
-            {/* Preview: full reading layout (same as post reading page) */}
+            {/* Preview: same layout as reading screen (hero, article, actions, sources) */}
             <ScrollView
               style={styles.previewScroll}
-              contentContainerStyle={[styles.previewScrollContent, { paddingBottom: 80 }]}
-              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.previewScrollContent,
+                { paddingBottom: 80, flexGrow: 1 },
+                !headerImage && {
+                  paddingTop: insets.top + 40 + toDimension(HEADER.barPaddingBottom) + toDimension(SPACING.s),
+                },
+              ]}
+              showsVerticalScrollIndicator={true}
               showsHorizontalScrollIndicator={false}
             >
-              <PostReadingContent
-                post={previewPost}
-                headerImageUri={headerImage ?? null}
-                sources={previewSources}
-                showActions={false}
-              />
+              {/* Hero: full-width cover like reading (only when header image set) */}
+              {headerImage && (
+                <View style={[styles.previewHeroWrap, { width: screenWidth, height: screenWidth * (3 / 4) }]}>
+                  <ExpoImage
+                    source={{ uri: headerImage }}
+                    style={[styles.previewHeroImage, { width: screenWidth, height: screenWidth * (3 / 4) }]}
+                    contentFit="cover"
+                  />
+                  {sanitizedTitle ? (
+                    <View style={styles.previewHeroTitleOverlay}>
+                      <Text style={styles.previewHeroTitleText} numberOfLines={2}>{sanitizedTitle}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              )}
+
+              <View style={styles.previewArticle}>
+                {/* Author line (same as reading) */}
+                <View style={styles.previewAuthorLine}>
+                  {getAvatarUri(previewPost.author) ? (
+                    <ExpoImage source={{ uri: getAvatarUri(previewPost.author)! }} style={styles.previewAuthorAvatarImage} />
+                  ) : (
+                    <View style={styles.previewAuthorAvatar}>
+                      <Text style={styles.previewAvatarText}>
+                        {previewPost.author?.displayName?.charAt(0) || previewPost.author?.handle?.charAt(0) || '?'}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.previewAuthorName}>{previewPost.author?.displayName || previewPost.author?.handle || t('compose.previewAuthor', 'Me')}</Text>
+                    <Text style={styles.previewReadTime}>
+                      {new Date(previewPost.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Title only when no hero (hero already shows title) */}
+                {(!headerImage && sanitizedTitle) ? (
+                  <Text style={styles.previewArticleTitle}>{sanitizedTitle}</Text>
+                ) : null}
+
+                <MarkdownText stripLeadingH1IfMatch={sanitizedTitle ?? undefined} referenceMetadata={referenceMetadata}>{body}</MarkdownText>
+
+                {/* Action row: same icons as reading (non-interactive in preview) */}
+                <View style={styles.previewActionsRow}>
+                  <View style={styles.previewActionBtn}>
+                    <MaterialIcons name="favorite-border" size={HEADER.iconSize} color={COLORS.tertiary} />
+                  </View>
+                  <View style={styles.previewActionBtn}>
+                    <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+                  </View>
+                  <View style={styles.previewActionBtn}>
+                    <MaterialIcons name="format-quote" size={HEADER.iconSize} color={COLORS.tertiary} />
+                  </View>
+                  <View style={styles.previewActionBtn}>
+                    <MaterialIcons name="bookmark-border" size={HEADER.iconSize} color={COLORS.tertiary} />
+                  </View>
+                  <View style={styles.previewActionBtn}>
+                    <MaterialIcons name="add-circle-outline" size={HEADER.iconSize} color={COLORS.tertiary} />
+                  </View>
+                  <View style={styles.previewActionBtn}>
+                    <MaterialIcons name="ios-share" size={HEADER.iconSize} color={COLORS.tertiary} />
+                  </View>
+                </View>
+              </View>
+
+              {/* Sources section (same layout as reading: tab + list or empty) */}
+              <View style={styles.previewSection}>
+                <View style={styles.previewTabsRow}>
+                  <View style={[styles.previewTabBtn, styles.previewTabBtnActive]}>
+                    <Text style={[styles.previewTabBtnText, styles.previewTabBtnTextActive]}>{t('post.sources', 'Sources')}</Text>
+                  </View>
+                </View>
+                {previewSources.length === 0 ? (
+                  <Text style={styles.previewEmptyText}>{t('post.noSources', 'No tagged sources in this post.')}</Text>
+                ) : (
+                  <View style={styles.previewSourcesList}>
+                    {previewSources.map((source: any, index: number) => {
+                      const title = source.title || source.url || source.slug || source.handle || '';
+                      const subtitle =
+                        source.type === 'external' && source.url
+                          ? (() => {
+                              try {
+                                return new URL(source.url).hostname.replace('www.', '');
+                              } catch {
+                                return '';
+                              }
+                            })()
+                          : source.type === 'topic'
+                            ? t('post.topic', 'Topic')
+                            : source.type === 'user' && source.handle
+                              ? `@${source.handle}`
+                              : '';
+                      return (
+                        <View
+                          key={source.type === 'external' && source.url ? `ext-${source.url}` : (source.id ?? source.handle ?? source.slug ?? `i-${index}`)}
+                          style={styles.previewSourceCard}
+                        >
+                          <View style={styles.previewSourceCardLeft}>
+                            {source.type === 'user' ? (
+                              <View style={styles.previewSourceAvatar}>
+                                <Text style={styles.previewSourceAvatarText}>
+                                  {(source.title || source.handle || '?').charAt(0).toUpperCase()}
+                                </Text>
+                              </View>
+                            ) : (
+                              <View style={styles.previewSourceIconWrap}>
+                                <MaterialIcons
+                                  name={source.type === 'post' ? 'article' : source.type === 'topic' ? 'tag' : 'link'}
+                                  size={HEADER.iconSize}
+                                  color={COLORS.primary}
+                                />
+                              </View>
+                            )}
+                            <View style={styles.previewSourceCardText}>
+                              <Text style={styles.previewSourceCardTitle} numberOfLines={1}>{title}</Text>
+                              {subtitle ? <Text style={styles.previewSourceCardSubtitle} numberOfLines={2}>{subtitle}</Text> : null}
+                            </View>
+                          </View>
+                          <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
             </ScrollView>
           </View>
         </Modal>
@@ -1085,29 +1304,11 @@ const styles = createStyles({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: HEADER.barPaddingHorizontal,
-    paddingTop: SPACING.m,
-    paddingBottom: SPACING.m,
-    minHeight: 52,
-  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.m,
   },
-  closeBtn: {
-    minHeight: 44,
-    minWidth: 44,
-    paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.m,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeText: { fontSize: 16, fontFamily: FONTS.medium },
   previewBtn: {
     minHeight: 44,
     paddingVertical: 12,
@@ -1116,7 +1317,6 @@ const styles = createStyles({
     alignItems: 'center',
   },
   previewBtnDisabled: { opacity: 0.5 },
-  previewBtnText: { color: COLORS.secondary, fontSize: 16, fontFamily: FONTS.medium },
   previewBtnTextDisabled: { color: COLORS.tertiary },
   publishBtn: {
     backgroundColor: COLORS.primary,
@@ -1160,6 +1360,9 @@ const styles = createStyles({
     color: COLORS.secondary,
     fontFamily: FONTS.medium,
   },
+  headerImageLabelError: {
+    color: COLORS.error,
+  },
   removeImgBtn: {
     backgroundColor: 'rgba(0,0,0,0.6)',
     padding: 6,
@@ -1192,42 +1395,31 @@ const styles = createStyles({
   linkInputContainer: { padding: SPACING.m, paddingBottom: SPACING.xl },
   linkInputRow: { flexDirection: 'row', gap: 8 },
   linkField: { flex: 1, backgroundColor: COLORS.hover, color: COLORS.paper, padding: 12, borderRadius: 8, fontSize: 16 },
-  linkDisplayField: { marginTop: 8, marginBottom: SPACING.s, minHeight: 56, textAlignVertical: 'top' },
+  linkDisplayField: { marginTop: 8, marginBottom: SPACING.m, minHeight: 56, textAlignVertical: 'top' },
   linkAddButton: { backgroundColor: COLORS.primary, padding: 12, borderRadius: 8, justifyContent: 'center' },
   linkCloseButton: { backgroundColor: COLORS.hover, padding: 12, borderRadius: 8, justifyContent: 'center' },
 
   previewFullscreen: { flex: 1, backgroundColor: COLORS.ink },
   previewHeader: {
-    paddingHorizontal: HEADER.barPaddingHorizontal,
-    paddingBottom: SPACING.m,
+    paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
+    paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     backgroundColor: COLORS.ink,
-  },
-  previewHandle: {
-    width: MODAL.handleWidth,
-    height: MODAL.handleHeight,
-    borderRadius: MODAL.handleBorderRadius,
-    backgroundColor: MODAL.handleBackgroundColor,
-    alignSelf: 'center',
-    marginTop: SPACING.m,
-    marginBottom: SPACING.m,
   },
   previewHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 44,
-    gap: SPACING.m,
   },
-  previewCloseBar: {
+  /** Left/right slots: same size as ScreenHeader and reading overlay so buttons align across app */
+  previewHeaderSide: {
+    minWidth: headerIconCircleSize + headerIconCircleMarginH * 2,
     minHeight: 44,
-    minWidth: 80,
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
-  previewCloseText: {
-    color: HEADER.cancelColor,
-    fontSize: HEADER.titleSize,
-    fontFamily: FONTS.medium,
+  previewHeaderSideRight: {
+    justifyContent: 'flex-end',
   },
   previewTitle: {
     flex: 1,
@@ -1236,26 +1428,32 @@ const styles = createStyles({
     color: COLORS.paper,
     textAlign: 'center',
   },
-  previewHeaderSpacer: { minWidth: 80 },
   previewPublishBtn: {
     backgroundColor: COLORS.primary,
     minHeight: 44,
-    paddingVertical: SPACING.s,
-    paddingHorizontal: SPACING.l,
-    borderRadius: SIZES.borderRadius,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 80,
   },
-  previewPublishBtnDisabled: { opacity: 0.6 },
+  previewPublishBtnDisabled: { opacity: 0.5 },
   previewPublishText: {
     color: COLORS.ink,
-    fontSize: HEADER.titleSize,
+    fontWeight: '600',
+    fontSize: 16,
     fontFamily: FONTS.semiBold,
   },
-  previewScroll: { flex: 1 },
-  previewScrollContent: {},
-  /* Reading-page layout: hero (full width), match reading.tsx */
+  previewScroll: { flex: 1, backgroundColor: COLORS.ink },
+  previewScrollContent: { backgroundColor: COLORS.ink },
+  previewSection: {
+    marginTop: SPACING.l,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    paddingTop: SPACING.l,
+  },
+  /* Reading-style hero (full width, 4:3) */
   previewHeroWrap: {
     alignSelf: 'center',
     marginBottom: SPACING.l,
@@ -1281,12 +1479,68 @@ const styles = createStyles({
     fontFamily: FONTS.semiBold,
     lineHeight: 34,
   },
-  previewSection: {
-    marginTop: SPACING.l,
+  /* Article block (author, title, body, actions) – matches reading.tsx */
+  previewArticle: {
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.divider,
-    paddingTop: SPACING.l,
+    marginBottom: SPACING.l,
+  },
+  previewAuthorLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.m,
+    marginBottom: SPACING.l,
+  },
+  previewAuthorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewAuthorAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  previewAvatarText: {
+    color: COLORS.primary,
+    fontWeight: '600',
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+  },
+  previewAuthorName: {
+    fontSize: 15,
+    color: COLORS.paper,
+    fontFamily: FONTS.medium,
+  },
+  previewReadTime: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  previewArticleTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 34,
+    marginBottom: SPACING.xl,
+  },
+  previewActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: SPACING.s,
+    paddingRight: SPACING.l,
+    paddingBottom: SPACING.s,
+    marginTop: SPACING.xl,
+  },
+  previewActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: SPACING.xs,
   },
   previewTabsRow: {
     flexDirection: 'row',
@@ -1346,12 +1600,21 @@ const styles = createStyles({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.m,
-    overflow: 'hidden',
   },
-  previewSourceCircleImage: {
+  previewSourceAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: COLORS.divider,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.m,
+  },
+  previewSourceAvatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
   },
   previewSourceCardText: {
     flex: 1,

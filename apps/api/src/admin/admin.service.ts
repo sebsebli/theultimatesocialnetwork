@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Report, ReportStatus } from '../entities/report.entity';
 import { User } from '../entities/user.entity';
+import { MeilisearchService } from '../search/meilisearch.service';
 
 @Injectable()
 export class AdminService {
   constructor(
     @InjectRepository(Report) private reportRepo: Repository<Report>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    private meilisearch: MeilisearchService,
   ) {}
 
   async getReports(status?: ReportStatus, limit = 20, offset = 0) {
@@ -47,5 +49,20 @@ export class AdminService {
 
     user.bannedAt = null;
     return this.userRepo.save(user);
+  }
+
+  /**
+   * Trigger a full reindex of users, topics, posts, and messages from PostgreSQL into Meilisearch.
+   * Runs in the background; use when search is missing results (e.g. after restore or if indexing failed).
+   */
+  triggerSearchReindex(): { message: string } {
+    void this.meilisearch
+      .reindexFromPostgres()
+      .then(() => {})
+      .catch((err) => console.error('Admin reindex failed', err));
+    return {
+      message:
+        'Reindex started in background. Search may take a few minutes to reflect all data.',
+    };
   }
 }

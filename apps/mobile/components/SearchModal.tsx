@@ -1,20 +1,37 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Text, View, TextInput, FlatList, Pressable } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import {
+  View,
+  Text,
+  Modal,
+  TextInput,
+  FlatList,
+  Pressable,
+  useWindowDimensions,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../utils/api';
-import { PostItem } from '../components/PostItem';
-import { TopicCard } from '../components/ExploreCards';
-import { UserCard } from '../components/UserCard';
-import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
-import { SectionHeader } from '../components/SectionHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { api } from '../utils/api';
+import { PostItem } from './PostItem';
+import { TopicCard } from './ExploreCards';
+import { UserCard } from './UserCard';
+import { EmptyState, emptyStateCenterWrapStyle } from './EmptyState';
+import { SectionHeader } from './SectionHeader';
+import { HeaderIconButton, headerIconCircleSize, headerIconCircleMarginH } from './HeaderIconButton';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../constants/theme';
-import { HeaderIconButton, headerIconCircleSize, headerIconCircleMarginH } from '../components/HeaderIconButton';
 
 const DEBOUNCE_MS = 350;
 const SEARCH_LIMIT = 20;
+
+export interface SearchModalProps {
+  visible: boolean;
+  onClose: () => void;
+  /** Optional initial query (e.g. from topic search-in-topic) */
+  initialQuery?: string;
+}
 
 type ListItem =
   | { type: 'section'; key: string; title: string }
@@ -22,28 +39,31 @@ type ListItem =
   | { type: 'user'; key: string; [k: string]: unknown }
   | { type: 'topic'; key: string; [k: string]: unknown };
 
-/**
- * Full-screen search: one query, one request to /search/all, results shown in sections (Posts, People, Topics).
- * No tabs. Used when navigating to /search (e.g. from topic "Search in topic") or deep link.
- */
-export default function SearchScreen() {
+export function SearchModal({
+  visible,
+  onClose,
+  initialQuery = '',
+}: SearchModalProps) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ topicSlug?: string; q?: string }>();
-  const topicSlug = typeof params.topicSlug === 'string' ? params.topicSlug : undefined;
-  const initialQ = typeof params.q === 'string' ? params.q : Array.isArray(params.q) ? params.q[0] : '';
   const { t } = useTranslation();
-
-  const [query, setQuery] = useState(initialQ || '');
+  const insets = useSafeAreaInsets();
+  const [query, setQuery] = useState(initialQuery);
   const [posts, setPosts] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [topics, setTopics] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    if (initialQ) setQuery(initialQ);
-  }, [initialQ]);
+    setQuery(initialQuery);
+  }, [initialQuery, visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(t);
+  }, [visible]);
 
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -55,10 +75,9 @@ export default function SearchScreen() {
     }
     setLoading(true);
     try {
-      const url = topicSlug
-        ? `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}&topicSlug=${encodeURIComponent(topicSlug)}`
-        : `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}`;
-      const res = await api.get<{ posts: any[]; users: any[]; topics: any[] }>(url);
+      const res = await api.get<{ posts: any[]; users: any[]; topics: any[] }>(
+        `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}`,
+      );
       const rawPosts = (res.posts || []).filter((p: any) => !!p?.author);
       const rawUsers = res.users || [];
       const rawTopics = (res.topics || []).map((tpc: any) => ({
@@ -76,7 +95,7 @@ export default function SearchScreen() {
     } finally {
       setLoading(false);
     }
-  }, [topicSlug]);
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -125,21 +144,28 @@ export default function SearchScreen() {
         return (
           <UserCard
             item={item}
-            onPress={() => router.push(`/user/${item.handle}`)}
+            onPress={() => {
+              onClose();
+              router.push(`/user/${item.handle}`);
+            }}
           />
         );
       }
       if (item.type === 'topic') {
+        const slug = item.slug ?? item.id ?? '';
         return (
           <TopicCard
             item={item}
-            onPress={() => router.push(`/topic/${encodeURIComponent(item.slug || item.id)}`)}
+            onPress={() => {
+              onClose();
+              router.push(`/topic/${encodeURIComponent(String(slug))}`);
+            }}
           />
         );
       }
       return null;
     },
-    [router],
+    [onClose, router],
   );
 
   const keyExtractor = useCallback((item: ListItem) => item.key, []);
@@ -159,61 +185,64 @@ export default function SearchScreen() {
           headline={
             query.trim()
               ? t('search.noResults', 'No results')
-              : topicSlug
-                ? t('search.typeToSearchInTopic', 'Type to search in this topic')
-                : t('search.startTyping', 'Search posts, people, topics')
+              : t('search.startTyping', 'Search posts, people, topics')
           }
           subtext={query.trim() ? t('search.noResultsHint', 'Try different keywords.') : undefined}
         />
       </View>
     );
-  }, [loading, query, topicSlug, t]);
+  }, [loading, query, t]);
+
+  if (!visible) return null;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel={t('common.goBack', 'Go back')} />
-        <View style={[SEARCH_BAR.container, styles.searchWrap]}>
-          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
-          <TextInput
-            style={[SEARCH_BAR.input, styles.input]}
-            placeholder={topicSlug ? t('search.withinTopic', 'Search in topic') : t('home.search', 'Search')}
-            placeholderTextColor={COLORS.tertiary}
-            value={query}
-            onChangeText={setQuery}
-            returnKeyType="search"
-            autoFocus
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-          {query.length > 0 ? (
-            <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel={t('common.clear', 'Clear')}>
-              <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
-            </Pressable>
-          ) : null}
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        style={[styles.container, { paddingTop: insets.top }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.header}>
+          <HeaderIconButton onPress={onClose} icon="close" accessibilityLabel={t('common.close', 'Close')} />
+          <View style={[SEARCH_BAR.container, styles.searchWrap]}>
+            <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+            <TextInput
+              ref={inputRef}
+              style={[SEARCH_BAR.input, styles.input]}
+              placeholder={t('home.search', 'Search')}
+              placeholderTextColor={COLORS.tertiary}
+              value={query}
+              onChangeText={setQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {query.length > 0 ? (
+              <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel={t('common.clear', 'Clear')}>
+                <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+              </Pressable>
+            ) : null}
+          </View>
+          <View style={styles.headerSpacer} />
         </View>
-        <View style={styles.headerSpacer} />
-      </View>
 
-      {topicSlug ? (
-        <View style={styles.topicScopeBar}>
-          <Text style={styles.topicScopeText} numberOfLines={1}>
-            {t('search.withinTopic', 'Searching within this topic')}
-          </Text>
-        </View>
-      ) : null}
-
-      <FlatList
-        data={flatData}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        ListEmptyComponent={listEmpty}
-        contentContainerStyle={flatData.length === 0 ? { flexGrow: 1 } : { paddingBottom: insets.bottom + 24 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        {...FLATLIST_DEFAULTS}
-      />
-    </View>
+        <FlatList
+          data={flatData}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          ListEmptyComponent={listEmpty}
+          contentContainerStyle={flatData.length === 0 ? { flexGrow: 1 } : { paddingBottom: insets.bottom + 24 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          {...FLATLIST_DEFAULTS}
+        />
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -243,17 +272,5 @@ const styles = createStyles({
     fontSize: 16,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-  },
-  topicScopeBar: {
-    paddingVertical: SPACING.s,
-    paddingHorizontal: SPACING.l,
-    backgroundColor: COLORS.hover,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  topicScopeText: {
-    fontSize: 13,
-    color: COLORS.secondary,
-    fontFamily: FONTS.medium,
   },
 });

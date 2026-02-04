@@ -7,6 +7,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../utils/api';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { HeaderIconButton } from '../components/HeaderIconButton';
 import { CollectionCard } from '../components/CollectionCard';
 import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
 import { useToast } from '../context/ToastContext';
@@ -99,16 +100,14 @@ export default function CollectionsScreen() {
     <View style={styles.container}>
       <ScreenHeader
         title={t('collections.title')}
+        showBack={false}
         paddingTop={insets.top}
         right={
-          <Pressable
+          <HeaderIconButton
             onPress={() => setModalVisible(true)}
-            style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, pressed && { opacity: 0.7 }]}
+            icon="add"
             accessibilityLabel={t('collections.create')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.createButton}>{t('common.create')}</Text>
-          </Pressable>
+          />
         }
       />
 
@@ -199,12 +198,6 @@ const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  createButton: {
-    fontSize: 16,
-    color: COLORS.primary,
-    fontWeight: '600',
-    fontFamily: FONTS.semiBold,
   },
   loadingText: {
     color: COLORS.secondary,

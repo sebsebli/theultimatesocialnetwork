@@ -8,7 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, createStyles } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../../components/ScreenHeader';
+import { ScreenHeader, headerRightSaveStyle } from '../../components/ScreenHeader';
 
 const HANDLE_MIN = 3;
 const HANDLE_MAX = 30;
@@ -148,9 +148,9 @@ export default function EditProfileScreen() {
           <Pressable
             onPress={handleSubmit}
             disabled={!canSubmit || loading}
-            style={[styles.saveButton, (!canSubmit || loading) && styles.saveButtonDisabled]}
+            style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, (pressed || !canSubmit || loading) && { opacity: 0.5 }]}
           >
-            <Text style={styles.saveButtonText}>{t('common.save', 'Save')}</Text>
+            <Text style={headerRightSaveStyle}>{t('common.save', 'Save')}</Text>
           </Pressable>
         }
       />
@@ -293,19 +293,6 @@ const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  saveButton: {
-    padding: SPACING.s,
-    margin: -SPACING.s,
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: HEADER.saveColor,
-    fontFamily: FONTS.semiBold,
   },
   content: {
     paddingHorizontal: SPACING.l,

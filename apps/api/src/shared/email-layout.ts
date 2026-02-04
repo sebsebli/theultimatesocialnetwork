@@ -63,9 +63,9 @@ const STYLES = {
 };
 
 const RESPONSIVE_STYLES = `
-  body { background-color: #0B0B0C !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
-  .email-wrapper { width: 100% !important; background-color: #0B0B0C !important; }
-  .inner-cell { background-color: #0B0B0C !important; }
+  body { background-color: ${C.INK} !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .email-wrapper { width: 100% !important; background-color: ${C.INK} !important; }
+  .inner-cell { background-color: ${C.INK} !important; }
   .code-box { font-size: 24px !important; padding: 20px !important; letter-spacing: 4px !important; }
   @media only screen and (max-width: 480px) {
     .inner-cell { padding: 30px 16px !important; }
@@ -144,12 +144,12 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
 
   // Header: Logo + System Badge
   const headerContent = `
-    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:${C.INK};" bgcolor="${C.INK}">
       <tr>
-        <td align="left">
+        <td align="left" style="background-color:${C.INK};" bgcolor="${C.INK}">
           ${logoUrl ? `<img src="${logoUrl}" width="32" height="32" style="${STYLES.logo}" alt="Citewalk" />` : `<span style="font-weight:bold;color:${C.PAPER};">Citewalk</span>`}
         </td>
-        <td align="right">
+        <td align="right" style="background-color:${C.INK};" bgcolor="${C.INK}">
           <span style="${STYLES.systemBadge}">System Msg</span>
         </td>
       </tr>
@@ -169,15 +169,15 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
   <![endif]-->
   <style type="text/css">${RESPONSIVE_STYLES}</style>
 </head>
-<body style="${STYLES.wrapper}" bgcolor="#0B0B0C">
+<body style="${STYLES.wrapper}" bgcolor="${C.INK}">
   <center>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper" bgcolor="#0B0B0C">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper" style="background-color:${C.INK};" bgcolor="${C.INK}">
       <tr>
-        <td align="center" valign="top" bgcolor="#0B0B0C">
+        <td align="center" valign="top" style="background-color:${C.INK};" bgcolor="${C.INK}">
           <!-- Main Container -->
-          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background-color:#0B0B0C;" bgcolor="#0B0B0C">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background-color:${C.INK};" bgcolor="${C.INK}">
             <tr>
-              <td class="inner-cell" style="${STYLES.innerCell}" bgcolor="#0B0B0C">
+              <td class="inner-cell" style="${STYLES.innerCell}" bgcolor="${C.INK}">
                 
                 <!-- Header -->
                 <div style="${STYLES.header}">

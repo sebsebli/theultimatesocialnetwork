@@ -69,9 +69,60 @@ export class CollectionsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('sort') sort?: 'recent' | 'ranked',
   ) {
     await this.collectionsService.findOneForViewer(id, user.id);
-    return this.collectionsService.getItemsPage(id, limit, offset);
+    return this.collectionsService.getItemsPage(
+      id,
+      limit,
+      offset,
+      sort === 'ranked' ? 'ranked' : 'recent',
+      user.id,
+    );
+  }
+
+  @Get(':id/sources')
+  @UseGuards(AuthGuard('jwt'))
+  async getSources(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    await this.collectionsService.findOneForViewer(id, user.id);
+    const offset = (page - 1) * limit;
+    const items = await this.collectionsService.getCollectionSources(
+      id,
+      limit,
+      offset,
+      user.id,
+    );
+    return {
+      items,
+      hasMore: items.length === limit,
+    };
+  }
+
+  @Get(':id/contributors')
+  @UseGuards(AuthGuard('jwt'))
+  async getContributors(
+    @CurrentUser() user: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+  ) {
+    await this.collectionsService.findOneForViewer(id, user.id);
+    const offset = (page - 1) * limit;
+    const items = await this.collectionsService.getCollectionContributors(
+      id,
+      limit,
+      offset,
+      user.id,
+    );
+    return {
+      items,
+      hasMore: items.length === limit,
+    };
   }
 
   @Post(':id/items')

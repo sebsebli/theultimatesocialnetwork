@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Avatar } from "./avatar";
 import { OverflowMenu } from "./overflow-menu";
 import { useAuth } from "@/components/auth-provider";
@@ -32,9 +33,10 @@ export interface ReplySectionProps {
 
 function ReplySectionInner({
   postId,
-  replyCount,
+  replyCount: _replyCount,
   isPublic = false,
 }: ReplySectionProps) {
+  const t = useTranslations("post");
   const { user } = useAuth();
   const { error: toastError } = useToast();
   const canReply = Boolean(user) && !isPublic;
@@ -101,7 +103,7 @@ function ReplySectionInner({
 
   const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyText.trim() || !user) return;
+    if (!replyText.trim() || !user || !postId) return;
 
     const body = replyText;
     const parentReplyId = replyingToReplyId || undefined;
@@ -145,15 +147,37 @@ function ReplySectionInner({
 
       if (res.ok) {
         const saved = await res.json();
+        const savedWithAuthor = {
+          ...saved,
+          author:
+            saved.author ??
+            (user
+              ? {
+                  id: user.id,
+                  handle: user.handle ?? "",
+                  displayName: user.displayName ?? "",
+                  avatarKey: user.avatarKey ?? null,
+                  avatarUrl: user.avatarUrl ?? null,
+                }
+              : saved.author),
+        };
         if (parentReplyId) {
           setChildrenByParent((prev) => ({
             ...prev,
             [parentReplyId]: (prev[parentReplyId] || []).map((r) =>
-              r.id === tempId ? saved : r,
+              r.id === tempId ? savedWithAuthor : r,
             ),
           }));
         } else {
-          setReplies((prev) => prev.map((r) => (r.id === tempId ? saved : r)));
+          setReplies((prev) =>
+            prev.map((r) => (r.id === tempId ? savedWithAuthor : r)),
+          );
+        }
+        // Refresh top-level list from server so counts and order stay in sync
+        if (!parentReplyId) {
+          loadReplies().then((data) => {
+            if (Array.isArray(data)) setReplies(data);
+          });
         }
       } else {
         throw new Error("Failed to post");
@@ -172,7 +196,7 @@ function ReplySectionInner({
       setReplyText(body);
       setShowReplyBox(true);
       if (parentReplyId) setReplyingToReplyId(parentReplyId);
-      toastError("Failed to post reply. Please try again.");
+      toastError(t("commentFailed"));
     }
   };
 
@@ -190,10 +214,13 @@ function ReplySectionInner({
   };
 
   return (
-    <section className="border-t border-divider pt-6" aria-label="Replies">
+    <section
+      className="border-t border-divider pt-6"
+      aria-label={t("comments")}
+    >
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-paper">
-          {replies.length} {replies.length === 1 ? "Reply" : "Replies"}
+          {replies.length} {replies.length === 1 ? t("comment") : t("comments")}
         </h2>
         {canReply ? (
           <button
@@ -204,15 +231,13 @@ function ReplySectionInner({
             }}
             className="text-primary text-sm font-medium hover:underline"
             aria-label={
-              showReplyBox && !replyingToReplyId
-                ? "Cancel reply"
-                : "Write a reply"
+              showReplyBox && !replyingToReplyId ? "Cancel" : t("writeComment")
             }
           >
-            {showReplyBox && !replyingToReplyId ? "Cancel" : "Reply"}
+            {showReplyBox && !replyingToReplyId ? "Cancel" : t("comment")}
           </button>
         ) : (
-          <span className="text-tertiary text-sm">Sign in to comment</span>
+          <span className="text-tertiary text-sm">{t("signInToComment")}</span>
         )}
       </div>
 
@@ -221,7 +246,7 @@ function ReplySectionInner({
           <textarea
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            placeholder="Write a reply..."
+            placeholder={t("writeComment")}
             className="w-full min-h-[100px] px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             autoFocus
           />
@@ -241,7 +266,7 @@ function ReplySectionInner({
               disabled={!replyText.trim()}
               className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Reply
+              {t("postComment")}
             </button>
           </div>
         </form>
@@ -249,11 +274,11 @@ function ReplySectionInner({
 
       {loading ? (
         <div className="text-center py-8">
-          <p className="text-secondary text-sm">Loading replies...</p>
+          <p className="text-secondary text-sm">{t("loadingComments")}</p>
         </div>
       ) : replies.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-secondary text-sm">No replies yet.</p>
+          <p className="text-secondary text-sm">{t("noCommentsYet")}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -288,7 +313,7 @@ function ReplySectionInner({
                             }}
                             className="text-primary text-xs font-medium hover:underline"
                           >
-                            Reply
+                            {t("comment")}
                           </button>
                         )}
                         <OverflowMenu
@@ -313,8 +338,7 @@ function ReplySectionInner({
                         onClick={() => loadChildren(reply.id)}
                         className="text-primary text-xs font-medium hover:underline"
                       >
-                        View {reply.subreplyCount}{" "}
-                        {reply.subreplyCount === 1 ? "reply" : "replies"}
+                        {t("viewComments", { count: reply.subreplyCount ?? 0 })}
                       </button>
                     ) : (
                       <div className="mt-3 space-y-3 pl-4 border-l-2 border-divider/70">
@@ -347,7 +371,7 @@ function ReplySectionInner({
                                         }}
                                         className="text-primary text-xs font-medium hover:underline"
                                       >
-                                        Reply
+                                        {t("comment")}
                                       </button>
                                     )}
                                     <OverflowMenu
@@ -376,7 +400,7 @@ function ReplySectionInner({
                     <textarea
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="Write a reply..."
+                      placeholder={t("writeComment")}
                       className="w-full min-h-[80px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                       autoFocus
                     />
@@ -397,7 +421,7 @@ function ReplySectionInner({
                         disabled={!replyText.trim()}
                         className="px-3 py-1.5 bg-primary text-white rounded-full text-sm disabled:opacity-50"
                       >
-                        Reply
+                        {t("postComment")}
                       </button>
                     </div>
                   </form>

@@ -20,6 +20,8 @@ import { useToast } from '../../../../context/ToastContext';
 import { ScreenHeader } from '../../../../components/ScreenHeader';
 import { MarkdownText } from '../../../../components/MarkdownText';
 import { ReportModal } from '../../../../components/ReportModal';
+import { OptionsActionSheet } from '../../../../components/OptionsActionSheet';
+import { ConfirmModal } from '../../../../components/ConfirmModal';
 import { EmptyState, emptyStateCenterWrapStyle } from '../../../../components/EmptyState';
 
 const COMMENT_MIN_LENGTH = 2;
@@ -58,6 +60,8 @@ export default function SubcommentsScreen() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reportReplyId, setReportReplyId] = useState<string | null>(null);
+  const [replyMenuReplyId, setReplyMenuReplyId] = useState<string | null>(null);
+  const [replyToDeleteId, setReplyToDeleteId] = useState<string | null>(null);
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
   const scrollRef = useRef<ScrollView>(null);
 
@@ -171,6 +175,20 @@ export default function SubcommentsScreen() {
     } catch (e) {
       showError(t('post.reportError', 'Failed to report'));
       throw e;
+    }
+  };
+
+  const handleDeleteReply = async () => {
+    if (!replyToDeleteId || !postId) return;
+    try {
+      await api.delete(`/posts/${postId}/replies/${replyToDeleteId}`);
+      setReplies((prev) => prev.filter((r) => r.id !== replyToDeleteId));
+      showSuccess(t('post.commentDeleted', 'Comment deleted'));
+    } catch (e: any) {
+      const msg = e?.data?.message ?? e?.message ?? t('post.commentDeleteFailed', 'Failed to delete comment');
+      showError(typeof msg === 'string' ? msg : t('post.commentDeleteFailed', 'Failed to delete comment'));
+    } finally {
+      setReplyToDeleteId(null);
     }
   };
 
@@ -292,7 +310,7 @@ export default function SubcommentsScreen() {
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => setReportReplyId(reply.id)}
+                onPress={() => setReplyMenuReplyId(reply.id)}
                 hitSlop={12}
                 style={styles.menuButton}
               >
@@ -379,6 +397,18 @@ export default function SubcommentsScreen() {
         )}
       </View>
 
+      <OptionsActionSheet
+        visible={!!replyMenuReplyId}
+        title={t('post.commentActions', 'Comment')}
+        options={[
+          ...(replyMenuReplyId && userId && (replies.find((r) => r.id === replyMenuReplyId)?.authorId === userId || replies.find((r) => r.id === replyMenuReplyId)?.author?.id === userId)
+            ? [{ label: t('post.deleteComment', 'Delete comment'), onPress: () => { setReplyToDeleteId(replyMenuReplyId); setReplyMenuReplyId(null); }, destructive: true as const }]
+            : []),
+          { label: t('post.reportComment', 'Report'), onPress: () => { if (replyMenuReplyId) setReportReplyId(replyMenuReplyId); setReplyMenuReplyId(null); }, icon: 'flag' as const },
+        ]}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setReplyMenuReplyId(null)}
+      />
       <ReportModal
         visible={!!reportReplyId}
         onClose={() => setReportReplyId(null)}
@@ -387,6 +417,16 @@ export default function SubcommentsScreen() {
         }
         title={t('post.reportTitle', 'Report Comment')}
         targetType="REPLY"
+      />
+      <ConfirmModal
+        visible={!!replyToDeleteId}
+        title={t('post.deleteComment', 'Delete comment')}
+        message={t('post.deleteCommentConfirm', 'Are you sure you want to delete this comment? This cannot be undone.')}
+        confirmLabel={t('post.deleteComment', 'Delete comment')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={handleDeleteReply}
+        onCancel={() => setReplyToDeleteId(null)}
       />
     </KeyboardAvoidingView>
   );

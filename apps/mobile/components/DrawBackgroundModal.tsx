@@ -350,14 +350,14 @@ const styles = createStyles({
   },
   avatarContainer: {
     position: 'relative',
-    width: 96,
-    height: 96,
+    width: 120,
+    height: 120,
     marginBottom: SPACING.xs,
   },
   avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
@@ -368,10 +368,10 @@ const styles = createStyles({
   avatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 48,
+    borderRadius: 60,
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: '600',
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,

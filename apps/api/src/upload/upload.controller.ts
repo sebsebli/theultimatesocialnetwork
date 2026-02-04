@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Post,
@@ -77,6 +78,18 @@ export class UploadController {
     const url = this.uploadService.getImageUrl(key);
 
     return { key, url };
+  }
+
+  /** Abandon an upload that was never used (e.g. user removed header image or left composer without publishing). */
+  @Post('abandon')
+  @UseGuards(AuthGuard('jwt'))
+  async abandonUpload(@Body() body: { key?: string }) {
+    const key = body?.key;
+    if (!key || typeof key !== 'string') {
+      throw new BadRequestException('Missing key');
+    }
+    await this.uploadService.removeUpload(key);
+    return { ok: true };
   }
 
   @Post('profile-header')

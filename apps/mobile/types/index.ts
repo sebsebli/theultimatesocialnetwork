@@ -11,6 +11,8 @@ export interface User {
   quoteReceivedCount?: number;
   /** True when user is in the top 10% by quote_received_count (shows quotes verified badge). */
   quotesBadgeEligible?: boolean;
+  /** When true, profile is private; only followers see full content. */
+  isProtected?: boolean;
 }
 
 export interface Post {

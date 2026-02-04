@@ -15,6 +15,7 @@ import { PostItem } from '../../components/PostItem';
 import { PostContent } from '../../components/PostContent';
 import { MarkdownText } from '../../components/MarkdownText';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { HeaderIconButton } from '../../components/HeaderIconButton';
 import { Post } from '../../types';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../../constants/theme';
 
@@ -43,7 +44,7 @@ export default function PostDetailScreen() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [deniedAuthor, setDeniedAuthor] = useState<{ id: string; handle: string; displayName: string; avatarKey?: string | null } | null>(null);
 
-  // Merge API sources with external links extracted from body so all [text](url) show in Sources
+  // Merge API sources (posts, topics, users/mentions, external) with external links from body; deduplicate
   const mergedSources = useMemo(() => {
     const apiExternal = sources.filter((s: any) => s.type === 'external');
     const apiOther = sources.filter((s: any) => s.type !== 'external');
@@ -60,11 +61,24 @@ export default function PostDetailScreen() {
         }
       }
     }
-    return [
+    const combined = [
       ...apiExternal,
       ...fromBody.map(({ url, title }) => ({ type: 'external' as const, url, title })),
       ...apiOther,
     ];
+    // Deduplicate by canonical key (API already dedupes; body links can duplicate API external)
+    const seen = new Set<string>();
+    return combined.filter((s: any) => {
+      const key =
+        s.type === 'external' ? (s.url ?? s.id) :
+        s.type === 'post' ? s.id :
+        s.type === 'user' ? (s.handle ?? s.id) :
+        s.type === 'topic' ? (s.slug ?? s.id) :
+        `${s.type}-${s.id ?? s.url ?? s.handle ?? s.slug}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [sources, post?.body]);
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -283,10 +297,10 @@ export default function PostDetailScreen() {
   if (!post) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>{t('post.noPost')}</Text>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>{t('common.goBack')}</Text>
-        </Pressable>
+        <ScreenHeader title={t('post.thread')} paddingTop={insets.top} />
+        <View style={styles.center}>
+          <Text style={styles.errorText}>{t('post.noPost')}</Text>
+        </View>
       </View>
     );
   }
@@ -303,9 +317,6 @@ export default function PostDetailScreen() {
           <Text style={styles.deletedPlaceholderText}>
             {t('post.deletedOn', { date: formattedDate, defaultValue: `This post has been deleted on ${formattedDate}.` })}
           </Text>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>{t('common.goBack')}</Text>
-          </Pressable>
         </View>
       </View>
     );
@@ -325,11 +336,7 @@ export default function PostDetailScreen() {
         <ScreenHeader
           title={t('post.thread')}
           paddingTop={insets.top}
-          right={
-            <Pressable onPress={handlePostMenu} hitSlop={10} style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, pressed && { opacity: 0.7 }]}>
-              <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-            </Pressable>
-          }
+          right={<HeaderIconButton onPress={handlePostMenu} icon="more-horiz" accessibilityLabel={t('profile.options', 'Options')} />}
         />
 
         <View style={styles.postContent}>
@@ -391,14 +398,14 @@ export default function PostDetailScreen() {
                 const subtitle =
                   source.type === 'external' && source.url
                     ? (source.description?.trim()
-                        ? source.description.trim()
-                        : (() => {
-                            try {
-                              return new URL(source.url).hostname.replace('www.', '');
-                            } catch {
-                              return '';
-                            }
-                          })())
+                      ? source.description.trim()
+                      : (() => {
+                        try {
+                          return new URL(source.url).hostname.replace('www.', '');
+                        } catch {
+                          return '';
+                        }
+                      })())
                     : source.type === 'user'
                       ? `@${source.handle}`
                       : source.type === 'topic'
@@ -419,7 +426,7 @@ export default function PostDetailScreen() {
                       } else if (source.type === 'post') {
                         router.push(`/post/${source.id}`);
                       } else if (source.type === 'topic') {
-                        router.push(`/topic/${encodeURIComponent(source.slug)}`);
+                        router.push(`/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? '')}`);
                       } else if (source.type === 'user') {
                         router.push(`/user/${source.handle}`);
                       }
@@ -440,7 +447,7 @@ export default function PostDetailScreen() {
             <View style={styles.sourcesList}>
               {referencedBy.slice(0, 2).map((refPost) => {
                 const bodyPreview = (refPost.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
-                const title = refPost.title ?? bodyPreview || 'Post';
+                const title = refPost.title ?? (bodyPreview || 'Post');
                 const subtitle = refPost.author?.displayName || refPost.author?.handle || '';
                 return (
                   <SourceOrPostCard
@@ -942,22 +949,17 @@ const styles = createStyles({
     marginTop: SPACING.xl,
     fontFamily: FONTS.regular,
   },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+  },
   errorText: {
     color: COLORS.error,
     textAlign: 'center',
     marginTop: SPACING.xl,
     fontFamily: FONTS.regular,
-  },
-  backButton: {
-    marginTop: SPACING.l,
-    alignSelf: 'center',
-    paddingVertical: SPACING.m,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-  },
-  backButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
   },
   deletedPlaceholder: {
     flex: 1,

@@ -1,17 +1,31 @@
-import React from 'react';
-import { Tabs, Redirect, useRouter } from 'expo-router';
+import React, { useMemo } from 'react';
+import { Tabs, Redirect, useRouter, usePathname } from 'expo-router';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONTS } from '../../constants/theme';
 import { Text, View, ActivityIndicator, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/auth';
 import { useSocket } from '../../context/SocketContext';
+import { TabPressProvider, useTabPress } from '../../context/TabPressContext';
 
-export default function TabLayout() {
+type TabKey = 'index' | 'explore' | 'messages' | 'profile';
+
+function getCurrentTab(pathname: string): TabKey {
+  if (!pathname) return 'index';
+  if (pathname.includes('explore')) return 'explore';
+  if (pathname.includes('messages')) return 'messages';
+  if (pathname.includes('profile')) return 'profile';
+  return 'index';
+}
+
+function TabLayoutInner() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const { isAuthenticated, isLoading, onboardingComplete } = useAuth();
   const { unreadMessages } = useSocket();
   const router = useRouter();
+  const tabPress = useTabPress();
+  const currentTab = useMemo(() => getCurrentTab(pathname ?? ''), [pathname]);
 
   if (isLoading) {
     return (
@@ -28,6 +42,11 @@ export default function TabLayout() {
   if (onboardingComplete !== true) {
     return <Redirect href="/onboarding" />;
   }
+
+  const emitTabPress = tabPress?.emitTabPress ?? (() => { });
+  const onTabPress = (tab: TabKey) => {
+    if (currentTab === tab) emitTabPress(tab);
+  };
 
   return (
     <Tabs
@@ -55,6 +74,9 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="index"
+        listeners={{
+          tabPress: () => onTabPress('index'),
+        }}
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
@@ -68,6 +90,9 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="explore"
+        listeners={{
+          tabPress: () => onTabPress('explore'),
+        }}
         options={{
           title: 'Discover',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
@@ -108,7 +133,7 @@ export default function TabLayout() {
                     elevation: 6,
                   }}
                 >
-                  <MaterialIcons name="edit" size={26} color={COLORS.ink} />
+                  <MaterialIcons name="add" size={26} color={COLORS.ink} />
                 </View>
               </View>
             </Pressable>
@@ -118,6 +143,9 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="messages"
+        listeners={{
+          tabPress: () => onTabPress('messages'),
+        }}
         options={{
           title: 'Chats',
           tabBarBadge: unreadMessages > 0 ? unreadMessages : undefined,
@@ -132,6 +160,9 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="profile"
+        listeners={{
+          tabPress: () => onTabPress('profile'),
+        }}
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
@@ -144,5 +175,13 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+  );
+}
+
+export default function TabLayout() {
+  return (
+    <TabPressProvider>
+      <TabLayoutInner />
+    </TabPressProvider>
   );
 }

@@ -132,7 +132,7 @@ export class PostsService {
         title: title,
         headerImageKey: dto.headerImageKey,
         headerImageBlurhash: dto.headerImageBlurhash,
-        visibility: dto.visibility,
+        visibility: PostVisibility.PUBLIC, // Visibility is from author profile only; column kept for DB compatibility
         lang: lang,
         langConfidence: confidence,
         readingTimeMinutes: readingTime,
@@ -160,6 +160,54 @@ export class PostsService {
 
     if (savedPost.status === 'PUBLISHED' && !skipQueue) {
       await this.postQueue.add('process', { postId: savedPost.id, userId });
+      // Index immediately so the post is searchable before the worker runs (worker will overwrite with embedding/topicIds).
+      this.postRepo
+        .findOne({
+          where: { id: savedPost.id },
+          relations: ['author', 'postTopics'],
+          select: {
+            id: true,
+            title: true,
+            body: true,
+            authorId: true,
+            lang: true,
+            createdAt: true,
+            quoteCount: true,
+            replyCount: true,
+            readingTimeMinutes: true,
+            status: true,
+            author: { id: true, handle: true, displayName: true },
+          },
+        })
+        .then((post) => {
+          if (!post) return;
+          const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
+          return this.meilisearch.indexPost({
+            id: post.id,
+            title: post.title,
+            body: post.body,
+            authorId: post.authorId,
+            author: post.author
+              ? {
+                  displayName: post.author.displayName ?? post.author.handle,
+                  handle: post.author.handle,
+                }
+              : undefined,
+            lang: post.lang,
+            createdAt: post.createdAt,
+            quoteCount: post.quoteCount,
+            replyCount: post.replyCount,
+            readingTimeMinutes: post.readingTimeMinutes,
+            topicIds,
+            status: post.status,
+          });
+        })
+        .catch((err) =>
+          this.logger.warn(
+            'Immediate post index failed (worker will index)',
+            err,
+          ),
+        );
     }
 
     return savedPost;
@@ -196,7 +244,7 @@ export class PostsService {
         post.readingTimeMinutes = Math.ceil(wordCount / 200);
       }
 
-      if (dto.visibility) post.visibility = dto.visibility;
+      // Visibility is from author profile only; do not allow per-post override
       if (dto.headerImageKey !== undefined)
         post.headerImageKey = dto.headerImageKey;
       if (dto.media !== undefined) post.media = dto.media;
@@ -212,6 +260,54 @@ export class PostsService {
 
       if (isPublishing) {
         await this.postQueue.add('process', { postId: savedPost.id, userId });
+        // Index immediately so the post is searchable before the worker runs.
+        this.postRepo
+          .findOne({
+            where: { id: savedPost.id },
+            relations: ['author', 'postTopics'],
+            select: {
+              id: true,
+              title: true,
+              body: true,
+              authorId: true,
+              lang: true,
+              createdAt: true,
+              quoteCount: true,
+              replyCount: true,
+              readingTimeMinutes: true,
+              status: true,
+              author: { id: true, handle: true, displayName: true },
+            },
+          })
+          .then((post) => {
+            if (!post) return;
+            const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
+            return this.meilisearch.indexPost({
+              id: post.id,
+              title: post.title,
+              body: post.body,
+              authorId: post.authorId,
+              author: post.author
+                ? {
+                    displayName: post.author.displayName ?? post.author.handle,
+                    handle: post.author.handle,
+                  }
+                : undefined,
+              lang: post.lang,
+              createdAt: post.createdAt,
+              quoteCount: post.quoteCount,
+              replyCount: post.replyCount,
+              readingTimeMinutes: post.readingTimeMinutes,
+              topicIds,
+              status: post.status,
+            });
+          })
+          .catch((err) =>
+            this.logger.warn(
+              'Immediate post index on publish failed (worker will index)',
+              err,
+            ),
+          );
       }
 
       return savedPost;
@@ -374,54 +470,20 @@ export class PostsService {
       return stub;
     }
 
-    // Public URLs for posts are only valid when the author's profile is public (not protected).
-    // If the author is protected, only the author or followers may access the post.
+    // Visibility is from the author's profile only: public profile → all posts visible; protected profile → only followers (and self)
     const authorProtected =
       (post.author as User | undefined)?.isProtected === true;
-    if (post.visibility === PostVisibility.PUBLIC && !authorProtected) {
-      return post;
-    }
+    if (!authorProtected) return post;
 
-    if (!viewerId) {
-      throw new NotFoundException('Post not found');
-    }
+    if (!viewerId) throw new NotFoundException('Post not found');
+    if (post.authorId === viewerId) return post;
 
-    if (post.authorId === viewerId) {
-      return post;
-    }
-
-    // Author is protected (private profile): only followers (and author) may access; check follow once for both PUBLIC and FOLLOWERS.
-    if (authorProtected) {
-      const isFollowing = await this.dataSource.query(
-        `SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = $2`,
-        [viewerId, post.authorId],
-      );
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (isFollowing.length > 0) {
-        return post;
-      }
-      throw new NotFoundException('Post not found');
-    }
-
-    if (post.visibility === PostVisibility.FOLLOWERS) {
-      const isFollowing = await this.dataSource.query(
-        `SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = $2`,
-        [viewerId, post.authorId],
-      );
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (isFollowing.length > 0) {
-        return post;
-      }
-      // Viewer cannot see content: return post with redacted body/title/header so client can show blurred overlay
-      const redacted = { ...post } as Post & { viewerCanSeeContent?: boolean };
-      redacted.body = '';
-      redacted.title = null;
-      redacted.headerImageKey = null;
-      redacted.headerImageBlurhash = null;
-      redacted.viewerCanSeeContent = false;
-      return redacted;
-    }
-
+    const isFollowing = await this.dataSource.query(
+      `SELECT 1 FROM follows WHERE follower_id = $1 AND followee_id = $2`,
+      [viewerId, post.authorId],
+    );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (isFollowing.length > 0) return post;
     throw new NotFoundException('Post not found');
   }
 
@@ -691,8 +753,28 @@ export class PostsService {
       });
     }
 
+    // Deduplicate by canonical key so each source appears once (e.g. same user mentioned twice, same link twice)
+    const externalByUrl = new Map<string, (typeof external)[0]>();
+    for (const e of external) {
+      if (e.url && !externalByUrl.has(e.url)) externalByUrl.set(e.url, e);
+    }
+    const edgesById = new Map<string, (typeof edges)[0]>();
+    for (const e of edges) {
+      if (e.toPostId && !edgesById.has(e.toPostId))
+        edgesById.set(e.toPostId, e);
+    }
+    const mentionsById = new Map<string, (typeof mentions)[0]>();
+    for (const m of mentions) {
+      if (m.mentionedUserId && !mentionsById.has(m.mentionedUserId))
+        mentionsById.set(m.mentionedUserId, m);
+    }
+    const topicsById = new Map<string, (typeof topics)[0]>();
+    for (const t of topics) {
+      if (t.topicId && !topicsById.has(t.topicId)) topicsById.set(t.topicId, t);
+    }
+
     const results = [
-      ...external.map((e) => ({
+      ...Array.from(externalByUrl.values()).map((e) => ({
         type: 'external',
         id: e.id,
         title: e.title,
@@ -701,7 +783,7 @@ export class PostsService {
         url: e.url,
         createdAt: e.createdAt,
       })),
-      ...edges.map((e) => ({
+      ...Array.from(edgesById.values()).map((e) => ({
         type: 'post',
         id: e.toPostId,
         title: e.toPost?.title || 'Post',
@@ -710,7 +792,7 @@ export class PostsService {
         headerImageKey: e.toPost?.headerImageKey ?? null,
         authorAvatarKey: e.toPost?.author?.avatarKey ?? null,
       })),
-      ...mentions.map((m) => ({
+      ...Array.from(mentionsById.values()).map((m) => ({
         type: 'user',
         id: m.mentionedUserId,
         handle: m.mentionedUser?.handle,
@@ -718,7 +800,7 @@ export class PostsService {
         createdAt: m.createdAt,
         avatarKey: m.mentionedUser?.avatarKey ?? null,
       })),
-      ...topics.map((t) => ({
+      ...Array.from(topicsById.values()).map((t) => ({
         type: 'topic',
         id: t.topicId,
         slug: t.topic?.slug,

@@ -83,13 +83,17 @@ export class SearchController {
       });
       followingSet = new Set(follows.map((f) => f.followeeId));
     }
+    const viewerId = _user?.id ?? null;
+    // Visibility is from the author's profile: public profile → all posts visible; protected profile → only followers (and self)
     const visiblePostIds = new Set(
       posts
         .filter((p) => {
           const author = p.author;
           if (!author) return false;
-          if (!author.isProtected) return true;
-          return _user?.id != null && followingSet.has(author.id);
+          if (viewerId && p.authorId === viewerId) return true;
+          if (author.isProtected)
+            return viewerId != null && followingSet.has(author.id);
+          return true;
         })
         .map((p) => p.id),
     );
@@ -161,34 +165,221 @@ export class SearchController {
   async searchAll(
     @CurrentUser() _user: { id: string } | null,
     @Query('q') query: string,
-    @Query('limit', new DefaultValuePipe(15), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('topicSlug') topicSlug?: string,
   ) {
     if (!query || query.trim().length === 0) {
       return { posts: [], users: [], topics: [] };
     }
-    const result = await this.meilisearch.searchAll(query, limit);
-    const users = (result.users || []) as { id?: string }[];
-    if (users.length === 0) return result;
-    const ids = users.map((u) => u.id).filter(Boolean) as string[];
-    const fromDb = await this.userRepo.find({
-      where: { id: In(ids) },
-      select: ['id', 'avatarKey'],
-    });
-    const byId = new Map(fromDb.map((u) => [u.id, u]));
+    let topicId: string | undefined;
+    if (topicSlug?.trim()) {
+      const topic = await this.topicRepo.findOne({
+        where: { slug: topicSlug.trim() },
+        select: ['id'],
+      });
+      topicId = topic?.id;
+      if (!topicId) return { posts: [], users: [], topics: [] };
+    }
+    const result = await this.meilisearch.searchAll(query, limit, topicId);
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
-    const hydratedUsers = users.map((h) => {
-      const u = h.id != null ? byId.get(h.id) : undefined;
-      const avatarKey =
-        u?.avatarKey ?? (h as { avatarKey?: string }).avatarKey ?? null;
-      const avatarUrl =
-        avatarKey != null && avatarKey !== '' ? getImageUrl(avatarKey) : null;
-      return {
-        ...h,
-        avatarKey: avatarKey ?? undefined,
-        avatarUrl: avatarUrl ?? undefined,
-      };
-    });
-    return { ...result, users: hydratedUsers };
+
+    // Hydrate users (avatarUrl, filter pending)
+    const users = (result.users || []) as { id?: string }[];
+    const hydratedUsers =
+      users.length === 0
+        ? []
+        : await (async () => {
+            const ids = users.map((u) => u.id).filter(Boolean) as string[];
+            const fromDb = await this.userRepo.find({
+              where: { id: In(ids) },
+              select: ['id', 'avatarKey', 'handle'],
+            });
+            const byId = new Map(fromDb.map((u) => [u.id, u]));
+            return users
+              .filter((h) => {
+                const u = h.id != null ? byId.get(h.id) : undefined;
+                return u != null && !u.handle?.startsWith('__pending_');
+              })
+              .map((h) => {
+                const u = h.id != null ? byId.get(h.id) : undefined;
+                const avatarKey =
+                  u?.avatarKey ??
+                  (h as { avatarKey?: string }).avatarKey ??
+                  null;
+                const avatarUrl =
+                  avatarKey != null && avatarKey !== ''
+                    ? getImageUrl(avatarKey)
+                    : null;
+                return {
+                  ...h,
+                  avatarKey: avatarKey ?? undefined,
+                  avatarUrl: avatarUrl ?? undefined,
+                };
+              });
+          })();
+
+    // Hydrate posts (visibility, headerImageUrl) – same logic as searchPosts
+    const posts = (result.posts || []) as { id?: string }[];
+    const hydratedPosts =
+      posts.length === 0
+        ? []
+        : await (async () => {
+            const ids = posts.map((h) => h.id).filter(Boolean) as string[];
+            const fromDb = await this.postRepo.find({
+              where: { id: In(ids) },
+              relations: ['author'],
+              select: {
+                id: true,
+                headerImageKey: true,
+                authorId: true,
+                author: { id: true, isProtected: true },
+              },
+            });
+            const byId = new Map(fromDb.map((p) => [p.id, p]));
+            const authorIds = [
+              ...new Set(fromDb.map((p) => p.authorId).filter(Boolean)),
+            ];
+            let followingSet = new Set<string>();
+            if (_user?.id && authorIds.length > 0) {
+              const follows = await this.followRepo.find({
+                where: {
+                  followerId: _user.id,
+                  followeeId: In(authorIds),
+                },
+                select: ['followeeId'],
+              });
+              followingSet = new Set(follows.map((f) => f.followeeId));
+            }
+            const viewerId = _user?.id ?? null;
+            // Visibility from author profile only: public → visible to all; protected → only followers (and self)
+            const visiblePostIds = new Set(
+              fromDb
+                .filter((p) => {
+                  const author = p.author;
+                  if (!author) return false;
+                  if (viewerId && p.authorId === viewerId) return true;
+                  if (author.isProtected)
+                    return viewerId != null && followingSet.has(author.id);
+                  return true;
+                })
+                .map((p) => p.id),
+            );
+            return posts
+              .filter((h) => h.id != null && visiblePostIds.has(h.id))
+              .map((h) => {
+                const post = h.id != null ? byId.get(h.id) : undefined;
+                const headerImageKey =
+                  post?.headerImageKey ??
+                  (h as { headerImageKey?: string }).headerImageKey ??
+                  null;
+                const headerImageUrl =
+                  headerImageKey != null && headerImageKey !== ''
+                    ? getImageUrl(headerImageKey)
+                    : null;
+                return {
+                  ...h,
+                  headerImageKey: headerImageKey ?? undefined,
+                  headerImageUrl: headerImageUrl ?? undefined,
+                };
+              });
+          })();
+
+    // Hydrate topics (recentPost) – same as searchTopics
+    const topics = (result.topics || []) as { id?: string }[];
+    const hydratedTopics =
+      topics.length === 0
+        ? []
+        : await (async () => {
+            const topicIds = topics
+              .map((h) => h.id)
+              .filter(Boolean) as string[];
+            type LatestRow = { topicId: string; postId: string };
+            const latestRows: LatestRow[] =
+              topicIds.length > 0
+                ? await this.dataSource
+                    .createQueryBuilder()
+                    .select('pt.topic_id', 'topicId')
+                    .addSelect('p.id', 'postId')
+                    .from(PostTopic, 'pt')
+                    .innerJoin(
+                      Post,
+                      'p',
+                      'p.id = pt.post_id AND p.deleted_at IS NULL',
+                    )
+                    .where('pt.topic_id IN (:...topicIds)', { topicIds })
+                    .orderBy('pt.topic_id')
+                    .addOrderBy('p.created_at', 'DESC')
+                    .distinctOn(['pt.topic_id'])
+                    .getRawMany<LatestRow>()
+                    .catch(() => [])
+                : [];
+            const postIds = [...new Set(latestRows.map((r) => r.postId))];
+            const topicToPostId = new Map(
+              latestRows.map((r) => [r.topicId, r.postId]),
+            );
+            const topicPosts =
+              postIds.length > 0
+                ? await this.postRepo.find({
+                    where: { id: In(postIds) },
+                    relations: ['author'],
+                    select: [
+                      'id',
+                      'authorId',
+                      'title',
+                      'body',
+                      'headerImageKey',
+                      'createdAt',
+                    ],
+                  })
+                : [];
+            const postMap = new Map(topicPosts.map((p) => [p.id, p]));
+            function bodyExcerpt(body: string, maxLen = 120): string {
+              if (!body || typeof body !== 'string') return '';
+              const stripped = body
+                .replace(/#{1,6}\s*/g, '')
+                .replace(/\*\*([^*]+)\*\*/g, '$1')
+                .replace(/_([^_]+)_/g, '$1')
+                .replace(/\n+/g, ' ')
+                .trim();
+              return stripped.length <= maxLen
+                ? stripped
+                : stripped.slice(0, maxLen) + '…';
+            }
+            return topics.map((h) => {
+              const postId = topicToPostId.get(h.id!);
+              const post = postId ? postMap.get(postId) : undefined;
+              const recentPost = post
+                ? {
+                    id: post.id,
+                    title: post.title ?? null,
+                    bodyExcerpt: bodyExcerpt(post.body),
+                    headerImageKey: post.headerImageKey ?? null,
+                    author: post.author
+                      ? {
+                          handle: post.author.handle,
+                          displayName:
+                            post.author.displayName ?? post.author.handle,
+                        }
+                      : null,
+                    createdAt: post.createdAt?.toISOString?.() ?? null,
+                  }
+                : null;
+              return {
+                ...h,
+                title:
+                  (h as { title?: string }).title ??
+                  (h as { slug?: string }).slug,
+                recentPostImageKey: recentPost?.headerImageKey ?? null,
+                recentPost,
+              };
+            });
+          })();
+
+    return {
+      posts: hydratedPosts,
+      users: hydratedUsers,
+      topics: hydratedTopics,
+    };
   }
 
   @Get('topics')

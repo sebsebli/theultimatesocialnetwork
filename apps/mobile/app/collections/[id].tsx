@@ -5,17 +5,19 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { api, getWebAppBaseUrl, getImageUrl } from '../../utils/api';
 import { useAuth } from '../../context/auth';
 import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { PostItem } from '../../components/PostItem';
+import { UserCard } from '../../components/UserCard';
 import { TopicCollectionHeader } from '../../components/TopicCollectionHeader';
 import { TopicOrCollectionLayout } from '../../components/TopicOrCollectionLayout';
 import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
 import { Collection, CollectionItem } from '../../types';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, SEARCH_BAR } from '../../constants/theme';
 
 const ITEMS_PAGE_SIZE = 20;
 const HERO_FADE_HEIGHT = 280;
@@ -32,11 +34,14 @@ export default function CollectionDetailScreen() {
   const isOwner = !!collection?.ownerId && !!userId && collection.ownerId === userId;
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  const [items, setItems] = useState<CollectionItem[]>([]);
+  type TabKey = 'newest' | 'ranked' | 'sources' | 'contributors';
+  const [activeTab, setActiveTab] = useState<TabKey>('newest');
+  const [items, setItems] = useState<(CollectionItem | { id: string; url: string; title: string | null } | { id: string; handle: string; displayName: string; postCount: number; totalQuotes: number })[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [nextOffset, setNextOffset] = useState(0);
+  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [moreCollections, setMoreCollections] = useState<{ id: string; title: string; description?: string; itemCount?: number; previewImageKey?: string | null }[]>([]);
   const [shareSaves, setShareSaves] = useState(false);
@@ -45,6 +50,7 @@ export default function CollectionDetailScreen() {
   const [editDescription, setEditDescription] = useState('');
   const [editIsPublic, setEditIsPublic] = useState(true);
   const [editShareSaves, setEditShareSaves] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
   const heroOpacity = useMemo(
@@ -131,19 +137,12 @@ export default function CollectionDetailScreen() {
     }
   };
 
-  useEffect(() => {
-    if (collectionId) {
-      setNextOffset(0);
-      setItems([]);
-      loadCollection(0, true);
-    }
-  }, [collectionId]);
-
-  const loadCollection = async (offset: number, reset = false) => {
+  const loadTabData = useCallback(async (tab: TabKey, pageOrOffset: number, reset: boolean) => {
     if (reset) {
       setLoading(true);
-      setNextOffset(0);
       setItems([]);
+      setNextOffset(0);
+      setPage(1);
     } else {
       setLoadingMore(true);
     }
@@ -152,17 +151,44 @@ export default function CollectionDetailScreen() {
         const collectionData = await api.get(`/collections/${collectionId}?limit=${ITEMS_PAGE_SIZE}&offset=0`);
         setCollection(collectionData);
         setShareSaves(!!(collectionData as any).shareSaves);
-        const itemsList = Array.isArray(collectionData?.items) ? collectionData.items : [];
-        setItems(itemsList);
-        const hasMoreData = collectionData?.hasMore === true;
-        setHasMore(hasMoreData);
-        setNextOffset(itemsList.length);
-      } else {
-        const itemsData = await api.get(`/collections/${collectionId}/items?limit=${ITEMS_PAGE_SIZE}&offset=${offset}`);
+        if (tab === 'newest') {
+          const itemsList = Array.isArray(collectionData?.items) ? collectionData.items : [];
+          setItems(itemsList);
+          setHasMore(collectionData?.hasMore === true);
+          setNextOffset(itemsList.length);
+          setLoading(false);
+          setRefreshing(false);
+          setLoadingMore(false);
+          return;
+        }
+      }
+      if (tab === 'newest' && !reset) {
+        const itemsData = await api.get(`/collections/${collectionId}/items?limit=${ITEMS_PAGE_SIZE}&offset=${pageOrOffset}&sort=recent`);
         const itemsList = Array.isArray(itemsData?.items) ? itemsData.items : [];
         setItems(prev => [...prev, ...itemsList]);
         setHasMore(itemsData?.hasMore === true);
-        setNextOffset(offset + itemsList.length);
+        setNextOffset(pageOrOffset + itemsList.length);
+      } else if (tab === 'ranked') {
+        const itemsData = await api.get(`/collections/${collectionId}/items?limit=${ITEMS_PAGE_SIZE}&offset=${reset ? 0 : pageOrOffset}&sort=ranked`);
+        const itemsList = Array.isArray(itemsData?.items) ? itemsData.items : [];
+        if (reset) setItems(itemsList);
+        else setItems(prev => [...prev, ...itemsList]);
+        setHasMore(itemsData?.hasMore === true);
+        setNextOffset((reset ? 0 : pageOrOffset) + itemsList.length);
+      } else if (tab === 'sources') {
+        const res = await api.get(`/collections/${collectionId}/sources?page=${pageOrOffset}&limit=${ITEMS_PAGE_SIZE}`) as { items?: any[]; hasMore?: boolean };
+        const list = Array.isArray(res?.items) ? res.items : [];
+        if (reset) setItems(list);
+        else setItems(prev => [...prev, ...list]);
+        setHasMore(list.length === ITEMS_PAGE_SIZE && (res?.hasMore !== false));
+        setPage(pageOrOffset + 1);
+      } else if (tab === 'contributors') {
+        const res = await api.get(`/collections/${collectionId}/contributors?page=${pageOrOffset}&limit=${ITEMS_PAGE_SIZE}`) as { items?: any[]; hasMore?: boolean };
+        const list = Array.isArray(res?.items) ? res.items : [];
+        if (reset) setItems(list);
+        else setItems(prev => [...prev, ...list]);
+        setHasMore(list.length === ITEMS_PAGE_SIZE && (res?.hasMore !== false));
+        setPage(pageOrOffset + 1);
       }
     } catch (error) {
       if (reset) setCollection(null);
@@ -172,7 +198,30 @@ export default function CollectionDetailScreen() {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  };
+  }, [collectionId]);
+
+  useEffect(() => {
+    if (collectionId) {
+      setItems([]);
+      setPage(1);
+      setNextOffset(0);
+      loadTabData(activeTab, activeTab === 'sources' || activeTab === 'contributors' ? 1 : 0, true);
+    }
+  }, [collectionId, activeTab]);
+
+  const handleLoadMore = useCallback(() => {
+    if (loading || refreshing || loadingMore || !hasMore) return;
+    if (activeTab === 'sources' || activeTab === 'contributors') {
+      loadTabData(activeTab, page, false);
+    } else {
+      loadTabData(activeTab, nextOffset, false);
+    }
+  }, [loading, refreshing, loadingMore, hasMore, activeTab, page, nextOffset, loadTabData]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadTabData(activeTab, activeTab === 'sources' || activeTab === 'contributors' ? 1 : 0, true);
+  }, [collectionId, activeTab, loadTabData]);
 
   useEffect(() => {
     if (!userId) return;
@@ -184,60 +233,131 @@ export default function CollectionDetailScreen() {
       .catch(() => { });
   }, [userId, collectionId]);
 
-  const handleLoadMore = useCallback(() => {
-    if (!loading && !refreshing && !loadingMore && hasMore) {
-      loadCollection(nextOffset, false);
+
+  const renderItem = useCallback(({ item }: { item: any }) => {
+    if (activeTab === 'contributors') {
+      return (
+        <UserCard
+          item={{
+            id: item.id,
+            handle: item.handle,
+            displayName: item.displayName,
+            bio: undefined,
+            avatarKey: undefined,
+            avatarUrl: undefined,
+            isFollowing: undefined,
+          }}
+          onPress={() => router.push(`/user/${item.handle}`)}
+        />
+      );
     }
-  }, [loading, refreshing, loadingMore, hasMore, nextOffset, collectionId]);
-
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadCollection(0, true);
-  }, [collectionId]);
-
-  const renderItem = useCallback(({ item }: { item: CollectionItem }) => {
-    if (!item?.post) return null;
+    if (activeTab === 'sources') {
+      return (
+        <Pressable
+          style={styles.sourceItem}
+          onPress={async () => {
+            if (item.url) await WebBrowser.openBrowserAsync(item.url);
+          }}
+        >
+          <View style={styles.sourceIcon}>
+            <Text style={styles.sourceIconText}>{(item.title || '?').charAt(0).toUpperCase()}</Text>
+          </View>
+          <View style={styles.sourceContent}>
+            <Text style={styles.sourceDomain}>{item.url ? new URL(item.url).hostname : 'External'}</Text>
+            <Text style={styles.sourceText} numberOfLines={1}>{item.title || item.url}</Text>
+          </View>
+          <MaterialIcons name="open-in-new" size={HEADER.iconSize} color={COLORS.tertiary} />
+        </Pressable>
+      );
+    }
+    const colItem = item as CollectionItem;
+    if (!colItem?.post) return null;
     return (
       <View style={styles.itemContainer}>
-        <PostItem post={item.post} />
-        {item.curatorNote && (
+        <PostItem post={colItem.post} />
+        {colItem.curatorNote && (
           <View style={styles.noteContainer}>
             <Text style={styles.noteLabel}>{t('collections.curatorNote', 'CURATOR NOTE')}</Text>
-            <Text style={styles.noteText}>{item.curatorNote}</Text>
+            <Text style={styles.noteText}>{colItem.curatorNote}</Text>
           </View>
         )}
       </View>
     );
-  }, [t]);
+  }, [t, activeTab, router]);
 
-  const keyExtractor = useCallback((item: CollectionItem) => item.id, []);
+  const keyExtractor = useCallback((item: any) => item.id, []);
 
   const handleAddCitationStable = useCallback(() => {
     showToast(t('collections.addCitationHint', "To add items, browse posts and tap 'Keep' or 'Add to Collection'."));
   }, [showToast, t]);
 
-  const ListEmptyComponent = useMemo(() => (
-    <View style={emptyStateCenterWrapStyle}>
-      <View style={styles.emptyWrapper}>
-        <EmptyState
-          icon="folder-open"
-          headline={t('collections.emptyDetail', 'No items in this collection')}
-          subtext={t('collections.emptyDetailHint', 'Add posts from the reading screen.')}
-        />
-        <Pressable
-          style={styles.addCitationButton}
-          onPress={handleAddCitationStable}
-          accessibilityLabel={t('collections.addCitation')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="add" size={HEADER.iconSize} color={COLORS.primary} />
-          <Text style={styles.addCitationText}>{t('collections.addCitation')}</Text>
-        </Pressable>
+  const ListEmptyComponent = useMemo(() => {
+    if (loading) return null;
+    if (activeTab === 'sources') {
+      return (
+        <View style={emptyStateCenterWrapStyle}>
+          <EmptyState icon="link" headline={t('topic.emptySources')} subtext={t('topic.emptySourcesSubtext')} />
+        </View>
+      );
+    }
+    if (activeTab === 'contributors') {
+      return (
+        <View style={emptyStateCenterWrapStyle}>
+          <EmptyState icon="people-outline" headline={t('topic.emptyPeople')} subtext={t('topic.emptyPeopleSubtext')} />
+        </View>
+      );
+    }
+    return (
+      <View style={emptyStateCenterWrapStyle}>
+        <View style={styles.emptyWrapper}>
+          <EmptyState
+            icon="folder-open"
+            headline={t('collections.emptyDetail', 'No items in this collection')}
+            subtext={t('collections.emptyDetailHint', 'Add posts from the reading screen.')}
+          />
+          <Pressable
+            style={styles.addCitationButton}
+            onPress={handleAddCitationStable}
+            accessibilityLabel={t('collections.addCitation')}
+            accessibilityRole="button"
+          >
+            <MaterialIcons name="add" size={HEADER.iconSize} color={COLORS.primary} />
+            <Text style={styles.addCitationText}>{t('collections.addCitation')}</Text>
+          </Pressable>
+        </View>
       </View>
-    </View>
-  ), [t, handleAddCitationStable]);
+    );
+  }, [t, handleAddCitationStable, activeTab, loading]);
 
-  const listData = items.filter((item: CollectionItem) => !!item?.post?.author);
+  const listDataRaw = activeTab === 'newest' || activeTab === 'ranked'
+    ? items.filter((item: any) => item?.post?.author)
+    : items;
+
+  const listData = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return listDataRaw;
+    if (activeTab === 'sources') {
+      return listDataRaw.filter(
+        (item: any) =>
+          (item.title && item.title.toLowerCase().includes(q)) ||
+          (item.url && item.url.toLowerCase().includes(q)),
+      );
+    }
+    if (activeTab === 'contributors') {
+      return listDataRaw.filter(
+        (item: any) =>
+          (item.displayName && item.displayName.toLowerCase().includes(q)) ||
+          (item.handle && item.handle.toLowerCase().includes(q)),
+      );
+    }
+    return listDataRaw.filter((item: any) => {
+      const post = item?.post;
+      if (!post) return false;
+      const title = (post.title || '').toLowerCase();
+      const body = (post.body || '').toLowerCase();
+      return title.includes(q) || body.includes(q);
+    });
+  }, [listDataRaw, searchQuery, activeTab]);
 
   const headerComponent = useMemo(() => {
     if (!collection) return null;
@@ -247,13 +367,49 @@ export default function CollectionDetailScreen() {
           type="collection"
           title={collection.title}
           description={collection.description}
+          headerImageUri={(collection as any).previewImageKey ? getImageUrl((collection as any).previewImageKey) : ((collection as any).recentPost?.headerImageKey ? getImageUrl((collection as any).recentPost.headerImageKey) : null)}
           onBack={() => router.back()}
           onAction={handleShare}
           actionLabel={t('common.share')}
           rightAction={isOwner ? 'more' : undefined}
           onRightAction={isOwner ? () => setMoreOptionsVisible(true) : undefined}
-          metrics={{ itemCount: items.length }}
-        />
+          metrics={{ itemCount: activeTab === 'newest' || activeTab === 'ranked' ? items.length : undefined }}
+        >
+          <View style={styles.searchRow}>
+            <View style={SEARCH_BAR.container}>
+              <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <TextInput
+                style={SEARCH_BAR.input}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder={t('collections.searchInCollection', 'Search in collection')}
+                placeholderTextColor={COLORS.tertiary}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 ? (
+                <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                  <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+          <View style={styles.tabsContainer}>
+            {(['newest', 'ranked', 'sources', 'contributors'] as const).map((tab) => (
+              <Pressable
+                key={tab}
+                style={[styles.tab, activeTab === tab && styles.tabActive]}
+                onPress={() => setActiveTab(tab)}
+                accessibilityLabel={t(`collections.tab.${tab}`)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeTab === tab }}
+              >
+                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                  {tab === 'newest' ? t('topic.latest', 'Latest') : tab === 'ranked' ? t('topic.relevance', 'Most cited') : tab === 'sources' ? t('topic.sources', 'Sources') : t('topic.people', 'Contributors')}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </TopicCollectionHeader>
         {moreCollections.length > 0 ? (
           <View style={styles.moreSection}>
             <Text style={styles.moreSectionTitle}>{t('collections.moreCollections', 'More collections')}</Text>
@@ -289,7 +445,7 @@ export default function CollectionDetailScreen() {
         ) : null}
       </>
     );
-  }, [collection, isOwner, moreCollections, items.length, t]);
+  }, [collection, isOwner, moreCollections, items.length, searchQuery, t]);
 
   return (
     <>
@@ -395,6 +551,65 @@ export default function CollectionDetailScreen() {
 }
 
 const styles = createStyles({
+  searchRow: {
+    paddingHorizontal: SPACING.l,
+    paddingVertical: SPACING.s,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: SPACING.m,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: COLORS.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.tertiary,
+    fontFamily: FONTS.semiBold,
+  },
+  tabTextActive: {
+    color: COLORS.paper,
+  },
+  sourceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.m,
+    marginHorizontal: SPACING.l,
+    marginBottom: SPACING.s,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    gap: SPACING.m,
+  },
+  sourceIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.divider,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sourceIconText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+  },
+  sourceContent: { flex: 1, gap: 2 },
+  sourceDomain: { fontSize: 12, color: COLORS.secondary, fontFamily: FONTS.regular },
+  sourceText: { fontSize: 14, color: COLORS.paper, fontFamily: FONTS.medium },
   emptyWrapper: {
     paddingVertical: SPACING.xxxl,
   },

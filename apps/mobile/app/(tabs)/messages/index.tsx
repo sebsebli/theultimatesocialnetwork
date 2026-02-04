@@ -2,14 +2,16 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONTS, SIZES, HEADER, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
+import { COLORS, SPACING, FONTS, SIZES, HEADER, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../../utils/api';
 import { useToast } from '../../../context/ToastContext';
 import { ErrorState } from '../../../components/ErrorState';
 import { useSocket } from '../../../context/SocketContext';
+import { useTabPress } from '../../../context/TabPressContext';
 import { ScreenHeader } from '../../../components/ScreenHeader';
+import { HeaderIconButton } from '../../../components/HeaderIconButton';
 import { CenteredEmptyState } from '../../../components/EmptyState';
 
 interface ThreadItem {
@@ -45,6 +47,19 @@ export default function MessagesScreen() {
   const [searchResults, setSearchResults] = useState<ChatSearchHit[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+  const tabPress = useTabPress();
+
+  useEffect(() => {
+    const count = tabPress?.tabPressCounts?.messages ?? 0;
+    if (count === 0) return;
+    setRefreshing(true);
+    fetchThreads();
+    const t = setTimeout(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [tabPress?.tabPressCounts?.messages]);
 
   const fetchThreads = async () => {
     try {
@@ -182,21 +197,22 @@ export default function MessagesScreen() {
         title={t('inbox.messages')}
         paddingTop={insets.top}
         right={
-          <Pressable style={styles.headerAction} onPress={() => router.push('/(tabs)/messages/new')} accessibilityLabel={t('messages.new', 'New message')} accessibilityRole="button">
-            <MaterialIcons name="edit" size={HEADER.iconSize} color={HEADER.iconColor} />
-          </Pressable>
+          <HeaderIconButton onPress={() => router.push('/(tabs)/messages/new')} icon="add" accessibilityLabel={t('messages.new', 'New message')} />
         }
       />
 
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder={t('messages.searchPlaceholder', 'Search chats')}
-          placeholderTextColor={COLORS.tertiary}
-          value={search}
-          onChangeText={setSearch}
-          includeFontPadding={false}
-        />
+        <View style={SEARCH_BAR.container}>
+          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <TextInput
+            style={[SEARCH_BAR.input, styles.searchInput]}
+            placeholder={t('messages.searchPlaceholder', 'Search chats')}
+            placeholderTextColor={COLORS.tertiary}
+            value={search}
+            onChangeText={setSearch}
+            includeFontPadding={false}
+          />
+        </View>
       </View>
 
       {loading && !refreshing ? (
@@ -223,6 +239,7 @@ export default function MessagesScreen() {
         )
       ) : (
         <FlatList
+          ref={flatListRef}
           data={threads}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
@@ -245,23 +262,12 @@ const styles = createStyles({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
-  headerAction: {
-    padding: SPACING.s,
-    margin: -SPACING.s,
-  },
   searchContainer: {
     padding: SPACING.m,
     backgroundColor: COLORS.ink,
   },
   searchInput: {
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    padding: SPACING.m,
-    color: COLORS.paper,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    letterSpacing: 0,
-    textAlignVertical: 'center',
+    padding: 0,
   },
   listContent: {
     paddingBottom: 100,

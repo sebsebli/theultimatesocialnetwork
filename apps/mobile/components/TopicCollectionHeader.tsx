@@ -1,14 +1,18 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
+import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, toDimensionValue } from '../constants/theme';
+import { HeaderIconButton } from './HeaderIconButton';
 
 export type TopicCollectionType = 'topic' | 'collection';
+
+const HERO_ASPECT = 3 / 4;
 
 export interface TopicCollectionHeaderProps {
   type: TopicCollectionType;
   title: string;
   description?: string | null;
+  /** Header/hero image URI (most recent post's header image). */
+  headerImageUri?: string | null;
   onBack: () => void;
   onAction?: () => void;
   actionLabel?: string;
@@ -33,6 +37,7 @@ function TopicCollectionHeaderInner({
   type,
   title,
   description,
+  headerImageUri,
   onBack,
   onAction,
   actionLabel,
@@ -43,35 +48,25 @@ function TopicCollectionHeaderInner({
   children,
 }: TopicCollectionHeaderProps) {
   const typeLabel = type === 'topic' ? 'TOPIC' : 'COLLECTION';
+  const hasHero = !!headerImageUri;
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.header}>
+      {hasHero ? (
+        <View style={styles.heroWrap}>
+          <Image source={{ uri: headerImageUri! }} style={styles.heroImage} resizeMode="cover" />
+          <View style={styles.heroOverlay} />
+        </View>
+      ) : null}
+      <View style={[styles.header, hasHero && styles.headerOverHero]}>
         <View style={styles.headerBar}>
-          <Pressable
-            onPress={onBack}
-            style={styles.backButton}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <View style={styles.iconCircle}>
-              <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-            </View>
-          </Pressable>
+          <HeaderIconButton onPress={onBack} icon="arrow-back" accessibilityLabel="Go back" />
           <View style={styles.headerBarSpacer} />
           {rightAction === 'search' && onRightAction && (
-            <Pressable style={styles.rightButton} onPress={onRightAction}>
-              <View style={styles.iconCircle}>
-                <MaterialIcons name="search" size={HEADER.iconSize} color={HEADER.iconColor} />
-              </View>
-            </Pressable>
+            <HeaderIconButton onPress={onRightAction} icon="search" accessibilityLabel={type === 'topic' ? 'Search' : 'Search'} />
           )}
           {rightAction === 'more' && onRightAction && (
-            <Pressable style={styles.rightButton} onPress={onRightAction} accessibilityLabel="More options">
-              <View style={styles.iconCircle}>
-                <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-              </View>
-            </Pressable>
+            <HeaderIconButton onPress={onRightAction} icon="more-horiz" accessibilityLabel="More options" />
           )}
         </View>
         <View style={styles.overlay}>
@@ -130,11 +125,28 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
     marginBottom: SPACING.m,
   },
+  heroWrap: {
+    width: '100%',
+    aspectRatio: 1 / HERO_ASPECT,
+    backgroundColor: COLORS.divider,
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
   header: {
     width: '100%',
-    paddingHorizontal: SPACING.l,
+    paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
     paddingTop: SPACING.s,
-    paddingBottom: SPACING.l,
+    paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
+  },
+  headerOverHero: {
+    marginTop: -SPACING.l,
+    paddingTop: SPACING.s,
   },
   headerBar: {
     flexDirection: 'row',
@@ -143,16 +155,6 @@ const styles = createStyles({
   },
   headerBarSpacer: {
     flex: 1,
-  },
-  backButton: {},
-  rightButton: {},
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.hover,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   overlay: {
     flexDirection: 'row',

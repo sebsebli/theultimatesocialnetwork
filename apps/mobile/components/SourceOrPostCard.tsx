@@ -26,7 +26,7 @@ function SourceOrPostCardInner({ type, title, subtitle, onPress }: SourceOrPostC
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }: { pressed: boolean }) => [styles.card, pressed && styles.cardPressed]}
       onPress={onPress}
     >
       <View style={styles.cardLeft}>
@@ -55,7 +55,9 @@ function SourceOrPostCardInner({ type, title, subtitle, onPress }: SourceOrPostC
   );
 }
 
-export const SourceOrPostCard = memo(SourceOrPostCardInner);
+export const SourceOrPostCard = memo(
+  SourceOrPostCardInner as React.FC<SourceOrPostCardProps>
+) as (props: SourceOrPostCardProps) => React.ReactElement | null;
 
 const styles = createStyles({
   card: {

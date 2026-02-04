@@ -7,6 +7,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
 import { EmptyState, emptyStateCenterWrapStyle } from './EmptyState';
+import { HeaderIconButton } from './HeaderIconButton';
 import { Collection } from '../types';
 
 export interface AddToCollectionSheetRef {
@@ -108,9 +109,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>{t('post.addToCollection', 'Add to collection')}</Text>
-            <Pressable onPress={() => setVisible(false)} hitSlop={10} style={({ pressed }: { pressed: boolean }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}>
-              <MaterialIcons name="close" size={HEADER.iconSize} color={COLORS.tertiary} />
-            </Pressable>
+            <HeaderIconButton onPress={() => setVisible(false)} icon="close" accessibilityLabel={t('common.close')} />
           </View>
 
           {loading ? (
@@ -241,10 +240,6 @@ const styles = createStyles({
     fontFamily: FONTS.semiBold,
     flex: 1,
   },
-  closeBtn: {
-    padding: SPACING.s,
-  },
-  closeBtnPressed: { opacity: 0.7 },
   loader: { marginVertical: SPACING.xl },
   listContent: {
     paddingBottom: SPACING.m,

@@ -11,13 +11,14 @@ import { useToast } from "./ui/toast";
 import { SourcesSection } from "./sources-section";
 import { ReferencedBySection } from "./referenced-by-section";
 import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
+import { getPostDisplayTitle } from "@/utils/compose-helpers";
 
 function renderMarkdownForReading(
   text: string,
-  title?: string | null,
+  titleToStrip?: string | null,
   referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>,
 ): string {
-  const processed = stripLeadingH1IfMatch(text, title ?? undefined);
+  const processed = stripLeadingH1IfMatch(text, titleToStrip ?? undefined);
   let html = renderMarkdown(processed, { referenceMetadata });
   html = html.replace(
     /class="prose-heading prose-h3 text-base font-semibold/g,
@@ -265,7 +266,7 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
                 )}
                 <Image
                   src={getImageUrl(post.headerImageKey)}
-                  alt={post.title || "Post header"}
+                  alt={getPostDisplayTitle(post) || "Post header"}
                   fill
                   className="object-cover z-10"
                   sizes="(max-width: 768px) 100vw, 680px"
@@ -274,12 +275,15 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
               </div>
             )}
 
-            {/* Title */}
-            {post.title && (
-              <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6 text-paper">
-                {post.title}
-              </h1>
-            )}
+            {/* Title: use post title or first line of body as headline */}
+            {(() => {
+              const displayTitle = getPostDisplayTitle(post);
+              return displayTitle ? (
+                <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6 text-paper">
+                  {displayTitle}
+                </h1>
+              ) : null;
+            })()}
 
             {/* Author & Date */}
             <div className="flex items-center gap-3 mb-8 pb-6 border-b border-divider">
@@ -304,31 +308,60 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
               </div>
             </div>
 
-            {/* Body - Optimized Typography */}
+            {/* Body - Optimized Typography (strip headline when shown above) */}
             <div
               className="prose prose-invert max-w-none text-[20px] md:text-[22px] leading-[1.7] text-secondary/90 tracking-normal font-serif"
               style={{
                 fontFamily: "var(--font-serif), Georgia, serif",
               }}
               dangerouslySetInnerHTML={{
-                __html: renderMarkdownForReading(
-                  post.body,
-                  post.title,
-                  post.referenceMetadata,
-                ),
+                __html: (() => {
+                  const displayTitle = getPostDisplayTitle(post);
+                  const body =
+                    post.title != null && post.title !== ""
+                      ? stripLeadingH1IfMatch(
+                          post.body,
+                          post.title ?? undefined,
+                        )
+                      : displayTitle
+                        ? (() => {
+                            const first =
+                              post.body.split("\n")[0]?.trim() ?? "";
+                            if (
+                              first === "# " + displayTitle ||
+                              first === "#" + displayTitle
+                            )
+                              return stripLeadingH1IfMatch(
+                                post.body,
+                                displayTitle,
+                              );
+                            return post.body.includes("\n")
+                              ? post.body
+                                  .slice(post.body.indexOf("\n") + 1)
+                                  .trimStart()
+                              : "";
+                          })()
+                        : post.body;
+                  return renderMarkdownForReading(
+                    body,
+                    null,
+                    post.referenceMetadata,
+                  );
+                })(),
               }}
             />
 
-            {/* Bottom Sections — real data when post.id is not preview (parity with mobile) */}
+            {/* Bottom Sections — sources from body in preview; full sections for saved posts */}
             <div className="mt-16 space-y-0 pt-12 border-t border-divider">
+              <SourcesSection
+                postId={post.id ?? "preview"}
+                postBody={post.body}
+              />
               {post.id && post.id !== "preview" && (
-                <>
-                  <SourcesSection postId={post.id} postBody={post.body} />
-                  <ReferencedBySection
-                    postId={post.id}
-                    quoteCount={post.quoteCount ?? 0}
-                  />
-                </>
+                <ReferencedBySection
+                  postId={post.id}
+                  quoteCount={post.quoteCount ?? 0}
+                />
               )}
             </div>
           </>

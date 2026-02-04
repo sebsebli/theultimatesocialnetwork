@@ -152,6 +152,7 @@ export default function OnboardingProfileScreen() {
               placeholder="Jane Doe"
               placeholderTextColor={COLORS.tertiary}
               autoCapitalize="words"
+              includeFontPadding={false}
             />
           </View>
 
@@ -173,6 +174,7 @@ export default function OnboardingProfileScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 maxLength={HANDLE_MAX}
+                includeFontPadding={false}
               />
             </View>
             <View style={styles.handleMeta}>
@@ -221,6 +223,7 @@ export default function OnboardingProfileScreen() {
               multiline
               numberOfLines={3}
               maxLength={160}
+              includeFontPadding={false}
             />
             <Text style={styles.charCount}>{bio.length}/160</Text>
           </View>
@@ -336,6 +339,7 @@ const styles = createStyles({
     fontSize: 16,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
+    letterSpacing: 0,
   },
   inputWrapper: {
     position: 'relative',

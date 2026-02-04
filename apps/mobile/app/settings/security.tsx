@@ -12,8 +12,7 @@ import QRCode from 'react-native-qrcode-svg';
 
 type Session = {
   id: string;
-  ipAddress: string;
-  deviceInfo: string;
+  deviceInfo: string | null;
   lastActiveAt: string;
   createdAt: string;
 };
@@ -190,9 +189,9 @@ export default function SecuritySettingsScreen() {
               sessions.map((session) => (
                 <View key={session.id} style={styles.sessionItem}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.deviceInfo}>{session.deviceInfo || 'Unknown Device'}</Text>
+                    <Text style={styles.deviceInfo}>{session.deviceInfo || t('security.unknownDevice', 'Unknown device')}</Text>
                     <Text style={styles.sessionMeta}>
-                      IP: {session.ipAddress || 'Unknown'} • {new Date(session.lastActiveAt).toLocaleDateString()}
+                      {new Date(session.lastActiveAt).toLocaleDateString()}
                     </Text>
                   </View>
                   <Pressable onPress={() => handleRevoke(session.id)} style={styles.revokeButton}>

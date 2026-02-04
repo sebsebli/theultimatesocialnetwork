@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, Not, Like } from 'typeorm';
 import { Topic } from '../entities/topic.entity';
 import { User } from '../entities/user.entity';
-import { Post, PostVisibility } from '../entities/post.entity';
+import { Post } from '../entities/post.entity';
 import { isPendingUser } from '../shared/is-pending-user';
 import { PostEdge, EdgeType } from '../entities/post-edge.entity';
 import { Follow } from '../entities/follow.entity';
@@ -110,49 +110,26 @@ export class ExploreService {
     const isAuthorProtected = (authorId: string) =>
       authorProtected.get(authorId) === true;
 
+    // Visibility is from the author's profile only: public profile → all posts visible; protected profile → only followers (and self)
     if (!viewerId) {
-      return posts.filter(
-        (p) =>
-          p.visibility === PostVisibility.PUBLIC &&
-          !isAuthorProtected(p.authorId),
-      );
+      return posts.filter((p) => !isAuthorProtected(p.authorId));
     }
 
-    const followersOnlyAuthorIds = [
-      ...new Set(
-        posts
-          .filter(
-            (p) =>
-              p.visibility === PostVisibility.FOLLOWERS &&
-              p.authorId !== viewerId,
-          )
-          .map((p) => p.authorId)
-          .filter(Boolean),
-      ),
-    ];
     const protectedAuthorIds = authorIds.filter(
       (id) => id !== viewerId && isAuthorProtected(id),
     );
-    const authorIdsToCheck = [
-      ...new Set([...followersOnlyAuthorIds, ...protectedAuthorIds]),
-    ];
     let followingSet = new Set<string>();
-    if (authorIdsToCheck.length > 0) {
+    if (protectedAuthorIds.length > 0) {
       const follows = await this.followRepo.find({
-        where: { followerId: viewerId, followeeId: In(authorIdsToCheck) },
+        where: { followerId: viewerId, followeeId: In(protectedAuthorIds) },
         select: ['followeeId'],
       });
       followingSet = new Set(follows.map((f) => f.followeeId));
     }
     return posts.filter((p) => {
       if (p.authorId === viewerId) return true;
-      if (isAuthorProtected(p.authorId) && !followingSet.has(p.authorId))
-        return false;
-      if (p.visibility === PostVisibility.PUBLIC) return true;
-      if (p.visibility === PostVisibility.FOLLOWERS) {
-        return followingSet.has(p.authorId);
-      }
-      return false;
+      if (isAuthorProtected(p.authorId)) return followingSet.has(p.authorId);
+      return true;
     });
   }
 
@@ -288,7 +265,7 @@ export class ExploreService {
     const result = mapped.slice(0, limitNum);
     const topicIds = result.map((t) => t.id);
 
-    // Latest post per topic (by created_at) for topic cards — ORDER BY before distinctOn so PostgreSQL DISTINCT ON keeps first row per topic
+    // Most recent post per topic (by created_at DESC) for topic card previews — same behaviour everywhere so cards always show the latest article
     type LatestRow = { topicId: string; postId: string };
     const latestRows: LatestRow[] =
       topicIds.length > 0
@@ -317,7 +294,6 @@ export class ExploreService {
             select: [
               'id',
               'authorId',
-              'visibility',
               'title',
               'body',
               'headerImageKey',
@@ -866,5 +842,90 @@ export class ExploreService {
       result = await this.applyPostPreferences(result, userId);
     }
     return { items: result, hasMore: hasMoreDefault };
+  }
+
+  /**
+   * Newest – most recent posts from the user's interested (followed) topics, in chronological order.
+   * If the user has no followed topics (or is not logged in), returns all recent posts.
+   */
+  async getNewest(
+    userId?: string,
+    limit = 20,
+    filter?: { page?: string; limit?: string },
+  ): Promise<{ items: (Post & { reasons?: string[] })[]; hasMore: boolean }> {
+    const limitNum = filter?.limit
+      ? Math.min(50, Math.max(1, parseInt(filter.limit, 10) || 20))
+      : limit;
+    const pageNum = Math.max(1, parseInt(filter?.page || '1', 10) || 1);
+    const skip = (pageNum - 1) * limitNum;
+
+    let followedTopicIds: string[] = [];
+    if (userId) {
+      const follows = await this.topicFollowRepo.find({
+        where: { userId },
+        select: ['topicId'],
+      });
+      followedTopicIds = follows.map((f) => f.topicId);
+    }
+
+    if (followedTopicIds.length > 0) {
+      const subQuery = this.dataSource
+        .createQueryBuilder()
+        .select('pt.post_id')
+        .from(PostTopic, 'pt')
+        .where('pt.topic_id IN (:...topicIds)', { topicIds: followedTopicIds });
+      const postIds = await this.postRepo
+        .createQueryBuilder('post')
+        .select('post.id', 'id')
+        .where(`post.id IN (${subQuery.getQuery()})`)
+        .setParameters(subQuery.getParameters())
+        .andWhere('post.deleted_at IS NULL')
+        .orderBy('post.created_at', 'DESC')
+        .offset(skip)
+        .limit(limitNum + 1)
+        .getRawMany<{ id: string }>();
+      const ids = postIds.map((r) => r.id);
+      if (ids.length === 0) return { items: [], hasMore: false };
+      const hasMore = ids.length > limitNum;
+      const idList = ids.slice(0, limitNum);
+      let posts = await this.postRepo
+        .createQueryBuilder('post')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('post.id IN (:...ids)', { ids: idList })
+        .andWhere(
+          "(author.handle IS NULL OR author.handle NOT LIKE '__pending_%')",
+        )
+        .orderBy('post.created_at', 'DESC')
+        .getMany();
+      posts = posts.filter((p) => !isPendingUser(p.author));
+      posts = await this.filterPostsVisibleToViewer(posts, userId);
+      const orderMap = new Map(idList.map((id, i) => [id, i]));
+      posts.sort(
+        (a, b) => (orderMap.get(a.id) ?? 99) - (orderMap.get(b.id) ?? 99),
+      );
+      const items = posts.map((p) => ({
+        ...p,
+        reasons: ['From your topics'] as string[],
+      }));
+      return { items, hasMore };
+    }
+
+    const query = this.postRepo
+      .createQueryBuilder('post')
+      .innerJoinAndSelect('post.author', 'author')
+      .where('post.deleted_at IS NULL')
+      .andWhere("author.handle NOT LIKE '__pending_%'")
+      .orderBy('post.created_at', 'DESC')
+      .skip(skip)
+      .take(limitNum + 1);
+
+    let posts = await query.getMany();
+    posts = await this.filterPostsVisibleToViewer(posts, userId);
+    const hasMore = posts.length > limitNum;
+    const items = posts.slice(0, limitNum).map((p) => ({
+      ...p,
+      reasons: ['Latest'] as string[],
+    }));
+    return { items, hasMore };
   }
 }

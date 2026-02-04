@@ -77,8 +77,7 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
     } else if (source.type === 'post') {
       router.push(`/post/${source.id}`);
     } else if (source.type === 'topic') {
-      // Use exact topic name/ID from wikilink (no slugification)
-      router.push(`/topic/${encodeURIComponent(source.title)}`);
+      router.push(`/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? '')}`);
     } else if (source.type === 'user') {
       router.push(`/user/${source.handle}`);
     }
@@ -86,11 +85,25 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
 
   // Strip title from body if it matches the header (guard: body can be undefined from API)
   const body = post.body ?? '';
-  const fullDisplayBody = (post.title && body.startsWith(`# ${post.title}`))
+  const hasExplicitTitle = post.title != null && post.title !== '';
+  const fullDisplayBody = (hasExplicitTitle && body.startsWith(`# ${post.title}`))
     ? body.substring(body.indexOf('\n') + 1).trim()
     : body;
 
-  const lines = fullDisplayBody.split('\n');
+  // When post has no title, use first line of body as headline so preview looks the same as titled posts
+  const noTitleUseBodyHeadline = !hasExplicitTitle && fullDisplayBody.trim().length > 0;
+  const bodyHeadline =
+    noTitleUseBodyHeadline
+      ? (fullDisplayBody.includes('\n') ? fullDisplayBody.slice(0, fullDisplayBody.indexOf('\n')).trim() : fullDisplayBody.trim()).slice(0, 120)
+      : '';
+  const bodyAfterHeadline = noTitleUseBodyHeadline && fullDisplayBody.includes('\n')
+    ? fullDisplayBody.substring(fullDisplayBody.indexOf('\n') + 1).trim()
+    : noTitleUseBodyHeadline
+      ? ''
+      : fullDisplayBody;
+
+  const bodyForTruncation = noTitleUseBodyHeadline ? bodyAfterHeadline : fullDisplayBody;
+  const lines = bodyForTruncation.split('\n');
   const hasMoreLines = maxBodyLines != null && lines.length > maxBodyLines;
   const MAX_LAST_LINE_CHARS = 72;
   const ELLIPSIS = ' …';
@@ -108,7 +121,7 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
         : take.slice(0, -1).join('\n') + '\n' + truncatedLast;
     displayBody = bodyWithoutEllipsis + ELLIPSIS;
   } else {
-    displayBody = fullDisplayBody;
+    displayBody = bodyForTruncation;
   }
 
   // Prefer key-based URL via API so images work on device/emulator; fallback to API-returned URL or local uri
@@ -120,17 +133,24 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
         ? { uri: (post as any).headerImageUrl }
         : null;
 
-  // Extract sources
+  // Extract sources (deduplicated by canonical key)
   const sources = useMemo(() => {
     const list: any[] = [];
     if (!post.body) return list;
+    const seen = new Set<string>();
+
+    const add = (item: any, key: string) => {
+      if (seen.has(key)) return;
+      seen.add(key);
+      list.push(item);
+    };
 
     // External links [text](url)
     const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
     let match;
     while ((match = linkRegex.exec(post.body)) !== null) {
       if (match[2].startsWith('http')) {
-        list.push({ type: 'external', title: match[1], url: match[2], icon: 'link' });
+        add({ type: 'external', title: match[1], url: match[2], icon: 'link' }, `ext-${match[2]}`);
       }
     }
 
@@ -140,28 +160,27 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
       const id = match[1];
       const alias = match[2];
       const resolvedTitle = referenceMetadata[id]?.title ?? referenceMetadata[id?.toLowerCase?.() ?? '']?.title;
-      list.push({
-        type: 'post',
-        id,
-        title: alias || resolvedTitle || 'Referenced Post',
-        icon: 'description'
-      });
+      add(
+        { type: 'post', id, title: alias || resolvedTitle || 'Referenced Post', icon: 'description' },
+        `post-${id}`,
+      );
     }
 
     // Topic links [[Topic]]
-    const topicRegex = /\[\[([^\]:]+?)\]\]/g; // Simplified, assumes no prefix means topic
+    const topicRegex = /\[\[([^\]:]+?)\]\]/g;
     while ((match = topicRegex.exec(post.body)) !== null) {
-      // Avoid matching post: or other prefixes if simplified regex catches them
       if (!match[1].startsWith('post:')) {
         const parts = match[1].split('|');
-        list.push({ type: 'topic', title: parts[0], alias: parts[1], icon: 'tag' });
+        const slug = parts[0].trim().toLowerCase();
+        add({ type: 'topic', title: parts[0], slug, alias: parts[1], icon: 'tag' }, `topic-${slug}`);
       }
     }
 
     // Mentions @handle
     const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
     while ((match = mentionRegex.exec(post.body)) !== null) {
-      list.push({ type: 'user', handle: match[1], title: `@${match[1]}`, icon: 'person' });
+      const handle = match[1];
+      add({ type: 'user', handle, title: `@${handle}`, icon: 'person' }, `user-${handle}`);
     }
 
     return list;
@@ -225,9 +244,11 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
                   </View>
                 )}
               </View>
-            ) : post.title != null && post.title !== '' ? (
+            ) : hasExplicitTitle ? (
               <Text style={styles.title}>{post.title}</Text>
-            ) : !imageSource && (post.title == null || post.title === '') ? (
+            ) : bodyHeadline ? (
+              <Text style={styles.title} numberOfLines={2}>{bodyHeadline}</Text>
+            ) : !imageSource ? (
               <Text style={styles.readPostLink}>{t('post.readArticle', 'Read')}</Text>
             ) : null}
           </View>

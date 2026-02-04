@@ -3,7 +3,7 @@ import { Text, View, FlatList, TextInput, Pressable, ActivityIndicator } from 'r
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../../../constants/theme';
 import { api } from '../../../utils/api';
 import { UserCard } from '../../../components/UserCard';
 import { useAuth } from '../../../context/auth';
@@ -89,15 +89,24 @@ export default function NewMessageScreen() {
       />
 
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder={t('messages.searchUsers', 'Search people...')}
-          placeholderTextColor={COLORS.tertiary}
-          value={query}
-          onChangeText={setQuery}
-          autoFocus
-          includeFontPadding={false}
-        />
+        <View style={SEARCH_BAR.container}>
+          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <TextInput
+            style={SEARCH_BAR.input}
+            placeholder={t('messages.searchUsers', 'Search people...')}
+            placeholderTextColor={COLORS.tertiary}
+            value={query}
+            onChangeText={setQuery}
+            autoFocus
+            includeFontPadding={false}
+            returnKeyType="search"
+          />
+          {query.length > 0 ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+              <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       {loading ? (
@@ -151,14 +160,5 @@ const styles = createStyles({
   },
   searchContainer: {
     padding: SPACING.m,
-  },
-  searchInput: {
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    padding: SPACING.m,
-    color: COLORS.paper,
-    fontSize: 16,
-    fontFamily: FONTS.regular,
-    textAlignVertical: 'center',
   },
 });

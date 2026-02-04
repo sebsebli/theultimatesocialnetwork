@@ -98,7 +98,7 @@ export default function ManifestoPage() {
                   />
                 </div>
                 <div className="text-xs font-sans">
-                  <div className="text-[#F2F2F2]">Dr. Lindner</div>
+                  <div className="text-[#F2F2F2]">Sebastian</div>
                   <div className="text-[#6E6E73]">Operator</div>
                 </div>
               </div>

@@ -6,7 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../../components/ScreenHeader';
+import { ScreenHeader, headerRightSaveStyle } from '../../components/ScreenHeader';
 import { api } from '../../utils/api';
 
 // Moved outside to prevent re-mounting on every render
@@ -111,7 +111,7 @@ export default function RelevanceSettingsScreen() {
             disabled={saving}
             style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, (pressed || saving) && { opacity: 0.5 }]}
           >
-            <Text style={styles.headerSaveText}>{t('common.save')}</Text>
+            <Text style={headerRightSaveStyle}>{t('common.save')}</Text>
           </Pressable>
         }
       />
@@ -189,12 +189,6 @@ const styles = createStyles({
   container: {
     flex: 1,
     backgroundColor: COLORS.ink,
-  },
-  headerSaveText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: HEADER.saveColor,
-    fontFamily: FONTS.semiBold,
   },
   content: {
     padding: SPACING.l,

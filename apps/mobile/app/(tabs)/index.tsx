@@ -15,6 +15,9 @@ import { CenteredEmptyState } from '../../components/EmptyState';
 import { Avatar } from '../../components/Avatar';
 import { useSocket } from '../../context/SocketContext';
 import { UserCard } from '../../components/UserCard';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { HeaderIconButton } from '../../components/HeaderIconButton';
+import { useTabPress } from '../../context/TabPressContext';
 import type { Post } from '../../types';
 
 // Enable LayoutAnimation for Android
@@ -39,6 +42,19 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const appState = useRef(AppState.currentState);
+  const flatListRef = useRef<FlatList>(null);
+  const tabPress = useTabPress();
+
+  useEffect(() => {
+    const count = tabPress?.tabPressCounts?.index ?? 0;
+    if (count === 0) return;
+    setRefreshing(true);
+    loadFeed(1, true);
+    const t = setTimeout(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [tabPress?.tabPressCounts?.index]);
 
   useEffect(() => {
     // Only load feed if authenticated
@@ -203,20 +219,27 @@ export default function HomeScreen() {
 
   const renderItem = useCallback(({ item }: { item: Post }) => {
     if (item._isSavedBy && item._savedBy) {
+      const collectionId = (item._savedBy as { collectionId?: string }).collectionId;
+      const goToCollection = () => {
+        if (collectionId) router.push(`/collections/${collectionId}`);
+        else router.push('/collections');
+      };
       return (
         <View style={styles.savedByItem}>
-          <View style={styles.savedByHeader}>
+          <Pressable style={styles.savedByHeader} onPress={goToCollection} accessibilityRole="button" accessibilityLabel={t('home.savedByPrefix') + ' ' + (item._savedBy.userName ?? '') + ' ' + t('home.savedBySuffix') + ' ' + (item._savedBy.collectionName ?? '') + ' — ' + t('collections.open', 'Open collection')}>
             <MaterialIcons name="bookmark" size={HEADER.iconSize} color={COLORS.tertiary} />
             <Text style={styles.savedByText}>
-              {t('home.savedByPrefix')} <Text style={styles.savedByHighlight}>{item._savedBy.userName}</Text> {t('home.savedBySuffix')} {item._savedBy.collectionName}
+              {t('home.savedByPrefix')} <Text style={styles.savedByHighlight}>{item._savedBy.userName}</Text> {t('home.savedBySuffix')}{' '}
+              <Text style={styles.savedByCollectionLink}>{item._savedBy.collectionName}</Text>
             </Text>
-          </View>
+            <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+          </Pressable>
           <PostItem post={item} />
         </View>
       );
     }
     return <PostItem post={item} />;
-  }, [t]);
+  }, [t, router]);
 
   const keyExtractor = useCallback((item: Post) => item.id || `saved-${item._savedBy?.userId}-${item.id}`, []);
 
@@ -238,29 +261,28 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: 56 + insets.bottom }]}>
-      {/* Header - same padding as explore */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft} />
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={() => router.push('/notifications')}
-            style={styles.headerActionButton}
-            accessibilityLabel={t('home.notifications')}
-            accessibilityRole="button"
-          >
-            <View>
-              <MaterialIcons name="notifications-none" size={HEADER.iconSize} color={HEADER.iconColor} />
-              {unreadNotifications > 0 && <View style={styles.badge} />}
-            </View>
-          </Pressable>
-        </View>
-      </View>
+    <View style={[styles.container, { paddingBottom: 56 + insets.bottom }]}>
+      <ScreenHeader
+        title={t('home.title', 'Home')}
+        showBack={false}
+        paddingTop={insets.top}
+        right={
+          <View style={styles.notificationButtonWrap}>
+            <HeaderIconButton
+              onPress={() => router.push('/notifications')}
+              icon="notifications-none"
+              accessibilityLabel={t('home.notifications')}
+            />
+            {unreadNotifications > 0 && <View style={styles.badge} />}
+          </View>
+        }
+      />
 
       {error && posts.length === 0 ? (
         <ErrorState onRetry={handleRefresh} onDismiss={() => setError(false)} />
       ) : (
         <FlatList
+          ref={flatListRef}
           data={posts.filter((p: Post) => !!p?.author)}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
@@ -276,7 +298,7 @@ export default function HomeScreen() {
               headline={t('home.emptyHeadline', 'Your timeline is quiet.')}
               subtext={t('home.emptySubtext', 'Follow people and topics to see posts here.')}
               secondaryLabel={t('home.exploreTopics', 'Explore Topics')}
-              onSecondary={() => router.push('/(tabs)/explore')}
+              onSecondary={() => router.push('/(tabs)/explore?tab=topics')}
               compact
             >
               {!loading && (
@@ -323,36 +345,8 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
     paddingBottom: 0,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: toDimension(HEADER.barPaddingBottom),
-    paddingHorizontal: toDimension(LAYOUT.contentPaddingHorizontal),
-    backgroundColor: COLORS.ink,
-  },
-  profileButton: {
-    marginRight: SPACING.s,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.paper,
-    letterSpacing: -0.5,
-    fontFamily: FONTS.semiBold,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.s,
-  },
-  headerActionButton: {
-    padding: SPACING.s,
+  notificationButtonWrap: {
+    position: 'relative',
   },
   badge: {
     position: 'absolute',
@@ -372,6 +366,11 @@ const styles = createStyles({
     alignItems: 'center',
     paddingTop: SPACING.m,
     gap: 6,
+  },
+  savedByCollectionLink: {
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
+    textDecorationLine: 'underline',
   },
   savedByText: {
     fontSize: 13,

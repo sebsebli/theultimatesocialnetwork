@@ -234,15 +234,13 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
             <div className="w-16 h-16 rounded-full overflow-hidden border border-[#333] grayscale opacity-80">
               <Image
                 src="/sebastianlindner.jpeg"
-                alt="Dr. Sebastian Lindner"
+                alt="Sebastian"
                 width={64}
                 height={64}
               />
             </div>
             <div className="text-center">
-              <div className="text-sm font-bold text-[#F2F2F2]">
-                Dr. Sebastian Lindner
-              </div>
+              <div className="text-sm font-bold text-[#F2F2F2]">Sebastian</div>
               <div className="text-[10px] font-mono text-[#6E6E73] uppercase tracking-widest mt-1">
                 Founder • Operator
               </div>
@@ -275,9 +273,7 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
               <span>[CLEAN INFRA]</span>
               <span>[LOCAL AI]</span>
             </div>
-            <span className="text-[10px] text-[#333]">
-              © 2026 Dr. Sebastian Lindner
-            </span>
+            <span className="text-[10px] text-[#333]">© 2026 Sebastian</span>
           </div>
 
           <div className="flex flex-wrap gap-8 text-[11px] font-mono uppercase tracking-wider text-[#6E6E73]">

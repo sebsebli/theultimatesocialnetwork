@@ -60,7 +60,16 @@ function TopicPageInner({ topic }: TopicPageProps) {
   const loadMoreSentinel = useRef<HTMLDivElement>(null);
   const nextPageRef = useRef(1);
 
-  const headerImagePost = topic.posts?.find((p) => p.headerImageKey);
+  // Hero: use the most recent article in the topic that has a header image (same as topic cards)
+  const postsWithImage = (topic.posts ?? posts).filter(
+    (p) => p?.headerImageKey,
+  );
+  const headerImagePost =
+    postsWithImage.sort(
+      (a, b) =>
+        new Date(b.createdAt ?? 0).getTime() -
+        new Date(a.createdAt ?? 0).getTime(),
+    )[0] ?? null;
   const headerImageUrl = headerImagePost?.headerImageKey
     ? getImageUrl(headerImagePost.headerImageKey)
     : null;

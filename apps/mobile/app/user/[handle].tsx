@@ -17,6 +17,7 @@ import { ProfileSkeleton, PostSkeleton } from '../../components/LoadingSkeleton'
 import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
 import { ListFooterLoader } from '../../components/ListFooterLoader';
+import { HeaderIconButton } from '../../components/HeaderIconButton';
 import { formatCompactNumber } from '../../utils/format';
 
 const TAB_BAR_HEIGHT = 50;
@@ -47,6 +48,13 @@ export default function UserProfileScreen() {
   const [hasPendingFollowRequest, setHasPendingFollowRequest] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'saved' | 'collections'>('posts');
   const loadingMoreRef = React.useRef(false);
+
+  // When viewing someone else's profile, replies tab is hidden; switch away if it was selected
+  useEffect(() => {
+    if (user && !isOwnProfile && activeTab === 'replies') {
+      setActiveTab('posts');
+    }
+  }, [user, isOwnProfile, activeTab]);
 
   useEffect(() => {
     const h = typeof handle === 'string' ? handle : handle?.[0];
@@ -136,6 +144,10 @@ export default function UserProfileScreen() {
       if (reset && activeTab === 'posts') setUser(null);
       if (reset) setPosts([]);
       setHasMore(false);
+      // User no longer exists (404) → go back instead of showing empty page
+      if (reset && error?.status === 404) {
+        router.back();
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -311,14 +323,7 @@ export default function UserProfileScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.blockedHeaderBar, { paddingTop: insets.top }]}>
-          <Pressable
-            onPress={() => router.back()}
-            style={styles.iconButton}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-          </Pressable>
+          <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel="Go back" />
         </View>
         <View style={styles.blockedStateContent}>
           <MaterialIcons name="block" size={64} color={COLORS.tertiary} style={styles.blockedStateIcon} />
@@ -354,17 +359,15 @@ export default function UserProfileScreen() {
         <ScrollView
           style={styles.list}
           showsVerticalScrollIndicator={false}
+          contentInset={Platform.OS === 'ios' ? { top: insets.top } : undefined}
+          contentOffset={Platform.OS === 'ios' ? { x: 0, y: -insets.top } : undefined}
           contentContainerStyle={[styles.privateProfileScrollContent, { paddingBottom: bottomPadding }]}
         >
           <View style={styles.profileListHeader}>
-            <View style={[styles.profileHeaderContainer, styles.profileHeaderContainerBorder, { paddingTop: insets.top }]}>
+            <View style={[styles.profileHeaderContainer, styles.profileHeaderContainerBorder, { paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
               <View style={styles.headerBar}>
-                <Pressable onPress={() => router.back()} style={styles.iconButton} accessibilityLabel="Go back" accessibilityRole="button">
-                  <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-                </Pressable>
-                <Pressable style={styles.iconButton} onPress={() => handleUserMenu()} accessibilityLabel="More options" accessibilityRole="button">
-                  <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-                </Pressable>
+                <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel="Go back" />
+                <HeaderIconButton onPress={() => handleUserMenu()} icon="more-horiz" accessibilityLabel="More options" />
               </View>
               <View style={styles.profileHeaderContent}>
                 <View style={styles.avatarContainer}>
@@ -504,25 +507,11 @@ export default function UserProfileScreen() {
             <View style={[
               styles.profileHeaderContainer,
               user.isProtected && !following && styles.profileHeaderContainerBorder,
-              { paddingTop: insets.top },
+              { paddingTop: Platform.OS === 'ios' ? 0 : insets.top },
             ]}>
               <View style={styles.headerBar}>
-                <Pressable
-                  onPress={() => router.back()}
-                  style={styles.iconButton}
-                  accessibilityLabel="Go back"
-                  accessibilityRole="button"
-                >
-                  <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-                </Pressable>
-                <Pressable
-                  style={styles.iconButton}
-                  onPress={() => handleUserMenu()}
-                  accessibilityLabel="More options"
-                  accessibilityRole="button"
-                >
-                  <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-                </Pressable>
+                <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel="Go back" />
+                <HeaderIconButton onPress={() => handleUserMenu()} icon="more-horiz" accessibilityLabel="More options" />
               </View>
 
               <View style={styles.profileHeaderContent}>
@@ -620,30 +609,30 @@ export default function UserProfileScreen() {
                   style={styles.tabsScrollView}
                 >
                   <View style={[styles.tabsRow, { minWidth: screenWidth }]}>
-                  {(isOwnProfile
-                    ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
-                    : (['posts', 'replies', 'quotes', 'collections'] as const)
-                  ).map((tab) => {
-                    const count = tab === 'posts' ? (user.postCount ?? 0)
-                      : tab === 'replies' ? (user.replyCount ?? 0)
-                        : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
-                          : tab === 'saved' ? (user.keepsCount ?? 0)
-                            : (user.collectionCount ?? 0);
-                    return (
-                      <Pressable
-                        key={tab}
-                        style={[styles.tab, activeTab === tab && styles.tabActive]}
-                        onPress={() => handleTabChange(tab)}
-                        accessibilityLabel={count > 0 ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
-                        accessibilityRole="tab"
-                        accessibilityState={{ selected: activeTab === tab }}
-                      >
-                        <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]} numberOfLines={1}>
-                          {t(`profile.${tab}`)}{count > 0 ? ` (${formatCompactNumber(count)})` : ''}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                    {(isOwnProfile
+                      ? (['posts', 'replies', 'quotes', 'saved', 'collections'] as const)
+                      : (['posts', 'quotes', 'collections'] as const)
+                    ).map((tab) => {
+                      const count = tab === 'posts' ? (user.postCount ?? 0)
+                        : tab === 'replies' ? (user.replyCount ?? 0)
+                          : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
+                            : tab === 'saved' ? (user.keepsCount ?? 0)
+                              : (user.collectionCount ?? 0);
+                      return (
+                        <Pressable
+                          key={tab}
+                          style={[styles.tab, activeTab === tab && styles.tabActive]}
+                          onPress={() => handleTabChange(tab)}
+                          accessibilityLabel={count > 0 && tab !== 'replies' ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
+                          accessibilityRole="tab"
+                          accessibilityState={{ selected: activeTab === tab }}
+                        >
+                          <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]} numberOfLines={1}>
+                            {t(`profile.${tab}`)}{count > 0 && tab !== 'replies' ? ` (${formatCompactNumber(count)})` : ''}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 </ScrollView>
               </View>
@@ -755,7 +744,7 @@ const styles = createStyles({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: HEADER.barPaddingHorizontal as DimensionValue,
-    paddingBottom: SPACING.s,
+    paddingBottom: HEADER.barPaddingBottom as DimensionValue,
   },
   blockedHeaderBar: {
     flexDirection: 'row',
@@ -769,7 +758,8 @@ const styles = createStyles({
     flexGrow: 1,
   },
   profileListHeader: {
-    flex: 1,
+    width: '100%',
+    backgroundColor: COLORS.ink,
   },
   profileHeaderContainer: {
     width: '100%',
@@ -820,22 +810,24 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   iconButton: {
-    padding: SPACING.s,
-    margin: -SPACING.s,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarContainer: {
     position: 'relative',
-    width: 96,
-    height: 96,
+    width: 120,
+    height: 120,
     marginBottom: SPACING.xs,
   },
   avatar: {
     position: 'absolute',
     left: 0,
     top: 0,
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
@@ -846,10 +838,10 @@ const styles = createStyles({
   avatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 48,
+    borderRadius: 60,
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: '600',
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,

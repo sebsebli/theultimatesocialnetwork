@@ -56,4 +56,11 @@ export class AdminController {
   async unbanUser(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminService.unbanUser(id);
   }
+
+  /** Trigger full reindex from PostgreSQL to Meilisearch (users, topics, posts, messages). Runs in background. */
+  @Post('search/reindex')
+  @Roles('admin')
+  triggerSearchReindex() {
+    return this.adminService.triggerSearchReindex();
+  }
 }

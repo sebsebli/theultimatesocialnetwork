@@ -1,5 +1,5 @@
-import { Text, View, FlatList, Pressable, ScrollView, RefreshControl, ActivityIndicator, TextInput, PanResponder } from 'react-native';
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Text, View, FlatList, Pressable, ScrollView, RefreshControl, PanResponder, TextInput, Keyboard, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -7,14 +7,128 @@ import { api } from '../../utils/api';
 import { PostItem } from '../../components/PostItem';
 import { TopicCard } from '../../components/ExploreCards';
 import { UserCard } from '../../components/UserCard';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, toDimension, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
+import { SectionHeader } from '../../components/SectionHeader';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, toDimension, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../../constants/theme';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
 import { ListFooterLoader } from '../../components/ListFooterLoader';
+import { SearchModal } from '../../components/SearchModal';
 import { useAuth } from '../../context/auth';
+import { useTabPress } from '../../context/TabPressContext';
 import * as Haptics from 'expo-haptics';
-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const SEARCH_DEBOUNCE_MS = 480;
+const SEARCH_LIMIT = 20;
+
+type SearchFilterTab = 'all' | 'people' | 'topics' | 'posts';
+
+/** Stable header component so the search TextInput is not remounted when searchQuery changes (which was dismissing the keyboard on first keystroke). */
+function ExploreListHeader({
+  insetsTop,
+  searchQuery,
+  setSearchQuery,
+  searchLoading,
+  isSearchActive,
+  searchFilterTab,
+  setSearchFilterTab,
+  activeTab,
+  setActiveTab,
+  inputRef,
+  styles,
+  t,
+  EXPLORE_TABS,
+}: {
+  insetsTop: number;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  searchLoading: boolean;
+  isSearchActive: boolean;
+  searchFilterTab: SearchFilterTab;
+  setSearchFilterTab: (tab: SearchFilterTab) => void;
+  activeTab: string;
+  setActiveTab: (tab: 'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom') => void;
+  inputRef: React.RefObject<TextInput | null>;
+  styles: Record<string, any>;
+  t: (key: string, fallback?: string) => string;
+  EXPLORE_TABS: readonly string[];
+}) {
+  return (
+    <View key="explore-list-header" style={[styles.headerContainer, { paddingTop: insetsTop }]}>
+      <View style={styles.searchRow}>
+        <View style={[SEARCH_BAR.container, styles.searchBarFullWidth]}>
+          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <TextInput
+            ref={inputRef}
+            style={SEARCH_BAR.input}
+            placeholder={t('explore.searchPlaceholder')}
+            placeholderTextColor={COLORS.tertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {searchLoading ? (
+            <ActivityIndicator size="small" color={COLORS.primary} style={styles.searchSpinner} />
+          ) : searchQuery.length > 0 ? (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityLabel={t('common.clear', 'Clear')}>
+              <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+
+      {isSearchActive ? (
+        <View style={styles.searchFilterTabs}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchFilterContent}>
+            {(['all', 'people', 'topics', 'posts'] as const).map((tab) => (
+              <Pressable
+                key={tab}
+                onPress={() => setSearchFilterTab(tab)}
+                style={[styles.searchFilterTab, searchFilterTab === tab && styles.searchFilterTabActive]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: searchFilterTab === tab }}
+              >
+                <Text style={[styles.searchFilterTabText, searchFilterTab === tab && styles.searchFilterTabTextActive]}>
+                  {tab === 'all' ? t('search.all', 'All') : tab === 'people' ? t('search.people', 'People') : tab === 'topics' ? t('search.topics', 'Topics') : t('search.posts', 'Posts')}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : (
+        <View key="explore-tabs" style={styles.tabsContainer}>
+          <ScrollView horizontal showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent} style={styles.tabsScrollView}>
+            {(EXPLORE_TABS as readonly string[]).map((tab) => (
+              <Pressable
+                key={tab}
+                onPress={() => setActiveTab(tab as 'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom')}
+                style={[styles.tab, activeTab === tab && styles.tabActive]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeTab === tab }}
+              >
+                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                  {tab === 'deep-dives' ? t('explore.deepDives') :
+                    tab === 'quoted' ? t('explore.quoted') :
+                      tab === 'newsroom' ? t('explore.newsroom') :
+                        t(`explore.${tab}`)}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+      <View key="explore-spacer" style={{ height: SPACING.m }} />
+    </View>
+  );
+}
+
+type SearchListItem =
+  | { type: 'section'; key: string; title: string }
+  | { type: 'post'; key: string; [k: string]: unknown }
+  | { type: 'user'; key: string; [k: string]: unknown }
+  | { type: 'topic'; key: string; [k: string]: unknown };
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -23,9 +137,16 @@ export default function ExploreScreen() {
   const { isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [activeTab, setActiveTab] = useState<'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('quoted');
-
+  const [activeTab, setActiveTab] = useState<'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('newest');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilterTab, setSearchFilterTab] = useState<SearchFilterTab>('all');
+  const [searchPosts, setSearchPosts] = useState<any[]>([]);
+  const [searchUsers, setSearchUsers] = useState<any[]>([]);
+  const [searchTopics, setSearchTopics] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<TextInput>(null);
+
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,9 +155,26 @@ export default function ExploreScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const onEndReachedFiredRef = useRef(false);
+  const listLayoutHeightRef = useRef(0);
+  const contentHeightRef = useRef(0);
+  const flatListRef = useRef<FlatList>(null);
+  const tabPress = useTabPress();
   const MAX_PAGE = 50;
 
-  const EXPLORE_TABS = ['quoted', 'deep-dives', 'newsroom', 'topics', 'people'] as const;
+  useEffect(() => {
+    const count = tabPress?.tabPressCounts?.explore ?? 0;
+    if (count === 0) return;
+    if (!searchQuery.trim()) {
+      setRefreshing(true);
+      loadContent(1, true);
+    }
+    const t = setTimeout(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [tabPress?.tabPressCounts?.explore]);
+
+  const EXPLORE_TABS = ['newest', 'quoted', 'deep-dives', 'newsroom', 'topics', 'people'] as const;
   const swipeThreshold = 60;
   const panResponder = useMemo(
     () =>
@@ -64,48 +202,129 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (params.tab) {
       const tabName = Array.isArray(params.tab) ? params.tab[0] : params.tab;
-      if (['topics', 'people', 'quoted', 'deep-dives', 'newsroom'].includes(tabName)) {
+      if (['newest', 'topics', 'people', 'quoted', 'deep-dives', 'newsroom'].includes(tabName)) {
         setActiveTab(tabName as any);
       }
     }
     if (params.q) {
       const query = Array.isArray(params.q) ? params.q[0] : params.q;
-      setSearchQuery(query);
+      if (query) setSearchQuery(query);
     }
   }, [params.tab, params.q]);
 
-  // When tab changes: load content for current tab (always recommended)
+  const runSearch = useCallback(async (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) {
+      setSearchPosts([]);
+      setSearchUsers([]);
+      setSearchTopics([]);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const res = await api.get<{ posts: any[]; users: any[]; topics: any[] }>(
+        `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}`,
+      );
+      const rawPosts = (res.posts || []).filter((p: any) => !!p?.author);
+      const rawUsers = res.users || [];
+      const rawTopics = (res.topics || []).map((tpc: any) => ({
+        ...tpc,
+        title: tpc.title || tpc.slug,
+      }));
+      setSearchPosts(rawPosts);
+      setSearchUsers(rawUsers);
+      setSearchTopics(rawTopics);
+    } catch (err) {
+      console.error('Search failed', err);
+      setSearchPosts([]);
+      setSearchUsers([]);
+      setSearchTopics([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!searchQuery.trim()) {
+      setSearchPosts([]);
+      setSearchUsers([]);
+      setSearchTopics([]);
+      setSearchLoading(false);
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      runSearch(searchQuery);
+      searchDebounceRef.current = null;
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery, runSearch]);
+
+  const isSearchActive = searchQuery.trim().length > 0;
+
+  const searchFlatData = useMemo((): SearchListItem[] => {
+    if (searchFilterTab === 'people') {
+      return searchUsers.map((u) => ({ type: 'user' as const, key: u.id, ...u }));
+    }
+    if (searchFilterTab === 'topics') {
+      return searchTopics.map((tpc) => ({ type: 'topic' as const, key: tpc.id || tpc.slug, ...tpc }));
+    }
+    if (searchFilterTab === 'posts') {
+      return searchPosts.map((p) => ({ type: 'post' as const, key: p.id, ...p }));
+    }
+    const out: SearchListItem[] = [];
+    if (searchPosts.length > 0) {
+      out.push({ type: 'section', key: 'section-posts', title: t('search.posts', 'Posts') });
+      searchPosts.forEach((p) => out.push({ type: 'post', key: p.id, ...p }));
+    }
+    if (searchUsers.length > 0) {
+      out.push({ type: 'section', key: 'section-people', title: t('search.people', 'People') });
+      searchUsers.forEach((u) => out.push({ type: 'user', key: u.id, ...u }));
+    }
+    if (searchTopics.length > 0) {
+      out.push({ type: 'section', key: 'section-topics', title: t('search.topics', 'Topics') });
+      searchTopics.forEach((tpc) => out.push({ type: 'topic', key: tpc.id || tpc.slug, ...tpc }));
+    }
+    return out;
+  }, [searchFilterTab, searchPosts, searchUsers, searchTopics, t]);
+
+  const navigateToPost = useCallback(
+    (post: any) => {
+      Keyboard.dismiss();
+      setSearchQuery('');
+      if (post?.id) router.push(`/post/${post.id}`);
+    },
+    [router],
+  );
+  const navigateToUser = useCallback(
+    (user: any) => {
+      Keyboard.dismiss();
+      setSearchQuery('');
+      if (user?.handle) router.push(`/user/${user.handle}`);
+    },
+    [router],
+  );
+  const navigateToTopic = useCallback(
+    (topic: any) => {
+      Keyboard.dismiss();
+      setSearchQuery('');
+      if (topic?.slug || topic?.id) router.push(`/topic/${encodeURIComponent(topic.slug || topic.id)}`);
+    },
+    [router],
+  );
+
+  // When tab changes: load content for current tab
   useEffect(() => {
     if (isAuthenticated) {
       setPage(1);
       setData([]);
-      loadContent(1, true, undefined);
+      loadContent(1, true);
     }
   }, [activeTab, isAuthenticated]);
 
-  // When search query changes: debounce then run search for active tab; if cleared, load explore feed
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    if (searchQuery.trim() === '') {
-      setPage(1);
-      setData([]);
-      loadContent(1, true, '');
-      return;
-    }
-    searchDebounceRef.current = setTimeout(() => {
-      setPage(1);
-      setData([]);
-      loadContent(1, true, undefined);
-      searchDebounceRef.current = null;
-    }, 400);
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
-  }, [searchQuery]);
-
-  const loadContent = async (pageNum: number, reset = false, overrideSearchQuery?: string) => {
+  const loadContent = async (pageNum: number, reset = false) => {
     if (!reset && (loading || loadingMore)) return;
 
     if (reset) {
@@ -117,66 +336,33 @@ export default function ExploreScreen() {
       setLoadingMore(true);
     }
     setError(false);
-    const queryTrimmed = (overrideSearchQuery !== undefined ? overrideSearchQuery : searchQuery).trim();
-    const isSearchMode = queryTrimmed.length > 0;
-
     try {
-      let items: any[] = [];
-      let hasMoreData = false;
-
-      if (isSearchMode) {
-        // Search API for the active tab
-        if (activeTab === 'topics') {
-          const res = await api.get<{ hits: any[] }>(`/search/topics?q=${encodeURIComponent(queryTrimmed)}&limit=20`);
-          items = (res.hits || []).map((t: any) => ({ ...t, title: t.title || t.slug }));
-          hasMoreData = false;
-        } else if (activeTab === 'people') {
-          const res = await api.get<{ hits: any[] }>(`/search/users?q=${encodeURIComponent(queryTrimmed)}&limit=20`);
-          items = res.hits || [];
-          hasMoreData = false;
-        } else {
-          const offset = (pageNum - 1) * 20;
-          const res = await api.get<{ hits: any[] }>(`/search/posts?q=${encodeURIComponent(queryTrimmed)}&limit=20&offset=${offset}`);
-          const raw = res.hits || [];
-          items = raw.map((item: any) => ({
-            ...item,
-            author: item.author || {
-              id: item.authorId || '',
-              handle: item.author?.handle || t('post.unknownUser', 'Unknown'),
-              displayName: item.author?.displayName || t('post.unknownUser', 'Unknown'),
-              avatarKey: item.author?.avatarKey,
-              avatarUrl: item.author?.avatarUrl,
-            },
-          }));
-          hasMoreData = items.length === 20;
-        }
-      } else {
-        let endpoint = '/explore/topics';
-        if (activeTab === 'people') endpoint = '/explore/people';
-        else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
-        else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
-        else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
-        const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort: 'recommended' };
-        const qs = new URLSearchParams(params).toString();
-        const res = await api.get(`${endpoint}?${qs}`);
-        const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
-        const normalized = rawItems.map((item: any) => ({
-          ...item,
-          author: item.author || {
-            id: item.authorId || '',
-            handle: item.handle || t('post.unknownUser', 'Unknown'),
-            displayName: item.displayName || t('post.unknownUser', 'Unknown'),
-          },
-        }));
-        const seen = new Set<string>();
-        items = normalized.filter((item: any) => {
-          const k = item.id ?? item.slug ?? '';
-          if (!k || seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        });
-        hasMoreData = items.length === 20 && (res.hasMore !== false);
-      }
+      let endpoint = '/explore/topics';
+      if (activeTab === 'newest') endpoint = '/explore/newest';
+      else if (activeTab === 'people') endpoint = '/explore/people';
+      else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
+      else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
+      else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
+      const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort: 'recommended' };
+      const qs = new URLSearchParams(params).toString();
+      const res = await api.get(`${endpoint}?${qs}`);
+      const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
+      const normalized = rawItems.map((item: any) => ({
+        ...item,
+        author: item.author || {
+          id: item.authorId || '',
+          handle: item.handle || t('post.unknownUser', 'Unknown'),
+          displayName: item.displayName || t('post.unknownUser', 'Unknown'),
+        },
+      }));
+      const seen = new Set<string>();
+      const items = normalized.filter((item: any) => {
+        const k = item.id ?? item.slug ?? '';
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      const hasMoreData = items.length === 20 && (res.hasMore !== false);
 
       if (reset) {
         setData(items);
@@ -260,13 +446,34 @@ export default function ExploreScreen() {
     if (page >= MAX_PAGE) setHasMore(false);
   }, [loading, refreshing, loadingMore, hasMore, page, activeTab]);
 
+  /** When content is shorter than the list, onEndReached never fires. Load more until list is scrollable or no more data. */
+  const handleContentSizeChange = useCallback(
+    (_w: number, h: number) => {
+      contentHeightRef.current = h;
+      const listH = listLayoutHeightRef.current;
+      if (listH > 0 && h < listH && hasMore && !loading && !loadingMore && page < MAX_PAGE && !onEndReachedFiredRef.current) {
+        onEndReachedFiredRef.current = true;
+        const nextPage = page + 1;
+        setPage(nextPage);
+        loadContent(nextPage, false).finally(() => {
+          onEndReachedFiredRef.current = false;
+        });
+      }
+    },
+    [hasMore, loading, loadingMore, page, loadContent],
+  );
+
+  const handleListLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
+    listLayoutHeightRef.current = e.nativeEvent.layout.height;
+  }, []);
+
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    loadContent(1, true, undefined);
+    loadContent(1, true);
   }, [activeTab]);
 
   const renderItem = useCallback(({ item }: { item: any }) => {
-    if (activeTab === 'deep-dives') {
+    if (activeTab === 'newest' || activeTab === 'deep-dives') {
       if (!item || !item.id) return null;
       return <PostItem post={item} />;
     } else if (activeTab === 'people') {
@@ -297,105 +504,142 @@ export default function ExploreScreen() {
 
   const keyExtractor = useCallback((item: any, index: number) => `explore-${activeTab}-${String(item?.id ?? item?.slug ?? `i-${index}`)}`, [activeTab]);
 
-  const listHeader = useMemo(() => (
-    <View key="explore-list-header" style={[styles.headerContainer, { paddingTop: insets.top }]}>
-      <View key="explore-search" style={styles.searchWrapper}>
-        <View style={styles.searchBar}>
-          <MaterialIcons name="search" size={HEADER.iconSize} color={HEADER.iconColor} />
-          <TextInput
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder={t('explore.searchPlaceholder')}
-            placeholderTextColor={COLORS.tertiary}
-            returnKeyType="search"
-            accessibilityLabel={t('explore.searchPlaceholder')}
-            includeFontPadding={false}
+  const searchKeyExtractor = useCallback((item: SearchListItem) => item.key, []);
+  const searchRenderItem = useCallback(
+    ({ item }: { item: SearchListItem }) => {
+      if (item.type === 'section') {
+        return <SectionHeader title={item.title} />;
+      }
+      if (item.type === 'post') {
+        return (
+          <Pressable onPress={() => navigateToPost(item)}>
+            <PostItem post={item} />
+          </Pressable>
+        );
+      }
+      if (item.type === 'user') {
+        return (
+          <UserCard
+            item={item}
+            onPress={() => navigateToUser(item)}
+            onFollow={() => handleFollowUser(item)}
           />
-          {searchQuery.length > 0 ? (
-            <Pressable
-              onPress={() => setSearchQuery('')}
-              hitSlop={8}
-              accessibilityLabel={t('common.clear')}
-            >
-              <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
+        );
+      }
+      if (item.type === 'topic') {
+        return (
+          <TopicCard
+            item={item}
+            onPress={() => navigateToTopic(item)}
+            onFollow={() => handleFollow(item)}
+          />
+        );
+      }
+      return null;
+    },
+    [navigateToPost, navigateToUser, navigateToTopic, handleFollow, handleFollowUser],
+  );
 
-      <View key="explore-tabs" style={styles.tabsContainer}>
-        <ScrollView horizontal showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent} style={styles.tabsScrollView}>
-          {(['quoted', 'deep-dives', 'newsroom', 'topics', 'people'] as const).map((tab) => (
-            <Pressable
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[styles.tab, activeTab === tab && styles.tabActive]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === tab }}
-            >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab === 'deep-dives' ? t('explore.deepDives') :
-                  tab === 'quoted' ? t('explore.quoted') :
-                    tab === 'newsroom' ? t('explore.newsroom') :
-                      t(`explore.${tab}`)}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+  const listHeader = (
+    <ExploreListHeader
+      insetsTop={insets.top}
+      searchQuery={searchQuery}
+      setSearchQuery={setSearchQuery}
+      searchLoading={searchLoading}
+      isSearchActive={isSearchActive}
+      searchFilterTab={searchFilterTab}
+      setSearchFilterTab={setSearchFilterTab}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      inputRef={inputRef}
+      styles={styles}
+      t={t}
+      EXPLORE_TABS={EXPLORE_TABS}
+    />
+  );
+
+  const showSearchResults = isSearchActive;
+  const listData = showSearchResults
+    ? searchFlatData
+    : (['newest', 'quoted', 'deep-dives', 'newsroom'].includes(activeTab) ? data.filter((item: any) => !!item?.author) : data);
+  const listKeyExtractor = showSearchResults ? searchKeyExtractor : keyExtractor;
+  const listRenderItem = showSearchResults ? searchRenderItem : renderItem;
+
+  const searchListEmpty = useMemo(() => {
+    if (searchLoading) {
+      return (
+        <View style={styles.searchingRow}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.searchingText}>{t('search.searching', 'Searching…')}</Text>
+        </View>
+      );
+    }
+    return (
+      <View style={emptyStateCenterWrapStyle}>
+        <EmptyState
+          icon="search"
+          headline={searchQuery.trim() ? t('search.noResults', 'No results') : t('search.startTyping', 'Search posts, people, topics')}
+          subtext={searchQuery.trim() ? t('search.noResultsHint', 'Try different keywords.') : undefined}
+        />
       </View>
-      <View key="explore-spacer" style={{ height: SPACING.m }} />
+    );
+  }, [searchLoading, searchQuery, t]);
+
+  const exploreListEmpty = useMemo(() => (
+    <View style={emptyStateCenterWrapStyle}>
+      {loading ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>{t('common.loading')}</Text>
+        </View>
+      ) : (
+        <EmptyState
+          icon="explore"
+          headline={t('explore.noContent', 'No content yet')}
+          subtext={t('explore.noContentHint', 'Try another filter or check back later.')}
+        />
+      )}
     </View>
-  ), [insets.top, activeTab, t, searchQuery]);
+  ), [loading, t]);
 
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
-      {error && data.length === 0 ? (
+    <View style={styles.container} {...(!showSearchResults ? panResponder.panHandlers : {})}>
+      {!showSearchResults && error && data.length === 0 ? (
         <ErrorState onRetry={() => loadContent(1, true)} onDismiss={() => setError(false)} />
       ) : (
         <FlatList
-          data={['quoted', 'deep-dives', 'newsroom'].includes(activeTab) ? data.filter((item: any) => !!item?.author) : data}
+          ref={flatListRef}
+          data={listData}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
-          keyExtractor={keyExtractor}
+          keyExtractor={listKeyExtractor as (item: any, index: number) => string}
           ListHeaderComponent={listHeader}
-          renderItem={renderItem}
-          ListEmptyComponent={
-            <View style={emptyStateCenterWrapStyle}>
-              {loading ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyText}>{t('common.loading')}</Text>
-                </View>
-              ) : (
-                <EmptyState
-                  icon="explore"
-                  headline={t('explore.noContent', 'No content yet')}
-                  subtext={t('explore.noContentHint', 'Try another filter or check back later.')}
-                />
-              )}
-            </View>
-          }
-          ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
+          renderItem={listRenderItem as (info: { item: any }) => React.ReactElement | null}
+          ListEmptyComponent={showSearchResults ? searchListEmpty : exploreListEmpty}
+          ListFooterComponent={showSearchResults ? null : <ListFooterLoader visible={!!(hasMore && loadingMore)} />}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={COLORS.primary}
-            />
+            showSearchResults ? undefined : (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={COLORS.primary}
+              />
+            )
           }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.2}
+          onEndReached={showSearchResults ? undefined : handleLoadMore}
+          onEndReachedThreshold={showSearchResults ? undefined : 0.2}
+          onContentSizeChange={showSearchResults ? undefined : handleContentSizeChange}
+          onLayout={showSearchResults ? undefined : handleListLayout}
           contentContainerStyle={[
             { paddingBottom: 80 },
-            (['quoted', 'deep-dives', 'newsroom'].includes(activeTab) ? data.filter((item: any) => !!item?.author) : data).length === 0 && { flexGrow: 1 },
+            listData.length === 0 && { flexGrow: 1 },
           ]}
+          keyboardShouldPersistTaps="always"
           {...FLATLIST_DEFAULTS}
           initialNumToRender={12}
           maxToRenderPerBatch={12}
           windowSize={8}
         />
       )}
-
     </View>
   );
 }
@@ -409,31 +653,54 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
     paddingHorizontal: toDimension(HEADER.barPaddingHorizontal),
   },
-  searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.m,
+  searchRow: {
     paddingVertical: SPACING.m,
   },
-  searchBar: {
-    flex: 1,
+  searchBarFullWidth: {
+    width: '100%',
+  },
+  searchSpinner: {
+    marginLeft: SPACING.s,
+  },
+  searchingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.hover,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-    borderRadius: SIZES.borderRadius,
-    height: 48,
-    paddingHorizontal: toDimension(SPACING.l),
+    justifyContent: 'center',
     gap: SPACING.m,
+    paddingVertical: SPACING.xl,
   },
-  searchInput: {
-    flex: 1,
-    color: COLORS.paper,
-    fontSize: 16,
+  searchingText: {
+    fontSize: 15,
+    color: COLORS.tertiary,
     fontFamily: FONTS.regular,
-    paddingVertical: 0,
-    textAlignVertical: 'center',
+  },
+  searchFilterTabs: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  searchFilterContent: {
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.s,
+    gap: SPACING.m,
+    flexDirection: 'row',
+  },
+  searchFilterTab: {
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    borderRadius: SIZES.borderRadiusPill,
+    backgroundColor: COLORS.hover,
+  },
+  searchFilterTabActive: {
+    backgroundColor: COLORS.primary + '33',
+  },
+  searchFilterTabText: {
+    fontSize: 15,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.medium,
+  },
+  searchFilterTabTextActive: {
+    color: COLORS.primary,
+    fontFamily: FONTS.semiBold,
   },
   tabsContainer: {
     borderBottomWidth: 1,

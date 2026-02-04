@@ -22,10 +22,16 @@ export class SessionsController {
 
   @Get()
   async getSessions(@CurrentUser() user: User) {
-    return this.sessionRepo.find({
+    const sessions = await this.sessionRepo.find({
       where: { userId: user.id },
       order: { lastActiveAt: 'DESC' },
     });
+    return sessions.map((s) => ({
+      id: s.id,
+      deviceInfo: s.deviceInfo,
+      lastActiveAt: s.lastActiveAt,
+      createdAt: s.createdAt,
+    }));
   }
 
   @Delete(':id')

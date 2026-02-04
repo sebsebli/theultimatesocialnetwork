@@ -6,8 +6,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { api } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../../constants/theme';
+import { ScreenHeader, headerRightSaveStyle } from '../../components/ScreenHeader';
+import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, SEARCH_BAR } from '../../constants/theme';
 import { CONTENT_LANGUAGES } from '../../constants/languages';
 
 export default function SettingsLanguagesScreen() {
@@ -70,7 +70,7 @@ export default function SettingsLanguagesScreen() {
             disabled={saving || selected.length < 1}
             style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, (pressed || saving || selected.length < 1) && { opacity: 0.5 }]}
           >
-            <Text style={styles.headerSaveText}>{t('common.save')}</Text>
+            <Text style={headerRightSaveStyle}>{t('common.save')}</Text>
           </Pressable>
         }
       />
@@ -83,14 +83,23 @@ export default function SettingsLanguagesScreen() {
       </Text>
 
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder={t('onboarding.languages.search')}
-          placeholderTextColor={COLORS.tertiary}
-          value={search}
-          onChangeText={setSearch}
-          includeFontPadding={false}
-        />
+        <View style={SEARCH_BAR.container}>
+          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <TextInput
+            style={SEARCH_BAR.input}
+            placeholder={t('onboarding.languages.search')}
+            placeholderTextColor={COLORS.tertiary}
+            value={search}
+            onChangeText={setSearch}
+            includeFontPadding={false}
+            returnKeyType="search"
+          />
+          {search.length > 0 ? (
+            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+              <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
@@ -144,27 +153,8 @@ const styles = createStyles({
     paddingTop: 4,
     marginBottom: SPACING.s,
   },
-  headerSaveText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: HEADER.saveColor,
-    fontFamily: FONTS.semiBold,
-  },
   searchContainer: {
     padding: SPACING.l,
-  },
-  searchInput: {
-    height: 50,
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    paddingHorizontal: SPACING.l,
-    paddingVertical: 0,
-    color: COLORS.paper,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: COLORS.pressed,
-    fontFamily: FONTS.regular,
-    textAlignVertical: 'center',
   },
   content: {
     flex: 1,

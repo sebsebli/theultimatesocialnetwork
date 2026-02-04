@@ -58,6 +58,29 @@ export const FLATLIST_DEFAULTS = {
   updateCellsBatchingPeriod: 50,
 } as const;
 
+/** Shared search bar styles – use these or the SearchBar component for consistent look across the app. */
+export const SEARCH_BAR = {
+  container: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: TOKEN_COLORS.hover,
+    borderRadius: TOKEN_SIZES.borderRadius,
+    paddingHorizontal: TOKEN_SPACING.m,
+    paddingVertical: TOKEN_SPACING.s,
+    gap: TOKEN_SPACING.s,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: TOKEN_COLORS.divider,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: TOKEN_COLORS.paper,
+    paddingVertical: 4,
+    fontFamily: FONTS.regular,
+  },
+} as const;
+
 export default {
   COLORS,
   SPACING,
@@ -67,4 +90,5 @@ export default {
   HEADER,
   MODAL,
   FLATLIST_DEFAULTS,
+  SEARCH_BAR,
 };

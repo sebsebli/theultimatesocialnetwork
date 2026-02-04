@@ -103,7 +103,7 @@ export default function PostQuotesScreen() {
         keyExtractor={(item: Post) => item.id}
         renderItem={({ item }: { item: Post }) => {
           const bodyPreview = (item.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
-          const title = item.title ?? bodyPreview || 'Post';
+          const title = item.title ?? (bodyPreview || 'Post');
           const subtitle = item.author?.displayName || item.author?.handle || '';
           return (
             <View style={styles.itemWrap}>

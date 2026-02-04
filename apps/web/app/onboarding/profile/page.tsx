@@ -103,7 +103,7 @@ export default function OnboardingProfilePage() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Your public name"
-              className="w-full h-14 px-5 bg-white/5 border border-white/10 rounded-xl text-paper text-lg tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-inner"
+              className="w-full h-14 px-5 bg-white/5 border border-white/10 rounded-xl text-paper text-lg tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-inner [letter-spacing:0]"
               required
             />
           </div>
@@ -141,7 +141,7 @@ export default function OnboardingProfilePage() {
                   setHandle(value);
                 }}
                 placeholder="username"
-                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner ${
+                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner [letter-spacing:0] ${
                   handleAvailable === false
                     ? "border-red-500/50 focus:ring-red-500/30"
                     : "border-white/10 focus:ring-primary/50"
@@ -166,7 +166,7 @@ export default function OnboardingProfilePage() {
               onChange={(e) => setBio(e.target.value.slice(0, 160))}
               placeholder="Writers, thinkers, curators... what connects your thoughts?"
               rows={3}
-              className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-xl text-paper text-base placeholder-tertiary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none transition-all shadow-inner leading-relaxed"
+              className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-xl text-paper text-base tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none transition-all shadow-inner leading-relaxed [letter-spacing:0]"
             />
           </div>
 

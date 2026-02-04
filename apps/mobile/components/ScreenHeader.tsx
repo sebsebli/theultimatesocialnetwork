@@ -1,9 +1,10 @@
 import React, { memo } from 'react';
-import { View, Text, Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONTS, HEADER, createStyles } from '../constants/theme';
+import { HeaderIconButton, headerIconCircleSize, headerIconCircleMarginH } from './HeaderIconButton';
 
 const HEADER_ICON_SIZE = HEADER.iconSize;
 const HEADER_TITLE_SIZE = HEADER.titleSize;
@@ -50,14 +51,7 @@ function ScreenHeaderInner({
     <View style={[styles.container, { paddingTop: top }, style]}>
       <View style={styles.side}>
         {showBack ? (
-          <Pressable
-            onPress={handleBack}
-            style={({ pressed }: { pressed: boolean }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-          >
-            <MaterialIcons name="arrow-back" size={HEADER_ICON_SIZE} color={HEADER.iconColor} />
-          </Pressable>
+          <HeaderIconButton onPress={handleBack} icon="arrow-back" accessibilityLabel="Go back" />
         ) : (
           left ?? <View style={styles.placeholder} />
         )}
@@ -89,7 +83,7 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
   },
   side: {
-    minWidth: 40,
+    minWidth: headerIconCircleSize + headerIconCircleMarginH * 2,
     flexDirection: 'row',
     justifyContent: 'flex-start',
   },
@@ -113,16 +107,9 @@ const styles = createStyles({
     fontFamily: FONTS.semiBold,
     textAlign: 'center',
   },
-  iconBtn: {
-    padding: SPACING.s,
-    margin: -SPACING.s,
-  },
-  iconBtnPressed: {
-    opacity: 0.7,
-  },
   placeholder: {
-    width: 40,
-    height: 40,
+    width: headerIconCircleSize + headerIconCircleMarginH * 2,
+    height: headerIconCircleSize,
   },
   /** Use for Save (or other text) in right slot - same look everywhere */
   rightText: {

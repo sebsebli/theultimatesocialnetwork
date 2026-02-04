@@ -316,7 +316,7 @@ export class RecommendationService {
       }
     }
 
-    // Enforce visibility: exclude posts from protected accounts unless viewer follows
+    // Enforce visibility from author profile: exclude posts from protected accounts unless viewer follows
     resultPosts = await this.exploreService.filterPostsVisibleToViewer(
       resultPosts,
       userId,
@@ -339,7 +339,6 @@ export class RecommendationService {
     return this.postRepo
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
-      .where('post.visibility = :visibility', { visibility: 'PUBLIC' })
       .andWhere('post.deleted_at IS NULL')
       .andWhere('(author.is_protected = false OR author.is_protected IS NULL)')
       .orderBy('post.quote_count', 'DESC')
@@ -362,7 +361,6 @@ export class RecommendationService {
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.author_id IN (:...userIds)', { userIds: followedUsers })
-        .andWhere('post.visibility = :visibility', { visibility: 'PUBLIC' })
         .andWhere('post.deleted_at IS NULL')
         .orderBy('post.created_at', 'DESC')
         .take(limit)

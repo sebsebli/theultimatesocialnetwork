@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
-import { View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { Image } from 'expo-image';
-import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, HEADER, createStyles, toDimensionValue } from '../constants/theme';
+import { COLORS, HEADER, createStyles, toDimensionValue } from '../constants/theme';
+import { HeaderIconButton } from './HeaderIconButton';
 
 export interface ProfileHeaderSectionProps {
   headerImageUrl: string | null;
@@ -40,17 +40,11 @@ function ProfileHeaderSectionInner({
       <View style={styles.overlay} />
       <View style={[styles.bar, { paddingTop: safeAreaTop }]}>
         {!isSelf ? (
-          <Pressable onPress={onBack} style={styles.iconButton}>
-            <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-          </Pressable>
+          <HeaderIconButton onPress={onBack} icon="arrow-back" accessibilityLabel="Go back" />
         ) : (
-          <Pressable onPress={onEditHeader} style={styles.iconButton} accessibilityLabel={editHeaderA11yLabel}>
-            <MaterialIcons name="edit" size={HEADER.iconSize} color={HEADER.iconColor} />
-          </Pressable>
+          <HeaderIconButton onPress={onEditHeader} icon="edit" accessibilityLabel={editHeaderA11yLabel} />
         )}
-        <Pressable onPress={onOptions} style={styles.iconButton} accessibilityLabel={optionsA11yLabel} accessibilityRole="button">
-          <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-        </Pressable>
+        <HeaderIconButton onPress={onOptions} icon="more-horiz" accessibilityLabel={optionsA11yLabel} />
       </View>
     </View>
   );
@@ -97,9 +91,5 @@ const styles = createStyles({
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     zIndex: 10,
     position: 'relative',
-  },
-  iconButton: {
-    padding: SPACING.s,
-    margin: -SPACING.s,
   },
 });

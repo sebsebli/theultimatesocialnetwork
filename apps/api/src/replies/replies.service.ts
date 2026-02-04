@@ -201,7 +201,12 @@ export class RepliesService {
         );
     }
 
-    return savedReply;
+    // Return reply with author (and optional parentReply) so response matches GET list shape
+    const withAuthor = await this.replyRepo.findOne({
+      where: { id: savedReply.id },
+      relations: ['author', 'parentReply', 'parentReply.author'],
+    });
+    return withAuthor ?? savedReply;
   }
 
   async findByPost(

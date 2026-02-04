@@ -8,6 +8,7 @@ import {
   UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
+  NotFoundException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
@@ -34,19 +35,24 @@ export class TopicsController {
     @Param('slug') slug: string,
     @CurrentUser() user?: { id: string },
   ) {
-    const topic = await this.topicsService.findOne(slug, user?.id);
-    if (!topic) {
-      throw new Error('Topic not found');
+    try {
+      const topic = await this.topicsService.findOne(slug, user?.id);
+      if (!topic) {
+        throw new NotFoundException('Topic not found');
+      }
+      let isFollowing = false;
+      if (user) {
+        isFollowing = await this.topicFollowsService.isFollowing(
+          user.id,
+          topic.id,
+        );
+      }
+      return { ...topic, isFollowing };
+    } catch (err) {
+      if (err instanceof NotFoundException) throw err;
+      console.error('topics findOne error', slug, err);
+      throw err;
     }
-    // Mobile app now fetches posts separately via /posts endpoint
-    let isFollowing = false;
-    if (user) {
-      isFollowing = await this.topicFollowsService.isFollowing(
-        user.id,
-        topic.id,
-      );
-    }
-    return { ...topic, isFollowing };
   }
 
   @Get(':slug/posts')
@@ -61,7 +67,6 @@ export class TopicsController {
     try {
       const topic = await this.topicsService.findOne(slug, user?.id);
       if (!topic) return { items: [], hasMore: false };
-
       const offset = (page - 1) * limit;
       return this.topicsService.getTopicPosts(
         topic.id,
@@ -101,19 +106,22 @@ export class TopicsController {
   }
 
   @Get(':slug/sources')
+  @UseGuards(OptionalJwtAuthGuard)
   async getSources(
     @Param('slug') slug: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number = 20,
+    @CurrentUser() user?: { id: string },
   ) {
-    const topic = await this.topicsService.findOne(slug);
-    if (!topic) throw new Error('Topic not found');
+    const topic = await this.topicsService.findOne(slug, user?.id);
+    if (!topic) throw new NotFoundException('Topic not found');
 
     const offset = (page - 1) * limit;
     const sources = await this.topicsService.getTopicSources(
       topic.id,
       limit,
       offset,
+      user?.id,
     );
     return {
       items: sources,

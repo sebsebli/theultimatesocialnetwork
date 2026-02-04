@@ -18,7 +18,8 @@ import { useToast } from '../../context/ToastContext';
 import { OptionsActionSheet } from '../../components/OptionsActionSheet';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { ImageVerifyingOverlay } from '../../components/ImageVerifyingOverlay';
-
+import { HeaderIconButton, headerIconCircleSize, headerIconCircleMarginH } from '../../components/HeaderIconButton';
+import { useTabPress } from '../../context/TabPressContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
@@ -56,6 +57,19 @@ export default function ProfileScreen() {
   const [profileOptionsVisible, setProfileOptionsVisible] = useState(false);
 
   const userIdRef = useRef<string | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+  const tabPress = useTabPress();
+
+  useEffect(() => {
+    const count = tabPress?.tabPressCounts?.profile ?? 0;
+    if (count === 0) return;
+    setRefreshing(true);
+    loadProfile(1, true).finally(() => setRefreshing(false));
+    const t = setTimeout(() => {
+      flatListRef.current?.scrollToOffset({ offset: Platform.OS === 'ios' ? -insets.top : 0, animated: true });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [tabPress?.tabPressCounts?.profile]);
 
   /** Load only the list for the current tab (posts/replies/quotes/saved/collections). Uses existing uid. No GET /users/me. */
   const loadTabContent = useCallback(async (uid: string, pageNum: number, reset: boolean) => {
@@ -384,6 +398,7 @@ export default function ProfileScreen() {
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={activeTab === 'collections' ? posts : posts.filter((p: any) => !!p?.author)}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
@@ -393,24 +408,19 @@ export default function ProfileScreen() {
           renderItem={activeTab === 'collections' ? renderCollectionItem : renderItem}
           ListHeaderComponent={
             <View style={styles.profileListHeader}>
-              <View style={[styles.profileHeaderContainer, { paddingTop: insets.top }]}>
+              <View style={[styles.profileHeaderContainer, { paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
                 {/* Top Action Buttons */}
                 <View style={styles.headerBar}>
                   {isSelf ? (
-                    <View style={styles.iconButton} />
+                    <View style={{ width: headerIconCircleSize + headerIconCircleMarginH * 2, height: headerIconCircleSize }} />
                   ) : (
-                    <Pressable onPress={() => router.back()} style={styles.iconButton}>
-                      <MaterialIcons name="arrow-back" size={HEADER.iconSize} color={HEADER.iconColor} />
-                    </Pressable>
+                    <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel={t('common.back')} />
                   )}
-                  <Pressable
+                  <HeaderIconButton
                     onPress={() => setProfileOptionsVisible(true)}
-                    style={styles.iconButton}
+                    icon="more-horiz"
                     accessibilityLabel={t('profile.options', 'Options')}
-                    accessibilityRole="button"
-                  >
-                    <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={HEADER.iconColor} />
-                  </Pressable>
+                  />
                 </View>
 
                 {/* Profile Content (Avatar, Name, Bio, Stats) */}
@@ -521,12 +531,12 @@ export default function ProfileScreen() {
                           key={tab}
                           style={[styles.tab, activeTab === tab && styles.tabActive]}
                           onPress={() => setActiveTab(tab)}
-                          accessibilityLabel={count > 0 ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
+                          accessibilityLabel={count > 0 && tab !== 'replies' ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
                           accessibilityRole="tab"
                           accessibilityState={{ selected: activeTab === tab }}
                         >
                           <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]} numberOfLines={1}>
-                            {t(`profile.${tab}`)}{count > 0 ? ` (${formatCompactNumber(count)})` : ''}
+                            {t(`profile.${tab}`)}{count > 0 && tab !== 'replies' ? ` (${formatCompactNumber(count)})` : ''}
                           </Text>
                         </Pressable>
                       );
@@ -853,7 +863,7 @@ const styles = createStyles({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
-    paddingBottom: SPACING.s,
+    paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
   },
   profileHeaderContent: {
     alignItems: 'center',
@@ -862,17 +872,17 @@ const styles = createStyles({
   },
   avatarContainer: {
     position: 'relative',
-    width: 96,
-    height: 96,
+    width: 120,
+    height: 120,
     marginBottom: SPACING.xs,
   },
   avatar: {
     position: 'absolute',
     left: 0,
     top: 0,
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: COLORS.divider,
     justifyContent: 'center',
     alignItems: 'center',
@@ -883,15 +893,15 @@ const styles = createStyles({
   avatarImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 48,
+    borderRadius: 60,
   },
   avatarEditBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -975,7 +985,7 @@ const styles = createStyles({
     fontFamily: FONTS.semiBold,
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: '600',
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
