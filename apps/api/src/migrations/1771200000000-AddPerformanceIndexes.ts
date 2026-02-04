@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddPerformanceIndexes1700000000000 implements MigrationInterface {
-  name = 'AddPerformanceIndexes1700000000000';
+export class AddPerformanceIndexes1771200000000 implements MigrationInterface {
+  name = 'AddPerformanceIndexes1771200000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Follows: efficiently find followers of a user
@@ -32,8 +32,13 @@ export class AddPerformanceIndexes1700000000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX "IDX_post_edges_to_edge_created"`);
-    await queryRunner.query(`DROP INDEX "IDX_likes_post_id"`);
-    await queryRunner.query(`DROP INDEX "IDX_follows_followee_id"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_external_sources_post_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_post_edges_to_edge_created"`,
+    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_likes_post_id"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_follows_followee_id"`);
   }
 }
