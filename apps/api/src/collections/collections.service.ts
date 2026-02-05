@@ -247,8 +247,8 @@ export class CollectionsService {
         .leftJoinAndSelect('p.author', 'author')
         .where('ci.collection_id = :collectionId', { collectionId })
         .andWhere('p.deleted_at IS NULL')
-        .orderBy('(p.quote_count * 3 + p.reply_count)', 'DESC')
-        .addOrderBy('p.created_at', 'DESC')
+        .orderBy('(p.quoteCount * 3 + p.replyCount)', 'DESC')
+        .addOrderBy('p.createdAt', 'DESC')
         .skip(offset)
         .take(fetchSize);
       const items = await qb.getMany();
@@ -269,7 +269,7 @@ export class CollectionsService {
       .leftJoinAndSelect('p.author', 'author')
       .where('ci.collection_id = :collectionId', { collectionId })
       .andWhere('p.deleted_at IS NULL')
-      .orderBy('p.created_at', 'DESC')
+      .orderBy('p.createdAt', 'DESC')
       .skip(offset)
       .take(fetchSize);
     const items = await qb.getMany();
@@ -359,56 +359,66 @@ export class CollectionsService {
   ): Promise<
     { id: string; url: string; title: string | null; createdAt: Date }[]
   > {
-    const qb = this.externalSourceRepo
-      .createQueryBuilder('es')
-      .innerJoin('collection_items', 'ci', 'ci.post_id = es.post_id')
-      .innerJoin(Post, 'p', 'p.id = es.post_id AND p.deleted_at IS NULL')
-      .where('ci.collection_id = :collectionId', { collectionId })
-      .select('es.id', 'id')
-      .addSelect('es.url', 'url')
-      .addSelect('es.title', 'title')
-      .addSelect('es.created_at', 'createdAt')
-      .addSelect('es.post_id', 'postId')
-      .orderBy('es.created_at', 'DESC');
-    if (!viewerId) {
-      qb.innerJoin(
-        User,
-        'postAuthor',
-        'postAuthor.id = p.author_id AND postAuthor.is_protected = false',
-      );
-    }
-    const rows = await qb
-      .skip(offset)
-      .take(viewerId ? limit * 3 : limit)
-      .getRawMany<{
-        id: string;
-        url: string;
-        title: string | null;
-        createdAt: Date;
-        postId: string;
-      }>();
+    const toSource = (r: {
+      id: string;
+      url: string;
+      title: string | null;
+      createdAt: Date;
+      postId?: string;
+    }) => ({
+      id: r.id,
+      url: r.url,
+      title: r.title,
+      createdAt: r.createdAt,
+    });
+
+    // One row per distinct URL (most recent occurrence), from all posts in the collection
+    const publicClause = viewerId
+      ? ''
+      : `INNER JOIN users postAuthor ON postAuthor.id = p.author_id AND postAuthor.is_protected = false`;
+    const fetchLimit = viewerId ? offset + limit * 5 : limit;
+    const fetchOffset = viewerId ? 0 : offset;
+
+    type SourceRow = {
+      id: string;
+      url: string;
+      title: string | null;
+      createdAt: Date;
+      postId: string;
+    };
+    const rows = (await this.externalSourceRepo.query(
+      `
+      WITH distinct_sources AS (
+        SELECT DISTINCT ON (es.url) es.id, es.url, es.title, es.created_at, es.post_id AS "postId"
+        FROM external_sources es
+        INNER JOIN collection_items ci ON ci.post_id = es.post_id
+        INNER JOIN posts p ON p.id = es.post_id AND p.deleted_at IS NULL
+        ${publicClause}
+        WHERE ci.collection_id = $1
+        ORDER BY es.url, es.created_at DESC
+      )
+      SELECT id, url, title, created_at AS "createdAt", "postId"
+      FROM distinct_sources
+      ORDER BY "createdAt" DESC
+      LIMIT $2 OFFSET $3
+      `,
+      [collectionId, fetchLimit, fetchOffset],
+    )) as unknown as SourceRow[];
+
     if (rows.length === 0) return [];
-    if (!viewerId)
-      return rows.slice(0, limit).map(({ postId: _p, ...r }) => {
-        void _p;
-        return r;
-      });
+    if (!viewerId) return rows.map(toSource);
+
     const postIds = [...new Set(rows.map((r) => r.postId))];
     const posts = await this.postRepo.find({
       where: { id: In(postIds) },
       relations: ['author'],
       select: ['id', 'authorId'],
     });
-    const visible = await this.exploreService.filterPostsVisibleToViewer(
-      posts,
-      viewerId,
-    );
+    const visible: Post[] =
+      await this.exploreService.filterPostsVisibleToViewer(posts, viewerId);
     const visiblePostIds = new Set(visible.map((p) => p.id));
     const filtered = rows.filter((r) => visiblePostIds.has(r.postId));
-    return filtered.slice(0, limit).map(({ postId: _p, ...r }) => {
-      void _p;
-      return r;
-    });
+    return filtered.slice(offset, offset + limit).map(toSource);
   }
 
   async getCollectionContributors(

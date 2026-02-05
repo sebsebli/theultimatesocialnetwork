@@ -22,10 +22,13 @@ export function countSources(body: string): number {
     const slug = m[1].split("|")[0].trim().toLowerCase();
     if (slug) seen.add(`topic:${slug}`);
   }
-  // [text](http...)
-  const linkRe = /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+  // [text](url) or [url](text) (Cite format)
+  const linkRe = /\[([^\]]*)\]\(([^)]+)\)/g;
   while ((m = linkRe.exec(body)) !== null) {
-    seen.add(m[2]);
+    const a = (m[1] ?? "").trim();
+    const b = (m[2] ?? "").trim();
+    if (/^https?:\/\//i.test(a)) seen.add(a);
+    else if (/^https?:\/\//i.test(b)) seen.add(b);
   }
   return seen.size;
 }
@@ -41,8 +44,8 @@ export const getProtectedRanges = (
   while ((m = wikiRe.exec(text)) !== null) {
     ranges.push({ start: m.index, end: m.index + m[0].length });
   }
-  // Markdown links: [text](url) (sources)
-  const linkRe = /[[^]]*]\[[^)]*\]/g;
+  // Markdown links: [text](url) or [url](text) (sources)
+  const linkRe = /\[[^\]]*\]\([^)]*\)/g;
   while ((m = linkRe.exec(text)) !== null) {
     ranges.push({ start: m.index, end: m.index + m[0].length });
   }
@@ -87,11 +90,13 @@ export const enforceTitleAndAliasLimits = (
     }
     return `[[${content.slice(0, maxLen)}]]`;
   });
-  // Markdown links: [text](url) – truncate text to maxLen
-  out = out.replace(
-    /[[^]]*]\[[^)]*\]/g,
-    (_, linkText, url) => `[${linkText.slice(0, maxLen)}](${url})`,
-  );
+  // Markdown links: [text](url) or [url](text) – truncate display part to maxLen
+  out = out.replace(/\[([^\]]*)\]\(([^)]*)\)/g, (_, a, b) => {
+    const isUrl = (s: string) => /^https?:\/\//i.test(s);
+    if (isUrl(b)) return `[${a.slice(0, maxLen)}](${b})`;
+    if (isUrl(a)) return `[${a}](${b.slice(0, maxLen)})`;
+    return `[${a.slice(0, maxLen)}](${b})`;
+  });
   return out;
 };
 

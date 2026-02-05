@@ -63,4 +63,11 @@ export class AdminController {
   triggerSearchReindex() {
     return this.adminService.triggerSearchReindex();
   }
+
+  /** Rebuild Neo4j graph from PostgreSQL (all non-deleted posts: User, Post, AUTHORED, IN_TOPIC, LINKS_TO, QUOTES, MENTIONS). Use after restoring posts or if graph is out of sync. Runs in background. */
+  @Post('graph/rebuild')
+  @Roles('admin')
+  triggerGraphRebuild() {
+    return this.adminService.triggerGraphRebuild();
+  }
 }

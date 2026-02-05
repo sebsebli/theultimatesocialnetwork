@@ -92,20 +92,24 @@ function sourceDescription(source: Source): string | null {
   return null;
 }
 
-/** Extract [text](https://url) links from markdown body for sources parity with mobile. */
+/** Extract external links from markdown body: [text](url) or [url](text) (Cite format). */
 function extractExternalLinksFromBody(
   body: string,
 ): Array<{ url: string; title: string | null }> {
   const out: Array<{ url: string; title: string | null }> = [];
-  const linkRegex = /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+  const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
   const seen = new Set<string>();
   let m: RegExpExecArray | null;
   while ((m = linkRegex.exec(body)) !== null) {
-    const url = m[2];
-    if (seen.has(url)) continue;
-    seen.add(url);
-    const title = (m[1]?.trim() || null) ?? null;
-    out.push({ url, title });
+    const a = (m[1] ?? "").trim();
+    const b = (m[2] ?? "").trim();
+    const isUrl = (s: string) => /^https?:\/\//i.test(s);
+    const url = isUrl(b) ? b : isUrl(a) ? a : null;
+    const title = isUrl(b) ? a || null : isUrl(a) ? b || null : null;
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      out.push({ url, title });
+    }
   }
   return out;
 }

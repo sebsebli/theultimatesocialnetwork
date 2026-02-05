@@ -10,6 +10,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
   BadRequestException,
+  Header,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
@@ -71,6 +72,7 @@ export class PostsController {
   }
 
   @Get(':id')
+  @Header('Cache-Control', 'private, no-store')
   @UseGuards(OptionalJwtAuthGuard)
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
@@ -183,4 +185,3 @@ export class PostsController {
     return this.postsService.getGraph(id);
   }
 }
-

@@ -312,13 +312,19 @@ export function ProfilePage({
     );
   }
 
-  type ProfileTab = "posts" | "replies" | "quotes" | "cited" | "saved" | "collections";
-  /** Tab order matches mobile: own profile includes replies + saved; other profiles no replies, no saved */
+  type ProfileTab =
+    | "posts"
+    | "replies"
+    | "quotes"
+    | "cited"
+    | "saved"
+    | "collections";
+  /** Tab order matches mobile: own profile includes replies + saved; other profiles include replies, no saved */
   const visibleTabs: ProfileTab[] = isPublic
     ? ["posts"]
     : isSelf
       ? ["posts", "replies", "quotes", "cited", "saved", "collections"]
-      : ["posts", "quotes", "cited", "collections"];
+      : ["posts", "replies", "quotes", "cited", "collections"];
 
   return (
     <div className={`min-h-screen ${isPublic ? "pb-28" : "pb-28"}`}>
@@ -505,10 +511,11 @@ export function ProfilePage({
                 <button
                   onClick={handleFollow}
                   disabled={loading}
-                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${following || hasPendingFollowRequest
-                    ? "bg-primary border-primary text-white"
-                    : "border-primary text-primary hover:bg-primary/10"
-                    }`}
+                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${
+                    following || hasPendingFollowRequest
+                      ? "bg-primary border-primary text-white"
+                      : "border-primary text-primary hover:bg-primary/10"
+                  }`}
                 >
                   {loading
                     ? "..."
@@ -624,7 +631,7 @@ export function ProfilePage({
                           ? ((user as { keepsCount?: number }).keepsCount ?? 0)
                           : tab === "collections"
                             ? ((user as { collectionCount?: number })
-                              .collectionCount ?? 0)
+                                .collectionCount ?? 0)
                             : tab === "cited"
                               ? undefined
                               : 0;
@@ -642,16 +649,18 @@ export function ProfilePage({
                             : tab === "collections"
                               ? t("collections")
                               : tab;
-                const showCount = tab !== "replies" && count != null && count > 0;
+                const showCount =
+                  tab !== "replies" && count != null && count > 0;
                 return (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     type="button"
-                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap tabular-nums ${activeTab === tab
-                      ? "border-primary text-paper"
-                      : "border-transparent text-tertiary hover:text-paper"
-                      }`}
+                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap tabular-nums ${
+                      activeTab === tab
+                        ? "border-primary text-paper"
+                        : "border-transparent text-tertiary hover:text-paper"
+                    }`}
                   >
                     {label} {showCount ? `(${formatCompactNumber(count)})` : ""}
                   </button>
@@ -687,6 +696,51 @@ export function ProfilePage({
                 </h3>
                 <p className="text-xs text-tertiary">
                   Search & add to collections
+                </p>
+              </div>
+              <svg
+                className="w-5 h-5 text-tertiary group-hover:text-primary transition-colors"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+          )}
+
+          {/* Create & manage collections (only on Collections tab, self) */}
+          {isSelf && activeTab === "collections" && (
+            <Link
+              href="/collections"
+              className="flex items-center gap-3 px-6 py-4 border-b border-divider bg-white/[0.02] hover:bg-white/5 transition-colors group"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-paper">
+                  Create & manage collections
+                </h3>
+                <p className="text-xs text-tertiary">
+                  Add new collection or open full list
                 </p>
               </div>
               <svg
@@ -790,11 +844,7 @@ export function ProfilePage({
               <div className="space-y-0">
                 {tabData.cited && tabData.cited.length > 0 ? (
                   tabData.cited.map((post) => (
-                    <PostItem
-                      key={post.id}
-                      post={post}
-                      isPublic={isPublic}
-                    />
+                    <PostItem key={post.id} post={post} isPublic={isPublic} />
                   ))
                 ) : tabData.cited === null ? (
                   <p className="text-secondary text-sm text-center py-8">
@@ -820,8 +870,8 @@ export function ProfilePage({
                     const imageUrl =
                       (collection.recentPost?.headerImageKey
                         ? getImageUrlFromKey(
-                          collection.recentPost.headerImageKey,
-                        )
+                            collection.recentPost.headerImageKey,
+                          )
                         : null) ||
                       (collection.previewImageKey
                         ? getImageUrlFromKey(collection.previewImageKey)

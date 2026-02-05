@@ -132,7 +132,8 @@ export function TopicOrCollectionLayout({
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
+      {/* No top edge: hero header extends behind status bar; TopicCollectionHeader overlay bar uses paddingTop: insets.top */}
       <AnimatedView
         style={[
           styles.stickyBar,

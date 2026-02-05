@@ -65,9 +65,9 @@ export class RepliesService {
       );
     }
 
-    // AI Safety Check: sync (Stage 1 only) unless MODERATION_CONTENT_ASYNC=true (then worker does full check)
+    // AI Safety Check: sync (Stage 1 only) unless async (default: async for faster perceived creation; worker does full check)
     const contentModerationAsync =
-      this.configService.get<string>('MODERATION_CONTENT_ASYNC') === 'true';
+      this.configService.get<string>('MODERATION_CONTENT_ASYNC') !== 'false';
     if (!skipSafety && !contentModerationAsync) {
       const safety = await this.safetyService.checkContent(
         trimmed,

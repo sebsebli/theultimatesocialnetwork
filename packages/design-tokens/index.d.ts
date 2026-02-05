@@ -1,4 +1,9 @@
-export const COLORS: Record<string, string>;
+export const COLORS: Record<string, string> & {
+  mention?: string;
+  topic?: string;
+  postLink?: string;
+  link?: string;
+};
 export const SPACING: Record<string, number>;
 export const SIZES: Record<string, number>;
 export const LAYOUT: Record<string, number>;

@@ -248,10 +248,10 @@ services:
       # Longer timeout and allow upload when detector overloaded (e.g. many agent profile uploads)
       MODERATION_IMAGE_TIMEOUT_MS: ${MODERATION_IMAGE_TIMEOUT_MS:-45000}
       MODERATION_IMAGE_ALLOW_ON_UNAVAILABLE: ${MODERATION_IMAGE_ALLOW_ON_UNAVAILABLE:-true}
-      # Async image moderation: store first, moderate in background (scale to thousands of uploads)
-      MODERATION_IMAGE_ASYNC: ${MODERATION_IMAGE_ASYNC:-false}
-      # Async content moderation: skip sync Stage 1 check; post/reply workers do full check (scale to thousands of posts/replies)
-      MODERATION_CONTENT_ASYNC: ${MODERATION_CONTENT_ASYNC:-false}
+      # Async image moderation: store first, moderate in background (faster perceived uploads for profile/post images)
+      MODERATION_IMAGE_ASYNC: ${MODERATION_IMAGE_ASYNC:-true}
+      # Async content moderation: skip sync Stage 1 check; post/reply workers do full check (faster perceived post/reply creation)
+      MODERATION_CONTENT_ASYNC: ${MODERATION_CONTENT_ASYNC:-true}
       NODE_ENV: development
       DB_SSL: "false"
       DB_SYNCHRONIZE: "false"

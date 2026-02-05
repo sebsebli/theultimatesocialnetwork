@@ -28,6 +28,7 @@ import {
   EmptyState,
   emptyStateCenterWrapStyle,
 } from "../../components/EmptyState";
+import { FeedSkeleton } from "../../components/LoadingSkeleton";
 import { TopicCollectionHeader } from "../../components/TopicCollectionHeader";
 import { TopicOrCollectionLayout } from "../../components/TopicOrCollectionLayout";
 import { OptionsActionSheet } from "../../components/OptionsActionSheet";
@@ -347,7 +348,12 @@ export default function TopicScreen() {
   }, []);
 
   const ListEmptyComponent = useMemo(() => {
-    if (loading) return null;
+    if (loading)
+      return (
+        <View style={emptyStateCenterWrapStyle}>
+          <FeedSkeleton count={4} />
+        </View>
+      );
     const emptyContent =
       activeTab === "people" ? (
         <EmptyState

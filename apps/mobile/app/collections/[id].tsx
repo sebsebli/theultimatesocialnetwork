@@ -39,6 +39,7 @@ import {
   EmptyState,
   emptyStateCenterWrapStyle,
 } from "../../components/EmptyState";
+import { FeedSkeleton } from "../../components/LoadingSkeleton";
 import { CollectionCard } from "../../components/CollectionCard";
 import { Collection, CollectionItem } from "../../types";
 import {
@@ -420,7 +421,12 @@ export default function CollectionDetailScreen() {
   }, [showToast, t]);
 
   const ListEmptyComponent = useMemo(() => {
-    if (loading) return null;
+    if (loading)
+      return (
+        <View style={emptyStateCenterWrapStyle}>
+          <FeedSkeleton count={4} />
+        </View>
+      );
     if (activeTab === "sources") {
       return (
         <View style={emptyStateCenterWrapStyle}>

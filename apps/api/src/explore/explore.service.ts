@@ -124,14 +124,19 @@ export class ExploreService {
     const authorIds = [
       ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
     ] as string[];
+    // Read is_protected from DB (raw SQL) so we never treat public as private; only explicit true = protected. Matches posts.service findOne.
     const authorProtected = new Map<string, boolean>();
     if (authorIds.length > 0) {
-      const users = await this.userRepo.find({
-        where: { id: In(authorIds) },
-        select: ['id', 'isProtected'],
-      });
-      for (const u of users) {
-        authorProtected.set(u.id, u.isProtected);
+      const placeholders = authorIds.map((_, i) => `$${i + 1}`).join(',');
+      const rows = await this.dataSource.query<
+        { id: string; is_protected: boolean | string }[]
+      >(
+        `SELECT id, is_protected FROM users WHERE id IN (${placeholders})`,
+        authorIds,
+      );
+      for (const row of rows ?? []) {
+        const prot = row.is_protected === true || row.is_protected === 't';
+        authorProtected.set(row.id, prot);
       }
     }
     const isAuthorProtected = (authorId: string | null) =>
@@ -487,7 +492,7 @@ export class ExploreService {
         .innerJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
         .andWhere("author.handle NOT LIKE '__pending_%'")
-        .orderBy('post.created_at', 'DESC')
+        .orderBy('post.createdAt', 'DESC')
         .skip(skip)
         .take(limitNum + 1);
       if (langFilter?.length) {
@@ -508,7 +513,7 @@ export class ExploreService {
         .leftJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
         .andWhere("author.handle NOT LIKE '__pending_%'")
-        .orderBy('post.quote_count', 'DESC')
+        .orderBy('post.quoteCount', 'DESC')
         .skip(skip)
         .take(limitNum + 1);
       if (langFilter?.length) {
@@ -601,9 +606,9 @@ export class ExploreService {
       .andWhere("author.handle NOT LIKE '__pending_%'");
 
     const posts = await qb
-      .orderBy('post.quote_count', 'DESC')
-      .addOrderBy('post.reply_count', 'DESC')
-      .addOrderBy('post.created_at', 'DESC')
+      .orderBy('post.quoteCount', 'DESC')
+      .addOrderBy('post.replyCount', 'DESC')
+      .addOrderBy('post.createdAt', 'DESC')
       .take(limit * 2)
       .getMany();
 
@@ -686,7 +691,7 @@ export class ExploreService {
         .innerJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
         .andWhere("author.handle NOT LIKE '__pending_%'")
-        .orderBy('post.created_at', 'DESC')
+        .orderBy('post.createdAt', 'DESC')
         .skip(skip)
         .take(limitNum + 1);
       if (langFilter?.length) {
@@ -707,7 +712,7 @@ export class ExploreService {
         .innerJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
         .andWhere("author.handle NOT LIKE '__pending_%'")
-        .orderBy('post.quote_count', 'DESC')
+        .orderBy('post.quoteCount', 'DESC')
         .skip(skip)
         .take(limitNum + 1);
       if (langFilter?.length) {
@@ -804,11 +809,11 @@ export class ExploreService {
         .innerJoinAndSelect('post.author', 'author')
         .where('post.deleted_at IS NULL')
         .andWhere("author.handle NOT LIKE '__pending_%'")
-        .orderBy('post.created_at', 'DESC')
+        .orderBy('post.createdAt', 'DESC')
         .skip(skip)
         .take(limitNum + 1);
       if (langFilterNewsroom?.length) {
-        query.andWhere('post.lang IN (:...langs)', {
+        query.andWhere('(post.lang IS NULL OR post.lang IN (:...langs))', {
           langs: langFilterNewsroom,
         });
       }
@@ -827,11 +832,11 @@ export class ExploreService {
         .createQueryBuilder('post')
         .innerJoin('external_sources', 'source', 'source.post_id = post.id')
         .where('post.deleted_at IS NULL')
-        .orderBy('post.quote_count', 'DESC')
+        .orderBy('post.quoteCount', 'DESC')
         .skip(skip)
         .take(limitNum + 1);
       if (langFilterNewsroom?.length) {
-        idQuery.andWhere('post.lang IN (:...langs)', {
+        idQuery.andWhere('(post.lang IS NULL OR post.lang IN (:...langs))', {
           langs: langFilterNewsroom,
         });
       }
@@ -848,7 +853,7 @@ export class ExploreService {
         .andWhere(
           "(author.handle IS NULL OR author.handle NOT LIKE '__pending_%')",
         )
-        .orderBy('post.quote_count', 'DESC')
+        .orderBy('post.quoteCount', 'DESC')
         .getMany();
       posts = posts.filter((p) => !isPendingUser(p.author));
       posts = await this.filterPostsVisibleToViewer(posts, userId);
@@ -860,14 +865,14 @@ export class ExploreService {
     }
 
     // Default: recent posts with sources (recommended order)
-    const orderBy = 'post.created_at';
+    const orderBy = 'post.createdAt';
     const idQuery = this.postRepo
       .createQueryBuilder('post')
       .innerJoin('external_sources', 'source', 'source.post_id = post.id')
       .where('post.deleted_at IS NULL');
 
     if (langFilterNewsroom?.length) {
-      idQuery.andWhere('post.lang IN (:...langs)', {
+      idQuery.andWhere('(post.lang IS NULL OR post.lang IN (:...langs))', {
         langs: langFilterNewsroom,
       });
     }
@@ -946,7 +951,7 @@ export class ExploreService {
         .where(`post.id IN (${subQuery.getQuery()})`)
         .setParameters(subQuery.getParameters())
         .andWhere('post.deleted_at IS NULL')
-        .orderBy('post.created_at', 'DESC')
+        .orderBy('post.createdAt', 'DESC')
         .offset(skip)
         .limit(limitNum + 1)
         .getRawMany<{ id: string }>();
@@ -961,7 +966,7 @@ export class ExploreService {
         .andWhere(
           "(author.handle IS NULL OR author.handle NOT LIKE '__pending_%')",
         )
-        .orderBy('post.created_at', 'DESC')
+        .orderBy('post.createdAt', 'DESC')
         .getMany();
       posts = posts.filter((p) => !isPendingUser(p.author));
       posts = await this.filterPostsVisibleToViewer(posts, userId);
@@ -981,7 +986,7 @@ export class ExploreService {
       .innerJoinAndSelect('post.author', 'author')
       .where('post.deleted_at IS NULL')
       .andWhere("author.handle NOT LIKE '__pending_%'")
-      .orderBy('post.created_at', 'DESC')
+      .orderBy('post.createdAt', 'DESC')
       .skip(skip)
       .take(limitNum + 1);
 

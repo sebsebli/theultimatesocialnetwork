@@ -273,7 +273,7 @@ export default {
     newest: "Newest",
     topics: "Topics",
     people: "People",
-    quoted: "Trending",
+    quoted: "Quoted",
     deepDives: "Deep Dives",
     newsroom: "Newsroom",
     recommended: "Recommended",

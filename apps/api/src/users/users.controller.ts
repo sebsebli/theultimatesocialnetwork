@@ -122,6 +122,7 @@ export class UsersController {
     const profileBackgroundColor = '#0B0B0C';
     const threshold = await this.usersService.getQuotesBadgeThreshold();
     const quotesBadgeEligible = (me.quoteReceivedCount ?? 0) >= threshold;
+    const counts = await this.usersService.getProfileCounts(me.id);
     return {
       ...plain,
       avatarKey: me.avatarKey ?? undefined,
@@ -131,6 +132,11 @@ export class UsersController {
       profileBackgroundColor,
       needsOnboarding,
       quotesBadgeEligible,
+      postCount: counts.postCount,
+      replyCount: counts.replyCount,
+      collectionCount: counts.collectionCount,
+      keepsCount: counts.keepsCount,
+      citedCount: counts.citedCount,
       posts: me.posts?.map((p) => postToPlain(p, getImageUrl)),
     };
   }
@@ -641,6 +647,7 @@ export class UsersController {
     const collectionCount =
       (user as { collectionCount?: number })?.collectionCount ?? 0;
     const keepsCount = (user as { keepsCount?: number })?.keepsCount ?? 0;
+    const citedCount = (user as { citedCount?: number })?.citedCount ?? 0;
 
     return {
       ...plain,
@@ -658,6 +665,7 @@ export class UsersController {
       replyCount,
       collectionCount,
       keepsCount,
+      citedCount,
     };
   }
 }

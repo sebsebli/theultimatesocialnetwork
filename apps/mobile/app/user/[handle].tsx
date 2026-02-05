@@ -936,7 +936,7 @@ export default function UserProfileScreen() {
                             : tab === "saved"
                               ? (user.keepsCount ?? 0)
                               : tab === "cited"
-                                ? undefined
+                                ? (user.citedCount ?? 0)
                                 : (user.collectionCount ?? 0);
                     return (
                       <Pressable
@@ -948,7 +948,7 @@ export default function UserProfileScreen() {
                         ]}
                         onPress={() => handleTabChange(tab)}
                         accessibilityLabel={
-                          count != null && count > 0 && tab !== "replies"
+                          count != null && count > 0
                             ? `${t(`profile.${tab}`)} ${count}`
                             : t(`profile.${tab}`)
                         }
@@ -964,7 +964,7 @@ export default function UserProfileScreen() {
                           numberOfLines={1}
                         >
                           {t(`profile.${tab}`)}
-                          {count != null && count > 0 && tab !== "replies"
+                          {count != null && count > 0
                             ? ` (${formatCompactNumber(count)})`
                             : ""}
                         </Text>

@@ -261,11 +261,11 @@ export class RecommendationService {
               const vectorScore = 1.0 / (rank + 1);
 
               // Network boost
-              const followBoost = post.authorId && userProfile.followedUsers.includes(
-                post.authorId,
-              )
-                ? 0.3 * w.network
-                : 0;
+              const followBoost =
+                post.authorId &&
+                userProfile.followedUsers.includes(post.authorId)
+                  ? 0.3 * w.network
+                  : 0;
 
               // Topic boost
               const postTopics = await this.postTopicRepo.find({
@@ -341,8 +341,8 @@ export class RecommendationService {
       .leftJoinAndSelect('post.author', 'author')
       .andWhere('post.deleted_at IS NULL')
       .andWhere('(author.is_protected = false OR author.is_protected IS NULL)')
-      .orderBy('post.quote_count', 'DESC')
-      .addOrderBy('post.created_at', 'DESC')
+      .orderBy('post.quoteCount', 'DESC')
+      .addOrderBy('post.createdAt', 'DESC')
       .take(limit)
       .getMany();
   }
@@ -362,7 +362,7 @@ export class RecommendationService {
         .leftJoinAndSelect('post.author', 'author')
         .where('post.author_id IN (:...userIds)', { userIds: followedUsers })
         .andWhere('post.deleted_at IS NULL')
-        .orderBy('post.created_at', 'DESC')
+        .orderBy('post.createdAt', 'DESC')
         .take(limit)
         .getMany();
 
@@ -395,7 +395,7 @@ export class RecommendationService {
         .createQueryBuilder('user')
         .where('user.id != :userId', { userId })
         .andWhere('user.is_protected = false')
-        .orderBy('user.follower_count', 'DESC')
+        .orderBy('user.followerCount', 'DESC')
         .take(limit)
         .getMany();
       return users;
@@ -442,7 +442,7 @@ export class RecommendationService {
         .createQueryBuilder('user')
         .where('user.id != :userId', { userId })
         .andWhere('user.is_protected = false')
-        .orderBy('user.follower_count', 'DESC')
+        .orderBy('user.followerCount', 'DESC')
         .take(limit)
         .getMany();
     } else {

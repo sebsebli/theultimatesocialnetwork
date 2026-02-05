@@ -49,9 +49,8 @@ interface ThreadItem {
   unreadCount: number;
 }
 
-// @ts-ignore
-const ShareSheet = forwardRef(
-  (props: {}, ref: React.ForwardedRef<ShareSheetRef>) => {
+const ShareSheet = forwardRef<ShareSheetRef, Record<string, never>>(
+  (props, ref) => {
     const [visible, setVisible] = useState(false);
     const [postId, setPostId] = useState<string | null>(null);
     const [authorIsProtected, setAuthorIsProtected] = useState(false);
@@ -260,7 +259,7 @@ const ShareSheet = forwardRef(
           </View>
         </View>
       </Modal>
-    ) as unknown as React.JSX.Element;
+    ) as React.ReactNode;
   },
 );
 

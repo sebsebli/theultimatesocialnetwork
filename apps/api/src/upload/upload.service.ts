@@ -159,11 +159,14 @@ export class UploadService implements OnModuleInit {
       throw new BadRequestException('File size must be less than 10MB');
     }
 
+    // Prefer async when queue and upload context exist (unless explicitly disabled). Default: immediate upload, async moderation.
+    const asyncExplicitlyDisabled =
+      this.configService.get<string>('MODERATION_IMAGE_ASYNC') === 'false';
     const moderationAsync =
-      this.configService.get<string>('MODERATION_IMAGE_ASYNC') === 'true' &&
-      options?.uploadType &&
-      options?.userId &&
-      this.imageModerationQueue;
+      !asyncExplicitlyDisabled &&
+      !!options?.uploadType &&
+      !!options?.userId &&
+      !!this.imageModerationQueue;
 
     if (!moderationAsync) {
       const safety = await this.safetyService.checkImage(file.buffer);

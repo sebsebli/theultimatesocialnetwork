@@ -4,7 +4,7 @@ import Constants from "expo-constants";
 // Legacy API: copyAsync works with photo library URIs (ph://) on iOS
 import * as FileSystemLegacy from "expo-file-system/legacy";
 
-/** In dev, use Metro host so device/simulator can reach the API on the same machine. */
+/** In dev, use Metro host so device/simulator can reach the API. When host is an IP, use port 80 so Docker (nginx) works; set EXPO_PUBLIC_API_BASE_URL to host:3000/api if you run the API with npm on the host. */
 function getDevApiUrlFromMetroHost(): string | null {
   try {
     const hostUri =
@@ -12,9 +12,9 @@ function getDevApiUrlFromMetroHost(): string | null {
       (Constants.manifest as { hostUri?: string } | undefined)?.hostUri;
     if (typeof hostUri === "string") {
       const host = hostUri.split(":")[0];
-      // Use Metro host when it's an IP (e.g. 192.168.68.112) so physical device can reach API
+      // Use Metro host when it's an IP so physical device can reach API. Port 80 = Docker/nginx; for npm-run API use EXPO_PUBLIC_API_BASE_URL=http://<ip>:3000/api
       if (host && /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-        return `http://${host}:3000`;
+        return `http://${host}`;
       }
     }
   } catch {
@@ -85,7 +85,7 @@ export function getImageUrl(key: string): string {
   return `${base}/images/${encodeURIComponent(key.trim())}`;
 }
 
-/** Avatar URI for a user; prefer API-provided avatarUrl, then build from avatarKey. */
+/** Avatar URI for a user. Prefer building from avatarKey so the URL uses this app's API base (works on device/simulator when API is on another host). Fall back to API-provided avatarUrl only when no key. */
 export function getAvatarUri(
   user:
     | { avatarKey?: string | null; avatarUrl?: string | null }
@@ -94,23 +94,23 @@ export function getAvatarUri(
 ): string | null {
   if (!user) return null;
   if (
-    user.avatarUrl &&
-    typeof user.avatarUrl === "string" &&
-    user.avatarUrl.trim()
-  ) {
-    return user.avatarUrl.trim();
-  }
-  if (
     user.avatarKey &&
     typeof user.avatarKey === "string" &&
     user.avatarKey.trim()
   ) {
     return getImageUrl(user.avatarKey.trim());
   }
+  if (
+    user.avatarUrl &&
+    typeof user.avatarUrl === "string" &&
+    user.avatarUrl.trim()
+  ) {
+    return user.avatarUrl.trim();
+  }
   return null;
 }
 
-/** Post header image URI; prefer API-provided headerImageUrl, then build from headerImageKey. */
+/** Post header image URI. Prefer building from headerImageKey so the URL uses this app's API base (works on device/simulator when API is on another host). Fall back to API-provided headerImageUrl only when no key. */
 export function getPostHeaderImageUri(
   post:
     | {
@@ -122,23 +122,23 @@ export function getPostHeaderImageUri(
 ): string | null {
   if (!post) return null;
   if (
-    post.headerImageUrl &&
-    typeof post.headerImageUrl === "string" &&
-    post.headerImageUrl.trim()
-  ) {
-    return post.headerImageUrl.trim();
-  }
-  if (
     post.headerImageKey &&
     typeof post.headerImageKey === "string" &&
     post.headerImageKey.trim()
   ) {
     return getImageUrl(post.headerImageKey.trim());
   }
+  if (
+    post.headerImageUrl &&
+    typeof post.headerImageUrl === "string" &&
+    post.headerImageUrl.trim()
+  ) {
+    return post.headerImageUrl.trim();
+  }
   return null;
 }
 
-/** Topic/card recent image URI; prefer API-provided URLs (recentPostImageUrl, recentPost.headerImageUrl), then keys. */
+/** Topic/card recent image URI. Prefer keys so URL uses this app's API base; fall back to API-provided URLs. */
 export function getTopicRecentImageUri(
   item:
     | {
@@ -154,20 +154,6 @@ export function getTopicRecentImageUri(
 ): string | null {
   if (!item) return null;
   if (
-    item.recentPostImageUrl &&
-    typeof item.recentPostImageUrl === "string" &&
-    item.recentPostImageUrl.trim()
-  ) {
-    return item.recentPostImageUrl.trim();
-  }
-  if (
-    item.recentPost?.headerImageUrl &&
-    typeof item.recentPost.headerImageUrl === "string" &&
-    item.recentPost.headerImageUrl.trim()
-  ) {
-    return item.recentPost.headerImageUrl.trim();
-  }
-  if (
     item.recentPostImageKey &&
     typeof item.recentPostImageKey === "string" &&
     item.recentPostImageKey.trim()
@@ -181,10 +167,24 @@ export function getTopicRecentImageUri(
   ) {
     return getImageUrl(item.recentPost.headerImageKey.trim());
   }
+  if (
+    item.recentPostImageUrl &&
+    typeof item.recentPostImageUrl === "string" &&
+    item.recentPostImageUrl.trim()
+  ) {
+    return item.recentPostImageUrl.trim();
+  }
+  if (
+    item.recentPost?.headerImageUrl &&
+    typeof item.recentPost.headerImageUrl === "string" &&
+    item.recentPost.headerImageUrl.trim()
+  ) {
+    return item.recentPost.headerImageUrl.trim();
+  }
   return null;
 }
 
-/** Collection preview image URI; prefer API-provided previewImageUrl / recentPost.headerImageUrl, then keys. */
+/** Collection preview image URI. Prefer keys so URL uses this app's API base; fall back to API-provided URLs. */
 export function getCollectionPreviewImageUri(
   collection:
     | {
@@ -200,6 +200,20 @@ export function getCollectionPreviewImageUri(
 ): string | null {
   if (!collection) return null;
   if (
+    collection.previewImageKey &&
+    typeof collection.previewImageKey === "string" &&
+    collection.previewImageKey.trim()
+  ) {
+    return getImageUrl(collection.previewImageKey.trim());
+  }
+  if (
+    collection.recentPost?.headerImageKey &&
+    typeof collection.recentPost?.headerImageKey === "string" &&
+    collection.recentPost.headerImageKey.trim()
+  ) {
+    return getImageUrl(collection.recentPost.headerImageKey.trim());
+  }
+  if (
     collection.previewImageUrl &&
     typeof collection.previewImageUrl === "string" &&
     collection.previewImageUrl.trim()
@@ -213,19 +227,30 @@ export function getCollectionPreviewImageUri(
   ) {
     return collection.recentPost.headerImageUrl.trim();
   }
+  return null;
+}
+
+/** Profile header (banner) image URI. Prefer building from profileHeaderKey so the URL uses this app's API base. */
+export function getProfileHeaderUri(
+  user:
+    | { profileHeaderKey?: string | null; profileHeaderUrl?: string | null }
+    | null
+    | undefined,
+): string | null {
+  if (!user) return null;
   if (
-    collection.previewImageKey &&
-    typeof collection.previewImageKey === "string" &&
-    collection.previewImageKey.trim()
+    user.profileHeaderKey &&
+    typeof user.profileHeaderKey === "string" &&
+    user.profileHeaderKey.trim()
   ) {
-    return getImageUrl(collection.previewImageKey.trim());
+    return getImageUrl(user.profileHeaderKey.trim());
   }
   if (
-    collection.recentPost?.headerImageKey &&
-    typeof collection.recentPost?.headerImageKey === "string" &&
-    collection.recentPost.headerImageKey.trim()
+    user.profileHeaderUrl &&
+    typeof user.profileHeaderUrl === "string" &&
+    user.profileHeaderUrl.trim()
   ) {
-    return getImageUrl(collection.recentPost.headerImageKey.trim());
+    return user.profileHeaderUrl.trim();
   }
   return null;
 }

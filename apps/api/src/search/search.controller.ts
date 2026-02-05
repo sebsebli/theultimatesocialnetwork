@@ -69,14 +69,22 @@ export class SearchController {
     const authorIds = [
       ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
     ] as string[];
-    // Fetch isProtected from DB (do not rely on relation select – it can be undefined and wrongly treat protected as public)
+    // Read is_protected from DB (raw SQL); only explicit true = protected. Matches posts findOne.
     const authorProtected = new Map<string, boolean>();
     if (authorIds.length > 0) {
-      const users = await this.userRepo.find({
-        where: { id: In(authorIds) },
-        select: ['id', 'isProtected'],
-      });
-      for (const u of users) authorProtected.set(u.id, u.isProtected);
+      const placeholders = authorIds.map((_, i) => `$${i + 1}`).join(',');
+      const rows = await this.dataSource.query<
+        { id: string; is_protected: boolean | string }[]
+      >(
+        `SELECT id, is_protected FROM users WHERE id IN (${placeholders})`,
+        authorIds,
+      );
+      for (const row of rows ?? []) {
+        authorProtected.set(
+          row.id,
+          row.is_protected === true || row.is_protected === 't',
+        );
+      }
     }
     let followingSet = new Set<string>();
     if (_user?.id && authorIds.length > 0) {
@@ -238,11 +246,21 @@ export class SearchController {
             ] as string[];
             const authorProtected = new Map<string, boolean>();
             if (authorIds.length > 0) {
-              const users = await this.userRepo.find({
-                where: { id: In(authorIds) },
-                select: ['id', 'isProtected'],
-              });
-              for (const u of users) authorProtected.set(u.id, u.isProtected);
+              const placeholders = authorIds
+                .map((_, i) => `$${i + 1}`)
+                .join(',');
+              const rows = await this.dataSource.query<
+                { id: string; is_protected: boolean | string }[]
+              >(
+                `SELECT id, is_protected FROM users WHERE id IN (${placeholders})`,
+                authorIds,
+              );
+              for (const row of rows ?? []) {
+                authorProtected.set(
+                  row.id,
+                  row.is_protected === true || row.is_protected === 't',
+                );
+              }
             }
             let followingSet = new Set<string>();
             if (_user?.id && authorIds.length > 0) {

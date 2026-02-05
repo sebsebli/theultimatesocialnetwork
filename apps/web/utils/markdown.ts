@@ -113,8 +113,10 @@ export function bodyToPlainExcerpt(
       return content.slice(pipe + 1).trim() || content.slice(0, pipe).trim();
     return content.trim();
   });
-  // Markdown links: [text](url) -> text
-  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  // Markdown links: [text](url) or [url](text) -> use display text (non-URL part)
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, a, b) =>
+    (/^https?:\/\//i.test(b) ? a : /^https?:\/\//i.test(a) ? b : a).trim(),
+  );
   // Bold, italic, inline code: keep text only
   text = text
     .replace(/\*\*([^*]+)\*\*/g, "$1")
@@ -151,7 +153,10 @@ export function stripLeadingH1IfMatch(
 
 /** Optional metadata for resolving post link labels when no alias is provided (e.g. post title by id). deletedAt means show "(deleted content)". */
 export interface RenderMarkdownOptions {
-  referenceMetadata?: Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>;
+  referenceMetadata?: Record<
+    string,
+    { title?: string; deletedAt?: string; isProtected?: boolean }
+  >;
 }
 
 /**
@@ -235,7 +240,7 @@ export function renderMarkdown(
       const refTitle = refMeta?.title;
       const isDeleted = !!refMeta?.deletedAt;
       const isProtected = !!refMeta?.isProtected;
-      
+
       let suffix = "";
       if (isDeleted) suffix = " (deleted)";
       else if (isProtected) suffix = " (private)";
@@ -243,24 +248,29 @@ export function renderMarkdown(
       // If user provided an alias, use it. Otherwise use title or ID.
       // Append status suffix (deleted/private) unless explicitly aliased?
       // Requirement: "contain the title at least and a link that this post has been deleted"
-      // So even if aliased, we might want to know it's deleted? 
-      // Standard practice: if I aliased it, I take responsibility. 
+      // So even if aliased, we might want to know it's deleted?
+      // Standard practice: if I aliased it, I take responsibility.
       // But if no alias (citation), show title + suffix.
-      
+
       const baseText = explicitAlias || refTitle || target.target.slice(0, 8);
       // For deleted/private, if no explicit alias, show title + suffix.
-      // If explicit alias, just show alias? 
+      // If explicit alias, just show alias?
       // User said: "Referenced posts ... should contain the title at least and a link that this post has been deleted".
       // This usually implies automatic citations.
-      
+
       const displayText = isDeleted
-        ? (refTitle ? `${refTitle} (deleted)` : `(deleted content)`) 
-        : (baseText + (isProtected && !explicitAlias ? suffix : ""));
+        ? refTitle
+          ? `${refTitle} (deleted)`
+          : `(deleted content)`
+        : baseText + (isProtected && !explicitAlias ? suffix : "");
 
       const safeDisplay = escapeText(displayText);
       // Add visual cue class if deleted/private
-      const classes = isDeleted || isProtected ? "prose-tag inline hover:underline opacity-70" : "prose-tag inline hover:underline";
-      
+      const classes =
+        isDeleted || isProtected
+          ? "prose-tag inline hover:underline opacity-70"
+          : "prose-tag inline hover:underline";
+
       return `<a href="/post/${safeId}" class="${classes}">${safeDisplay}</a>`;
     }
 
@@ -274,10 +284,13 @@ export function renderMarkdown(
     }
   });
 
-  // Markdown links [text](url) – external URL style: orange, no underline (parity with mobile)
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, text, url) => {
-    const safeUrl = sanitizeUrl(url);
-    const safeText = escapeText(text);
+  // Markdown links: [text](url) or [url](text) (Cite format) – external URL style: orange, no underline (parity with mobile)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, a, b) => {
+    const isUrl = (s: string) => /^https?:\/\//i.test(s);
+    const href = isUrl(b) ? b : isUrl(a) ? a : b;
+    const display = isUrl(b) ? a : isUrl(a) ? b : a;
+    const safeUrl = sanitizeUrl(href);
+    const safeText = escapeText(display);
     return `<a href="${safeUrl}" class="prose-tag prose-link-external inline" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
   });
 

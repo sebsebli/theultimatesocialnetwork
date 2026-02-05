@@ -63,9 +63,9 @@ export class PostsService {
       KEEP_CONTENT: true,
     });
 
-    // AI Safety Check: sync (Stage 1 only) unless MODERATION_CONTENT_ASYNC=true (then worker does full check)
+    // AI Safety Check: sync (Stage 1 only) unless async (default: async for faster perceived creation; worker does full check)
     const contentModerationAsync =
-      this.configService.get<string>('MODERATION_CONTENT_ASYNC') === 'true';
+      this.configService.get<string>('MODERATION_CONTENT_ASYNC') !== 'false';
     if (!skipSafety && !contentModerationAsync) {
       const safety = await this.safetyService.checkContent(
         sanitizedBody,
@@ -338,6 +338,12 @@ export class PostsService {
     }
   }
 
+  /**
+   * Extract sources from post body on creation and persist to DB (and later to Neo4j via post worker).
+   * - [[post:uuid]] → PostEdge (LINK); [[url]] or [text](url)/[url](text) → ExternalSource; [[Topic]] → PostTopic + Topic.
+   * - @handle → Mention.
+   * Post worker then syncs: Post–IN_TOPIC→Topic, Post–LINKS_TO/QUOTES→Post, Post–MENTIONS→User, Post–CITES_EXTERNAL→ExternalUrl.
+   */
   private async processPublishedPost(
     post: Post,
     manager: EntityManager,
@@ -403,17 +409,29 @@ export class PostsService {
       }
     }
 
-    // 4b. Extract markdown links [text](url) and save as ExternalSource if not already present
+    // 4b. Extract markdown links: support both [text](url) and [url](text) (Cite format)
     const existingExternal = await manager.find(ExternalSource, {
       where: { postId: post.id },
       select: ['url'],
     });
     const existingUrls = new Set(existingExternal.map((e) => e.url));
-    const markdownLinkRegex = /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+    const markdownLinkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
     let mdMatch;
     while ((mdMatch = markdownLinkRegex.exec(post.body)) !== null) {
-      const url = mdMatch[2];
-      const linkText = mdMatch[1].trim() || null;
+      const a = (mdMatch[1] ?? '').trim();
+      const b = (mdMatch[2] ?? '').trim();
+      const urlStartsHttp = (s: string) => /^https?:\/\//i.test(s);
+      let url: string;
+      let linkText: string | null;
+      if (urlStartsHttp(b)) {
+        url = b;
+        linkText = a || null;
+      } else if (urlStartsHttp(a)) {
+        url = a;
+        linkText = b || null;
+      } else {
+        continue;
+      }
       if (!existingUrls.has(url)) {
         await manager.save(ExternalSource, {
           postId: post.id,
@@ -489,15 +507,16 @@ export class PostsService {
       return stub;
     }
 
-    // Visibility is from the author's profile only: public profile → all posts visible; protected profile → only followers (and self).
-    // Fetch isProtected from DB; do not rely on relation (can be wrong and show public profiles as private).
+    // Visibility: author's is_protected only. Public → show; protected → show only to self or followers.
+    // Read is_protected with raw SQL so we never treat public as private (only explicit true = protected).
+    // To verify in DB: SELECT u.id, u.handle, u.is_protected FROM users u JOIN posts p ON p.author_id = u.id WHERE p.id = '<post_id>';
     let authorProtected = false;
     if (post.authorId) {
-      const authorRow = await this.userRepo.findOne({
-        where: { id: post.authorId },
-        select: ['id', 'isProtected'],
-      });
-      authorProtected = authorRow?.isProtected === true;
+      const rows = await this.dataSource.query<
+        { is_protected: boolean | string }[]
+      >(`SELECT is_protected FROM users WHERE id = $1`, [post.authorId]);
+      const raw = (rows ?? [])[0]?.is_protected;
+      authorProtected = raw === true || raw === 't';
     }
 
     if (authorProtected) {
@@ -516,7 +535,7 @@ export class PostsService {
       }
 
       if (!hasAccess) {
-        // Return Private Stub
+        // Return Private Stub (only when DB says author is protected and viewer has no access)
         const stub = { ...post } as Post & { isPrivateStub?: boolean };
         stub.body = '';
         stub.title = null;
@@ -549,13 +568,22 @@ export class PostsService {
     const authorIds = [
       ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
     ] as string[];
+    // Read is_protected from DB (raw SQL); only explicit true = protected. Matches findOne.
     const authorProtected = new Map<string, boolean>();
     if (authorIds.length > 0) {
-      const users = await this.userRepo.find({
-        where: { id: In(authorIds) },
-        select: ['id', 'isProtected'],
-      });
-      for (const u of users) authorProtected.set(u.id, u.isProtected);
+      const placeholders = authorIds.map((_, i) => `$${i + 1}`).join(',');
+      const rows = await this.dataSource.query<
+        { id: string; is_protected: boolean | string }[]
+      >(
+        `SELECT id, is_protected FROM users WHERE id IN (${placeholders})`,
+        authorIds,
+      );
+      for (const row of rows ?? []) {
+        authorProtected.set(
+          row.id,
+          row.is_protected === true || row.is_protected === 't',
+        );
+      }
     }
     const out: Record<
       string,

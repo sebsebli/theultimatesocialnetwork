@@ -24,7 +24,12 @@ import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
-import { api, getAvatarUri, getPostHeaderImageUri } from "../../../utils/api";
+import {
+  api,
+  getAvatarUri,
+  getImageUrl,
+  getPostHeaderImageUri,
+} from "../../../utils/api";
 import { MarkdownText } from "../../../components/MarkdownText";
 import {
   COLORS,
@@ -122,13 +127,17 @@ export default function ReadingModeScreen() {
     avatarKey?: string | null;
   } | null>(null);
 
+  const loadIdRef = useRef(0);
   const loadPost = useCallback(async () => {
     if (!postId) return;
     setLoading(true);
     setAccessDenied(false);
     setDeniedAuthor(null);
+    const loadId = loadIdRef.current + 1;
+    loadIdRef.current = loadId;
     try {
       const postData = await api.get(`/posts/${postId}`);
+      if (loadIdRef.current !== loadId) return;
       setPost(postData);
       setLiked(!!postData?.isLiked);
       setKept(!!postData?.isKept);
@@ -140,6 +149,7 @@ export default function ReadingModeScreen() {
             isPostDownloaded(postId),
             getDownloadSavedForOffline(),
           ]);
+        if (loadIdRef.current !== loadId) return;
         setSources(Array.isArray(sourcesData) ? sourcesData : []);
         setQuotedBy(
           Array.isArray(quotesData) ? quotesData : (quotesData?.items ?? []),
@@ -148,6 +158,7 @@ export default function ReadingModeScreen() {
         setOfflineEnabled(enabled);
       }
     } catch (error: any) {
+      if (loadIdRef.current !== loadId) return;
       setPost(null);
       if (error?.status === 403 && error?.data?.author) {
         setAccessDenied(true);
@@ -170,7 +181,7 @@ export default function ReadingModeScreen() {
         showError(t("post.loadFailed"));
       }
     } finally {
-      setLoading(false);
+      if (loadIdRef.current === loadId) setLoading(false);
     }
   }, [postId, t]);
 
@@ -189,13 +200,17 @@ export default function ReadingModeScreen() {
     const urlSeen = new Set(apiExternal.map((s: any) => s.url).filter(Boolean));
     const fromBody: { url: string; title: string | null }[] = [];
     if (post?.body) {
-      const linkRegex = /\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g;
+      const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
       let m;
       while ((m = linkRegex.exec(post.body)) !== null) {
-        const url = m[2];
-        if (!urlSeen.has(url)) {
+        const a = (m[1] ?? "").trim();
+        const b = (m[2] ?? "").trim();
+        const isUrl = (s: string) => /^https?:\/\//i.test(s);
+        const url = isUrl(b) ? b : isUrl(a) ? a : null;
+        const title = isUrl(b) ? a || null : isUrl(a) ? b || null : null;
+        if (url && !urlSeen.has(url)) {
           urlSeen.add(url);
-          fromBody.push({ url, title: (m[1]?.trim() || null) ?? null });
+          fromBody.push({ url, title });
         }
       }
     }
@@ -333,89 +348,6 @@ export default function ReadingModeScreen() {
     );
   }
 
-  // Private post: either 403 (legacy) or 200 with viewerCanSeeContent false
-  const showPrivateOverlay =
-    (accessDenied && deniedAuthor) ||
-    (post && post.viewerCanSeeContent === false && post.author);
-  const privateAuthor =
-    deniedAuthor ??
-    (post?.author
-      ? {
-          id: post.author.id,
-          handle: post.author.handle ?? "",
-          displayName: post.author.displayName ?? "",
-          avatarKey: post.author.avatarKey ?? null,
-        }
-      : null);
-
-  if (showPrivateOverlay && privateAuthor) {
-    return (
-      <View style={styles.container}>
-        <View
-          style={[styles.overlayHeader, { paddingTop: insets.top }]}
-          pointerEvents="box-none"
-        >
-          <HeaderIconButton
-            onPress={() => router.back()}
-            icon="arrow-back"
-            accessibilityLabel={t("common.back")}
-          />
-          <View style={{ flex: 1 }} />
-        </View>
-        <View style={styles.privatePostOverlay}>
-          <View style={styles.privatePostBlur}>
-            <MaterialIcons name="lock" size={48} color={COLORS.tertiary} />
-            <Text style={styles.privatePostTitle}>
-              {t("post.privatePost", "This is a private post")}
-            </Text>
-            <Text style={styles.privatePostSubtext}>
-              {t(
-                "post.privatePostSubtext",
-                "Only followers can see this post. Follow the author to request access.",
-              )}
-            </Text>
-          </View>
-          <Pressable
-            style={styles.privatePostAuthorCard}
-            onPress={() =>
-              privateAuthor.handle &&
-              router.push(`/user/${privateAuthor.handle}`)
-            }
-          >
-            {getAvatarUri({ avatarKey: privateAuthor.avatarKey }) ? (
-              <Image
-                source={{
-                  uri: getAvatarUri({ avatarKey: privateAuthor.avatarKey })!,
-                }}
-                style={styles.privatePostAuthorAvatar}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={styles.privatePostAuthorAvatarPlaceholder}>
-                <Text style={styles.privatePostAuthorInitial}>
-                  {(privateAuthor.displayName || privateAuthor.handle || "?")
-                    .charAt(0)
-                    .toUpperCase()}
-                </Text>
-              </View>
-            )}
-            <View style={styles.privatePostAuthorInfo}>
-              <Text style={styles.privatePostAuthorName} numberOfLines={1}>
-                {privateAuthor.displayName || privateAuthor.handle}
-              </Text>
-              <Text style={styles.privatePostAuthorHandle} numberOfLines={1}>
-                @{privateAuthor.handle}
-              </Text>
-            </View>
-            <Text style={styles.privatePostFollowCta}>
-              {t("profile.follow", "Follow")}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
-
   if (!post) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -424,6 +356,7 @@ export default function ReadingModeScreen() {
     );
   }
 
+  // Deleted: show placeholder before private (API returns viewerCanSeeContent false for both)
   if (post.deletedAt) {
     const deletedDate = new Date(post.deletedAt);
     const formattedDate = deletedDate.toLocaleDateString(undefined, {
@@ -459,6 +392,149 @@ export default function ReadingModeScreen() {
               })}
             </Text>
           </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Private post: 403 with author, or 200 with viewerCanSeeContent false AND we have author
+  const showPrivateOverlay =
+    (accessDenied && deniedAuthor) ||
+    (post != null &&
+      post.viewerCanSeeContent === false &&
+      (deniedAuthor != null ||
+        (post.author != null &&
+          (post.author.handle != null || post.author.id != null))));
+  const privateAuthor =
+    deniedAuthor ??
+    (post?.author
+      ? {
+          id: post.author.id,
+          handle: post.author.handle ?? "",
+          displayName: post.author.displayName ?? "",
+          avatarKey: post.author.avatarKey ?? null,
+        }
+      : null);
+
+  if (showPrivateOverlay) {
+    return (
+      <View style={styles.container}>
+        <View
+          style={[styles.overlayHeader, { paddingTop: insets.top }]}
+          pointerEvents="box-none"
+        >
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back")}
+          />
+          <View style={{ flex: 1 }} />
+        </View>
+        <View style={styles.privatePostOverlay}>
+          <View style={styles.privatePostBlur}>
+            <MaterialIcons name="lock" size={48} color={COLORS.tertiary} />
+            <Text style={styles.privatePostTitle}>
+              {t("post.privatePost", "This is a private post")}
+            </Text>
+            <Text style={styles.privatePostSubtext}>
+              {t(
+                "post.privatePostSubtext",
+                "Only followers can see this post. Follow the author to request access.",
+              )}
+            </Text>
+          </View>
+          {privateAuthor != null ? (
+            <Pressable
+              style={styles.privatePostAuthorCard}
+              onPress={() =>
+                privateAuthor.handle &&
+                router.push(`/user/${privateAuthor.handle}`)
+              }
+            >
+              {getAvatarUri({ avatarKey: privateAuthor.avatarKey }) ? (
+                <Image
+                  source={{
+                    uri: getAvatarUri({ avatarKey: privateAuthor.avatarKey })!,
+                  }}
+                  style={styles.privatePostAuthorAvatar}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.privatePostAuthorAvatarPlaceholder}>
+                  <Text style={styles.privatePostAuthorInitial}>
+                    {(privateAuthor.displayName || privateAuthor.handle || "?")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.privatePostAuthorInfo}>
+                <Text style={styles.privatePostAuthorName} numberOfLines={1}>
+                  {privateAuthor.displayName || privateAuthor.handle}
+                </Text>
+                <Text style={styles.privatePostAuthorHandle} numberOfLines={1}>
+                  @{privateAuthor.handle}
+                </Text>
+              </View>
+              <Text style={styles.privatePostFollowCta}>
+                {t("profile.follow", "Follow")}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+    );
+  }
+
+  // Content hidden but no author (e.g. cached/stale or token not sent): offer retry
+  if (post.viewerCanSeeContent === false && !showPrivateOverlay) {
+    return (
+      <View style={styles.container}>
+        <View
+          style={[styles.overlayHeader, { paddingTop: insets.top }]}
+          pointerEvents="box-none"
+        >
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back")}
+          />
+          <View style={{ flex: 1 }} />
+        </View>
+        <View
+          style={[
+            styles.center,
+            { paddingHorizontal: LAYOUT.contentPaddingHorizontal },
+          ]}
+        >
+          <MaterialIcons
+            name="refresh"
+            size={48}
+            color={COLORS.tertiary}
+            style={{ marginBottom: SPACING.l }}
+          />
+          <Text style={[styles.errorText, { marginBottom: SPACING.m }]}>
+            {t(
+              "post.contentUnavailable",
+              "Content could not be loaded. If this post is visible in your feed, try again.",
+            )}
+          </Text>
+          <Pressable
+            onPress={() => loadPost()}
+            style={({ pressed }: { pressed: boolean }) => [
+              { opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Text
+              style={{
+                color: COLORS.primary,
+                fontSize: 16,
+                fontFamily: FONTS.semiBold,
+              }}
+            >
+              {t("common.retry", "Retry")}
+            </Text>
+          </Pressable>
         </View>
       </View>
     );
@@ -793,8 +869,15 @@ export default function ReadingModeScreen() {
                         : source.type === "topic"
                           ? t("post.topic", "Topic")
                           : "";
+                  const imageUri =
+                    source.type === "user" && source.avatarKey
+                      ? (getAvatarUri({ avatarKey: source.avatarKey }) ??
+                        undefined)
+                      : source.type === "topic" && source.imageKey
+                        ? getImageUrl(source.imageKey)
+                        : undefined;
                   return (
-                    <Pressable
+                    <SourceOrPostCard
                       key={
                         source.type === "external" && source.url
                           ? `ext-${source.url}`
@@ -803,56 +886,12 @@ export default function ReadingModeScreen() {
                             source.slug ??
                             `i-${index}`)
                       }
-                      style={styles.sourceCard}
+                      type={source.type}
+                      title={title}
+                      subtitle={subtitle || undefined}
                       onPress={handleSourcePress}
-                    >
-                      <View style={styles.sourceCardLeft}>
-                        {source.type === "user" ? (
-                          <View style={styles.sourceAvatar}>
-                            <Text style={styles.sourceAvatarText}>
-                              {(source.title || source.handle || "?")
-                                .charAt(0)
-                                .toUpperCase()}
-                            </Text>
-                          </View>
-                        ) : (
-                          <View style={styles.sourceIconWrap}>
-                            <MaterialIcons
-                              name={
-                                source.type === "post"
-                                  ? "article"
-                                  : source.type === "topic"
-                                    ? "tag"
-                                    : "link"
-                              }
-                              size={HEADER.iconSize}
-                              color={COLORS.primary}
-                            />
-                          </View>
-                        )}
-                        <View style={styles.sourceCardText}>
-                          <Text
-                            style={styles.sourceCardTitle}
-                            numberOfLines={1}
-                          >
-                            {title}
-                          </Text>
-                          {subtitle ? (
-                            <Text
-                              style={styles.sourceCardSubtitle}
-                              numberOfLines={2}
-                            >
-                              {subtitle}
-                            </Text>
-                          ) : null}
-                        </View>
-                      </View>
-                      <MaterialIcons
-                        name="chevron-right"
-                        size={HEADER.iconSize}
-                        color={COLORS.tertiary}
-                      />
-                    </Pressable>
+                      imageUri={imageUri ?? undefined}
+                    />
                   );
                 })}
               </View>
@@ -1194,62 +1233,6 @@ const styles = createStyles({
   },
   quotedList: {
     gap: SPACING.s,
-  },
-  sourceCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
-    padding: SPACING.m,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-  },
-  sourceCardLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    minWidth: 0,
-  },
-  sourceAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.divider,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: SPACING.m,
-  },
-  sourceAvatarText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.primary,
-    fontFamily: FONTS.semiBold,
-  },
-  sourceIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: SPACING.m,
-  },
-  sourceCardText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  sourceCardTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  sourceCardSubtitle: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-    marginTop: 2,
   },
   errorText: { color: COLORS.error, fontSize: 16, fontFamily: FONTS.medium },
   deletedPlaceholder: {

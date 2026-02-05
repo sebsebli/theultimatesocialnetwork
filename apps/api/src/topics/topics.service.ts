@@ -127,7 +127,7 @@ export class TopicsService {
       .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
       .where('pt.topic_id = :topicId', { topicId })
       .andWhere('post.deleted_at IS NULL')
-      .orderBy('post.created_at', 'DESC')
+      .orderBy('post.createdAt', 'DESC')
       .limit(20)
       .getMany();
     const visible = await this.exploreService.filterPostsVisibleToViewer(
@@ -198,10 +198,10 @@ export class TopicsService {
         query.andWhere(
           "(post.quote_count > 0 OR post.reply_count > 0 OR author.created_at < NOW() - INTERVAL '7 days')",
         );
-        query.orderBy('(post.quote_count * 3 + post.reply_count)', 'DESC');
-        query.addOrderBy('post.created_at', 'DESC');
+        query.orderBy('(post.quoteCount * 3 + post.replyCount)', 'DESC');
+        query.addOrderBy('post.createdAt', 'DESC');
       } else {
-        query.orderBy('post.created_at', 'DESC');
+        query.orderBy('post.createdAt', 'DESC');
       }
 
       const takeCount = viewerId ? (limit + 1) * 3 : limit + 1;
@@ -244,7 +244,7 @@ export class TopicsService {
       .groupBy('author.id')
       .addGroupBy('author.handle')
       .addGroupBy('author.display_name')
-      .orderBy('SUM(post.quote_count)', 'DESC')
+      .orderBy('SUM(post.quoteCount)', 'DESC')
       .addOrderBy('COUNT(post.id)', 'DESC')
       .limit(fetchLimit)
       .offset(offset);
@@ -311,49 +311,54 @@ export class TopicsService {
       topicId = topic.id;
     }
 
-    const qb = this.externalSourceRepo
-      .createQueryBuilder('es')
-      .innerJoin('post_topics', 'pt', 'pt.post_id = es.post_id')
-      .innerJoin(Post, 'p', 'p.id = es.post_id AND p.deleted_at IS NULL')
-      .where('pt.topic_id = :topicId', { topicId })
-      .select('es.id', 'id')
-      .addSelect('es.url', 'url')
-      .addSelect('es.title', 'title')
-      .addSelect('es.created_at', 'createdAt')
-      .addSelect('es.post_id', 'postId')
-      .orderBy('es.created_at', 'DESC');
-    if (!viewerId) {
-      qb.innerJoin(
-        User,
-        'postAuthor',
-        'postAuthor.id = p.author_id AND postAuthor.is_protected = false',
-      );
-    }
-    const rows = await qb
-      .skip(offset)
-      .take(viewerId ? limit * 3 : limit)
-      .getRawMany<{
-        id: string;
-        url: string;
-        title: string | null;
-        createdAt: Date;
-        postId: string;
-      }>();
-
-    if (rows.length === 0) return [];
     const toSource = (r: {
       id: string;
       url: string;
       title: string | null;
       createdAt: Date;
-      postId: string;
+      postId?: string;
     }) => ({
       id: r.id,
       url: r.url,
       title: r.title,
       createdAt: r.createdAt,
     });
-    if (!viewerId) return rows.slice(0, limit).map(toSource);
+
+    // One row per distinct URL (most recent occurrence), from all posts in the topic
+    const publicClause = viewerId
+      ? ''
+      : `INNER JOIN users postAuthor ON postAuthor.id = p.author_id AND postAuthor.is_protected = false`;
+    const fetchLimit = viewerId ? offset + limit * 5 : limit;
+    const fetchOffset = viewerId ? 0 : offset;
+
+    type SourceRow = {
+      id: string;
+      url: string;
+      title: string | null;
+      createdAt: Date;
+      postId: string;
+    };
+    const rows = (await this.externalSourceRepo.query(
+      `
+      WITH distinct_sources AS (
+        SELECT DISTINCT ON (es.url) es.id, es.url, es.title, es.created_at, es.post_id AS "postId"
+        FROM external_sources es
+        INNER JOIN post_topics pt ON pt.post_id = es.post_id
+        INNER JOIN posts p ON p.id = es.post_id AND p.deleted_at IS NULL
+        ${publicClause}
+        WHERE pt.topic_id = $1
+        ORDER BY es.url, es.created_at DESC
+      )
+      SELECT id, url, title, created_at AS "createdAt", "postId"
+      FROM distinct_sources
+      ORDER BY "createdAt" DESC
+      LIMIT $2 OFFSET $3
+      `,
+      [topicId, fetchLimit, fetchOffset],
+    )) as unknown as SourceRow[];
+
+    if (rows.length === 0) return [];
+    if (!viewerId) return rows.map(toSource);
 
     const postIds = [...new Set(rows.map((r) => r.postId))];
     const posts = await this.postRepo.find({
@@ -361,12 +366,10 @@ export class TopicsService {
       relations: ['author'],
       select: ['id', 'authorId'],
     });
-    const visible = await this.exploreService.filterPostsVisibleToViewer(
-      posts,
-      viewerId,
-    );
+    const visible: Post[] =
+      await this.exploreService.filterPostsVisibleToViewer(posts, viewerId);
     const visiblePostIds = new Set(visible.map((p) => p.id));
     const filtered = rows.filter((r) => visiblePostIds.has(r.postId));
-    return filtered.slice(0, limit).map(toSource);
+    return filtered.slice(offset, offset + limit).map(toSource);
   }
 }

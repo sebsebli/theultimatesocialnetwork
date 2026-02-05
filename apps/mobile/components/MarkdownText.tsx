@@ -1,40 +1,55 @@
-import React, { useState, useMemo, memo, isValidElement } from 'react';
-import { Text, View, Modal, Pressable, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import * as WebBrowser from 'expo-web-browser';
-import { COLORS, SPACING, SIZES, FONTS, createStyles } from '../constants/theme';
+import React, { useState, useMemo, memo, isValidElement } from "react";
+import { Text, View, Modal, Pressable, Platform } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import * as WebBrowser from "expo-web-browser";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  createStyles,
+} from "../constants/theme";
 
-const CODE_FONT = Platform.select({ ios: 'Menlo', android: 'monospace' }) ?? 'monospace';
+const CODE_FONT =
+  Platform.select({ ios: "Menlo", android: "monospace" }) ?? "monospace";
 
 interface MarkdownTextProps {
   children: string;
-  referenceMetadata?: Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>;
+  referenceMetadata?: Record<
+    string,
+    { title?: string; deletedAt?: string; isProtected?: boolean }
+  >;
   /** When set, only @handle that are in this set render as mention chips; others render as plain text (no @). Omit for published content to render all @ as mentions. */
   validMentionHandles?: Set<string> | null;
   /** When set (e.g. post.title in full view), the first line "# &lt;title&gt;" is not rendered so the title is not shown twice. */
   stripLeadingH1IfMatch?: string | null;
 }
 
-function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandles, stripLeadingH1IfMatch: titleToStrip }: MarkdownTextProps) {
+function MarkdownTextInner({
+  children,
+  referenceMetadata = {},
+  validMentionHandles,
+  stripLeadingH1IfMatch: titleToStrip,
+}: MarkdownTextProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const [modalVisible, setModalVisible] = useState(false);
   const [targets, setTargets] = useState<string[]>([]);
-  const [alias, setAlias] = useState('');
+  const [alias, setAlias] = useState("");
 
   const handleLinkPress = async (url: string | null | undefined) => {
-    if (url == null || typeof url !== 'string') return;
+    if (url == null || typeof url !== "string") return;
     const trimmed = url.trim();
     if (!trimmed) return;
-    if (trimmed.startsWith('http')) {
+    if (trimmed.startsWith("http")) {
       await WebBrowser.openBrowserAsync(trimmed, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
         toolbarColor: COLORS.ink,
         controlsColor: COLORS.primary,
       });
-    } else if (trimmed.startsWith('post:')) {
-      const id = trimmed.split(':')[1];
+    } else if (trimmed.startsWith("post:")) {
+      const id = trimmed.split(":")[1];
       if (id) router.push(`/post/${id}`);
     } else {
       // Topic: use exact wikilink target as topic ID (no slugification).
@@ -43,12 +58,18 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
     }
   };
 
-  const handleWikiLinkPress = (targetString: string | null | undefined, displayAlias?: string) => {
-    if (targetString == null || typeof targetString !== 'string') return;
-    const items = targetString.split(',').map(s => s.trim()).filter(Boolean);
+  const handleWikiLinkPress = (
+    targetString: string | null | undefined,
+    displayAlias?: string,
+  ) => {
+    if (targetString == null || typeof targetString !== "string") return;
+    const items = targetString
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (items.length > 1) {
       setTargets(items);
-      setAlias(displayAlias || 'Linked Items');
+      setAlias(displayAlias || "Linked Items");
       setModalVisible(true);
     } else if (items[0]) {
       handleLinkPress(items[0]);
@@ -58,14 +79,18 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
   // Supported: H1/H2/H3, bold **, italic _, blockquote > , list - , ordered 1. , inline code `, fenced code ```...```, [[wikilink]], [link](url), @mention
   const parseText = useMemo(() => {
     /** Single unified rule for [text](url) display: use label when provided, else for external URLs show hostname. Used in composer preview and all reading views. */
-    const getLinkDisplayText = (href: string, linkText: string, isExternal: boolean): string => {
-      const hasCustomLabel = linkText !== href && linkText !== '';
+    const getLinkDisplayText = (
+      href: string,
+      linkText: string,
+      isExternal: boolean,
+    ): string => {
+      const hasCustomLabel = linkText !== href && linkText !== "";
       if (hasCustomLabel) return linkText || href;
       if (isExternal) {
         try {
-          return new URL(href).hostname.replace(/^www\./i, '');
+          return new URL(href).hostname.replace(/^www\./i, "");
         } catch {
-          return href.length > 45 ? href.slice(0, 42) + '…' : href;
+          return href.length > 45 ? href.slice(0, 42) + "…" : href;
         }
       }
       return href;
@@ -73,152 +98,247 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
 
     if (!children) return null;
 
-    const parseLineContent = (content: string, lineStyle: any, lineKey: string): any[] => {
+    const parseLineContent = (
+      content: string,
+      lineStyle: any,
+      lineKey: string,
+    ): any[] => {
       const parts: any[] = [];
       let lastIndex = 0;
-      // Only composer-supported inline: Bold (**), Italic (_), Inline code (`), Wikilink ([[...]]), Link [...](...), Mention (@...)
-      // Inline code is intentionally matched inside bold/italic by recursing on bold/italic content.
-      const regex = /(\*\*(.*?)\*\*)|(_(.*?)_)|(`([^`]+)`)|(\[\[(.*?)(?:\|(.*?))?\]\])|(\[(.*?)\]\((.*?)\))|(@[a-zA-Z0-9_.]+)/g;
+      // Only composer-supported inline: Bold (**), Italic (_), Inline code (`), Link [...](...), Wikilink ([[...]]), Mention (@...)
+      // Match single-bracket [text](url) BEFORE double-bracket [[...]] so [name](https://...) is always an external link, never mis-parsed as topic/post.
+      const regex =
+        /(\*\*(.*?)\*\*)|(_(.*?)_)|(`([^`]+)`)|(\[(.*?)\]\((.*?)\))|(\[\[(.*?)(?:\|(.*?))?\]\])|(@[a-zA-Z0-9_.]+)/g;
       let match: RegExpExecArray | null;
       while ((match = regex.exec(content)) !== null) {
         if (match.index > lastIndex) {
-          parts.push(<Text key={`${lineKey}-${lastIndex}`} style={lineStyle}>{content.substring(lastIndex, match.index)}</Text>);
+          parts.push(
+            <Text key={`${lineKey}-${lastIndex}`} style={lineStyle}>
+              {content.substring(lastIndex, match.index)}
+            </Text>,
+          );
         }
         if (match[1]) {
           // Recursively parse bold content so inline code (and other markdown) inside renders correctly
-          parts.push(...parseLineContent(match[2], [lineStyle, styles.bold], `${lineKey}-${match.index}-b`));
+          parts.push(
+            ...parseLineContent(
+              match[2],
+              [lineStyle, styles.bold],
+              `${lineKey}-${match.index}-b`,
+            ),
+          );
         } else if (match[3]) {
           // Recursively parse italic content so inline code (and other markdown) inside renders correctly
-          parts.push(...parseLineContent(match[4], [lineStyle, styles.italic], `${lineKey}-${match.index}-i`));
+          parts.push(
+            ...parseLineContent(
+              match[4],
+              [lineStyle, styles.italic],
+              `${lineKey}-${match.index}-i`,
+            ),
+          );
         } else if (match[5]) {
           const codeContent = match[6];
-          const isMultiLine = codeContent.includes('\n');
+          const isMultiLine = codeContent.includes("\n");
           const matchIndex = match.index;
           if (isMultiLine) {
             parts.push(
-              <View key={`${lineKey}-${matchIndex}`} style={styles.inlineCodeBlockWrap}>
-                {codeContent.split('\n').map((codeLine: string, idx: number) => (
-                  <Text key={`${lineKey}-${matchIndex}-${idx}`} style={[lineStyle, styles.inlineCodeBlockLine]} selectable>
-                    {codeLine || ' '}
-                  </Text>
-                ))}
-              </View>
+              <View
+                key={`${lineKey}-${matchIndex}`}
+                style={styles.inlineCodeBlockWrap}
+              >
+                {codeContent
+                  .split("\n")
+                  .map((codeLine: string, idx: number) => (
+                    <Text
+                      key={`${lineKey}-${matchIndex}-${idx}`}
+                      style={[lineStyle, styles.inlineCodeBlockLine]}
+                      selectable
+                    >
+                      {codeLine || " "}
+                    </Text>
+                  ))}
+              </View>,
             );
           } else {
-            parts.push(<Text key={`${lineKey}-${matchIndex}`} style={[lineStyle, styles.inlineCode]}>{codeContent}</Text>);
+            parts.push(
+              <Text
+                key={`${lineKey}-${matchIndex}`}
+                style={[lineStyle, styles.inlineCode]}
+              >
+                {codeContent}
+              </Text>,
+            );
           }
         } else if (match[7]) {
-          const linkContentVal = match[8] != null ? String(match[8]) : '';
-          const aliasVal = match[9] != null ? String(match[9]) : undefined;
-          const meta = referenceMetadata ?? {};
-          let linkDisplay = aliasVal ?? linkContentVal;
-          if (!aliasVal && linkContentVal.startsWith('post:')) {
-            const id = linkContentVal.split(':')[1] ?? '';
-            const refMeta = (meta as Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>)[id] ?? (meta as Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>)[id?.toLowerCase?.() ?? ''];
-            const refTitle = refMeta?.title;
-            const isDeleted = !!refMeta?.deletedAt;
-            const isProtected = !!refMeta?.isProtected;
-            
-            if (isDeleted) {
-                linkDisplay = refTitle ? `${refTitle} (deleted)` : t('post.deletedContent', '(deleted content)');
-            } else {
-                linkDisplay = (refTitle ?? id.slice(0, 8)) + (isProtected ? ' (private)' : '');
-            }
-          }
-          parts.push(
-            <Text
-              key={`${lineKey}-${match.index}`}
-              style={[lineStyle, styles.tagText]}
-              onPress={() => handleWikiLinkPress(linkContentVal, aliasVal)}
-              numberOfLines={1}
-            >
-              {linkDisplay}
-            </Text>
+          // Markdown link [text](url) or [url](text) — matched before wikilink so [name](https://...) is always external
+          const bracketContent =
+            match[8] != null ? String(match[8]).trim() : "";
+          const parenContent = match[9] != null ? String(match[9]).trim() : "";
+          const isUrl = (s: string) =>
+            s.startsWith("http://") || s.startsWith("https://");
+          const hrefVal = isUrl(parenContent)
+            ? parenContent
+            : isUrl(bracketContent)
+              ? bracketContent
+              : parenContent || bracketContent;
+          const linkTextVal = isUrl(parenContent)
+            ? bracketContent
+            : isUrl(bracketContent)
+              ? parenContent
+              : bracketContent || parenContent;
+          const isExternalUrl = hrefVal.startsWith("http");
+          const displayText = getLinkDisplayText(
+            hrefVal,
+            linkTextVal,
+            isExternalUrl,
           );
-        } else if (match[10]) {
-          const hrefVal = match[12] != null ? String(match[12]).trim() : '';
-          const linkTextVal = match[11] != null ? String(match[11]).trim() : hrefVal;
-          const isExternalUrl = hrefVal.startsWith('http');
-          // One unified presentation: same style (secondary + underline) and same open-in-app-browser behavior for all external URLs
-          const displayText = getLinkDisplayText(hrefVal, linkTextVal, isExternalUrl);
+          const inlineLinkStyle = isExternalUrl
+            ? styles.urlLinkText
+            : hrefVal.toLowerCase().startsWith("post:")
+              ? styles.postLinkText
+              : styles.topicTagText;
           parts.push(
             <Text
               key={`${lineKey}-${match.index}`}
-              style={[lineStyle, isExternalUrl ? styles.urlLinkText : styles.tagText]}
+              style={[lineStyle, inlineLinkStyle]}
               onPress={() => handleLinkPress(hrefVal)}
               numberOfLines={1}
             >
               {displayText}
-            </Text>
+            </Text>,
+          );
+        } else if (match[10]) {
+          // Wikilink [[...]] or [[...|alias]]
+          const linkContentVal = match[11] != null ? String(match[11]) : "";
+          const aliasVal = match[12] != null ? String(match[12]) : undefined;
+          const meta = referenceMetadata ?? {};
+          let linkDisplay = aliasVal ?? linkContentVal;
+          if (!aliasVal && linkContentVal.startsWith("post:")) {
+            const id = linkContentVal.split(":")[1] ?? "";
+            const refMeta =
+              (
+                meta as Record<
+                  string,
+                  { title?: string; deletedAt?: string; isProtected?: boolean }
+                >
+              )[id] ??
+              (
+                meta as Record<
+                  string,
+                  { title?: string; deletedAt?: string; isProtected?: boolean }
+                >
+              )[id?.toLowerCase?.() ?? ""];
+            const refTitle = refMeta?.title;
+            const isDeleted = !!refMeta?.deletedAt;
+            const isProtected = !!refMeta?.isProtected;
+
+            if (isDeleted) {
+              linkDisplay = refTitle
+                ? `${refTitle} (deleted)`
+                : t("post.deletedContent", "(deleted content)");
+            } else {
+              linkDisplay =
+                (refTitle ?? id.slice(0, 8)) +
+                (isProtected ? " (private)" : "");
+            }
+          }
+          const wikilinkStyle = linkContentVal.toLowerCase().startsWith("post:")
+            ? styles.postLinkText
+            : linkContentVal.startsWith("http")
+              ? styles.urlLinkText
+              : styles.topicTagText;
+          parts.push(
+            <Text
+              key={`${lineKey}-${match.index}`}
+              style={[lineStyle, wikilinkStyle]}
+              onPress={() => handleWikiLinkPress(linkContentVal, aliasVal)}
+              numberOfLines={1}
+            >
+              {linkDisplay}
+            </Text>,
           );
         } else if (match[13]) {
           const handle = match[13].substring(1);
-          const isValidMention = validMentionHandles == null || validMentionHandles.has(handle);
+          const isValidMention =
+            validMentionHandles == null || validMentionHandles.has(handle);
           if (isValidMention) {
             parts.push(
               <Text
                 key={`${lineKey}-${match.index}`}
-                style={[lineStyle, styles.tagText]}
+                style={[lineStyle, styles.mentionText]}
                 onPress={() => router.push(`/user/${handle}`)}
               >
                 {match[13]}
-              </Text>
+              </Text>,
             );
           } else {
             // Don't render @ when user wasn't selected from suggestions / doesn't exist — show handle only (no @)
-            parts.push(<Text key={`${lineKey}-${match.index}`} style={lineStyle}>{handle}</Text>);
+            parts.push(
+              <Text key={`${lineKey}-${match.index}`} style={lineStyle}>
+                {handle}
+              </Text>,
+            );
           }
         }
         lastIndex = regex.lastIndex;
       }
       if (lastIndex < content.length) {
-        parts.push(<Text key={`${lineKey}-end`} style={lineStyle}>{content.substring(lastIndex)}</Text>);
+        parts.push(
+          <Text key={`${lineKey}-end`} style={lineStyle}>
+            {content.substring(lastIndex)}
+          </Text>,
+        );
       }
       return parts;
     };
 
     let content = children;
     if (titleToStrip && content.trim()) {
-      const firstLine = content.split('\n')[0].trim();
-      if (firstLine === '# ' + titleToStrip || firstLine === '#' + titleToStrip) {
-        content = content.slice(content.indexOf('\n') + 1).trimStart();
+      const firstLine = content.split("\n")[0].trim();
+      if (
+        firstLine === "# " + titleToStrip ||
+        firstLine === "#" + titleToStrip
+      ) {
+        content = content.slice(content.indexOf("\n") + 1).trimStart();
       }
     }
     // No line breaks before/after [[]], [text](url), @mention: collapse to space so they render inline
-    content = content.replace(/\n+\s*(\[\[[^\]]+\]\])/g, ' $1');
-    content = content.replace(/(\[\[[^\]]+\]\])\s*\n+\s*/g, '$1 ');
-    content = content.replace(/\n+\s*(\[[^\]]+\]\([^)]+\))/g, ' $1');
-    content = content.replace(/(\[[^\]]+\]\([^)]+\))\s*\n+\s*/g, '$1 ');
-    content = content.replace(/\n+\s*(@[a-zA-Z0-9_.]+)/g, ' $1');
-    content = content.replace(/(@[a-zA-Z0-9_.]+)\s*\n+\s*/g, '$1 ');
-    const lines = content.split('\n');
-    type Segment = { type: 'normal'; lines: string[] } | { type: 'code'; lines: string[] };
+    content = content.replace(/\n+\s*(\[\[[^\]]+\]\])/g, " $1");
+    content = content.replace(/(\[\[[^\]]+\]\])\s*\n+\s*/g, "$1 ");
+    content = content.replace(/\n+\s*(\[[^\]]+\]\([^)]+\))/g, " $1");
+    content = content.replace(/(\[[^\]]+\]\([^)]+\))\s*\n+\s*/g, "$1 ");
+    content = content.replace(/\n+\s*(@[a-zA-Z0-9_.]+)/g, " $1");
+    content = content.replace(/(@[a-zA-Z0-9_.]+)\s*\n+\s*/g, "$1 ");
+    const lines = content.split("\n");
+    type Segment =
+      | { type: "normal"; lines: string[] }
+      | { type: "code"; lines: string[] };
     const segments: Segment[] = [];
     let i = 0;
     while (i < lines.length) {
       const line = lines[i];
-      const isFence = line.trim().startsWith('```');
+      const isFence = line.trim().startsWith("```");
       if (isFence) {
         i += 1; // skip opening ``` or ```lang
         const codeLines: string[] = [];
         while (i < lines.length) {
-          if (lines[i].trim().startsWith('```')) {
+          if (lines[i].trim().startsWith("```")) {
             i += 1; // skip closing ```
             break;
           }
           codeLines.push(lines[i]);
           i += 1;
         }
-        segments.push({ type: 'code', lines: codeLines });
+        segments.push({ type: "code", lines: codeLines });
       } else {
         const normalLines: string[] = [];
         while (i < lines.length) {
           const l = lines[i];
-          if (l.trim().startsWith('```')) break;
+          if (l.trim().startsWith("```")) break;
           normalLines.push(l);
           i += 1;
         }
-        segments.push({ type: 'normal', lines: normalLines });
+        segments.push({ type: "normal", lines: normalLines });
       }
     }
 
@@ -226,16 +346,20 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
     let nodeKey = 0;
 
     segments.forEach((seg) => {
-      if (seg.type === 'code') {
+      if (seg.type === "code") {
         const blockKey = `code-${nodeKey++}`;
         nodes.push(
           <View key={blockKey} style={styles.codeBlockContainer}>
             {seg.lines.map((codeLine, idx) => (
-              <Text key={`${blockKey}-${idx}`} style={styles.codeBlockLine} selectable>
-                {codeLine || ' '}
+              <Text
+                key={`${blockKey}-${idx}`}
+                style={styles.codeBlockLine}
+                selectable
+              >
+                {codeLine || " "}
               </Text>
             ))}
-          </View>
+          </View>,
         );
         return;
       }
@@ -245,60 +369,72 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
         let lineStyle = styles.text;
         let content = trimmedLine;
         let prefix = null;
-        if (trimmedLine.startsWith('### ')) {
+        if (trimmedLine.startsWith("### ")) {
           lineStyle = styles.h3;
           content = trimmedLine.substring(4).trimStart();
-        } else if (trimmedLine.startsWith('## ')) {
+        } else if (trimmedLine.startsWith("## ")) {
           lineStyle = styles.h2;
           content = trimmedLine.substring(3).trimStart();
-        } else if (trimmedLine.startsWith('# ') && !trimmedLine.startsWith('## ')) {
+        } else if (
+          trimmedLine.startsWith("# ") &&
+          !trimmedLine.startsWith("## ")
+        ) {
           lineStyle = styles.h1;
           content = trimmedLine.substring(2).trimStart();
-        } else if (trimmedLine.startsWith('> ')) {
+        } else if (trimmedLine.startsWith("> ")) {
           lineStyle = styles.blockquote;
           content = trimmedLine.substring(2).trimStart();
           prefix = <View style={styles.blockquoteBar} />;
-        } else if (trimmedLine.startsWith('- ')) {
+        } else if (trimmedLine.startsWith("- ")) {
           lineStyle = styles.listItem;
           content = trimmedLine.substring(2).trimStart();
           prefix = <Text style={styles.bullet}>• </Text>;
         } else if (/^\d+\. /.test(trimmedLine)) {
           lineStyle = styles.listItem;
           const m = trimmedLine.match(/^(\d+)\. /);
-          const num = m ? m[1] : '1';
+          const num = m ? m[1] : "1";
           content = trimmedLine.substring(m ? m[0].length : 3).trimStart();
           prefix = <Text style={styles.number}>{num}. </Text>;
         } else {
           content = trimmedLine;
         }
         const lineKey = `l-${nodeKey}-${lineIndex}`;
-        if (content.trim() === '') {
+        if (content.trim() === "") {
           nodes.push(<View key={lineKey} style={{ height: SPACING.m }} />);
         } else {
           const parts = parseLineContent(content, lineStyle, lineKey);
-          const hasBlockInLine = parts.some((p: any) => isValidElement(p) && (p as { type?: unknown }).type === View);
-          const isHeading = (lineStyle as object) === (styles.h1 as object) || (lineStyle as object) === (styles.h2 as object) || (lineStyle as object) === (styles.h3 as object);
-          const isBlockquote = (lineStyle as object) === (styles.blockquote as object);
+          const hasBlockInLine = parts.some(
+            (p: any) =>
+              isValidElement(p) && (p as { type?: unknown }).type === View,
+          );
+          const isHeading =
+            (lineStyle as object) === (styles.h1 as object) ||
+            (lineStyle as object) === (styles.h2 as object) ||
+            (lineStyle as object) === (styles.h3 as object);
+          const isBlockquote =
+            (lineStyle as object) === (styles.blockquote as object);
           const lineRowStyle = [
             styles.lineRow,
             isHeading && styles.lineRowHeading,
-            isBlockquote && styles.lineRowBlockquote
+            isBlockquote && styles.lineRowBlockquote,
           ];
           if (!hasBlockInLine && parts.length > 0) {
             nodes.push(
               <View key={lineKey} style={lineRowStyle}>
                 {prefix}
-                <Text style={lineStyle}>
-                  {parts}
-                </Text>
-              </View>
+                <Text style={lineStyle}>{parts}</Text>
+              </View>,
             );
           } else {
             nodes.push(
               <View key={lineKey} style={lineRowStyle}>
                 {prefix}
-                {parts.length > 0 ? parts : <Text style={lineStyle}>{content}</Text>}
-              </View>
+                {parts.length > 0 ? (
+                  parts
+                ) : (
+                  <Text style={lineStyle}>{content}</Text>
+                )}
+              </View>,
             );
           }
         }
@@ -347,7 +483,9 @@ function MarkdownTextInner({ children, referenceMetadata = {}, validMentionHandl
   );
 }
 
-export const MarkdownText = memo(MarkdownTextInner as React.FunctionComponent<MarkdownTextProps>) as (props: MarkdownTextProps) => React.ReactElement | null;
+export const MarkdownText = memo(
+  MarkdownTextInner as React.FunctionComponent<MarkdownTextProps>,
+) as (props: MarkdownTextProps) => React.ReactElement | null;
 
 const styles = createStyles({
   container: {
@@ -364,7 +502,7 @@ const styles = createStyles({
   h1: {
     fontSize: 28,
     lineHeight: 36,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginVertical: SPACING.l,
@@ -374,7 +512,7 @@ const styles = createStyles({
   h2: {
     fontSize: 22,
     lineHeight: 30,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginVertical: SPACING.l,
@@ -384,7 +522,7 @@ const styles = createStyles({
   h3: {
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginVertical: SPACING.m,
@@ -393,7 +531,7 @@ const styles = createStyles({
   blockquote: {
     fontSize: 17,
     lineHeight: 26,
-    fontStyle: 'italic',
+    fontStyle: "italic",
     color: COLORS.secondary,
     fontFamily: FONTS.serifRegular, // Quote = Serif
     flex: 1,
@@ -405,7 +543,7 @@ const styles = createStyles({
     borderRadius: 2,
     backgroundColor: COLORS.tertiary,
     opacity: 0.5,
-    alignSelf: 'stretch',
+    alignSelf: "stretch",
     marginTop: 4,
     marginBottom: 4,
   },
@@ -425,7 +563,7 @@ const styles = createStyles({
   bullet: {
     fontSize: 18,
     lineHeight: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.tertiary,
     width: 20,
     fontFamily: FONTS.serifRegular, // Bullet matches text font
@@ -433,86 +571,99 @@ const styles = createStyles({
   number: {
     fontSize: 18,
     lineHeight: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.tertiary,
     minWidth: 24,
     fontFamily: FONTS.serifRegular, // Number matches text font
   },
   bold: {
-    fontWeight: '700',
+    fontWeight: "700",
     fontFamily: FONTS.serifSemiBold, // Bold body = Serif SemiBold
     color: COLORS.paper,
   },
   italic: {
-    fontStyle: 'italic',
+    fontStyle: "italic",
     fontFamily: FONTS.serifRegular,
   },
   /* Inline code `code` – darker bg, mono font */
   inlineCode: {
     fontFamily: CODE_FONT,
     fontSize: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     color: COLORS.paper,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   /* Multi-line inline code (backticks with newlines) */
   inlineCodeBlockWrap: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: "#1E1E1E",
     borderRadius: 8,
     padding: SPACING.m,
     marginVertical: SPACING.m,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: "rgba(255,255,255,0.1)",
   },
   inlineCodeBlockLine: {
     fontFamily: CODE_FONT,
     fontSize: 14,
-    color: '#D4D4D4',
+    color: "#D4D4D4",
     lineHeight: 22,
   },
   /* Fenced code block ```...``` */
   codeBlockContainer: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: "#1E1E1E",
     borderRadius: 8,
     padding: SPACING.m,
     marginVertical: SPACING.m,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: "rgba(255,255,255,0.1)",
   },
   codeBlockLine: {
     fontFamily: CODE_FONT,
     fontSize: 14,
-    color: '#D4D4D4',
+    color: "#D4D4D4",
     lineHeight: 22,
   },
   lineRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
     marginBottom: 0,
-    position: 'relative',
+    position: "relative",
   },
   lineRowHeading: {
     marginBottom: SPACING.xs,
   },
-  /* Tags, links, mentions – same font as body (serif), bold and distinct color */
+  /* Tags, links, mentions – same font as body (serif), bold and distinct colors from design-tokens */
   inlineLinkWrap: {
-    alignSelf: 'baseline',
+    alignSelf: "baseline",
   },
-  tagText: {
-    fontWeight: '700',
-    color: COLORS.primary,
-    fontFamily: FONTS.serifSemiBold, // Wikilinks / in-app links = primary
-  },
-  /* External URL links – warm orange, no underline; open in-app browser (composer preview + all reading views) */
-  urlLinkText: {
-    fontWeight: '600',
-    color: COLORS.link ?? '#D97A3C',
+  /** [[post:id]] in-body links */
+  postLinkText: {
+    fontWeight: "700",
+    color: COLORS.postLink ?? COLORS.primary,
     fontFamily: FONTS.serifSemiBold,
-    textDecorationLine: 'none',
+  },
+  /** @mention – design-tokens COLORS.mention */
+  mentionText: {
+    fontWeight: "700",
+    color: COLORS.mention ?? COLORS.primary,
+    fontFamily: FONTS.serifSemiBold,
+  },
+  /** [[Topic]] tags – design-tokens COLORS.topic */
+  topicTagText: {
+    fontWeight: "700",
+    color: COLORS.topic ?? COLORS.primary,
+    fontFamily: FONTS.serifSemiBold,
+  },
+  /* External URL links – design-tokens COLORS.link; open in-app browser */
+  urlLinkText: {
+    fontWeight: "600",
+    color: COLORS.link ?? "#D97A3C",
+    fontFamily: FONTS.serifSemiBold,
+    textDecorationLine: "none",
   },
   inlineLinkPressed: {
     opacity: 0.8,
@@ -520,7 +671,7 @@ const styles = createStyles({
   modalOverlay: {
     flex: 1,
     backgroundColor: COLORS.overlay,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: SPACING.l,
   },
   modalContent: {
@@ -529,14 +680,14 @@ const styles = createStyles({
     padding: SPACING.xl,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    maxHeight: '70%',
+    maxHeight: "70%",
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     marginBottom: SPACING.l,
-    textAlign: 'center',
+    textAlign: "center",
     fontFamily: FONTS.semiBold,
   },
   targetItem: {
@@ -552,7 +703,7 @@ const styles = createStyles({
   },
   closeButton: {
     marginTop: SPACING.l,
-    alignItems: 'center',
+    alignItems: "center",
     padding: SPACING.m,
   },
   closeButtonText: {

@@ -145,13 +145,17 @@ function PostItemInner({
     }[] = [];
     if (!post.body) return list;
 
-    // External links [text](url)
+    // External links: [text](url) or [url](text) (Cite format)
     const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
     let match;
     while ((match = linkRegex.exec(post.body)) !== null) {
-      if (match[2].startsWith("http")) {
-        list.push({ type: "external", title: match[1], url: match[2] });
-      }
+      const a = (match[1] ?? "").trim();
+      const b = (match[2] ?? "").trim();
+      const isUrl = (s: string) =>
+        s.startsWith("http://") || s.startsWith("https://");
+      const url = isUrl(b) ? b : isUrl(a) ? a : null;
+      const title = isUrl(b) ? a : isUrl(a) ? b : null;
+      if (url) list.push({ type: "external", title: title ?? undefined, url });
     }
 
     // Wikilinks

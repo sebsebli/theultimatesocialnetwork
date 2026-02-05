@@ -267,6 +267,7 @@ export default function EditProfileScreen() {
           : await ImagePicker.launchImageLibraryAsync(pickerOptions);
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
+      setAvatarLocalUri(asset.uri);
       setAvatarUploading(true);
       const uploadRes = await api.upload<{ key?: string; url?: string }>(
         "/upload/profile-picture",
@@ -274,6 +275,7 @@ export default function EditProfileScreen() {
       );
       const key = uploadRes?.key ?? (uploadRes as any)?.data?.key;
       if (!key || typeof key !== "string") {
+        setAvatarLocalUri(null);
         showError(t("profile.photoUpdateFailed", "Failed to update photo."));
         return;
       }
@@ -285,6 +287,7 @@ export default function EditProfileScreen() {
       setAvatarLocalUri(asset.uri);
       showSuccess(t("settings.photoUpdated", "Profile photo updated."));
     } catch (err: any) {
+      setAvatarLocalUri(null);
       showError(err?.message || t("common.error"));
     } finally {
       setAvatarUploading(false);

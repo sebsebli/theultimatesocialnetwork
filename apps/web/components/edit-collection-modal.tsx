@@ -9,6 +9,7 @@ interface EditCollectionModalProps {
     title: string;
     description?: string;
     isPublic?: boolean;
+    shareSaves?: boolean;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -24,6 +25,7 @@ export function EditCollectionModal({
   const [title, setTitle] = useState(collection.title);
   const [description, setDescription] = useState(collection.description || "");
   const [isPublic, setIsPublic] = useState(collection.isPublic !== false);
+  const [shareSaves, setShareSaves] = useState(collection.shareSaves ?? false);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -36,6 +38,7 @@ export function EditCollectionModal({
       setTitle(collection.title);
       setDescription(collection.description || "");
       setIsPublic(collection.isPublic !== false);
+      setShareSaves(collection.shareSaves ?? false);
     }
   }, [isOpen, collection]);
 
@@ -51,6 +54,7 @@ export function EditCollectionModal({
           title,
           description: description.trim() || undefined,
           isPublic,
+          shareSaves,
         }),
       });
 
@@ -125,6 +129,32 @@ export function EditCollectionModal({
               <span
                 className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition ${
                   isPublic ? "translate-x-5" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/20 px-3 py-2.5">
+            <div>
+              <p className="text-sm font-medium text-paper">Share saves</p>
+              <p className="text-xs text-tertiary mt-0.5">
+                {shareSaves
+                  ? "Others can see who saved items in this collection"
+                  : "Only you see your saves in this collection"}
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={shareSaves}
+              onClick={() => setShareSaves((s) => !s)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-0 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                shareSaves ? "bg-primary" : "bg-white/20"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition ${
+                  shareSaves ? "translate-x-5" : "translate-x-0.5"
                 }`}
               />
             </button>

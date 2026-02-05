@@ -102,6 +102,7 @@ export default function ProfileScreen() {
   const [avatarActionModalVisible, setAvatarActionModalVisible] =
     useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [pendingAvatarUri, setPendingAvatarUri] = useState<string | null>(null);
   // Collections tab: options sheet, edit modal, delete confirm
   const [collectionOptionsVisible, setCollectionOptionsVisible] =
     useState(false);
@@ -463,10 +464,12 @@ export default function ProfileScreen() {
       });
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
+      setPendingAvatarUri(asset.uri);
       setAvatarUploading(true);
       const uploadRes = await api.upload("/upload/profile-picture", asset);
       const key = uploadRes?.key ?? (uploadRes as any)?.data?.key;
       if (!key || typeof key !== "string") {
+        setPendingAvatarUri(null);
         showError(t("profile.photoUpdateFailed", "Failed to update photo."));
         return;
       }
@@ -481,8 +484,10 @@ export default function ProfileScreen() {
             }
           : prev,
       );
+      setPendingAvatarUri(null);
     } catch (e) {
       console.error(e);
+      setPendingAvatarUri(null);
       showError(t("profile.photoUpdateFailed", "Failed to update photo."));
     } finally {
       setAvatarUploading(false);
@@ -494,7 +499,8 @@ export default function ProfileScreen() {
     setAvatarActionModalVisible(true);
   }, [isSelf]);
 
-  const hasAvatar = !!getAvatarUri(user);
+  const avatarUri = pendingAvatarUri || getAvatarUri(user);
+  const hasAvatar = !!avatarUri;
   const closeAvatarAction = useCallback(
     () => setAvatarActionModalVisible(false),
     [],
@@ -639,11 +645,11 @@ export default function ProfileScreen() {
                       style={styles.avatar}
                       disabled={!isSelf || avatarUploading}
                     >
-                      {avatarUploading ? (
+                      {avatarUploading && !pendingAvatarUri ? (
                         <InlineSkeleton />
-                      ) : getAvatarUri(user) ? (
+                      ) : avatarUri ? (
                         <Image
-                          source={{ uri: getAvatarUri(user)! }}
+                          source={{ uri: avatarUri }}
                           style={styles.avatarImage}
                           contentFit="cover"
                           cachePolicy="memory-disk"
@@ -778,7 +784,7 @@ export default function ProfileScreen() {
                             : tab === "saved"
                               ? (user.keepsCount ?? 0)
                               : tab === "cited"
-                                ? undefined
+                                ? (user.citedCount ?? 0)
                                 : (user.collectionCount ?? 0);
                     return (
                       <Pressable
@@ -790,7 +796,7 @@ export default function ProfileScreen() {
                         ]}
                         onPress={() => setActiveTab(tab)}
                         accessibilityLabel={
-                          count != null && count > 0 && tab !== "replies"
+                          count != null && count > 0
                             ? `${t(`profile.${tab}`)} ${count}`
                             : t(`profile.${tab}`)
                         }
@@ -806,7 +812,7 @@ export default function ProfileScreen() {
                           numberOfLines={1}
                         >
                           {t(`profile.${tab}`)}
-                          {count != null && count > 0 && tab !== "replies"
+                          {count != null && count > 0
                             ? ` (${formatCompactNumber(count)})`
                             : ""}
                         </Text>
@@ -1002,9 +1008,9 @@ export default function ProfileScreen() {
           onPress={() => setAvatarModalVisible(false)}
         >
           <View style={styles.avatarModalContent}>
-            {getAvatarUri(user) ? (
+            {avatarUri ? (
               <Image
-                source={{ uri: getAvatarUri(user)! }}
+                source={{ uri: avatarUri }}
                 style={styles.avatarModalImage}
                 contentFit="contain"
                 cachePolicy="memory-disk"

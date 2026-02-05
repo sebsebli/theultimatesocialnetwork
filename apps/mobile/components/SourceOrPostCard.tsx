@@ -1,9 +1,17 @@
-import React, { memo } from 'react';
-import { View, Text, Pressable } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
+import React, { memo } from "react";
+import { View, Text, Pressable } from "react-native";
+import { Image } from "expo-image";
+import { MaterialIcons } from "@expo/vector-icons";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  createStyles,
+} from "../constants/theme";
 
-export type SourceOrPostCardType = 'post' | 'topic' | 'user' | 'external';
+export type SourceOrPostCardType = "post" | "topic" | "user" | "external";
 
 export interface SourceOrPostCardProps {
   type: SourceOrPostCardType;
@@ -12,31 +20,98 @@ export interface SourceOrPostCardProps {
   onPress?: () => void;
   /** For list key; optional if parent provides key */
   testID?: string;
+  /** User: profile/avatar image. Topic: most recent post image. Shown instead of icon/initial when set. */
+  imageUri?: string | null;
 }
 
+/** Accent color per source type – matches MarkdownText @/topic/post/link colors from design-tokens */
+function getSourceAccentColor(type: SourceOrPostCardType): string {
+  switch (type) {
+    case "user":
+      return COLORS.mention ?? COLORS.primary;
+    case "topic":
+      return COLORS.topic ?? COLORS.primary;
+    case "external":
+      return COLORS.link ?? COLORS.primary;
+    case "post":
+      return COLORS.postLink ?? COLORS.primary;
+    default:
+      return COLORS.primary;
+  }
+}
+
+const AVATAR_SIZE = 40;
+
 /**
- * Single shared card for sources and post references: icon/avatar + title + subtitle + chevron.
- * Used in Sources section, Referenced by, Quoted by, and Quotes list so layout is consistent everywhere.
+ * Single shared card for sources and post references: icon/avatar/image + title + subtitle + chevron.
+ * Uses design-tokens mention/topic/link/postLink for icon/avatar accent. Users show profile image when imageUri set; topics show latest post image.
  */
-function SourceOrPostCardInner({ type, title, subtitle, onPress }: SourceOrPostCardProps) {
+function SourceOrPostCardInner({
+  type,
+  title,
+  subtitle,
+  onPress,
+  imageUri,
+}: SourceOrPostCardProps) {
   const iconName =
-    type === 'post' ? 'article' : type === 'topic' ? 'tag' : type === 'external' ? 'link' : 'person';
-  const showAvatar = type === 'user';
-  const initial = (title || '?').charAt(0).toUpperCase();
+    type === "post"
+      ? "article"
+      : type === "topic"
+        ? "tag"
+        : type === "external"
+          ? "link"
+          : "person";
+  const showAvatar = type === "user";
+  const showImage =
+    (type === "user" || type === "topic") &&
+    imageUri &&
+    imageUri.trim().length > 0;
+  const initial = (title || "?").charAt(0).toUpperCase();
+  const accentColor = getSourceAccentColor(type);
 
   return (
     <Pressable
-      style={({ pressed }: { pressed: boolean }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }: { pressed: boolean }) => [
+        styles.card,
+        pressed && styles.cardPressed,
+      ]}
       onPress={onPress}
     >
       <View style={styles.cardLeft}>
-        {showAvatar ? (
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
+        {showAvatar || type === "topic" ? (
+          <View
+            style={[
+              styles.avatar,
+              !showImage && { backgroundColor: `${accentColor}22` },
+            ]}
+          >
+            {showImage ? (
+              <Image
+                source={{ uri: imageUri! }}
+                style={styles.avatarImage}
+                contentFit="cover"
+              />
+            ) : showAvatar ? (
+              <Text style={[styles.avatarText, { color: accentColor }]}>
+                {initial}
+              </Text>
+            ) : (
+              <MaterialIcons
+                name={iconName as any}
+                size={HEADER.iconSize}
+                color={accentColor}
+              />
+            )}
           </View>
         ) : (
-          <View style={styles.iconWrap}>
-            <MaterialIcons name={iconName as any} size={HEADER.iconSize} color={COLORS.primary} />
+          <View
+            style={[styles.iconWrap, { backgroundColor: `${accentColor}22` }]}
+          >
+            <MaterialIcons
+              name={iconName as any}
+              size={HEADER.iconSize}
+              color={accentColor}
+            />
           </View>
         )}
         <View style={styles.cardText}>
@@ -50,20 +125,24 @@ function SourceOrPostCardInner({ type, title, subtitle, onPress }: SourceOrPostC
           ) : null}
         </View>
       </View>
-      <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+      <MaterialIcons
+        name="chevron-right"
+        size={HEADER.iconSize}
+        color={COLORS.tertiary}
+      />
     </Pressable>
   );
 }
 
 export const SourceOrPostCard = memo(
-  SourceOrPostCardInner as React.FC<SourceOrPostCardProps>
+  SourceOrPostCardInner as React.FC<SourceOrPostCardProps>,
 ) as (props: SourceOrPostCardProps) => React.ReactElement | null;
 
 const styles = createStyles({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
     padding: SPACING.m,
@@ -72,33 +151,37 @@ const styles = createStyles({
   },
   cardPressed: { opacity: 0.9 },
   cardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
     minWidth: 0,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
     backgroundColor: COLORS.divider,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: SPACING.m,
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
   },
   avatarText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary,
+    fontWeight: "600",
     fontFamily: FONTS.semiBold,
   },
   iconWrap: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: SPACING.m,
   },
   cardText: {
@@ -107,7 +190,7 @@ const styles = createStyles({
   },
   cardTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },

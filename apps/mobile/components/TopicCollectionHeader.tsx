@@ -1,5 +1,6 @@
 import React, { memo } from "react";
 import { View, Text, Pressable, Image, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   COLORS,
   SPACING,
@@ -59,97 +60,185 @@ function TopicCollectionHeaderInner({
   onRightAction,
   children,
 }: TopicCollectionHeaderProps) {
-  const typeLabel = type === "topic" ? "TOPIC" : "COLLECTION";
   const hasHero = !!headerImageUri;
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, hasHero && styles.wrapperRelative]}>
       {hasHero ? (
-        <View style={styles.heroWrap}>
-          <Image
-            source={{ uri: headerImageUri! }}
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
-          <View style={styles.heroOverlay} />
+        <View style={styles.heroContainer}>
+          <View style={styles.heroWrap}>
+            <Image
+              source={{ uri: headerImageUri! }}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
+            <View style={styles.heroOverlay} />
+            {/* Title overlay: same pattern as post reading – bar at bottom of hero */}
+            <View style={styles.heroTitleOverlay} pointerEvents="box-none">
+              <View style={styles.heroTitleRow}>
+                <View style={styles.heroTitleContent}>
+                  <Text style={styles.heroTitleText} numberOfLines={2}>
+                    {title}
+                  </Text>
+                  {metrics &&
+                    (metrics.postCount != null ||
+                      metrics.contributorCount != null ||
+                      metrics.itemCount != null) && (
+                      <View style={styles.metricsRow}>
+                        {(metrics.postCount != null ||
+                          metrics.itemCount != null) && (
+                          <Text style={styles.heroMetricText}>
+                            {(
+                              metrics.postCount ??
+                              metrics.itemCount ??
+                              0
+                            ).toLocaleString()}{" "}
+                            {type === "collection" ? "items" : "posts"}
+                          </Text>
+                        )}
+                        {metrics.contributorCount != null && (
+                          <>
+                            {(metrics.postCount != null ||
+                              metrics.itemCount != null) && (
+                              <Text style={styles.heroMetricText}> • </Text>
+                            )}
+                            <Text style={styles.heroMetricText}>
+                              {metrics.contributorCount.toLocaleString()}{" "}
+                              contributors
+                            </Text>
+                          </>
+                        )}
+                      </View>
+                    )}
+                </View>
+                {onAction && actionLabel && (
+                  <Pressable
+                    style={[
+                      styles.heroActionButton,
+                      isActionActive && styles.actionButtonActive,
+                    ]}
+                    onPress={onAction}
+                  >
+                    <Text
+                      style={[
+                        styles.actionButtonText,
+                        isActionActive && styles.actionButtonTextActive,
+                      ]}
+                    >
+                      {actionLabel}
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          </View>
+          <View
+            style={[styles.overlayBar, { paddingTop: insets.top + SPACING.s }]}
+            pointerEvents="box-none"
+          >
+            <HeaderIconButton
+              onPress={onBack}
+              icon="arrow-back"
+              accessibilityLabel="Go back"
+            />
+            <View style={styles.headerBarSpacer} />
+            {rightAction === "search" && onRightAction && (
+              <HeaderIconButton
+                onPress={onRightAction}
+                icon="search"
+                accessibilityLabel={type === "topic" ? "Search" : "Search"}
+              />
+            )}
+            {rightAction === "more" && onRightAction && (
+              <HeaderIconButton
+                onPress={onRightAction}
+                icon="more-horiz"
+                accessibilityLabel="More options"
+              />
+            )}
+          </View>
         </View>
       ) : null}
-      <View style={[styles.header, hasHero && styles.headerOverHero]}>
-        <View style={styles.headerBar}>
-          <HeaderIconButton
-            onPress={onBack}
-            icon="arrow-back"
-            accessibilityLabel="Go back"
-          />
-          <View style={styles.headerBarSpacer} />
-          {rightAction === "search" && onRightAction && (
+      {!hasHero ? (
+        <View style={styles.header}>
+          <View style={styles.headerBar}>
             <HeaderIconButton
-              onPress={onRightAction}
-              icon="search"
-              accessibilityLabel={type === "topic" ? "Search" : "Search"}
+              onPress={onBack}
+              icon="arrow-back"
+              accessibilityLabel="Go back"
             />
-          )}
-          {rightAction === "more" && onRightAction && (
-            <HeaderIconButton
-              onPress={onRightAction}
-              icon="more-horiz"
-              accessibilityLabel="More options"
-            />
-          )}
-        </View>
-        <View style={styles.overlay}>
-          <View style={styles.overlayContent}>
-            <Text style={styles.typeLabel}>{typeLabel}</Text>
-            <Text style={styles.title}>{title}</Text>
-            {metrics &&
-              (metrics.postCount != null ||
-                metrics.contributorCount != null ||
-                metrics.itemCount != null) && (
-                <View style={styles.metricsRow}>
-                  {(metrics.postCount != null || metrics.itemCount != null) && (
-                    <Text style={styles.metricText}>
-                      {(
-                        metrics.postCount ??
-                        metrics.itemCount ??
-                        0
-                      ).toLocaleString()}{" "}
-                      {type === "collection" ? "items" : "posts"}
-                    </Text>
-                  )}
-                  {metrics.contributorCount != null && (
-                    <>
-                      {(metrics.postCount != null ||
-                        metrics.itemCount != null) && (
-                        <Text style={styles.metricText}> • </Text>
-                      )}
-                      <Text style={styles.metricText}>
-                        {metrics.contributorCount.toLocaleString()} contributors
-                      </Text>
-                    </>
-                  )}
-                </View>
-              )}
+            <View style={styles.headerBarSpacer} />
+            {rightAction === "search" && onRightAction && (
+              <HeaderIconButton
+                onPress={onRightAction}
+                icon="search"
+                accessibilityLabel={type === "topic" ? "Search" : "Search"}
+              />
+            )}
+            {rightAction === "more" && onRightAction && (
+              <HeaderIconButton
+                onPress={onRightAction}
+                icon="more-horiz"
+                accessibilityLabel="More options"
+              />
+            )}
           </View>
-          {onAction && actionLabel && (
-            <Pressable
-              style={[
-                styles.actionButton,
-                isActionActive && styles.actionButtonActive,
-              ]}
-              onPress={onAction}
-            >
-              <Text
+          <View style={styles.overlay}>
+            <View style={styles.overlayContent}>
+              <Text style={styles.title}>{title}</Text>
+              {metrics &&
+                (metrics.postCount != null ||
+                  metrics.contributorCount != null ||
+                  metrics.itemCount != null) && (
+                  <View style={styles.metricsRow}>
+                    {(metrics.postCount != null ||
+                      metrics.itemCount != null) && (
+                      <Text style={styles.metricText}>
+                        {(
+                          metrics.postCount ??
+                          metrics.itemCount ??
+                          0
+                        ).toLocaleString()}{" "}
+                        {type === "collection" ? "items" : "posts"}
+                      </Text>
+                    )}
+                    {metrics.contributorCount != null && (
+                      <>
+                        {(metrics.postCount != null ||
+                          metrics.itemCount != null) && (
+                          <Text style={styles.metricText}> • </Text>
+                        )}
+                        <Text style={styles.metricText}>
+                          {metrics.contributorCount.toLocaleString()}{" "}
+                          contributors
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                )}
+            </View>
+            {onAction && actionLabel && (
+              <Pressable
                 style={[
-                  styles.actionButtonText,
-                  isActionActive && styles.actionButtonTextActive,
+                  styles.actionButton,
+                  isActionActive && styles.actionButtonActive,
                 ]}
+                onPress={onAction}
               >
-                {actionLabel}
-              </Text>
-            </Pressable>
-          )}
+                <Text
+                  style={[
+                    styles.actionButtonText,
+                    isActionActive && styles.actionButtonTextActive,
+                  ]}
+                >
+                  {actionLabel}
+                </Text>
+              </Pressable>
+            )}
+          </View>
         </View>
-      </View>
+      ) : null}
 
       {description ? (
         <View style={styles.descriptionBlock}>
@@ -172,10 +261,30 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
     marginBottom: SPACING.m,
   },
+  wrapperRelative: {
+    position: "relative",
+  },
+  heroContainer: {
+    position: "relative",
+  },
+  overlayBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
+    paddingTop: SPACING.s,
+    paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
+    zIndex: 10,
+  },
   heroWrap: {
     width: "100%",
     aspectRatio: 1 / HERO_ASPECT,
     backgroundColor: COLORS.divider,
+    position: "relative",
+    overflow: "hidden",
   },
   heroImage: {
     width: "100%",
@@ -185,15 +294,51 @@ const styles = createStyles({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.25)",
   },
+  /* Title overlay at bottom of hero – same as post reading (heroTitleOverlay / heroTitleText) */
+  heroTitleOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: SPACING.l,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  heroTitleRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: SPACING.m,
+  },
+  heroTitleContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  heroTitleText: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 34,
+  },
+  heroMetricText: {
+    color: COLORS.secondary,
+    fontSize: 13,
+    fontFamily: FONTS.regular,
+    marginTop: 4,
+  },
+  heroActionButton: {
+    paddingHorizontal: SPACING.l,
+    paddingVertical: 8,
+    borderRadius: SIZES.borderRadiusPill,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    backgroundColor: "transparent",
+  },
   header: {
     width: "100%",
     paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
     paddingTop: SPACING.s,
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
-  },
-  headerOverHero: {
-    marginTop: -SPACING.l,
-    paddingTop: SPACING.s,
   },
   headerBar: {
     flexDirection: "row",
@@ -211,14 +356,6 @@ const styles = createStyles({
   overlayContent: {
     flex: 1,
     marginRight: SPACING.m,
-  },
-  typeLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: COLORS.tertiary,
-    letterSpacing: 0.5,
-    marginBottom: 2,
-    fontFamily: FONTS.semiBold,
   },
   title: {
     fontSize: 26,

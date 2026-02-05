@@ -144,7 +144,7 @@ export class FeedService {
       }
 
       return qb
-        .orderBy('post.created_at', 'DESC')
+        .orderBy('post.createdAt', 'DESC')
         .take(dbLimit)
         .skip(cursor ? 0 : offset) // Only use offset if no cursor
         .getMany();
@@ -174,7 +174,7 @@ export class FeedService {
 
       // Dedup at query level if possible? No, we will dedup in memory.
       return qb
-        .orderBy('post.created_at', 'DESC')
+        .orderBy('post.createdAt', 'DESC')
         .take(dbLimit)
         .skip(cursor ? 0 : offset)
         .getMany();
@@ -255,7 +255,7 @@ export class FeedService {
         .andWhere('item.added_at >= :since', {
           since: new Date(Date.now() - 24 * 60 * 60 * 1000),
         })
-        .orderBy('item.added_at', 'DESC')
+        .orderBy('item.addedAt', 'DESC')
         .limit(10)
         .getMany();
 

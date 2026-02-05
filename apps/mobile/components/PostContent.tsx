@@ -178,16 +178,24 @@ function PostContentInner({
       list.push(item);
     };
 
-    // External links [text](url)
+    // External links: [text](url) or [url](text) (Cite format)
     const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
     let match;
     while ((match = linkRegex.exec(post.body)) !== null) {
-      if (match[2].startsWith("http")) {
-        add(
-          { type: "external", title: match[1], url: match[2], icon: "link" },
-          `ext-${match[2]}`,
-        );
-      }
+      const a = (match[1] ?? "").trim();
+      const b = (match[2] ?? "").trim();
+      const isUrl = (s: string) =>
+        s.startsWith("http://") || s.startsWith("https://");
+      let url: string;
+      let title: string | null;
+      if (isUrl(b)) {
+        url = b;
+        title = a || null;
+      } else if (isUrl(a)) {
+        url = a;
+        title = b || null;
+      } else continue;
+      add({ type: "external", title, url, icon: "link" }, `ext-${url}`);
     }
 
     // Post links [[post:id|alias]]

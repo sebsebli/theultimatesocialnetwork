@@ -23,6 +23,7 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
       'CREATE INDEX user_id_idx IF NOT EXISTS FOR (u:User) ON (u.id)',
       'CREATE INDEX post_id_idx IF NOT EXISTS FOR (p:Post) ON (p.id)',
       'CREATE INDEX topic_slug_idx IF NOT EXISTS FOR (t:Topic) ON (t.slug)',
+      'CREATE INDEX external_url_url_idx IF NOT EXISTS FOR (u:ExternalUrl) ON (u.url)',
     ];
     for (const query of indexes) {
       try {

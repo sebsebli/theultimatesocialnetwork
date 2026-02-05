@@ -99,6 +99,10 @@ function getConfig() {
     ollamaImageTimeoutMs:
       parseInt(process.env.OLLAMA_IMAGE_TIMEOUT_MS || '15000', 10) || 15000,
     ollamaTextModel: process.env.OLLAMA_TEXT_MODEL || 'granite4:latest',
+    /** Only treat LLM "ban" as unsafe when confidence >= this (0–1). Reduces false positives. Default 0.65. */
+    minConfidenceToBan:
+      parseFloat(process.env.MODERATION_MIN_CONFIDENCE_TO_BAN || '0.65') ??
+      0.65,
     /** Falconsai/nsfw_image_detection service URL. When set, used for image moderation. No Ollama vision. */
     moderationImageServiceUrl: process.env.MODERATION_IMAGE_SERVICE_URL || '',
     /** Timeout for NSFW detector HTTP call (under load it can be slow). Default 45s. */
@@ -354,12 +358,14 @@ export class ContentModerationService implements OnModuleInit {
   private async stage2AIAnalysis(text: string): Promise<ModerationResult> {
     const cfg = getConfig();
     if (!this.hasTextModel) {
-      this.logger.warn('Text moderation skipped: model not available.');
+      this.logger.warn(
+        'Text moderation skipped: model not available; allowing content.',
+      );
       return {
-        safe: false,
-        reason: `Text moderation not configured. Pull ${cfg.ollamaTextModel} (OLLAMA_TEXT_MODEL).`,
+        safe: true,
+        reason: 'Text moderation not configured; allowed.',
         confidence: 0,
-        reasonCode: ModerationReasonCode.OTHER,
+        reasonCode: undefined,
       };
     }
 
@@ -393,7 +399,11 @@ export class ContentModerationService implements OnModuleInit {
         .replace(/\s*```\s*$/i, '');
       const parsed = JSON.parse(jsonRaw) as unknown;
       const result = GraniteTextSchema.parse(parsed);
-      const safe = result.type === 'okay';
+      const confidence =
+        typeof result.confidence === 'number' ? result.confidence : 0.8;
+      // Only treat as unsafe when model says "ban" AND confidence is high enough (reduces false positives)
+      const banRequested = result.type === 'ban';
+      const safe = !banRequested || confidence < cfg.minConfidenceToBan;
       const reasonCode = safe
         ? undefined
         : this.parseReasonFromGranite(
@@ -407,19 +417,19 @@ export class ContentModerationService implements OnModuleInit {
         reason: safe
           ? undefined
           : result.reasons?.join(', ') || 'Policy violation',
-        confidence:
-          typeof result.confidence === 'number' ? result.confidence : 0.8,
+        confidence,
         reasonCode,
       };
     } catch (e) {
       end();
       this.logger.warn('Ollama text moderation failed', (e as Error).message);
       moderationStageCounter.inc({ stage: 'ollama_fail' });
+      // Fail open: do not soft-delete when moderation is unavailable (timeout, Ollama down, etc.)
       return {
-        safe: false,
-        reason: 'Text moderation unavailable.',
+        safe: true,
+        reason: 'Text moderation unavailable; allowed.',
         confidence: 0,
-        reasonCode: ModerationReasonCode.OTHER,
+        reasonCode: undefined,
       };
     }
   }
@@ -573,12 +583,13 @@ export class ContentModerationService implements OnModuleInit {
       };
     } catch (e) {
       this.logger.error('checkContent threw', (e as Error).message);
-      moderationStageCounter.inc({ stage: 'error_fail_closed' });
+      moderationStageCounter.inc({ stage: 'error_fail_open' });
+      // Fail open: do not soft-delete on moderation errors (e.g. Redis/DB/embedding blip)
       return {
-        safe: false,
-        reason: 'Content moderation error.',
+        safe: true,
+        reason: 'Content moderation error; allowed.',
         confidence: 0,
-        reasonCode: ModerationReasonCode.OTHER,
+        reasonCode: undefined,
       };
     }
   }

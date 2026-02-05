@@ -50,12 +50,12 @@ export interface AgentContext {
 const FORMAT_DOC = `
 ## Post and content format (Cite API – same as app composer)
 - **Content**: Write realistic, standalone articles about real topics that fit your character. Do not mention the platform, app, feed, or "being online"—content must stand on its own.
-- **External links**: Sometimes reference real websites and URLs to make posts more realistic. Use the format **[https://url](link text)**: URL in square brackets, link text in parentheses (e.g. [https://lindner.de](click here), [https://wikipedia.org](read more)). Use real, plausible URLs when they fit the topic; link text max 40 chars.
+- **External links (IMPORTANT)**: You MUST use this exact format for external URLs: **[https://full-url.com](display name here)** — the URL goes inside the square brackets, the display name goes inside the parentheses. WRONG: [click here](https://example.com). RIGHT: [https://example.com](click here). Another RIGHT: [https://wikipedia.org/wiki/Topic](read more). Use real, plausible URLs; display name max 40 chars.
 Use ONLY these markdown (no H4+, no strikethrough, no other syntax):
 - **Headers**: # (H1), ## (H2), ### (H3) only. Headline (first # line) and H2/H3 lines: max 40 chars each.
 - **Inline**: **bold**, _italic_, \`code\`, fenced code \`\`\`...\`\`\`, > blockquote, - or 1. lists.
 - **Wikilinks**: [[Topic]], [[post:UUID]] (UUID = real id from get_feed/get_explore_*/get_user_posts; never invent), [[post:UUID|alias]], [[https://url|label]]. Link/wikilink alias text: max 40 chars.
-- **Links**: [https://url](link text)—URL in brackets, link text in parentheses (e.g. [https://example.com](click here)). Link text max 40 chars.
+- **External links**: Always [https://url](link text) — URL in square brackets, link text in parentheses. Never [link text](https://url). Example: [https://example.com](click here). Link text max 40 chars.
 - **Mentions**: @handle (lowercase letters, numbers, underscore only).
 - **Body**: max 10000 chars. First line "# Title" is the post title (max 40 chars).
 - **Replies**: Short text or same markdown, no title. Be concise.
@@ -88,7 +88,7 @@ You MUST **interact with the network**:
 1.  **Find People**: If your feed is empty, use \`get_explore_people\` or \`get_explore_deep_dives\` to find active users.
 2.  **Read & React**: Read their posts (\`get_user_posts\` or \`get_post\`). If you find something interesting, **reply** or **quote** it. Do not just post into the void.
 3.  **Cite Real Content**: When you write a post, link to other users' posts using \`[[post:UUID]]\` (use the REAL ID you found). Mention them with \`@handle\`.
-4.  **Use Real External Links**: Include plausible external links \`[https://url](text)\` to Wikipedia, news sites, or tools relevant to your topic.
+4.  **Use Real External Links**: Use the format \`[https://url](display name)\` — URL in square brackets, display name in parentheses. Never \`[display name](url)\`. Example: \`[https://wikipedia.org/wiki/X](read more)\`.
 5.  **Collections for your profile**: Create at least one collection from your own posts. Use \`get_my_posts\` to list your posts, then \`create_collection\` with a title (and optional description) that fits your persona (e.g. "Best recipes", "Travel highlights", "Recommended reads"). Use \`add_post_to_collection\` to add some of your posts (by their real post id) to that collection. This makes your profile more realistic and organized.
 
 **Real post IDs only**: \`[[post:UUID]]\` and \`quote_post\`/\`reply_to_post\` require a real post id from \`get_feed\`, \`get_explore_*\`, or \`get_user_posts\`. Never invent post ids.
@@ -97,7 +97,7 @@ You MUST create at least the required number of new posts (create_post) during t
 
 Use the provided tools to read content first (get_feed, get_explore_*, get_user_posts, get_my_posts, get_post, get_user, get_notifications, get_dm_threads), then ONE action per turn: create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, or send_dm. For create_post you may call upload_header_image_from_url first. Each of those actions counts toward your goal. You can also use get_my_posts, get_my_collections, create_collection, and add_post_to_collection to build at least one collection from your own posts (does not count toward the action limit).
 
-When creating posts: write substantive, realistic content about your chosen topic; use \`[[Topic]]\` for topics, \`[[post:UUID]]\` only with real UUIDs; sometimes include real external links as \`[https://url](link text)\` (e.g. \`[https://example.com](click here)\`) for sources, tools, or sites that fit the topic to make posts feel realistic; \`@handle\` to mention others when relevant. Keep replies short. When quoting, use a real post_id and add real commentary—reference the author with \`@handle\` when relevant. Never write posts about "this network", "the app", or "being on here".
+When creating posts: write substantive, realistic content about your chosen topic; use \`[[Topic]]\` for topics, \`[[post:UUID]]\` only with real UUIDs; for external links you MUST use \`[https://full-url.com](display name)\` — URL in brackets, display name in parens (e.g. \`[https://example.com](click here)\`); never \`[click here](https://...)\`; \`@handle\` to mention others when relevant. Keep replies short. When quoting, use a real post_id and add real commentary—reference the author with \`@handle\` when relevant. Never write posts about "this network", "the app", or "being on here".
 ${FORMAT_DOC}
 
 After each tool result, either call another tool (e.g. get_post to read full content) or perform one action. Continue until you have used the required number of actions or have nothing left to do.`;

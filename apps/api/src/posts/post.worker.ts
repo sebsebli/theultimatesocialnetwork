@@ -105,37 +105,49 @@ export class PostWorker
       }
 
       if (!post.authorId) {
-        this.logger.log(`Post ${postId} has no author (anonymized), skipping processing.`);
+        this.logger.log(
+          `Post ${postId} has no author (anonymized), skipping processing.`,
+        );
         end();
         return;
       }
 
-      // 0. Async Moderation (Full Stage 2 Check)
-      const safety = await this.safetyService.checkContent(
-        post.body,
-        userId,
-        'post',
-      );
-      if (!safety.safe) {
-        this.logger.warn(
-          `Post ${postId} failed async moderation: ${safety.reason}`,
+      // Skip async moderation for agent users (email @agents.local). Agent API skips sync check;
+      // if we ran moderation here we would soft-delete agent-created posts on false positives.
+      const authorEmail =
+        (post.author as { email?: string } | null)?.email ?? '';
+      const isAgentUser =
+        typeof authorEmail === 'string' &&
+        authorEmail.toLowerCase().endsWith('@agents.local');
+
+      if (!isAgentUser) {
+        // 0. Async Moderation (Full Stage 2 Check)
+        const safety = await this.safetyService.checkContent(
+          post.body,
+          userId,
+          'post',
         );
-        await this.safetyService
-          .recordModeration({
-            targetType: ModerationTargetType.POST,
-            targetId: postId,
-            authorId: userId,
-            reasonCode: safety.reasonCode ?? ModerationReasonCode.OTHER,
-            reasonText: safety.reason ?? 'Content moderated',
-            confidence: safety.confidence ?? 0.5,
-            contentSnapshot: post.body,
-            source: ModerationSource.ASYNC_CHECK,
-          })
-          .catch(() => {});
-        await this.postRepo.softDelete(postId);
-        end();
-        workerJobCounter.inc({ worker: 'post', status: 'moderated' });
-        return;
+        if (!safety.safe) {
+          this.logger.warn(
+            `Post ${postId} failed async moderation: ${safety.reason}`,
+          );
+          await this.safetyService
+            .recordModeration({
+              targetType: ModerationTargetType.POST,
+              targetId: postId,
+              authorId: userId,
+              reasonCode: safety.reasonCode ?? ModerationReasonCode.OTHER,
+              reasonText: safety.reason ?? 'Content moderated',
+              confidence: safety.confidence ?? 0.5,
+              contentSnapshot: post.body,
+              source: ModerationSource.ASYNC_CHECK,
+            })
+            .catch(() => {});
+          await this.postRepo.softDelete(postId);
+          end();
+          workerJobCounter.inc({ worker: 'post', status: 'moderated' });
+          return;
+        }
       }
 
       // 1. Embedding & Search Indexing
@@ -149,10 +161,12 @@ export class PostWorker
         title: post.title,
         body: post.body,
         authorId: post.authorId,
-        author: post.author ? {
-          displayName: post.author.displayName || post.author.handle,
-          handle: post.author.handle,
-        } : undefined,
+        author: post.author
+          ? {
+              displayName: post.author.displayName || post.author.handle,
+              handle: post.author.handle,
+            }
+          : undefined,
         authorProtected: post.author?.isProtected,
         lang: post.lang,
         createdAt: post.createdAt,
@@ -219,7 +233,11 @@ export class PostWorker
             const quotedPost = await this.postRepo.findOne({
               where: { id: edge.toPostId },
             });
-            if (quotedPost && quotedPost.authorId && quotedPost.authorId !== userId) {
+            if (
+              quotedPost &&
+              quotedPost.authorId &&
+              quotedPost.authorId !== userId
+            ) {
               await this.notificationHelper.createNotification({
                 userId: quotedPost.authorId,
                 type: NotificationType.QUOTE,
@@ -251,6 +269,35 @@ export class PostWorker
               postId: post.id,
             });
           }
+        }
+      }
+
+      // 2c. External sources: connect Post -> ExternalUrl in graph (sources already in DB from processPublishedPost)
+      const externalSources = await this.externalSourceRepo.find({
+        where: { postId },
+        select: ['url', 'title'],
+      });
+      for (const source of externalSources) {
+        if (!source.url?.trim()) continue;
+        try {
+          await this.neo4jService.run(
+            `
+            MATCH (p:Post {id: $postId})
+            MERGE (u:ExternalUrl {url: $url})
+            ON CREATE SET u.title = $title
+            ON MATCH SET u.title = CASE WHEN $title IS NOT NULL AND $title <> '' THEN $title ELSE u.title END
+            MERGE (p)-[:CITES_EXTERNAL]->(u)
+            `,
+            {
+              postId: post.id,
+              url: source.url.trim(),
+              title: source.title?.trim() ?? null,
+            },
+          );
+        } catch (e) {
+          this.logger.warn(
+            `Neo4j external source sync failed for ${source.url}: ${(e as Error).message}`,
+          );
         }
       }
 

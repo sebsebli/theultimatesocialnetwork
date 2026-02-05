@@ -19,6 +19,12 @@ const COLORS = {
   overlay: 'rgba(0, 0, 0, 0.5)',
   /** External URL links – warm orange, no underline */
   link: '#D97A3C',
+  /** @mention (profile/person) – distinct blue, matches sources */
+  mention: '#5B9BD5',
+  /** [[Topic]] tags – distinct teal/green, matches sources */
+  topic: '#6BB39B',
+  /** [[post:id]] in-body links – same as primary for consistency */
+  postLink: '#6E7A8A',
 };
 
 const SPACING = {
@@ -102,6 +108,10 @@ function toTailwind() {
       primaryDark: COLORS.primaryDark,
       error: COLORS.error,
       like: COLORS.like,
+      link: COLORS.link,
+      mention: COLORS.mention,
+      topic: COLORS.topic,
+      postLink: COLORS.postLink,
     },
     spacing: {
       container: '680px',
@@ -140,6 +150,10 @@ function toCssVars() {
   --like: ${COLORS.like};
   --hover: ${COLORS.hover};
   --pressed: ${COLORS.pressed};
+  --link: ${COLORS.link};
+  --mention: ${COLORS.mention};
+  --topic: ${COLORS.topic};
+  --post-link: ${COLORS.postLink};
 `.trim();
 }
 

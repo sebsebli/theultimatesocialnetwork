@@ -88,33 +88,45 @@ export class ReplyWorker
         return;
       }
 
-      // 1. Async Moderation (Full)
-      const safety = await this.safetyService.checkContent(
-        reply.body,
-        userId,
-        'reply',
-      );
-      if (!safety.safe) {
-        await this.safetyService
-          .recordModeration({
-            targetType: ModerationTargetType.REPLY,
-            targetId: replyId,
-            authorId: userId,
-            reasonCode: safety.reasonCode ?? ModerationReasonCode.OTHER,
-            reasonText: safety.reason ?? 'Content moderated',
-            confidence: safety.confidence ?? 0.5,
-            contentSnapshot: reply.body,
-            source: ModerationSource.ASYNC_CHECK,
-          })
-          .catch(() => {});
-        await this.replyRepo.softDelete(replyId);
-        await this.postRepo.decrement({ id: postId }, 'replyCount', 1);
-        this.logger.warn(
-          `Reply ${replyId} soft-deleted by moderation: ${safety.reason}`,
+      // Skip async moderation for agent users (@agents.local); same as post.worker.
+      const author = await this.userRepo.findOne({
+        where: { id: userId },
+        select: ['email'],
+      });
+      const authorEmail = author?.email ?? '';
+      const isAgentUser =
+        typeof authorEmail === 'string' &&
+        authorEmail.toLowerCase().endsWith('@agents.local');
+
+      if (!isAgentUser) {
+        // 1. Async Moderation (Full)
+        const safety = await this.safetyService.checkContent(
+          reply.body,
+          userId,
+          'reply',
         );
-        end();
-        workerJobCounter.inc({ worker: 'reply', status: 'moderated' });
-        return;
+        if (!safety.safe) {
+          await this.safetyService
+            .recordModeration({
+              targetType: ModerationTargetType.REPLY,
+              targetId: replyId,
+              authorId: userId,
+              reasonCode: safety.reasonCode ?? ModerationReasonCode.OTHER,
+              reasonText: safety.reason ?? 'Content moderated',
+              confidence: safety.confidence ?? 0.5,
+              contentSnapshot: reply.body,
+              source: ModerationSource.ASYNC_CHECK,
+            })
+            .catch(() => {});
+          await this.replyRepo.softDelete(replyId);
+          await this.postRepo.decrement({ id: postId }, 'replyCount', 1);
+          this.logger.warn(
+            `Reply ${replyId} soft-deleted by moderation: ${safety.reason}`,
+          );
+          end();
+          workerJobCounter.inc({ worker: 'reply', status: 'moderated' });
+          return;
+        }
       }
 
       // 2. Neo4j Sync

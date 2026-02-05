@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In, Not, Like as TypeOrmLike } from 'typeorm';
@@ -68,6 +68,7 @@ async function getTitlesForPostIds(
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   private quotesBadgeThresholdCache: { value: number; at: number } | null =
     null;
 
@@ -202,7 +203,7 @@ export class UsersService {
       }
     }
 
-    const [postCount, replyCount, collectionCount, keepsCount] =
+    const [postCount, replyCount, collectionCount, keepsCount, citedCount] =
       await Promise.all([
         this.postRepo.count({
           where: { authorId: user.id, deletedAt: IsNull() },
@@ -210,6 +211,16 @@ export class UsersService {
         this.replyRepo.count({ where: { authorId: user.id } }),
         this.collectionRepo.count({ where: { ownerId: user.id } }),
         this.keepRepo.count({ where: { userId: user.id } }),
+        this.postEdgeRepo
+          .createQueryBuilder('edge')
+          .innerJoin(
+            'posts',
+            'p',
+            'p.id = edge.from_post_id AND p.author_id = :userId AND p.deleted_at IS NULL',
+          )
+          .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
+          .setParameter('userId', user.id)
+          .getCount(),
       ]);
 
     return {
@@ -222,6 +233,43 @@ export class UsersService {
       replyCount,
       collectionCount,
       keepsCount,
+      citedCount,
+    };
+  }
+
+  /** Profile tab counts for a user (used by GET /users/me and GET /users/:handle). */
+  async getProfileCounts(userId: string): Promise<{
+    postCount: number;
+    replyCount: number;
+    collectionCount: number;
+    keepsCount: number;
+    citedCount: number;
+  }> {
+    const [postCount, replyCount, collectionCount, keepsCount, citedCount] =
+      await Promise.all([
+        this.postRepo.count({
+          where: { authorId: userId, deletedAt: IsNull() },
+        }),
+        this.replyRepo.count({ where: { authorId: userId } }),
+        this.collectionRepo.count({ where: { ownerId: userId } }),
+        this.keepRepo.count({ where: { userId } }),
+        this.postEdgeRepo
+          .createQueryBuilder('edge')
+          .innerJoin(
+            'posts',
+            'p',
+            'p.id = edge.from_post_id AND p.author_id = :userId AND p.deleted_at IS NULL',
+          )
+          .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
+          .setParameter('userId', userId)
+          .getCount(),
+      ]);
+    return {
+      postCount,
+      replyCount,
+      collectionCount,
+      keepsCount,
+      citedCount,
     };
   }
 
@@ -797,8 +845,19 @@ export class UsersService {
       .getMany();
   }
 
-  /** Soft-delete user and their posts. Used after confirmation or internally. */
+  /**
+   * Soft-delete user and all their posts. Used after account-deletion confirmation or by admin.
+   * This is the main code path that bulk-soft-deletes posts (all posts by this user).
+   */
   async deleteUser(userId: string) {
+    const postCount = await this.postRepo.count({
+      where: { authorId: userId },
+    });
+    if (postCount > 0) {
+      this.logger.warn(
+        `deleteUser: soft-deleting ${postCount} posts for user ${userId}`,
+      );
+    }
     await this.userRepo.softDelete(userId);
     await this.postRepo.softDelete({ authorId: userId });
 

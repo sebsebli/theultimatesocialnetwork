@@ -67,9 +67,9 @@ export function PostSkeleton() {
         </View>
       </View>
       <View style={styles.body}>
-        <Skeleton width="90%" height={16} style={{ marginBottom: 8 }} />
         <Skeleton width="100%" height={16} style={{ marginBottom: 8 }} />
-        <Skeleton width="80%" height={16} />
+        <Skeleton width="100%" height={16} style={{ marginBottom: 8 }} />
+        <Skeleton width="100%" height={16} />
       </View>
       <View style={styles.footer}>
         <Skeleton width={20} height={20} />
@@ -126,8 +126,8 @@ export function UserCardSkeleton() {
     <View style={styles.userCardRow}>
       <Skeleton width={48} height={48} borderRadius={24} />
       <View style={styles.userCardText}>
-        <Skeleton width={140} height={16} style={{ marginBottom: 6 }} />
-        <Skeleton width={100} height={14} />
+        <Skeleton width="100%" height={16} style={{ marginBottom: 6 }} />
+        <Skeleton width="100%" height={14} />
       </View>
     </View>
   );
@@ -140,7 +140,7 @@ export function MessageRowSkeleton() {
       <Skeleton width={52} height={52} borderRadius={26} />
       <View style={styles.messageRowText}>
         <Skeleton width={120} height={16} style={{ marginBottom: 6 }} />
-        <Skeleton width="80%" height={14} />
+        <Skeleton width="100%" height={14} />
       </View>
     </View>
   );
@@ -163,9 +163,9 @@ export function CommentSkeleton() {
     <View style={styles.commentRow}>
       <Skeleton width={36} height={36} borderRadius={18} />
       <View style={styles.commentText}>
-        <Skeleton width={100} height={14} style={{ marginBottom: 6 }} />
+        <Skeleton width="100%" height={14} style={{ marginBottom: 6 }} />
         <Skeleton width="100%" height={14} style={{ marginBottom: 4 }} />
-        <Skeleton width="70%" height={14} />
+        <Skeleton width="100%" height={14} />
       </View>
     </View>
   );
@@ -177,8 +177,8 @@ export function SettingsRowSkeleton() {
     <View style={styles.settingsRow}>
       <Skeleton width={24} height={24} borderRadius={6} />
       <View style={styles.settingsRowText}>
-        <Skeleton width={160} height={16} style={{ marginBottom: 4 }} />
-        <Skeleton width={100} height={14} />
+        <Skeleton width="100%" height={16} style={{ marginBottom: 4 }} />
+        <Skeleton width="100%" height={14} />
       </View>
     </View>
   );
@@ -242,8 +242,8 @@ export function TopicCardSkeleton() {
     <View style={styles.topicCardRow}>
       <Skeleton width={56} height={56} borderRadius={8} />
       <View style={styles.topicCardText}>
-        <Skeleton width={140} height={18} style={{ marginBottom: 6 }} />
-        <Skeleton width={80} height={14} />
+        <Skeleton width="100%" height={18} style={{ marginBottom: 6 }} />
+        <Skeleton width="100%" height={14} />
       </View>
     </View>
   );
@@ -257,6 +257,8 @@ const styles = createStyles({
     padding: SPACING.l,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    width: "100%",
+    alignSelf: "stretch",
   },
   header: {
     flexDirection: "row",
@@ -265,9 +267,12 @@ const styles = createStyles({
   },
   headerText: {
     marginLeft: SPACING.m,
+    flex: 1,
+    minWidth: 0,
   },
   body: {
     marginBottom: SPACING.l,
+    width: "100%",
   },
   footer: {
     flexDirection: "row",
@@ -297,6 +302,8 @@ const styles = createStyles({
   },
   feedContainer: {
     paddingVertical: SPACING.s,
+    width: "100%",
+    alignSelf: "stretch",
   },
   userCardRow: {
     flexDirection: "row",
@@ -305,9 +312,12 @@ const styles = createStyles({
     paddingHorizontal: SPACING.l,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    width: "100%",
   },
   userCardText: {
     marginLeft: SPACING.m,
+    flex: 1,
+    minWidth: 0,
   },
   messageRow: {
     flexDirection: "row",
@@ -316,13 +326,17 @@ const styles = createStyles({
     paddingHorizontal: SPACING.l,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    width: "100%",
   },
   messageRowText: {
     marginLeft: SPACING.m,
     flex: 1,
+    minWidth: 0,
   },
   listContainer: {
     paddingVertical: SPACING.s,
+    width: "100%",
+    alignSelf: "stretch",
   },
   commentRow: {
     flexDirection: "row",
@@ -331,10 +345,12 @@ const styles = createStyles({
     paddingHorizontal: SPACING.l,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    width: "100%",
   },
   commentText: {
     marginLeft: SPACING.m,
     flex: 1,
+    minWidth: 0,
   },
   settingsRow: {
     flexDirection: "row",
@@ -343,9 +359,12 @@ const styles = createStyles({
     paddingHorizontal: SPACING.l,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    width: "100%",
   },
   settingsRowText: {
     marginLeft: SPACING.m,
+    flex: 1,
+    minWidth: 0,
   },
   buttonSkeleton: {
     alignSelf: "center",
@@ -359,6 +378,8 @@ const styles = createStyles({
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
+    width: "100%",
+    alignSelf: "stretch",
   },
   fullScreen: {
     flex: 1,
@@ -373,8 +394,11 @@ const styles = createStyles({
     paddingHorizontal: SPACING.l,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    width: "100%",
   },
   topicCardText: {
     marginLeft: SPACING.m,
+    flex: 1,
+    minWidth: 0,
   },
 });
