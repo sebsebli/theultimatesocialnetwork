@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Text,
   View,
@@ -7,15 +7,25 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { api } from '../../utils/api';
-import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, FONTS, HEADER, LAYOUT, createStyles } from '../../constants/theme';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import {
+  FullScreenSkeleton,
+  InlineSkeleton,
+} from "../../components/LoadingSkeleton";
+import { api } from "../../utils/api";
+import { useToast } from "../../context/ToastContext";
+import {
+  COLORS,
+  SPACING,
+  FONTS,
+  HEADER,
+  LAYOUT,
+  createStyles,
+} from "../../constants/theme";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -25,14 +35,14 @@ export default function ChangeEmailScreen() {
   const insets = useSafeAreaInsets();
   const { showSuccess, showError } = useToast();
 
-  const [currentEmail, setCurrentEmail] = useState('');
-  const [newEmail, setNewEmail] = useState('');
+  const [currentEmail, setCurrentEmail] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingUser, setLoadingUser] = useState(true);
 
   useEffect(() => {
     api
-      .get<{ email?: string }>('/users/me')
+      .get<{ email?: string }>("/users/me")
       .then((user) => {
         if (user?.email) setCurrentEmail(user.email);
       })
@@ -43,28 +53,28 @@ export default function ChangeEmailScreen() {
   const handleSave = async () => {
     const trimmed = newEmail.trim().toLowerCase();
     if (!trimmed) {
-      showError(t('settings.invalidEmail'));
+      showError(t("settings.invalidEmail"));
       return;
     }
     if (!EMAIL_REGEX.test(trimmed)) {
-      showError(t('settings.invalidEmail'));
+      showError(t("settings.invalidEmail"));
       return;
     }
     if (trimmed === currentEmail.toLowerCase()) {
-      showError(t('settings.invalidEmail'));
+      showError(t("settings.invalidEmail"));
       return;
     }
     setLoading(true);
     try {
-      await api.patch('/users/me', { email: trimmed });
-      showSuccess(t('settings.emailUpdated'));
+      await api.patch("/users/me", { email: trimmed });
+      showSuccess(t("settings.emailUpdated"));
       router.back();
     } catch (e: any) {
-      const msg = e?.message ?? '';
+      const msg = e?.message ?? "";
       showError(
-        msg && msg.toLowerCase().includes('already in use')
-          ? t('settings.emailInUse')
-          : t('settings.updateFailed'),
+        msg && msg.toLowerCase().includes("already in use")
+          ? t("settings.emailInUse")
+          : t("settings.updateFailed"),
       );
     } finally {
       setLoading(false);
@@ -78,8 +88,8 @@ export default function ChangeEmailScreen() {
 
   if (loadingUser) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={styles.container}>
+        <FullScreenSkeleton />
       </View>
     );
   }
@@ -87,30 +97,33 @@ export default function ChangeEmailScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={0}
     >
       <ScreenHeader
-        title={t('settings.changeEmail')}
+        title={t("settings.changeEmail")}
         paddingTop={insets.top}
         onBack={() => router.back()}
       />
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {currentEmail ? (
           <View style={styles.field}>
-            <Text style={styles.label}>{t('settings.currentEmail')}</Text>
+            <Text style={styles.label}>{t("settings.currentEmail")}</Text>
             <Text style={styles.currentEmailText}>{currentEmail}</Text>
           </View>
         ) : null}
         <View style={styles.field}>
-          <Text style={styles.label}>{t('settings.newEmail')}</Text>
+          <Text style={styles.label}>{t("settings.newEmail")}</Text>
           <TextInput
             style={styles.input}
-            placeholder={t('settings.newEmailPlaceholder')}
+            placeholder={t("settings.newEmailPlaceholder")}
             placeholderTextColor={COLORS.tertiary}
             value={newEmail}
             onChangeText={setNewEmail}
@@ -121,14 +134,17 @@ export default function ChangeEmailScreen() {
           />
         </View>
         <Pressable
-          style={[styles.saveBtn, (!isValid || loading) && styles.saveBtnDisabled]}
+          style={[
+            styles.saveBtn,
+            (!isValid || loading) && styles.saveBtnDisabled,
+          ]}
           onPress={handleSave}
           disabled={!isValid || loading}
         >
           {loading ? (
-            <ActivityIndicator size="small" color={COLORS.ink} />
+            <InlineSkeleton />
           ) : (
-            <Text style={styles.saveBtnText}>{t('settings.saveEmail')}</Text>
+            <Text style={styles.saveBtnText}>{t("settings.saveEmail")}</Text>
           )}
         </Pressable>
       </ScrollView>
@@ -142,8 +158,8 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
   },
   centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
@@ -178,8 +194,8 @@ const styles = createStyles({
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.m,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minHeight: 48,
   },
   saveBtnDisabled: {

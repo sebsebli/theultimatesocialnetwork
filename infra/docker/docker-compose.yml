@@ -30,6 +30,10 @@ services:
     container_name: citewalk-pgbouncer
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      # PostgreSQL 15+ uses SCRAM-SHA-256; PgBouncer must match (default md5 causes "wrong password type")
+      AUTH_TYPE: scram-sha-256
+      # API (TypeORM) sends these; PgBouncer must ignore or it rejects the connection
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits,statement_timeout,idle_in_transaction_session_timeout
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 200
       DEFAULT_POOL_SIZE: 25
@@ -241,6 +245,13 @@ services:
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
       MODERATION_IMAGE_SERVICE_URL: ${MODERATION_IMAGE_SERVICE_URL:-http://nsfw-detector:5000}
+      # Longer timeout and allow upload when detector overloaded (e.g. many agent profile uploads)
+      MODERATION_IMAGE_TIMEOUT_MS: ${MODERATION_IMAGE_TIMEOUT_MS:-45000}
+      MODERATION_IMAGE_ALLOW_ON_UNAVAILABLE: ${MODERATION_IMAGE_ALLOW_ON_UNAVAILABLE:-true}
+      # Async image moderation: store first, moderate in background (scale to thousands of uploads)
+      MODERATION_IMAGE_ASYNC: ${MODERATION_IMAGE_ASYNC:-false}
+      # Async content moderation: skip sync Stage 1 check; post/reply workers do full check (scale to thousands of posts/replies)
+      MODERATION_CONTENT_ASYNC: ${MODERATION_CONTENT_ASYNC:-false}
       NODE_ENV: development
       DB_SSL: "false"
       DB_SYNCHRONIZE: "false"

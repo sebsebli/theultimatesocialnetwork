@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { DmThread } from '../entities/dm-thread.entity';
 import { DmMessage } from '../entities/dm-message.entity';
 import { User } from '../entities/user.entity';
@@ -185,6 +185,7 @@ export class MessagesService {
           ? {
               body: t.lastMessageBody,
               createdAt: t.lastMessageAt,
+              isRead: parseInt(t.unreadCount, 10) === 0,
             }
           : null,
         unreadCount: parseInt(t.unreadCount, 10) || 0,
@@ -208,11 +209,56 @@ export class MessagesService {
       throw new ForbiddenException('Not authorized');
     }
 
+    // Mark all messages from the other user as read when opening the thread
+    const otherUserId = thread.userA === userId ? thread.userB : thread.userA;
+    await this.messageRepo.update(
+      { threadId, senderId: otherUserId, readAt: IsNull() },
+      { readAt: new Date() },
+    );
+
     return this.messageRepo.find({
       where: { threadId },
       relations: ['thread'],
       order: { createdAt: 'ASC' },
     });
+  }
+
+  async markThreadRead(userId: string, threadId: string, read: boolean) {
+    const thread = await this.threadRepo.findOne({
+      where: { id: threadId },
+    });
+    if (!thread) {
+      throw new NotFoundException('Thread not found');
+    }
+    if (thread.userA !== userId && thread.userB !== userId) {
+      throw new ForbiddenException('Not authorized');
+    }
+    const otherUserId = thread.userA === userId ? thread.userB : thread.userA;
+    if (read) {
+      await this.messageRepo.update(
+        { threadId, senderId: otherUserId, readAt: IsNull() },
+        { readAt: new Date() },
+      );
+    } else {
+      await this.messageRepo.update(
+        { threadId, senderId: otherUserId },
+        { readAt: null },
+      );
+    }
+  }
+
+  async deleteThread(userId: string, threadId: string) {
+    const thread = await this.threadRepo.findOne({
+      where: { id: threadId },
+    });
+    if (!thread) {
+      throw new NotFoundException('Thread not found');
+    }
+    if (thread.userA !== userId && thread.userB !== userId) {
+      throw new ForbiddenException('Not authorized');
+    }
+    await this.messageRepo.delete({ threadId });
+    await this.threadRepo.delete({ id: threadId });
   }
 
   /**

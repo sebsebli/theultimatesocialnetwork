@@ -3,13 +3,17 @@ import {
   BadRequestException,
   Logger,
   OnModuleInit,
+  Optional,
+  Inject,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as MinIO from 'minio';
 import sharp, { type ResizeOptions } from 'sharp';
 import { encode } from 'blurhash';
 import { v4 as uuidv4 } from 'uuid';
+import { Queue } from 'bullmq';
 import { SafetyService } from '../safety/safety.service';
+import type { ImageUploadType } from './image-moderation.worker';
 
 /**
  * Incoming file from multer. Only buffer, mimetype and size are used.
@@ -39,6 +43,9 @@ export class UploadService implements OnModuleInit {
   constructor(
     private configService: ConfigService,
     private safetyService: SafetyService,
+    @Optional()
+    @Inject('IMAGE_MODERATION_QUEUE')
+    private imageModerationQueue: Queue | null,
   ) {
     this.minioClient = new MinIO.Client({
       endPoint: this.configService.get('MINIO_ENDPOINT') || 'localhost',
@@ -92,29 +99,39 @@ export class UploadService implements OnModuleInit {
 
   async uploadHeaderImage(
     file: UploadedImageFile,
+    userId: string,
   ): Promise<{ key: string; blurhash?: string }> {
     return this.processAndUpload(
       file,
       { width: 1600, height: null, fit: 'inside' },
       true,
+      { uploadType: 'header_image', userId },
     );
   }
 
-  async uploadProfilePicture(file: UploadedImageFile): Promise<string> {
+  async uploadProfilePicture(
+    file: UploadedImageFile,
+    userId: string,
+  ): Promise<string> {
     const result = await this.processAndUpload(
       file,
       { width: 400, height: 400, fit: 'cover' },
       false,
+      { uploadType: 'profile_picture', userId },
     );
     return result.key;
   }
 
   /** Profile header/cover image (e.g. from draw or upload). Wide aspect. */
-  async uploadProfileHeader(file: UploadedImageFile): Promise<string> {
+  async uploadProfileHeader(
+    file: UploadedImageFile,
+    userId: string,
+  ): Promise<string> {
     const result = await this.processAndUpload(
       file,
       { width: 1200, height: 300, fit: 'cover' },
       false,
+      { uploadType: 'profile_header', userId },
     );
     return result.key;
   }
@@ -124,11 +141,14 @@ export class UploadService implements OnModuleInit {
    * - Key is always UUID-based (no user filenames).
    * - Output is always WebP, compressed; original format is discarded.
    * - EXIF and other metadata are stripped.
+   * When MODERATION_IMAGE_ASYNC=true and options.uploadType/userId are set,
+   * image is stored first and moderation runs in a background worker (scales to thousands of uploads).
    */
   private async processAndUpload(
     file: UploadedImageFile,
     resizeOptions: ResizeSpec,
     generateBlurhash: boolean,
+    options?: { uploadType: ImageUploadType; userId: string },
   ): Promise<{ key: string; blurhash?: string }> {
     if (!file.mimetype.match(/^image\/(jpeg|jpg|webp|png)$/)) {
       throw new BadRequestException(
@@ -139,11 +159,19 @@ export class UploadService implements OnModuleInit {
       throw new BadRequestException('File size must be less than 10MB');
     }
 
-    const safety = await this.safetyService.checkImage(file.buffer);
-    if (!safety.safe) {
-      throw new BadRequestException(
-        safety.reason || 'Image failed safety check',
-      );
+    const moderationAsync =
+      this.configService.get<string>('MODERATION_IMAGE_ASYNC') === 'true' &&
+      options?.uploadType &&
+      options?.userId &&
+      this.imageModerationQueue;
+
+    if (!moderationAsync) {
+      const safety = await this.safetyService.checkImage(file.buffer);
+      if (!safety.safe) {
+        throw new BadRequestException(
+          safety.reason || 'Image failed safety check',
+        );
+      }
     }
 
     const image = sharp(file.buffer);
@@ -212,19 +240,30 @@ export class UploadService implements OnModuleInit {
       }
     }
 
+    const queue = this.imageModerationQueue;
+    if (moderationAsync && options?.uploadType && options?.userId && queue) {
+      await queue.add('moderate', {
+        key,
+        uploadType: options.uploadType,
+        userId: options.userId,
+      });
+    }
+
     return { key, blurhash: blurhashStr };
   }
 
   /**
-   * URL for clients to load an image. Prefer API_URL so mobile/app can load via API (single origin).
-   * When API_URL is set, returns API_URL/images/key; otherwise MinIO direct (MINIO_PUBLIC_URL/bucket/key).
+   * Public URL for any image by key. Used in all API responses so clients (web, mobile) can
+   * use the same URL without building it. Prefer PUBLIC_API_URL (what clients use to reach
+   * the API); fall back to API_URL, then MinIO direct. Set PUBLIC_API_URL in Docker/env to
+   * the same value as EXPO_PUBLIC_API_BASE_URL / NEXT_PUBLIC_API_URL (e.g. http://localhost/api).
    */
   getImageUrl(key: string): string {
-    const apiBase =
-      this.configService.get<string>('API_URL')?.replace(/\/$/, '') ||
-      this.configService.get<string>('PUBLIC_API_URL')?.replace(/\/$/, '');
-    if (apiBase) {
-      return `${apiBase}/images/${encodeURIComponent(key)}`;
+    const publicApiBase =
+      this.configService.get<string>('PUBLIC_API_URL')?.replace(/\/$/, '') ||
+      this.configService.get<string>('API_URL')?.replace(/\/$/, '');
+    if (publicApiBase) {
+      return `${publicApiBase}/images/${encodeURIComponent(key)}`;
     }
     const publicUrl =
       this.configService.get<string>('MINIO_PUBLIC_URL') ??
@@ -262,6 +301,20 @@ export class UploadService implements OnModuleInit {
       this.bucketName,
       key,
     ) as Promise<NodeJS.ReadableStream>;
+  }
+
+  /** Get image bytes by key (for async moderation worker). Returns null if object not found. */
+  async getImageBuffer(key: string): Promise<Buffer | null> {
+    try {
+      const stream = await this.minioClient.getObject(this.bucketName, key);
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(Buffer.from(chunk as Uint8Array));
+      }
+      return Buffer.concat(chunks);
+    } catch {
+      return null;
+    }
   }
 
   /**

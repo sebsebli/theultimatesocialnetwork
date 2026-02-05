@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator,
   Image,
   InteractionManager,
 } from "react-native";
@@ -21,6 +20,10 @@ import { ScreenHeader } from "../../components/ScreenHeader";
 import { useToast } from "../../context/ToastContext";
 import { OptionsActionSheet } from "../../components/OptionsActionSheet";
 import { ImageVerifyingOverlay } from "../../components/ImageVerifyingOverlay";
+import {
+  FullScreenSkeleton,
+  InlineSkeleton,
+} from "../../components/LoadingSkeleton";
 import {
   COLORS,
   SPACING,
@@ -289,16 +292,7 @@ export default function EditProfileScreen() {
   };
 
   if (initialLoading) {
-    return (
-      <View
-        style={[
-          styles.container,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <ActivityIndicator color={COLORS.primary} />
-      </View>
-    );
+    return <FullScreenSkeleton />;
   }
 
   return (
@@ -334,7 +328,7 @@ export default function EditProfileScreen() {
                 )}
                 {avatarUploading && (
                   <View style={styles.avatarOverlay}>
-                    <ActivityIndicator size="small" color={COLORS.ink} />
+                    <InlineSkeleton />
                   </View>
                 )}
                 <View style={styles.avatarEditBadge}>
@@ -392,13 +386,7 @@ export default function EditProfileScreen() {
               </View>
               {handle !== initialHandle && handleLen >= HANDLE_MIN && (
                 <View style={styles.availabilityRow}>
-                  {handleStatus === "checking" && (
-                    <ActivityIndicator
-                      size="small"
-                      color={COLORS.primary}
-                      style={styles.availabilitySpinner}
-                    />
-                  )}
+                  {handleStatus === "checking" && <InlineSkeleton />}
                   {handleStatus === "available" && (
                     <Text style={styles.availabilityAvailable}>
                       {t("onboarding.profile.handleAvailable")}
@@ -477,9 +465,11 @@ export default function EditProfileScreen() {
             onPress={handleSubmit}
             disabled={!canSubmit || loading}
           >
-            <Text style={styles.buttonText}>
-              {loading ? t("common.loading") : t("common.save")}
-            </Text>
+            {loading ? (
+              <InlineSkeleton />
+            ) : (
+              <Text style={styles.buttonText}>{t("common.save")}</Text>
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>

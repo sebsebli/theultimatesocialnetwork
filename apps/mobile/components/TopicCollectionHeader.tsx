@@ -1,9 +1,17 @@
-import React, { memo } from 'react';
-import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, toDimensionValue } from '../constants/theme';
-import { HeaderIconButton } from './HeaderIconButton';
+import React, { memo } from "react";
+import { View, Text, Pressable, Image, StyleSheet } from "react-native";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  createStyles,
+  toDimensionValue,
+} from "../constants/theme";
+import { HeaderIconButton } from "./HeaderIconButton";
 
-export type TopicCollectionType = 'topic' | 'collection';
+export type TopicCollectionType = "topic" | "collection";
 
 const HERO_ASPECT = 3 / 4;
 
@@ -18,9 +26,13 @@ export interface TopicCollectionHeaderProps {
   actionLabel?: string;
   isActionActive?: boolean;
   /** Topic: post count & contributor count. Collection: optional. */
-  metrics?: { postCount?: number; contributorCount?: number; itemCount?: number };
+  metrics?: {
+    postCount?: number;
+    contributorCount?: number;
+    itemCount?: number;
+  };
   /** Show search icon (topic), more menu (collection), or nothing. */
-  rightAction?: 'search' | 'more' | null;
+  rightAction?: "search" | "more" | null;
   onRightAction?: () => void;
   children?: React.ReactNode;
 }
@@ -47,58 +59,91 @@ function TopicCollectionHeaderInner({
   onRightAction,
   children,
 }: TopicCollectionHeaderProps) {
-  const typeLabel = type === 'topic' ? 'TOPIC' : 'COLLECTION';
+  const typeLabel = type === "topic" ? "TOPIC" : "COLLECTION";
   const hasHero = !!headerImageUri;
 
   return (
     <View style={styles.wrapper}>
       {hasHero ? (
         <View style={styles.heroWrap}>
-          <Image source={{ uri: headerImageUri! }} style={styles.heroImage} resizeMode="cover" />
+          <Image
+            source={{ uri: headerImageUri! }}
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
           <View style={styles.heroOverlay} />
         </View>
       ) : null}
       <View style={[styles.header, hasHero && styles.headerOverHero]}>
         <View style={styles.headerBar}>
-          <HeaderIconButton onPress={onBack} icon="arrow-back" accessibilityLabel="Go back" />
+          <HeaderIconButton
+            onPress={onBack}
+            icon="arrow-back"
+            accessibilityLabel="Go back"
+          />
           <View style={styles.headerBarSpacer} />
-          {rightAction === 'search' && onRightAction && (
-            <HeaderIconButton onPress={onRightAction} icon="search" accessibilityLabel={type === 'topic' ? 'Search' : 'Search'} />
+          {rightAction === "search" && onRightAction && (
+            <HeaderIconButton
+              onPress={onRightAction}
+              icon="search"
+              accessibilityLabel={type === "topic" ? "Search" : "Search"}
+            />
           )}
-          {rightAction === 'more' && onRightAction && (
-            <HeaderIconButton onPress={onRightAction} icon="more-horiz" accessibilityLabel="More options" />
+          {rightAction === "more" && onRightAction && (
+            <HeaderIconButton
+              onPress={onRightAction}
+              icon="more-horiz"
+              accessibilityLabel="More options"
+            />
           )}
         </View>
         <View style={styles.overlay}>
           <View style={styles.overlayContent}>
             <Text style={styles.typeLabel}>{typeLabel}</Text>
             <Text style={styles.title}>{title}</Text>
-            {metrics && (metrics.postCount != null || metrics.contributorCount != null || metrics.itemCount != null) && (
-              <View style={styles.metricsRow}>
-                {(metrics.postCount != null || metrics.itemCount != null) && (
-                  <Text style={styles.metricText}>
-                    {(metrics.postCount ?? metrics.itemCount ?? 0).toLocaleString()} {type === 'collection' ? 'items' : 'posts'}
-                  </Text>
-                )}
-                {metrics.contributorCount != null && type === 'topic' && (
-                  <>
-                    {(metrics.postCount != null || metrics.itemCount != null) && (
-                      <Text style={styles.metricText}> • </Text>
-                    )}
+            {metrics &&
+              (metrics.postCount != null ||
+                metrics.contributorCount != null ||
+                metrics.itemCount != null) && (
+                <View style={styles.metricsRow}>
+                  {(metrics.postCount != null || metrics.itemCount != null) && (
                     <Text style={styles.metricText}>
-                      {metrics.contributorCount.toLocaleString()} contributors
+                      {(
+                        metrics.postCount ??
+                        metrics.itemCount ??
+                        0
+                      ).toLocaleString()}{" "}
+                      {type === "collection" ? "items" : "posts"}
                     </Text>
-                  </>
-                )}
-              </View>
-            )}
+                  )}
+                  {metrics.contributorCount != null && (
+                    <>
+                      {(metrics.postCount != null ||
+                        metrics.itemCount != null) && (
+                        <Text style={styles.metricText}> • </Text>
+                      )}
+                      <Text style={styles.metricText}>
+                        {metrics.contributorCount.toLocaleString()} contributors
+                      </Text>
+                    </>
+                  )}
+                </View>
+              )}
           </View>
           {onAction && actionLabel && (
             <Pressable
-              style={[styles.actionButton, isActionActive && styles.actionButtonActive]}
+              style={[
+                styles.actionButton,
+                isActionActive && styles.actionButtonActive,
+              ]}
               onPress={onAction}
             >
-              <Text style={[styles.actionButtonText, isActionActive && styles.actionButtonTextActive]}>
+              <Text
+                style={[
+                  styles.actionButtonText,
+                  isActionActive && styles.actionButtonTextActive,
+                ]}
+              >
                 {actionLabel}
               </Text>
             </Pressable>
@@ -118,7 +163,9 @@ function TopicCollectionHeaderInner({
   );
 }
 
-export const TopicCollectionHeader = memo(TopicCollectionHeaderInner as React.FunctionComponent<TopicCollectionHeaderProps>) as (props: TopicCollectionHeaderProps) => React.ReactElement | null;
+export const TopicCollectionHeader = memo(
+  TopicCollectionHeaderInner as React.FunctionComponent<TopicCollectionHeaderProps>,
+) as (props: TopicCollectionHeaderProps) => React.ReactElement | null;
 
 const styles = createStyles({
   wrapper: {
@@ -126,20 +173,20 @@ const styles = createStyles({
     marginBottom: SPACING.m,
   },
   heroWrap: {
-    width: '100%',
+    width: "100%",
     aspectRatio: 1 / HERO_ASPECT,
     backgroundColor: COLORS.divider,
   },
   heroImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: "rgba(0,0,0,0.25)",
   },
   header: {
-    width: '100%',
+    width: "100%",
     paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
     paddingTop: SPACING.s,
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
@@ -149,17 +196,17 @@ const styles = createStyles({
     paddingTop: SPACING.s,
   },
   headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: SPACING.m,
   },
   headerBarSpacer: {
     flex: 1,
   },
   overlay: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
   },
   overlayContent: {
     flex: 1,
@@ -167,7 +214,7 @@ const styles = createStyles({
   },
   typeLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.tertiary,
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -175,12 +222,12 @@ const styles = createStyles({
   },
   title: {
     fontSize: 26,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   metricsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 4,
   },
   metricText: {
@@ -194,7 +241,7 @@ const styles = createStyles({
     borderRadius: SIZES.borderRadiusPill,
     borderWidth: 1,
     borderColor: COLORS.primary,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   actionButtonActive: {
     backgroundColor: COLORS.primary,
@@ -202,7 +249,7 @@ const styles = createStyles({
   },
   actionButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -210,7 +257,7 @@ const styles = createStyles({
     color: COLORS.ink,
   },
   descriptionBlock: {
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: SPACING.l,
     paddingVertical: SPACING.m,
     borderBottomWidth: 1,
@@ -233,4 +280,3 @@ const styles = createStyles({
     borderBottomColor: COLORS.divider,
   },
 });
-

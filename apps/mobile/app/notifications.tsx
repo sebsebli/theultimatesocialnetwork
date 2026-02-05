@@ -1,16 +1,28 @@
-import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { api } from '../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
-import { ListFooterLoader } from '../components/ListFooterLoader';
-import { useSocket } from '../context/SocketContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { HeaderIconButton } from '../components/HeaderIconButton';
-import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
+import { Text, View, FlatList, Pressable, RefreshControl } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { api } from "../utils/api";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  createStyles,
+  FLATLIST_DEFAULTS,
+} from "../constants/theme";
+import { ListFooterLoader } from "../components/ListFooterLoader";
+import { useSocket } from "../context/SocketContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScreenHeader } from "../components/ScreenHeader";
+import { HeaderIconButton } from "../components/HeaderIconButton";
+import {
+  EmptyState,
+  emptyStateCenterWrapStyle,
+} from "../components/EmptyState";
+import { MessageListSkeleton } from "../components/LoadingSkeleton";
 
 /** Notifications-only screen (bell). Messages are in the Messages tab. */
 export default function NotificationsScreen() {
@@ -27,8 +39,8 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     const handleNotification = () => loadContent(1, true);
-    on('notification', handleNotification);
-    return () => off('notification', handleNotification);
+    on("notification", handleNotification);
+    return () => off("notification", handleNotification);
   }, [on, off]);
 
   useEffect(() => {
@@ -44,15 +56,15 @@ export default function NotificationsScreen() {
     }
     try {
       const data = await api.get(`/notifications?page=${pageNum}&limit=20`);
-      const items = Array.isArray(data.items || data) ? (data.items || data) : [];
+      const items = Array.isArray(data.items || data) ? data.items || data : [];
       if (reset) {
         setNotifications(items);
       } else {
-        setNotifications(prev => [...prev, ...items]);
+        setNotifications((prev) => [...prev, ...items]);
       }
-      setHasMore(items.length === 20 && (data.hasMore !== false));
+      setHasMore(items.length === 20 && data.hasMore !== false);
     } catch (error) {
-      console.error('Failed to load notifications', error);
+      console.error("Failed to load notifications", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -73,52 +85,77 @@ export default function NotificationsScreen() {
     loadContent(1, true);
   }, []);
 
-  const renderNotification = useCallback(({ item }: { item: any }) => (
-    <Pressable
-      style={styles.notification}
-      onPress={() => {
-        if (item.type === 'FOLLOW' && item.actor?.handle) {
-          router.push(`/user/${item.actor.handle}`);
-        } else if (item.type === 'MENTION' && item.replyId && (item.post?.id || item.postId)) {
-          const postId = item.post?.id ?? item.postId;
-          router.push({ pathname: `/post/${postId}/comments`, params: { replyId: item.replyId } });
-        } else if (item.post?.id || item.postId) {
-          router.push(`/post/${item.post?.id ?? item.postId}`);
-        }
-      }}
-      accessibilityRole="button"
-    >
-      <View style={styles.notificationContent}>
-        <Text style={styles.notificationText}>
-          {item.actor?.displayName} {item.type === 'FOLLOW' ? t('inbox.startedFollowing') :
-            item.type === 'REPLY' ? t('inbox.repliedToPost') :
-              item.type === 'QUOTE' ? t('inbox.quotedPost') :
-                item.type === 'LIKE' ? t('inbox.likedPost') :
-                  item.type === 'MENTION' ? t('inbox.mentionedYou') : t('inbox.interactedWithYou')}
-        </Text>
-        {!item.readAt && <View style={styles.unreadDot} accessibilityLabel={t('inbox.unread', 'Unread')} />}
-      </View>
-    </Pressable>
-  ), [t, router]);
+  const renderNotification = useCallback(
+    ({ item }: { item: any }) => (
+      <Pressable
+        style={styles.notification}
+        onPress={() => {
+          if (item.type === "FOLLOW" && item.actor?.handle) {
+            router.push(`/user/${item.actor.handle}`);
+          } else if (
+            item.type === "MENTION" &&
+            item.replyId &&
+            (item.post?.id || item.postId)
+          ) {
+            const postId = item.post?.id ?? item.postId;
+            router.push({
+              pathname: `/post/${postId}/comments`,
+              params: { replyId: item.replyId },
+            });
+          } else if (item.post?.id || item.postId) {
+            router.push(`/post/${item.post?.id ?? item.postId}`);
+          }
+        }}
+        accessibilityRole="button"
+      >
+        <View style={styles.notificationContent}>
+          <Text style={styles.notificationText}>
+            {item.actor?.displayName}{" "}
+            {item.type === "FOLLOW"
+              ? t("inbox.startedFollowing")
+              : item.type === "REPLY"
+                ? t("inbox.repliedToPost")
+                : item.type === "QUOTE"
+                  ? t("inbox.quotedPost")
+                  : item.type === "LIKE"
+                    ? t("inbox.likedPost")
+                    : item.type === "MENTION"
+                      ? t("inbox.mentionedYou")
+                      : t("inbox.interactedWithYou")}
+          </Text>
+          {!item.readAt && (
+            <View
+              style={styles.unreadDot}
+              accessibilityLabel={t("inbox.unread", "Unread")}
+            />
+          )}
+        </View>
+      </Pressable>
+    ),
+    [t, router],
+  );
 
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title={t('notifications.title', 'Notifications')}
+        title={t("notifications.title", "Notifications")}
         paddingTop={insets.top}
         right={
           notifications.length > 0 ? (
             <HeaderIconButton
               onPress={async () => {
                 try {
-                  await api.post('/notifications/read-all');
+                  await api.post("/notifications/read-all");
                   loadContent(1, true);
                 } catch (error) {
-                  console.error('Failed to mark all read', error);
+                  console.error("Failed to mark all read", error);
                 }
               }}
               icon="done-all"
-              accessibilityLabel={t('notifications.markAllRead', 'Mark all read')}
+              accessibilityLabel={t(
+                "notifications.markAllRead",
+                "Mark all read",
+              )}
             />
           ) : undefined
         }
@@ -133,21 +170,25 @@ export default function NotificationsScreen() {
         ListEmptyComponent={
           <View style={emptyStateCenterWrapStyle}>
             {loading ? (
-              <View style={styles.emptyState}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={[styles.emptyText, { marginTop: SPACING.l }]}>{t('common.loading')}</Text>
-              </View>
+              <MessageListSkeleton count={5} />
             ) : (
               <EmptyState
                 icon="notifications-none"
-                headline={t('notifications.empty', 'No notifications yet')}
-                subtext={t('notifications.emptySubtext', 'When someone follows you, replies, or mentions you, it will show up here.')}
+                headline={t("notifications.empty", "No notifications yet")}
+                subtext={t(
+                  "notifications.emptySubtext",
+                  "When someone follows you, replies, or mentions you, it will show up here.",
+                )}
               />
             )}
           </View>
         }
-        contentContainerStyle={notifications.length === 0 ? { flexGrow: 1 } : undefined}
-        ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
+        contentContainerStyle={
+          notifications.length === 0 ? { flexGrow: 1 } : undefined
+        }
+        ListFooterComponent={
+          <ListFooterLoader visible={!!(hasMore && loadingMore)} />
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -174,9 +215,9 @@ const styles = createStyles({
     borderBottomColor: COLORS.divider,
   },
   notificationContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   notificationText: {
     fontSize: 15,
@@ -193,7 +234,7 @@ const styles = createStyles({
   },
   emptyState: {
     padding: SPACING.xxxl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     fontSize: 16,
@@ -202,6 +243,6 @@ const styles = createStyles({
   },
   footerLoader: {
     paddingVertical: SPACING.l,
-    alignItems: 'center',
+    alignItems: "center",
   },
 });

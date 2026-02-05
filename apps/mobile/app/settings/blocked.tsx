@@ -1,15 +1,23 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../utils/api';
-import { useToast } from '../../context/ToastContext';
-import { ConfirmModal } from '../../components/ConfirmModal';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { COLORS, SPACING, SIZES, FONTS, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
-import { CenteredEmptyState } from '../../components/EmptyState';
+import React, { useEffect, useState, useCallback } from "react";
+import { Text, View, FlatList, Pressable, RefreshControl } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
+import { api } from "../../utils/api";
+import { useToast } from "../../context/ToastContext";
+import { ConfirmModal } from "../../components/ConfirmModal";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  createStyles,
+  FLATLIST_DEFAULTS,
+} from "../../constants/theme";
+import { CenteredEmptyState } from "../../components/EmptyState";
+import { UserCardSkeleton } from "../../components/LoadingSkeleton";
 
 export default function BlockedUsersScreen() {
   const router = useRouter();
@@ -19,16 +27,27 @@ export default function BlockedUsersScreen() {
   const [blocked, setBlocked] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [unblockTarget, setUnblockTarget] = useState<{ id: string; displayName: string } | null>(null);
+  const [unblockTarget, setUnblockTarget] = useState<{
+    id: string;
+    displayName: string;
+  } | null>(null);
 
   const loadBlocked = async () => {
     try {
-      const data = await api.get<Array<{ id: string; displayName: string; handle: string }>>('/safety/blocked');
+      const data =
+        await api.get<
+          Array<{ id: string; displayName: string; handle: string }>
+        >("/safety/blocked");
       const list = Array.isArray(data) ? data.filter((u) => u.id) : [];
       setBlocked(list);
     } catch (error) {
-      console.error('Failed to load blocked users', error);
-      showError(t('safety.failedLoadBlocked', 'Failed to load blocked users. Pull to refresh.'));
+      console.error("Failed to load blocked users", error);
+      showError(
+        t(
+          "safety.failedLoadBlocked",
+          "Failed to load blocked users. Pull to refresh.",
+        ),
+      );
       setBlocked([]);
     } finally {
       setLoading(false);
@@ -40,7 +59,8 @@ export default function BlockedUsersScreen() {
     loadBlocked();
   }, []);
 
-  const handleUnblock = (userId: string, displayName: string) => setUnblockTarget({ id: userId, displayName });
+  const handleUnblock = (userId: string, displayName: string) =>
+    setUnblockTarget({ id: userId, displayName });
 
   const confirmUnblock = async () => {
     const targetId = unblockTarget?.id;
@@ -48,39 +68,52 @@ export default function BlockedUsersScreen() {
     setUnblockTarget(null);
     try {
       await api.delete(`/safety/block/${targetId}`);
-      setBlocked(prev => prev.filter(u => u.id !== targetId));
-      showSuccess(t('safety.unblockedMessage', 'This user has been unblocked.'));
+      setBlocked((prev) => prev.filter((u) => u.id !== targetId));
+      showSuccess(
+        t("safety.unblockedMessage", "This user has been unblocked."),
+      );
     } catch (error) {
-      console.error('Failed to unblock user', error);
-      showError(t('safety.failedUnblock', 'Failed to unblock user.'));
+      console.error("Failed to unblock user", error);
+      showError(t("safety.failedUnblock", "Failed to unblock user."));
     }
   };
 
-  const renderItem = useCallback(({ item }: { item: any }) => (
-    <View style={styles.userItem}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {(item.displayName || item.handle || 'U').charAt(0).toUpperCase()}
-        </Text>
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => (
+      <View style={styles.userItem}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {(item.displayName || item.handle || "U").charAt(0).toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.displayName} numberOfLines={1}>
+            {item.displayName ||
+              item.handle ||
+              t("safety.unknownUser", "Unknown user")}
+          </Text>
+          {item.handle ? (
+            <Text style={styles.handle} numberOfLines={1}>
+              @{item.handle}
+            </Text>
+          ) : null}
+        </View>
+        <Pressable
+          style={styles.unblockButton}
+          onPress={() =>
+            handleUnblock(item.id, item.displayName || item.handle)
+          }
+          accessibilityLabel={t("safety.unblock", "Unblock")}
+          accessibilityRole="button"
+        >
+          <Text style={styles.unblockButtonText}>
+            {t("safety.unblock", "Unblock")}
+          </Text>
+        </Pressable>
       </View>
-      <View style={styles.userInfo}>
-        <Text style={styles.displayName} numberOfLines={1}>
-          {item.displayName || item.handle || t('safety.unknownUser', 'Unknown user')}
-        </Text>
-        {item.handle ? (
-          <Text style={styles.handle} numberOfLines={1}>@{item.handle}</Text>
-        ) : null}
-      </View>
-      <Pressable
-        style={styles.unblockButton}
-        onPress={() => handleUnblock(item.id, item.displayName || item.handle)}
-        accessibilityLabel={t('safety.unblock', 'Unblock')}
-        accessibilityRole="button"
-      >
-        <Text style={styles.unblockButtonText}>{t('safety.unblock', 'Unblock')}</Text>
-      </Pressable>
-    </View>
-  ), []);
+    ),
+    [],
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -90,9 +123,15 @@ export default function BlockedUsersScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ScreenHeader title={t('settings.blockedAccounts', 'Blocked Accounts')} paddingTop={insets.top} />
+        <ScreenHeader
+          title={t("settings.blockedAccounts", "Blocked Accounts")}
+          paddingTop={insets.top}
+        />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <UserCardSkeleton />
+          <UserCardSkeleton />
+          <UserCardSkeleton />
+          <UserCardSkeleton />
         </View>
       </View>
     );
@@ -100,7 +139,10 @@ export default function BlockedUsersScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('settings.blockedAccounts', 'Blocked Accounts')} paddingTop={insets.top} />
+      <ScreenHeader
+        title={t("settings.blockedAccounts", "Blocked Accounts")}
+        paddingTop={insets.top}
+      />
 
       <FlatList
         data={blocked}
@@ -109,25 +151,42 @@ export default function BlockedUsersScreen() {
         keyExtractor={(item: any) => item.id}
         renderItem={renderItem}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+          />
         }
         ListEmptyComponent={
           <CenteredEmptyState
             icon="block"
-            headline={t('safety.noBlocked', 'No blocked users')}
-            subtext={t('safety.noBlockedHint', 'Blocked accounts will appear here.')}
+            headline={t("safety.noBlocked", "No blocked users")}
+            subtext={t(
+              "safety.noBlockedHint",
+              "Blocked accounts will appear here.",
+            )}
           />
         }
-        contentContainerStyle={[styles.listContent, blocked.length === 0 && { flexGrow: 1 }]}
+        contentContainerStyle={[
+          styles.listContent,
+          blocked.length === 0 && { flexGrow: 1 },
+        ]}
         {...FLATLIST_DEFAULTS}
       />
 
       <ConfirmModal
         visible={!!unblockTarget}
-        title={t('safety.unblockUser', 'Unblock User')}
-        message={unblockTarget ? t('safety.unblockConfirm', `Are you sure you want to unblock ${unblockTarget.displayName || unblockTarget.id || 'this user'}?`) : ''}
-        confirmLabel={t('safety.unblock', 'Unblock')}
-        cancelLabel={t('common.cancel')}
+        title={t("safety.unblockUser", "Unblock User")}
+        message={
+          unblockTarget
+            ? t(
+                "safety.unblockConfirm",
+                `Are you sure you want to unblock ${unblockTarget.displayName || unblockTarget.id || "this user"}?`,
+              )
+            : ""
+        }
+        confirmLabel={t("safety.unblock", "Unblock")}
+        cancelLabel={t("common.cancel")}
         onConfirm={confirmUnblock}
         onCancel={() => setUnblockTarget(null)}
       />
@@ -142,15 +201,15 @@ const styles = createStyles({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   listContent: {
     padding: SPACING.l,
   },
   userItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: SPACING.m,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
@@ -161,12 +220,12 @@ const styles = createStyles({
     height: 48,
     borderRadius: 24,
     backgroundColor: COLORS.hover,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarText: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
@@ -176,7 +235,7 @@ const styles = createStyles({
   },
   displayName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -194,13 +253,13 @@ const styles = createStyles({
   },
   unblockButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   emptyState: {
     padding: SPACING.xxxl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     fontSize: 16,

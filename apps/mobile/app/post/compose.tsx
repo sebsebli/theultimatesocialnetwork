@@ -20,7 +20,12 @@ import { useTranslation } from "react-i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { MaterialIcons } from "@expo/vector-icons";
-import { api, getImageUrl, getAvatarUri } from "../../utils/api";
+import {
+  api,
+  getImageUrl,
+  getAvatarUri,
+  getPostHeaderImageUri,
+} from "../../utils/api";
 import { useToast } from "../../context/ToastContext";
 import { useAuth } from "../../context/auth";
 import { useSettings } from "../../context/SettingsContext";
@@ -267,7 +272,7 @@ export default function ComposeScreen() {
     setQuery: setSuggestionQuery,
     setType: setSuggestionType,
   } = useComposerSearch();
-  
+
   const { smartCiteEnabled } = useSettings();
 
   const [selection, setSelection] = useState({ start: 0, end: 0 });
@@ -854,9 +859,11 @@ export default function ComposeScreen() {
             (item.headerImageKey || item.headerImageUrl) ? (
             <ExpoImage
               source={{
-                uri: item.headerImageKey
-                  ? getImageUrl(item.headerImageKey)
-                  : item.headerImageUrl,
+                uri:
+                  getPostHeaderImageUri({
+                    headerImageUrl: item.headerImageUrl,
+                    headerImageKey: item.headerImageKey,
+                  }) ?? "",
               }}
               style={styles.suggestionPostImage}
               contentFit="cover"

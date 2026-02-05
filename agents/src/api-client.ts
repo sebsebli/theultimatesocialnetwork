@@ -89,6 +89,12 @@ export interface ApiClient {
     token: string,
     body: CreatePostBody,
   ): Promise<{ id: string }>;
+  /** Update post (author only). Used e.g. to set headerImageKey on existing posts. */
+  updatePost(
+    token: string,
+    postId: string,
+    updates: { headerImageKey?: string | null },
+  ): Promise<unknown>;
   /** Quote a post (commentary required). */
   quotePost(token: string, postId: string, body: string): Promise<{ id: string }>;
   /** Reply to a post. */
@@ -114,8 +120,24 @@ export interface ApiClient {
   getPost(postId: string, token?: string): Promise<unknown>;
   /** Get user by handle. */
   getUserByHandle(handle: string, token?: string): Promise<unknown>;
-  /** Get user posts. */
-  getUserPosts(userIdOrHandle: string, token?: string, limit?: number): Promise<unknown>;
+  /** Get user posts (by user id or handle). */
+  getUserPosts(userIdOrHandle: string, token?: string, limit?: number, page?: number): Promise<unknown>;
+  /** Get current user's own posts (auth required). Use this when you have the user's token. */
+  getMyPosts(token: string, limit?: number, page?: number): Promise<unknown>;
+  /** Get current user's collections (auth required). */
+  getMyCollections(token: string): Promise<unknown>;
+  /** Create a collection (title, optional description, shareSaves, isPublic). */
+  createCollection(
+    token: string,
+    body: { title: string; description?: string; shareSaves?: boolean; isPublic?: boolean },
+  ): Promise<{ id: string }>;
+  /** Add a post to a collection (optional note). */
+  addPostToCollection(
+    token: string,
+    collectionId: string,
+    postId: string,
+    note?: string,
+  ): Promise<unknown>;
   /** Get my notifications (replies, likes, mentions, follows). */
   getNotifications(token: string): Promise<unknown>;
   /** Get my DM threads (conversations). */
@@ -126,7 +148,7 @@ export interface ApiClient {
   sendMessage(token: string, threadId: string, body: string): Promise<unknown>;
   /** Create or get a thread with another user. */
   createMessageThread(token: string, userId: string): Promise<{ id: string } & unknown>;
-  
+
   /** Authenticate via internal agent API (skips beta/invite). */
   authViaAgentApi(email: string): Promise<AuthTokens>;
   /** Create post via internal agent API (skips safety). */
@@ -335,6 +357,18 @@ export function createApiClient(config: ApiConfig): ApiClient {
       });
     },
 
+    async updatePost(
+      authToken: string,
+      postId: string,
+      updates: { headerImageKey?: string | null },
+    ) {
+      return fetchJson(`/posts/${postId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+        token: authToken,
+      });
+    },
+
     async quotePost(authToken: string, postId: string, body: string) {
       return fetchJson<{ id: string }>(`/posts/${postId}/quote`, {
         method: 'POST',
@@ -412,11 +446,46 @@ export function createApiClient(config: ApiConfig): ApiClient {
       return fetchJson(`/users/${encodeURIComponent(handle)}`, { token });
     },
 
-    async getUserPosts(userIdOrHandle: string, token?: string, limit = 20) {
+    async getUserPosts(userIdOrHandle: string, token?: string, limit = 20, page = 1) {
       return fetchJson(
-        `/users/${encodeURIComponent(userIdOrHandle)}/posts?limit=${limit}&type=posts`,
+        `/users/${encodeURIComponent(userIdOrHandle)}/posts?page=${page}&limit=${limit}&type=posts`,
         { token },
       );
+    },
+
+    async getMyPosts(token: string, limit = 20, page = 1) {
+      return fetchJson(
+        `/users/me/posts?page=${page}&limit=${limit}&type=posts`,
+        { token },
+      );
+    },
+
+    async getMyCollections(token: string) {
+      return fetchJson('/collections', { token });
+    },
+
+    async createCollection(
+      token: string,
+      body: { title: string; description?: string; shareSaves?: boolean; isPublic?: boolean },
+    ) {
+      return fetchJson<{ id: string }>('/collections', {
+        method: 'POST',
+        body: JSON.stringify(body),
+        token,
+      });
+    },
+
+    async addPostToCollection(
+      token: string,
+      collectionId: string,
+      postId: string,
+      note?: string,
+    ) {
+      return fetchJson(`/collections/${collectionId}/items`, {
+        method: 'POST',
+        body: JSON.stringify({ postId, note }),
+        token,
+      });
     },
 
     async getNotifications(authToken: string) {

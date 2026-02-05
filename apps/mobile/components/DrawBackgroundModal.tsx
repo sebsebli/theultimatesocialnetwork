@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -7,22 +7,32 @@ import {
   PanResponder,
   Modal,
   useWindowDimensions,
-  ActivityIndicator,
   type DimensionValue,
   type ColorValue,
   type TextStyle,
-} from 'react-native';
-import { Image } from 'expo-image';
-import { MaterialIcons } from '@expo/vector-icons';
-import Svg, { Path } from 'react-native-svg';
-import ViewShot, { captureRef } from 'react-native-view-shot';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, PROFILE_HEADER_ASPECT_RATIO, HEADER, MODAL, FONTS, LAYOUT, SIZES, createStyles } from '../constants/theme';
-import { api, getImageUrl, getAvatarUri } from '../utils/api';
-import { useToast } from '../context/ToastContext';
-import { ImageVerifyingOverlay } from './ImageVerifyingOverlay';
-import { formatCompactNumber } from '../utils/format';
+} from "react-native";
+import { Image } from "expo-image";
+import { MaterialIcons } from "@expo/vector-icons";
+import Svg, { Path } from "react-native-svg";
+import ViewShot, { captureRef } from "react-native-view-shot";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import {
+  COLORS,
+  SPACING,
+  PROFILE_HEADER_ASPECT_RATIO,
+  HEADER,
+  MODAL,
+  FONTS,
+  LAYOUT,
+  SIZES,
+  createStyles,
+} from "../constants/theme";
+import { api, getImageUrl, getAvatarUri } from "../utils/api";
+import { useToast } from "../context/ToastContext";
+import { ImageVerifyingOverlay } from "./ImageVerifyingOverlay";
+import { InlineSkeleton } from "./LoadingSkeleton";
+import { formatCompactNumber } from "../utils/format";
 
 type Point = { x: number; y: number };
 type Stroke = Point[];
@@ -31,7 +41,7 @@ const STROKE_WIDTH = 3;
 /** Opaque background for saved PNG only (hidden capture layer) */
 const DRAW_HEADER_BG = COLORS.ink;
 /** Semi-transparent overlay so user sees profile below while drawing */
-const OVERLAY_BG = 'rgba(11,11,12,0.45)';
+const OVERLAY_BG = "rgba(11,11,12,0.45)";
 const STROKE_VISIBLE = COLORS.paper;
 
 export interface DrawBackgroundModalProps {
@@ -44,7 +54,13 @@ export interface DrawBackgroundModalProps {
   user?: any;
 }
 
-export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUrl, user }: DrawBackgroundModalProps) {
+export function DrawBackgroundModal({
+  visible,
+  onClose,
+  onSaved,
+  profileHeaderUrl,
+  user,
+}: DrawBackgroundModalProps) {
   const { t } = useTranslation();
   const { showError, showSuccess } = useToast();
   const insets = useSafeAreaInsets();
@@ -58,8 +74,11 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
   const [saving, setSaving] = useState(false);
 
   const pathD = useCallback((stroke: Stroke) => {
-    if (stroke.length < 2) return '';
-    return stroke.reduce((acc, p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`), '');
+    if (stroke.length < 2) return "";
+    return stroke.reduce(
+      (acc, p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`),
+      "",
+    );
   }, []);
 
   const panResponder = useRef(
@@ -89,9 +108,10 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
   }, []);
 
   const save = useCallback(async () => {
-    const allStrokes = currentStroke.length > 0 ? [...strokes, currentStroke] : strokes;
+    const allStrokes =
+      currentStroke.length > 0 ? [...strokes, currentStroke] : strokes;
     if (allStrokes.length === 0) {
-      showError(t('profile.drawEmpty', 'Draw something first.'));
+      showError(t("profile.drawEmpty", "Draw something first."));
       return;
     }
     if (!canvasRef.current) return;
@@ -102,48 +122,68 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
       // Delay so SVG is fully painted before capture (view-shot can miss SVG otherwise)
       await new Promise((r) => setTimeout(r, 150));
       const result = await captureRef(canvasRef, {
-        result: 'tmpfile',
-        format: 'png',
+        result: "tmpfile",
+        format: "png",
         quality: 1,
         width: targetWidth,
         height: targetHeight,
       });
       const file = {
         uri: result as string,
-        type: 'image/png',
-        fileName: 'profile-header.png',
+        type: "image/png",
+        fileName: "profile-header.png",
       };
-      const uploadRes = await api.upload('/upload/profile-header', file);
+      const uploadRes = await api.upload("/upload/profile-header", file);
       if (uploadRes?.key) {
-        await api.patch('/users/me', { profileHeaderKey: uploadRes.key });
-        showSuccess(t('profile.headerUpdated', 'Header updated.'));
+        await api.patch("/users/me", { profileHeaderKey: uploadRes.key });
+        showSuccess(t("profile.headerUpdated", "Header updated."));
         onSaved(uploadRes.key, uploadRes.url);
         onClose();
       }
     } catch (e) {
       if (__DEV__) console.error(e);
-      showError(t('profile.photoUpdateFailed', 'Failed to save.'));
+      showError(t("profile.photoUpdateFailed", "Failed to save."));
     } finally {
       setSaving(false);
     }
-  }, [strokes, currentStroke, showError, showSuccess, t, onSaved, onClose, screenWidth, canvasHeight]);
+  }, [
+    strokes,
+    currentStroke,
+    showError,
+    showSuccess,
+    t,
+    onSaved,
+    onClose,
+    screenWidth,
+    canvasHeight,
+  ]);
 
   const allPaths = [...strokes, currentStroke].filter((s) => s.length >= 2);
 
   if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+    >
       <ImageVerifyingOverlay visible={saving} />
       <View style={styles.overlay}>
         {/* Backdrop only below the draw area: tap to close; top (draw area) stays transparent so profile shows through */}
         <Pressable
           style={[styles.backdropBelowCanvas, { top: canvasHeight }]}
           onPress={onClose}
-          accessibilityLabel={t('common.close')}
+          accessibilityLabel={t("common.close")}
         />
         {/* Draw area: same size/ratio as profile header; transparent so profile is visible behind */}
-        <View style={[styles.canvasWrap, { width: canvasWidth, height: canvasHeight }]}>
+        <View
+          style={[
+            styles.canvasWrap,
+            { width: canvasWidth, height: canvasHeight },
+          ]}
+        >
           {/* Ghost Profile Info (Visual Guide) - Rendered BEHIND drawing surface but visible through transparent stroke layer */}
           {user && (
             <View style={styles.ghostContent} pointerEvents="none">
@@ -158,7 +198,8 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
                     />
                   ) : (
                     <Text style={styles.avatarText}>
-                      {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
+                      {user.displayName?.charAt(0) ||
+                        user.handle?.charAt(0).toUpperCase()}
                     </Text>
                   )}
                 </View>
@@ -170,7 +211,9 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
               </View>
 
               {user.bio ? (
-                <Text style={styles.bio} numberOfLines={3}>{user.bio}</Text>
+                <Text style={styles.bio} numberOfLines={3}>
+                  {user.bio}
+                </Text>
               ) : null}
 
               {/* Placeholder for actions to match spacing */}
@@ -178,20 +221,42 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
 
               <View style={styles.followersFollowingRow}>
                 <Text style={styles.followersFollowingText}>
-                  {formatCompactNumber(user.followerCount ?? 0)} {t('profile.followers').toLowerCase()}
+                  {formatCompactNumber(user.followerCount ?? 0)}{" "}
+                  {t("profile.followers").toLowerCase()}
                 </Text>
                 <Text style={styles.followersFollowingText}> · </Text>
                 <Text style={styles.followersFollowingText}>
-                  {formatCompactNumber(user.followingCount ?? 0)} {t('profile.following').toLowerCase()}
+                  {formatCompactNumber(user.followingCount ?? 0)}{" "}
+                  {t("profile.following").toLowerCase()}
                 </Text>
               </View>
             </View>
           )}
 
           {/* Transparent background so profile header shows through; overlay + strokes on top */}
-          <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight }]}>
-            <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight, backgroundColor: OVERLAY_BG }]} {...panResponder.panHandlers}>
-              <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill} pointerEvents="none">
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { width: canvasWidth, height: canvasHeight },
+            ]}
+          >
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  backgroundColor: OVERLAY_BG,
+                },
+              ]}
+              {...panResponder.panHandlers}
+            >
+              <Svg
+                width={canvasWidth}
+                height={canvasHeight}
+                style={StyleSheet.absoluteFill}
+                pointerEvents="none"
+              >
                 {allPaths.map((stroke, i) => (
                   <Path
                     key={i}
@@ -209,11 +274,28 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
           {/* Hidden: for capture only (opaque bg + strokes so saved PNG is solid) */}
           <ViewShot
             ref={canvasRef}
-            style={[styles.captureLayer, { width: canvasWidth, height: canvasHeight }]}
+            style={[
+              styles.captureLayer,
+              { width: canvasWidth, height: canvasHeight },
+            ]}
             collapsable={false}
           >
-            <View style={[StyleSheet.absoluteFill, { width: canvasWidth, height: canvasHeight, backgroundColor: DRAW_HEADER_BG }]} />
-            <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill} pointerEvents="none">
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  backgroundColor: DRAW_HEADER_BG,
+                },
+              ]}
+            />
+            <Svg
+              width={canvasWidth}
+              height={canvasHeight}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            >
               {allPaths.map((stroke, i) => (
                 <Path
                   key={i}
@@ -230,16 +312,35 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
           <Pressable
             style={[styles.closeOverlay, { top: insets.top + SPACING.s }]}
             onPress={onClose}
-            accessibilityLabel={t('common.close')}
+            accessibilityLabel={t("common.close")}
           >
-            <MaterialIcons name="close" size={HEADER.iconSize} color={COLORS.paper} />
+            <MaterialIcons
+              name="close"
+              size={HEADER.iconSize}
+              color={COLORS.paper}
+            />
           </Pressable>
         </View>
         {/* Bottom bar: Clear and Save */}
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + SPACING.m }]}>
-          <Pressable style={styles.btnSecondary} onPress={clear} disabled={saving}>
-            <MaterialIcons name="delete-outline" size={HEADER.iconSize} color={COLORS.paper} />
-            <Text style={styles.btnSecondaryText}>{t('common.clear', 'Clear')}</Text>
+        <View
+          style={[
+            styles.bottomBar,
+            { paddingBottom: insets.bottom + SPACING.m },
+          ]}
+        >
+          <Pressable
+            style={styles.btnSecondary}
+            onPress={clear}
+            disabled={saving}
+          >
+            <MaterialIcons
+              name="delete-outline"
+              size={HEADER.iconSize}
+              color={COLORS.paper}
+            />
+            <Text style={styles.btnSecondaryText}>
+              {t("common.clear", "Clear")}
+            </Text>
           </Pressable>
           <Pressable
             style={[styles.btnPrimary, saving && styles.btnDisabled]}
@@ -247,11 +348,17 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator color={COLORS.ink} size="small" />
+              <InlineSkeleton />
             ) : (
               <>
-                <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.ink} />
-                <Text style={styles.btnPrimaryText}>{t('profile.saveAsHeader', 'Save')}</Text>
+                <MaterialIcons
+                  name="check"
+                  size={HEADER.iconSize}
+                  color={COLORS.ink}
+                />
+                <Text style={styles.btnPrimaryText}>
+                  {t("profile.saveAsHeader", "Save")}
+                </Text>
               </>
             )}
           </Pressable>
@@ -264,39 +371,39 @@ export function DrawBackgroundModal({ visible, onClose, onSaved, profileHeaderUr
 const styles = createStyles({
   overlay: {
     flex: 1,
-    justifyContent: 'space-between',
-    backgroundColor: 'transparent',
+    justifyContent: "space-between",
+    backgroundColor: "transparent",
   },
   /** Opaque below the draw area so ONLY the header-sized area is transparent; tap to close */
   backdropBelowCanvas: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: COLORS.ink,
   },
   canvasWrap: {
-    position: 'relative',
-    alignSelf: 'stretch',
-    backgroundColor: 'transparent',
+    position: "relative",
+    alignSelf: "stretch",
+    backgroundColor: "transparent",
   },
   captureLayer: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     top: 0,
     opacity: 0,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   closeOverlay: {
-    position: 'absolute',
+    position: "absolute",
     right: SPACING.l,
     padding: SPACING.s,
     zIndex: 1,
   },
   bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.m,
     paddingHorizontal: SPACING.l,
     paddingTop: SPACING.m,
@@ -304,26 +411,26 @@ const styles = createStyles({
   },
   btnSecondary: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.s,
     minHeight: MODAL.buttonMinHeight as DimensionValue,
     paddingVertical: MODAL.buttonPaddingVertical as DimensionValue,
     paddingHorizontal: MODAL.buttonPaddingHorizontal as DimensionValue,
     borderRadius: (MODAL.buttonBorderRadius as number) ?? 0,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: "rgba(255,255,255,0.1)",
   },
   btnSecondaryText: {
     color: COLORS.paper,
     fontSize: MODAL.buttonFontSize as number,
-    fontWeight: MODAL.buttonFontWeight as TextStyle['fontWeight'],
+    fontWeight: MODAL.buttonFontWeight as TextStyle["fontWeight"],
   },
   btnPrimary: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.s,
     minHeight: MODAL.buttonMinHeight as DimensionValue,
     paddingVertical: MODAL.buttonPaddingVertical as DimensionValue,
@@ -334,22 +441,22 @@ const styles = createStyles({
   btnPrimaryText: {
     color: MODAL.primaryButtonTextColor as ColorValue,
     fontSize: MODAL.buttonFontSize as number,
-    fontWeight: MODAL.buttonFontWeight as TextStyle['fontWeight'],
+    fontWeight: MODAL.buttonFontWeight as TextStyle["fontWeight"],
   },
   btnDisabled: {
     opacity: 0.6,
   },
   ghostContent: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
     gap: SPACING.l,
     zIndex: 0, // Behind drawing strokes but visible
   },
   avatarContainer: {
-    position: 'relative',
+    position: "relative",
     width: 120,
     height: 120,
     marginBottom: SPACING.xs,
@@ -359,30 +466,30 @@ const styles = createStyles({
     height: 120,
     borderRadius: 60,
     backgroundColor: COLORS.divider,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
     borderColor: COLORS.divider,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 60,
   },
   avatarText: {
     fontSize: 40,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
   identityBlock: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 4,
   },
   name: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     letterSpacing: -0.5,
@@ -395,7 +502,7 @@ const styles = createStyles({
   bio: {
     fontSize: 15,
     color: COLORS.paper,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 22,
     maxWidth: 320,
     fontFamily: FONTS.regular,
@@ -411,10 +518,10 @@ const styles = createStyles({
     marginTop: SPACING.xs,
   },
   followersFollowingRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: SPACING.xs,
     gap: 2,
   },
@@ -422,7 +529,7 @@ const styles = createStyles({
     fontSize: 12,
     fontFamily: FONTS.medium,
     color: COLORS.tertiary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
 });

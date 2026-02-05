@@ -1,21 +1,22 @@
-import React, { useMemo } from 'react';
-import { Tabs, Redirect, useRouter, usePathname } from 'expo-router';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONTS } from '../../constants/theme';
-import { Text, View, ActivityIndicator, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../context/auth';
-import { useSocket } from '../../context/SocketContext';
-import { TabPressProvider, useTabPress } from '../../context/TabPressContext';
+import React, { useMemo } from "react";
+import { Tabs, Redirect, useRouter, usePathname } from "expo-router";
+import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { COLORS, SPACING, FONTS } from "../../constants/theme";
+import { FullScreenSkeleton } from "../../components/LoadingSkeleton";
+import { Text, View, Pressable } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../context/auth";
+import { useSocket } from "../../context/SocketContext";
+import { TabPressProvider, useTabPress } from "../../context/TabPressContext";
 
-type TabKey = 'index' | 'explore' | 'messages' | 'profile';
+type TabKey = "index" | "explore" | "messages" | "profile";
 
 function getCurrentTab(pathname: string): TabKey {
-  if (!pathname) return 'index';
-  if (pathname.includes('explore')) return 'explore';
-  if (pathname.includes('messages')) return 'messages';
-  if (pathname.includes('profile')) return 'profile';
-  return 'index';
+  if (!pathname) return "index";
+  if (pathname.includes("explore")) return "explore";
+  if (pathname.includes("messages")) return "messages";
+  if (pathname.includes("profile")) return "profile";
+  return "index";
 }
 
 function TabLayoutInner() {
@@ -25,14 +26,10 @@ function TabLayoutInner() {
   const { unreadMessages } = useSocket();
   const router = useRouter();
   const tabPress = useTabPress();
-  const currentTab = useMemo(() => getCurrentTab(pathname ?? ''), [pathname]);
+  const currentTab = useMemo(() => getCurrentTab(pathname ?? ""), [pathname]);
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.ink, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color={COLORS.primary} />
-      </View>
-    );
+    return <FullScreenSkeleton />;
   }
 
   if (!isAuthenticated) {
@@ -43,7 +40,7 @@ function TabLayoutInner() {
     return <Redirect href="/onboarding" />;
   }
 
-  const emitTabPress = tabPress?.emitTabPress ?? (() => { });
+  const emitTabPress = tabPress?.emitTabPress ?? (() => {});
   const onTabPress = (tab: TabKey) => {
     if (currentTab === tab) emitTabPress(tab);
   };
@@ -58,7 +55,7 @@ function TabLayoutInner() {
           paddingTop: 5,
           paddingBottom: insets.bottom,
           paddingHorizontal: 0,
-          position: 'absolute',
+          position: "absolute",
           bottom: 0,
           left: 0,
           right: 0,
@@ -69,17 +66,27 @@ function TabLayoutInner() {
         tabBarInactiveTintColor: COLORS.primary,
         tabBarShowLabel: false,
         tabBarIconStyle: { marginTop: 0 },
-        tabBarItemStyle: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+        tabBarItemStyle: {
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         listeners={{
-          tabPress: () => onTabPress('index'),
+          tabPress: () => onTabPress("index"),
         }}
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+          title: "Home",
+          tabBarIcon: ({
+            color,
+            focused,
+          }: {
+            color: string;
+            focused: boolean;
+          }) => (
             <MaterialIcons
               name="home"
               size={28}
@@ -91,11 +98,17 @@ function TabLayoutInner() {
       <Tabs.Screen
         name="explore"
         listeners={{
-          tabPress: () => onTabPress('explore'),
+          tabPress: () => onTabPress("explore"),
         }}
         options={{
-          title: 'Discover',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+          title: "Discover",
+          tabBarIcon: ({
+            color,
+            focused,
+          }: {
+            color: string;
+            focused: boolean;
+          }) => (
             <MaterialIcons
               name="search"
               size={28}
@@ -109,14 +122,27 @@ function TabLayoutInner() {
         listeners={() => ({
           tabPress: (e: any) => {
             e.preventDefault();
-            router.push('/post/compose');
+            router.push("/post/compose");
           },
         })}
         options={{
-          title: '',
-          tabBarButton: ({ children: _children, ...props }: { children: React.ReactNode;[key: string]: unknown }) => (
+          title: "",
+          tabBarButton: ({
+            children: _children,
+            ...props
+          }: {
+            children: React.ReactNode;
+            [key: string]: unknown;
+          }) => (
             <Pressable {...props} style={[{ flex: 1 }, props.style]}>
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 4 }}>
+              <View
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  paddingBottom: 4,
+                }}
+              >
                 <View
                   style={{
                     width: 56,
@@ -124,9 +150,9 @@ function TabLayoutInner() {
                     marginTop: -28,
                     borderRadius: 28,
                     backgroundColor: COLORS.primary,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    shadowColor: '#000',
+                    alignItems: "center",
+                    justifyContent: "center",
+                    shadowColor: "#000",
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.25,
                     shadowRadius: 4,
@@ -144,12 +170,18 @@ function TabLayoutInner() {
       <Tabs.Screen
         name="messages"
         listeners={{
-          tabPress: () => onTabPress('messages'),
+          tabPress: () => onTabPress("messages"),
         }}
         options={{
-          title: 'Chats',
+          title: "Chats",
           tabBarBadge: unreadMessages > 0 ? unreadMessages : undefined,
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+          tabBarIcon: ({
+            color,
+            focused,
+          }: {
+            color: string;
+            focused: boolean;
+          }) => (
             <MaterialIcons
               name="chat-bubble-outline"
               size={28}
@@ -161,11 +193,17 @@ function TabLayoutInner() {
       <Tabs.Screen
         name="profile"
         listeners={{
-          tabPress: () => onTabPress('profile'),
+          tabPress: () => onTabPress("profile"),
         }}
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+          title: "Profile",
+          tabBarIcon: ({
+            color,
+            focused,
+          }: {
+            color: string;
+            focused: boolean;
+          }) => (
             <MaterialIcons
               name="person"
               size={28}

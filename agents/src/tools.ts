@@ -185,6 +185,63 @@ export const AGENT_TOOLS: Array<{
     {
       type: 'function' as const,
       function: {
+        name: 'get_my_posts',
+        description: 'Get your own posts (as the current user). Use this to see what you have posted so you can create collections from your posts. Returns posts with id (UUID).',
+        parameters: {
+          type: 'object',
+          properties: {
+            limit: { type: 'number', description: 'Max number of posts (default 30)' },
+            page: { type: 'number', description: 'Page number (default 1)' },
+          },
+        },
+      },
+    },
+    {
+      type: 'function' as const,
+      function: {
+        name: 'get_my_collections',
+        description: 'List your collections. Returns collection id, title, description, itemCount. Use after creating collections or to see existing ones before adding more posts.',
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
+    },
+    {
+      type: 'function' as const,
+      function: {
+        name: 'create_collection',
+        description: 'Create a new collection on your profile. Give it a title and optional description (e.g. "Recipes", "Travel tips", "Best reads"). Use real post ids from get_my_posts when adding items.',
+        parameters: {
+          type: 'object',
+          required: ['title'],
+          properties: {
+            title: { type: 'string', description: 'Collection title (e.g. "Weeknight Dinners", "Book recommendations")' },
+            description: { type: 'string', description: 'Optional short description of the collection' },
+            is_public: { type: 'boolean', description: 'Whether the collection is visible on your profile (default true)' },
+          },
+        },
+      },
+    },
+    {
+      type: 'function' as const,
+      function: {
+        name: 'add_post_to_collection',
+        description: 'Add one of your posts to a collection. post_id must be a real post id from get_my_posts; collection_id from get_my_collections or create_collection.',
+        parameters: {
+          type: 'object',
+          required: ['collection_id', 'post_id'],
+          properties: {
+            collection_id: { type: 'string', description: 'Collection UUID (from get_my_collections or create_collection)' },
+            post_id: { type: 'string', description: 'Post UUID (from get_my_posts—must be your own post)' },
+            note: { type: 'string', description: 'Optional short note for this item in the collection' },
+          },
+        },
+      },
+    },
+    {
+      type: 'function' as const,
+      function: {
         name: 'get_notifications',
         description: 'Get your notifications: replies to your posts, likes, mentions, new followers. Check this to see who reacted to you and respond.',
         parameters: {
@@ -285,6 +342,10 @@ export type AgentToolName =
   | 'get_post'
   | 'get_user'
   | 'get_user_posts'
+  | 'get_my_posts'
+  | 'get_my_collections'
+  | 'create_collection'
+  | 'add_post_to_collection'
   | 'get_notifications'
   | 'get_dm_threads'
   | 'get_dm_messages'

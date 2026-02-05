@@ -1,36 +1,51 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Text,
   View,
   ScrollView,
   Pressable,
   TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../../../utils/api';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../../../../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../../../context/auth';
-import { useToast } from '../../../../context/ToastContext';
-import { ScreenHeader } from '../../../../components/ScreenHeader';
-import { MarkdownText } from '../../../../components/MarkdownText';
-import { ReportModal } from '../../../../components/ReportModal';
-import { OptionsActionSheet } from '../../../../components/OptionsActionSheet';
-import { ConfirmModal } from '../../../../components/ConfirmModal';
-import { EmptyState, emptyStateCenterWrapStyle } from '../../../../components/EmptyState';
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { api } from "../../../../utils/api";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  LAYOUT,
+  createStyles,
+} from "../../../../constants/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../../../context/auth";
+import { useToast } from "../../../../context/ToastContext";
+import { ScreenHeader } from "../../../../components/ScreenHeader";
+import { MarkdownText } from "../../../../components/MarkdownText";
+import { ReportModal } from "../../../../components/ReportModal";
+import { OptionsActionSheet } from "../../../../components/OptionsActionSheet";
+import { ConfirmModal } from "../../../../components/ConfirmModal";
+import {
+  EmptyState,
+  emptyStateCenterWrapStyle,
+} from "../../../../components/EmptyState";
+import {
+  CommentSkeleton,
+  InlineSkeleton,
+} from "../../../../components/LoadingSkeleton";
 
 const COMMENT_MIN_LENGTH = 2;
 const COMMENT_MAX_LENGTH = 1000;
 
 function normalizeParam(value: unknown): string | undefined {
   if (value == null) return undefined;
-  if (typeof value === 'string') return value || undefined;
-  if (Array.isArray(value) && value.length > 0) return String(value[0]) || undefined;
+  if (typeof value === "string") return value || undefined;
+  if (Array.isArray(value) && value.length > 0)
+    return String(value[0]) || undefined;
   return undefined;
 }
 
@@ -56,7 +71,7 @@ export default function SubcommentsScreen() {
   const parentReplyId = normalizeParam(params.replyId);
   const [parentReply, setParentReply] = useState<Reply | null>(null);
   const [replies, setReplies] = useState<Reply[]>([]);
-  const [commentDraft, setCommentDraft] = useState('');
+  const [commentDraft, setCommentDraft] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reportReplyId, setReportReplyId] = useState<string | null>(null);
@@ -74,18 +89,25 @@ export default function SubcommentsScreen() {
     try {
       const [parentData, repliesData] = await Promise.all([
         api.get<Reply>(`/posts/${postId}/replies/${parentReplyId}`),
-        api.get<Reply[] | { items?: Reply[] }>(`/posts/${postId}/replies?parentReplyId=${parentReplyId}`),
+        api.get<Reply[] | { items?: Reply[] }>(
+          `/posts/${postId}/replies?parentReplyId=${parentReplyId}`,
+        ),
       ]);
       setParentReply(parentData);
       const list = Array.isArray(repliesData)
         ? repliesData
-        : (repliesData && typeof repliesData === 'object' && 'items' in repliesData && Array.isArray((repliesData as any).items))
+        : repliesData &&
+            typeof repliesData === "object" &&
+            "items" in repliesData &&
+            Array.isArray((repliesData as any).items)
           ? (repliesData as any).items
           : [];
       setReplies(list);
-      setLikedReplies(new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)));
+      setLikedReplies(
+        new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)),
+      );
     } catch (e) {
-      console.error('Failed to load replies', e);
+      console.error("Failed to load replies", e);
       setParentReply(null);
       setReplies([]);
     } finally {
@@ -100,12 +122,16 @@ export default function SubcommentsScreen() {
   const loadReplies = useCallback(async () => {
     if (!postId || !parentReplyId) return;
     try {
-      const raw = await api.get<Reply[] | { items?: Reply[] }>(`/posts/${postId}/replies?parentReplyId=${parentReplyId}`);
+      const raw = await api.get<Reply[] | { items?: Reply[] }>(
+        `/posts/${postId}/replies?parentReplyId=${parentReplyId}`,
+      );
       const list = Array.isArray(raw) ? raw : (raw?.items ?? []);
       setReplies(list);
-      setLikedReplies(new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)));
+      setLikedReplies(
+        new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)),
+      );
     } catch (e) {
-      console.error('Failed to load replies', e);
+      console.error("Failed to load replies", e);
     }
   }, [postId, parentReplyId]);
 
@@ -113,24 +139,39 @@ export default function SubcommentsScreen() {
     const body = commentDraft.trim();
     if (!body || !isAuthenticated) return;
     if (body.length < COMMENT_MIN_LENGTH) {
-      showError(t('post.commentTooShort', 'Comment must be at least {{min}} characters.', { min: COMMENT_MIN_LENGTH }));
+      showError(
+        t(
+          "post.commentTooShort",
+          "Comment must be at least {{min}} characters.",
+          { min: COMMENT_MIN_LENGTH },
+        ),
+      );
       return;
     }
     if (body.length > COMMENT_MAX_LENGTH) {
-      showError(t('post.commentTooLong', 'Comment must be at most {{max}} characters.', { max: COMMENT_MAX_LENGTH }));
+      showError(
+        t(
+          "post.commentTooLong",
+          "Comment must be at most {{max}} characters.",
+          { max: COMMENT_MAX_LENGTH },
+        ),
+      );
       return;
     }
     setSubmittingComment(true);
     try {
       await api.post(`/posts/${postId}/replies`, { body, parentReplyId });
-      setCommentDraft('');
-      showSuccess(t('post.commentPosted', 'Comment posted'));
+      setCommentDraft("");
+      showSuccess(t("post.commentPosted", "Comment posted"));
       await loadReplies();
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error: any) {
-      console.error('Failed to post reply', error);
-      const message = error?.data?.message ?? error?.message ?? t('post.commentFailed');
-      showError(typeof message === 'string' ? message : t('post.commentFailed'));
+      console.error("Failed to post reply", error);
+      const message =
+        error?.data?.message ?? error?.message ?? t("post.commentFailed");
+      showError(
+        typeof message === "string" ? message : t("post.commentFailed"),
+      );
       setCommentDraft(body);
     } finally {
       setSubmittingComment(false);
@@ -159,21 +200,25 @@ export default function SubcommentsScreen() {
         else next.delete(replyId);
         return next;
       });
-      showError(t('post.reportError', 'Failed'));
+      showError(t("post.reportError", "Failed"));
     }
   };
 
-  const handleReportSubmit = async (replyId: string, reason: string, comment?: string) => {
+  const handleReportSubmit = async (
+    replyId: string,
+    reason: string,
+    comment?: string,
+  ) => {
     try {
-      await api.post('/safety/report', {
+      await api.post("/safety/report", {
         targetId: replyId,
-        targetType: 'REPLY',
+        targetType: "REPLY",
         reason,
         comment,
       });
-      showSuccess(t('post.reportSuccess', 'Report submitted'));
+      showSuccess(t("post.reportSuccess", "Report submitted"));
     } catch (e) {
-      showError(t('post.reportError', 'Failed to report'));
+      showError(t("post.reportError", "Failed to report"));
       throw e;
     }
   };
@@ -183,10 +228,17 @@ export default function SubcommentsScreen() {
     try {
       await api.delete(`/posts/${postId}/replies/${replyToDeleteId}`);
       setReplies((prev) => prev.filter((r) => r.id !== replyToDeleteId));
-      showSuccess(t('post.commentDeleted', 'Comment deleted'));
+      showSuccess(t("post.commentDeleted", "Comment deleted"));
     } catch (e: any) {
-      const msg = e?.data?.message ?? e?.message ?? t('post.commentDeleteFailed', 'Failed to delete comment');
-      showError(typeof msg === 'string' ? msg : t('post.commentDeleteFailed', 'Failed to delete comment'));
+      const msg =
+        e?.data?.message ??
+        e?.message ??
+        t("post.commentDeleteFailed", "Failed to delete comment");
+      showError(
+        typeof msg === "string"
+          ? msg
+          : t("post.commentDeleteFailed", "Failed to delete comment"),
+      );
     } finally {
       setReplyToDeleteId(null);
     }
@@ -195,10 +247,15 @@ export default function SubcommentsScreen() {
   if (!postId || !parentReplyId) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ScreenHeader title={t('post.repliesToComment', 'Replies')} paddingTop={insets.top} />
-        <Text style={styles.errorText}>{t('post.replyNotFound', 'Comment not found')}</Text>
+        <ScreenHeader
+          title={t("post.repliesToComment", "Replies")}
+          paddingTop={insets.top}
+        />
+        <Text style={styles.errorText}>
+          {t("post.replyNotFound", "Comment not found")}
+        </Text>
         <Pressable style={styles.backLink} onPress={() => router.back()}>
-          <Text style={styles.backLinkText}>{t('common.close')}</Text>
+          <Text style={styles.backLinkText}>{t("common.close")}</Text>
         </Pressable>
       </View>
     );
@@ -206,8 +263,16 @@ export default function SubcommentsScreen() {
 
   if (loading && !parentReply) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={styles.container}>
+        <ScreenHeader
+          title={t("post.reply", "Reply")}
+          paddingTop={insets.top}
+        />
+        <View style={styles.commentSkeletonList}>
+          <CommentSkeleton />
+          <CommentSkeleton />
+          <CommentSkeleton />
+        </View>
       </View>
     );
   }
@@ -215,9 +280,11 @@ export default function SubcommentsScreen() {
   if (!parentReply && !loading) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.errorText}>{t('post.replyNotFound', 'Comment not found')}</Text>
+        <Text style={styles.errorText}>
+          {t("post.replyNotFound", "Comment not found")}
+        </Text>
         <Pressable style={styles.backLink} onPress={() => router.back()}>
-          <Text style={styles.backLinkText}>{t('common.close')}</Text>
+          <Text style={styles.backLinkText}>{t("common.close")}</Text>
         </Pressable>
       </View>
     );
@@ -226,11 +293,11 @@ export default function SubcommentsScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       <ScreenHeader
-        title={t('post.repliesToComment', 'Replies')}
+        title={t("post.repliesToComment", "Replies")}
         paddingTop={insets.top}
       />
 
@@ -239,36 +306,52 @@ export default function SubcommentsScreen() {
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }, replies.length === 0 && { flexGrow: 1 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 100 },
+          replies.length === 0 && { flexGrow: 1 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {parentReply && (
           <View style={styles.parentCommentSection}>
-            <Text style={styles.sectionLabel}>{t('post.parentComment', 'Comment')}</Text>
+            <Text style={styles.sectionLabel}>
+              {t("post.parentComment", "Comment")}
+            </Text>
             <View style={styles.commentRow}>
               <View style={styles.commentAuthorRow}>
                 <Pressable
-                  onPress={() => parentReply.author?.handle && router.push(`/user/${parentReply.author.handle}`)}
+                  onPress={() =>
+                    parentReply.author?.handle &&
+                    router.push(`/user/${parentReply.author.handle}`)
+                  }
                   style={styles.commentAuthorLeft}
                 >
                   <View style={styles.commentAvatar}>
                     <Text style={styles.avatarTextSmall}>
-                      {parentReply.author?.displayName?.charAt(0) || parentReply.author?.handle?.charAt(0) || '?'}
+                      {parentReply.author?.displayName?.charAt(0) ||
+                        parentReply.author?.handle?.charAt(0) ||
+                        "?"}
                     </Text>
                   </View>
                   <Text style={styles.commentAuthorName} numberOfLines={1}>
-                    {parentReply.author?.displayName || parentReply.author?.handle || t('post.unknownUser')}
+                    {parentReply.author?.displayName ||
+                      parentReply.author?.handle ||
+                      t("post.unknownUser")}
                   </Text>
                 </Pressable>
               </View>
               <View style={styles.commentMeta}>
                 <Text style={styles.commentTime}>
-                  {new Date(parentReply.createdAt).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {new Date(parentReply.createdAt).toLocaleDateString(
+                    undefined,
+                    {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    },
+                  )}
                 </Text>
               </View>
               <View style={styles.commentBodyWrap}>
@@ -280,16 +363,26 @@ export default function SubcommentsScreen() {
 
         <Text style={styles.sectionLabel}>
           {replies.length === 0
-            ? t('post.replies', 'Replies')
-            : t('post.replyCountLabel', '{{count}} replies', { count: replies.length })}
+            ? t("post.replies", "Replies")
+            : t("post.replyCountLabel", "{{count}} replies", {
+                count: replies.length,
+              })}
         </Text>
 
         {replies.length === 0 ? (
           <View style={emptyStateCenterWrapStyle}>
             <EmptyState
               icon="chat-bubble-outline"
-              headline={isAuthenticated ? t('post.noRepliesYet', 'No replies yet. Be the first.') : t('post.signInToComment', 'Sign in to reply')}
-              subtext={isAuthenticated ? t('post.addReplyBelow', 'Add a reply below.') : undefined}
+              headline={
+                isAuthenticated
+                  ? t("post.noRepliesYet", "No replies yet. Be the first.")
+                  : t("post.signInToComment", "Sign in to reply")
+              }
+              subtext={
+                isAuthenticated
+                  ? t("post.addReplyBelow", "Add a reply below.")
+                  : undefined
+              }
             />
           </View>
         ) : null}
@@ -297,16 +390,23 @@ export default function SubcommentsScreen() {
           <View key={reply.id} style={styles.commentRow}>
             <View style={styles.commentAuthorRow}>
               <Pressable
-                onPress={() => reply.author?.handle && router.push(`/user/${reply.author.handle}`)}
+                onPress={() =>
+                  reply.author?.handle &&
+                  router.push(`/user/${reply.author.handle}`)
+                }
                 style={styles.commentAuthorLeft}
               >
                 <View style={styles.commentAvatar}>
                   <Text style={styles.avatarTextSmall}>
-                    {reply.author?.displayName?.charAt(0) || reply.author?.handle?.charAt(0) || '?'}
+                    {reply.author?.displayName?.charAt(0) ||
+                      reply.author?.handle?.charAt(0) ||
+                      "?"}
                   </Text>
                 </View>
                 <Text style={styles.commentAuthorName} numberOfLines={1}>
-                  {reply.author?.displayName || reply.author?.handle || t('post.unknownUser')}
+                  {reply.author?.displayName ||
+                    reply.author?.handle ||
+                    t("post.unknownUser")}
                 </Text>
               </Pressable>
               <Pressable
@@ -314,16 +414,20 @@ export default function SubcommentsScreen() {
                 hitSlop={12}
                 style={styles.menuButton}
               >
-                <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
+                <MaterialIcons
+                  name="more-horiz"
+                  size={HEADER.iconSize}
+                  color={COLORS.tertiary}
+                />
               </Pressable>
             </View>
             <View style={styles.commentMeta}>
               <Text style={styles.commentTime}>
                 {new Date(reply.createdAt).toLocaleDateString(undefined, {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}
               </Text>
             </View>
@@ -333,19 +437,33 @@ export default function SubcommentsScreen() {
                 <View style={styles.commentLikeRow}>
                   <Pressable
                     style={styles.commentLikeBtn}
-                    onPress={() => handleLikeReply(reply.id, likedReplies.has(reply.id))}
+                    onPress={() =>
+                      handleLikeReply(reply.id, likedReplies.has(reply.id))
+                    }
                   >
                     <MaterialIcons
-                      name={likedReplies.has(reply.id) ? 'favorite' : 'favorite-border'}
+                      name={
+                        likedReplies.has(reply.id)
+                          ? "favorite"
+                          : "favorite-border"
+                      }
                       size={HEADER.iconSize}
-                      color={likedReplies.has(reply.id) ? COLORS.like : COLORS.tertiary}
+                      color={
+                        likedReplies.has(reply.id)
+                          ? COLORS.like
+                          : COLORS.tertiary
+                      }
                     />
                     <Text style={styles.commentLikeLabel}>
-                      {(reply.authorId === userId || reply.author?.id === userId) &&
-                        reply.privateLikeCount !== undefined &&
-                        reply.privateLikeCount > 0
-                        ? t('post.privateLikedBy', { count: reply.privateLikeCount, defaultValue: `Liked by ${reply.privateLikeCount}` })
-                        : t('post.like')}
+                      {(reply.authorId === userId ||
+                        reply.author?.id === userId) &&
+                      reply.privateLikeCount !== undefined &&
+                      reply.privateLikeCount > 0
+                        ? t("post.privateLikedBy", {
+                            count: reply.privateLikeCount,
+                            defaultValue: `Liked by ${reply.privateLikeCount}`,
+                          })
+                        : t("post.like")}
                     </Text>
                   </Pressable>
                 </View>
@@ -355,13 +473,18 @@ export default function SubcommentsScreen() {
         ))}
       </ScrollView>
 
-      <View style={[styles.commentInputBar, { paddingBottom: insets.bottom + SPACING.m }]}>
+      <View
+        style={[
+          styles.commentInputBar,
+          { paddingBottom: insets.bottom + SPACING.m },
+        ]}
+      >
         {isAuthenticated ? (
           <>
             <View style={styles.commentInputWrap}>
               <TextInput
                 style={styles.commentInput}
-                placeholder={t('post.addReply', 'Add a reply...')}
+                placeholder={t("post.addReply", "Add a reply...")}
                 placeholderTextColor={COLORS.tertiary}
                 value={commentDraft}
                 onChangeText={setCommentDraft}
@@ -376,54 +499,98 @@ export default function SubcommentsScreen() {
             <Pressable
               style={[
                 styles.commentPostBtn,
-                (commentDraft.trim().length < COMMENT_MIN_LENGTH || commentDraft.length > COMMENT_MAX_LENGTH || submittingComment) && styles.commentPostBtnDisabled,
+                (commentDraft.trim().length < COMMENT_MIN_LENGTH ||
+                  commentDraft.length > COMMENT_MAX_LENGTH ||
+                  submittingComment) &&
+                  styles.commentPostBtnDisabled,
               ]}
               onPress={submitComment}
-              disabled={commentDraft.trim().length < COMMENT_MIN_LENGTH || commentDraft.length > COMMENT_MAX_LENGTH || submittingComment}
+              disabled={
+                commentDraft.trim().length < COMMENT_MIN_LENGTH ||
+                commentDraft.length > COMMENT_MAX_LENGTH ||
+                submittingComment
+              }
             >
-              <Text style={styles.commentPostBtnText}>
-                {submittingComment ? t('common.loading') : t('post.postComment')}
-              </Text>
+              {submittingComment ? (
+                <InlineSkeleton />
+              ) : (
+                <Text style={styles.commentPostBtnText}>
+                  {t("post.postComment")}
+                </Text>
+              )}
             </Pressable>
           </>
         ) : (
           <Pressable
             style={styles.commentInputPlaceholder}
-            onPress={() => router.push('/(tabs)/profile')}
+            onPress={() => router.push("/(tabs)/profile")}
           >
-            <MaterialIcons name="chat-bubble-outline" size={HEADER.iconSize} color={COLORS.tertiary} style={styles.commentPlaceholderIcon} />
-            <Text style={styles.commentInputPlaceholderText}>{t('post.signInToComment')}</Text>
+            <MaterialIcons
+              name="chat-bubble-outline"
+              size={HEADER.iconSize}
+              color={COLORS.tertiary}
+              style={styles.commentPlaceholderIcon}
+            />
+            <Text style={styles.commentInputPlaceholderText}>
+              {t("post.signInToComment")}
+            </Text>
           </Pressable>
         )}
       </View>
 
       <OptionsActionSheet
         visible={!!replyMenuReplyId}
-        title={t('post.commentActions', 'Comment')}
+        title={t("post.commentActions", "Comment")}
         options={[
-          ...(replyMenuReplyId && userId && (replies.find((r) => r.id === replyMenuReplyId)?.authorId === userId || replies.find((r) => r.id === replyMenuReplyId)?.author?.id === userId)
-            ? [{ label: t('post.deleteComment', 'Delete comment'), onPress: () => { setReplyToDeleteId(replyMenuReplyId); setReplyMenuReplyId(null); }, destructive: true as const }]
+          ...(replyMenuReplyId &&
+          userId &&
+          (replies.find((r) => r.id === replyMenuReplyId)?.authorId ===
+            userId ||
+            replies.find((r) => r.id === replyMenuReplyId)?.author?.id ===
+              userId)
+            ? [
+                {
+                  label: t("post.deleteComment", "Delete comment"),
+                  onPress: () => {
+                    setReplyToDeleteId(replyMenuReplyId);
+                    setReplyMenuReplyId(null);
+                  },
+                  destructive: true as const,
+                },
+              ]
             : []),
-          { label: t('post.reportComment', 'Report'), onPress: () => { if (replyMenuReplyId) setReportReplyId(replyMenuReplyId); setReplyMenuReplyId(null); }, icon: 'flag' as const },
+          {
+            label: t("post.reportComment", "Report"),
+            onPress: () => {
+              if (replyMenuReplyId) setReportReplyId(replyMenuReplyId);
+              setReplyMenuReplyId(null);
+            },
+            icon: "flag" as const,
+          },
         ]}
-        cancelLabel={t('common.cancel')}
+        cancelLabel={t("common.cancel")}
         onCancel={() => setReplyMenuReplyId(null)}
       />
       <ReportModal
         visible={!!reportReplyId}
         onClose={() => setReportReplyId(null)}
         onReport={(reason: string, comment: string) =>
-          reportReplyId ? handleReportSubmit(reportReplyId, reason, comment) : Promise.resolve()
+          reportReplyId
+            ? handleReportSubmit(reportReplyId, reason, comment)
+            : Promise.resolve()
         }
-        title={t('post.reportTitle', 'Report Comment')}
+        title={t("post.reportTitle", "Report Comment")}
         targetType="REPLY"
       />
       <ConfirmModal
         visible={!!replyToDeleteId}
-        title={t('post.deleteComment', 'Delete comment')}
-        message={t('post.deleteCommentConfirm', 'Are you sure you want to delete this comment? This cannot be undone.')}
-        confirmLabel={t('post.deleteComment', 'Delete comment')}
-        cancelLabel={t('common.cancel')}
+        title={t("post.deleteComment", "Delete comment")}
+        message={t(
+          "post.deleteCommentConfirm",
+          "Are you sure you want to delete this comment? This cannot be undone.",
+        )}
+        confirmLabel={t("post.deleteComment", "Delete comment")}
+        cancelLabel={t("common.cancel")}
         destructive
         onConfirm={handleDeleteReply}
         onCancel={() => setReplyToDeleteId(null)}
@@ -434,18 +601,26 @@ export default function SubcommentsScreen() {
 
 const styles = createStyles({
   container: { flex: 1, backgroundColor: COLORS.ink },
-  center: { justifyContent: 'center', alignItems: 'center' },
+  center: { justifyContent: "center", alignItems: "center" },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: LAYOUT.contentPaddingHorizontal, paddingTop: SPACING.l },
+  scrollContent: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: SPACING.l,
+  },
+  commentSkeletonList: { flex: 1, paddingVertical: SPACING.s },
   errorText: { color: COLORS.tertiary, fontSize: 16, fontFamily: FONTS.medium },
   backLink: { marginTop: SPACING.m },
-  backLinkText: { color: COLORS.primary, fontSize: 16, fontFamily: FONTS.semiBold },
+  backLinkText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+  },
   parentCommentSection: { marginBottom: SPACING.xl },
   sectionLabel: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.tertiary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: SPACING.s,
     fontFamily: FONTS.semiBold,
@@ -456,14 +631,14 @@ const styles = createStyles({
     borderBottomColor: COLORS.divider,
   },
   commentAuthorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: SPACING.xs,
   },
   commentAuthorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.s,
     flex: 1,
   },
@@ -472,12 +647,12 @@ const styles = createStyles({
     height: 28,
     borderRadius: 14,
     backgroundColor: COLORS.hover,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarTextSmall: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
@@ -498,12 +673,12 @@ const styles = createStyles({
   commentBodyWrap: { marginLeft: 36 },
   commentLikeRow: {
     marginTop: SPACING.s,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   commentLikeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingVertical: 2,
     paddingRight: SPACING.s,
@@ -514,8 +689,8 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   commentInputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     gap: SPACING.m,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingTop: SPACING.m,
@@ -523,7 +698,7 @@ const styles = createStyles({
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
   },
-  commentInputWrap: { flex: 1, position: 'relative' },
+  commentInputWrap: { flex: 1, position: "relative" },
   commentInput: {
     minHeight: 44,
     maxHeight: 120,
@@ -539,7 +714,7 @@ const styles = createStyles({
     borderColor: COLORS.divider,
   },
   commentCharCount: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 6,
     right: SPACING.m,
     fontSize: 11,
@@ -548,8 +723,8 @@ const styles = createStyles({
   },
   commentInputPlaceholder: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     minHeight: 44,
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
@@ -568,13 +743,13 @@ const styles = createStyles({
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingVertical: SPACING.m,
     borderRadius: SIZES.borderRadius,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 44,
   },
   commentPostBtnDisabled: { opacity: 0.5 },
   commentPostBtnText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.ink,
     fontFamily: FONTS.semiBold,
   },

@@ -1,24 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, Pressable, ScrollView, Platform, Switch, ActivityIndicator, Linking, Share } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useAuth } from '../../context/auth';
-import { useSettings } from '../../context/SettingsContext';
-import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles } from '../../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { ConfirmModal } from '../../components/ConfirmModal';
-import * as WebBrowser from 'expo-web-browser';
-import { registerForPush } from '../../utils/push-notifications';
-import { api, getAuthToken, getApiBaseUrl } from '../../utils/api';
+import React, { useState, useEffect } from "react";
+import {
+  Text,
+  View,
+  Pressable,
+  ScrollView,
+  Platform,
+  Switch,
+  Linking,
+  Share,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useAuth } from "../../context/auth";
+import { useSettings } from "../../context/SettingsContext";
+import { useToast } from "../../context/ToastContext";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  LAYOUT,
+  createStyles,
+} from "../../constants/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import { InlineSkeleton } from "../../components/LoadingSkeleton";
+import { ConfirmModal } from "../../components/ConfirmModal";
+import * as WebBrowser from "expo-web-browser";
+import { registerForPush } from "../../utils/push-notifications";
+import { api, getAuthToken, getApiBaseUrl } from "../../utils/api";
 import {
   getDownloadSavedForOffline,
   setDownloadSavedForOffline,
   getOfflineStorageInfo,
   clearAllOfflinePosts,
-} from '../../utils/offlineStorage';
+} from "../../utils/offlineStorage";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -39,7 +57,10 @@ export default function SettingsScreen() {
   }, []);
 
   useEffect(() => {
-    api.get<{ handle?: string }>('/users/me').then(setMe).catch(() => { });
+    api
+      .get<{ handle?: string }>("/users/me")
+      .then(setMe)
+      .catch(() => {});
   }, []);
 
   const onDownloadSavedToggle = async (value: boolean) => {
@@ -64,14 +85,27 @@ export default function SettingsScreen() {
     setRequestDataModalVisible(false);
     setRequestingData(true);
     try {
-      await api.post('/users/me/request-export');
-      showSuccess(t('settings.exportEmailSent', 'Check your email for a download link. The link expires in 7 days and can only be used once.'));
+      await api.post("/users/me/request-export");
+      showSuccess(
+        t(
+          "settings.exportEmailSent",
+          "Check your email for a download link. The link expires in 7 days and can only be used once.",
+        ),
+      );
     } catch (e: any) {
       const status = e?.status;
       if (status === 429) {
-        showError(t('settings.exportRateLimit', 'You can only request a data export once per 24 hours. Please try again later.'));
+        showError(
+          t(
+            "settings.exportRateLimit",
+            "You can only request a data export once per 24 hours. Please try again later.",
+          ),
+        );
       } else {
-        showError(e?.message ?? t('settings.myDataExportFailed', 'Failed to request your data'));
+        showError(
+          e?.message ??
+            t("settings.myDataExportFailed", "Failed to request your data"),
+        );
       }
     } finally {
       setRequestingData(false);
@@ -87,78 +121,120 @@ export default function SettingsScreen() {
       const token = await getAuthToken();
       if (token) {
         await registerForPush(token);
-        showSuccess(t('settings.pushEnabled', 'Push notifications enabled'));
+        showSuccess(t("settings.pushEnabled", "Push notifications enabled"));
       }
     } catch (error) {
-      console.error('Failed to enable push', error);
-      showError(t('settings.pushEnableError', 'Failed to enable push notifications'));
+      console.error("Failed to enable push", error);
+      showError(
+        t("settings.pushEnableError", "Failed to enable push notifications"),
+      );
     }
   };
 
-  const SettingItem = ({ icon, label, onPress, destructive = false, value }: any) => (
+  const SettingItem = ({
+    icon,
+    label,
+    onPress,
+    destructive = false,
+    value,
+  }: any) => (
     <Pressable
-      style={({ pressed }: { pressed: boolean }) => [styles.item, pressed && styles.itemPressed]}
+      style={({ pressed }: { pressed: boolean }) => [
+        styles.item,
+        pressed && styles.itemPressed,
+      ]}
       onPress={onPress}
     >
       <View style={styles.itemLeft}>
-        <MaterialIcons name={icon} size={HEADER.iconSize} color={destructive ? COLORS.error : COLORS.secondary} />
-        <Text style={[styles.itemLabel, destructive && styles.itemLabelDestructive]}>{label}</Text>
+        <MaterialIcons
+          name={icon}
+          size={HEADER.iconSize}
+          color={destructive ? COLORS.error : COLORS.secondary}
+        />
+        <Text
+          style={[styles.itemLabel, destructive && styles.itemLabelDestructive]}
+        >
+          {label}
+        </Text>
       </View>
       <View style={styles.itemRight}>
         {value && <Text style={styles.itemValue}>{value}</Text>}
-        <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+        <MaterialIcons
+          name="chevron-right"
+          size={HEADER.iconSize}
+          color={COLORS.tertiary}
+        />
       </View>
     </Pressable>
   );
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('settings.title')} titleIcon="settings" paddingTop={insets.top} />
+      <ScreenHeader
+        title={t("settings.title")}
+        titleIcon="settings"
+        paddingTop={insets.top}
+      />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+      >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
+          <Text style={styles.sectionTitle}>{t("settings.account")}</Text>
           <SettingItem
             icon="person-outline"
-            label={t('settings.editProfile')}
-            onPress={() => router.push('/settings/profile')}
+            label={t("settings.editProfile")}
+            onPress={() => router.push("/settings/profile")}
           />
           <SettingItem
             icon="person-add"
-            label={t('settings.inviteFriends', 'Invite Friends')}
-            onPress={() => router.push('/invites')}
+            label={t("settings.inviteFriends", "Invite Friends")}
+            onPress={() => router.push("/invites")}
           />
           <SettingItem
             icon="language"
-            label={t('settings.languages')}
-            onPress={() => router.push('/settings/languages')}
+            label={t("settings.languages")}
+            onPress={() => router.push("/settings/languages")}
           />
           <SettingItem
             icon="security"
-            label={t('settings.security', 'Security (2FA & Sessions)')}
-            onPress={() => router.push('/settings/security')}
+            label={t("settings.security", "Security (2FA & Sessions)")}
+            onPress={() => router.push("/settings/security")}
           />
           <SettingItem
             icon="mail-outline"
-            label={t('settings.changeEmail')}
-            onPress={() => router.push('/settings/change-email')}
+            label={t("settings.changeEmail")}
+            onPress={() => router.push("/settings/change-email")}
           />
           <SettingItem
             icon="warning"
-            label={t('settings.dangerZone', 'Danger zone')}
-            onPress={() => router.push('/settings/danger-zone')}
+            label={t("settings.dangerZone", "Danger zone")}
+            onPress={() => router.push("/settings/danger-zone")}
             destructive
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.content')}</Text>
+          <Text style={styles.sectionTitle}>{t("settings.content")}</Text>
           <View style={styles.switchRow}>
             <View style={styles.itemLeft}>
-              <MaterialIcons name="auto-fix-high" size={HEADER.iconSize} color={COLORS.secondary} />
+              <MaterialIcons
+                name="auto-fix-high"
+                size={HEADER.iconSize}
+                color={COLORS.secondary}
+              />
               <View>
-                <Text style={styles.itemLabel}>{t('settings.smartAutocomplete', 'Smart Autocomplete')}</Text>
-                <Text style={styles.itemHint}>{t('settings.smartAutocompleteHint', 'Suggest posts and topics while typing')}</Text>
+                <Text style={styles.itemLabel}>
+                  {t("settings.smartAutocomplete", "Smart Autocomplete")}
+                </Text>
+                <Text style={styles.itemHint}>
+                  {t(
+                    "settings.smartAutocompleteHint",
+                    "Suggest posts and topics while typing",
+                  )}
+                </Text>
               </View>
             </View>
             <Switch
@@ -170,24 +246,40 @@ export default function SettingsScreen() {
           </View>
           <SettingItem
             icon="tune"
-            label={t('settings.relevance')}
-            onPress={() => router.push('/settings/relevance')}
+            label={t("settings.relevance")}
+            onPress={() => router.push("/settings/relevance")}
           />
           <SettingItem
             icon="notifications-none"
-            label={t('settings.notifications')}
-            onPress={() => router.push('/settings/notifications')}
+            label={t("settings.notifications")}
+            onPress={() => router.push("/settings/notifications")}
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.offlineReading', 'Offline reading')}</Text>
+          <Text style={styles.sectionTitle}>
+            {t("settings.offlineReading", "Offline reading")}
+          </Text>
           <View style={styles.switchRow}>
             <View style={styles.itemLeft}>
-              <MaterialIcons name="offline-pin" size={HEADER.iconSize} color={COLORS.secondary} />
+              <MaterialIcons
+                name="offline-pin"
+                size={HEADER.iconSize}
+                color={COLORS.secondary}
+              />
               <View>
-                <Text style={styles.itemLabel}>{t('settings.downloadSavedOffline', 'Download saved for offline')}</Text>
-                <Text style={styles.itemHint}>{t('settings.downloadSavedOfflineHint', 'When on, you can read bookmarked posts without internet. Manage storage below.')}</Text>
+                <Text style={styles.itemLabel}>
+                  {t(
+                    "settings.downloadSavedOffline",
+                    "Download saved for offline",
+                  )}
+                </Text>
+                <Text style={styles.itemHint}>
+                  {t(
+                    "settings.downloadSavedOfflineHint",
+                    "When on, you can read bookmarked posts without internet. Manage storage below.",
+                  )}
+                </Text>
               </View>
             </View>
             <Switch
@@ -199,93 +291,118 @@ export default function SettingsScreen() {
           </View>
           <SettingItem
             icon="folder-open"
-            label={t('settings.manageOfflineStorage', 'Manage offline storage')}
-            value={offlineCount > 0 ? t('settings.offlineCount', '{{count}} articles', { count: offlineCount }) : undefined}
-            onPress={() => router.push('/settings/offline-storage')}
+            label={t("settings.manageOfflineStorage", "Manage offline storage")}
+            value={
+              offlineCount > 0
+                ? t("settings.offlineCount", "{{count}} articles", {
+                    count: offlineCount,
+                  })
+                : undefined
+            }
+            onPress={() => router.push("/settings/offline-storage")}
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.safety')}</Text>
+          <Text style={styles.sectionTitle}>{t("settings.safety")}</Text>
           <SettingItem
             icon="block"
-            label={t('settings.blocked')}
-            onPress={() => router.push('/settings/blocked')}
+            label={t("settings.blocked")}
+            onPress={() => router.push("/settings/blocked")}
           />
           <SettingItem
             icon="notifications-off"
-            label={t('settings.muted')}
-            onPress={() => router.push('/settings/muted')}
+            label={t("settings.muted")}
+            onPress={() => router.push("/settings/muted")}
           />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('settings.legal')}</Text>
+          <Text style={styles.sectionTitle}>{t("settings.legal")}</Text>
           <SettingItem
             icon="description"
-            label={t('welcome.terms')}
-            onPress={() => openLink('https://citewalk.app/terms')}
+            label={t("welcome.terms")}
+            onPress={() => openLink("https://citewalk.app/terms")}
           />
           <SettingItem
             icon="lock-outline"
-            label={t('welcome.privacy')}
-            onPress={() => openLink('https://citewalk.app/privacy')}
+            label={t("welcome.privacy")}
+            onPress={() => openLink("https://citewalk.app/privacy")}
           />
           <SettingItem
             icon="info-outline"
-            label={t('welcome.imprint')}
-            onPress={() => openLink('https://citewalk.app/imprint')}
+            label={t("welcome.imprint")}
+            onPress={() => openLink("https://citewalk.app/imprint")}
           />
           {me?.handle ? (
             <SettingItem
               icon="rss-feed"
-              label={t('settings.myRssFeed', 'My RSS Feed')}
+              label={t("settings.myRssFeed", "My RSS Feed")}
               onPress={() => {
-                const url = `${getApiBaseUrl().replace(/\/$/, '')}/rss/${encodeURIComponent(me.handle ?? '')}`;
-                const title = t('settings.myRssFeed', 'My RSS Feed');
+                const url = `${getApiBaseUrl().replace(/\/$/, "")}/rss/${encodeURIComponent(me.handle ?? "")}`;
+                const title = t("settings.myRssFeed", "My RSS Feed");
                 Share.share(
-                  Platform.OS === 'android'
+                  Platform.OS === "android"
                     ? { message: url, title }
                     : { url, message: url, title },
-                ).catch(() => { });
+                ).catch(() => {});
               }}
             />
           ) : null}
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [styles.item, pressed && styles.itemPressed]}
+            style={({ pressed }: { pressed: boolean }) => [
+              styles.item,
+              pressed && styles.itemPressed,
+            ]}
             onPress={() => setRequestDataModalVisible(true)}
             disabled={requestingData}
           >
             <View style={styles.itemLeft}>
               {requestingData ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
+                <InlineSkeleton />
               ) : (
-                <MaterialIcons name="download" size={HEADER.iconSize} color={COLORS.secondary} />
+                <MaterialIcons
+                  name="download"
+                  size={HEADER.iconSize}
+                  color={COLORS.secondary}
+                />
               )}
-              <Text style={styles.itemLabel}>{t('settings.requestMyData', 'Request my data')}</Text>
+              <Text style={styles.itemLabel}>
+                {t("settings.requestMyData", "Request my data")}
+              </Text>
             </View>
-            <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+            <MaterialIcons
+              name="chevron-right"
+              size={HEADER.iconSize}
+              color={COLORS.tertiary}
+            />
           </Pressable>
         </View>
 
         <View style={[styles.section, styles.signOutSection]}>
           <SettingItem
             icon="logout"
-            label={t('settings.signOut')}
+            label={t("settings.signOut")}
             onPress={handleSignOut}
             destructive
           />
         </View>
 
-        <Text style={styles.version}>{t('settings.version', { version: '1.0.0', build: '100', defaultValue: 'Version 1.0.0 (Build 100)' })}</Text>
+        <Text style={styles.version}>
+          {t("settings.version", {
+            version: "1.0.0",
+            build: "100",
+            defaultValue: "Version 1.0.0 (Build 100)",
+          })}
+        </Text>
       </ScrollView>
 
       <ConfirmModal
         visible={signOutModalVisible}
-        title={t('settings.signOut')}
-        message={t('settings.signOutConfirm')}
-        confirmLabel={t('settings.signOut')}
-        cancelLabel={t('common.cancel')}
+        title={t("settings.signOut")}
+        message={t("settings.signOutConfirm")}
+        confirmLabel={t("settings.signOut")}
+        cancelLabel={t("common.cancel")}
         destructive
         icon="logout"
         onConfirm={confirmSignOut}
@@ -293,10 +410,13 @@ export default function SettingsScreen() {
       />
       <ConfirmModal
         visible={requestDataModalVisible}
-        title={t('settings.requestMyData', 'Request my data')}
-        message={t('settings.requestDataModalMessage', 'We will send an email to your account address with a secure download link for your data (ZIP). The link expires in 7 days and can only be used once. Continue?')}
-        confirmLabel={t('settings.sendExportLink', 'Send link')}
-        cancelLabel={t('common.cancel')}
+        title={t("settings.requestMyData", "Request my data")}
+        message={t(
+          "settings.requestDataModalMessage",
+          "We will send an email to your account address with a secure download link for your data (ZIP). The link expires in 7 days and can only be used once. Continue?",
+        )}
+        confirmLabel={t("settings.sendExportLink", "Send link")}
+        cancelLabel={t("common.cancel")}
         icon="email"
         onConfirm={handleRequestMyData}
         onCancel={() => setRequestDataModalVisible(false)}
@@ -327,18 +447,18 @@ const styles = createStyles({
   },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.tertiary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     marginBottom: SPACING.s,
     fontFamily: FONTS.semiBold,
     letterSpacing: 0.5,
   },
   item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: SPACING.m,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
@@ -346,14 +466,14 @@ const styles = createStyles({
     backgroundColor: COLORS.hover,
   },
   itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.m,
   },
   switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: SPACING.m,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
@@ -373,8 +493,8 @@ const styles = createStyles({
     color: COLORS.error,
   },
   itemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.s,
   },
   itemValue: {
@@ -383,7 +503,7 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   version: {
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 12,
     color: COLORS.tertiary,
     marginTop: SPACING.xl,

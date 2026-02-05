@@ -31,10 +31,20 @@ export async function createPersona(
   model: string,
   character: CharacterDef,
   usedHandles: Set<string>,
+  options: { usedDisplayNames?: Set<string> } = {},
 ): Promise<Persona> {
+  const usedDisplayNames = options.usedDisplayNames ?? new Set<string>();
+  const recentNames = Array.from(usedDisplayNames).slice(-25);
+  const recentHandles = Array.from(usedHandles).slice(-20);
+
   const sys = `You create a concrete persona for a social reading network. The persona must fit the character type and feel like a real person. They will write realistic articles and posts about real-world topics—never about the platform or "being online".
+
+**Names must be realistic and distinct:**
+- displayName: A full name that sounds like a real person (e.g. "Marcus Chen", "Elena Fisher", "Yuki Tanaka", "Fatima Al-Hassan", "James O'Brien"). Vary styles and cultures—avoid generic or overused names. Do NOT pick a name that sounds similar to or starts with the same first name as names already in use.
+- handle: lowercase letters, numbers, underscore only; 2–30 chars; must be unique and not in the used list.
+
 Return ONLY valid JSON with exactly these keys (no markdown, no extra text):
-- displayName: string (e.g. "Marcus Chen", "Elena Fisher")
+- displayName: string (realistic full name; clearly different from any already-used names)
 - handle: string (lowercase letters, numbers, underscore only; 2–30 chars; e.g. "marcus_c", "elena_writes")
 - bio: string (one short sentence or a few words; max 160 characters; plain text only—no markdown)
 - behavior: string (2–4 sentences: how this person writes and interacts; their tone and habits; the kinds of real-world topics they naturally write about, e.g. a chef might write about recipes and ingredients, a traveler about destinations—concrete themes that fit their type)`;
@@ -43,7 +53,9 @@ Return ONLY valid JSON with exactly these keys (no markdown, no extra text):
 Description: ${character.description}
 Example topics/themes for this type: ${character.topics.join(', ')}
 
-Create a unique persona. Give them concrete topics or themes they would naturally write about (fitting their type). Pick a handle that is NOT in this list: ${Array.from(usedHandles).slice(-20).join(', ') || '(none)'}.
+Create a unique persona. Give them concrete topics or themes they would naturally write about (fitting their type).
+Already used display names (pick a clearly different name—different first name, not similar sounding): ${recentNames.length ? recentNames.join(', ') : '(none)'}.
+Already used handles (pick one not in this list): ${recentHandles.length ? recentHandles.join(', ') : '(none)'}.
 Return only the JSON object.`;
 
   let content = '';
@@ -108,10 +120,20 @@ export async function createRealSocialPersona(
   gemini: GoogleGenAI | undefined,
   model: string,
   usedHandles: Set<string>,
+  options: { usedDisplayNames?: Set<string> } = {},
 ): Promise<RealPersonaResult> {
+  const usedDisplayNames = options.usedDisplayNames ?? new Set<string>();
+  const recentNames = Array.from(usedDisplayNames).slice(-30);
+  const recentHandles = Array.from(usedHandles).slice(-30);
+
   const sys = `You create ONE concrete, realistic social network persona—like a real person on Twitter, Instagram, or a reading app. They must feel like a distinct individual, not a generic type. Invent someone who could exist in the real world: varied professions, hobbies, and styles (e.g. a parent who posts about kids and recipes, a dev who shares code and hot takes, a journalist, a foodie, a hobbyist, a local activist, a book club lead, a fitness coach, a traveler, an artist, a skeptic, a mentor—anything). They will write realistic posts about real-world topics—never about "the platform" or "being online".
+
+**Names must be realistic and distinct:**
+- displayName: A full name that sounds like a real person (e.g. "Marcus Chen", "Elena Fisher", "Yuki Tanaka", "Fatima Al-Hassan"). Vary cultures and styles—avoid generic or overused names. Do NOT pick a name similar to or with the same first name as any already in use.
+- handle: lowercase letters, numbers, underscore only; 2–30 chars; must be unique.
+
 Return ONLY valid JSON with exactly these keys (no markdown, no extra text):
-- displayName: string (e.g. "Marcus Chen", "Elena Fisher", "Jamie O'Brien")
+- displayName: string (realistic full name; clearly different from any already-used names)
 - handle: string (lowercase letters, numbers, underscore only; 2–30 chars; e.g. "marcus_c", "elena_writes", "jamie_ob")
 - bio: string (one short sentence or a few words; max 160 characters; plain text only—no markdown)
 - behavior: string (2–4 sentences: how this person writes and interacts; their tone, habits, and the kinds of real-world topics they naturally post about)
@@ -119,7 +141,8 @@ Return ONLY valid JSON with exactly these keys (no markdown, no extra text):
 - label: string (short archetype, e.g. "Food blogger", "Tech commentator", "Parent blogger", "Travel photographer")`;
 
   const user = `Create one unique, realistic social network persona. Make them feel like a real person with specific interests and voice.
-Pick a handle that is NOT in this list: ${Array.from(usedHandles).slice(-30).join(', ') || '(none)'}.
+Already used display names (pick a clearly different name—different first name, not similar): ${recentNames.length ? recentNames.join(', ') : '(none)'}.
+Already used handles (pick one not in this list): ${recentHandles.length ? recentHandles.join(', ') : '(none)'}.
 Return only the JSON object.`;
 
   let content = '';

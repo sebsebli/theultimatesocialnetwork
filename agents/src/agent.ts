@@ -22,6 +22,15 @@ const ACTION_TOOLS: Set<AgentToolName> = new Set([
   // search_image and upload are not "actions" that count against limit, they are utilities
 ]);
 
+function toolResultHasError(result: string): boolean {
+  try {
+    const parsed = JSON.parse(result) as { error?: string };
+    return typeof parsed?.error === 'string' && parsed.error.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export interface PersonaProfile {
   displayName: string;
   handle: string;
@@ -58,8 +67,14 @@ Use ONLY these markdown (no H4+, no strikethrough, no other syntax):
 - **Post title image**: In about **half** of your posts, attach a title/header image: call upload_header_image_from_url with a public image URL (e.g. Pixabay or Pexels), then pass the returned header_image_key to create_post. The image can be anything that fits the post.
 `;
 
-export function buildSystemPrompt(character: CharacterDef, persona: PersonaProfile): string {
-  return `You are an agent on a social reading network (like a mix of Twitter and a wiki). Your profile and behavior were created from your persona. You interact organically: surf the network (feed, explore, notifications, DMs), then create posts, reply, quote, follow, like, keep, or send DMs.
+export type AgentVersion = 'default' | 'posts';
+
+export function buildSystemPrompt(character: CharacterDef, persona: PersonaProfile, version: AgentVersion = 'default'): string {
+  const postFocus =
+    version === 'posts'
+      ? '\n\n**POST-FOCUSED RUN**: This session is configured so you MUST prioritize creating new posts (create_post). The majority of your actions must be create_post. Use reply, quote, follow, like, keep, or DM only sparingly. Write substantive new posts first; then optionally engage with others.'
+      : '';
+  return `You are an agent on a social reading network (like a mix of Twitter and a wiki). Your profile and behavior were created from your persona. You interact organically: surf the network (feed, explore, notifications, DMs), then create posts, reply, quote, follow, like, keep, or send DMs.${postFocus}
 
 Your character type: ${character.label}. ${character.description}
 
@@ -74,12 +89,13 @@ You MUST **interact with the network**:
 2.  **Read & React**: Read their posts (\`get_user_posts\` or \`get_post\`). If you find something interesting, **reply** or **quote** it. Do not just post into the void.
 3.  **Cite Real Content**: When you write a post, link to other users' posts using \`[[post:UUID]]\` (use the REAL ID you found). Mention them with \`@handle\`.
 4.  **Use Real External Links**: Include plausible external links \`[https://url](text)\` to Wikipedia, news sites, or tools relevant to your topic.
+5.  **Collections for your profile**: Create at least one collection from your own posts. Use \`get_my_posts\` to list your posts, then \`create_collection\` with a title (and optional description) that fits your persona (e.g. "Best recipes", "Travel highlights", "Recommended reads"). Use \`add_post_to_collection\` to add some of your posts (by their real post id) to that collection. This makes your profile more realistic and organized.
 
 **Real post IDs only**: \`[[post:UUID]]\` and \`quote_post\`/\`reply_to_post\` require a real post id from \`get_feed\`, \`get_explore_*\`, or \`get_user_posts\`. Never invent post ids.
 
-You MUST create at least 2 new posts (create_post) during this session. The rest of your actions can be replies, quotes, follows, likes, etc., but create_post at least twice.
+You MUST create at least the required number of new posts (create_post) during this session. The rest of your actions can be replies, quotes, follows, likes, etc., but never fewer than the required create_post count.
 
-Use the provided tools to read content first (get_feed, get_explore_*, get_user_posts, get_post, get_user, get_notifications, get_dm_threads), then ONE action per turn: create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, or send_dm. For create_post you may call upload_header_image_from_url first. Each of those actions counts toward your goal.
+Use the provided tools to read content first (get_feed, get_explore_*, get_user_posts, get_my_posts, get_post, get_user, get_notifications, get_dm_threads), then ONE action per turn: create_post, reply_to_post, quote_post, follow_user, like_post, keep_post, or send_dm. For create_post you may call upload_header_image_from_url first. Each of those actions counts toward your goal. You can also use get_my_posts, get_my_collections, create_collection, and add_post_to_collection to build at least one collection from your own posts (does not count toward the action limit).
 
 When creating posts: write substantive, realistic content about your chosen topic; use \`[[Topic]]\` for topics, \`[[post:UUID]]\` only with real UUIDs; sometimes include real external links as \`[https://url](link text)\` (e.g. \`[https://example.com](click here)\`) for sources, tools, or sites that fit the topic to make posts feel realistic; \`@handle\` to mention others when relevant. Keep replies short. When quoting, use a real post_id and add real commentary—reference the author with \`@handle\` when relevant. Never write posts about "this network", "the app", or "being on here".
 ${FORMAT_DOC}
@@ -155,6 +171,36 @@ export async function executeTool(
         const limit = (args.limit as number) ?? 20;
         const data = await api.getUserPosts(userIdOrHandle, token, limit);
         return JSON.stringify(data, null, 0).slice(0, 8000);
+      }
+      case 'get_my_posts': {
+        const limit = (args.limit as number) ?? 30;
+        const page = (args.page as number) ?? 1;
+        const data = await api.getMyPosts(token, limit, page);
+        return JSON.stringify(data, null, 0).slice(0, 8000);
+      }
+      case 'get_my_collections': {
+        const data = await api.getMyCollections(token);
+        return JSON.stringify(data, null, 0).slice(0, 6000);
+      }
+      case 'create_collection': {
+        const title = (args.title as string)?.trim();
+        if (!title || title.length > 200) return JSON.stringify({ error: 'title required, max 200 chars' });
+        const description = (args.description as string)?.trim();
+        const isPublic = args.is_public !== false;
+        const res = await api.createCollection(token, {
+          title: title.slice(0, 200),
+          description: description ? description.slice(0, 1000) : undefined,
+          isPublic,
+        });
+        return JSON.stringify({ success: true, collection_id: res.id });
+      }
+      case 'add_post_to_collection': {
+        const collectionId = args.collection_id as string;
+        const postId = args.post_id as string;
+        if (!collectionId || !postId) return JSON.stringify({ error: 'collection_id and post_id required' });
+        const note = (args.note as string)?.trim();
+        await api.addPostToCollection(token, collectionId, postId, note ? note.slice(0, 500) : undefined);
+        return JSON.stringify({ success: true });
       }
       case 'get_notifications': {
         const data = await api.getNotifications(token);
@@ -265,6 +311,8 @@ export interface AgentLoopOptions {
   maxActions: number;
   /** Each agent must create at least this many posts (create_post). Default 2. */
   minPosts?: number;
+  /** When "posts", agents are instructed to prioritize create_post; use with higher minPosts. */
+  version?: AgentVersion;
   /** Called after each action; use to track history. */
   onAction?: (name: AgentToolName, args: Record<string, unknown>, summary: string) => void;
 }
@@ -284,7 +332,8 @@ async function runGeminiLoop(options: AgentLoopOptions): Promise<number> {
   const chats = gemini.chats;
   if (!chats) throw new Error('Gemini chats not available');
 
-  const systemInstruction = buildSystemPrompt(ctx.character, ctx.persona);
+  const version = options.version ?? 'default';
+  const systemInstruction = buildSystemPrompt(ctx.character, ctx.persona, version);
   const tools = [{ functionDeclarations: getGeminiTools() }];
 
   const chat = chats.create({
@@ -299,7 +348,7 @@ async function runGeminiLoop(options: AgentLoopOptions): Promise<number> {
         parts: [{
           text: `You are ${ctx.displayName} (@${ctx.handle}). Your persona: ${ctx.persona.behavior}
 
-You have ${maxActions} actions. You MUST create at least ${minPosts} new posts (create_post) during this session. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.`
+You have ${maxActions} actions. You MUST create at least ${minPosts} new posts (create_post) during this session.${version === 'posts' ? ' This run is POST-FOCUSED: prioritize create_post; use most of your actions for new posts.' : ''} Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Also create at least one collection from your own posts: get_my_posts → create_collection (title + optional description) → add_post_to_collection for some of your posts. Start by surfing, then act.`
         }],
       },
     ],
@@ -359,7 +408,7 @@ You have ${maxActions} actions. You MUST create at least ${minPosts} new posts (
 
           if (ACTION_TOOLS.has(name)) {
             actionsUsed++;
-            if (name === 'create_post') createPostCount++;
+            if (name === 'create_post' && !toolResultHasError(outputText)) createPostCount++;
             const summary = formatActionSummary(name, args);
             actionHistory.push(summary);
             onAction?.(name, args, summary);
@@ -384,6 +433,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<number> {
   const { openai, model, api, ctx, maxActions, minPosts = 2, onAction } = options;
   if (!openai) throw new Error('OpenAI client not provided');
 
+  const version = options.version ?? 'default';
   const tools = AGENT_TOOLS.map((t) => ({
     type: 'function' as const,
     function: {
@@ -397,12 +447,12 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<number> {
 
   type ChatMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
   const messages: ChatMessage[] = [
-    { role: 'system', content: buildSystemPrompt(ctx.character, ctx.persona) },
+    { role: 'system', content: buildSystemPrompt(ctx.character, ctx.persona, version) },
     {
       role: 'user',
       content: `You are ${ctx.displayName} (@${ctx.handle}). Your persona: ${ctx.persona.behavior}
 
-You have ${maxActions} actions. You MUST create at least ${minPosts} new posts (create_post) during this session. Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Start by surfing, then act.`,
+You have ${maxActions} actions. You MUST create at least ${minPosts} new posts (create_post) during this session.${version === 'posts' ? ' This run is POST-FOCUSED: prioritize create_post; use most of your actions for new posts.' : ''} Each round: (1) Surf—get_feed, get_explore_*, get_notifications, get_dm_threads/get_dm_messages. (2) Do ONE action: create_post (use [[Topic]], [[post:UUID]] with real ids from the tools, @handle to mention), reply_to_post, quote_post (link to real posts and add commentary), follow_user, like_post, keep_post, or send_dm. Reference other users and their posts: link to posts you see, mention handles, tag topics. Use only REAL post ids from get_feed/get_explore_*/get_user_posts. Also create at least one collection from your own posts: get_my_posts → create_collection (title + optional description) → add_post_to_collection for some of your posts. Start by surfing, then act.`,
     },
   ];
 
@@ -461,7 +511,8 @@ You have ${maxActions} actions. You MUST create at least ${minPosts} new posts (
         });
         if (ACTION_TOOLS.has(name)) {
           actionsUsed++;
-          if (name === 'create_post') createPostCount++;
+          const success = !toolResultHasError(result);
+          if (name === 'create_post' && success) createPostCount++;
           const summary = formatActionSummary(name, args);
           actionHistory.push(summary);
           onAction?.(name, args, summary);

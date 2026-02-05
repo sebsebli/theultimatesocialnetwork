@@ -1,23 +1,46 @@
-import React, { useState, forwardRef, useImperativeHandle } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, FlatList, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
-import { api } from '../utils/api';
-import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, MODAL, createStyles, FLATLIST_DEFAULTS } from '../constants/theme';
-import { EmptyState, emptyStateCenterWrapStyle } from './EmptyState';
-import { HeaderIconButton } from './HeaderIconButton';
-import { Collection } from '../types';
+import React, { useState, forwardRef, useImperativeHandle } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  Pressable,
+  FlatList,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import { api } from "../utils/api";
+import { useToast } from "../context/ToastContext";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  MODAL,
+  createStyles,
+  FLATLIST_DEFAULTS,
+} from "../constants/theme";
+import { EmptyState, emptyStateCenterWrapStyle } from "./EmptyState";
+import { SettingsRowSkeleton } from "./LoadingSkeleton";
+import { HeaderIconButton } from "./HeaderIconButton";
+import { Collection } from "../types";
 
 export interface AddToCollectionSheetRef {
   open: (postId: string) => void;
   close: () => void;
 }
 
-interface AddToCollectionSheetProps { }
+interface AddToCollectionSheetProps {}
 
-const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollectionSheetProps>((props, ref): React.ReactElement | null => {
+const AddToCollectionSheetBase = forwardRef<
+  AddToCollectionSheetRef,
+  AddToCollectionSheetProps
+>((props, ref): React.ReactElement | null => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { showError } = useToast();
@@ -26,7 +49,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
+  const [newTitle, setNewTitle] = useState("");
 
   useImperativeHandle(ref, () => ({
     open: (id: string) => {
@@ -43,7 +66,7 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
       const data = await api.get(`/collections?postId=${id}`);
       setCollections(data);
     } catch (error) {
-      showError(t('collections.loadFailed'));
+      showError(t("collections.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -53,29 +76,34 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
     if (!newTitle.trim()) return;
 
     try {
-      const newCollection = await api.post('/collections', {
+      const newCollection = await api.post("/collections", {
         title: newTitle,
         isPublic: true,
       });
 
       setCollections([newCollection, ...collections]);
       setCreating(false);
-      setNewTitle('');
+      setNewTitle("");
 
       // Auto-add post to new collection
       if (postId) {
         handleToggle(newCollection.id, false);
       }
     } catch (error) {
-      showError(t('collections.createFailed'));
+      showError(t("collections.createFailed"));
     }
   };
 
-  const handleToggle = async (collectionId: string, currentHasPost: boolean) => {
+  const handleToggle = async (
+    collectionId: string,
+    currentHasPost: boolean,
+  ) => {
     // Optimistic update
-    setCollections(prev => prev.map(c =>
-      c.id === collectionId ? { ...c, hasPost: !currentHasPost } : c
-    ));
+    setCollections((prev) =>
+      prev.map((c) =>
+        c.id === collectionId ? { ...c, hasPost: !currentHasPost } : c,
+      ),
+    );
 
     try {
       if (currentHasPost) {
@@ -85,9 +113,11 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
       }
     } catch (error) {
       // Revert
-      setCollections(prev => prev.map(c =>
-        c.id === collectionId ? { ...c, hasPost: currentHasPost } : c
-      ));
+      setCollections((prev) =>
+        prev.map((c) =>
+          c.id === collectionId ? { ...c, hasPost: currentHasPost } : c,
+        ),
+      );
     }
   };
 
@@ -101,58 +131,98 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
       onRequestClose={() => setVisible(false)}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
       >
         <Pressable style={styles.backdrop} onPress={() => setVisible(false)} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
+        <View
+          style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.l }]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.handle} />
           <View style={styles.header}>
-            <Text style={styles.title}>{t('post.addToCollection', 'Add to collection')}</Text>
-            <HeaderIconButton onPress={() => setVisible(false)} icon="close" accessibilityLabel={t('common.close')} />
+            <Text style={styles.title}>
+              {t("post.addToCollection", "Add to collection")}
+            </Text>
+            <HeaderIconButton
+              onPress={() => setVisible(false)}
+              icon="close"
+              accessibilityLabel={t("common.close")}
+            />
           </View>
 
           {loading ? (
-            <ActivityIndicator size="small" color={COLORS.primary} style={styles.loader} />
+            <View style={styles.loader}>
+              <SettingsRowSkeleton />
+              <SettingsRowSkeleton />
+              <SettingsRowSkeleton />
+              <SettingsRowSkeleton />
+            </View>
           ) : (
             <FlatList
               data={collections}
               showsVerticalScrollIndicator={false}
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item: Collection) => item.id}
-              contentContainerStyle={collections.length === 0 ? [styles.listContent, { flexGrow: 1 }] : styles.listContent}
+              contentContainerStyle={
+                collections.length === 0
+                  ? [styles.listContent, { flexGrow: 1 }]
+                  : styles.listContent
+              }
               renderItem={({ item }: { item: Collection }) => (
                 <Pressable
-                  style={({ pressed }: { pressed: boolean }) => [styles.item, pressed && styles.itemPressed]}
+                  style={({ pressed }: { pressed: boolean }) => [
+                    styles.item,
+                    pressed && styles.itemPressed,
+                  ]}
                   onPress={() => handleToggle(item.id, !!item.hasPost)}
                 >
                   <View style={styles.itemIconWrap}>
-                    <MaterialIcons name="folder" size={HEADER.iconSize} color={item.hasPost ? COLORS.primary : COLORS.tertiary} />
+                    <MaterialIcons
+                      name="folder"
+                      size={HEADER.iconSize}
+                      color={item.hasPost ? COLORS.primary : COLORS.tertiary}
+                    />
                   </View>
                   <View style={styles.itemContent}>
                     <Text style={styles.itemTitle}>{item.title}</Text>
                     <View style={styles.itemMeta}>
                       <Text style={styles.itemMetaText}>
-                        {item.itemCount != null && item.itemCount > 0 ? `${item.itemCount} ${item.itemCount === 1 ? t('collections.item', 'item') : t('collections.items', 'items')}` : ''}
+                        {item.itemCount != null && item.itemCount > 0
+                          ? `${item.itemCount} ${item.itemCount === 1 ? t("collections.item", "item") : t("collections.items", "items")}`
+                          : ""}
                       </Text>
                     </View>
                   </View>
-                  <View style={[styles.checkbox, item.hasPost && styles.checkboxChecked]}>
-                    {item.hasPost && <MaterialIcons name="check" size={16} color={COLORS.ink} />}
+                  <View
+                    style={[
+                      styles.checkbox,
+                      item.hasPost && styles.checkboxChecked,
+                    ]}
+                  >
+                    {item.hasPost && (
+                      <MaterialIcons
+                        name="check"
+                        size={16}
+                        color={COLORS.ink}
+                      />
+                    )}
                   </View>
                 </Pressable>
               )}
               {...FLATLIST_DEFAULTS}
-              ListEmptyComponent={!creating ? (
-                <View style={emptyStateCenterWrapStyle}>
-                  <EmptyState
-                    icon="folder-open"
-                    headline={t('collections.empty', 'No collections yet')}
-                    subtext={t('collections.emptyHint', 'Create one below.')}
-                    compact
-                  />
-                </View>
-              ) : null}
+              ListEmptyComponent={
+                !creating ? (
+                  <View style={emptyStateCenterWrapStyle}>
+                    <EmptyState
+                      icon="folder-open"
+                      headline={t("collections.empty", "No collections yet")}
+                      subtext={t("collections.emptyHint", "Create one below.")}
+                      compact
+                    />
+                  </View>
+                ) : null
+              }
             />
           )}
 
@@ -161,32 +231,55 @@ const AddToCollectionSheetBase = forwardRef<AddToCollectionSheetRef, AddToCollec
               <View style={styles.createForm}>
                 <TextInput
                   style={styles.input}
-                  placeholder={t('collections.titlePlaceholder', 'Collection name')}
+                  placeholder={t(
+                    "collections.titlePlaceholder",
+                    "Collection name",
+                  )}
                   placeholderTextColor={COLORS.tertiary}
                   value={newTitle}
                   onChangeText={setNewTitle}
                   autoFocus
                 />
                 <View style={styles.actions}>
-                  <Pressable onPress={() => setCreating(false)} style={styles.cancelBtn}>
-                    <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
+                  <Pressable
+                    onPress={() => setCreating(false)}
+                    style={styles.cancelBtn}
+                  >
+                    <Text style={styles.cancelBtnText}>
+                      {t("common.cancel")}
+                    </Text>
                   </Pressable>
                   <Pressable
                     onPress={handleCreate}
                     disabled={!newTitle.trim()}
-                    style={[styles.createBtn, !newTitle.trim() && styles.createBtnDisabled]}
+                    style={[
+                      styles.createBtn,
+                      !newTitle.trim() && styles.createBtnDisabled,
+                    ]}
                   >
-                    <Text style={styles.createBtnText}>{t('common.create')}</Text>
+                    <Text style={styles.createBtnText}>
+                      {t("common.create")}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
             ) : (
               <Pressable
-                style={({ pressed }: { pressed: boolean }) => [styles.newBtn, pressed && styles.newBtnPressed]}
+                style={({ pressed }: { pressed: boolean }) => [
+                  styles.newBtn,
+                  pressed && styles.newBtnPressed,
+                ]}
                 onPress={() => setCreating(true)}
               >
-                <MaterialIcons name="add" size={HEADER.iconSize} color={COLORS.ink} style={styles.newBtnIcon} />
-                <Text style={styles.newBtnText}>{t('collections.new', 'New Collection')}</Text>
+                <MaterialIcons
+                  name="add"
+                  size={HEADER.iconSize}
+                  color={COLORS.ink}
+                  style={styles.newBtnIcon}
+                />
+                <Text style={styles.newBtnText}>
+                  {t("collections.new", "New Collection")}
+                </Text>
               </Pressable>
             )}
           </View>
@@ -201,7 +294,7 @@ const AddToCollectionSheet = AddToCollectionSheetBase as any;
 const styles = createStyles({
   overlay: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -216,21 +309,21 @@ const styles = createStyles({
     borderColor: MODAL.sheetBorderColor,
     paddingHorizontal: MODAL.sheetPaddingHorizontal,
     paddingTop: MODAL.sheetPaddingTop,
-    maxHeight: '85%',
+    maxHeight: "85%",
   },
   handle: {
     width: MODAL.handleWidth,
     height: MODAL.handleHeight,
     borderRadius: MODAL.handleBorderRadius,
     backgroundColor: MODAL.handleBackgroundColor,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginTop: MODAL.handleMarginTop,
     marginBottom: MODAL.handleMarginBottom,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: SPACING.m,
   },
   title: {
@@ -246,8 +339,8 @@ const styles = createStyles({
     flexGrow: 0,
   },
   item: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
     paddingVertical: SPACING.m,
@@ -261,16 +354,16 @@ const styles = createStyles({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: SPACING.m,
   },
   itemContent: { flex: 1, minWidth: 0 },
   itemTitle: {
     fontSize: 15,
     color: COLORS.paper,
-    fontWeight: '600',
+    fontWeight: "600",
     fontFamily: FONTS.semiBold,
   },
   itemMeta: { marginTop: 2 },
@@ -285,8 +378,8 @@ const styles = createStyles({
     borderRadius: 11,
     borderWidth: 2,
     borderColor: COLORS.tertiary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginLeft: SPACING.s,
   },
   checkboxChecked: {
@@ -300,9 +393,9 @@ const styles = createStyles({
     marginTop: SPACING.s,
   },
   newBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     minHeight: MODAL.buttonMinHeight,
     paddingVertical: MODAL.buttonPaddingVertical,
     paddingHorizontal: MODAL.buttonPaddingHorizontal,
@@ -337,7 +430,7 @@ const styles = createStyles({
     marginBottom: SPACING.xs,
   },
   privacyRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: SPACING.s,
   },
   privacyOption: {
@@ -348,10 +441,10 @@ const styles = createStyles({
     backgroundColor: COLORS.hover,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    alignItems: 'center',
+    alignItems: "center",
   },
   privacyOptionActive: {
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    backgroundColor: "rgba(110, 122, 138, 0.2)",
     borderColor: COLORS.primary,
   },
   privacyOptionText: {
@@ -363,14 +456,14 @@ const styles = createStyles({
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
-  actions: { flexDirection: 'row', gap: SPACING.m },
+  actions: { flexDirection: "row", gap: SPACING.m },
   cancelBtn: {
     flex: 1,
     minHeight: MODAL.buttonMinHeight,
     paddingVertical: MODAL.buttonPaddingVertical,
     paddingHorizontal: MODAL.buttonPaddingHorizontal,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: MODAL.buttonBorderRadius,
     backgroundColor: MODAL.secondaryButtonBackgroundColor,
     borderWidth: MODAL.secondaryButtonBorderWidth,
@@ -387,8 +480,8 @@ const styles = createStyles({
     minHeight: MODAL.buttonMinHeight,
     paddingVertical: MODAL.buttonPaddingVertical,
     paddingHorizontal: MODAL.buttonPaddingHorizontal,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: MODAL.buttonBorderRadius,
     backgroundColor: MODAL.primaryButtonBackgroundColor,
   },

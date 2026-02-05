@@ -11,6 +11,7 @@ import { ExternalSource } from '../entities/external-source.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { TopicFollow } from '../entities/topic-follow.entity';
 import { PostTopic } from '../entities/post-topic.entity';
+import { UploadService } from '../upload/upload.service';
 import Redis from 'ioredis';
 
 interface TopicRawRow {
@@ -38,6 +39,7 @@ export class ExploreService {
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
     @Inject('REDIS_CLIENT') private redis: Redis,
+    private uploadService: UploadService,
   ) {}
 
   /** Helper for caching simple paginated results (1-5 min TTL). */
@@ -153,7 +155,8 @@ export class ExploreService {
     }
     return posts.filter((p) => {
       if (p.authorId === viewerId) return true;
-      if (isAuthorProtected(p.authorId)) return p.authorId && followingSet.has(p.authorId);
+      if (isAuthorProtected(p.authorId))
+        return p.authorId && followingSet.has(p.authorId);
       return true;
     });
   }
@@ -347,16 +350,23 @@ export class ExploreService {
         : stripped.slice(0, maxLen) + '…';
     }
 
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+
     return result.map((t) => {
       const postId = topicToPostId.get(t.id);
       const post =
         postId && visiblePostIds.has(postId) ? postMap.get(postId) : undefined;
+      const headerImageKey = post?.headerImageKey ?? null;
       const recentPost = post
         ? {
             id: post.id,
             title: post.title ?? null,
             bodyExcerpt: bodyExcerpt(post.body),
-            headerImageKey: post.headerImageKey ?? null,
+            headerImageKey,
+            headerImageUrl:
+              headerImageKey != null && headerImageKey !== ''
+                ? getImageUrl(headerImageKey)
+                : null,
             author: post.author
               ? {
                   handle: post.author.handle,
@@ -375,6 +385,10 @@ export class ExploreService {
         postCount: (t as { postCount?: number }).postCount ?? 0,
         followerCount: (t as { followerCount?: number }).followerCount ?? 0,
         recentPostImageKey: recentPost?.headerImageKey ?? null,
+        recentPostImageUrl:
+          recentPost?.headerImageKey != null && recentPost.headerImageKey !== ''
+            ? getImageUrl(recentPost.headerImageKey)
+            : null,
         recentPost,
         isFollowing: followedTopicIds.has(t.id),
         reasons: followedTopicIds.has(t.id)
@@ -578,7 +592,7 @@ export class ExploreService {
 
   async getTrending(viewerId?: string, limit = 20): Promise<Post[]> {
     const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // last 3 days
-    let qb = this.postRepo
+    const qb = this.postRepo
       .createQueryBuilder('post')
       .innerJoinAndSelect('post.author', 'author')
       .where('post.created_at >= :since', { since })

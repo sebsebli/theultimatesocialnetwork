@@ -1,41 +1,71 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../utils/api';
-import { useToast } from '../../context/ToastContext';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, createStyles } from '../../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState } from "react";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+  ScrollView,
+  Modal,
+  TextInput,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { api } from "../../utils/api";
+import { useToast } from "../../context/ToastContext";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import { InlineSkeleton } from "../../components/LoadingSkeleton";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  LAYOUT,
+  MODAL,
+  createStyles,
+} from "../../constants/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DangerZoneScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { showError, showSuccess } = useToast();
   const insets = useSafeAreaInsets();
-  const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
+  const [deleteAccountModalVisible, setDeleteAccountModalVisible] =
+    useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteReason, setDeleteReason] = useState("");
 
   const handleDeleteAccount = () => {
-    setDeleteReason('');
+    setDeleteReason("");
     setDeleteAccountModalVisible(true);
   };
 
   const confirmDeleteAccount = async () => {
     setDeletingAccount(true);
     try {
-      const lang = (typeof navigator !== 'undefined' && (navigator.language || '').slice(0, 2)) || 'en';
-      await api.post('/users/me/request-deletion', {
+      const lang =
+        (typeof navigator !== "undefined" &&
+          (navigator.language || "").slice(0, 2)) ||
+        "en";
+      await api.post("/users/me/request-deletion", {
         reason: deleteReason.trim() || undefined,
         lang,
       });
       setDeleteAccountModalVisible(false);
-      setDeleteReason('');
-      showSuccess(t('settings.deletionEmailSent', 'Check your email and click the link within 24 hours to delete your account.'));
+      setDeleteReason("");
+      showSuccess(
+        t(
+          "settings.deletionEmailSent",
+          "Check your email and click the link within 24 hours to delete your account.",
+        ),
+      );
     } catch (e: any) {
-      showError(e?.message || t('settings.deleteAccountFailed', 'Failed to delete account'));
+      showError(
+        e?.message ||
+          t("settings.deleteAccountFailed", "Failed to delete account"),
+      );
     } finally {
       setDeletingAccount(false);
     }
@@ -44,62 +74,103 @@ export default function DangerZoneScreen() {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title={t('settings.dangerZone', 'Danger zone')}
+        title={t("settings.dangerZone", "Danger zone")}
         paddingTop={insets.top}
         onBack={() => router.back()}
       />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.dangerZone}>
-          <Text style={styles.dangerZoneTitle}>{t('settings.dangerZone', 'Danger zone')}</Text>
+          <Text style={styles.dangerZoneTitle}>
+            {t("settings.dangerZone", "Danger zone")}
+          </Text>
           <Text style={styles.dangerZoneHint}>
-            {t('settings.dangerZoneHint', 'These actions are permanent and cannot be undone.')}
+            {t(
+              "settings.dangerZoneHint",
+              "These actions are permanent and cannot be undone.",
+            )}
           </Text>
           <Pressable
-            style={({ pressed }: { pressed: boolean }) => [styles.dangerZoneItem, pressed && styles.itemPressed]}
+            style={({ pressed }: { pressed: boolean }) => [
+              styles.dangerZoneItem,
+              pressed && styles.itemPressed,
+            ]}
             onPress={handleDeleteAccount}
             disabled={deletingAccount}
           >
             {deletingAccount ? (
-              <ActivityIndicator size="small" color={COLORS.error} />
+              <InlineSkeleton />
             ) : (
-              <MaterialIcons name="delete-forever" size={HEADER.iconSize} color={COLORS.error} />
+              <MaterialIcons
+                name="delete-forever"
+                size={HEADER.iconSize}
+                color={COLORS.error}
+              />
             )}
-            <Text style={styles.dangerZoneItemLabel}>{t('settings.deleteAccount', 'Delete account')}</Text>
-            <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+            <Text style={styles.dangerZoneItemLabel}>
+              {t("settings.deleteAccount", "Delete account")}
+            </Text>
+            <MaterialIcons
+              name="chevron-right"
+              size={HEADER.iconSize}
+              color={COLORS.tertiary}
+            />
           </Pressable>
         </View>
       </ScrollView>
 
-      <Modal visible={deleteAccountModalVisible} transparent animationType="fade">
+      <Modal
+        visible={deleteAccountModalVisible}
+        transparent
+        animationType="fade"
+      >
         <Pressable
           style={styles.deleteModalOverlay}
           onPress={() => {
             setDeleteAccountModalVisible(false);
-            setDeleteReason('');
+            setDeleteReason("");
           }}
         >
           <View
-            style={[styles.deleteModalCard, { paddingBottom: insets.bottom + SPACING.l }]}
+            style={[
+              styles.deleteModalCard,
+              { paddingBottom: insets.bottom + SPACING.l },
+            ]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.deleteModalTitleRow}>
-              <MaterialIcons name="warning" size={28} color={COLORS.error} style={styles.deleteModalTitleIcon} />
-              <Text style={styles.deleteModalTitle}>{t('settings.deleteAccount', 'Delete account')}</Text>
+              <MaterialIcons
+                name="warning"
+                size={28}
+                color={COLORS.error}
+                style={styles.deleteModalTitleIcon}
+              />
+              <Text style={styles.deleteModalTitle}>
+                {t("settings.deleteAccount", "Delete account")}
+              </Text>
             </View>
             <Text style={styles.deleteModalMessage}>
               {t(
-                'settings.deleteAccountConfirmEmail',
-                'We will send a confirmation link to your email. Click it within 24 hours to permanently delete your account.',
+                "settings.deleteAccountConfirmEmail",
+                "We will send a confirmation link to your email. Click it within 24 hours to permanently delete your account.",
               )}
             </Text>
             <Text style={styles.deleteModalLabel}>
-              {t('settings.deleteReasonOptional', 'Reason for leaving (optional, for our records)')}
+              {t(
+                "settings.deleteReasonOptional",
+                "Reason for leaving (optional, for our records)",
+              )}
             </Text>
             <TextInput
               style={styles.deleteReasonInput}
               value={deleteReason}
               onChangeText={setDeleteReason}
-              placeholder={t('settings.deleteReasonPlaceholder', 'e.g. privacy, not using anymore')}
+              placeholder={t(
+                "settings.deleteReasonPlaceholder",
+                "e.g. privacy, not using anymore",
+              )}
               placeholderTextColor={COLORS.tertiary}
               multiline
               numberOfLines={2}
@@ -115,11 +186,13 @@ export default function DangerZoneScreen() {
                 ]}
                 onPress={() => {
                   setDeleteAccountModalVisible(false);
-                  setDeleteReason('');
+                  setDeleteReason("");
                 }}
                 disabled={deletingAccount}
               >
-                <Text style={styles.deleteModalCancelText}>{t('common.cancel')}</Text>
+                <Text style={styles.deleteModalCancelText}>
+                  {t("common.cancel")}
+                </Text>
               </Pressable>
               <Pressable
                 style={({ pressed }: { pressed: boolean }) => [
@@ -132,10 +205,10 @@ export default function DangerZoneScreen() {
                 disabled={deletingAccount}
               >
                 {deletingAccount ? (
-                  <ActivityIndicator size="small" color="#FFF" />
+                  <InlineSkeleton />
                 ) : (
                   <Text style={styles.deleteModalConfirmText}>
-                    {t('settings.sendDeletionLink', 'Send confirmation email')}
+                    {t("settings.sendDeletionLink", "Send confirmation email")}
                   </Text>
                 )}
               </Pressable>
@@ -162,13 +235,13 @@ const styles = createStyles({
     borderWidth: 1,
     borderRadius: SIZES.borderRadius,
     paddingHorizontal: 0,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   dangerZoneTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.error,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingTop: SPACING.m,
     marginBottom: SPACING.xs,
@@ -183,9 +256,9 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   dangerZoneItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: SPACING.m,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     gap: SPACING.m,
@@ -202,8 +275,8 @@ const styles = createStyles({
   deleteModalOverlay: {
     flex: 1,
     backgroundColor: MODAL.backdropBackgroundColor,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.l,
   },
   deleteModalCard: {
@@ -216,8 +289,8 @@ const styles = createStyles({
     maxWidth: 340,
   },
   deleteModalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: SPACING.s,
   },
   deleteModalTitleIcon: { marginRight: SPACING.s },
@@ -254,17 +327,17 @@ const styles = createStyles({
     marginBottom: SPACING.xl,
   },
   deleteModalActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: SPACING.m,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   deleteModalButton: {
     minHeight: MODAL.buttonMinHeight,
     paddingVertical: MODAL.buttonPaddingVertical,
     paddingHorizontal: MODAL.buttonPaddingHorizontal,
     borderRadius: MODAL.buttonBorderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     minWidth: 88,
   },
   buttonPressed: { opacity: 0.8 },

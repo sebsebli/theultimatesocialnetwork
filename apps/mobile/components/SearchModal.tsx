@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -9,19 +15,33 @@ import {
   useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '../utils/api';
-import { PostItem } from './PostItem';
-import { TopicCard } from './ExploreCards';
-import { UserCard } from './UserCard';
-import { EmptyState, emptyStateCenterWrapStyle } from './EmptyState';
-import { SectionHeader } from './SectionHeader';
-import { HeaderIconButton, headerIconCircleSize, headerIconCircleMarginH } from './HeaderIconButton';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../constants/theme';
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { api } from "../utils/api";
+import { PostItem } from "./PostItem";
+import { TopicCard } from "./ExploreCards";
+import { UserCard } from "./UserCard";
+import { EmptyState, emptyStateCenterWrapStyle } from "./EmptyState";
+import { FeedSkeleton } from "./LoadingSkeleton";
+import { SectionHeader } from "./SectionHeader";
+import {
+  HeaderIconButton,
+  headerIconCircleSize,
+  headerIconCircleMarginH,
+} from "./HeaderIconButton";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  createStyles,
+  FLATLIST_DEFAULTS,
+  SEARCH_BAR,
+} from "../constants/theme";
 
 const DEBOUNCE_MS = 350;
 const SEARCH_LIMIT = 20;
@@ -34,15 +54,15 @@ export interface SearchModalProps {
 }
 
 type ListItem =
-  | { type: 'section'; key: string; title: string }
-  | { type: 'post'; key: string; [k: string]: unknown }
-  | { type: 'user'; key: string; [k: string]: unknown }
-  | { type: 'topic'; key: string; [k: string]: unknown };
+  | { type: "section"; key: string; title: string }
+  | { type: "post"; key: string; [k: string]: unknown }
+  | { type: "user"; key: string; [k: string]: unknown }
+  | { type: "topic"; key: string; [k: string]: unknown };
 
 export function SearchModal({
   visible,
   onClose,
-  initialQuery = '',
+  initialQuery = "",
 }: SearchModalProps) {
   const router = useRouter();
   const { t } = useTranslation();
@@ -88,7 +108,7 @@ export function SearchModal({
       setUsers(rawUsers);
       setTopics(rawTopics);
     } catch (err) {
-      console.error('Search failed', err);
+      console.error("Search failed", err);
       setPosts([]);
       setUsers([]);
       setTopics([]);
@@ -118,29 +138,43 @@ export function SearchModal({
   const flatData = useMemo((): ListItem[] => {
     const out: ListItem[] = [];
     if (posts.length > 0) {
-      out.push({ type: 'section', key: 'section-posts', title: t('search.posts', 'Posts') });
-      posts.forEach((p) => out.push({ type: 'post', key: p.id, ...p }));
+      out.push({
+        type: "section",
+        key: "section-posts",
+        title: t("search.posts", "Posts"),
+      });
+      posts.forEach((p) => out.push({ type: "post", key: p.id, ...p }));
     }
     if (users.length > 0) {
-      out.push({ type: 'section', key: 'section-people', title: t('search.people', 'People') });
-      users.forEach((u) => out.push({ type: 'user', key: u.id, ...u }));
+      out.push({
+        type: "section",
+        key: "section-people",
+        title: t("search.people", "People"),
+      });
+      users.forEach((u) => out.push({ type: "user", key: u.id, ...u }));
     }
     if (topics.length > 0) {
-      out.push({ type: 'section', key: 'section-topics', title: t('search.topics', 'Topics') });
-      topics.forEach((tpc) => out.push({ type: 'topic', key: tpc.id || tpc.slug, ...tpc }));
+      out.push({
+        type: "section",
+        key: "section-topics",
+        title: t("search.topics", "Topics"),
+      });
+      topics.forEach((tpc) =>
+        out.push({ type: "topic", key: tpc.id || tpc.slug, ...tpc }),
+      );
     }
     return out;
   }, [posts, users, topics, t]);
 
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => {
-      if (item.type === 'section') {
+      if (item.type === "section") {
         return <SectionHeader title={item.title} />;
       }
-      if (item.type === 'post') {
+      if (item.type === "post") {
         return <PostItem post={item} />;
       }
-      if (item.type === 'user') {
+      if (item.type === "user") {
         return (
           <UserCard
             item={item}
@@ -151,8 +185,8 @@ export function SearchModal({
           />
         );
       }
-      if (item.type === 'topic') {
-        const slug = item.slug ?? item.id ?? '';
+      if (item.type === "topic") {
+        const slug = item.slug ?? item.id ?? "";
         return (
           <TopicCard
             item={item}
@@ -174,7 +208,7 @@ export function SearchModal({
     if (loading) {
       return (
         <View style={emptyStateCenterWrapStyle}>
-          <Text style={styles.loadingText}>{t('common.loading', 'Loading...')}</Text>
+          <FeedSkeleton count={3} />
         </View>
       );
     }
@@ -184,10 +218,14 @@ export function SearchModal({
           icon="search"
           headline={
             query.trim()
-              ? t('search.noResults', 'No results')
-              : t('search.startTyping', 'Search posts, people, topics')
+              ? t("search.noResults", "No results")
+              : t("search.startTyping", "Search posts, people, topics")
           }
-          subtext={query.trim() ? t('search.noResultsHint', 'Try different keywords.') : undefined}
+          subtext={
+            query.trim()
+              ? t("search.noResultsHint", "Try different keywords.")
+              : undefined
+          }
         />
       </View>
     );
@@ -204,17 +242,25 @@ export function SearchModal({
     >
       <KeyboardAvoidingView
         style={[styles.container, { paddingTop: insets.top }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
         <View style={styles.header}>
-          <HeaderIconButton onPress={onClose} icon="close" accessibilityLabel={t('common.close', 'Close')} />
+          <HeaderIconButton
+            onPress={onClose}
+            icon="close"
+            accessibilityLabel={t("common.close", "Close")}
+          />
           <View style={[SEARCH_BAR.container, styles.searchWrap]}>
-            <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+            <MaterialIcons
+              name="search"
+              size={HEADER.iconSize}
+              color={COLORS.tertiary}
+            />
             <TextInput
               ref={inputRef}
               style={[SEARCH_BAR.input, styles.input]}
-              placeholder={t('home.search', 'Search')}
+              placeholder={t("home.search", "Search")}
               placeholderTextColor={COLORS.tertiary}
               value={query}
               onChangeText={setQuery}
@@ -223,7 +269,11 @@ export function SearchModal({
               autoCapitalize="none"
             />
             {query.length > 0 ? (
-              <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel={t('common.clear', 'Clear')}>
+              <Pressable
+                onPress={() => setQuery("")}
+                hitSlop={8}
+                accessibilityLabel={t("common.clear", "Clear")}
+              >
                 <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
               </Pressable>
             ) : null}
@@ -236,7 +286,11 @@ export function SearchModal({
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           ListEmptyComponent={listEmpty}
-          contentContainerStyle={flatData.length === 0 ? { flexGrow: 1 } : { paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={
+            flatData.length === 0
+              ? { flexGrow: 1 }
+              : { paddingBottom: insets.bottom + 24 }
+          }
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           {...FLATLIST_DEFAULTS}
@@ -252,8 +306,8 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: SPACING.m,
     paddingBottom: SPACING.m,
     borderBottomWidth: 1,

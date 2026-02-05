@@ -50,8 +50,10 @@ export class UploadController {
       mimetype: f.mimetype,
       size: f.size,
     };
-    const { key, blurhash } =
-      await this.uploadService.uploadHeaderImage(payload);
+    const { key, blurhash } = await this.uploadService.uploadHeaderImage(
+      payload,
+      user.id,
+    );
     const url = this.uploadService.getImageUrl(key);
 
     return { key, url, blurhash };
@@ -74,7 +76,7 @@ export class UploadController {
       mimetype: f.mimetype,
       size: f.size,
     };
-    const key = await this.uploadService.uploadProfilePicture(payload);
+    const key = await this.uploadService.uploadProfilePicture(payload, user.id);
     const url = this.uploadService.getImageUrl(key);
 
     return { key, url };
@@ -109,7 +111,7 @@ export class UploadController {
       mimetype: f.mimetype,
       size: f.size,
     };
-    const key = await this.uploadService.uploadProfileHeader(payload);
+    const key = await this.uploadService.uploadProfileHeader(payload, user.id);
     const url = this.uploadService.getImageUrl(key);
 
     return { key, url };

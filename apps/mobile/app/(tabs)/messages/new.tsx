@@ -1,16 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, FlatList, TextInput, Pressable, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../../../constants/theme';
-import { api } from '../../../utils/api';
-import { UserCard } from '../../../components/UserCard';
-import { useAuth } from '../../../context/auth';
-import { useToast } from '../../../context/ToastContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../../../components/ScreenHeader';
-import { EmptyState, emptyStateCenterWrapStyle } from '../../../components/EmptyState';
+import React, { useState, useEffect } from "react";
+import { Text, View, FlatList, TextInput, Pressable } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  createStyles,
+  FLATLIST_DEFAULTS,
+  SEARCH_BAR,
+} from "../../../constants/theme";
+import { api } from "../../../utils/api";
+import { UserCard } from "../../../components/UserCard";
+import { useAuth } from "../../../context/auth";
+import { useToast } from "../../../context/ToastContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScreenHeader } from "../../../components/ScreenHeader";
+import {
+  EmptyState,
+  emptyStateCenterWrapStyle,
+} from "../../../components/EmptyState";
+import { UserCardSkeleton } from "../../../components/LoadingSkeleton";
 
 export default function NewMessageScreen() {
   const router = useRouter();
@@ -18,7 +31,7 @@ export default function NewMessageScreen() {
   const { userId: currentUserId } = useAuth();
   const { showError } = useToast();
   const insets = useSafeAreaInsets();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [suggested, setSuggested] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,9 +41,16 @@ export default function NewMessageScreen() {
     const load = async () => {
       setSuggestedLoading(true);
       try {
-        const res = await api.get('/users/me/suggested?limit=20');
+        const res = await api.get("/users/me/suggested?limit=20");
         const list = Array.isArray(res) ? res : [];
-        setSuggested(list.filter((u: any) => u.id && u.id !== currentUserId && !u.handle?.startsWith?.('__pending_')));
+        setSuggested(
+          list.filter(
+            (u: any) =>
+              u.id &&
+              u.id !== currentUserId &&
+              !u.handle?.startsWith?.("__pending_"),
+          ),
+        );
       } catch (error) {
         console.error(error);
         setSuggested([]);
@@ -49,9 +69,16 @@ export default function NewMessageScreen() {
       }
       setLoading(true);
       try {
-        const res = await api.get(`/search/users?q=${encodeURIComponent(query.trim())}&limit=20`);
+        const res = await api.get(
+          `/search/users?q=${encodeURIComponent(query.trim())}&limit=20`,
+        );
         const hits = res.hits || [];
-        setResults(hits.filter((u: any) => u.id !== currentUserId && !u.handle?.startsWith?.('__pending_')));
+        setResults(
+          hits.filter(
+            (u: any) =>
+              u.id !== currentUserId && !u.handle?.startsWith?.("__pending_"),
+          ),
+        );
       } catch (error) {
         console.error(error);
         setResults([]);
@@ -66,16 +93,26 @@ export default function NewMessageScreen() {
 
   const handleSelectUser = async (user: any) => {
     try {
-      const thread = await api.post('/messages/threads', { userId: user.id });
+      const thread = await api.post("/messages/threads", { userId: user.id });
       if (thread && thread.id) {
         router.replace(`/(tabs)/messages/${thread.id}`);
       }
     } catch (error: any) {
-      console.error('Failed to create thread', error);
+      console.error("Failed to create thread", error);
       if (error?.status === 403) {
-        showError(t('messages.mustFollowOrPrior', 'You can only message people who follow you back or who you\'ve messaged before.'));
+        showError(
+          t(
+            "messages.mustFollowOrPrior",
+            "You can only message people who follow you back or who you've messaged before.",
+          ),
+        );
       } else {
-        showError(t('messages.createThreadFailed', 'Could not start conversation. Try again.'));
+        showError(
+          t(
+            "messages.createThreadFailed",
+            "Could not start conversation. Try again.",
+          ),
+        );
       }
     }
   };
@@ -83,17 +120,21 @@ export default function NewMessageScreen() {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title={t('messages.newMessage', 'New Message')}
+        title={t("messages.newMessage", "New Message")}
         paddingTop={insets.top}
         onBack={() => router.back()}
       />
 
       <View style={styles.searchContainer}>
         <View style={SEARCH_BAR.container}>
-          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <MaterialIcons
+            name="search"
+            size={HEADER.iconSize}
+            color={COLORS.tertiary}
+          />
           <TextInput
             style={SEARCH_BAR.input}
-            placeholder={t('messages.searchUsers', 'Search people...')}
+            placeholder={t("messages.searchUsers", "Search people...")}
             placeholderTextColor={COLORS.tertiary}
             value={query}
             onChangeText={setQuery}
@@ -102,7 +143,7 @@ export default function NewMessageScreen() {
             returnKeyType="search"
           />
           {query.length > 0 ? (
-            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+            <Pressable onPress={() => setQuery("")} hitSlop={8}>
               <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
             </Pressable>
           ) : null}
@@ -110,14 +151,31 @@ export default function NewMessageScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
+        <View style={{ marginTop: 20 }}>
+          <UserCardSkeleton />
+          <UserCardSkeleton />
+          <UserCardSkeleton />
+          <UserCardSkeleton />
+        </View>
       ) : (
         <FlatList
           data={query.trim() ? results : suggested}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           keyExtractor={(item: { id: string }) => item.id}
-          renderItem={({ item }: { item: { id: string; handle: string; displayName: string; bio?: string; avatarKey?: string; avatarUrl?: string; isFollowing?: boolean } }) => (
+          renderItem={({
+            item,
+          }: {
+            item: {
+              id: string;
+              handle: string;
+              displayName: string;
+              bio?: string;
+              avatarKey?: string;
+              avatarUrl?: string;
+              isFollowing?: boolean;
+            };
+          }) => (
             <UserCard
               item={{
                 id: item.id,
@@ -133,16 +191,29 @@ export default function NewMessageScreen() {
           )}
           contentContainerStyle={[
             { paddingBottom: 40 },
-            (query.trim() ? results : suggested).length === 0 && { flexGrow: 1 },
+            (query.trim() ? results : suggested).length === 0 && {
+              flexGrow: 1,
+            },
           ]}
           ListEmptyComponent={
             <View style={emptyStateCenterWrapStyle}>
               {query.length > 0 ? (
-                <EmptyState icon="search-off" headline={t('common.noResults')} compact />
+                <EmptyState
+                  icon="search-off"
+                  headline={t("common.noResults")}
+                  compact
+                />
               ) : suggestedLoading ? (
-                <ActivityIndicator color={COLORS.primary} style={{ marginTop: 20 }} />
+                <UserCardSkeleton />
               ) : (
-                <EmptyState icon="person-add" headline={t('messages.noSuggested', 'No suggested people to message.')} compact />
+                <EmptyState
+                  icon="person-add"
+                  headline={t(
+                    "messages.noSuggested",
+                    "No suggested people to message.",
+                  )}
+                  compact
+                />
               )}
             </View>
           }

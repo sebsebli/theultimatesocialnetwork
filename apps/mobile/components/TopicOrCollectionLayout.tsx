@@ -1,21 +1,36 @@
-import React from 'react';
+import React from "react";
 import {
   Text,
   View,
   RefreshControl,
-  ActivityIndicator,
   Animated,
   SafeAreaView,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
-import type { ViewProps } from 'react-native';
-import { COLORS, SPACING, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS, toDimensionValue } from '../constants/theme';
-import { ListFooterLoader } from './ListFooterLoader';
-import { HeaderIconButton, headerIconCircleSize, headerIconCircleMarginH } from './HeaderIconButton';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import type { ViewProps } from "react-native";
+import {
+  COLORS,
+  SPACING,
+  FONTS,
+  HEADER,
+  createStyles,
+  FLATLIST_DEFAULTS,
+  LIST_SCROLL_DEFAULTS,
+  LIST_PADDING_EXTRA,
+  toDimensionValue,
+} from "../constants/theme";
+import { ListFooterLoader } from "./ListFooterLoader";
+import {
+  HeaderIconButton,
+  headerIconCircleSize,
+  headerIconCircleMarginH,
+} from "./HeaderIconButton";
 
-const AnimatedView = Animated.View as (props: ViewProps & { style?: any }) => React.ReactElement | null;
+const AnimatedView = Animated.View as (
+  props: ViewProps & { style?: any },
+) => React.ReactElement | null;
 
 const STICKY_HEADER_APPEAR = 120;
 const STICKY_FADE_RANGE = 80;
@@ -82,34 +97,34 @@ export function TopicOrCollectionLayout({
   const { t } = useTranslation();
   const [stickyVisible, setStickyVisible] = React.useState(false);
 
-  const paddingBottom = bottomPadding > 0 ? bottomPadding : insets.bottom + 24;
+  const paddingBottom =
+    bottomPadding > 0 ? bottomPadding : insets.bottom + LIST_PADDING_EXTRA;
 
   const headerBar = (
     <View style={[styles.headerBar, { paddingTop: insets.top }]}>
-      <HeaderIconButton onPress={onBack} icon="arrow-back" accessibilityLabel={t('common.back', 'Back')} />
-      <Text style={styles.headerBarTitle} numberOfLines={1}>{title}</Text>
+      <HeaderIconButton
+        onPress={onBack}
+        icon="arrow-back"
+        accessibilityLabel={t("common.back", "Back")}
+      />
+      <Text style={styles.headerBarTitle} numberOfLines={1}>
+        {title}
+      </Text>
       <View style={styles.headerBarSpacer} />
     </View>
   );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        {headerBar}
-        <View style={[styles.centered, { paddingBottom: paddingBottom }]}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>{t('common.loading', 'Loading...')}</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   if (notFound) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
         {headerBar}
         <View style={[styles.centered, { paddingBottom: paddingBottom }]}>
-          <MaterialIcons name="error-outline" size={48} color={COLORS.tertiary} style={styles.errorIcon} />
+          <MaterialIcons
+            name="error-outline"
+            size={48}
+            color={COLORS.tertiary}
+            style={styles.errorIcon}
+          />
           <Text style={styles.errorText}>{notFoundMessage}</Text>
         </View>
       </SafeAreaView>
@@ -117,45 +132,66 @@ export function TopicOrCollectionLayout({
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <AnimatedView
-        style={[styles.stickyBar, { opacity: stickyOpacity, paddingTop: insets.top }]}
-        pointerEvents={stickyVisible ? 'auto' : 'none'}
+        style={[
+          styles.stickyBar,
+          { opacity: stickyOpacity, paddingTop: insets.top },
+        ]}
+        pointerEvents={stickyVisible ? "auto" : "none"}
       >
         <View style={styles.stickyBarContent}>
-          <HeaderIconButton onPress={onBack} icon="arrow-back" accessibilityLabel={t('common.back', 'Back')} />
-          <Text style={styles.stickyBarTitle} numberOfLines={1}>{title}</Text>
+          <HeaderIconButton
+            onPress={onBack}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back", "Back")}
+          />
+          <Text style={styles.stickyBarTitle} numberOfLines={1}>
+            {title}
+          </Text>
           <View style={styles.stickyBarSpacer} />
         </View>
       </AnimatedView>
 
       <Animated.FlatList
         style={styles.list}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-        data={data}
+        data={loading ? [] : data}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={
           <AnimatedView style={{ opacity: heroOpacity }}>
-            {headerComponent}
+            {headerComponent ?? headerBar}
           </AnimatedView>
         }
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true, listener: (e: any) => setStickyVisible(e.nativeEvent.contentOffset.y > STICKY_HEADER_APPEAR) }
+          {
+            useNativeDriver: true,
+            listener: (e: any) =>
+              setStickyVisible(
+                e.nativeEvent.contentOffset.y > STICKY_HEADER_APPEAR,
+              ),
+          },
         )}
         scrollEventThrottle={16}
         ListEmptyComponent={ListEmptyComponent}
-        ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
+        ListFooterComponent={
+          loading ? null : (
+            <ListFooterLoader visible={!!(hasMore && loadingMore)} />
+          )
+        }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+          />
         }
         onEndReached={onEndReached}
-        onEndReachedThreshold={0.5}
+        {...LIST_SCROLL_DEFAULTS}
         contentContainerStyle={[
           { paddingBottom: paddingBottom },
-          data.length === 0 && { flexGrow: 1 },
+          (loading || data.length === 0) && { flexGrow: 1 },
         ]}
         {...FLATLIST_DEFAULTS}
       />
@@ -171,8 +207,8 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
   },
   headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     borderBottomWidth: 1,
@@ -182,7 +218,7 @@ const styles = createStyles({
   headerBarTitle: {
     flex: 1,
     fontSize: HEADER.titleSize,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     marginLeft: SPACING.s,
     fontFamily: FONTS.semiBold,
@@ -192,15 +228,9 @@ const styles = createStyles({
   },
   centered: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.xl,
-  },
-  loadingText: {
-    color: COLORS.secondary,
-    textAlign: 'center',
-    marginTop: 20,
-    fontFamily: FONTS.regular,
   },
   errorIcon: {
     marginBottom: SPACING.m,
@@ -208,14 +238,14 @@ const styles = createStyles({
   errorText: {
     color: COLORS.error,
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
     fontFamily: FONTS.regular,
   },
   list: {
     flex: 1,
   },
   stickyBar: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -225,8 +255,8 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
   },
   stickyBarContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     paddingTop: 0,
@@ -234,7 +264,7 @@ const styles = createStyles({
   stickyBarTitle: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     marginLeft: SPACING.s,
     fontFamily: FONTS.semiBold,
@@ -244,6 +274,6 @@ const styles = createStyles({
   },
   footerLoader: {
     paddingVertical: SPACING.l,
-    alignItems: 'center',
+    alignItems: "center",
   },
 });

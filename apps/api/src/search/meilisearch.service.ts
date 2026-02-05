@@ -249,7 +249,10 @@ export class MeilisearchService implements OnModuleInit {
         });
         if (posts.length === 0) break;
         const docs = posts
-          .filter((p) => !(p.author as any)?.isProtected)
+          .filter(
+            (p) =>
+              !(p.author as { isProtected?: boolean } | undefined)?.isProtected,
+          )
           .map((post) => {
             const author = post.author;
             const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
@@ -533,14 +536,25 @@ export class MeilisearchService implements OnModuleInit {
   }
 
   async searchAll(query: string, limitPerType = 15, topicId?: string) {
+    // When scoped to a topic, only search posts in that topic (no global users/topics).
+    if (topicId) {
+      const postsRes = await this.searchPosts(query, {
+        limit: limitPerType,
+        offset: 0,
+        topicId,
+      }).catch(() => ({ hits: [] }));
+      return {
+        posts: this.dedupeById((postsRes.hits || []) as { id?: string }[]),
+        users: [],
+        topics: [],
+      };
+    }
     const [postsRes, usersRes, topicsRes] = await Promise.all([
       this.searchPosts(query, {
         limit: limitPerType,
         offset: 0,
         topicId,
-      }).catch(() => ({
-        hits: [],
-      })),
+      }).catch(() => ({ hits: [] })),
       this.searchUsers(query, limitPerType).then((r) => ({
         hits: r.hits || [],
       })),

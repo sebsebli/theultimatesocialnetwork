@@ -5,6 +5,7 @@ import { TopicFollow } from '../entities/topic-follow.entity';
 import { Topic } from '../entities/topic.entity';
 import { Post } from '../entities/post.entity';
 import { PostTopic } from '../entities/post-topic.entity';
+import { UploadService } from '../upload/upload.service';
 
 interface TopicRawRow {
   topic_id: string;
@@ -21,6 +22,7 @@ export class TopicFollowsService {
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(PostTopic) private postTopicRepo: Repository<PostTopic>,
     private dataSource: DataSource,
+    private uploadService: UploadService,
   ) {}
 
   async follow(userId: string, topicId: string) {
@@ -147,15 +149,22 @@ export class TopicFollowsService {
         : stripped.slice(0, maxLen) + '…';
     }
 
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+
     return base.map((t) => {
       const postId = topicToPostId.get(t.id);
       const post = postId ? postMap.get(postId) : undefined;
+      const headerImageKey = post?.headerImageKey ?? null;
       const recentPost = post
         ? {
             id: post.id,
             title: post.title ?? null,
             bodyExcerpt: bodyExcerpt(post.body),
-            headerImageKey: post.headerImageKey ?? null,
+            headerImageKey,
+            headerImageUrl:
+              headerImageKey != null && headerImageKey !== ''
+                ? getImageUrl(headerImageKey)
+                : null,
             author: post.author
               ? {
                   handle: post.author.handle,
@@ -168,6 +177,10 @@ export class TopicFollowsService {
       return {
         ...t,
         recentPostImageKey: recentPost?.headerImageKey ?? null,
+        recentPostImageUrl:
+          recentPost?.headerImageKey != null && recentPost.headerImageKey !== ''
+            ? getImageUrl(recentPost.headerImageKey)
+            : null,
         recentPost,
       };
     });

@@ -1,39 +1,40 @@
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
+import { DarkTheme, ThemeProvider } from "@react-navigation/native";
+import { useFonts } from "expo-font";
 import {
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
-} from '@expo-google-fonts/inter';
+} from "@expo-google-fonts/inter";
 import {
   IBMPlexSerif_400Regular,
   IBMPlexSerif_600SemiBold,
-} from '@expo-google-fonts/ibm-plex-serif';
-import { Stack, useSegments, useRouter } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import '../i18n';
+} from "@expo-google-fonts/ibm-plex-serif";
+import { Stack, useSegments, useRouter } from "expo-router";
+import { useEffect, useRef } from "react";
+import { StatusBar } from "expo-status-bar";
+import "../i18n";
 // Note: Reanimated is installed but not actively used in this app.
 // The babel plugin is configured for potential future use.
 // We don't import it here to avoid worklets version mismatch errors in Expo Go.
-import { configureNotifications } from '../utils/push-notifications';
-import { COLORS } from '../constants/theme';
-import { AuthProvider, useAuth } from '../context/auth';
-import { ToastProvider, useToast } from '../context/ToastContext';
-import { SocketProvider } from '../context/SocketContext';
-import { DraftProvider } from '../context/DraftContext';
-import { SettingsProvider } from '../context/SettingsContext';
-import { setApiErrorToastHandler } from '../utils/api';
-import { View, ActivityIndicator, Text } from 'react-native';
-import { ErrorBoundary } from '../components/ErrorBoundary';
-import { ErrorFallbackWithNav } from '../components/ErrorFallbackWithNav';
-import { OfflineBanner } from '../components/OfflineBanner';
-import { useOfflineSync } from '../hooks/useOfflineSync';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { configureNotifications } from "../utils/push-notifications";
+import { COLORS } from "../constants/theme";
+import { AuthProvider, useAuth } from "../context/auth";
+import { ToastProvider, useToast } from "../context/ToastContext";
+import { SocketProvider } from "../context/SocketContext";
+import { DraftProvider } from "../context/DraftContext";
+import { SettingsProvider } from "../context/SettingsContext";
+import { setApiErrorToastHandler } from "../utils/api";
+import { View, Text } from "react-native";
+import { FullScreenSkeleton } from "../components/LoadingSkeleton";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+import { ErrorFallbackWithNav } from "../components/ErrorFallbackWithNav";
+import { OfflineBanner } from "../components/OfflineBanner";
+import { useOfflineSync } from "../hooks/useOfflineSync";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import * as NavigationBar from 'expo-navigation-bar';
-import { Platform, Linking } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import * as NavigationBar from "expo-navigation-bar";
+import { Platform, Linking } from "react-native";
+import * as Notifications from "expo-notifications";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 
@@ -54,7 +55,7 @@ function AppContent({ onReady }: { onReady?: () => void }) {
   useOfflineSync(); // Sync offline actions when online
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       NavigationBar.setBackgroundColorAsync(COLORS.ink);
     }
   }, []);
@@ -79,42 +80,49 @@ function AppContent({ onReady }: { onReady?: () => void }) {
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       // Check if we're already on a public route
-      const isPublicRoute = segments[0] === 'welcome' || segments[0] === 'sign-in' || segments[0] === 'waiting-list';
+      const isPublicRoute =
+        segments[0] === "welcome" ||
+        segments[0] === "sign-in" ||
+        segments[0] === "waiting-list";
       if (!isPublicRoute) {
-        router.replace('/welcome');
+        router.replace("/welcome");
       }
     }
   }, [isLoading, isAuthenticated, onboardingComplete, segments, router]);
 
   // Show loading while checking auth
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.ink, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color={COLORS.primary} size="large" />
-      </View>
-    );
+    return <FullScreenSkeleton />;
   }
 
   return (
-    <Stack screenOptions={{
-      headerShown: false,
-      animation: 'slide_from_right', // Standard iOS-like transition
-      presentation: 'card',
-      contentStyle: { backgroundColor: COLORS.ink },
-    }}>
-      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-      <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
-      <Stack.Screen name="onboarding" options={{ animation: 'slide_from_right' }} />
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: "slide_from_right", // Standard iOS-like transition
+        presentation: "card",
+        contentStyle: { backgroundColor: COLORS.ink },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
+      <Stack.Screen name="welcome" options={{ animation: "fade" }} />
+      <Stack.Screen
+        name="onboarding"
+        options={{ animation: "slide_from_right" }}
+      />
       <Stack.Screen
         name="post/compose"
         options={{
-          presentation: 'fullScreenModal',
-          animation: 'slide_from_bottom',
+          presentation: "fullScreenModal",
+          animation: "slide_from_bottom",
         }}
       />
-      <Stack.Screen name="post/[id]" options={{ presentation: 'card' }} />
-      <Stack.Screen name="topic/[slug]" options={{ presentation: 'card' }} />
-      <Stack.Screen name="collections/[id]" options={{ presentation: 'card' }} />
+      <Stack.Screen name="post/[id]" options={{ presentation: "card" }} />
+      <Stack.Screen name="topic/[slug]" options={{ presentation: "card" }} />
+      <Stack.Screen
+        name="collections/[id]"
+        options={{ presentation: "card" }}
+      />
     </Stack>
   );
 }
@@ -147,16 +155,18 @@ export default function RootLayout() {
     }
 
     // Handle notification taps
-    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
-      try {
-        const deepLink = response.notification.request.content.data.deepLink;
-        if (deepLink) {
-          Linking.openURL(deepLink as string);
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        try {
+          const deepLink = response.notification.request.content.data.deepLink;
+          if (deepLink) {
+            Linking.openURL(deepLink as string);
+          }
+        } catch (e) {
+          // console.error('Failed to handle notification tap:', e);
         }
-      } catch (e) {
-        // console.error('Failed to handle notification tap:', e);
-      }
-    });
+      },
+    );
 
     return () => {
       subscription.remove();

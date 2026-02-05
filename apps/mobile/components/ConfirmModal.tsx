@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import { View, Text, StyleSheet, Modal, Pressable } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
 import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  Pressable,
-  ActivityIndicator,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, SIZES, FONTS, MODAL, HEADER, createStyles } from '../constants/theme';
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  MODAL,
+  HEADER,
+  createStyles,
+} from "../constants/theme";
+import { InlineSkeleton } from "./LoadingSkeleton";
 
 export interface ConfirmModalProps {
   visible: boolean;
@@ -34,7 +36,7 @@ export function ConfirmModal({
   title,
   message,
   confirmLabel,
-  cancelLabel = 'Cancel',
+  cancelLabel = "Cancel",
   onConfirm,
   onCancel,
   destructive = false,
@@ -60,7 +62,10 @@ export function ConfirmModal({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Pressable style={styles.overlay} onPress={onCancel}>
-        <View style={[styles.card, { paddingBottom: insets.bottom + SPACING.xl }]} onStartShouldSetResponder={() => true}>
+        <View
+          style={[styles.card, { paddingBottom: insets.bottom + SPACING.xl }]}
+          onStartShouldSetResponder={() => true}
+        >
           <View style={styles.handleBar} />
           {icon ? (
             <MaterialIcons
@@ -85,15 +90,25 @@ export function ConfirmModal({
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator size="small" color={destructive ? COLORS.error : COLORS.ink} />
+                <InlineSkeleton />
               ) : (
-                <Text style={[styles.confirmButtonText, destructive && styles.destructiveButtonText]} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.confirmButtonText,
+                    destructive && styles.destructiveButtonText,
+                  ]}
+                  numberOfLines={1}
+                >
                   {confirmLabel}
                 </Text>
               )}
             </Pressable>
             <Pressable
-              style={({ pressed }: { pressed: boolean }) => [styles.button, styles.cancelButton, pressed && styles.buttonPressed]}
+              style={({ pressed }: { pressed: boolean }) => [
+                styles.button,
+                styles.cancelButton,
+                pressed && styles.buttonPressed,
+              ]}
               onPress={onCancel}
               disabled={loading}
             >
@@ -110,8 +125,8 @@ const styles = createStyles({
   overlay: {
     flex: 1,
     backgroundColor: MODAL.backdropBackgroundColor,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.xl,
   },
   card: {
@@ -121,9 +136,9 @@ const styles = createStyles({
     borderColor: COLORS.divider,
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.m,
-    width: '100%',
+    width: "100%",
     maxWidth: 360,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
@@ -134,20 +149,20 @@ const styles = createStyles({
     height: MODAL.handleHeight,
     borderRadius: MODAL.handleBorderRadius,
     backgroundColor: MODAL.handleBackgroundColor,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginBottom: SPACING.l,
   },
   titleIcon: {
-    alignSelf: 'center',
+    alignSelf: "center",
     marginBottom: SPACING.m,
   },
   title: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginBottom: SPACING.m,
-    textAlign: 'center',
+    textAlign: "center",
   },
   message: {
     fontSize: 15,
@@ -155,11 +170,11 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
     lineHeight: 22,
     marginBottom: SPACING.xl,
-    textAlign: 'center',
+    textAlign: "center",
     paddingHorizontal: SPACING.xs,
   },
   actions: {
-    flexDirection: 'column',
+    flexDirection: "column",
     gap: SPACING.s,
   },
   button: {
@@ -167,11 +182,11 @@ const styles = createStyles({
     paddingVertical: 14,
     paddingHorizontal: MODAL.buttonPaddingHorizontal,
     borderRadius: MODAL.buttonBorderRadius,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   confirmButtonWrap: {
-    width: '100%',
+    width: "100%",
   },
   buttonPressed: { opacity: 0.8 },
   buttonDisabled: { opacity: 0.6 },

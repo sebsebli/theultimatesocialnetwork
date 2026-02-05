@@ -5,7 +5,6 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   type NativeSyntheticEvent,
@@ -41,6 +40,10 @@ import {
   EmptyState,
   emptyStateCenterWrapStyle,
 } from "../../../components/EmptyState";
+import {
+  CommentSkeleton,
+  InlineSkeleton,
+} from "../../../components/LoadingSkeleton";
 import { useComposerSearch } from "../../../hooks/useComposerSearch";
 
 const COMMENT_MIN_LENGTH = 2;
@@ -364,8 +367,11 @@ export default function PostCommentsScreen() {
     return (
       <View style={styles.container}>
         <ScreenHeader title={t("post.comments")} paddingTop={insets.top} />
-        <View style={[styles.center, { flex: 1 }]}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.commentSkeletonList}>
+          <CommentSkeleton />
+          <CommentSkeleton />
+          <CommentSkeleton />
+          <CommentSkeleton />
         </View>
       </View>
     );
@@ -596,11 +602,7 @@ export default function PostCommentsScreen() {
               {mentionQuery !== null && (
                 <View style={styles.mentionDropdown}>
                   {mentionSearching ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={COLORS.primary}
-                      style={styles.mentionDropdownLoader}
-                    />
+                    <InlineSkeleton />
                   ) : (
                     mentionResults
                       .filter(
@@ -662,11 +664,13 @@ export default function PostCommentsScreen() {
                 submittingComment
               }
             >
-              <Text style={styles.commentPostBtnText}>
-                {submittingComment
-                  ? t("common.loading")
-                  : t("post.postComment")}
-              </Text>
+              {submittingComment ? (
+                <InlineSkeleton />
+              ) : (
+                <Text style={styles.commentPostBtnText}>
+                  {t("post.postComment")}
+                </Text>
+              )}
             </Pressable>
           </>
         ) : (
@@ -757,6 +761,10 @@ const styles = createStyles({
   scrollContent: {
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingTop: SPACING.l,
+  },
+  commentSkeletonList: {
+    flex: 1,
+    paddingVertical: SPACING.s,
   },
   errorText: {
     color: COLORS.tertiary,

@@ -17,6 +17,7 @@ import {
   EmptyState,
   emptyStateCenterWrapStyle,
 } from "../components/EmptyState";
+import { FeedSkeleton } from "../components/LoadingSkeleton";
 import { SectionHeader } from "../components/SectionHeader";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -201,9 +202,7 @@ export default function SearchScreen() {
     if (loading) {
       return (
         <View style={emptyStateCenterWrapStyle}>
-          <Text style={styles.loadingText}>
-            {t("common.loading", "Loading...")}
-          </Text>
+          <FeedSkeleton count={3} />
         </View>
       );
     }

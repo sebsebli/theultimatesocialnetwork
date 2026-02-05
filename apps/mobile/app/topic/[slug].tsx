@@ -18,7 +18,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
-import { api, getWebAppBaseUrl, getImageUrl } from "../../utils/api";
+import { api, getWebAppBaseUrl, getTopicRecentImageUri } from "../../utils/api";
 import { useAuth } from "../../context/auth";
 import { PostItem } from "../../components/PostItem";
 import { UserCard } from "../../components/UserCard";
@@ -39,6 +39,8 @@ import {
   HEADER,
   createStyles,
   SEARCH_BAR,
+  TABS,
+  LIST_SCROLL_DEFAULTS,
 } from "../../constants/theme";
 
 const HERO_FADE_HEIGHT = 280;
@@ -175,8 +177,9 @@ export default function TopicScreen() {
         }
       } catch (err) {
         console.error("Topic loadTabData error", err);
-        if (reset) setTopic(null);
+        if (reset) setItems([]);
         setHasMore(false);
+        // Do not setTopic(null) — keep topic header so user stays on the screen and can pull-to-refresh
       }
     },
     [slugStr, activeTab, searchQuery],
@@ -301,10 +304,47 @@ export default function TopicScreen() {
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
-  const listData =
-    activeTab === "recent" || activeTab === "discussed"
-      ? items.filter((p: any) => !!p?.author)
-      : items;
+  const listData = useMemo(() => {
+    const base =
+      activeTab === "recent" || activeTab === "discussed"
+        ? items.filter((p: any) => !!p?.author)
+        : items;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return base;
+    if (activeTab === "people") {
+      return base.filter(
+        (item: any) =>
+          (item.displayName && item.displayName.toLowerCase().includes(q)) ||
+          (item.handle && item.handle.toLowerCase().includes(q)) ||
+          (item.bio && item.bio.toLowerCase().includes(q)),
+      );
+    }
+    if (activeTab === "sources") {
+      return base.filter(
+        (item: any) =>
+          (item.title && item.title.toLowerCase().includes(q)) ||
+          (item.url && item.url.toLowerCase().includes(q)),
+      );
+    }
+    return base;
+  }, [items, activeTab, searchQuery]);
+
+  const handleFollowSuggestedTopic = useCallback(async (tpc: any) => {
+    try {
+      const slugEnc = encodeURIComponent(tpc.slug || tpc.id);
+      if (tpc.isFollowing) await api.delete(`/topics/${slugEnc}/follow`);
+      else await api.post(`/topics/${slugEnc}/follow`);
+      setMoreTopics((prev) =>
+        prev.map((x) =>
+          (x.id || x.slug) === (tpc.id || tpc.slug)
+            ? { ...x, isFollowing: !tpc.isFollowing }
+            : x,
+        ),
+      );
+    } catch (e) {
+      /* ignore */
+    }
+  }, []);
 
   const ListEmptyComponent = useMemo(() => {
     if (loading) return null;
@@ -314,22 +354,85 @@ export default function TopicScreen() {
           icon="people-outline"
           headline={t("topic.emptyPeople")}
           subtext={t("topic.emptyPeopleSubtext")}
-        />
+        >
+          {moreTopics.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <Text style={styles.suggestionsHeader}>
+                {t("profile.topicsToFollow", "Topics to follow")}
+              </Text>
+              {moreTopics.map((tpc: any) => (
+                <View key={tpc.id || tpc.slug} style={styles.suggestionItem}>
+                  <TopicCard
+                    item={tpc}
+                    onPress={() =>
+                      router.push(
+                        `/topic/${encodeURIComponent(tpc.slug || tpc.id)}`,
+                      )
+                    }
+                    onFollow={() => handleFollowSuggestedTopic(tpc)}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
+        </EmptyState>
       ) : activeTab === "sources" ? (
         <EmptyState
           icon="link"
           headline={t("topic.emptySources")}
           subtext={t("topic.emptySourcesSubtext")}
-        />
+        >
+          {moreTopics.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <Text style={styles.suggestionsHeader}>
+                {t("profile.topicsToFollow", "Topics to follow")}
+              </Text>
+              {moreTopics.map((tpc: any) => (
+                <View key={tpc.id || tpc.slug} style={styles.suggestionItem}>
+                  <TopicCard
+                    item={tpc}
+                    onPress={() =>
+                      router.push(
+                        `/topic/${encodeURIComponent(tpc.slug || tpc.id)}`,
+                      )
+                    }
+                    onFollow={() => handleFollowSuggestedTopic(tpc)}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
+        </EmptyState>
       ) : (
         <EmptyState
           icon="article"
           headline={t("topic.emptyPosts")}
           subtext={t("topic.emptyPostsSubtext")}
-        />
+        >
+          {moreTopics.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              <Text style={styles.suggestionsHeader}>
+                {t("profile.topicsToFollow", "Topics to follow")}
+              </Text>
+              {moreTopics.map((tpc: any) => (
+                <View key={tpc.id || tpc.slug} style={styles.suggestionItem}>
+                  <TopicCard
+                    item={tpc}
+                    onPress={() =>
+                      router.push(
+                        `/topic/${encodeURIComponent(tpc.slug || tpc.id)}`,
+                      )
+                    }
+                    onFollow={() => handleFollowSuggestedTopic(tpc)}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
+        </EmptyState>
       );
     return <View style={emptyStateCenterWrapStyle}>{emptyContent}</View>;
-  }, [loading, activeTab, t]);
+  }, [loading, activeTab, t, moreTopics, router, handleFollowSuggestedTopic]);
 
   const handleFollow = useCallback(async () => {
     if (!slugStr || !userId) return;
@@ -387,13 +490,7 @@ export default function TopicScreen() {
           type="topic"
           title={topic.title}
           description={topic.description}
-          headerImageUri={
-            topic.recentPostImageKey
-              ? getImageUrl(topic.recentPostImageKey)
-              : topic.recentPost?.headerImageKey
-                ? getImageUrl(topic.recentPost.headerImageKey)
-                : null
-          }
+          headerImageUri={getTopicRecentImageUri(topic)}
           onBack={() => router.back()}
           onAction={userId ? handleFollow : undefined}
           actionLabel={
@@ -433,79 +530,44 @@ export default function TopicScreen() {
               ) : null}
             </View>
           </View>
-          <View style={styles.tabsContainer}>
-            {tabs.map((tab) => (
-              <Pressable
-                key={tab.key}
-                style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-                onPress={() => setActiveTab(tab.key)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: activeTab === tab.key }}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeTab === tab.key && styles.tabTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </TopicCollectionHeader>
-        {moreTopics.length > 0 ? (
-          <View style={styles.moreSection}>
-            <Text style={styles.moreSectionTitle}>
-              {t("topic.moreTopics", "More topics")}
-            </Text>
+          <View style={[styles.tabsContainer, TABS.container]}>
             <ScrollView
               horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.moreScrollContent}
+              {...LIST_SCROLL_DEFAULTS}
+              contentContainerStyle={[styles.tabsContent, TABS.content]}
+              style={[styles.tabsScrollView, TABS.scrollView]}
             >
-              {moreTopics.map((tpc: any) => (
-                <View key={tpc.id || tpc.slug} style={styles.moreCardWrap}>
-                  <TopicCard
-                    item={tpc}
-                    onPress={() =>
-                      router.push(
-                        `/topic/${encodeURIComponent(tpc.slug || tpc.id)}`,
-                      )
-                    }
-                    onFollow={async () => {
-                      try {
-                        if (tpc.isFollowing)
-                          await api.delete(
-                            `/topics/${encodeURIComponent(tpc.slug)}/follow`,
-                          );
-                        else
-                          await api.post(
-                            `/topics/${encodeURIComponent(tpc.slug)}/follow`,
-                          );
-                        setMoreTopics((prev) =>
-                          prev.map((x) =>
-                            (x.id || x.slug) === (tpc.id || tpc.slug)
-                              ? { ...x, isFollowing: !tpc.isFollowing }
-                              : x,
-                          ),
-                        );
-                      } catch (e) {
-                        /* ignore */
-                      }
-                    }}
-                  />
-                </View>
+              {tabs.map((tab) => (
+                <Pressable
+                  key={tab.key}
+                  style={[
+                    styles.tab,
+                    TABS.tab,
+                    activeTab === tab.key && TABS.tabActive,
+                  ]}
+                  onPress={() => setActiveTab(tab.key)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: activeTab === tab.key }}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      TABS.tabText,
+                      activeTab === tab.key && TABS.tabTextActive,
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </Pressable>
               ))}
             </ScrollView>
           </View>
-        ) : null}
+        </TopicCollectionHeader>
       </>
     );
   }, [
     topic,
     isFollowing,
-    moreTopics,
     activeTab,
     searchQuery,
     t,
@@ -516,7 +578,7 @@ export default function TopicScreen() {
 
   return (
     <TopicOrCollectionLayout
-      title={topic?.title ?? t("topic.title", "Topic")}
+      title={topic?.title ?? (slugStr || t("topic.title", "Topic"))}
       loading={loading}
       notFound={!loading && !topic}
       notFoundMessage={t("topic.notFound", "Topic not found")}
@@ -567,12 +629,19 @@ const styles = createStyles({
     borderBottomColor: COLORS.divider,
   },
   tabsContainer: {
-    flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
+  tabsScrollView: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  tabsContent: {
+    gap: SPACING.m,
+    paddingRight: SPACING.l,
+  },
   tab: {
-    flex: 1,
+    flexShrink: 0,
     paddingVertical: SPACING.m,
     alignItems: "center",
     borderBottomWidth: 2,
@@ -590,25 +659,20 @@ const styles = createStyles({
   tabTextActive: {
     color: COLORS.paper,
   },
-  moreSection: {
-    paddingVertical: SPACING.m,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+  suggestionsContainer: {
+    marginTop: SPACING.xxxl,
+    width: "100%",
   },
-  moreSectionTitle: {
+  suggestionsHeader: {
     fontSize: 13,
     fontWeight: "700",
     color: COLORS.tertiary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    paddingHorizontal: SPACING.l,
-    marginBottom: SPACING.s,
+    marginBottom: SPACING.m,
     fontFamily: FONTS.semiBold,
   },
-  moreScrollContent: {
-    paddingHorizontal: SPACING.l,
-    gap: SPACING.m,
-    paddingRight: SPACING.xl,
+  suggestionItem: {
+    marginBottom: SPACING.m,
   },
-  moreCardWrap: { width: 280, maxWidth: 280 },
 });

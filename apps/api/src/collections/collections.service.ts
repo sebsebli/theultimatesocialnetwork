@@ -8,6 +8,7 @@ import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { ExploreService } from '../explore/explore.service';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class CollectionsService {
@@ -22,6 +23,7 @@ export class CollectionsService {
     @InjectRepository(ExternalSource)
     private externalSourceRepo: Repository<ExternalSource>,
     private exploreService: ExploreService,
+    private uploadService: UploadService,
   ) {}
 
   async create(
@@ -52,20 +54,78 @@ export class CollectionsService {
     const ids = collections.map((c) => c.id);
     const latestMap = await this.getLatestItemPreviewByPostDate(ids);
     return collections.map((c) => {
-      const latest = latestMap[c.id];
-      return {
-        ...c,
-        previewImageKey: latest?.headerImageKey ?? null,
-        recentPost: latest
-          ? {
-              id: latest.postId,
-              title: latest.title ?? null,
-              bodyExcerpt: latest.bodyExcerpt ?? null,
-              headerImageKey: latest.headerImageKey ?? null,
-            }
-          : null,
-      };
+      const latest = latestMap[c.id] ?? null;
+      const preview = this.enrichWithPreviewUrls(latest);
+      return { ...c, ...preview };
     });
+  }
+
+  /** Build previewImageKey, previewImageUrl, and recentPost (with headerImageUrl) from getRecentPostForCollection result. */
+  private enrichWithPreviewUrls(
+    recent: {
+      postId: string;
+      title: string | null;
+      bodyExcerpt: string;
+      headerImageKey: string | null;
+    } | null,
+  ): {
+    previewImageKey: string | null;
+    previewImageUrl: string | null;
+    recentPost: {
+      id: string;
+      title: string | null;
+      bodyExcerpt: string;
+      headerImageKey: string | null;
+      headerImageUrl: string | null;
+    } | null;
+  } {
+    if (!recent) {
+      return {
+        previewImageKey: null,
+        previewImageUrl: null,
+        recentPost: null,
+      };
+    }
+    const headerImageKey = recent.headerImageKey ?? null;
+    const headerImageUrl =
+      headerImageKey != null && headerImageKey !== ''
+        ? this.uploadService.getImageUrl(headerImageKey)
+        : null;
+    return {
+      previewImageKey: headerImageKey,
+      previewImageUrl: headerImageUrl,
+      recentPost: {
+        id: recent.postId,
+        title: recent.title,
+        bodyExcerpt: recent.bodyExcerpt,
+        headerImageKey,
+        headerImageUrl,
+      },
+    };
+  }
+
+  /** Item count and distinct contributor (post author) count for a collection. */
+  private async getCollectionCounts(
+    collectionId: string,
+  ): Promise<{ itemCount: number; contributorCount: number }> {
+    const [itemRow, contributorRow] = await Promise.all([
+      this.itemRepo
+        .createQueryBuilder('ci')
+        .where('ci.collection_id = :collectionId', { collectionId })
+        .select('COUNT(ci.id)', 'cnt')
+        .getRawOne<{ cnt: string }>(),
+      this.itemRepo
+        .createQueryBuilder('ci')
+        .innerJoin('ci.post', 'p')
+        .where('ci.collection_id = :collectionId', { collectionId })
+        .andWhere('p.deleted_at IS NULL')
+        .select('COUNT(DISTINCT p.author_id)', 'cnt')
+        .getRawOne<{ cnt: string }>(),
+    ]);
+    return {
+      itemCount: itemRow ? parseInt(itemRow.cnt, 10) : 0,
+      contributorCount: contributorRow ? parseInt(contributorRow.cnt, 10) : 0,
+    };
   }
 
   /** Latest post per collection by post.created_at DESC (for header image = most recent post). */
@@ -145,7 +205,11 @@ export class CollectionsService {
       throw new Error('Collection not found');
     }
 
-    const recent = await this.getRecentPostForCollection(id);
+    const [recent, counts] = await Promise.all([
+      this.getRecentPostForCollection(id),
+      this.getCollectionCounts(id),
+    ]);
+    const preview = this.enrichWithPreviewUrls(recent);
 
     if (limit != null && offset != null) {
       const { items, hasMore } = await this.getItemsPage(
@@ -155,20 +219,7 @@ export class CollectionsService {
         'recent',
         userId,
       );
-      return {
-        ...collection,
-        previewImageKey: recent?.headerImageKey ?? null,
-        recentPost: recent
-          ? {
-              id: recent.postId,
-              title: recent.title,
-              bodyExcerpt: recent.bodyExcerpt,
-              headerImageKey: recent.headerImageKey,
-            }
-          : null,
-        items,
-        hasMore,
-      };
+      return { ...collection, ...preview, ...counts, items, hasMore };
     }
 
     const items = await this.itemRepo.find({
@@ -177,19 +228,7 @@ export class CollectionsService {
       order: { addedAt: 'DESC' },
     });
 
-    return {
-      ...collection,
-      previewImageKey: recent?.headerImageKey ?? null,
-      recentPost: recent
-        ? {
-            id: recent.postId,
-            title: recent.title,
-            bodyExcerpt: recent.bodyExcerpt,
-            headerImageKey: recent.headerImageKey,
-          }
-        : null,
-      items,
-    };
+    return { ...collection, ...preview, ...counts, items };
   }
 
   /** Paginated items for a collection. sort: 'recent' = by post.created_at DESC, 'ranked' = by engagement. Caller must ensure viewer has access. Filters to posts visible to viewer. */
@@ -293,19 +332,12 @@ export class CollectionsService {
     if (!collection.isPublic && !isFollower) {
       throw new NotFoundException('Collection not found');
     }
-    const recent = await this.getRecentPostForCollection(collectionId);
-    const enrich = (c: typeof collection) => ({
-      ...c,
-      previewImageKey: recent?.headerImageKey ?? null,
-      recentPost: recent
-        ? {
-            id: recent.postId,
-            title: recent.title,
-            bodyExcerpt: recent.bodyExcerpt,
-            headerImageKey: recent.headerImageKey,
-          }
-        : null,
-    });
+    const [recent, counts] = await Promise.all([
+      this.getRecentPostForCollection(collectionId),
+      this.getCollectionCounts(collectionId),
+    ]);
+    const preview = this.enrichWithPreviewUrls(recent);
+    const enrich = (c: typeof collection) => ({ ...c, ...preview, ...counts });
     if (limit != null && offset != null) {
       const { items, hasMore } = await this.getItemsPage(
         collectionId,

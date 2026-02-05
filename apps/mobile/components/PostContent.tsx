@@ -1,20 +1,33 @@
-import React, { useMemo, memo } from 'react';
-import { Text, View, Pressable, Linking, useWindowDimensions } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import { MarkdownText } from './MarkdownText';
-import { Avatar } from './Avatar';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
-import { getImageUrl, getAvatarUri } from '../utils/api';
+import React, { useMemo, memo } from "react";
+import {
+  Text,
+  View,
+  Pressable,
+  Linking,
+  useWindowDimensions,
+} from "react-native";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import * as WebBrowser from "expo-web-browser";
+import { MarkdownText } from "./MarkdownText";
+import { Avatar } from "./Avatar";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  createStyles,
+} from "../constants/theme";
+import { getAvatarUri, getPostHeaderImageUri } from "../utils/api";
 
-import { Post } from '../types';
+import { Post } from "../types";
 
 interface PostContentProps {
-  post: Partial<Post> & Pick<Post, 'id' | 'body' | 'createdAt'>;
+  post: Partial<Post> & Pick<Post, "id" | "body" | "createdAt">;
   onMenuPress?: () => void;
   disableNavigation?: boolean;
   headerImageUri?: string | null;
@@ -28,8 +41,18 @@ interface PostContentProps {
 
 const HEADER_IMAGE_ASPECT = 4 / 3;
 
-function PostContentInner({ post, onMenuPress, disableNavigation = false, headerImageUri, showSources = false, referenceMetadata = {}, maxBodyLines, isPrivateForViewer }: PostContentProps) {
-  const showPrivateOverlay = isPrivateForViewer === true || post.viewerCanSeeContent === false;
+function PostContentInner({
+  post,
+  onMenuPress,
+  disableNavigation = false,
+  headerImageUri,
+  showSources = false,
+  referenceMetadata = {},
+  maxBodyLines,
+  isPrivateForViewer,
+}: PostContentProps) {
+  const showPrivateOverlay =
+    isPrivateForViewer === true || post.viewerCanSeeContent === false;
   const router = useRouter();
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
@@ -43,10 +66,10 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (minutes < 1) return t('common.time.now', 'now');
-    if (minutes < 60) return `${minutes}${t('common.time.minutes', 'm')}`;
-    if (hours < 24) return `${hours}${t('common.time.hours', 'h')}`;
-    if (days < 7) return `${days}${t('common.time.days', 'd')}`;
+    if (minutes < 1) return t("common.time.now", "now");
+    if (minutes < 60) return `${minutes}${t("common.time.minutes", "m")}`;
+    if (hours < 24) return `${hours}${t("common.time.hours", "h")}`;
+    if (days < 7) return `${days}${t("common.time.days", "d")}`;
     return d.toLocaleDateString();
   };
 
@@ -68,70 +91,80 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
 
   const handleSourcePress = async (source: any) => {
     if (disableNavigation) return;
-    if (source.type === 'external') {
+    if (source.type === "external") {
       await WebBrowser.openBrowserAsync(source.url, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
         toolbarColor: COLORS.ink,
         controlsColor: COLORS.primary,
       });
-    } else if (source.type === 'post') {
+    } else if (source.type === "post") {
       router.push(`/post/${source.id}`);
-    } else if (source.type === 'topic') {
-      router.push(`/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? '')}`);
-    } else if (source.type === 'user') {
+    } else if (source.type === "topic") {
+      router.push(
+        `/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? "")}`,
+      );
+    } else if (source.type === "user") {
       router.push(`/user/${source.handle}`);
     }
   };
 
   // Strip title from body if it matches the header (guard: body can be undefined from API)
-  const body = post.body ?? '';
-  const hasExplicitTitle = post.title != null && post.title !== '';
-  const fullDisplayBody = (hasExplicitTitle && body.startsWith(`# ${post.title}`))
-    ? body.substring(body.indexOf('\n') + 1).trim()
-    : body;
+  const body = post.body ?? "";
+  const hasExplicitTitle = post.title != null && post.title !== "";
+  const fullDisplayBody =
+    hasExplicitTitle && body.startsWith(`# ${post.title}`)
+      ? body.substring(body.indexOf("\n") + 1).trim()
+      : body;
 
   // When post has no title, use first line of body as headline so preview looks the same as titled posts
-  const noTitleUseBodyHeadline = !hasExplicitTitle && fullDisplayBody.trim().length > 0;
-  const bodyHeadline =
-    noTitleUseBodyHeadline
-      ? (fullDisplayBody.includes('\n') ? fullDisplayBody.slice(0, fullDisplayBody.indexOf('\n')).trim() : fullDisplayBody.trim()).slice(0, 120)
-      : '';
-  const bodyAfterHeadline = noTitleUseBodyHeadline && fullDisplayBody.includes('\n')
-    ? fullDisplayBody.substring(fullDisplayBody.indexOf('\n') + 1).trim()
-    : noTitleUseBodyHeadline
-      ? ''
-      : fullDisplayBody;
+  const noTitleUseBodyHeadline =
+    !hasExplicitTitle && fullDisplayBody.trim().length > 0;
+  const bodyHeadline = noTitleUseBodyHeadline
+    ? (fullDisplayBody.includes("\n")
+        ? fullDisplayBody.slice(0, fullDisplayBody.indexOf("\n")).trim()
+        : fullDisplayBody.trim()
+      ).slice(0, 120)
+    : "";
+  const bodyAfterHeadline =
+    noTitleUseBodyHeadline && fullDisplayBody.includes("\n")
+      ? fullDisplayBody.substring(fullDisplayBody.indexOf("\n") + 1).trim()
+      : noTitleUseBodyHeadline
+        ? ""
+        : fullDisplayBody;
 
-  const bodyForTruncation = noTitleUseBodyHeadline ? bodyAfterHeadline : fullDisplayBody;
-  const lines = bodyForTruncation.split('\n');
+  const bodyForTruncation = noTitleUseBodyHeadline
+    ? bodyAfterHeadline
+    : fullDisplayBody;
+  const lines = bodyForTruncation.split("\n");
   const hasMoreLines = maxBodyLines != null && lines.length > maxBodyLines;
   const MAX_LAST_LINE_CHARS = 72;
-  const ELLIPSIS = ' …';
+  const ELLIPSIS = " …";
   let displayBody: string;
   if (hasMoreLines) {
     const take = lines.slice(0, maxBodyLines);
-    const lastLine = take[take.length - 1] ?? '';
+    const lastLine = take[take.length - 1] ?? "";
     const truncatedLast =
       lastLine.length > MAX_LAST_LINE_CHARS
-        ? lastLine.slice(0, MAX_LAST_LINE_CHARS - 3) + '…'
+        ? lastLine.slice(0, MAX_LAST_LINE_CHARS - 3) + "…"
         : lastLine;
     const bodyWithoutEllipsis =
       take.length === 1
         ? truncatedLast
-        : take.slice(0, -1).join('\n') + '\n' + truncatedLast;
+        : take.slice(0, -1).join("\n") + "\n" + truncatedLast;
     displayBody = bodyWithoutEllipsis + ELLIPSIS;
   } else {
     displayBody = bodyForTruncation;
   }
 
-  // Prefer key-based URL via API so images work on device/emulator; fallback to API-returned URL or local uri
+  // Prefer API-provided headerImageUrl, then build from headerImageKey; allow explicit headerImageUri override (e.g. local)
+  const postHeaderUri = getPostHeaderImageUri(
+    post as { headerImageUrl?: string | null; headerImageKey?: string | null },
+  );
   const imageSource = headerImageUri
     ? { uri: headerImageUri }
-    : post.headerImageKey && getImageUrl(post.headerImageKey)
-      ? { uri: getImageUrl(post.headerImageKey) }
-      : (post as any).headerImageUrl
-        ? { uri: (post as any).headerImageUrl }
-        : null;
+    : postHeaderUri
+      ? { uri: postHeaderUri }
+      : null;
 
   // Extract sources (deduplicated by canonical key)
   const sources = useMemo(() => {
@@ -149,8 +182,11 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
     const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
     let match;
     while ((match = linkRegex.exec(post.body)) !== null) {
-      if (match[2].startsWith('http')) {
-        add({ type: 'external', title: match[1], url: match[2], icon: 'link' }, `ext-${match[2]}`);
+      if (match[2].startsWith("http")) {
+        add(
+          { type: "external", title: match[1], url: match[2], icon: "link" },
+          `ext-${match[2]}`,
+        );
       }
     }
 
@@ -159,9 +195,16 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
     while ((match = postRegex.exec(post.body)) !== null) {
       const id = match[1];
       const alias = match[2];
-      const resolvedTitle = referenceMetadata[id]?.title ?? referenceMetadata[id?.toLowerCase?.() ?? '']?.title;
+      const resolvedTitle =
+        referenceMetadata[id]?.title ??
+        referenceMetadata[id?.toLowerCase?.() ?? ""]?.title;
       add(
-        { type: 'post', id, title: alias || resolvedTitle || 'Referenced Post', icon: 'description' },
+        {
+          type: "post",
+          id,
+          title: alias || resolvedTitle || "Referenced Post",
+          icon: "description",
+        },
         `post-${id}`,
       );
     }
@@ -169,10 +212,19 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
     // Topic links [[Topic]]
     const topicRegex = /\[\[([^\]:]+?)\]\]/g;
     while ((match = topicRegex.exec(post.body)) !== null) {
-      if (!match[1].startsWith('post:')) {
-        const parts = match[1].split('|');
+      if (!match[1].startsWith("post:")) {
+        const parts = match[1].split("|");
         const slug = parts[0].trim().toLowerCase();
-        add({ type: 'topic', title: parts[0], slug, alias: parts[1], icon: 'tag' }, `topic-${slug}`);
+        add(
+          {
+            type: "topic",
+            title: parts[0],
+            slug,
+            alias: parts[1],
+            icon: "tag",
+          },
+          `topic-${slug}`,
+        );
       }
     }
 
@@ -180,7 +232,10 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
     const mentionRegex = /@([a-zA-Z0-9_.]+)/g;
     while ((match = mentionRegex.exec(post.body)) !== null) {
       const handle = match[1];
-      add({ type: 'user', handle, title: `@${handle}`, icon: 'person' }, `user-${handle}`);
+      add(
+        { type: "user", handle, title: `@${handle}`, icon: "person" },
+        `user-${handle}`,
+      );
     }
 
     return list;
@@ -192,19 +247,34 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
     <View style={styles.container}>
       {/* Author Header */}
       <Pressable
-        style={({ pressed }: { pressed: boolean }) => [styles.authorRow, pressed && !disableNavigation && { opacity: 0.7 }]}
+        style={({ pressed }: { pressed: boolean }) => [
+          styles.authorRow,
+          pressed && !disableNavigation && { opacity: 0.7 },
+        ]}
         onPress={handleAuthorPress}
         disabled={disableNavigation}
       >
         <Avatar
           name={post.author.displayName}
           size={40}
-          uri={getAvatarUri(post.author as { avatarKey?: string | null; avatarUrl?: string | null })}
+          uri={getAvatarUri(
+            post.author as {
+              avatarKey?: string | null;
+              avatarUrl?: string | null;
+            },
+          )}
         />
         <View style={styles.authorInfo}>
           <View style={styles.nameRow}>
-            <Text style={styles.authorName}>{post.author.displayName || t('post.unknownUser', 'Unknown')}</Text>
-            <MaterialIcons name="circle" size={4} color={COLORS.tertiary} style={styles.dotIcon} />
+            <Text style={styles.authorName}>
+              {post.author.displayName || t("post.unknownUser", "Unknown")}
+            </Text>
+            <MaterialIcons
+              name="circle"
+              size={4}
+              color={COLORS.tertiary}
+              style={styles.dotIcon}
+            />
             <Text style={styles.metaText}>{formatTime(post.createdAt)}</Text>
           </View>
         </View>
@@ -212,9 +282,16 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
           <Pressable
             onPress={onMenuPress}
             hitSlop={12}
-            style={({ pressed }: { pressed: boolean }) => [{ padding: 4 }, pressed && { opacity: 0.5 }]}
+            style={({ pressed }: { pressed: boolean }) => [
+              { padding: 4 },
+              pressed && { opacity: 0.5 },
+            ]}
           >
-            <MaterialIcons name="more-horiz" size={HEADER.iconSize} color={COLORS.tertiary} />
+            <MaterialIcons
+              name="more-horiz"
+              size={HEADER.iconSize}
+              color={COLORS.tertiary}
+            />
           </Pressable>
         )}
       </Pressable>
@@ -224,11 +301,16 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
         <Pressable
           onPress={handlePostPress}
           disabled={disableNavigation}
-          style={({ pressed }: { pressed: boolean }) => [styles.content, pressed && !disableNavigation && { opacity: 0.95 }]}
+          style={({ pressed }: { pressed: boolean }) => [
+            styles.content,
+            pressed && !disableNavigation && { opacity: 0.95 },
+          ]}
         >
           <View style={styles.headerTappable}>
             {imageSource ? (
-              <View style={[styles.headerImageWrap, { height: headerImageHeight }]}>
+              <View
+                style={[styles.headerImageWrap, { height: headerImageHeight }]}
+              >
                 <Image
                   source={imageSource}
                   style={[styles.headerImage, { height: headerImageHeight }]}
@@ -238,40 +320,65 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
                   placeholderContentFit="cover"
                   cachePolicy="memory-disk"
                 />
-                {(post.title != null && post.title !== '') && (
+                {post.title != null && post.title !== "" && (
                   <View style={styles.headerImageOverlay}>
-                    <Text style={styles.headerImageTitle} numberOfLines={2}>{post.title}</Text>
+                    <Text style={styles.headerImageTitle} numberOfLines={2}>
+                      {post.title}
+                    </Text>
                   </View>
                 )}
               </View>
             ) : hasExplicitTitle ? (
               <Text style={styles.title}>{post.title}</Text>
             ) : bodyHeadline ? (
-              <Text style={styles.title} numberOfLines={2}>{bodyHeadline}</Text>
+              <Text style={styles.title} numberOfLines={2}>
+                {bodyHeadline}
+              </Text>
             ) : !imageSource ? (
-              <Text style={styles.readPostLink}>{t('post.readArticle', 'Read')}</Text>
+              <Text style={styles.readPostLink}>
+                {t("post.readArticle", "Read")}
+              </Text>
             ) : null}
           </View>
           {maxBodyLines != null ? (
-            <View style={[styles.bodyClipWrap, { maxHeight: maxBodyLines * 26 }]} collapsable={false}>
-              <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
+            <View
+              style={[styles.bodyClipWrap, { maxHeight: maxBodyLines * 26 }]}
+              collapsable={false}
+            >
+              <MarkdownText referenceMetadata={referenceMetadata}>
+                {displayBody}
+              </MarkdownText>
               <LinearGradient
-                colors={['transparent', COLORS.ink]}
+                colors={["transparent", COLORS.ink]}
                 style={styles.bodyFadeGradient}
                 pointerEvents="none"
               />
             </View>
           ) : (
-            <MarkdownText referenceMetadata={referenceMetadata}>{displayBody}</MarkdownText>
+            <MarkdownText referenceMetadata={referenceMetadata}>
+              {displayBody}
+            </MarkdownText>
           )}
         </Pressable>
 
         {showPrivateOverlay && (
           <View style={styles.privateOverlay} pointerEvents="none">
             <View style={styles.privateOverlayInner}>
-              <MaterialIcons name="lock" size={32} color={COLORS.paper} style={styles.privateOverlayIcon} />
-              <Text style={styles.privateOverlayText}>{t('common.private', 'Private')}</Text>
-              <Text style={styles.privateOverlaySubtext}>{t('post.privateOnlyFollowers', 'Only followers can see this post')}</Text>
+              <MaterialIcons
+                name="lock"
+                size={32}
+                color={COLORS.paper}
+                style={styles.privateOverlayIcon}
+              />
+              <Text style={styles.privateOverlayText}>
+                {t("common.private", "Private")}
+              </Text>
+              <Text style={styles.privateOverlaySubtext}>
+                {t(
+                  "post.privateOnlyFollowers",
+                  "Only followers can see this post",
+                )}
+              </Text>
             </View>
           </View>
         )}
@@ -280,32 +387,43 @@ function PostContentInner({ post, onMenuPress, disableNavigation = false, header
       {/* Sources Section */}
       {showSources && sources.length > 0 && !showPrivateOverlay && (
         <View style={styles.sourcesSection}>
-          <Text style={styles.sourcesHeader}>{t('post.sources', 'Sources')}</Text>
+          <Text style={styles.sourcesHeader}>
+            {t("post.sources", "Sources")}
+          </Text>
           {sources.map((source, index) => (
             <Pressable
               key={index}
-              style={({ pressed }: { pressed: boolean }) => [styles.sourceItem, pressed && { backgroundColor: COLORS.hover }]}
+              style={({ pressed }: { pressed: boolean }) => [
+                styles.sourceItem,
+                pressed && { backgroundColor: COLORS.hover },
+              ]}
               onPress={() => handleSourcePress(source)}
             >
               <Text style={styles.sourceNumber}>{index + 1}</Text>
               <View style={styles.sourceIcon}>
                 <Text style={styles.sourceIconText}>
-                  {source.type === 'external' && source.url
-                    ? (new URL(source.url).hostname).charAt(0).toUpperCase()
-                    : (source.title || '?').charAt(0).toUpperCase()}
+                  {source.type === "external" && source.url
+                    ? new URL(source.url).hostname.charAt(0).toUpperCase()
+                    : (source.title || "?").charAt(0).toUpperCase()}
                 </Text>
               </View>
               <View style={styles.sourceContent}>
                 <Text style={styles.sourceDomain}>
-                  {source.type === 'external' && source.url
+                  {source.type === "external" && source.url
                     ? new URL(source.url).hostname
-                    : source.type === 'user' ? 'User' : 'Topic/Post'}
+                    : source.type === "user"
+                      ? "User"
+                      : "Topic/Post"}
                 </Text>
                 <Text style={styles.sourceText} numberOfLines={1}>
                   {source.alias || source.title || source.handle}
                 </Text>
               </View>
-              <MaterialIcons name="open-in-new" size={HEADER.iconSize} color={COLORS.tertiary} />
+              <MaterialIcons
+                name="open-in-new"
+                size={HEADER.iconSize}
+                color={COLORS.tertiary}
+              />
             </Pressable>
           ))}
         </View>
@@ -319,22 +437,22 @@ const styles = createStyles({
     gap: SPACING.m,
   },
   contentWrap: {
-    position: 'relative',
+    position: "relative",
   },
   privateOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.72)",
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: SIZES.borderRadius,
     minHeight: 120,
   },
   privateOverlayInner: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: SPACING.l,
   },
   privateOverlayIcon: {
@@ -342,7 +460,7 @@ const styles = createStyles({
   },
   privateOverlayText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginBottom: SPACING.xs,
@@ -353,20 +471,20 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   authorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.m,
   },
   authorInfo: {
     flex: 1,
   },
   nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   authorName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -390,11 +508,11 @@ const styles = createStyles({
     fontFamily: FONTS.medium,
   },
   bodyClipWrap: {
-    position: 'relative',
-    overflow: 'hidden',
+    position: "relative",
+    overflow: "hidden",
   },
   bodyFadeGradient: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
@@ -408,35 +526,35 @@ const styles = createStyles({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     lineHeight: 36,
     fontFamily: FONTS.semiBold,
     letterSpacing: -0.5,
   },
   headerImageWrap: {
-    width: '100%',
+    width: "100%",
     marginTop: SPACING.m,
     borderRadius: SIZES.borderRadius,
-    overflow: 'hidden',
-    position: 'relative',
+    overflow: "hidden",
+    position: "relative",
   },
   headerImage: {
-    width: '100%',
+    width: "100%",
     backgroundColor: COLORS.divider,
   },
   headerImageOverlay: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     paddingVertical: SPACING.m,
     paddingHorizontal: SPACING.m,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   headerImageTitle: {
     fontSize: 26,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     lineHeight: 32,
@@ -446,24 +564,24 @@ const styles = createStyles({
     paddingTop: SPACING.m,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: SPACING.s,
   },
   sourcesHeader: {
-    width: '100%',
+    width: "100%",
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.tertiary,
     marginBottom: SPACING.s,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     fontFamily: FONTS.semiBold,
   },
   sourceItem: {
-    width: '48%', // Grid of 2
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: "48%", // Grid of 2
+    flexDirection: "row",
+    alignItems: "center",
     padding: SPACING.m,
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
@@ -472,19 +590,19 @@ const styles = createStyles({
     gap: SPACING.s,
   },
   sourceNumber: {
-    display: 'none', // Hide number in card view
+    display: "none", // Hide number in card view
   },
   sourceIcon: {
     width: 24,
     height: 24,
     borderRadius: 12,
     backgroundColor: COLORS.divider,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   sourceIconText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -504,4 +622,6 @@ const styles = createStyles({
   },
 });
 
-export const PostContent = memo(PostContentInner as React.FunctionComponent<PostContentProps>) as (props: PostContentProps) => React.ReactElement | null;
+export const PostContent = memo(
+  PostContentInner as React.FunctionComponent<PostContentProps>,
+) as (props: PostContentProps) => React.ReactElement | null;

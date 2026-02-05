@@ -1,16 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, Keyboard } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '../utils/api';
-import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, createStyles } from '../constants/theme';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import React, { useState, useEffect } from "react";
+import {
+  Text,
+  View,
+  TextInput,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Keyboard,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as WebBrowser from "expo-web-browser";
+import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { api } from "../utils/api";
+import { useToast } from "../context/ToastContext";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  createStyles,
+} from "../constants/theme";
+import { ScreenHeader } from "../components/ScreenHeader";
+import { InlineSkeleton } from "../components/LoadingSkeleton";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
 
 export default function WaitingListScreen() {
   const router = useRouter();
@@ -18,14 +34,20 @@ export default function WaitingListScreen() {
   const { showError, showSuccess } = useToast();
   const insets = useSafeAreaInsets();
   const { isOffline } = useNetworkStatus();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
-    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    const show = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setKeyboardVisible(true),
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setKeyboardVisible(false),
+    );
     return () => {
       show.remove();
       hide.remove();
@@ -34,16 +56,20 @@ export default function WaitingListScreen() {
 
   // Calculate keyboard offset accounting for offline banner
   // Banner height: ~40px (padding + text + icon) + safe area top
-  const offlineBannerHeight = isOffline ? Math.max(insets.top, SPACING.s) + 40 : 0;
-  const keyboardVerticalOffset = Platform.OS === 'ios' ? offlineBannerHeight : 0;
+  const offlineBannerHeight = isOffline
+    ? Math.max(insets.top, SPACING.s) + 40
+    : 0;
+  const keyboardVerticalOffset =
+    Platform.OS === "ios" ? offlineBannerHeight : 0;
 
   // Get base URL for legal links
   const getBaseUrl = () => {
-    const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
-    if (apiUrl.includes('api.')) {
-      return apiUrl.replace('api.', '');
+    const apiUrl =
+      process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
+    if (apiUrl.includes("api.")) {
+      return apiUrl.replace("api.", "");
     }
-    return apiUrl.replace('/api', '').replace(/\/$/, '');
+    return apiUrl.replace("/api", "").replace(/\/$/, "");
   };
 
   const openLegalLink = async (path: string) => {
@@ -54,12 +80,12 @@ export default function WaitingListScreen() {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
       });
     } catch (error) {
-      console.error('Failed to open browser:', error);
+      console.error("Failed to open browser:", error);
     }
   };
 
   const isValidEmail = (email: string) => {
-    if (!email || typeof email !== 'string') return false;
+    if (!email || typeof email !== "string") return false;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email) && email.length <= 255;
   };
@@ -68,33 +94,50 @@ export default function WaitingListScreen() {
     const sanitizedEmail = email.trim().toLowerCase();
 
     if (!sanitizedEmail) {
-      showError(t('waitingList.emailRequired', 'Email is required'));
+      showError(t("waitingList.emailRequired", "Email is required"));
       return;
     }
 
     if (!isValidEmail(sanitizedEmail)) {
-      showError(t('waitingList.invalidEmail', 'Please enter a valid email address'));
+      showError(
+        t("waitingList.invalidEmail", "Please enter a valid email address"),
+      );
       return;
     }
 
     if (!acceptedTerms) {
-      showError(t('waitingList.acceptTermsRequired'));
+      showError(t("waitingList.acceptTermsRequired"));
       return;
     }
 
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await api.post('/waiting-list', { email: sanitizedEmail });
-      showSuccess(t('waitingList.successMessage', "You've been added to the waiting list! We'll notify you when invites are available."));
+      await api.post("/waiting-list", { email: sanitizedEmail });
+      showSuccess(
+        t(
+          "waitingList.successMessage",
+          "You've been added to the waiting list! We'll notify you when invites are available.",
+        ),
+      );
       router.back();
     } catch (error: any) {
-      console.error('Failed to join waiting list', error);
-      const errorMessage = error?.status === 429
-        ? t('waitingList.rateLimited', 'Too many requests. Please try again later.')
-        : error?.status === 403
-          ? t('waitingList.tooManyRequests', 'Too many requests from this IP address.')
-          : t('waitingList.failed', 'Failed to join waiting list. Please try again.');
+      console.error("Failed to join waiting list", error);
+      const errorMessage =
+        error?.status === 429
+          ? t(
+              "waitingList.rateLimited",
+              "Too many requests. Please try again later.",
+            )
+          : error?.status === 403
+            ? t(
+                "waitingList.tooManyRequests",
+                "Too many requests from this IP address.",
+              )
+            : t(
+                "waitingList.failed",
+                "Failed to join waiting list. Please try again.",
+              );
       showError(errorMessage);
     } finally {
       setLoading(false);
@@ -103,11 +146,14 @@ export default function WaitingListScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={t('waitingList.title', 'Join Waiting List')} paddingTop={Math.max(insets.top, SPACING.m)} />
+      <ScreenHeader
+        title={t("waitingList.title", "Join Waiting List")}
+        paddingTop={Math.max(insets.top, SPACING.m)}
+      />
 
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={keyboardVerticalOffset}
       >
         <ScrollView
@@ -122,16 +168,24 @@ export default function WaitingListScreen() {
         >
           <View style={styles.content}>
             <View style={styles.textGroup}>
-              <Text style={styles.title}>{t('waitingList.heading', 'Get Early Access')}</Text>
+              <Text style={styles.title}>
+                {t("waitingList.heading", "Get Early Access")}
+              </Text>
               <Text style={styles.description}>
-                {t('waitingList.description', 'Citewalk is currently in beta. Join the waiting list to be notified when invites become available.')}
+                {t(
+                  "waitingList.description",
+                  "Citewalk is currently in beta. Join the waiting list to be notified when invites become available.",
+                )}
               </Text>
             </View>
 
             <View style={styles.formGroup}>
               <TextInput
                 style={styles.input}
-                placeholder={t('waitingList.emailPlaceholder', 'Enter your email')}
+                placeholder={t(
+                  "waitingList.emailPlaceholder",
+                  "Enter your email",
+                )}
                 placeholderTextColor={COLORS.tertiary}
                 value={email}
                 onChangeText={setEmail}
@@ -139,7 +193,10 @@ export default function WaitingListScreen() {
                 autoCapitalize="none"
                 autoComplete="email"
                 autoFocus
-                accessibilityLabel={t('waitingList.emailPlaceholder', 'Enter your email')}
+                accessibilityLabel={t(
+                  "waitingList.emailPlaceholder",
+                  "Enter your email",
+                )}
               />
 
               {/* Terms and Privacy Acceptance */}
@@ -149,41 +206,52 @@ export default function WaitingListScreen() {
                     onPress={() => setAcceptedTerms(!acceptedTerms)}
                     style={styles.checkboxPressable}
                   >
-                    <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                    <View
+                      style={[
+                        styles.checkbox,
+                        acceptedTerms && styles.checkboxChecked,
+                      ]}
+                    >
                       {acceptedTerms && (
-                        <MaterialCommunityIcons name="check" size={12} color={COLORS.ink} />
+                        <MaterialCommunityIcons
+                          name="check"
+                          size={12}
+                          color={COLORS.ink}
+                        />
                       )}
                     </View>
                   </Pressable>
                   <Text style={styles.termsText}>
                     {(() => {
-                      const agreementText = t('signIn.signUpAgreement', {
-                        terms: t('signIn.termsLink'),
-                        privacy: t('signIn.privacyLink'),
+                      const agreementText = t("signIn.signUpAgreement", {
+                        terms: t("signIn.termsLink"),
+                        privacy: t("signIn.privacyLink"),
                       });
-                      const termsText = t('signIn.termsLink');
-                      const privacyText = t('signIn.privacyLink');
+                      const termsText = t("signIn.termsLink");
+                      const privacyText = t("signIn.privacyLink");
 
-                      const parts = agreementText.split(/({{terms}}|{{privacy}})/);
+                      const parts = agreementText.split(
+                        /({{terms}}|{{privacy}})/,
+                      );
                       return parts.map((part, index) => {
-                        if (part === '{{terms}}') {
+                        if (part === "{{terms}}") {
                           return (
                             <Text
                               key={index}
                               style={styles.termsLink}
-                              onPress={() => openLegalLink('/terms')}
+                              onPress={() => openLegalLink("/terms")}
                               suppressHighlighting={false}
                             >
                               {termsText}
                             </Text>
                           );
                         }
-                        if (part === '{{privacy}}') {
+                        if (part === "{{privacy}}") {
                           return (
                             <Text
                               key={index}
                               style={styles.termsLink}
-                              onPress={() => openLegalLink('/privacy')}
+                              onPress={() => openLegalLink("/privacy")}
                               suppressHighlighting={false}
                             >
                               {privacyText}
@@ -198,20 +266,31 @@ export default function WaitingListScreen() {
               </View>
 
               <Pressable
-                style={[styles.button, (!email.trim() || loading || !acceptedTerms) && styles.buttonDisabled]}
+                style={[
+                  styles.button,
+                  (!email.trim() || loading || !acceptedTerms) &&
+                    styles.buttonDisabled,
+                ]}
                 onPress={handleJoin}
                 disabled={!email.trim() || loading || !acceptedTerms}
-                accessibilityLabel={t('waitingList.join', 'Join Waiting List')}
+                accessibilityLabel={t("waitingList.join", "Join Waiting List")}
                 accessibilityRole="button"
               >
-                <Text style={styles.buttonText}>
-                  {loading ? t('common.loading', 'Loading...') : t('waitingList.join', 'Join Waiting List')}
-                </Text>
+                {loading ? (
+                  <InlineSkeleton />
+                ) : (
+                  <Text style={styles.buttonText}>
+                    {t("waitingList.join", "Join Waiting List")}
+                  </Text>
+                )}
               </Pressable>
             </View>
 
             <Text style={styles.infoText}>
-              {t('waitingList.info', 'We\'ll only use your email to notify you about invite availability.')}
+              {t(
+                "waitingList.info",
+                "We'll only use your email to notify you about invite availability.",
+              )}
             </Text>
           </View>
         </ScrollView>
@@ -226,9 +305,9 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: SPACING.l,
     paddingBottom: SPACING.m,
     borderBottomWidth: 1,
@@ -244,7 +323,7 @@ const styles = createStyles({
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -300,8 +379,8 @@ const styles = createStyles({
     backgroundColor: COLORS.primary,
     borderRadius: SIZES.borderRadius,
     height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -309,13 +388,13 @@ const styles = createStyles({
   buttonText: {
     color: COLORS.paper,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     fontFamily: FONTS.semiBold,
   },
   infoText: {
     fontSize: 13,
     color: COLORS.tertiary,
-    textAlign: 'center',
+    textAlign: "center",
     fontFamily: FONTS.regular,
     marginTop: -SPACING.s,
   },
@@ -323,8 +402,8 @@ const styles = createStyles({
     marginBottom: SPACING.xs,
   },
   checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: SPACING.m,
   },
   checkboxPressable: {
@@ -338,9 +417,9 @@ const styles = createStyles({
     borderRadius: 6,
     borderWidth: 1.5,
     borderColor: COLORS.tertiary,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
   },
   checkboxChecked: {
     backgroundColor: COLORS.primary,
@@ -355,6 +434,6 @@ const styles = createStyles({
   },
   termsLink: {
     color: COLORS.paper,
-    textDecorationLine: 'underline',
+    textDecorationLine: "underline",
   },
 });

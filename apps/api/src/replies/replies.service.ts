@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Repository,
@@ -41,6 +42,7 @@ export class RepliesService {
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
     private meilisearch: MeilisearchService,
+    private configService: ConfigService,
     @Inject('REPLY_QUEUE') private replyQueue: Queue,
   ) {}
 
@@ -63,8 +65,10 @@ export class RepliesService {
       );
     }
 
-    // AI Safety Check (Fast Stage 1 only)
-    if (!skipSafety) {
+    // AI Safety Check: sync (Stage 1 only) unless MODERATION_CONTENT_ASYNC=true (then worker does full check)
+    const contentModerationAsync =
+      this.configService.get<string>('MODERATION_CONTENT_ASYNC') === 'true';
+    if (!skipSafety && !contentModerationAsync) {
       const safety = await this.safetyService.checkContent(
         trimmed,
         userId,

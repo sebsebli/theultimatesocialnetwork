@@ -21,6 +21,8 @@ import 'dotenv/config';
  *   npm run run -- --seed-db --agents 3 --actions 5
  *   npm run run -- --real-personas --agents 20 --actions 30  (LLM creates N real social network personas)
  *   npm run run -- --run-batch-size 5  (default 8; lower if API returns 503)
+ *   npm run run -- --reupload-profile-photos   (re-upload profile photo for ALL agent users)
+ *   npm run run -- --add-post-title-images     (add title image to most existing posts; use --post-title-image-ratio 0.7 for 70%)
  *
  * With --seed-db: create agent users directly in DB (admin POST /admin/agents/seed).
  * No signup/tokenization; user is written to DB, indexed in Meilisearch, and Neo4j user node created.
@@ -36,7 +38,7 @@ import 'dotenv/config';
 import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import { createApiClient, devSignup } from './api-client.js';
-import { getAvatarImage, getPlaceholderAvatarImage } from './image-provider.js';
+import { getAvatarImage, getPlaceholderAvatarImage, getHeaderImage } from './image-provider.js';
 import { randomCharacter, getCharacterByType, characterFromStoredPersona } from './characters.js';
 import { createPersona, createRealSocialPersona } from './persona.js';
 import { runAgentLoop } from './agent.js';
@@ -63,6 +65,10 @@ function getConfig() {
   let useOllama = env.USE_OLLAMA === 'true' || env.USE_OLLAMA === '1';
   let useGemini = env.USE_GEMINI === 'true' || env.USE_GEMINI === '1';
   let realPersonas = env.CITE_AGENTS_REAL_PERSONAS === 'true' || env.CITE_AGENTS_REAL_PERSONAS === '1';
+  let reuploadProfilePhotos = env.CITE_AGENTS_REUPLOAD_PROFILE_PHOTOS === 'true' || env.CITE_AGENTS_REUPLOAD_PROFILE_PHOTOS === '1';
+  let addPostTitleImages = env.CITE_AGENTS_ADD_POST_TITLE_IMAGES === 'true' || env.CITE_AGENTS_ADD_POST_TITLE_IMAGES === '1';
+  let postTitleImageRatio = parseFloat(env.CITE_AGENTS_POST_TITLE_IMAGE_RATIO ?? '0.7');
+  let version = (env.CITE_AGENTS_VERSION ?? 'default') as 'default' | 'posts';
   let personasFile: string | undefined;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--agents' && args[i + 1]) {
@@ -97,8 +103,24 @@ function getConfig() {
       useGemini = true;
     } else if (args[i] === '--real-personas') {
       realPersonas = true;
+    } else if (args[i] === '--reupload-profile-photos') {
+      reuploadProfilePhotos = true;
+    } else if (args[i] === '--add-post-title-images') {
+      addPostTitleImages = true;
+    } else if (args[i] === '--post-title-image-ratio' && args[i + 1]) {
+      postTitleImageRatio = Math.max(0, Math.min(1, parseFloat(args[i + 1])));
+      i++;
+    } else if (args[i] === '--version' && args[i + 1]) {
+      version = args[i + 1] === 'posts' ? 'posts' : 'default';
+      i++;
     }
   }
+  const minPostsFromEnv = Math.max(0, parseInt(env.CITE_AGENTS_MIN_POSTS ?? '', 10));
+  const minPostsExplicit = Number.isNaN(minPostsFromEnv) ? undefined : minPostsFromEnv;
+  const minPostsPerAgent =
+    version === 'posts'
+      ? Math.max(2, Math.ceil(actionsPerAgent * 0.6))
+      : (minPostsExplicit ?? Math.max(0, parseInt(env.CITE_AGENTS_MIN_POSTS ?? '2', 10)));
   return {
     citeApiUrl: env.CITE_API_URL ?? 'http://localhost/api',
     citeAdminSecret: env.CITE_ADMIN_SECRET ?? 'dev-admin-change-me',
@@ -125,8 +147,12 @@ function getConfig() {
     runBatchSize: Math.max(1, runBatchSize),
     privateRatio,
     realPersonas,
+    reuploadProfilePhotos,
+    addPostTitleImages,
+    postTitleImageRatio: Math.max(0, Math.min(1, postTitleImageRatio)),
     personasFile: personasFile ?? getPersonasFilePath(),
-    minPostsPerAgent: Math.max(0, parseInt(env.CITE_AGENTS_MIN_POSTS ?? '2', 10)),
+    version,
+    minPostsPerAgent,
   };
 }
 
@@ -159,6 +185,147 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
     }
   }
   throw lastErr;
+}
+
+/** Re-upload profile photo for all agent users (Pixabay/Pexels or placeholder). */
+async function runReuploadProfilePhotos(
+  config: ReturnType<typeof getConfig>,
+  api: ReturnType<typeof createApiClient>,
+): Promise<void> {
+  const list = await api.listAgentUsers();
+  if (list.length === 0) {
+    console.log('No agent users (@agents.local). Nothing to do.');
+    return;
+  }
+  const imageConfig = {
+    pixabayApiKey: config.pixabayApiKey,
+    pexelsApiKey: config.pexelsApiKey,
+  };
+  const usedImageUrls = new Set<string>();
+  console.log(`Re-uploading profile photos for ${list.length} agent user(s) (each profile gets a unique image)...`);
+  for (let i = 0; i < list.length; i++) {
+    const u = list[i];
+    let token: string;
+    try {
+      if (config.citeAgentSecret) {
+        const auth = await api.authViaAgentApi(u.email);
+        token = auth.accessToken;
+      } else if (config.citeAdminSecret) {
+        token = (await api.getAgentToken(u.email)).accessToken;
+      } else {
+        console.warn(`[${i + 1}/${list.length}] Skip @${u.handle}: need CITE_ADMIN_SECRET or CITE_AGENT_SECRET.`);
+        continue;
+      }
+    } catch (e) {
+      console.error(`[${i + 1}/${list.length}] @${u.handle} auth failed:`, (e as Error).message);
+      continue;
+    }
+    let avatarBuffer: Buffer | null = null;
+    for (let page = 1; page <= 20 && !avatarBuffer; page++) {
+      const avatarImg = await getAvatarImage(imageConfig, 'portrait', {
+        excludeUrls: usedImageUrls,
+        page,
+        perPage: 15,
+      });
+      if (avatarImg) {
+        usedImageUrls.add(avatarImg.url);
+        avatarBuffer = avatarImg.buffer;
+      }
+    }
+    if (!avatarBuffer) avatarBuffer = await getPlaceholderAvatarImage(u.handle);
+    if (!avatarBuffer) {
+      console.error(`[${i + 1}/${list.length}] @${u.handle}: no image available, skip.`);
+      continue;
+    }
+    try {
+      const up = await api.uploadProfilePicture(token, avatarBuffer, `avatar-${u.handle}.jpg`);
+      await api.updateMe(token, { avatarKey: up.key });
+      console.log(`[${i + 1}/${list.length}] @${u.handle} profile photo updated.`);
+    } catch (e) {
+      console.error(`[${i + 1}/${list.length}] @${u.handle} upload/update failed:`, (e as Error).message);
+    }
+  }
+  console.log('Profile photo re-upload done.');
+}
+
+/** Add a title/header image to most existing posts by agent users (no image yet). */
+async function runAddPostTitleImages(
+  config: ReturnType<typeof getConfig>,
+  api: ReturnType<typeof createApiClient>,
+): Promise<void> {
+  const list = await api.listAgentUsers();
+  if (list.length === 0) {
+    console.log('No agent users (@agents.local). Nothing to do.');
+    return;
+  }
+  const imageConfig = {
+    pixabayApiKey: config.pixabayApiKey,
+    pexelsApiKey: config.pexelsApiKey,
+  };
+  const ratio = config.postTitleImageRatio;
+  let totalAdded = 0;
+  let totalSkipped = 0;
+  console.log(`Adding title images to ~${Math.round(ratio * 100)}% of posts without one (${list.length} users)...`);
+  for (let i = 0; i < list.length; i++) {
+    const u = list[i];
+    let token: string;
+    try {
+      if (config.citeAgentSecret) {
+        token = (await api.authViaAgentApi(u.email)).accessToken;
+      } else if (config.citeAdminSecret) {
+        token = (await api.getAgentToken(u.email)).accessToken;
+      } else {
+        continue;
+      }
+    } catch (e) {
+      console.error(`[${i + 1}/${list.length}] @${u.handle} auth failed:`, (e as Error).message);
+      continue;
+    }
+    // Use /users/me/posts (current user's posts) so we don't rely on handle resolution
+    let posts: { id: string; headerImageKey?: string | null }[];
+    try {
+      const data = (await api.getMyPosts(token, 200, 1)) as
+        | { items?: { id: string; headerImageKey?: string | null }[]; posts?: { id: string; headerImageKey?: string | null }[] }
+        | { id: string; headerImageKey?: string | null }[];
+      if (Array.isArray(data)) {
+        posts = data as { id: string; headerImageKey?: string | null }[];
+      } else if (data && typeof data === 'object') {
+        const raw = (data as { items?: unknown[] }).items ?? (data as { posts?: unknown[] }).posts ?? [];
+        posts = raw as { id: string; headerImageKey?: string | null }[];
+      } else {
+        posts = [];
+      }
+    } catch (e) {
+      console.error(`[${i + 1}/${list.length}] @${u.handle} get posts failed:`, (e as Error).message);
+      continue;
+    }
+    // Log every user so we can see who has posts
+    console.log(`[${i + 1}/${list.length}] @${u.handle}: ${posts.length} posts`);
+    const withoutImage = posts.filter((p) => !p?.headerImageKey);
+    const toAdd = ratio >= 1 ? withoutImage : withoutImage.filter((_, idx) => (idx / Math.max(1, withoutImage.length)) < ratio);
+    if (posts.length > 0 && toAdd.length === 0 && withoutImage.length === 0) {
+      console.log(`  → all already have title image`);
+    } else if (toAdd.length > 0) {
+      console.log(`  → adding title image to ${toAdd.length} of ${withoutImage.length} without image`);
+    }
+    for (const post of toAdd) {
+      let imageUrl: string | undefined;
+      const headerImg = await getHeaderImage(imageConfig, 'article');
+      if (headerImg?.url) imageUrl = headerImg.url;
+      if (!imageUrl) imageUrl = `https://picsum.photos/seed/${encodeURIComponent(post.id)}/1200/600`;
+      try {
+        const { key } = await api.uploadHeaderImageFromUrl(token, imageUrl);
+        await api.updatePost(token, post.id, { headerImageKey: key });
+        totalAdded++;
+        process.stdout.write('.');
+      } catch (e) {
+        totalSkipped++;
+        console.warn(`\nPost ${post.id} failed:`, (e as Error).message);
+      }
+    }
+    if (toAdd.length > 0) console.log(`\n[${i + 1}/${list.length}] @${u.handle}: ${toAdd.length} post(s) got title image.`);
+  }
+  console.log(`\nDone. Added title images: ${totalAdded}, failed: ${totalSkipped}.`);
 }
 
 /** Run one agent from a stored persona (re-auth, then loop only). */
@@ -231,6 +398,7 @@ async function runResumedAgent(
       },
       maxActions: config.actionsPerAgent,
       minPosts: config.minPostsPerAgent,
+      version: config.version,
       onAction: () => process.stdout.write('.'),
     });
   } catch (e) {
@@ -250,6 +418,7 @@ async function main() {
   console.log(`  LLM: ${provider} (${model})`);
   console.log('  Actions per agent:', config.actionsPerAgent);
   console.log('  Min posts per agent:', config.minPostsPerAgent);
+  if (config.version === 'posts') console.log('  Version: posts (prioritize create_post)');
   if (config.resume) {
     console.log('  Mode: resume (load personas from file)');
     console.log('  Personas file:', config.personasFile);
@@ -340,6 +509,24 @@ async function main() {
     }
   }
 
+  if (config.reuploadProfilePhotos) {
+    if (!config.citeAdminSecret && !config.citeAgentSecret) {
+      console.error('CITE_ADMIN_SECRET or CITE_AGENT_SECRET required for --reupload-profile-photos.');
+      process.exit(1);
+    }
+    await runReuploadProfilePhotos(config, api);
+    return;
+  }
+
+  if (config.addPostTitleImages) {
+    if (!config.citeAdminSecret && !config.citeAgentSecret) {
+      console.error('CITE_ADMIN_SECRET or CITE_AGENT_SECRET required for --add-post-title-images.');
+      process.exit(1);
+    }
+    await runAddPostTitleImages(config, api);
+    return;
+  }
+
   const imageConfig = {
     pixabayApiKey: config.pixabayApiKey,
     pexelsApiKey: config.pexelsApiKey,
@@ -408,6 +595,7 @@ async function main() {
 
   // Fresh run: create personas sequentially (for handle uniqueness), then run all in parallel.
   const usedHandles = new Set<string>();
+  const usedDisplayNames = new Set<string>();
   const agentsToRun: Array<{
     index: number;
     character: import('./characters.js').CharacterDef;
@@ -421,7 +609,7 @@ async function main() {
       console.log(`Creating real social persona ${a + 1}/${config.agentsCount}...`);
       let result;
       try {
-        result = await createRealSocialPersona(openai, gemini, model, usedHandles);
+        result = await createRealSocialPersona(openai, gemini, model, usedHandles, { usedDisplayNames });
       } catch (e) {
         console.error('Real persona creation failed:', (e as Error).message);
         continue;
@@ -432,6 +620,7 @@ async function main() {
         handle = result.persona.handle + '_' + randomId();
       }
       usedHandles.add(handle);
+      usedDisplayNames.add(result.persona.displayName);
       const persona = { ...result.persona, handle };
       const email = `agent.${handle}.${randomId()}@agents.local`;
       agentsToRun.push({
@@ -447,7 +636,7 @@ async function main() {
 
       let persona;
       try {
-        persona = await createPersona(openai, gemini, model, character, usedHandles);
+        persona = await createPersona(openai, gemini, model, character, usedHandles, { usedDisplayNames });
       } catch (e) {
         console.error('Persona creation failed:', (e as Error).message);
         continue;
@@ -459,6 +648,7 @@ async function main() {
         handle = persona.handle + '_' + randomId();
       }
       usedHandles.add(handle);
+      usedDisplayNames.add(persona.displayName);
       persona = { ...persona, handle };
       const email = `agent.${handle}.${randomId()}@agents.local`;
       agentsToRun.push({ index: a, character, persona, email });
@@ -529,7 +719,7 @@ async function main() {
 
         const avatarQuery = character.avatarQuery ?? 'portrait';
         let avatarBuffer: Buffer | null = null;
-        const avatarImg = await getAvatarImage(imageConfig, avatarQuery);
+        const avatarImg = await getAvatarImage(imageConfig, avatarQuery, { page: index + 1 });
         if (avatarImg) avatarBuffer = avatarImg.buffer;
         if (!avatarBuffer) avatarBuffer = await getPlaceholderAvatarImage(persona.handle);
         if (!avatarBuffer) {
@@ -585,6 +775,7 @@ async function main() {
             },
             maxActions: config.actionsPerAgent,
             minPosts: config.minPostsPerAgent,
+            version: config.version,
             onAction: () => process.stdout.write('.'),
           });
         } catch (e) {

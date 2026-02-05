@@ -1,12 +1,30 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { api, setOnboardingStage } from '../../utils/api';
-import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, MODAL, createStyles } from '../../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  Text,
+  View,
+  TextInput,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { api, setOnboardingStage } from "../../utils/api";
+import { useToast } from "../../context/ToastContext";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  LAYOUT,
+  MODAL,
+  createStyles,
+} from "../../constants/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { InlineSkeleton } from "../../components/LoadingSkeleton";
 
 const HANDLE_MIN = 3;
 const HANDLE_MAX = 30;
@@ -18,30 +36,33 @@ export default function OnboardingProfileScreen() {
   const { showError } = useToast();
   const insets = useSafeAreaInsets();
 
-  const [displayName, setDisplayName] = useState('');
-  const [handle, setHandle] = useState('');
-  const [bio, setBio] = useState('');
+  const [displayName, setDisplayName] = useState("");
+  const [handle, setHandle] = useState("");
+  const [bio, setBio] = useState("");
   const [isProtected, setIsProtected] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [handleStatus, setHandleStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const user = await api.get<any>('/users/me');
+        const user = await api.get<any>("/users/me");
         if (user) {
           const isPlaceholder =
-            typeof user.handle === 'string' && user.handle.startsWith('__pending_');
+            typeof user.handle === "string" &&
+            user.handle.startsWith("__pending_");
           if (isPlaceholder) {
-            setDisplayName('');
-            setHandle('');
+            setDisplayName("");
+            setHandle("");
           } else {
-            setDisplayName(user.displayName || '');
-            setHandle(user.handle || '');
-            if (user.handle) setHandleStatus('available');
+            setDisplayName(user.displayName || "");
+            setHandle(user.handle || "");
+            if (user.handle) setHandleStatus("available");
           }
-          setBio(user.bio || '');
+          setBio(user.bio || "");
           setIsProtected(user.isProtected || false);
         }
       } catch (e) {
@@ -51,37 +72,48 @@ export default function OnboardingProfileScreen() {
     fetchUser();
   }, []);
 
-  const normalizedHandle = handle.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const normalizedHandle = handle
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "");
   const handleLen = normalizedHandle.length;
   const handleTooShort = handleLen > 0 && handleLen < HANDLE_MIN;
   const handleTooLong = handleLen > HANDLE_MAX;
 
   const checkAvailability = useCallback(async (h: string) => {
-    const norm = h.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const norm = h
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "");
     if (norm.length < HANDLE_MIN || norm.length > HANDLE_MAX) {
-      setHandleStatus('invalid');
+      setHandleStatus("invalid");
       return;
     }
-    setHandleStatus('checking');
+    setHandleStatus("checking");
     try {
-      const res = await api.get<{ available: boolean }>(`/users/handle/available?handle=${encodeURIComponent(norm)}`);
-      setHandleStatus(res?.available ? 'available' : 'taken');
+      const res = await api.get<{ available: boolean }>(
+        `/users/handle/available?handle=${encodeURIComponent(norm)}`,
+      );
+      setHandleStatus(res?.available ? "available" : "taken");
     } catch {
-      setHandleStatus('idle');
+      setHandleStatus("idle");
     }
   }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (handleLen === 0) {
-      setHandleStatus('idle');
+      setHandleStatus("idle");
       return;
     }
     if (handleTooShort || handleTooLong) {
-      setHandleStatus('invalid');
+      setHandleStatus("invalid");
       return;
     }
-    debounceRef.current = setTimeout(() => checkAvailability(handle), AVAILABILITY_DEBOUNCE_MS);
+    debounceRef.current = setTimeout(
+      () => checkAvailability(handle),
+      AVAILABILITY_DEBOUNCE_MS,
+    );
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
@@ -89,46 +121,52 @@ export default function OnboardingProfileScreen() {
 
   const handleSubmit = async () => {
     if (!displayName.trim() || !handle.trim()) {
-      showError(t('onboarding.fieldsRequired'));
+      showError(t("onboarding.fieldsRequired"));
       return;
     }
     if (handleTooShort || handleTooLong) {
-      showError(t('onboarding.profile.handleInvalid'));
+      showError(t("onboarding.profile.handleInvalid"));
       return;
     }
-    if (handleStatus === 'taken') {
-      showError(t('onboarding.profile.handleTaken'));
+    if (handleStatus === "taken") {
+      showError(t("onboarding.profile.handleTaken"));
       return;
     }
-    if (handleStatus === 'checking' || handleStatus === 'invalid') {
-      showError(t('onboarding.profile.handleInvalid'));
+    if (handleStatus === "checking" || handleStatus === "invalid") {
+      showError(t("onboarding.profile.handleInvalid"));
       return;
     }
 
     setLoading(true);
     try {
-      await api.patch('/users/me', {
+      await api.patch("/users/me", {
         displayName: displayName.trim(),
         handle: normalizedHandle,
         bio: bio.trim(),
         isProtected,
       });
-      await setOnboardingStage('starter-packs');
-      router.push('/onboarding/starter-packs');
+      await setOnboardingStage("starter-packs");
+      router.push("/onboarding/starter-packs");
     } catch (error: any) {
-      console.error('Failed to update profile', error);
-      showError(error?.message || t('onboarding.profile.updateFailed'));
+      console.error("Failed to update profile", error);
+      showError(error?.message || t("onboarding.profile.updateFailed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const canSubmit = Boolean(displayName.trim() && normalizedHandle.length >= HANDLE_MIN && normalizedHandle.length <= HANDLE_MAX && handleStatus === 'available' && !loading);
+  const canSubmit = Boolean(
+    displayName.trim() &&
+    normalizedHandle.length >= HANDLE_MIN &&
+    normalizedHandle.length <= HANDLE_MAX &&
+    handleStatus === "available" &&
+    !loading,
+  );
 
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.header}>
         <View style={styles.stepIndicator}>
@@ -138,13 +176,19 @@ export default function OnboardingProfileScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
-        <Text style={styles.title}>{t('onboarding.profile.title')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.profile.subtitle')}</Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+      >
+        <Text style={styles.title}>{t("onboarding.profile.title")}</Text>
+        <Text style={styles.subtitle}>{t("onboarding.profile.subtitle")}</Text>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('onboarding.profile.displayName')}</Text>
+            <Text style={styles.label}>
+              {t("onboarding.profile.displayName")}
+            </Text>
             <TextInput
               style={styles.input}
               value={displayName}
@@ -157,18 +201,20 @@ export default function OnboardingProfileScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('onboarding.profile.handle')}</Text>
+            <Text style={styles.label}>{t("onboarding.profile.handle")}</Text>
             <View style={styles.inputWrapper}>
               <Text style={styles.inputPrefix}>@</Text>
               <TextInput
                 style={[
                   styles.input,
                   styles.inputWithPrefix,
-                  handleStatus === 'taken' && styles.inputError,
-                  handleStatus === 'available' && styles.inputSuccess,
+                  handleStatus === "taken" && styles.inputError,
+                  handleStatus === "available" && styles.inputSuccess,
                 ]}
                 value={handle}
-                onChangeText={(text: string) => setHandle(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                onChangeText={(text: string) =>
+                  setHandle(text.toLowerCase().replace(/[^a-z0-9_]/g, ""))
+                }
                 placeholder="janedoe"
                 placeholderTextColor={COLORS.tertiary}
                 autoCapitalize="none"
@@ -178,14 +224,19 @@ export default function OnboardingProfileScreen() {
               />
             </View>
             <View style={styles.handleMeta}>
-              <Text style={[styles.handleHint, (handleTooShort || handleTooLong) && styles.handleHintError]}>
+              <Text
+                style={[
+                  styles.handleHint,
+                  (handleTooShort || handleTooLong) && styles.handleHintError,
+                ]}
+              >
                 {handleLen === 0
-                  ? t('onboarding.profile.handleHint')
+                  ? t("onboarding.profile.handleHint")
                   : handleTooShort
-                    ? t('onboarding.profile.handleTooShort')
+                    ? t("onboarding.profile.handleTooShort")
                     : handleTooLong
-                      ? t('onboarding.profile.handleTooLong')
-                      : t('onboarding.profile.handleHint')}
+                      ? t("onboarding.profile.handleTooLong")
+                      : t("onboarding.profile.handleHint")}
               </Text>
               <Text style={styles.handleCount}>
                 {handleLen}/{HANDLE_MAX}
@@ -193,19 +244,31 @@ export default function OnboardingProfileScreen() {
             </View>
             {handleLen >= HANDLE_MIN && handleLen <= HANDLE_MAX && (
               <View style={styles.availabilityRow}>
-                {handleStatus === 'checking' && (
-                  <ActivityIndicator size="small" color={COLORS.primary} style={styles.availabilitySpinner} />
-                )}
-                {handleStatus === 'available' && (
+                {handleStatus === "checking" && <InlineSkeleton />}
+                {handleStatus === "available" && (
                   <View style={styles.availabilityRow}>
-                    <MaterialIcons name="check-circle" size={HEADER.iconSize} color={COLORS.primary} style={styles.availabilityIcon} />
-                    <Text style={styles.availabilityAvailable}>{t('onboarding.profile.handleAvailable')}</Text>
+                    <MaterialIcons
+                      name="check-circle"
+                      size={HEADER.iconSize}
+                      color={COLORS.primary}
+                      style={styles.availabilityIcon}
+                    />
+                    <Text style={styles.availabilityAvailable}>
+                      {t("onboarding.profile.handleAvailable")}
+                    </Text>
                   </View>
                 )}
-                {handleStatus === 'taken' && (
+                {handleStatus === "taken" && (
                   <View style={styles.availabilityRow}>
-                    <MaterialIcons name="cancel" size={HEADER.iconSize} color={COLORS.error} style={styles.availabilityIcon} />
-                    <Text style={styles.availabilityTaken}>{t('onboarding.profile.handleTaken')}</Text>
+                    <MaterialIcons
+                      name="cancel"
+                      size={HEADER.iconSize}
+                      color={COLORS.error}
+                      style={styles.availabilityIcon}
+                    />
+                    <Text style={styles.availabilityTaken}>
+                      {t("onboarding.profile.handleTaken")}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -213,12 +276,12 @@ export default function OnboardingProfileScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('profile.bio')}</Text>
+            <Text style={styles.label}>{t("profile.bio")}</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={bio}
               onChangeText={setBio}
-              placeholder={t('onboarding.bioPlaceholder')}
+              placeholder={t("onboarding.bioPlaceholder")}
               placeholderTextColor={COLORS.tertiary}
               multiline
               numberOfLines={3}
@@ -240,13 +303,13 @@ export default function OnboardingProfileScreen() {
                   color={isProtected ? COLORS.primary : COLORS.secondary}
                 />
                 <Text style={styles.privacyLabel}>
-                  {isProtected ? t('common.private') : t('common.public')}
+                  {isProtected ? t("common.private") : t("common.public")}
                 </Text>
               </View>
               <Text style={styles.privacyDescription}>
                 {isProtected
-                  ? t('onboarding.privateDescription')
-                  : t('onboarding.publicDescription')}
+                  ? t("onboarding.privateDescription")
+                  : t("onboarding.publicDescription")}
               </Text>
             </View>
             <View style={[styles.switch, isProtected && styles.switchActive]}>
@@ -256,16 +319,27 @@ export default function OnboardingProfileScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.l }]}>
+      <View
+        style={[styles.footer, { paddingBottom: insets.bottom + SPACING.l }]}
+      >
         <Pressable
-          style={[styles.button, (!canSubmit || loading) && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            (!canSubmit || loading) && styles.buttonDisabled,
+          ]}
           onPress={handleSubmit}
           disabled={!canSubmit || loading}
         >
-          <Text style={styles.buttonText}>
-            {loading ? t('common.loading') : t('common.continue')}
-          </Text>
-          <MaterialIcons name="arrow-forward" size={HEADER.iconSize} color={COLORS.ink} />
+          {loading ? (
+            <InlineSkeleton />
+          ) : (
+            <Text style={styles.buttonText}>{t("common.continue")}</Text>
+          )}
+          <MaterialIcons
+            name="arrow-forward"
+            size={HEADER.iconSize}
+            color={COLORS.ink}
+          />
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -280,13 +354,13 @@ const styles = createStyles({
   header: {
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     paddingBottom: SPACING.l,
-    alignItems: 'center',
-    position: 'relative',
+    alignItems: "center",
+    position: "relative",
     height: 44,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   stepIndicator: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   stepDot: {
@@ -305,17 +379,17 @@ const styles = createStyles({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginBottom: SPACING.s,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 15,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SPACING.xl,
   },
   form: {
@@ -326,7 +400,7 @@ const styles = createStyles({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.medium,
   },
@@ -342,11 +416,11 @@ const styles = createStyles({
     letterSpacing: 0,
   },
   inputWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
+    position: "relative",
+    justifyContent: "center",
   },
   inputPrefix: {
-    position: 'absolute',
+    position: "absolute",
     left: SPACING.m,
     fontSize: 16,
     color: COLORS.tertiary,
@@ -363,9 +437,9 @@ const styles = createStyles({
     borderColor: COLORS.primary,
   },
   handleMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 4,
   },
   handleHint: {
@@ -382,8 +456,8 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   availabilityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 4,
   },
   availabilityIcon: {
@@ -404,18 +478,18 @@ const styles = createStyles({
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   charCount: {
-    textAlign: 'right',
+    textAlign: "right",
     fontSize: 12,
     color: COLORS.tertiary,
     fontFamily: FONTS.regular,
   },
   privacyToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: COLORS.hover,
     padding: SPACING.m,
     borderRadius: SIZES.borderRadius,
@@ -427,14 +501,14 @@ const styles = createStyles({
     marginRight: SPACING.m,
   },
   privacyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.s,
     marginBottom: 4,
   },
   privacyLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -461,10 +535,10 @@ const styles = createStyles({
     backgroundColor: COLORS.paper,
   },
   thumbActive: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
   },
   footer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
@@ -475,9 +549,9 @@ const styles = createStyles({
     paddingTop: SPACING.l,
   },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.s,
     minHeight: MODAL.buttonMinHeight,
     paddingVertical: MODAL.buttonPaddingVertical,

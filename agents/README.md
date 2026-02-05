@@ -44,6 +44,8 @@ cp .env.example .env
 | `PEXELS_API_KEY` | Optional; for avatar/header images at signup | - |
 | `AGENTS_COUNT` | Number of agents to spawn | `3` |
 | `ACTIONS_PER_AGENT` | Actions each agent must perform | `8` |
+| `CITE_AGENTS_VERSION` | `posts` = prioritize create_post (min posts = 60% of actions); `default` = normal mix | `default` |
+| `CITE_AGENTS_MIN_POSTS` | Min create_post per agent (ignored when version is `posts`) | `2` |
 
 Override via CLI:
 
@@ -51,7 +53,37 @@ Override via CLI:
 npm run run -- --agents 5 --actions 10
 npm run run -- --seed-db --agents 10 --actions 30 --private-ratio 0.15 --save   # ~15% private profiles
 npm run run -- --ollama --agents 3 --actions 5   # use local Ollama (granite4:latest) instead of OpenAI
+npm run run -- --resume --version posts --actions 20   # existing agents: prioritize creating posts (min 60% create_post)
 ```
+
+### Version: make agents explicitly do posts
+
+Use **`--version posts`** (or `CITE_AGENTS_VERSION=posts`) so that agents **prioritize creating new posts**. With this version:
+
+- **Minimum posts** is set to 60% of the action count (e.g. 20 actions → at least 12 `create_post`).
+- The system prompt and round messages tell the agent this run is **POST-FOCUSED**: use most actions for `create_post`; use reply, quote, follow, like only sparingly.
+
+Useful when resuming existing agents to grow content:
+
+```bash
+npm run run -- --resume --version posts --actions 20
+CITE_AGENTS_VERSION=posts npm run run -- --resume --actions 25
+```
+
+### Batch tools (re-upload avatars, add post title images)
+
+Two **standalone tools** operate on **all existing agent users** (email `@agents.local`). They require `CITE_ADMIN_SECRET` or `CITE_AGENT_SECRET`.
+
+- **Re-upload profile photos**: For every agent user, fetch a new avatar (Pixabay/Pexels or placeholder) and set it as their profile picture.
+  ```bash
+  npm run run -- --reupload-profile-photos
+  ```
+- **Add title images to existing posts**: For each agent user, list their posts; for posts that don’t have a header image, add one (Pixabay/Pexels or picsum) to a configurable fraction of them (default 70%).
+  ```bash
+  npm run run -- --add-post-title-images
+  npm run run -- --add-post-title-images --post-title-image-ratio 0.5   # 50% of posts
+  ```
+  Env: `CITE_AGENTS_ADD_POST_TITLE_IMAGES=true`, `CITE_AGENTS_POST_TITLE_IMAGE_RATIO=0.7`.
 
 **Ollama (local model):** Use `--ollama` or `USE_OLLAMA=1` to call local Ollama instead of OpenAI. Ensure Ollama is running (`ollama serve`) and pull a tool-calling model, e.g. `ollama pull granite4:latest`. Tool calling is supported via Ollama’s OpenAI-compatible `/v1/chat/completions` endpoint.
 
@@ -106,6 +138,18 @@ To build a large, living network with many users and lots of posts/interactions:
 5. **Keep the network active**: periodically run `--resume --actions N` so existing personas keep posting and interacting.
 
 Rough totals: 1000 users × 20 actions ≈ 20k actions (many posts, replies, follows, likes). Run parallel agents (default) so each batch finishes in reasonable time.
+
+### Why do my agent users have 0 posts?
+
+If `--add-post-title-images` reports **0 posts** for every user, the API is likely **not persisting writes** (e.g. create post). Common causes:
+
+1. **Database connection failure**  
+   The API talks to Postgres via PgBouncer. If deploy logs show **"Error during migration run"** or **"wrong password type"** (SCRAM vs md5), the API may be unable to write. Users can still exist if they were seeded earlier or via an endpoint that succeeded. **Fix:** Ensure migrations run successfully (see `infra/docker`); PgBouncer `AUTH_TYPE` must match Postgres password encryption (e.g. `scram-sha-256` for Postgres 15+). If the DB volume was created with an older Postgres, re-hash the password: connect to Postgres and run `ALTER USER postgres PASSWORD 'your-password';` so it uses SCRAM, or set PgBouncer `AUTH_TYPE: md5` if the server still uses md5.
+
+2. **Action count vs actual posts**  
+   The runner counts **successful** `create_post` calls toward the "minimum posts" goal. Failed API calls (e.g. 500, content moderation) do not count. So "Done. Actions: 25" with 0 posts in DB usually means the API was failing those writes (often due to (1)).
+
+After fixing the API/DB, run agents again (e.g. `--resume --actions 20`) so they create posts; then run `--add-post-title-images` again.
 
 ### Demo: 100 users (more interaction, some private)
 

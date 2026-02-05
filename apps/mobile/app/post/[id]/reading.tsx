@@ -1,50 +1,69 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   Linking,
   Dimensions,
   Animated,
-} from 'react-native';
-import type { ScrollViewProps, ViewProps } from 'react-native';
+} from "react-native";
+import type { ScrollViewProps, ViewProps } from "react-native";
 
 /** Typed Animated components for React 19 JSX compatibility */
-const AnimatedScrollView = Animated.ScrollView as (props: ScrollViewProps & { style?: any }) => React.ReactElement | null;
-const AnimatedView = Animated.View as (props: ViewProps & { style?: any }) => React.ReactElement | null;
+const AnimatedScrollView = Animated.ScrollView as (
+  props: ScrollViewProps & { style?: any },
+) => React.ReactElement | null;
+const AnimatedView = Animated.View as (
+  props: ViewProps & { style?: any },
+) => React.ReactElement | null;
 
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import * as Haptics from 'expo-haptics';
-import { api, getImageUrl, getAvatarUri } from '../../../utils/api';
-import { MarkdownText } from '../../../components/MarkdownText';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles, toDimension, toDimensionValue } from '../../../constants/theme';
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
+import { api, getAvatarUri, getPostHeaderImageUri } from "../../../utils/api";
+import { MarkdownText } from "../../../components/MarkdownText";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  LAYOUT,
+  createStyles,
+  toDimension,
+  toDimensionValue,
+} from "../../../constants/theme";
+import { FullScreenSkeleton } from "../../../components/LoadingSkeleton";
 const ACTION_ICON_SIZE = HEADER.iconSize;
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../../context/auth';
-import AddToCollectionSheet, { AddToCollectionSheetRef } from '../../../components/AddToCollectionSheet';
-import ShareSheet, { ShareSheetRef } from '../../../components/ShareSheet';
-import { SourceOrPostCard } from '../../../components/SourceOrPostCard';
-import { HeaderIconButton } from '../../../components/HeaderIconButton';
-import { ReportModal } from '../../../components/ReportModal';
-import { OptionsActionSheet } from '../../../components/OptionsActionSheet';
-import { ConfirmModal } from '../../../components/ConfirmModal';
-import { EmptyState, emptyStateCenterWrapStyle } from '../../../components/EmptyState';
-import { useToast } from '../../../context/ToastContext';
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../../context/auth";
+import AddToCollectionSheet, {
+  AddToCollectionSheetRef,
+} from "../../../components/AddToCollectionSheet";
+import ShareSheet, { ShareSheetRef } from "../../../components/ShareSheet";
+import { SourceOrPostCard } from "../../../components/SourceOrPostCard";
+import { HeaderIconButton } from "../../../components/HeaderIconButton";
+import { ReportModal } from "../../../components/ReportModal";
+import { OptionsActionSheet } from "../../../components/OptionsActionSheet";
+import { ConfirmModal } from "../../../components/ConfirmModal";
+import {
+  EmptyState,
+  emptyStateCenterWrapStyle,
+} from "../../../components/EmptyState";
+import { useToast } from "../../../context/ToastContext";
 import {
   savePostForOffline,
   removeOfflinePost,
   isPostDownloaded,
   getDownloadSavedForOffline,
   type OfflinePost,
-} from '../../../utils/offlineStorage';
+} from "../../../utils/offlineStorage";
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface Post {
   id: string;
@@ -54,7 +73,14 @@ interface Post {
   headerImageKey?: string | null;
   replyCount?: number;
   quoteCount?: number;
-  author?: { id?: string; displayName?: string; handle?: string; avatarUrl?: string | null; avatarKey?: string | null; isProtected?: boolean };
+  author?: {
+    id?: string;
+    displayName?: string;
+    handle?: string;
+    avatarUrl?: string | null;
+    avatarKey?: string | null;
+    isProtected?: boolean;
+  };
   isLiked?: boolean;
   isKept?: boolean;
   lang?: string | null;
@@ -75,7 +101,7 @@ export default function ReadingModeScreen() {
   const [post, setPost] = useState<Post | null>(null);
   const [sources, setSources] = useState<any[]>([]);
   const [quotedBy, setQuotedBy] = useState<any[]>([]);
-  const [sourcesTab, setSourcesTab] = useState<'sources' | 'quoted'>('sources');
+  const [sourcesTab, setSourcesTab] = useState<"sources" | "quoted">("sources");
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
@@ -89,7 +115,12 @@ export default function ReadingModeScreen() {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [offlineEnabled, setOfflineEnabled] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
-  const [deniedAuthor, setDeniedAuthor] = useState<{ id: string; handle: string; displayName: string; avatarKey?: string | null } | null>(null);
+  const [deniedAuthor, setDeniedAuthor] = useState<{
+    id: string;
+    handle: string;
+    displayName: string;
+    avatarKey?: string | null;
+  } | null>(null);
 
   const loadPost = useCallback(async () => {
     if (!postId) return;
@@ -102,14 +133,17 @@ export default function ReadingModeScreen() {
       setLiked(!!postData?.isLiked);
       setKept(!!postData?.isKept);
       if (!postData?.deletedAt) {
-        const [sourcesData, quotesData, downloaded, enabled] = await Promise.all([
-          api.get(`/posts/${postId}/sources`).catch(() => []),
-          api.get(`/posts/${postId}/quotes`).catch(() => []),
-          isPostDownloaded(postId),
-          getDownloadSavedForOffline(),
-        ]);
+        const [sourcesData, quotesData, downloaded, enabled] =
+          await Promise.all([
+            api.get(`/posts/${postId}/sources`).catch(() => []),
+            api.get(`/posts/${postId}/quotes`).catch(() => []),
+            isPostDownloaded(postId),
+            getDownloadSavedForOffline(),
+          ]);
         setSources(Array.isArray(sourcesData) ? sourcesData : []);
-        setQuotedBy(Array.isArray(quotesData) ? quotesData : quotesData?.items ?? []);
+        setQuotedBy(
+          Array.isArray(quotesData) ? quotesData : (quotesData?.items ?? []),
+        );
         setIsDownloaded(downloaded);
         setOfflineEnabled(enabled);
       }
@@ -117,14 +151,23 @@ export default function ReadingModeScreen() {
       setPost(null);
       if (error?.status === 403 && error?.data?.author) {
         setAccessDenied(true);
-        setDeniedAuthor(error.data.author as { id: string; handle: string; displayName: string; avatarKey?: string | null });
+        setDeniedAuthor(
+          error.data.author as {
+            id: string;
+            handle: string;
+            displayName: string;
+            avatarKey?: string | null;
+          },
+        );
         return;
       }
       if (error?.status === 404) {
-        showError(t('post.notFoundMessage', "This post doesn't exist anymore."));
+        showError(
+          t("post.notFoundMessage", "This post doesn't exist anymore."),
+        );
         router.back();
       } else {
-        showError(t('post.loadFailed'));
+        showError(t("post.loadFailed"));
       }
     } finally {
       setLoading(false);
@@ -136,13 +179,13 @@ export default function ReadingModeScreen() {
   }, [loadPost]);
 
   useEffect(() => {
-    if ((post?.quoteCount ?? 0) === 0) setSourcesTab('sources');
+    if ((post?.quoteCount ?? 0) === 0) setSourcesTab("sources");
   }, [post?.quoteCount]);
 
   // Merge API sources (posts, topics, users/mentions, external) with external links from body; deduplicate
   const sourcesUnique = useMemo(() => {
-    const apiExternal = sources.filter((s: any) => s.type === 'external');
-    const apiOther = sources.filter((s: any) => s.type !== 'external');
+    const apiExternal = sources.filter((s: any) => s.type === "external");
+    const apiOther = sources.filter((s: any) => s.type !== "external");
     const urlSeen = new Set(apiExternal.map((s: any) => s.url).filter(Boolean));
     const fromBody: { url: string; title: string | null }[] = [];
     if (post?.body) {
@@ -158,17 +201,25 @@ export default function ReadingModeScreen() {
     }
     const combined = [
       ...apiExternal,
-      ...fromBody.map(({ url, title }) => ({ type: 'external' as const, url, title })),
+      ...fromBody.map(({ url, title }) => ({
+        type: "external" as const,
+        url,
+        title,
+      })),
       ...apiOther,
     ];
     const seen = new Set<string>();
     return combined.filter((s: any) => {
       const key =
-        s.type === 'external' ? (s.url ?? s.id) :
-        s.type === 'post' ? s.id :
-        s.type === 'user' ? (s.handle ?? s.id) :
-        s.type === 'topic' ? (s.slug ?? s.id) :
-        `${s.type}-${s.id ?? s.url ?? s.handle ?? s.slug}`;
+        s.type === "external"
+          ? (s.url ?? s.id)
+          : s.type === "post"
+            ? s.id
+            : s.type === "user"
+              ? (s.handle ?? s.id)
+              : s.type === "topic"
+                ? (s.slug ?? s.id)
+                : `${s.type}-${s.id ?? s.url ?? s.handle ?? s.slug}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -206,7 +257,7 @@ export default function ReadingModeScreen() {
       if (isDownloaded) {
         await removeOfflinePost(post.id);
         setIsDownloaded(false);
-        showSuccess(t('post.removedFromDevice', 'Removed from device'));
+        showSuccess(t("post.removedFromDevice", "Removed from device"));
       } else {
         const payload: OfflinePost = {
           id: post.id,
@@ -220,24 +271,26 @@ export default function ReadingModeScreen() {
         };
         await savePostForOffline(payload);
         setIsDownloaded(true);
-        showSuccess(t('post.downloadedForOffline', 'Saved for offline reading'));
+        showSuccess(
+          t("post.downloadedForOffline", "Saved for offline reading"),
+        );
       }
     } catch (e) {
-      showError(t('post.downloadFailed', 'Download failed'));
+      showError(t("post.downloadFailed", "Download failed"));
     }
   };
 
   const handleReportSubmit = async (reason: string, comment?: string) => {
     try {
-      await api.post('/safety/report', {
+      await api.post("/safety/report", {
         targetId: post!.id,
-        targetType: 'POST',
+        targetType: "POST",
         reason,
         comment,
       });
-      showSuccess(t('post.reportSuccess', 'Post reported successfully'));
+      showSuccess(t("post.reportSuccess", "Post reported successfully"));
     } catch (e) {
-      showError(t('post.reportError', 'Failed to report post'));
+      showError(t("post.reportError", "Failed to report post"));
       throw e;
     }
   };
@@ -245,12 +298,12 @@ export default function ReadingModeScreen() {
   const handleDeletePost = async () => {
     try {
       await api.delete(`/posts/${postId}`);
-      showSuccess(t('post.deleted', 'Post deleted'));
+      showSuccess(t("post.deleted", "Post deleted"));
       setDeleteConfirmVisible(false);
       setMoreOptionsVisible(false);
       router.back();
     } catch (e: any) {
-      showError(e?.message || t('post.deleteFailed', 'Failed to delete post'));
+      showError(e?.message || t("post.deleteFailed", "Failed to delete post"));
       throw e;
     }
   };
@@ -259,56 +312,104 @@ export default function ReadingModeScreen() {
 
   const animateLike = () => {
     Animated.sequence([
-      Animated.timing(scaleValue, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-      Animated.timing(scaleValue, { toValue: 1, duration: 100, useNativeDriver: true }),
+      Animated.timing(scaleValue, {
+        toValue: 1.2,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleValue, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
     ]).start();
   };
 
   if (loading) {
     return (
       <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <FullScreenSkeleton />
       </View>
     );
   }
 
   // Private post: either 403 (legacy) or 200 with viewerCanSeeContent false
-  const showPrivateOverlay = (accessDenied && deniedAuthor) || (post && post.viewerCanSeeContent === false && post.author);
-  const privateAuthor = deniedAuthor ?? (post?.author ? { id: post.author.id, handle: post.author.handle ?? '', displayName: post.author.displayName ?? '', avatarKey: post.author.avatarKey ?? null } : null);
+  const showPrivateOverlay =
+    (accessDenied && deniedAuthor) ||
+    (post && post.viewerCanSeeContent === false && post.author);
+  const privateAuthor =
+    deniedAuthor ??
+    (post?.author
+      ? {
+          id: post.author.id,
+          handle: post.author.handle ?? "",
+          displayName: post.author.displayName ?? "",
+          avatarKey: post.author.avatarKey ?? null,
+        }
+      : null);
 
   if (showPrivateOverlay && privateAuthor) {
     return (
       <View style={styles.container}>
-        <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
-          <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel={t('common.back')} />
+        <View
+          style={[styles.overlayHeader, { paddingTop: insets.top }]}
+          pointerEvents="box-none"
+        >
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back")}
+          />
           <View style={{ flex: 1 }} />
         </View>
         <View style={styles.privatePostOverlay}>
           <View style={styles.privatePostBlur}>
             <MaterialIcons name="lock" size={48} color={COLORS.tertiary} />
-            <Text style={styles.privatePostTitle}>{t('post.privatePost', 'This is a private post')}</Text>
+            <Text style={styles.privatePostTitle}>
+              {t("post.privatePost", "This is a private post")}
+            </Text>
             <Text style={styles.privatePostSubtext}>
-              {t('post.privatePostSubtext', 'Only followers can see this post. Follow the author to request access.')}
+              {t(
+                "post.privatePostSubtext",
+                "Only followers can see this post. Follow the author to request access.",
+              )}
             </Text>
           </View>
           <Pressable
             style={styles.privatePostAuthorCard}
-            onPress={() => privateAuthor.handle && router.push(`/user/${privateAuthor.handle}`)}
+            onPress={() =>
+              privateAuthor.handle &&
+              router.push(`/user/${privateAuthor.handle}`)
+            }
           >
             {getAvatarUri({ avatarKey: privateAuthor.avatarKey }) ? (
-              <Image source={{ uri: getAvatarUri({ avatarKey: privateAuthor.avatarKey })! }} style={styles.privatePostAuthorAvatar} contentFit="cover" />
+              <Image
+                source={{
+                  uri: getAvatarUri({ avatarKey: privateAuthor.avatarKey })!,
+                }}
+                style={styles.privatePostAuthorAvatar}
+                contentFit="cover"
+              />
             ) : (
               <View style={styles.privatePostAuthorAvatarPlaceholder}>
                 <Text style={styles.privatePostAuthorInitial}>
-                  {(privateAuthor.displayName || privateAuthor.handle || '?').charAt(0).toUpperCase()}
+                  {(privateAuthor.displayName || privateAuthor.handle || "?")
+                    .charAt(0)
+                    .toUpperCase()}
                 </Text>
               </View>
             )}
             <View style={styles.privatePostAuthorInfo}>
-              <Text style={styles.privatePostAuthorName} numberOfLines={1}>{privateAuthor.displayName || privateAuthor.handle}</Text>
-              <Text style={styles.privatePostAuthorHandle} numberOfLines={1}>@{privateAuthor.handle}</Text>
+              <Text style={styles.privatePostAuthorName} numberOfLines={1}>
+                {privateAuthor.displayName || privateAuthor.handle}
+              </Text>
+              <Text style={styles.privatePostAuthorHandle} numberOfLines={1}>
+                @{privateAuthor.handle}
+              </Text>
             </View>
-            <Text style={styles.privatePostFollowCta}>{t('profile.follow', 'Follow')}</Text>
+            <Text style={styles.privatePostFollowCta}>
+              {t("profile.follow", "Follow")}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -325,18 +426,37 @@ export default function ReadingModeScreen() {
 
   if (post.deletedAt) {
     const deletedDate = new Date(post.deletedAt);
-    const formattedDate = deletedDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    const formattedDate = deletedDate.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
     return (
       <View style={styles.container}>
-        <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
-          <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel={t('common.back')} />
+        <View
+          style={[styles.overlayHeader, { paddingTop: insets.top }]}
+          pointerEvents="box-none"
+        >
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back")}
+          />
           <View style={{ flex: 1 }} />
         </View>
         <View style={[styles.center, styles.deletedPlaceholderWrap]}>
           <View style={styles.deletedPlaceholder}>
-            <MaterialIcons name="delete-outline" size={48} color={COLORS.tertiary} style={styles.deletedPlaceholderIcon} />
+            <MaterialIcons
+              name="delete-outline"
+              size={48}
+              color={COLORS.tertiary}
+              style={styles.deletedPlaceholderIcon}
+            />
             <Text style={styles.deletedPlaceholderText}>
-              {t('post.deletedOn', { date: formattedDate, defaultValue: `This post has been deleted on ${formattedDate}.` })}
+              {t("post.deletedOn", {
+                date: formattedDate,
+                defaultValue: `This post has been deleted on ${formattedDate}.`,
+              })}
             </Text>
           </View>
         </View>
@@ -347,18 +467,33 @@ export default function ReadingModeScreen() {
   const replyCount = post.replyCount ?? 0;
   const quoteCount = post.quoteCount ?? 0;
 
-  const hasHero = post.headerImageKey != null && post.headerImageKey !== '';
+  const postHeaderUri = getPostHeaderImageUri(
+    post as { headerImageUrl?: string | null; headerImageKey?: string | null },
+  );
+  const hasHero =
+    (postHeaderUri != null && postHeaderUri !== "") ||
+    (post.headerImageKey != null && post.headerImageKey !== "");
 
   return (
     <View style={styles.container}>
       {/* Overlay header: back + more over hero or at top (no home button) */}
-      <View style={[styles.overlayHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
-        <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel={t('common.back')} />
+      <View
+        style={[styles.overlayHeader, { paddingTop: insets.top }]}
+        pointerEvents="box-none"
+      >
+        <HeaderIconButton
+          onPress={() => router.back()}
+          icon="arrow-back"
+          accessibilityLabel={t("common.back")}
+        />
         <View style={{ flex: 1 }} />
         <HeaderIconButton
-          onPress={() => { Haptics.selectionAsync(); setMoreOptionsVisible(true); }}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setMoreOptionsVisible(true);
+          }}
           icon="more-horiz"
-          accessibilityLabel={t('profile.options', 'Options')}
+          accessibilityLabel={t("profile.options", "Options")}
         />
       </View>
 
@@ -367,7 +502,11 @@ export default function ReadingModeScreen() {
           styles.scrollContent,
           // When no hero/title image, add top margin so back button doesn't overlay author line
           !hasHero && {
-            paddingTop: insets.top + 40 + toDimension(HEADER.barPaddingBottom) + toDimension(SPACING.s),
+            paddingTop:
+              insets.top +
+              40 +
+              toDimension(HEADER.barPaddingBottom) +
+              toDimension(SPACING.s),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -379,59 +518,90 @@ export default function ReadingModeScreen() {
         scrollEventThrottle={16}
       >
         {/* Cover: full width, edge-to-edge (overlay header sits on top); fades out on scroll */}
-        {hasHero && (() => {
-          const heroFadeDistance = SCREEN_WIDTH * 0.6;
-          const heroOpacity = scrollY.interpolate({
-            inputRange: [0, heroFadeDistance],
-            outputRange: [1, 0],
-            extrapolate: 'clamp',
-          });
-          return (
-            <AnimatedView style={[styles.heroImageWrap, { height: SCREEN_WIDTH * (3 / 4), opacity: heroOpacity }]}>
-              <Image
-                source={{ uri: (post.headerImageKey ? getImageUrl(post.headerImageKey) : undefined) || (post as any).headerImageUrl }}
-                style={[styles.heroImage, { width: SCREEN_WIDTH, height: SCREEN_WIDTH * (3 / 4) }]}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-              {post.title ? (
-                <View style={styles.heroTitleOverlay}>
-                  <Text style={styles.heroTitleText} numberOfLines={2}>{post.title}</Text>
-                </View>
-              ) : null}
-            </AnimatedView>
-          );
-        })()}
+        {hasHero &&
+          (() => {
+            const heroFadeDistance = SCREEN_WIDTH * 0.6;
+            const heroOpacity = scrollY.interpolate({
+              inputRange: [0, heroFadeDistance],
+              outputRange: [1, 0],
+              extrapolate: "clamp",
+            });
+            return (
+              <AnimatedView
+                style={[
+                  styles.heroImageWrap,
+                  { height: SCREEN_WIDTH * (3 / 4), opacity: heroOpacity },
+                ]}
+              >
+                <Image
+                  source={{ uri: postHeaderUri ?? "" }}
+                  style={[
+                    styles.heroImage,
+                    { width: SCREEN_WIDTH, height: SCREEN_WIDTH * (3 / 4) },
+                  ]}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+                {post.title ? (
+                  <View style={styles.heroTitleOverlay}>
+                    <Text style={styles.heroTitleText} numberOfLines={2}>
+                      {post.title}
+                    </Text>
+                  </View>
+                ) : null}
+              </AnimatedView>
+            );
+          })()}
 
         <View style={styles.article}>
           {/* Author above title */}
           <Pressable
             style={styles.authorLine}
-            onPress={() => post.author?.handle && router.push(`/user/${post.author.handle}`)}
+            onPress={() =>
+              post.author?.handle && router.push(`/user/${post.author.handle}`)
+            }
           >
             {getAvatarUri(post.author) ? (
-              <Image source={{ uri: getAvatarUri(post.author)! }} style={styles.authorAvatarImage} />
+              <Image
+                source={{ uri: getAvatarUri(post.author)! }}
+                style={styles.authorAvatarImage}
+              />
             ) : (
               <View style={styles.authorAvatar}>
                 <Text style={styles.avatarText}>
-                  {post.author?.displayName?.charAt(0) || post.author?.handle?.charAt(0) || '?'}
+                  {post.author?.displayName?.charAt(0) ||
+                    post.author?.handle?.charAt(0) ||
+                    "?"}
                 </Text>
               </View>
             )}
             <View style={{ flex: 1 }}>
-              <Text style={styles.authorName}>{post.author?.displayName || post.author?.handle || t('post.unknownUser')}</Text>
+              <Text style={styles.authorName}>
+                {post.author?.displayName ||
+                  post.author?.handle ||
+                  t("post.unknownUser")}
+              </Text>
               <Text style={styles.readTime}>
-                {new Date(post.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                {new Date(post.createdAt).toLocaleDateString(undefined, {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
               </Text>
             </View>
           </Pressable>
 
           {/* Title only when no hero overlay (hero already shows title) */}
-          {(!hasHero && post.title != null && post.title !== '') ? (
+          {!hasHero && post.title != null && post.title !== "" ? (
             <Text style={styles.title}>{post.title}</Text>
           ) : null}
 
-          <MarkdownText stripLeadingH1IfMatch={post.title ?? undefined} referenceMetadata={post.referenceMetadata}>{post.body}</MarkdownText>
+          <MarkdownText
+            stripLeadingH1IfMatch={post.title ?? undefined}
+            referenceMetadata={post.referenceMetadata}
+          >
+            {post.body}
+          </MarkdownText>
 
           {/* Action row: subtle meta bar with smaller icons so it doesn't compete with the article */}
           <View style={styles.actionsRow}>
@@ -444,7 +614,7 @@ export default function ReadingModeScreen() {
             >
               <AnimatedView style={{ transform: [{ scale: scaleValue }] }}>
                 <MaterialIcons
-                  name={liked ? 'favorite' : 'favorite-border'}
+                  name={liked ? "favorite" : "favorite-border"}
                   size={ACTION_ICON_SIZE}
                   color={liked ? COLORS.like : COLORS.tertiary}
                 />
@@ -455,20 +625,39 @@ export default function ReadingModeScreen() {
               style={styles.actionBtn}
               onPress={() => router.push(`/post/${postId}/comments`)}
             >
-              <MaterialIcons name="chat-bubble-outline" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
-              {replyCount > 0 && <Text style={styles.actionCount}>{replyCount}</Text>}
+              <MaterialIcons
+                name="chat-bubble-outline"
+                size={ACTION_ICON_SIZE}
+                color={COLORS.tertiary}
+              />
+              {replyCount > 0 && (
+                <Text style={styles.actionCount}>{replyCount}</Text>
+              )}
             </Pressable>
 
             <Pressable
               style={styles.actionBtn}
-              onPress={() => router.push({ pathname: '/post/compose', params: { quote: postId } })}
+              onPress={() =>
+                router.push({
+                  pathname: "/post/compose",
+                  params: { quote: postId },
+                })
+              }
             >
-              <MaterialIcons name="format-quote" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
+              <MaterialIcons
+                name="format-quote"
+                size={ACTION_ICON_SIZE}
+                color={COLORS.tertiary}
+              />
             </Pressable>
 
-            <Pressable style={styles.actionBtn} onPress={handleKeep} accessibilityLabel={t('post.save')}>
+            <Pressable
+              style={styles.actionBtn}
+              onPress={handleKeep}
+              accessibilityLabel={t("post.save")}
+            >
               <MaterialIcons
-                name={kept ? 'bookmark' : 'bookmark-border'}
+                name={kept ? "bookmark" : "bookmark-border"}
                 size={ACTION_ICON_SIZE}
                 color={kept ? COLORS.primary : COLORS.tertiary}
               />
@@ -477,23 +666,39 @@ export default function ReadingModeScreen() {
             <Pressable
               style={styles.actionBtn}
               onPress={() => collectionSheetRef.current?.open(postId)}
-              accessibilityLabel={t('post.addToCollection')}
+              accessibilityLabel={t("post.addToCollection")}
             >
-              <MaterialIcons name="add-circle-outline" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
+              <MaterialIcons
+                name="add-circle-outline"
+                size={ACTION_ICON_SIZE}
+                color={COLORS.tertiary}
+              />
             </Pressable>
 
             <Pressable
               style={styles.actionBtn}
-              onPress={() => shareSheetRef.current?.open(postId, { authorIsProtected: post?.author?.isProtected === true })}
+              onPress={() =>
+                shareSheetRef.current?.open(postId, {
+                  authorIsProtected: post?.author?.isProtected === true,
+                })
+              }
             >
-              <MaterialIcons name="ios-share" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
+              <MaterialIcons
+                name="ios-share"
+                size={ACTION_ICON_SIZE}
+                color={COLORS.tertiary}
+              />
             </Pressable>
 
             {offlineEnabled && (
               <Pressable
                 style={styles.actionBtn}
                 onPress={handleDownloadOffline}
-                accessibilityLabel={isDownloaded ? t('post.removeFromDevice', 'Remove from device') : t('post.downloadForOffline', 'Download for offline')}
+                accessibilityLabel={
+                  isDownloaded
+                    ? t("post.removeFromDevice", "Remove from device")
+                    : t("post.downloadForOffline", "Download for offline")
+                }
               >
                 <MaterialIcons
                   name="offline-pin"
@@ -503,73 +708,150 @@ export default function ReadingModeScreen() {
               </Pressable>
             )}
           </View>
-
         </View>
 
         {/* Tabs: Sources (tagged content) | Quoted by (only when post has quotes) */}
         <View style={styles.section}>
           <View style={styles.tabsRow}>
             <Pressable
-              style={[styles.tabBtn, sourcesTab === 'sources' && styles.tabBtnActive]}
-              onPress={() => setSourcesTab('sources')}
+              style={[
+                styles.tabBtn,
+                sourcesTab === "sources" && styles.tabBtnActive,
+              ]}
+              onPress={() => setSourcesTab("sources")}
             >
-              <Text style={[styles.tabBtnText, sourcesTab === 'sources' && styles.tabBtnTextActive]}>
-                {t('post.sources', 'Sources')}
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  sourcesTab === "sources" && styles.tabBtnTextActive,
+                ]}
+              >
+                {t("post.sources", "Sources")}
               </Text>
             </Pressable>
             {quoteCount > 0 && (
               <Pressable
-                style={[styles.tabBtn, sourcesTab === 'quoted' && styles.tabBtnActive]}
-                onPress={() => setSourcesTab('quoted')}
+                style={[
+                  styles.tabBtn,
+                  sourcesTab === "quoted" && styles.tabBtnActive,
+                ]}
+                onPress={() => setSourcesTab("quoted")}
               >
-                <Text style={[styles.tabBtnText, sourcesTab === 'quoted' && styles.tabBtnTextActive]}>
-                  {t('post.quotedBy', 'Quoted by')} ({quoteCount})
+                <Text
+                  style={[
+                    styles.tabBtnText,
+                    sourcesTab === "quoted" && styles.tabBtnTextActive,
+                  ]}
+                >
+                  {t("post.quotedBy", "Quoted by")} ({quoteCount})
                 </Text>
               </Pressable>
             )}
           </View>
-          {sourcesTab === 'sources' ? (
+          {sourcesTab === "sources" ? (
             sourcesUnique.length === 0 ? (
-              <Text style={styles.emptyText}>{t('post.noSources', 'No tagged sources in this post.')}</Text>
+              <Text style={styles.emptyText}>
+                {t("post.noSources", "No tagged sources in this post.")}
+              </Text>
             ) : (
               <View style={styles.sourcesList}>
                 {sourcesUnique.map((source: any, index: number) => {
                   const handleSourcePress = () => {
-                    if (source.type === 'external' && source.url) Linking.openURL(source.url).catch(() => { });
-                    else if (source.type === 'post' && source.id) router.push(`/post/${source.id}`);
-                    else if (source.type === 'user' && source.handle) router.push(`/user/${source.handle}`);
-                    else if (source.type === 'topic') router.push(`/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? '')}`);
+                    if (source.type === "external" && source.url)
+                      Linking.openURL(source.url).catch(() => {});
+                    else if (source.type === "post" && source.id)
+                      router.push(`/post/${source.id}`);
+                    else if (source.type === "user" && source.handle)
+                      router.push(`/user/${source.handle}`);
+                    else if (source.type === "topic")
+                      router.push(
+                        `/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? "")}`,
+                      );
                   };
-                  const title = source.title || source.url || source.handle || source.slug || '';
-                  const subtitle = source.type === 'external' && source.url
-                    ? (source.description && source.description.trim()
-                      ? source.description.trim()
-                      : (() => { try { return new URL(source.url).hostname.replace('www.', ''); } catch { return ''; } })())
-                    : source.type === 'user' ? `@${source.handle}` : source.type === 'topic' ? t('post.topic', 'Topic') : '';
+                  const title =
+                    source.title ||
+                    source.url ||
+                    source.handle ||
+                    source.slug ||
+                    "";
+                  const subtitle =
+                    source.type === "external" && source.url
+                      ? source.description && source.description.trim()
+                        ? source.description.trim()
+                        : (() => {
+                            try {
+                              return new URL(source.url).hostname.replace(
+                                "www.",
+                                "",
+                              );
+                            } catch {
+                              return "";
+                            }
+                          })()
+                      : source.type === "user"
+                        ? `@${source.handle}`
+                        : source.type === "topic"
+                          ? t("post.topic", "Topic")
+                          : "";
                   return (
-                    <Pressable key={source.type === 'external' && source.url ? `ext-${source.url}` : (source.id ?? source.handle ?? source.slug ?? `i-${index}`)} style={styles.sourceCard} onPress={handleSourcePress}>
+                    <Pressable
+                      key={
+                        source.type === "external" && source.url
+                          ? `ext-${source.url}`
+                          : (source.id ??
+                            source.handle ??
+                            source.slug ??
+                            `i-${index}`)
+                      }
+                      style={styles.sourceCard}
+                      onPress={handleSourcePress}
+                    >
                       <View style={styles.sourceCardLeft}>
-                        {source.type === 'user' ? (
+                        {source.type === "user" ? (
                           <View style={styles.sourceAvatar}>
                             <Text style={styles.sourceAvatarText}>
-                              {(source.title || source.handle || '?').charAt(0).toUpperCase()}
+                              {(source.title || source.handle || "?")
+                                .charAt(0)
+                                .toUpperCase()}
                             </Text>
                           </View>
                         ) : (
                           <View style={styles.sourceIconWrap}>
                             <MaterialIcons
-                              name={source.type === 'post' ? 'article' : source.type === 'topic' ? 'tag' : 'link'}
+                              name={
+                                source.type === "post"
+                                  ? "article"
+                                  : source.type === "topic"
+                                    ? "tag"
+                                    : "link"
+                              }
                               size={HEADER.iconSize}
                               color={COLORS.primary}
                             />
                           </View>
                         )}
                         <View style={styles.sourceCardText}>
-                          <Text style={styles.sourceCardTitle} numberOfLines={1}>{title}</Text>
-                          {subtitle ? <Text style={styles.sourceCardSubtitle} numberOfLines={2}>{subtitle}</Text> : null}
+                          <Text
+                            style={styles.sourceCardTitle}
+                            numberOfLines={1}
+                          >
+                            {title}
+                          </Text>
+                          {subtitle ? (
+                            <Text
+                              style={styles.sourceCardSubtitle}
+                              numberOfLines={2}
+                            >
+                              {subtitle}
+                            </Text>
+                          ) : null}
                         </View>
                       </View>
-                      <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+                      <MaterialIcons
+                        name="chevron-right"
+                        size={HEADER.iconSize}
+                        color={COLORS.tertiary}
+                      />
                     </Pressable>
                   );
                 })}
@@ -577,21 +859,39 @@ export default function ReadingModeScreen() {
             )
           ) : quotedBy.length === 0 ? (
             <View style={[emptyStateCenterWrapStyle, { minHeight: 220 }]}>
-              <EmptyState icon="format-quote" headline={t('post.noQuotes', 'No one has quoted this post yet.')} compact />
+              <EmptyState
+                icon="format-quote"
+                headline={t(
+                  "post.noQuotes",
+                  "No one has quoted this post yet.",
+                )}
+                compact
+              />
             </View>
           ) : (
             <View style={styles.quotedList}>
               {quotedBy.map((p: any) => {
-                const bodyPreview = (p.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
-                const title = (p.title != null && p.title !== '') ? p.title : (bodyPreview || 'Post');
-                const subtitle = p.author?.displayName || p.author?.handle || '';
+                const bodyPreview = (p.body ?? "")
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .slice(0, 80);
+                const title =
+                  p.title != null && p.title !== ""
+                    ? p.title
+                    : bodyPreview || "Post";
+                const subtitle =
+                  p.author?.displayName || p.author?.handle || "";
                 return (
                   <SourceOrPostCard
                     key={p.id}
                     type="post"
                     title={title}
                     subtitle={subtitle || undefined}
-                    onPress={() => (p.title ? router.push(`/post/${p.id}/reading`) : router.push(`/post/${p.id}`))}
+                    onPress={() =>
+                      p.title
+                        ? router.push(`/post/${p.id}/reading`)
+                        : router.push(`/post/${p.id}`)
+                    }
                   />
                 );
               })}
@@ -604,12 +904,32 @@ export default function ReadingModeScreen() {
       <ShareSheet ref={shareSheetRef} />
       <OptionsActionSheet
         visible={moreOptionsVisible}
-        title={t('post.options', 'Post Options')}
+        title={t("post.options", "Post Options")}
         options={[
-          ...(isOwnPost ? [{ label: t('post.delete', 'Delete Post'), onPress: () => { setMoreOptionsVisible(false); setDeleteConfirmVisible(true); }, destructive: true as const, icon: 'delete-outline' as const }] : []),
-          { label: t('post.report', 'Report Post'), onPress: () => { setMoreOptionsVisible(false); setReportVisible(true); }, destructive: true, icon: 'flag' },
+          ...(isOwnPost
+            ? [
+                {
+                  label: t("post.delete", "Delete Post"),
+                  onPress: () => {
+                    setMoreOptionsVisible(false);
+                    setDeleteConfirmVisible(true);
+                  },
+                  destructive: true as const,
+                  icon: "delete-outline" as const,
+                },
+              ]
+            : []),
+          {
+            label: t("post.report", "Report Post"),
+            onPress: () => {
+              setMoreOptionsVisible(false);
+              setReportVisible(true);
+            },
+            destructive: true,
+            icon: "flag",
+          },
         ]}
-        cancelLabel={t('common.cancel')}
+        cancelLabel={t("common.cancel")}
         onCancel={() => setMoreOptionsVisible(false)}
       />
       <ReportModal
@@ -620,10 +940,13 @@ export default function ReadingModeScreen() {
       />
       <ConfirmModal
         visible={deleteConfirmVisible}
-        title={t('post.delete', 'Delete Post')}
-        message={t('post.deleteConfirm', 'Are you sure you want to delete this post? This cannot be undone.')}
-        confirmLabel={t('post.delete', 'Delete Post')}
-        cancelLabel={t('common.cancel')}
+        title={t("post.delete", "Delete Post")}
+        message={t(
+          "post.deleteConfirm",
+          "Are you sure you want to delete this post? This cannot be undone.",
+        )}
+        confirmLabel={t("post.delete", "Delete Post")}
+        cancelLabel={t("common.cancel")}
         destructive
         icon="warning"
         onConfirm={handleDeletePost}
@@ -635,15 +958,15 @@ export default function ReadingModeScreen() {
 
 const styles = createStyles({
   container: { flex: 1, backgroundColor: COLORS.ink },
-  center: { justifyContent: 'center', alignItems: 'center' },
+  center: { justifyContent: "center", alignItems: "center" },
   scrollContent: { paddingBottom: 80 },
   overlayHeader: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     zIndex: 10,
@@ -651,26 +974,26 @@ const styles = createStyles({
   /* Full-width hero: 4:3 aspect, title overlay */
   heroImageWrap: {
     width: SCREEN_WIDTH,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginBottom: SPACING.l,
-    position: 'relative',
-    overflow: 'hidden',
+    position: "relative",
+    overflow: "hidden",
   },
   heroImage: {
-    width: '100%',
+    width: "100%",
     backgroundColor: COLORS.divider,
   },
   heroTitleOverlay: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     padding: SPACING.l,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   heroTitleText: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     lineHeight: 34,
@@ -678,21 +1001,21 @@ const styles = createStyles({
 
   privatePostOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   privatePostBlur: {
-    backgroundColor: 'rgba(0,0,0,0.75)',
+    backgroundColor: "rgba(0,0,0,0.75)",
     borderRadius: SIZES.borderRadius,
     padding: SPACING.xxl,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: SPACING.xl,
-    minWidth: '100%',
+    minWidth: "100%",
   },
   privatePostTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginTop: SPACING.l,
@@ -702,17 +1025,17 @@ const styles = createStyles({
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
     marginTop: SPACING.s,
-    textAlign: 'center',
+    textAlign: "center",
   },
   privatePostAuthorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
     padding: SPACING.m,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    width: '100%',
+    width: "100%",
     gap: SPACING.m,
   },
   privatePostAuthorAvatar: {
@@ -724,20 +1047,20 @@ const styles = createStyles({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   privatePostAuthorInitial: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
   privatePostAuthorInfo: { flex: 1, minWidth: 0 },
   privatePostAuthorName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -749,7 +1072,7 @@ const styles = createStyles({
   },
   privatePostFollowCta: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
@@ -759,8 +1082,8 @@ const styles = createStyles({
     marginBottom: SPACING.l,
   },
   authorLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.m,
     marginBottom: SPACING.l,
   },
@@ -768,9 +1091,9 @@ const styles = createStyles({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   authorAvatarImage: {
     width: 40,
@@ -779,7 +1102,7 @@ const styles = createStyles({
   },
   avatarText: {
     color: COLORS.primary,
-    fontWeight: '600',
+    fontWeight: "600",
     fontSize: 16,
     fontFamily: FONTS.semiBold,
   },
@@ -795,24 +1118,24 @@ const styles = createStyles({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     lineHeight: 34,
     marginBottom: SPACING.xl,
   },
   actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: SPACING.s,
     paddingRight: SPACING.l,
     paddingBottom: SPACING.s,
     marginTop: SPACING.xl,
   },
   actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     padding: SPACING.xs,
   },
@@ -830,13 +1153,13 @@ const styles = createStyles({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     marginBottom: SPACING.m,
     fontFamily: FONTS.semiBold,
   },
   tabsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
     marginBottom: SPACING.m,
@@ -846,7 +1169,7 @@ const styles = createStyles({
     paddingHorizontal: SPACING.m,
     marginRight: SPACING.m,
     borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    borderBottomColor: "transparent",
   },
   tabBtnActive: {
     borderBottomColor: COLORS.primary,
@@ -858,13 +1181,13 @@ const styles = createStyles({
   },
   tabBtnTextActive: {
     color: COLORS.paper,
-    fontWeight: '600',
+    fontWeight: "600",
     fontFamily: FONTS.semiBold,
   },
   emptyText: {
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   sourcesList: {
     gap: SPACING.s,
@@ -873,9 +1196,9 @@ const styles = createStyles({
     gap: SPACING.s,
   },
   sourceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
     padding: SPACING.m,
@@ -883,8 +1206,8 @@ const styles = createStyles({
     borderColor: COLORS.divider,
   },
   sourceCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
     minWidth: 0,
   },
@@ -893,13 +1216,13 @@ const styles = createStyles({
     height: 40,
     borderRadius: 20,
     backgroundColor: COLORS.divider,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: SPACING.m,
   },
   sourceAvatarText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
@@ -907,9 +1230,9 @@ const styles = createStyles({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: SPACING.m,
   },
   sourceCardText: {
@@ -918,7 +1241,7 @@ const styles = createStyles({
   },
   sourceCardTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -930,7 +1253,7 @@ const styles = createStyles({
   },
   errorText: { color: COLORS.error, fontSize: 16, fontFamily: FONTS.medium },
   deletedPlaceholder: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   deletedPlaceholderIcon: {
@@ -940,7 +1263,7 @@ const styles = createStyles({
     fontSize: 16,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    textAlign: 'center',
+    textAlign: "center",
   },
   deletedPlaceholderWrap: {
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,

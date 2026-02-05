@@ -1,6 +1,6 @@
-import React, { memo } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { COLORS, createStyles } from '../constants/theme';
+import React, { memo } from "react";
+import { View } from "react-native";
+import { ListFooterSkeleton } from "./LoadingSkeleton";
 
 interface ListFooterLoaderProps {
   visible: boolean;
@@ -9,18 +9,12 @@ interface ListFooterLoaderProps {
 function ListFooterLoaderInner({ visible }: ListFooterLoaderProps) {
   if (!visible) return null;
   return (
-    <View style={styles.footer}>
-      <ActivityIndicator size="small" color={COLORS.primary} />
+    <View>
+      <ListFooterSkeleton />
     </View>
   );
 }
 
-export const ListFooterLoader = memo(ListFooterLoaderInner as React.FunctionComponent<ListFooterLoaderProps>) as (props: ListFooterLoaderProps) => React.ReactElement | null;
-
-const styles = createStyles({
-  footer: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export const ListFooterLoader = memo(
+  ListFooterLoaderInner as React.FunctionComponent<ListFooterLoaderProps>,
+) as (props: ListFooterLoaderProps) => React.ReactElement | null;

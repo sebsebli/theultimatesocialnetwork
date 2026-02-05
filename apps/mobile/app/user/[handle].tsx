@@ -1,31 +1,69 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Text, View, FlatList, ScrollView, Pressable, RefreshControl, ActivityIndicator, Linking, Share, InteractionManager, Platform, useWindowDimensions, StyleSheet, type DimensionValue } from 'react-native';
-import { Image } from 'expo-image';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, getApiBaseUrl, getWebAppBaseUrl, getImageUrl, getAvatarUri } from '../../utils/api';
-import { useAuth } from '../../context/auth';
-import { useToast } from '../../context/ToastContext';
-import { ConfirmModal } from '../../components/ConfirmModal';
-import { ReportModal } from '../../components/ReportModal';
-import { OptionsActionSheet } from '../../components/OptionsActionSheet';
-import { PostItem } from '../../components/PostItem';
-import { MarkdownText } from '../../components/MarkdownText';
-import { ProfileSkeleton, PostSkeleton } from '../../components/LoadingSkeleton';
-import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, LAYOUT, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
-import { ListFooterLoader } from '../../components/ListFooterLoader';
-import { HeaderIconButton } from '../../components/HeaderIconButton';
-import { formatCompactNumber } from '../../utils/format';
-
-const TAB_BAR_HEIGHT = 50;
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import {
+  Text,
+  View,
+  FlatList,
+  ScrollView,
+  Pressable,
+  RefreshControl,
+  Linking,
+  Share,
+  InteractionManager,
+  Platform,
+  useWindowDimensions,
+  StyleSheet,
+  type DimensionValue,
+} from "react-native";
+import { Image } from "expo-image";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  api,
+  getApiBaseUrl,
+  getWebAppBaseUrl,
+  getImageUrl,
+  getAvatarUri,
+} from "../../utils/api";
+import { useAuth } from "../../context/auth";
+import { useToast } from "../../context/ToastContext";
+import { ConfirmModal } from "../../components/ConfirmModal";
+import { ReportModal } from "../../components/ReportModal";
+import { OptionsActionSheet } from "../../components/OptionsActionSheet";
+import { PostItem } from "../../components/PostItem";
+import { MarkdownText } from "../../components/MarkdownText";
+import {
+  ProfileSkeleton,
+  PostSkeleton,
+  FeedSkeleton,
+} from "../../components/LoadingSkeleton";
+import {
+  EmptyState,
+  emptyStateCenterWrapStyle,
+} from "../../components/EmptyState";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  LAYOUT,
+  createStyles,
+  FLATLIST_DEFAULTS,
+  LIST_SCROLL_DEFAULTS,
+  TABS,
+  TAB_BAR_HEIGHT,
+  LIST_PADDING_EXTRA,
+} from "../../constants/theme";
+import { ListFooterLoader } from "../../components/ListFooterLoader";
+import { HeaderIconButton } from "../../components/HeaderIconButton";
+import { formatCompactNumber } from "../../utils/format";
 
 export default function UserProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight } = useWindowDimensions();
   const { handle } = useLocalSearchParams();
   const { t } = useTranslation();
   const { userId: authUserId } = useAuth();
@@ -35,7 +73,9 @@ export default function UserProfileScreen() {
   const [optionsModalVisible, setOptionsModalVisible] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportTargetId, setReportTargetId] = useState<string | null>(null);
-  const [reportTargetType, setReportTargetType] = useState<'POST' | 'REPLY' | 'USER' | 'DM'>('USER');
+  const [reportTargetType, setReportTargetType] = useState<
+    "POST" | "REPLY" | "USER" | "DM"
+  >("USER");
   const [user, setUser] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const isOwnProfile = !!user && !!authUserId && user.id === authUserId;
@@ -46,18 +86,20 @@ export default function UserProfileScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [following, setFollowing] = useState(false);
   const [hasPendingFollowRequest, setHasPendingFollowRequest] = useState(false);
-  const [activeTab, setActiveTab] = useState<'posts' | 'replies' | 'quotes' | 'cited' | 'saved' | 'collections'>('posts');
+  const [activeTab, setActiveTab] = useState<
+    "posts" | "replies" | "quotes" | "cited" | "saved" | "collections"
+  >("posts");
   const loadingMoreRef = React.useRef(false);
 
   // When viewing someone else's profile, replies tab is hidden; switch away if it was selected
   useEffect(() => {
-    if (user && !isOwnProfile && activeTab === 'replies') {
-      setActiveTab('posts');
+    if (user && !isOwnProfile && activeTab === "replies") {
+      setActiveTab("posts");
     }
   }, [user, isOwnProfile, activeTab]);
 
   useEffect(() => {
-    const h = typeof handle === 'string' ? handle : handle?.[0];
+    const h = typeof handle === "string" ? handle : handle?.[0];
     if (h) loadProfile(1, true);
   }, [handle]);
 
@@ -67,7 +109,7 @@ export default function UserProfileScreen() {
     if (!user) return;
     if (isFirstTabMount.current) {
       isFirstTabMount.current = false;
-      if (activeTab === 'posts') return;
+      if (activeTab === "posts") return;
     }
     loadProfile(1, true);
   }, [activeTab]);
@@ -87,23 +129,32 @@ export default function UserProfileScreen() {
 
     try {
       // Parallelize user fetch and content fetch for first load
-      const handleStr = typeof handle === 'string' ? handle : handle?.[0] ?? '';
-      const userPromise = reset ? api.get(`/users/${handleStr}`) : Promise.resolve(user);
+      const handleStr =
+        typeof handle === "string" ? handle : (handle?.[0] ?? "");
+      const userPromise = reset
+        ? api.get(`/users/${handleStr}`)
+        : Promise.resolve(user);
 
-      let endpoint = '';
-      if (activeTab === 'replies') endpoint = `/users/${user?.id || handle}/replies`; // Use handle if user not yet loaded (API supports handle lookup?) 
-      // Actually, API usually needs ID for relations. 
+      let endpoint = "";
+      if (activeTab === "replies")
+        endpoint = `/users/${user?.id || handle}/replies`; // Use handle if user not yet loaded (API supports handle lookup?)
+      // Actually, API usually needs ID for relations.
       // Strategy: If resetting, we MUST wait for user ID from first call if we don't have it.
       // But if we have 'user' state, we can run parallel.
 
       const fetchContent = async (userId: string) => {
         let path;
-        if (activeTab === 'saved') path = `/keeps?page=${pageNum}&limit=20`;
-        else if (activeTab === 'replies') path = `/users/${userId}/replies?page=${pageNum}&limit=20`;
-        else if (activeTab === 'quotes') path = `/users/${userId}/quotes?page=${pageNum}&limit=20`;
-        else if (activeTab === 'cited') path = `/users/${userId}/cited?page=${pageNum}&limit=20`;
-        else if (activeTab === 'collections') path = `/users/${userId}/collections?page=${pageNum}&limit=20`;
-        else path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=posts`;
+        if (activeTab === "saved") path = `/keeps?page=${pageNum}&limit=20`;
+        else if (activeTab === "replies")
+          path = `/users/${userId}/replies?page=${pageNum}&limit=20`;
+        else if (activeTab === "quotes")
+          path = `/users/${userId}/quotes?page=${pageNum}&limit=20`;
+        else if (activeTab === "cited")
+          path = `/users/${userId}/cited?page=${pageNum}&limit=20`;
+        else if (activeTab === "collections")
+          path = `/users/${userId}/collections?page=${pageNum}&limit=20`;
+        else
+          path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=posts`;
         return api.get(path);
       };
 
@@ -115,34 +166,45 @@ export default function UserProfileScreen() {
         setUser(userData);
         setFollowing(!!(userData as any).isFollowing);
         setHasPendingFollowRequest(!!(userData as any).hasPendingFollowRequest);
-        const canViewContent = !(userData as any).isProtected || (userData as any).isFollowing;
-        contentData = canViewContent ? await fetchContent(userData.id) : { items: [], hasMore: false };
+        const canViewContent =
+          !(userData as any).isProtected || (userData as any).isFollowing;
+        contentData = canViewContent
+          ? await fetchContent(userData.id)
+          : { items: [], hasMore: false };
       } else {
         const canViewContent = !user?.isProtected || following;
-        contentData = canViewContent ? await fetchContent(user.id) : { items: [], hasMore: false };
+        contentData = canViewContent
+          ? await fetchContent(user.id)
+          : { items: [], hasMore: false };
       }
 
       // API may return { items, hasMore } or plain array for replies/quotes
-      let rawItems = Array.isArray(contentData) ? contentData : (Array.isArray(contentData?.items) ? contentData.items : contentData?.items ?? []);
+      let rawItems = Array.isArray(contentData)
+        ? contentData
+        : Array.isArray(contentData?.items)
+          ? contentData.items
+          : (contentData?.items ?? []);
       // Saved tab: items are keeps with .post; normalize to posts for list
-      const items = activeTab === 'saved'
-        ? (rawItems as any[]).map((k: any) => k.post).filter(Boolean)
-        : rawItems;
+      const items =
+        activeTab === "saved"
+          ? (rawItems as any[]).map((k: any) => k.post).filter(Boolean)
+          : rawItems;
 
       if (reset) {
         setPosts(items);
       } else {
-        setPosts(prev => [...prev, ...items]);
+        setPosts((prev) => [...prev, ...items]);
       }
 
-      const hasMoreData = items.length >= 20 && (contentData?.hasMore !== false);
+      const hasMoreData = items.length >= 20 && contentData?.hasMore !== false;
       // Saved tab: use raw keeps length for hasMore
-      const hasMoreSaved = activeTab === 'saved' ? (contentData?.hasMore === true) : hasMoreData;
-      setHasMore(activeTab === 'saved' ? hasMoreSaved : hasMoreData);
+      const hasMoreSaved =
+        activeTab === "saved" ? contentData?.hasMore === true : hasMoreData;
+      setHasMore(activeTab === "saved" ? hasMoreSaved : hasMoreData);
       if (!reset) setPage(pageNum);
     } catch (error: any) {
-      console.error('Failed to load profile', error);
-      if (reset && activeTab === 'posts') setUser(null);
+      console.error("Failed to load profile", error);
+      if (reset && activeTab === "posts") setUser(null);
       if (reset) setPosts([]);
       setHasMore(false);
       // User no longer exists (404) → go back instead of showing empty page
@@ -159,7 +221,7 @@ export default function UserProfileScreen() {
   // ... (inside handleFollow)
   const handleFollow = async () => {
     if (!authUserId) {
-      router.replace('/welcome');
+      router.replace("/welcome");
       return;
     }
     const prevFollowing = following;
@@ -169,25 +231,36 @@ export default function UserProfileScreen() {
     if (prevFollowing || prevPending) {
       setFollowing(false);
       setHasPendingFollowRequest(false);
-      setUser((prev: any) => ({ ...prev, followerCount: prev.followerCount - 1 }));
+      setUser((prev: any) => ({
+        ...prev,
+        followerCount: prev.followerCount - 1,
+      }));
     } else {
       setFollowing(true); // optimistic; may be overwritten if pending
-      setUser((prev: any) => ({ ...prev, followerCount: prev.followerCount + 1 }));
+      setUser((prev: any) => ({
+        ...prev,
+        followerCount: prev.followerCount + 1,
+      }));
     }
 
     try {
       if (prevFollowing || prevPending) {
         await api.delete(`/users/${user.id}/follow`);
       } else {
-        const res = await api.post<{ pending?: boolean }>(`/users/${user.id}/follow`);
+        const res = await api.post<{ pending?: boolean }>(
+          `/users/${user.id}/follow`,
+        );
         if (res?.pending) {
           setFollowing(false);
           setHasPendingFollowRequest(true);
-          setUser((prev: any) => ({ ...prev, followerCount: prev.followerCount - 1 }));
+          setUser((prev: any) => ({
+            ...prev,
+            followerCount: prev.followerCount - 1,
+          }));
         }
       }
     } catch (error) {
-      console.error('Failed to toggle follow', error);
+      console.error("Failed to toggle follow", error);
       setFollowing(prevFollowing);
       setHasPendingFollowRequest(prevPending);
       setUser((prev: any) => ({ ...prev, followerCount: prevCount }));
@@ -196,20 +269,30 @@ export default function UserProfileScreen() {
 
   const handleMessage = async () => {
     if (!authUserId) {
-      router.replace('/welcome');
+      router.replace("/welcome");
       return;
     }
     try {
-      const thread = await api.post('/messages/threads', { userId: user.id });
+      const thread = await api.post("/messages/threads", { userId: user.id });
       if (thread && thread.id) {
         router.push(`/(tabs)/messages/${thread.id}`);
       }
     } catch (error: any) {
-      console.error('Failed to create thread', error);
+      console.error("Failed to create thread", error);
       if (error?.status === 403) {
-        showError(t('messages.mustFollowOrPrior', 'You can only message people who follow you back or who you\'ve messaged before.'));
+        showError(
+          t(
+            "messages.mustFollowOrPrior",
+            "You can only message people who follow you back or who you've messaged before.",
+          ),
+        );
       } else {
-        showError(t('messages.createThreadFailed', 'Could not start conversation. Try again.'));
+        showError(
+          t(
+            "messages.createThreadFailed",
+            "Could not start conversation. Try again.",
+          ),
+        );
       }
     }
   };
@@ -219,11 +302,11 @@ export default function UserProfileScreen() {
   const confirmBlock = async () => {
     try {
       await api.post(`/safety/block/${user.id}`);
-      showSuccess(t('safety.blockedMessage', 'This user has been blocked.'));
+      showSuccess(t("safety.blockedMessage", "This user has been blocked."));
       router.back();
     } catch (error) {
-      console.error('Failed to block user', error);
-      showError(t('safety.failedBlock', 'Failed to block user.'));
+      console.error("Failed to block user", error);
+      showError(t("safety.failedBlock", "Failed to block user."));
       throw error;
     }
   };
@@ -233,17 +316,17 @@ export default function UserProfileScreen() {
   const confirmMute = async () => {
     try {
       await api.post(`/safety/mute/${user.id}`);
-      showSuccess(t('safety.mutedMessage', 'This user has been muted.'));
+      showSuccess(t("safety.mutedMessage", "This user has been muted."));
     } catch (error) {
-      console.error('Failed to mute user', error);
-      showError(t('safety.failedMute', 'Failed to mute user.'));
+      console.error("Failed to mute user", error);
+      showError(t("safety.failedMute", "Failed to mute user."));
       throw error;
     }
   };
 
   const handleUserMenu = () => setOptionsModalVisible(true);
 
-  const rssFeedUrl = `${getApiBaseUrl()}/rss/${encodeURIComponent(user?.handle ?? '')}`;
+  const rssFeedUrl = `${getApiBaseUrl()}/rss/${encodeURIComponent(user?.handle ?? "")}`;
 
   const handleOpenRssFeed = useCallback(() => {
     if (!user?.handle) return;
@@ -256,18 +339,29 @@ export default function UserProfileScreen() {
     setOptionsModalVisible(false);
     const profileUrl = `${getWebAppBaseUrl()}/user/${encodeURIComponent(user.handle)}`;
     const displayName = user.displayName || user.handle;
-    const message = t('profile.shareProfileMessage', { defaultValue: 'Check out {{name}} (@{{handle}}) on Citewalk', name: displayName, handle: user.handle });
-    const title = t('profile.shareProfileTitle', { defaultValue: 'Share profile', handle: user.handle });
+    const message = t("profile.shareProfileMessage", {
+      defaultValue: "Check out {{name}} (@{{handle}}) on Citewalk",
+      name: displayName,
+      handle: user.handle,
+    });
+    const title = t("profile.shareProfileTitle", {
+      defaultValue: "Share profile",
+      handle: user.handle,
+    });
     // Defer share until modal has fully closed (avoids share sheet not opening)
     InteractionManager.runAfterInteractions(() => {
-      const sharePayload = Platform.OS === 'android'
-        ? { message: `${message}\n${profileUrl}`, title }
-        : { message: `${message}\n${profileUrl}`, url: profileUrl, title };
-      setTimeout(() => Share.share(sharePayload).catch(() => { }), 350);
+      const sharePayload =
+        Platform.OS === "android"
+          ? { message: `${message}\n${profileUrl}`, title }
+          : { message: `${message}\n${profileUrl}`, url: profileUrl, title };
+      setTimeout(() => Share.share(sharePayload).catch(() => {}), 350);
     });
   }, [user?.handle, user?.displayName, t]);
 
-  const openReportModal = (targetId: string, type: 'POST' | 'REPLY' | 'USER') => {
+  const openReportModal = (
+    targetId: string,
+    type: "POST" | "REPLY" | "USER",
+  ) => {
     setReportTargetId(targetId);
     setReportTargetType(type);
     setReportModalVisible(true);
@@ -275,35 +369,44 @@ export default function UserProfileScreen() {
 
   const handleReportSubmit = async (reason: string, comment?: string) => {
     if (!reportTargetId) return;
-    await api.post('/safety/report', {
+    await api.post("/safety/report", {
       targetId: reportTargetId,
       targetType: reportTargetType,
       reason,
       comment,
     });
-    showSuccess(t('safety.reportSuccess', 'Report submitted successfully'));
+    showSuccess(t("safety.reportSuccess", "Report submitted successfully"));
   };
 
   const handleLoadMore = useCallback(() => {
-    if (loading || loadingMore || !hasMore || !user || loadingMoreRef.current) return;
+    if (loading || loadingMore || !hasMore || !user || loadingMoreRef.current)
+      return;
     const nextPage = page + 1;
     loadProfile(nextPage, false);
   }, [loading, loadingMore, hasMore, page, user]);
 
-  const handleTabChange = useCallback((tab: typeof activeTab) => {
-    if (tab === activeTab) return;
-    setPosts([]);
-    setPage(1);
-    setLoading(true);
-    setHasMore(true);
-    setActiveTab(tab);
-  }, [activeTab]);
+  const handleTabChange = useCallback(
+    (tab: typeof activeTab) => {
+      if (tab === activeTab) return;
+      setPosts([]);
+      setPage(1);
+      setLoading(true);
+      setHasMore(true);
+      setActiveTab(tab);
+    },
+    [activeTab],
+  );
 
-  const bottomPadding = TAB_BAR_HEIGHT + insets.bottom + 48;
+  const bottomPadding = TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA;
 
   if (loading && !user) {
     return (
-      <View style={[styles.container, { paddingBottom: bottomPadding }]}>
+      <View
+        style={[
+          styles.container,
+          { paddingTop: insets.top, paddingBottom: bottomPadding },
+        ]}
+      >
         <View style={styles.headerBar} />
         <ProfileSkeleton />
         <PostSkeleton />
@@ -315,7 +418,7 @@ export default function UserProfileScreen() {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>{t('profile.userNotFound')}</Text>
+        <Text style={styles.errorText}>{t("profile.userNotFound")}</Text>
       </View>
     );
   }
@@ -324,29 +427,50 @@ export default function UserProfileScreen() {
     return (
       <View style={styles.container}>
         <View style={[styles.blockedHeaderBar, { paddingTop: insets.top }]}>
-          <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel="Go back" />
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel="Go back"
+          />
         </View>
         <View style={styles.blockedStateContent}>
-          <MaterialIcons name="block" size={64} color={COLORS.tertiary} style={styles.blockedStateIcon} />
-          <Text style={styles.blockedStateTitle}>{t('safety.youBlockedThisAccount', 'You have blocked this account')}</Text>
+          <MaterialIcons
+            name="block"
+            size={64}
+            color={COLORS.tertiary}
+            style={styles.blockedStateIcon}
+          />
+          <Text style={styles.blockedStateTitle}>
+            {t("safety.youBlockedThisAccount", "You have blocked this account")}
+          </Text>
           <Text style={styles.blockedStateSubtext}>
-            {t('safety.blockedAccountHint', 'You cannot view this profile while blocked. Unblock to see their posts and profile.')}
+            {t(
+              "safety.blockedAccountHint",
+              "You cannot view this profile while blocked. Unblock to see their posts and profile.",
+            )}
           </Text>
           <Pressable
             style={styles.blockedStateUnblockBtn}
             onPress={async () => {
               try {
                 await api.delete(`/safety/block/${user.id}`);
-                showSuccess(t('safety.unblockedMessage', 'This user has been unblocked.'));
+                showSuccess(
+                  t("safety.unblockedMessage", "This user has been unblocked."),
+                );
                 loadProfile(1, true);
               } catch (e: any) {
-                showError(e?.message ?? t('safety.failedUnblock', 'Failed to unblock user.'));
+                showError(
+                  e?.message ??
+                    t("safety.failedUnblock", "Failed to unblock user."),
+                );
               }
             }}
-            accessibilityLabel={t('safety.unblock', 'Unblock')}
+            accessibilityLabel={t("safety.unblock", "Unblock")}
             accessibilityRole="button"
           >
-            <Text style={styles.blockedStateUnblockBtnText}>{t('safety.unblock', 'Unblock')}</Text>
+            <Text style={styles.blockedStateUnblockBtnText}>
+              {t("safety.unblock", "Unblock")}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -360,23 +484,50 @@ export default function UserProfileScreen() {
         <ScrollView
           style={styles.list}
           showsVerticalScrollIndicator={false}
-          contentInset={Platform.OS === 'ios' ? { top: insets.top } : undefined}
-          contentOffset={Platform.OS === 'ios' ? { x: 0, y: -insets.top } : undefined}
-          contentContainerStyle={[styles.privateProfileScrollContent, { paddingBottom: bottomPadding }]}
+          contentInset={Platform.OS === "ios" ? { top: insets.top } : undefined}
+          contentOffset={
+            Platform.OS === "ios" ? { x: 0, y: -insets.top } : undefined
+          }
+          contentContainerStyle={[
+            styles.privateProfileScrollContent,
+            { paddingBottom: bottomPadding },
+          ]}
         >
           <View style={styles.profileListHeader}>
-            <View style={[styles.profileHeaderContainer, styles.profileHeaderContainerBorder, { paddingTop: Platform.OS === 'ios' ? 0 : insets.top }]}>
+            <View
+              style={[
+                styles.profileHeaderContainer,
+                styles.profileHeaderContainerBorder,
+                { paddingTop: Platform.OS === "ios" ? 0 : insets.top },
+              ]}
+            >
               <View style={styles.headerBar}>
-                <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel="Go back" />
-                <HeaderIconButton onPress={() => handleUserMenu()} icon="more-horiz" accessibilityLabel="More options" />
+                <HeaderIconButton
+                  onPress={() => router.back()}
+                  icon="arrow-back"
+                  accessibilityLabel="Go back"
+                />
+                <HeaderIconButton
+                  onPress={() => handleUserMenu()}
+                  icon="more-horiz"
+                  accessibilityLabel="More options"
+                />
               </View>
               <View style={styles.profileHeaderContent}>
                 <View style={styles.avatarContainer}>
                   <View style={styles.avatar}>
                     {getAvatarUri(user) ? (
-                      <Image source={{ uri: getAvatarUri(user)! }} style={styles.avatarImage} contentFit="cover" cachePolicy="memory-disk" />
+                      <Image
+                        source={{ uri: getAvatarUri(user)! }}
+                        style={styles.avatarImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
                     ) : (
-                      <Text style={styles.avatarText}>{user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}</Text>
+                      <Text style={styles.avatarText}>
+                        {user.displayName?.charAt(0) ||
+                          user.handle?.charAt(0).toUpperCase()}
+                      </Text>
                     )}
                   </View>
                 </View>
@@ -387,40 +538,83 @@ export default function UserProfileScreen() {
                 {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
                 <View style={styles.actions}>
                   <Pressable
-                    style={[styles.actionButtonOutline, (following || hasPendingFollowRequest) && styles.actionButtonActive]}
+                    style={[
+                      styles.actionButtonOutline,
+                      (following || hasPendingFollowRequest) &&
+                        styles.actionButtonActive,
+                    ]}
                     onPress={handleFollow}
-                    accessibilityLabel={hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                    accessibilityLabel={
+                      hasPendingFollowRequest
+                        ? t("profile.requested", "Requested")
+                        : following
+                          ? t("profile.following")
+                          : t("profile.follow")
+                    }
                     accessibilityRole="button"
                   >
-                    <Text style={[styles.actionButtonText, (following || hasPendingFollowRequest) && styles.actionButtonTextActive]}>
-                      {hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                    <Text
+                      style={[
+                        styles.actionButtonText,
+                        (following || hasPendingFollowRequest) &&
+                          styles.actionButtonTextActive,
+                      ]}
+                    >
+                      {hasPendingFollowRequest
+                        ? t("profile.requested", "Requested")
+                        : following
+                          ? t("profile.following")
+                          : t("profile.follow")}
                     </Text>
                   </Pressable>
                   {user.followsMe ? (
-                    <Pressable style={styles.messageButton} onPress={handleMessage} accessibilityLabel={t('profile.message')} accessibilityRole="button">
-                      <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
+                    <Pressable
+                      style={styles.messageButton}
+                      onPress={handleMessage}
+                      accessibilityLabel={t("profile.message")}
+                      accessibilityRole="button"
+                    >
+                      <MaterialIcons
+                        name="mail-outline"
+                        size={HEADER.iconSize}
+                        color={HEADER.iconColor}
+                      />
                     </Pressable>
                   ) : null}
                 </View>
               </View>
             </View>
-            <View style={[styles.privateProfileGate, styles.privateProfileGateFill, styles.privateProfileGateNoBorder]}>
+            <View
+              style={[
+                styles.privateProfileGate,
+                styles.privateProfileGateFill,
+                styles.privateProfileGateNoBorder,
+              ]}
+            >
               <View style={styles.privateProfileIconWrap}>
                 <MaterialIcons name="lock" size={32} color={COLORS.tertiary} />
               </View>
-              <Text style={styles.privateProfileTitle}>{t('profile.privateProfile', 'Private profile')}</Text>
+              <Text style={styles.privateProfileTitle}>
+                {t("profile.privateProfile", "Private profile")}
+              </Text>
               <Text style={styles.privateProfileSubtext}>
-                {t('profile.privateProfileHint', 'Follow this account to see their posts, replies, and quotes.')}
+                {t(
+                  "profile.privateProfileHint",
+                  "Follow this account to see their posts, replies, and quotes.",
+                )}
               </Text>
             </View>
           </View>
         </ScrollView>
         <ConfirmModal
           visible={blockConfirmVisible}
-          title={t('safety.blockUser', 'Block User')}
-          message={t('safety.blockConfirm', `Are you sure you want to block @${user?.handle ?? ''}? You won't see their posts or messages.`)}
-          confirmLabel={t('safety.block', 'Block')}
-          cancelLabel={t('common.cancel')}
+          title={t("safety.blockUser", "Block User")}
+          message={t(
+            "safety.blockConfirm",
+            `Are you sure you want to block @${user?.handle ?? ""}? You won't see their posts or messages.`,
+          )}
+          confirmLabel={t("safety.block", "Block")}
+          cancelLabel={t("common.cancel")}
           destructive
           icon="warning"
           onConfirm={confirmBlock}
@@ -428,33 +622,61 @@ export default function UserProfileScreen() {
         />
         <ConfirmModal
           visible={muteConfirmVisible}
-          title={t('safety.muteUser', 'Mute User')}
-          message={t('safety.muteConfirm', `Are you sure you want to mute @${user?.handle ?? ''}? You won't see their posts in your feed.`)}
-          confirmLabel={t('safety.mute', 'Mute')}
-          cancelLabel={t('common.cancel')}
+          title={t("safety.muteUser", "Mute User")}
+          message={t(
+            "safety.muteConfirm",
+            `Are you sure you want to mute @${user?.handle ?? ""}? You won't see their posts in your feed.`,
+          )}
+          confirmLabel={t("safety.mute", "Mute")}
+          cancelLabel={t("common.cancel")}
           icon="volume-off"
           onConfirm={confirmMute}
           onCancel={() => setMuteConfirmVisible(false)}
         />
         <OptionsActionSheet
           visible={optionsModalVisible}
-          title={t('profile.options', 'Options for @' + (user?.handle ?? ''))}
-          cancelLabel={t('common.cancel')}
+          title={t("profile.options", "Options for @" + (user?.handle ?? ""))}
+          cancelLabel={t("common.cancel")}
           options={[
-            { label: t('safety.mute', 'Mute User'), onPress: handleMute, icon: 'volume-off' },
-            { label: t('safety.block', 'Block User'), onPress: handleBlock, destructive: true, icon: 'block' },
-            { label: t('safety.report', 'Report User'), onPress: () => openReportModal(user.id, 'USER'), destructive: true, icon: 'flag' },
-            { label: t('profile.shareProfile', 'Share profile'), onPress: handleShareProfile, icon: 'share' },
-            { label: t('profile.rssFeed', 'RSS Feed'), onPress: handleOpenRssFeed, icon: 'rss-feed' },
+            {
+              label: t("safety.mute", "Mute User"),
+              onPress: handleMute,
+              icon: "volume-off",
+            },
+            {
+              label: t("safety.block", "Block User"),
+              onPress: handleBlock,
+              destructive: true,
+              icon: "block",
+            },
+            {
+              label: t("safety.report", "Report User"),
+              onPress: () => openReportModal(user.id, "USER"),
+              destructive: true,
+              icon: "flag",
+            },
+            {
+              label: t("profile.shareProfile", "Share profile"),
+              onPress: handleShareProfile,
+              icon: "share",
+            },
+            {
+              label: t("profile.rssFeed", "RSS Feed"),
+              onPress: handleOpenRssFeed,
+              icon: "rss-feed",
+            },
           ]}
           onCancel={() => setOptionsModalVisible(false)}
         />
         <ReportModal
           visible={reportModalVisible}
           targetType={reportTargetType}
-          onClose={() => { setReportModalVisible(false); setReportTargetId(null); }}
+          onClose={() => {
+            setReportModalVisible(false);
+            setReportTargetId(null);
+          }}
           onReport={handleReportSubmit}
-          title={t('safety.reportTitle', 'Report')}
+          title={t("safety.reportTitle", "Report")}
         />
       </View>
     );
@@ -465,25 +687,34 @@ export default function UserProfileScreen() {
       <FlatList
         key={activeTab}
         style={styles.list}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-        contentInset={{ top: insets.top }}
-        contentOffset={Platform.OS === 'ios' ? { x: 0, y: -insets.top } : undefined}
+        contentInset={Platform.OS === "ios" ? { top: insets.top } : undefined}
+        contentOffset={
+          Platform.OS === "ios" ? { x: 0, y: -insets.top } : undefined
+        }
         contentContainerStyle={[
           { paddingBottom: bottomPadding },
-          (activeTab === 'replies' ? (posts as any[]).filter((r: any) => r?.post) : (posts as any[]).filter((p: any) => !!p?.author)).length === 0 && { flexGrow: 1 },
+          (activeTab === "replies"
+            ? (posts as any[]).filter((r: any) => r?.post)
+            : (posts as any[]).filter((p: any) => !!p?.author)
+          ).length === 0 && { flexGrow: 1 },
         ]}
+        {...LIST_SCROLL_DEFAULTS}
         data={
-          activeTab === 'replies'
+          activeTab === "replies"
             ? (posts as any[]).filter((r: any) => r?.post)
             : (posts as any[]).filter((p: any) => !!p?.author)
         }
         keyExtractor={(item: any) => item.id}
         renderItem={({ item }: { item: any }) =>
-          activeTab === 'replies' ? (
+          activeTab === "replies" ? (
             <Pressable
-              style={({ pressed }: { pressed: boolean }) => [styles.replyRow, pressed && styles.replyRowPressed]}
-              onPress={() => item.post?.id && router.push(`/post/${item.post.id}/comments`)}
+              style={({ pressed }: { pressed: boolean }) => [
+                styles.replyRow,
+                pressed && styles.replyRowPressed,
+              ]}
+              onPress={() =>
+                item.post?.id && router.push(`/post/${item.post.id}/comments`)
+              }
             >
               <View style={styles.replyBodyWrap}>
                 <MarkdownText>{item.body}</MarkdownText>
@@ -491,28 +722,49 @@ export default function UserProfileScreen() {
               {item.post && (
                 <View style={styles.replyToWrap}>
                   <Text style={styles.replyToLabel} numberOfLines={1}>
-                    {item.post.title ? `In reply to: ${item.post.title}` : t('profile.inReplyToPost', 'Reply to post')}
+                    {item.post.title
+                      ? `In reply to: ${item.post.title}`
+                      : t("profile.inReplyToPost", "Reply to post")}
                   </Text>
                 </View>
               )}
             </Pressable>
           ) : (
             <PostItem
-              post={activeTab === 'saved' ? { ...item, isKept: true } : item}
-              onKeep={activeTab === 'saved' && isOwnProfile ? () => setPosts((prev) => prev.filter((p: any) => p.id !== item.id)) : undefined}
+              post={activeTab === "saved" ? { ...item, isKept: true } : item}
+              onKeep={
+                activeTab === "saved" && isOwnProfile
+                  ? () =>
+                      setPosts((prev) =>
+                        prev.filter((p: any) => p.id !== item.id),
+                      )
+                  : undefined
+              }
             />
           )
         }
         ListHeaderComponent={
           <View style={styles.profileListHeader}>
-            <View style={[
-              styles.profileHeaderContainer,
-              user.isProtected && !following && styles.profileHeaderContainerBorder,
-              { paddingTop: Platform.OS === 'ios' ? 0 : insets.top },
-            ]}>
+            <View
+              style={[
+                styles.profileHeaderContainer,
+                user.isProtected &&
+                  !following &&
+                  styles.profileHeaderContainerBorder,
+                { paddingTop: Platform.OS === "ios" ? 0 : insets.top },
+              ]}
+            >
               <View style={styles.headerBar}>
-                <HeaderIconButton onPress={() => router.back()} icon="arrow-back" accessibilityLabel="Go back" />
-                <HeaderIconButton onPress={() => handleUserMenu()} icon="more-horiz" accessibilityLabel="More options" />
+                <HeaderIconButton
+                  onPress={() => router.back()}
+                  icon="arrow-back"
+                  accessibilityLabel="Go back"
+                />
+                <HeaderIconButton
+                  onPress={() => handleUserMenu()}
+                  icon="more-horiz"
+                  accessibilityLabel="More options"
+                />
               </View>
 
               <View style={styles.profileHeaderContent}>
@@ -527,7 +779,8 @@ export default function UserProfileScreen() {
                       />
                     ) : (
                       <Text style={styles.avatarText}>
-                        {user.displayName?.charAt(0) || user.handle?.charAt(0).toUpperCase()}
+                        {user.displayName?.charAt(0) ||
+                          user.handle?.charAt(0).toUpperCase()}
                       </Text>
                     )}
                   </View>
@@ -538,19 +791,37 @@ export default function UserProfileScreen() {
                   <Text style={styles.handle}>@{user.handle}</Text>
                 </View>
 
-                {user.bio ? (
-                  <Text style={styles.bio}>{user.bio}</Text>
-                ) : null}
+                {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
 
                 <View style={styles.actions}>
                   <Pressable
-                    style={[styles.actionButtonOutline, (following || hasPendingFollowRequest) && styles.actionButtonActive]}
+                    style={[
+                      styles.actionButtonOutline,
+                      (following || hasPendingFollowRequest) &&
+                        styles.actionButtonActive,
+                    ]}
                     onPress={handleFollow}
-                    accessibilityLabel={hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                    accessibilityLabel={
+                      hasPendingFollowRequest
+                        ? t("profile.requested", "Requested")
+                        : following
+                          ? t("profile.following")
+                          : t("profile.follow")
+                    }
                     accessibilityRole="button"
                   >
-                    <Text style={[styles.actionButtonText, (following || hasPendingFollowRequest) && styles.actionButtonTextActive]}>
-                      {hasPendingFollowRequest ? t('profile.requested', 'Requested') : following ? t('profile.following') : t('profile.follow')}
+                    <Text
+                      style={[
+                        styles.actionButtonText,
+                        (following || hasPendingFollowRequest) &&
+                          styles.actionButtonTextActive,
+                      ]}
+                    >
+                      {hasPendingFollowRequest
+                        ? t("profile.requested", "Requested")
+                        : following
+                          ? t("profile.following")
+                          : t("profile.follow")}
                     </Text>
                   </Pressable>
 
@@ -558,10 +829,14 @@ export default function UserProfileScreen() {
                     <Pressable
                       style={styles.messageButton}
                       onPress={handleMessage}
-                      accessibilityLabel={t('profile.message')}
+                      accessibilityLabel={t("profile.message")}
                       accessibilityRole="button"
                     >
-                      <MaterialIcons name="mail-outline" size={HEADER.iconSize} color={HEADER.iconColor} />
+                      <MaterialIcons
+                        name="mail-outline"
+                        size={HEADER.iconSize}
+                        color={HEADER.iconColor}
+                      />
                     </Pressable>
                   ) : null}
                 </View>
@@ -569,20 +844,36 @@ export default function UserProfileScreen() {
                 {!(user.isProtected && !following) ? (
                   <View style={styles.followersFollowingRow}>
                     <Pressable
-                      onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'followers', handle: user.handle } })}
-                      style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/user/connections",
+                          params: { tab: "followers", handle: user.handle },
+                        })
+                      }
+                      style={({ pressed }: { pressed: boolean }) =>
+                        pressed && styles.followersFollowingPressable
+                      }
                     >
                       <Text style={styles.followersFollowingText}>
-                        {formatCompactNumber(user.followerCount)} {t('profile.followers').toLowerCase()}
+                        {formatCompactNumber(user.followerCount)}{" "}
+                        {t("profile.followers").toLowerCase()}
                       </Text>
                     </Pressable>
                     <Text style={styles.followersFollowingText}> · </Text>
                     <Pressable
-                      onPress={() => router.push({ pathname: '/user/connections', params: { tab: 'following', handle: user.handle } })}
-                      style={({ pressed }: { pressed: boolean }) => pressed && styles.followersFollowingPressable}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/user/connections",
+                          params: { tab: "following", handle: user.handle },
+                        })
+                      }
+                      style={({ pressed }: { pressed: boolean }) =>
+                        pressed && styles.followersFollowingPressable
+                      }
                     >
                       <Text style={styles.followersFollowingText}>
-                        {formatCompactNumber(user.followingCount)} {t('profile.following').toLowerCase()}
+                        {formatCompactNumber(user.followingCount)}{" "}
+                        {t("profile.following").toLowerCase()}
                       </Text>
                     </Pressable>
                   </View>
@@ -591,51 +882,95 @@ export default function UserProfileScreen() {
             </View>
 
             {user.isProtected && !following ? (
-              <View style={[styles.privateProfileGate, styles.privateProfileGateFill, styles.privateProfileGateNoBorder, { minHeight: Math.max(200, screenHeight - 320) }]}>
+              <View
+                style={[
+                  styles.privateProfileGate,
+                  styles.privateProfileGateFill,
+                  styles.privateProfileGateNoBorder,
+                  { minHeight: Math.max(200, screenHeight - 320) },
+                ]}
+              >
                 <View style={styles.privateProfileIconWrap}>
-                  <MaterialIcons name="lock" size={32} color={COLORS.tertiary} />
+                  <MaterialIcons
+                    name="lock"
+                    size={32}
+                    color={COLORS.tertiary}
+                  />
                 </View>
-                <Text style={styles.privateProfileTitle}>{t('profile.privateProfile', 'Private profile')}</Text>
+                <Text style={styles.privateProfileTitle}>
+                  {t("profile.privateProfile", "Private profile")}
+                </Text>
                 <Text style={styles.privateProfileSubtext}>
-                  {t('profile.privateProfileHint', 'Follow this account to see their posts, replies, and quotes.')}
+                  {t(
+                    "profile.privateProfileHint",
+                    "Follow this account to see their posts, replies, and quotes.",
+                  )}
                 </Text>
               </View>
             ) : (
-              <View style={[styles.tabsContainer, { width: screenWidth }]}>
+              <View style={[styles.tabsContainer, TABS.container]}>
                 <ScrollView
                   horizontal
-                  showsVerticalScrollIndicator={false}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={[styles.tabsContent, { minWidth: screenWidth }]}
-                  style={styles.tabsScrollView}
+                  {...LIST_SCROLL_DEFAULTS}
+                  contentContainerStyle={[styles.tabsContent, TABS.content]}
+                  style={[styles.tabsScrollView, TABS.scrollView]}
                 >
-                  <View style={[styles.tabsRow, { minWidth: screenWidth }]}>
-                    {(isOwnProfile
-                      ? (['posts', 'replies', 'quotes', 'cited', 'saved', 'collections'] as const)
-                      : (['posts', 'quotes', 'cited', 'collections'] as const)
-                    ).map((tab) => {
-                      const count = tab === 'posts' ? (user.postCount ?? 0)
-                        : tab === 'replies' ? (user.replyCount ?? 0)
-                          : tab === 'quotes' ? (user.quoteReceivedCount ?? 0)
-                            : tab === 'saved' ? (user.keepsCount ?? 0)
-                              : tab === 'cited' ? undefined
+                  {(isOwnProfile
+                    ? ([
+                        "posts",
+                        "replies",
+                        "quotes",
+                        "cited",
+                        "saved",
+                        "collections",
+                      ] as const)
+                    : (["posts", "quotes", "cited", "collections"] as const)
+                  ).map((tab) => {
+                    const count =
+                      tab === "posts"
+                        ? (user.postCount ?? 0)
+                        : tab === "replies"
+                          ? (user.replyCount ?? 0)
+                          : tab === "quotes"
+                            ? (user.quoteReceivedCount ?? 0)
+                            : tab === "saved"
+                              ? (user.keepsCount ?? 0)
+                              : tab === "cited"
+                                ? undefined
                                 : (user.collectionCount ?? 0);
-                      return (
-                        <Pressable
-                          key={tab}
-                          style={[styles.tab, activeTab === tab && styles.tabActive]}
-                          onPress={() => handleTabChange(tab)}
-                          accessibilityLabel={count != null && count > 0 && tab !== 'replies' ? `${t(`profile.${tab}`)} ${count}` : t(`profile.${tab}`)}
-                          accessibilityRole="tab"
-                          accessibilityState={{ selected: activeTab === tab }}
+                    return (
+                      <Pressable
+                        key={tab}
+                        style={[
+                          styles.tab,
+                          TABS.tab,
+                          activeTab === tab && TABS.tabActive,
+                        ]}
+                        onPress={() => handleTabChange(tab)}
+                        accessibilityLabel={
+                          count != null && count > 0 && tab !== "replies"
+                            ? `${t(`profile.${tab}`)} ${count}`
+                            : t(`profile.${tab}`)
+                        }
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: activeTab === tab }}
+                      >
+                        <Text
+                          style={[
+                            styles.tabText,
+                            TABS.tabText,
+                            activeTab === tab && TABS.tabTextActive,
+                          ]}
+                          numberOfLines={1}
                         >
-                          <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]} numberOfLines={1}>
-                            {t(`profile.${tab}`)}{count != null && count > 0 && tab !== 'replies' ? ` (${formatCompactNumber(count)})` : ''}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
+                          {t(`profile.${tab}`)}
+                          {count != null && count > 0 && tab !== "replies"
+                            ? ` (${formatCompactNumber(count)})`
+                            : ""}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
@@ -644,41 +979,67 @@ export default function UserProfileScreen() {
         ListEmptyComponent={
           <View style={emptyStateCenterWrapStyle}>
             {loading && posts.length === 0 ? (
-              <View style={styles.tabLoadingWrap}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.tabLoadingText}>{t('common.loading')}</Text>
-              </View>
+              <FeedSkeleton count={3} />
             ) : (
               <EmptyState
                 icon={
-                  activeTab === 'saved' ? 'bookmark-outline'
-                    : activeTab === 'collections' ? 'folder-open'
-                      : activeTab === 'replies' ? 'chat-bubble-outline'
-                        : activeTab === 'quotes' ? 'format-quote'
-                          : activeTab === 'cited' ? 'link'
-                            : 'article'
+                  activeTab === "saved"
+                    ? "bookmark-outline"
+                    : activeTab === "collections"
+                      ? "folder-open"
+                      : activeTab === "replies"
+                        ? "chat-bubble-outline"
+                        : activeTab === "quotes"
+                          ? "format-quote"
+                          : activeTab === "cited"
+                            ? "link"
+                            : "article"
                 }
                 headline={
-                  activeTab === 'saved' ? t('profile.noSaved', 'No saved posts')
-                    : activeTab === 'collections' ? t('profile.noCollections', 'No public collections')
-                      : activeTab === 'replies' ? t('profile.noReplies', 'No replies yet')
-                        : activeTab === 'quotes' ? t('profile.noQuotes', 'No quotes yet')
-                          : activeTab === 'cited' ? t('profile.noCited', 'No cited posts')
-                            : t('profile.noPosts', 'No posts yet')
+                  activeTab === "saved"
+                    ? t("profile.noSaved", "No saved posts")
+                    : activeTab === "collections"
+                      ? t("profile.noCollections", "No public collections")
+                      : activeTab === "replies"
+                        ? t("profile.noReplies", "No replies yet")
+                        : activeTab === "quotes"
+                          ? t("profile.noQuotes", "No quotes yet")
+                          : activeTab === "cited"
+                            ? t("profile.noCited", "No cited posts")
+                            : t("profile.noPosts", "No posts yet")
                 }
                 subtext={
-                  activeTab === 'saved' ? t('profile.noSavedHint', 'Bookmark posts from the reading view to see them here.')
-                    : activeTab === 'collections' ? t('profile.noCollectionsHint', 'Public collections will appear here.')
-                      : activeTab === 'replies' ? t('profile.noRepliesHint', 'Replies will show here.')
-                        : activeTab === 'quotes' ? t('profile.noQuotesHint', 'Quotes will show here.')
-                          : activeTab === 'cited' ? t('profile.noCitedHint', 'Posts this user has cited appear here.')
-                            : t('profile.noPostsHintView', 'Posts will appear here.')
+                  activeTab === "saved"
+                    ? t(
+                        "profile.noSavedHint",
+                        "Bookmark posts from the reading view to see them here.",
+                      )
+                    : activeTab === "collections"
+                      ? t(
+                          "profile.noCollectionsHint",
+                          "Public collections will appear here.",
+                        )
+                      : activeTab === "replies"
+                        ? t("profile.noRepliesHint", "Replies will show here.")
+                        : activeTab === "quotes"
+                          ? t("profile.noQuotesHint", "Quotes will show here.")
+                          : activeTab === "cited"
+                            ? t(
+                                "profile.noCitedHint",
+                                "Posts this user has cited appear here.",
+                              )
+                            : t(
+                                "profile.noPostsHintView",
+                                "Posts will appear here.",
+                              )
                 }
               />
             )}
           </View>
         }
-        ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
+        ListFooterComponent={
+          <ListFooterLoader visible={!!(hasMore && loadingMore)} />
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -690,16 +1051,18 @@ export default function UserProfileScreen() {
           />
         }
         onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.3}
         {...FLATLIST_DEFAULTS}
       />
 
       <ConfirmModal
         visible={blockConfirmVisible}
-        title={t('safety.blockUser', 'Block User')}
-        message={t('safety.blockConfirm', `Are you sure you want to block @${user?.handle ?? ''}? You won't see their posts or messages.`)}
-        confirmLabel={t('safety.block', 'Block')}
-        cancelLabel={t('common.cancel')}
+        title={t("safety.blockUser", "Block User")}
+        message={t(
+          "safety.blockConfirm",
+          `Are you sure you want to block @${user?.handle ?? ""}? You won't see their posts or messages.`,
+        )}
+        confirmLabel={t("safety.block", "Block")}
+        cancelLabel={t("common.cancel")}
         destructive
         icon="warning"
         onConfirm={confirmBlock}
@@ -707,33 +1070,61 @@ export default function UserProfileScreen() {
       />
       <ConfirmModal
         visible={muteConfirmVisible}
-        title={t('safety.muteUser', 'Mute User')}
-        message={t('safety.muteConfirm', `Are you sure you want to mute @${user?.handle ?? ''}? You won't see their posts in your feed.`)}
-        confirmLabel={t('safety.mute', 'Mute')}
-        cancelLabel={t('common.cancel')}
+        title={t("safety.muteUser", "Mute User")}
+        message={t(
+          "safety.muteConfirm",
+          `Are you sure you want to mute @${user?.handle ?? ""}? You won't see their posts in your feed.`,
+        )}
+        confirmLabel={t("safety.mute", "Mute")}
+        cancelLabel={t("common.cancel")}
         icon="volume-off"
         onConfirm={confirmMute}
         onCancel={() => setMuteConfirmVisible(false)}
       />
       <OptionsActionSheet
         visible={optionsModalVisible}
-        title={t('profile.options', 'Options for @' + (user?.handle ?? ''))}
-        cancelLabel={t('common.cancel')}
+        title={t("profile.options", "Options for @" + (user?.handle ?? ""))}
+        cancelLabel={t("common.cancel")}
         options={[
-          { label: t('safety.mute', 'Mute User'), onPress: handleMute, icon: 'volume-off' },
-          { label: t('safety.block', 'Block User'), onPress: handleBlock, destructive: true, icon: 'block' },
-          { label: t('safety.report', 'Report User'), onPress: () => openReportModal(user.id, 'USER'), destructive: true, icon: 'flag' },
-          { label: t('profile.shareProfile', 'Share profile'), onPress: handleShareProfile, icon: 'share' },
-          { label: t('profile.rssFeed', 'RSS Feed'), onPress: handleOpenRssFeed, icon: 'rss-feed' },
+          {
+            label: t("safety.mute", "Mute User"),
+            onPress: handleMute,
+            icon: "volume-off",
+          },
+          {
+            label: t("safety.block", "Block User"),
+            onPress: handleBlock,
+            destructive: true,
+            icon: "block",
+          },
+          {
+            label: t("safety.report", "Report User"),
+            onPress: () => openReportModal(user.id, "USER"),
+            destructive: true,
+            icon: "flag",
+          },
+          {
+            label: t("profile.shareProfile", "Share profile"),
+            onPress: handleShareProfile,
+            icon: "share",
+          },
+          {
+            label: t("profile.rssFeed", "RSS Feed"),
+            onPress: handleOpenRssFeed,
+            icon: "rss-feed",
+          },
         ]}
         onCancel={() => setOptionsModalVisible(false)}
       />
       <ReportModal
         visible={reportModalVisible}
         targetType={reportTargetType}
-        onClose={() => { setReportModalVisible(false); setReportTargetId(null); }}
+        onClose={() => {
+          setReportModalVisible(false);
+          setReportTargetId(null);
+        }}
         onReport={handleReportSubmit}
-        title={t('safety.reportTitle', 'Report')}
+        title={t("safety.reportTitle", "Report")}
       />
     </View>
   );
@@ -745,16 +1136,16 @@ const styles = createStyles({
     backgroundColor: COLORS.ink,
   },
   headerBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: HEADER.barPaddingHorizontal as DimensionValue,
     paddingBottom: HEADER.barPaddingBottom as DimensionValue,
   },
   blockedHeaderBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: HEADER.barPaddingHorizontal as DimensionValue,
     paddingBottom: HEADER.barPaddingBottom as DimensionValue,
     backgroundColor: COLORS.ink,
@@ -763,11 +1154,11 @@ const styles = createStyles({
     flexGrow: 1,
   },
   profileListHeader: {
-    width: '100%',
+    width: "100%",
     backgroundColor: COLORS.ink,
   },
   profileHeaderContainer: {
-    width: '100%',
+    width: "100%",
     backgroundColor: COLORS.ink,
     paddingBottom: SPACING.l,
   },
@@ -777,7 +1168,7 @@ const styles = createStyles({
     borderBottomColor: COLORS.divider,
   },
   profileHeaderContent: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     gap: SPACING.l,
   },
@@ -786,7 +1177,7 @@ const styles = createStyles({
   },
   tabLoadingWrap: {
     paddingVertical: SPACING.xxxl,
-    alignItems: 'center',
+    alignItems: "center",
     gap: SPACING.m,
   },
   tabLoadingText: {
@@ -808,7 +1199,7 @@ const styles = createStyles({
     fontFamily: FONTS.serifRegular,
     lineHeight: 22,
   },
-  replyToWrap: { flexDirection: 'row', alignItems: 'center' },
+  replyToWrap: { flexDirection: "row", alignItems: "center" },
   replyToLabel: {
     fontSize: 13,
     color: COLORS.tertiary,
@@ -817,47 +1208,47 @@ const styles = createStyles({
   iconButton: {
     minWidth: 44,
     minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarContainer: {
-    position: 'relative',
+    position: "relative",
     width: 120,
     height: 120,
     marginBottom: SPACING.xs,
   },
   avatar: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     top: 0,
     width: 120,
     height: 120,
     borderRadius: 60,
     backgroundColor: COLORS.divider,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
     borderColor: COLORS.divider,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 60,
   },
   avatarText: {
     fontSize: 40,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
   identityBlock: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 4,
   },
   name: {
     fontSize: 24, // text-2xl
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     letterSpacing: -0.5,
@@ -870,15 +1261,15 @@ const styles = createStyles({
   bio: {
     fontSize: 15,
     color: COLORS.paper,
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 22,
     maxWidth: 320,
     fontFamily: FONTS.regular,
     opacity: 0.9,
   },
   actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.m,
   },
   actionButtonOutline: {
@@ -887,8 +1278,8 @@ const styles = createStyles({
     borderRadius: 19,
     borderWidth: 1,
     borderColor: COLORS.tertiary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: SPACING.xs,
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
@@ -905,21 +1296,21 @@ const styles = createStyles({
     borderRadius: 19,
     borderWidth: 1,
     borderColor: COLORS.tertiary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   actionButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     letterSpacing: 0.2,
   },
   followersFollowingRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: SPACING.xs,
     gap: 2,
   },
@@ -930,12 +1321,12 @@ const styles = createStyles({
     fontSize: 12,
     fontFamily: FONTS.medium,
     color: COLORS.tertiary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: SPACING.xxxl,
     paddingVertical: SPACING.m,
     borderBottomWidth: 1,
@@ -943,19 +1334,19 @@ const styles = createStyles({
     marginBottom: 0,
   },
   statsRowContent: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: SPACING.l,
     paddingVertical: SPACING.m,
     paddingHorizontal: SPACING.s,
   },
   statItem: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 2,
   },
   statNumber: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -963,11 +1354,11 @@ const styles = createStyles({
     fontSize: 13,
     color: COLORS.paper,
     fontFamily: FONTS.medium,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   verifiedBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: -12,
     right: -12,
   },
@@ -982,37 +1373,17 @@ const styles = createStyles({
     flexShrink: 0,
   },
   tabsContent: {
+    gap: SPACING.m,
     paddingRight: SPACING.l,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   tab: {
     flexShrink: 0,
-    alignItems: 'center',
-    paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.s,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    alignItems: "center",
   },
-  tabActive: {
-    borderBottomColor: COLORS.tertiary,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.tertiary,
-    fontFamily: FONTS.medium,
-  },
-  tabTextActive: {
-    color: COLORS.paper,
-    fontWeight: '600',
-  },
+  tabText: {},
   privateProfileGate: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: SPACING.xxxl,
     paddingHorizontal: SPACING.xl,
     borderBottomWidth: 1,
@@ -1021,7 +1392,7 @@ const styles = createStyles({
   /** When used with gate fill (private profile), border is on header above; no border under the indicator */
   privateProfileGateNoBorder: {
     borderBottomWidth: 0,
-    borderBottomColor: 'transparent',
+    borderBottomColor: "transparent",
   },
   privateProfileGateFill: {
     flex: 1,
@@ -1030,14 +1401,14 @@ const styles = createStyles({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: SPACING.m,
   },
   privateProfileTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginBottom: SPACING.xs,
@@ -1046,12 +1417,12 @@ const styles = createStyles({
     fontSize: 14,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    textAlign: 'center',
+    textAlign: "center",
     maxWidth: 280,
   },
   emptyState: {
     padding: SPACING.xxxl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     color: COLORS.tertiary,
@@ -1060,14 +1431,14 @@ const styles = createStyles({
   },
   errorText: {
     color: COLORS.error,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 50,
     fontFamily: FONTS.medium,
   },
   blockedStateContent: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: SPACING.xl,
   },
   blockedStateIcon: {
@@ -1075,17 +1446,17 @@ const styles = createStyles({
   },
   blockedStateTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SPACING.s,
   },
   blockedStateSubtext: {
     fontSize: 15,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SPACING.xl,
     lineHeight: 22,
   },
@@ -1097,12 +1468,12 @@ const styles = createStyles({
   },
   blockedStateUnblockBtnText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.ink,
     fontFamily: FONTS.semiBold,
   },
   footerLoader: {
     paddingVertical: SPACING.l,
-    alignItems: 'center',
+    alignItems: "center",
   },
 });

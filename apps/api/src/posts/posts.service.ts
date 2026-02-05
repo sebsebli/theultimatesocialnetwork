@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { Post, PostVisibility } from '../entities/post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -44,6 +45,7 @@ export class PostsService {
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
     private embeddingService: EmbeddingService,
+    private configService: ConfigService,
     @Inject('POST_QUEUE') private postQueue: Queue,
   ) {}
 
@@ -61,8 +63,10 @@ export class PostsService {
       KEEP_CONTENT: true,
     });
 
-    // AI Safety Check (Fast Stage 1 only)
-    if (!skipSafety) {
+    // AI Safety Check: sync (Stage 1 only) unless MODERATION_CONTENT_ASYNC=true (then worker does full check)
+    const contentModerationAsync =
+      this.configService.get<string>('MODERATION_CONTENT_ASYNC') === 'true';
+    if (!skipSafety && !contentModerationAsync) {
       const safety = await this.safetyService.checkContent(
         sanitizedBody,
         userId,
@@ -179,7 +183,12 @@ export class PostsService {
             replyCount: true,
             readingTimeMinutes: true,
             status: true,
-            author: { id: true, handle: true, displayName: true, isProtected: true },
+            author: {
+              id: true,
+              handle: true,
+              displayName: true,
+              isProtected: true,
+            },
           },
         })
         .then((post) => {
@@ -269,44 +278,50 @@ export class PostsService {
           .findOne({
             where: { id: savedPost.id },
             relations: ['author', 'postTopics'],
-                      select: {
-                        id: true,
-                        title: true,
-                        body: true,
-                        authorId: true,
-                        lang: true,
-                        createdAt: true,
-                        quoteCount: true,
-                        replyCount: true,
-                        readingTimeMinutes: true,
-                        status: true,
-                        author: { id: true, handle: true, displayName: true, isProtected: true },
-                      },
-                    })
-                    .then((post) => {
-                      if (!post) return;
-                      const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
-                      return this.meilisearch.indexPost({
-                        id: post.id,
-                        title: post.title,
-                        body: post.body,
-                        authorId: post.authorId || '',
-                        author: post.author
-                          ? {
-                              displayName: post.author.displayName ?? post.author.handle,
-                              handle: post.author.handle,
-                            }
-                          : undefined,
-                        authorProtected: post.author?.isProtected,
-                        lang: post.lang,
-                        createdAt: post.createdAt,
-                        quoteCount: post.quoteCount,
-                        replyCount: post.replyCount,
-                        readingTimeMinutes: post.readingTimeMinutes,
-                        topicIds,
-                        status: post.status,
-                      });
-                    })          .catch((err) =>
+            select: {
+              id: true,
+              title: true,
+              body: true,
+              authorId: true,
+              lang: true,
+              createdAt: true,
+              quoteCount: true,
+              replyCount: true,
+              readingTimeMinutes: true,
+              status: true,
+              author: {
+                id: true,
+                handle: true,
+                displayName: true,
+                isProtected: true,
+              },
+            },
+          })
+          .then((post) => {
+            if (!post) return;
+            const topicIds = post.postTopics?.map((pt) => pt.topicId) ?? [];
+            return this.meilisearch.indexPost({
+              id: post.id,
+              title: post.title,
+              body: post.body,
+              authorId: post.authorId || '',
+              author: post.author
+                ? {
+                    displayName: post.author.displayName ?? post.author.handle,
+                    handle: post.author.handle,
+                  }
+                : undefined,
+              authorProtected: post.author?.isProtected,
+              lang: post.lang,
+              createdAt: post.createdAt,
+              quoteCount: post.quoteCount,
+              replyCount: post.replyCount,
+              readingTimeMinutes: post.readingTimeMinutes,
+              topicIds,
+              status: post.status,
+            });
+          })
+          .catch((err) =>
             this.logger.warn(
               'Immediate post index on publish failed (worker will index)',
               err,
@@ -474,10 +489,17 @@ export class PostsService {
       return stub;
     }
 
-    // Visibility is from the author's profile only: public profile → all posts visible; protected profile → only followers (and self)
-    const authorProtected =
-      (post.author as User | undefined)?.isProtected === true;
-    
+    // Visibility is from the author's profile only: public profile → all posts visible; protected profile → only followers (and self).
+    // Fetch isProtected from DB; do not rely on relation (can be wrong and show public profiles as private).
+    let authorProtected = false;
+    if (post.authorId) {
+      const authorRow = await this.userRepo.findOne({
+        where: { id: post.authorId },
+        select: ['id', 'isProtected'],
+      });
+      authorProtected = authorRow?.isProtected === true;
+    }
+
     if (authorProtected) {
       let hasAccess = false;
       if (viewerId) {
@@ -511,34 +533,47 @@ export class PostsService {
   /** Return id -> { title?, deletedAt? } for linked post display (e.g. [[post:id]]). Includes soft-deleted posts so clients can show "(deleted content)" when no alias. Keys normalized to lowercase. */
   async getTitlesForPostIds(
     ids: string[],
-  ): Promise<Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }>> {
+  ): Promise<
+    Record<
+      string,
+      { title?: string; deletedAt?: string; isProtected?: boolean }
+    >
+  > {
     if (ids.length === 0) return {};
     const unique = Array.from(new Set(ids));
     const posts = await this.postRepo.find({
       where: unique.map((id) => ({ id })),
-      select: {
-        id: true,
-        title: true,
-        deletedAt: true,
-        author: {
-          id: true,
-          isProtected: true,
-        }
-      },
-      relations: ['author'],
+      select: ['id', 'title', 'deletedAt', 'authorId'],
       withDeleted: true,
     });
-    const out: Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }> = {};
+    const authorIds = [
+      ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
+    ] as string[];
+    const authorProtected = new Map<string, boolean>();
+    if (authorIds.length > 0) {
+      const users = await this.userRepo.find({
+        where: { id: In(authorIds) },
+        select: ['id', 'isProtected'],
+      });
+      for (const u of users) authorProtected.set(u.id, u.isProtected);
+    }
+    const out: Record<
+      string,
+      { title?: string; deletedAt?: string; isProtected?: boolean }
+    > = {};
     for (const p of posts) {
       const key = (p.id ?? '').toLowerCase();
       if (key) {
+        const prot = p.authorId
+          ? authorProtected.get(p.authorId) === true
+          : false;
         out[key] = {
           title: p.title ?? undefined,
           deletedAt:
             p.deletedAt != null
               ? new Date(p.deletedAt).toISOString()
               : undefined,
-          isProtected: p.author?.isProtected === true ? true : undefined,
+          isProtected: prot ? true : undefined,
         };
       }
     }
@@ -903,8 +938,20 @@ export class PostsService {
     const sources = await this.getSources(postId);
     const l1PostIds: string[] = [];
 
+    type GraphSourceItem = {
+      id: string;
+      type: string;
+      title?: string | null;
+      handle?: string;
+      slug?: string;
+      headerImageKey?: string | null;
+      avatarKey?: string | null;
+      imageKey?: string | null;
+      imageUrl?: string | null;
+      url?: string;
+    };
     for (const source of sources) {
-      const s = source as any;
+      const s = source as GraphSourceItem;
       addNode(s.id, s.type, {
         label: s.title || s.handle || s.slug || 'Source',
         image: s.headerImageKey || s.avatarKey || s.imageKey || s.imageUrl,
@@ -934,14 +981,18 @@ export class PostsService {
         image: p.headerImageKey,
         author: p.author?.handle,
       });
-      edges.push({ source: p.id, target: postId, type: edge.edgeType.toLowerCase() }); // 'link' or 'quote'
+      edges.push({
+        source: p.id,
+        target: postId,
+        type: edge.edgeType.toLowerCase(),
+      }); // 'link' or 'quote'
       l1PostIds.push(p.id);
     }
 
     // 3b. Co-Citations (Other posts linking to the same external URLs)
     const externalUrls = sources
-      .filter((s: any) => s.type === 'external' && s.url)
-      .map((s: any) => s.url);
+      .filter((s: GraphSourceItem) => s.type === 'external' && s.url)
+      .map((s: GraphSourceItem) => s.url);
 
     if (externalUrls.length > 0) {
       const coCitations = await this.externalSourceRepo
@@ -956,24 +1007,26 @@ export class PostsService {
         .getMany();
 
       const coCitesPerUrl = new Map<string, number>();
-      
-      for (const coCite of coCitations) {
-        if (!coCite.post) continue;
-        const currentCount = coCitesPerUrl.get(coCite.url) || 0;
-        if (currentCount >= 3) continue; // Limit 3 other posts per URL
-        coCitesPerUrl.set(coCite.url, currentCount + 1);
 
-        addNode(coCite.post.id, 'post', {
-          label: coCite.post.title || 'Post',
-          image: coCite.post.headerImageKey,
-          author: coCite.post.author?.handle,
+      for (const coCite of coCitations) {
+        const post = coCite.post;
+        if (!post) continue;
+        const url = coCite.url;
+        const currentCount = coCitesPerUrl.get(url) || 0;
+        if (currentCount >= 3) continue; // Limit 3 other posts per URL
+        coCitesPerUrl.set(url, currentCount + 1);
+
+        addNode(post.id, 'post', {
+          label: post.title || 'Post',
+          image: post.headerImageKey,
+          author: post.author?.handle,
           isL2: true, // Treat as L2 (indirect connection via URL)
         });
 
-        edges.push({ 
-          source: coCite.post.id, 
-          target: coCite.url, 
-          type: 'cites_url' 
+        edges.push({
+          source: post.id,
+          target: url,
+          type: 'cites_url',
         });
       }
     }
@@ -984,25 +1037,29 @@ export class PostsService {
     // We limit to 5 per L1 post to keep it readable.
     if (l1PostIds.length > 0) {
       const uniqueL1Ids = [...new Set(l1PostIds)];
-      
+
       // Bulk fetch edges from these L1 posts
       // This might return many, so we use a window function or just fetch and filter in JS (easier for small N)
       // Actually, let's just fetch all edges from these posts, limited to e.g. 200 total
-      const l2Edges = await this.dataSource.getRepository(PostEdge).createQueryBuilder('edge')
+      const l2Edges = await this.dataSource
+        .getRepository(PostEdge)
+        .createQueryBuilder('edge')
         .leftJoinAndSelect('edge.toPost', 'toPost')
         .where('edge.fromPostId IN (:...ids)', { ids: uniqueL1Ids })
-        .andWhere('edge.edgeType IN (:...types)', { types: [EdgeType.LINK, EdgeType.QUOTE] })
-        .limit(200) 
+        .andWhere('edge.edgeType IN (:...types)', {
+          types: [EdgeType.LINK, EdgeType.QUOTE],
+        })
+        .limit(200)
         .getMany();
 
       const edgesPerPost = new Map<string, number>();
-      
+
       for (const edge of l2Edges) {
         if (!edge.toPost || edge.toPostId === postId) continue; // Don't point back to center (already handled)
-        
+
         const currentCount = edgesPerPost.get(edge.fromPostId) || 0;
         if (currentCount >= 5) continue; // Limit 5 edges per L1 node
-        
+
         edgesPerPost.set(edge.fromPostId, currentCount + 1);
 
         // Add L2 Node (lightweight)
@@ -1011,10 +1068,10 @@ export class PostsService {
           isL2: true, // Marker for UI to render smaller
         });
 
-        edges.push({ 
-          source: edge.fromPostId, 
-          target: edge.toPostId, 
-          type: edge.edgeType.toLowerCase() 
+        edges.push({
+          source: edge.fromPostId,
+          target: edge.toPostId,
+          type: edge.edgeType.toLowerCase(),
         });
       }
     }
@@ -1026,4 +1083,3 @@ export class PostsService {
     };
   }
 }
-

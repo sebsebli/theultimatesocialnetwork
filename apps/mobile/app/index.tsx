@@ -1,23 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { Text, View, TextInput, Pressable, KeyboardAvoidingView, Platform, Linking, useWindowDimensions, Dimensions, ActivityIndicator } from 'react-native';
-import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as SecureStore from 'expo-secure-store';
-import * as WebBrowser from 'expo-web-browser';
-import * as Device from 'expo-device';
-import { api } from '../utils/api';
-import { useAuth } from '../context/auth';
-import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, createStyles } from '../constants/theme';
-import { IntroModal, shouldShowIntro, resetIntro } from '../components/IntroModal';
+import React, { useState, useEffect } from "react";
+import {
+  Text,
+  View,
+  TextInput,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  Linking,
+  useWindowDimensions,
+  Dimensions,
+} from "react-native";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
+import * as Device from "expo-device";
+import { api } from "../utils/api";
+import { useAuth } from "../context/auth";
+import { useToast } from "../context/ToastContext";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  createStyles,
+} from "../constants/theme";
+import {
+  IntroModal,
+  shouldShowIntro,
+  resetIntro,
+} from "../components/IntroModal";
+import {
+  FullScreenSkeleton,
+  InlineSkeleton,
+} from "../components/LoadingSkeleton";
 
 /** Device name for session list (e.g. "Vivian's iPhone XS"). On web or when unavailable, use a friendly fallback. */
 function getDeviceNameForSession(): string {
   const name = Device.deviceName?.trim();
   if (name) return name;
-  if (Platform.OS === 'web') return 'Web';
+  if (Platform.OS === "web") return "Web";
   return `Citewalk (${Platform.OS})`;
 }
 
@@ -27,15 +51,15 @@ export default function IndexScreen() {
   const { showError, showSuccess, showToast } = useToast();
   const { t } = useTranslation();
   const { height: windowHeight } = useWindowDimensions();
-  const screenHeight = Dimensions.get('window').height;
+  const screenHeight = Dimensions.get("window").height;
 
   // Redirect if authenticated: home if onboarding done, else onboarding (index redirects to correct stage)
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       if (onboardingComplete) {
-        router.replace('/(tabs)/');
+        router.replace("/(tabs)/");
       } else {
-        router.replace('/onboarding');
+        router.replace("/onboarding");
       }
     }
   }, [isLoading, isAuthenticated, onboardingComplete]);
@@ -44,13 +68,13 @@ export default function IndexScreen() {
   const [showIntro, setShowIntro] = useState(false);
 
   // Auth State
-  const [email, setEmail] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
+  const [email, setEmail] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [showInviteInput, setShowInviteInput] = useState(false);
-  const [token, setToken] = useState('');
-  const [tempToken, setTempToken] = useState('');
+  const [token, setToken] = useState("");
+  const [tempToken, setTempToken] = useState("");
   const [is2FA, setIs2FA] = useState(false);
-  const [totpCode, setTotpCode] = useState('');
+  const [totpCode, setTotpCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -80,7 +104,7 @@ export default function IndexScreen() {
   }, [cooldown]);
 
   const isValidEmail = (email: string) => {
-    if (!email || typeof email !== 'string') return false;
+    if (!email || typeof email !== "string") return false;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email) && email.length <= 255;
   };
@@ -89,50 +113,80 @@ export default function IndexScreen() {
     const sanitizedEmail = email.trim().toLowerCase();
 
     if (!sanitizedEmail) {
-      showError(t('signIn.emailRequired') || 'Email is required');
+      showError(t("signIn.emailRequired") || "Email is required");
       return;
     }
 
     if (!isValidEmail(sanitizedEmail)) {
-      showError(t('signIn.invalidEmail') || 'Please enter a valid email address');
+      showError(
+        t("signIn.invalidEmail") || "Please enter a valid email address",
+      );
       return;
     }
 
     // Check if terms are accepted (only for new signups, not for existing users)
     if (showInviteInput && !acceptedTerms) {
-      showError(t('signIn.acceptTermsError', 'Please accept the Terms of Service and Privacy Policy to continue'));
+      showError(
+        t(
+          "signIn.acceptTermsError",
+          "Please accept the Terms of Service and Privacy Policy to continue",
+        ),
+      );
       return;
     }
 
     setLoading(true);
     try {
-      await api.post('/auth/login', {
+      await api.post("/auth/login", {
         email: sanitizedEmail,
-        inviteCode: showInviteInput ? (inviteCode.trim() || undefined) : undefined
+        inviteCode: showInviteInput
+          ? inviteCode.trim() || undefined
+          : undefined,
       });
       setSent(true);
       setCooldown(60);
-      showSuccess(t('signIn.verificationSent', 'Verification code sent to your email'));
+      showSuccess(
+        t("signIn.verificationSent", "Verification code sent to your email"),
+      );
     } catch (error: any) {
       // Check for specific beta invite requirement
-      if (error?.status === 400 && error.message === 'Invite code required for registration') {
+      if (
+        error?.status === 400 &&
+        error.message === "Invite code required for registration"
+      ) {
         setShowInviteInput(true);
-        showError(t('signIn.inviteCodeRequiredMessage', 'You are new here! Please enter your invite code to join the beta.'));
+        showError(
+          t(
+            "signIn.inviteCodeRequiredMessage",
+            "You are new here! Please enter your invite code to join the beta.",
+          ),
+        );
         setLoading(false);
         return;
       }
 
       // Check for rate limit
-      if (error?.status === 400 && error.message === 'Please wait before sending another code') {
+      if (
+        error?.status === 400 &&
+        error.message === "Please wait before sending another code"
+      ) {
         setCooldown(60);
-        showToast(t('signIn.waitBeforeRequest', { seconds: 60, defaultValue: 'Please wait 60 seconds before requesting another code.' }));
+        showToast(
+          t("signIn.waitBeforeRequest", {
+            seconds: 60,
+            defaultValue:
+              "Please wait 60 seconds before requesting another code.",
+          }),
+        );
         setLoading(false);
         return;
       }
 
-      const errorMessage = error?.status === 429
-        ? t('signIn.rateLimited') || 'Too many requests. Please try again later.'
-        : t('signIn.failedSend') || 'Failed to send verification code';
+      const errorMessage =
+        error?.status === 429
+          ? t("signIn.rateLimited") ||
+            "Too many requests. Please try again later."
+          : t("signIn.failedSend") || "Failed to send verification code";
       showError(errorMessage);
     } finally {
       setLoading(false);
@@ -143,14 +197,14 @@ export default function IndexScreen() {
     if (!token.trim()) return;
 
     if (!/^[a-zA-Z0-9]{4,10}$/.test(token.trim())) {
-      showError(t('signIn.invalid') || 'Invalid token format');
+      showError(t("signIn.invalid") || "Invalid token format");
       return;
     }
 
     setLoading(true);
     try {
       const deviceInfo = getDeviceNameForSession();
-      const response = await api.post('/auth/verify', {
+      const response = await api.post("/auth/verify", {
         email: email.trim().toLowerCase(),
         token: token.trim(),
         deviceInfo,
@@ -166,17 +220,17 @@ export default function IndexScreen() {
 
       const { accessToken, user } = response;
 
-      if (!accessToken || typeof accessToken !== 'string') {
-        throw new Error('Invalid response from server');
+      if (!accessToken || typeof accessToken !== "string") {
+        throw new Error("Invalid response from server");
       }
 
-      await SecureStore.setItemAsync('user', JSON.stringify(user));
+      await SecureStore.setItemAsync("user", JSON.stringify(user));
       await signIn(accessToken);
-
     } catch (error: any) {
-      const errorMessage = error?.status === 401
-        ? t('signIn.invalid') || 'Invalid token'
-        : t('signIn.error') || 'An error occurred';
+      const errorMessage =
+        error?.status === 401
+          ? t("signIn.invalid") || "Invalid token"
+          : t("signIn.error") || "An error occurred";
       showError(errorMessage);
     } finally {
       setLoading(false);
@@ -188,16 +242,16 @@ export default function IndexScreen() {
     setLoading(true);
     try {
       const deviceInfo = getDeviceNameForSession();
-      const response = await api.post('/auth/2fa/login', {
+      const response = await api.post("/auth/2fa/login", {
         token: totpCode.trim(),
         tempToken,
         deviceInfo,
       });
       const { accessToken, user } = response;
-      await SecureStore.setItemAsync('user', JSON.stringify(user));
+      await SecureStore.setItemAsync("user", JSON.stringify(user));
       await signIn(accessToken);
     } catch (error: any) {
-      showError('Invalid 2FA code');
+      showError("Invalid 2FA code");
     } finally {
       setLoading(false);
     }
@@ -205,13 +259,14 @@ export default function IndexScreen() {
 
   // Get base URL for legal links (use API base URL, assuming web is on same domain or subdomain)
   const getBaseUrl = () => {
-    const apiUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+    const apiUrl =
+      process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3000";
     // If API is on a subdomain like api.citewalk.app, use the main domain
-    if (apiUrl.includes('api.')) {
-      return apiUrl.replace('api.', '');
+    if (apiUrl.includes("api.")) {
+      return apiUrl.replace("api.", "");
     }
     // Otherwise assume web is on same base
-    return apiUrl.replace('/api', '').replace(/\/$/, '');
+    return apiUrl.replace("/api", "").replace(/\/$/, "");
   };
 
   const openLegalLink = async (path: string) => {
@@ -222,24 +277,20 @@ export default function IndexScreen() {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
       });
     } catch (error) {
-      console.error('Failed to open browser:', error);
+      console.error("Failed to open browser:", error);
       // Fallback to regular linking
       Linking.openURL(url);
     }
   };
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.ink, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color={COLORS.primary} />
-      </View>
-    );
+    return <FullScreenSkeleton />;
   }
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.centeredContent}>
         {/* Main Content - Centered */}
@@ -247,15 +298,30 @@ export default function IndexScreen() {
           <View style={styles.content}>
             {!sent ? (
               <View style={styles.logoContainer}>
-                <Image source={require('../assets/logo_transparent.png')} style={styles.logo} contentFit="contain" />
+                <Image
+                  source={require("../assets/logo_transparent.png")}
+                  style={styles.logo}
+                  contentFit="contain"
+                />
                 <Text style={styles.appName}>Citewalk</Text>
-                <Text style={styles.tagline}>{t('welcome.tagline', 'History is written by those who write.')}</Text>
+                <Text style={styles.tagline}>
+                  {t(
+                    "welcome.tagline",
+                    "History is written by those who write.",
+                  )}
+                </Text>
               </View>
             ) : (
               <View style={[styles.textContainer, styles.checkEmailBlock]}>
-                <Text style={styles.checkEmailTitle}>{is2FA ? 'Two-Factor Auth' : t('signIn.checkEmailTitle', 'Check your email')}</Text>
+                <Text style={styles.checkEmailTitle}>
+                  {is2FA
+                    ? "Two-Factor Auth"
+                    : t("signIn.checkEmailTitle", "Check your email")}
+                </Text>
                 <Text style={styles.checkEmailSubtitle}>
-                  {is2FA ? 'Enter code from authenticator app' : t('signIn.enterCode', { email })}
+                  {is2FA
+                    ? "Enter code from authenticator app"
+                    : t("signIn.enterCode", { email })}
                 </Text>
               </View>
             )}
@@ -267,7 +333,7 @@ export default function IndexScreen() {
               <>
                 <TextInput
                   style={styles.input}
-                  placeholder={t('signIn.email')}
+                  placeholder={t("signIn.email")}
                   placeholderTextColor={COLORS.tertiary}
                   value={email}
                   onChangeText={setEmail}
@@ -279,10 +345,15 @@ export default function IndexScreen() {
                 {showInviteInput && (
                   <TextInput
                     style={styles.input}
-                    placeholder={t('signIn.inviteCodePlaceholder', 'Access Code (Required)')}
+                    placeholder={t(
+                      "signIn.inviteCodePlaceholder",
+                      "Access Code (Required)",
+                    )}
                     placeholderTextColor={COLORS.tertiary}
                     value={inviteCode}
-                    onChangeText={(val: string) => setInviteCode(val.toUpperCase())}
+                    onChangeText={(val: string) =>
+                      setInviteCode(val.toUpperCase())
+                    }
                     autoCapitalize="characters"
                     autoCorrect={false}
                   />
@@ -296,42 +367,53 @@ export default function IndexScreen() {
                         onPress={() => setAcceptedTerms(!acceptedTerms)}
                         style={styles.checkboxPressable}
                       >
-                        <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                        <View
+                          style={[
+                            styles.checkbox,
+                            acceptedTerms && styles.checkboxChecked,
+                          ]}
+                        >
                           {acceptedTerms && (
-                            <MaterialCommunityIcons name="check" size={12} color={COLORS.ink} />
+                            <MaterialCommunityIcons
+                              name="check"
+                              size={12}
+                              color={COLORS.ink}
+                            />
                           )}
                         </View>
                       </Pressable>
                       <Text style={styles.termsText}>
                         {(() => {
-                          const agreementText = t('signIn.signUpAgreement', {
-                            terms: t('signIn.termsLink'),
-                            privacy: t('signIn.privacyLink'),
+                          const agreementText = t("signIn.signUpAgreement", {
+                            terms: t("signIn.termsLink"),
+                            privacy: t("signIn.privacyLink"),
                           });
-                          const termsText = t('signIn.termsLink');
-                          const privacyText = t('signIn.privacyLink');
+                          const termsText = t("signIn.termsLink");
+                          const privacyText = t("signIn.privacyLink");
 
                           // Split by placeholders and create clickable links
-                          const parts = agreementText.split(/({{terms}}|{{privacy}})/);
+                          const parts = agreementText.split(
+                            /({{terms}}|{{privacy}})/,
+                          );
                           return parts.map((part, index) => {
-                            if (part === '{{terms}}') {
+                            if (part === "{{terms}}") {
                               return (
                                 <Text
                                   key={index}
                                   style={styles.termsLink}
-                                  onPress={() => openLegalLink('/terms')}
+                                  onPress={() => openLegalLink("/terms")}
                                   suppressHighlighting={false}
                                 >
                                   {termsText}
                                 </Text>
                               );
                             }
-                            if (part === '{{privacy}}') {
+                            if (part === "{{privacy}}") {
                               return (
                                 <Text
                                   key={index}
                                   style={styles.termsLink}
-                                  onPress={() => openLegalLink('/privacy')}
+                                  onPress={() => openLegalLink("/privacy")}
                                   suppressHighlighting={false}
                                 >
                                   {privacyText}
@@ -347,77 +429,140 @@ export default function IndexScreen() {
                 )}
 
                 <Pressable
-                  style={[styles.button, (!email.trim() || loading || (showInviteInput && !acceptedTerms)) && styles.buttonDisabled]}
+                  style={[
+                    styles.button,
+                    (!email.trim() ||
+                      loading ||
+                      (showInviteInput && !acceptedTerms)) &&
+                      styles.buttonDisabled,
+                  ]}
                   onPress={handleSendLink}
-                  disabled={!email.trim() || loading || (showInviteInput && !acceptedTerms)}
+                  disabled={
+                    !email.trim() ||
+                    loading ||
+                    (showInviteInput && !acceptedTerms)
+                  }
                 >
-                  <Text style={styles.buttonText}>
-                    {loading ? t('common.loading') : 'Send magic link'}
-                  </Text>
+                  {loading ? (
+                    <InlineSkeleton />
+                  ) : (
+                    <Text style={styles.buttonText}>Send magic link</Text>
+                  )}
                 </Pressable>
 
-                <Pressable onPress={() => router.push('/waiting-list')}>
-                  <Text style={styles.resendLink}>{t('signIn.joinWaitlist', 'Need an invite? Join the waitlist')}</Text>
+                <Pressable onPress={() => router.push("/waiting-list")}>
+                  <Text style={styles.resendLink}>
+                    {t(
+                      "signIn.joinWaitlist",
+                      "Need an invite? Join the waitlist",
+                    )}
+                  </Text>
                 </Pressable>
               </>
             ) : is2FA ? (
               <>
                 <TextInput
-                  style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontWeight: 'bold', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }]}
+                  style={[
+                    styles.input,
+                    {
+                      textAlign: "center",
+                      letterSpacing: 8,
+                      fontSize: 24,
+                      fontWeight: "bold",
+                      fontFamily:
+                        Platform.OS === "ios" ? "Courier" : "monospace",
+                    },
+                  ]}
                   placeholder="000000"
                   placeholderTextColor={COLORS.tertiary}
                   value={totpCode}
-                  onChangeText={(val: string) => setTotpCode(val.replace(/\D/g, '').slice(0, 6))}
+                  onChangeText={(val: string) =>
+                    setTotpCode(val.replace(/\D/g, "").slice(0, 6))
+                  }
                   keyboardType="number-pad"
                   textContentType="oneTimeCode"
                   autoFocus
                 />
 
                 <Pressable
-                  style={[styles.button, (totpCode.length < 6 || loading) && styles.buttonDisabled]}
+                  style={[
+                    styles.button,
+                    (totpCode.length < 6 || loading) && styles.buttonDisabled,
+                  ]}
                   onPress={handle2FAVerify}
                   disabled={totpCode.length < 6 || loading}
                 >
                   <Text style={styles.buttonText}>
-                    {loading ? t('signIn.verifying') : t('signIn.verify')}
+                    {loading ? t("signIn.verifying") : t("signIn.verify")}
                   </Text>
                 </Pressable>
               </>
             ) : (
               <>
                 <TextInput
-                  style={[styles.input, { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontWeight: 'bold', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }]}
-                  placeholder={t('signIn.codePlaceholder', '000000')}
+                  style={[
+                    styles.input,
+                    {
+                      textAlign: "center",
+                      letterSpacing: 8,
+                      fontSize: 24,
+                      fontWeight: "bold",
+                      fontFamily:
+                        Platform.OS === "ios" ? "Courier" : "monospace",
+                    },
+                  ]}
+                  placeholder={t("signIn.codePlaceholder", "000000")}
                   placeholderTextColor={COLORS.tertiary}
                   value={token}
-                  onChangeText={(val: string) => setToken(val.replace(/\D/g, '').slice(0, 6))}
+                  onChangeText={(val: string) =>
+                    setToken(val.replace(/\D/g, "").slice(0, 6))
+                  }
                   keyboardType="number-pad"
                   textContentType="oneTimeCode"
                   autoFocus
                 />
 
                 <Pressable
-                  style={[styles.button, (token.length < 6 || loading) && styles.buttonDisabled]}
+                  style={[
+                    styles.button,
+                    (token.length < 6 || loading) && styles.buttonDisabled,
+                  ]}
                   onPress={handleVerify}
                   disabled={token.length < 6 || loading}
                 >
                   <Text style={styles.buttonText}>
-                    {loading ? t('signIn.verifying') : t('signIn.verify')}
+                    {loading ? t("signIn.verifying") : t("signIn.verify")}
                   </Text>
                 </Pressable>
 
                 <Pressable
-                  style={[styles.buttonSecondary, (cooldown > 0 || loading) && styles.buttonDisabled]}
+                  style={[
+                    styles.buttonSecondary,
+                    (cooldown > 0 || loading) && styles.buttonDisabled,
+                  ]}
                   onPress={handleSendLink}
                   disabled={cooldown > 0 || loading}
                 >
                   <Text style={styles.buttonTextSecondary}>
-                    {cooldown > 0 ? t('signIn.resendCodeIn', { seconds: cooldown, defaultValue: `Resend code in ${cooldown}s` }) : t('signIn.resendCode', 'Resend code')}
+                    {cooldown > 0
+                      ? t("signIn.resendCodeIn", {
+                          seconds: cooldown,
+                          defaultValue: `Resend code in ${cooldown}s`,
+                        })
+                      : t("signIn.resendCode", "Resend code")}
                   </Text>
                 </Pressable>
 
-                <Pressable onPress={() => { setSent(false); setToken(''); setCooldown(0); }}>
-                  <Text style={styles.resendLink}>{t('signIn.wrongEmail', 'Wrong email? Go back')}</Text>
+                <Pressable
+                  onPress={() => {
+                    setSent(false);
+                    setToken("");
+                    setCooldown(0);
+                  }}
+                >
+                  <Text style={styles.resendLink}>
+                    {t("signIn.wrongEmail", "Wrong email? Go back")}
+                  </Text>
                 </Pressable>
               </>
             )}
@@ -433,19 +578,21 @@ export default function IndexScreen() {
             }}
             style={styles.showIntroAgain}
           >
-            <Text style={styles.showIntroAgainText}>{t('welcome.showIntroAgain', 'Show intro again')}</Text>
+            <Text style={styles.showIntroAgainText}>
+              {t("welcome.showIntroAgain", "Show intro again")}
+            </Text>
           </Pressable>
           <View style={styles.legalLinks}>
-            <Pressable onPress={() => openLegalLink('/privacy')}>
-              <Text style={styles.legalLink}>{t('welcome.privacy')}</Text>
+            <Pressable onPress={() => openLegalLink("/privacy")}>
+              <Text style={styles.legalLink}>{t("welcome.privacy")}</Text>
             </Pressable>
             <View style={styles.legalSeparator} />
-            <Pressable onPress={() => openLegalLink('/terms')}>
-              <Text style={styles.legalLink}>{t('welcome.terms')}</Text>
+            <Pressable onPress={() => openLegalLink("/terms")}>
+              <Text style={styles.legalLink}>{t("welcome.terms")}</Text>
             </Pressable>
             <View style={styles.legalSeparator} />
-            <Pressable onPress={() => openLegalLink('/imprint')}>
-              <Text style={styles.legalLink}>{t('welcome.imprint')}</Text>
+            <Pressable onPress={() => openLegalLink("/imprint")}>
+              <Text style={styles.legalLink}>{t("welcome.imprint")}</Text>
             </Pressable>
           </View>
         </View>
@@ -465,22 +612,22 @@ const styles = createStyles({
   centeredContent: {
     flex: 1,
     paddingHorizontal: SPACING.xxl,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
     paddingVertical: SPACING.xl,
   },
   mainContent: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingBottom: SPACING.xxl,
   },
   content: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: SPACING.xl,
     marginBottom: SPACING.xxl,
   },
   logoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.m,
   },
   logo: {
@@ -496,13 +643,13 @@ const styles = createStyles({
   tagline: {
     fontSize: 18,
     color: COLORS.secondary,
-    textAlign: 'center',
+    textAlign: "center",
     fontFamily: FONTS.serifSemiBold,
     maxWidth: 300,
     lineHeight: 26,
   },
   textContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: SPACING.s,
   },
   checkEmailBlock: {
@@ -513,14 +660,14 @@ const styles = createStyles({
     color: COLORS.paper,
     fontFamily: FONTS.serifSemiBold,
     letterSpacing: -0.5,
-    textAlign: 'center',
+    textAlign: "center",
   },
   checkEmailSubtitle: {
     fontSize: 16,
     color: COLORS.secondary,
     lineHeight: 24,
     fontFamily: FONTS.regular,
-    textAlign: 'center',
+    textAlign: "center",
     maxWidth: 280,
   },
   formSectionCode: {
@@ -528,7 +675,7 @@ const styles = createStyles({
   },
   formSection: {
     gap: SPACING.l,
-    width: '100%',
+    width: "100%",
   },
   input: {
     height: 56,
@@ -545,41 +692,41 @@ const styles = createStyles({
     height: 56,
     backgroundColor: COLORS.primary,
     borderRadius: SIZES.borderRadius,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonSecondary: {
     height: 56,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: COLORS.divider,
     borderRadius: SIZES.borderRadius,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonDisabled: {
     opacity: 0.5,
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontWeight: "600",
+    color: "#FFFFFF",
     fontFamily: FONTS.semiBold,
   },
   buttonTextSecondary: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   resendLink: {
     fontSize: 14,
     color: COLORS.primary,
-    textAlign: 'center',
+    textAlign: "center",
     fontFamily: FONTS.medium,
   },
   bottomLinks: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: SPACING.m,
   },
   showIntroAgain: {
@@ -592,15 +739,15 @@ const styles = createStyles({
     fontFamily: FONTS.regular,
   },
   legalLinks: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.s,
     paddingBottom: SPACING.l,
   },
   legalLink: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: "500",
     color: COLORS.tertiary,
     fontFamily: FONTS.medium,
   },
@@ -615,8 +762,8 @@ const styles = createStyles({
     marginBottom: SPACING.xs,
   },
   checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: SPACING.m,
   },
   checkboxPressable: {
@@ -630,9 +777,9 @@ const styles = createStyles({
     borderRadius: 6,
     borderWidth: 1.5,
     borderColor: COLORS.tertiary,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
   },
   checkboxChecked: {
     backgroundColor: COLORS.primary,
@@ -647,6 +794,6 @@ const styles = createStyles({
   },
   termsLink: {
     color: COLORS.paper,
-    textDecorationLine: 'underline',
+    textDecorationLine: "underline",
   },
 });

@@ -12,9 +12,11 @@ import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { ExploreModule } from '../explore/explore.module';
 import { SearchModule } from '../search/search.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
+    UploadModule,
     TypeOrmModule.forFeature([
       Topic,
       TopicFollow,

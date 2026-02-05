@@ -1,16 +1,38 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Text, View, FlatList, TextInput, Pressable, Modal, Alert, RefreshControl, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '../utils/api';
-import { PostItem } from '../components/PostItem';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { EmptyState, emptyStateCenterWrapStyle } from '../components/EmptyState';
-import { useToast } from '../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../constants/theme';
-import { ListFooterLoader } from '../components/ListFooterLoader';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  Text,
+  View,
+  FlatList,
+  TextInput,
+  Pressable,
+  Modal,
+  Alert,
+  RefreshControl,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { api } from "../utils/api";
+import { PostItem } from "../components/PostItem";
+import { ScreenHeader } from "../components/ScreenHeader";
+import {
+  EmptyState,
+  emptyStateCenterWrapStyle,
+} from "../components/EmptyState";
+import { useToast } from "../context/ToastContext";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  createStyles,
+  FLATLIST_DEFAULTS,
+  SEARCH_BAR,
+} from "../constants/theme";
+import { ListFooterLoader } from "../components/ListFooterLoader";
+import { FeedSkeleton } from "../components/LoadingSkeleton";
 
 export default function KeepsScreen() {
   const router = useRouter();
@@ -28,8 +50,10 @@ export default function KeepsScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [collections, setCollections] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'unsorted' | 'in-collections'>('all');
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "unsorted" | "in-collections">(
+    "all",
+  );
 
   useEffect(() => {
     setPage(1);
@@ -53,25 +77,25 @@ export default function KeepsScreen() {
     }
     try {
       const params = new URLSearchParams();
-      params.append('page', pageNum.toString());
-      params.append('limit', '20');
-      if (search) params.append('search', search);
-      if (filter === 'in-collections') params.append('inCollection', 'true');
-      if (filter === 'unsorted') params.append('inCollection', 'false');
+      params.append("page", pageNum.toString());
+      params.append("limit", "20");
+      if (search) params.append("search", search);
+      if (filter === "in-collections") params.append("inCollection", "true");
+      if (filter === "unsorted") params.append("inCollection", "false");
 
       const data = await api.get(`/keeps?${params.toString()}`);
-      const items = Array.isArray(data.items || data) ? (data.items || data) : [];
+      const items = Array.isArray(data.items || data) ? data.items || data : [];
 
       if (reset) {
         setKeeps(items);
       } else {
-        setKeeps(prev => [...prev, ...items]);
+        setKeeps((prev) => [...prev, ...items]);
       }
 
-      const hasMoreData = items.length === 20 && (data.hasMore !== false);
+      const hasMoreData = items.length === 20 && data.hasMore !== false;
       setHasMore(hasMoreData);
     } catch (error) {
-      console.error('Failed to load keeps', error);
+      console.error("Failed to load keeps", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -92,67 +116,82 @@ export default function KeepsScreen() {
     loadKeeps(1, true);
   }, [search, filter]);
 
-  const renderItem = useCallback(({ item }: { item: any }) => (
-    <View style={styles.keepContainer}>
-      <PostItem
-        post={{ ...item.post, isKept: true }}
-        onKeep={() => setKeeps(prev => prev.filter((k: any) => k.post?.id !== item.post?.id))}
-      />
-      <View style={styles.keepActions}>
-        <Pressable
-          style={styles.addButton}
-          onPress={() => {
-            setSelectedPostId(item.post.id);
-            setShowPicker(true);
-          }}
-          accessibilityLabel={t('keeps.addToCollection')}
-          accessibilityRole="button"
-        >
-          <MaterialIcons name="playlist-add" size={HEADER.iconSize} color={COLORS.primary} />
-          <Text style={styles.addButtonText}>{t('keeps.addToCollection')}</Text>
-        </Pressable>
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => (
+      <View style={styles.keepContainer}>
+        <PostItem
+          post={{ ...item.post, isKept: true }}
+          onKeep={() =>
+            setKeeps((prev) =>
+              prev.filter((k: any) => k.post?.id !== item.post?.id),
+            )
+          }
+        />
+        <View style={styles.keepActions}>
+          <Pressable
+            style={styles.addButton}
+            onPress={() => {
+              setSelectedPostId(item.post.id);
+              setShowPicker(true);
+            }}
+            accessibilityLabel={t("keeps.addToCollection")}
+            accessibilityRole="button"
+          >
+            <MaterialIcons
+              name="playlist-add"
+              size={HEADER.iconSize}
+              color={COLORS.primary}
+            />
+            <Text style={styles.addButtonText}>
+              {t("keeps.addToCollection")}
+            </Text>
+          </Pressable>
+        </View>
       </View>
-    </View>
-  ), [t]);
+    ),
+    [t],
+  );
 
   const keyExtractor = useCallback((item: any) => item.id, []);
 
-
   const loadCollections = async () => {
     try {
-      const data = await api.get('/collections');
+      const data = await api.get("/collections");
       setCollections(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Failed to load collections', error);
+      console.error("Failed to load collections", error);
     }
   };
 
   const addToCollection = async (collectionId: string) => {
     if (!selectedPostId) return;
     try {
-      await api.post(`/collections/${collectionId}/items`, { postId: selectedPostId });
+      await api.post(`/collections/${collectionId}/items`, {
+        postId: selectedPostId,
+      });
       setShowPicker(false);
       setSelectedPostId(null);
-      showSuccess(t('keeps.addedToCollection'));
+      showSuccess(t("keeps.addedToCollection"));
     } catch (error) {
-      console.error('Failed to add to collection', error);
-      showError(t('keeps.failedAddToCollection'));
+      console.error("Failed to add to collection", error);
+      showError(t("keeps.failedAddToCollection"));
     }
   };
 
   return (
     <View style={styles.container}>
-      <ScreenHeader
-        title={t('keeps.title')}
-        paddingTop={insets.top}
-      />
+      <ScreenHeader title={t("keeps.title")} paddingTop={insets.top} />
 
       <View style={styles.filters}>
         <View style={SEARCH_BAR.container}>
-          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <MaterialIcons
+            name="search"
+            size={HEADER.iconSize}
+            color={COLORS.tertiary}
+          />
           <TextInput
             style={SEARCH_BAR.input}
-            placeholder={t('keeps.searchPlaceholder', 'Search keeps...')}
+            placeholder={t("keeps.searchPlaceholder", "Search keeps...")}
             placeholderTextColor={COLORS.tertiary}
             value={search}
             onChangeText={setSearch}
@@ -160,34 +199,58 @@ export default function KeepsScreen() {
             returnKeyType="search"
           />
           {search.length > 0 ? (
-            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <Pressable onPress={() => setSearch("")} hitSlop={8}>
               <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
             </Pressable>
           ) : null}
         </View>
         <View style={styles.filterPills}>
           <Pressable
-            style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
-            onPress={() => setFilter('all')}
+            style={[
+              styles.filterPill,
+              filter === "all" && styles.filterPillActive,
+            ]}
+            onPress={() => setFilter("all")}
           >
-            <Text style={[styles.filterPillText, filter === 'all' && styles.filterPillTextActive]}>
-              {t('keeps.all')}
+            <Text
+              style={[
+                styles.filterPillText,
+                filter === "all" && styles.filterPillTextActive,
+              ]}
+            >
+              {t("keeps.all")}
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.filterPill, filter === 'unsorted' && styles.filterPillActive]}
-            onPress={() => setFilter('unsorted')}
+            style={[
+              styles.filterPill,
+              filter === "unsorted" && styles.filterPillActive,
+            ]}
+            onPress={() => setFilter("unsorted")}
           >
-            <Text style={[styles.filterPillText, filter === 'unsorted' && styles.filterPillTextActive]}>
-              {t('keeps.unsorted')}
+            <Text
+              style={[
+                styles.filterPillText,
+                filter === "unsorted" && styles.filterPillTextActive,
+              ]}
+            >
+              {t("keeps.unsorted")}
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.filterPill, filter === 'in-collections' && styles.filterPillActive]}
-            onPress={() => setFilter('in-collections')}
+            style={[
+              styles.filterPill,
+              filter === "in-collections" && styles.filterPillActive,
+            ]}
+            onPress={() => setFilter("in-collections")}
           >
-            <Text style={[styles.filterPillText, filter === 'in-collections' && styles.filterPillTextActive]}>
-              {t('keeps.inCollections')}
+            <Text
+              style={[
+                styles.filterPillText,
+                filter === "in-collections" && styles.filterPillTextActive,
+              ]}
+            >
+              {t("keeps.inCollections")}
             </Text>
           </Pressable>
         </View>
@@ -202,22 +265,26 @@ export default function KeepsScreen() {
         ListEmptyComponent={
           <View style={emptyStateCenterWrapStyle}>
             {loading ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>{t('common.loading')}</Text>
-              </View>
+              <FeedSkeleton count={4} />
             ) : (
               <EmptyState
                 icon="bookmark-border"
-                headline={t('keeps.empty')}
-                subtext={t('keeps.emptyHint')}
-                secondaryLabel={t('keeps.explorePosts')}
-                onSecondary={() => router.push('/(tabs)/explore')}
+                headline={t("keeps.empty")}
+                subtext={t("keeps.emptyHint")}
+                secondaryLabel={t("keeps.explorePosts")}
+                onSecondary={() => router.push("/(tabs)/explore")}
               />
             )}
           </View>
         }
-        contentContainerStyle={keeps.filter((item: any) => !!item?.post?.author).length === 0 ? { flexGrow: 1 } : undefined}
-        ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
+        contentContainerStyle={
+          keeps.filter((item: any) => !!item?.post?.author).length === 0
+            ? { flexGrow: 1 }
+            : undefined
+        }
+        ListFooterComponent={
+          <ListFooterLoader visible={!!(hasMore && loadingMore)} />
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -239,9 +306,11 @@ export default function KeepsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('keeps.chooseCollection')}</Text>
+              <Text style={styles.modalTitle}>
+                {t("keeps.chooseCollection")}
+              </Text>
               <Pressable onPress={() => setShowPicker(false)}>
-                <Text style={styles.closeButton}>{t('common.cancel')}</Text>
+                <Text style={styles.closeButton}>{t("common.cancel")}</Text>
               </Pressable>
             </View>
             <FlatList
@@ -260,7 +329,9 @@ export default function KeepsScreen() {
                 </Pressable>
               )}
               ListEmptyComponent={
-                <Text style={styles.emptyTextModal}>{t('collections.empty', 'No collections found.')}</Text>
+                <Text style={styles.emptyTextModal}>
+                  {t("collections.empty", "No collections found.")}
+                </Text>
               }
             />
           </View>
@@ -282,7 +353,7 @@ const styles = createStyles({
     gap: SPACING.m,
   },
   filterPills: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: SPACING.s,
   },
   filterPill: {
@@ -298,29 +369,29 @@ const styles = createStyles({
   },
   filterPillText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
     color: COLORS.secondary,
     fontFamily: FONTS.medium,
   },
   filterPillTextActive: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   keepContainer: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
   },
   keepActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     paddingHorizontal: SPACING.l,
     paddingBottom: SPACING.m,
     marginTop: -SPACING.s, // Pull up slightly to feel connected
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
-    backgroundColor: 'rgba(110, 122, 138, 0.1)',
+    backgroundColor: "rgba(110, 122, 138, 0.1)",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -328,16 +399,16 @@ const styles = createStyles({
   addButtonText: {
     color: COLORS.primary,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     fontFamily: FONTS.semiBold,
   },
   footerLoader: {
     paddingVertical: SPACING.l,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyState: {
     padding: SPACING.xxxl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     fontSize: 16,
@@ -347,26 +418,26 @@ const styles = createStyles({
   modalOverlay: {
     flex: 1,
     backgroundColor: COLORS.overlay,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: SPACING.l,
   },
   modalContent: {
     backgroundColor: COLORS.ink,
     borderRadius: SIZES.borderRadius,
     padding: SPACING.xl,
-    maxHeight: '50%',
+    maxHeight: "50%",
     borderWidth: 1,
     borderColor: COLORS.divider,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: SPACING.l,
-    alignItems: 'center',
+    alignItems: "center",
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -379,9 +450,9 @@ const styles = createStyles({
     paddingVertical: SPACING.m,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   collectionTitle: {
     fontSize: 16,
@@ -394,7 +465,7 @@ const styles = createStyles({
   },
   emptyTextModal: {
     color: COLORS.secondary,
-    textAlign: 'center',
+    textAlign: "center",
     padding: SPACING.l,
     fontFamily: FONTS.regular,
   },

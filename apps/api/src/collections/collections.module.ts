@@ -9,9 +9,11 @@ import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { ExploreModule } from '../explore/explore.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
   imports: [
+    UploadModule,
     TypeOrmModule.forFeature([
       Collection,
       CollectionItem,

@@ -8,6 +8,7 @@ import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { ExploreService } from '../explore/explore.service';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class TopicsService {
@@ -22,62 +23,89 @@ export class TopicsService {
     @InjectRepository(ExternalSource)
     private externalSourceRepo: Repository<ExternalSource>,
     private exploreService: ExploreService,
+    private uploadService: UploadService,
   ) {}
 
   async findOne(slugOrId: string, viewerId?: string) {
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        slugOrId,
-      );
-    const topic = await this.topicRepo.findOne({
-      where: isUuid ? { id: slugOrId } : { slug: slugOrId },
-    });
+    let topic: Topic | null = null;
+    try {
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          slugOrId,
+        );
+      topic = await this.topicRepo.findOne({
+        where: isUuid ? { id: slugOrId } : { slug: slugOrId },
+      });
+    } catch (err) {
+      this.logger.warn('Topic findOne lookup failed', slugOrId, err);
+      return null;
+    }
 
     if (!topic) return null;
 
-    // Get "Start here" posts (most cited) - re-using explore service logic; filter by viewer visibility
-    const startHere = await this.exploreService.getTopicStartHere(
-      topic.id,
-      10,
-      viewerId,
-    );
+    let startHere: Post[] = [];
+    let recentPostData: {
+      id: string;
+      title: string | null;
+      bodyExcerpt: string;
+      headerImageKey: string | null;
+    } | null = null;
+    let postCount = 0;
+    let contributorCount = 0;
 
-    // Header image = most recent post's header image (by post.created_at)
-    const recentPostData = await this.getRecentPostForTopic(topic.id, viewerId);
+    try {
+      startHere = await this.exploreService.getTopicStartHere(
+        topic.id,
+        10,
+        viewerId,
+      );
+      recentPostData = await this.getRecentPostForTopic(topic.id, viewerId);
+      // Total counts for header (all posts and distinct authors in topic, no visibility filter)
+      const [postCountRow, contributorRow] = await Promise.all([
+        this.postTopicRepo
+          .createQueryBuilder('pt')
+          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+          .where('pt.topic_id = :topicId', { topicId: topic.id })
+          .select('COUNT(DISTINCT pt.post_id)', 'cnt')
+          .getRawOne<{ cnt: string }>(),
+        this.postRepo.manager
+          .createQueryBuilder()
+          .select('COUNT(DISTINCT p.author_id)', 'cnt')
+          .from(PostTopic, 'pt')
+          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+          .where('pt.topic_id = :topicId', { topicId: topic.id })
+          .getRawOne<{ cnt: string }>(),
+      ]);
+      postCount = postCountRow ? parseInt(postCountRow.cnt, 10) : 0;
+      contributorCount = contributorRow ? parseInt(contributorRow.cnt, 10) : 0;
+    } catch (err) {
+      this.logger.warn(`Topic findOne enrichment failed for ${topic.id}`, err);
+    }
 
-    const [postCountRow, contributorRow] = await Promise.all([
-      this.postTopicRepo
-        .createQueryBuilder('pt')
-        .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-        .innerJoin(
-          User,
-          'author',
-          'author.id = p.author_id AND author.is_protected = false',
-        )
-        .where('pt.topic_id = :topicId', { topicId: topic.id })
-        .select('COUNT(DISTINCT pt.post_id)', 'cnt')
-        .getRawOne<{ cnt: string }>(),
-      this.postRepo.manager
-        .createQueryBuilder()
-        .select('COUNT(DISTINCT author.id)', 'cnt')
-        .from(PostTopic, 'pt')
-        .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-        .innerJoin(
-          User,
-          'author',
-          'author.id = p.author_id AND author.is_protected = false',
-        )
-        .where('pt.topic_id = :topicId', { topicId: topic.id })
-        .getRawOne<{ cnt: string }>(),
-    ]);
+    const recentPostImageUrl =
+      recentPostData?.headerImageKey != null &&
+      recentPostData.headerImageKey !== ''
+        ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
+        : null;
+    const recentPost = recentPostData
+      ? {
+          ...recentPostData,
+          headerImageUrl:
+            recentPostData.headerImageKey != null &&
+            recentPostData.headerImageKey !== ''
+              ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
+              : null,
+        }
+      : null;
 
     return {
       ...topic,
       startHere,
       recentPostImageKey: recentPostData?.headerImageKey ?? null,
-      recentPost: recentPostData ?? null,
-      postCount: postCountRow ? parseInt(postCountRow.cnt, 10) : 0,
-      contributorCount: contributorRow ? parseInt(contributorRow.cnt, 10) : 0,
+      recentPostImageUrl: recentPostImageUrl ?? null,
+      recentPost,
+      postCount,
+      contributorCount,
     };
   }
 
@@ -139,66 +167,56 @@ export class TopicsService {
     offset = 0,
     viewerId?: string,
   ) {
-    let topicId = topicIdOrSlug;
+    try {
+      let topicId = topicIdOrSlug;
 
-    // Check if it's a valid UUID
-    const isUUID =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        topicIdOrSlug,
-      );
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          topicIdOrSlug,
+        );
 
-    if (!isUUID) {
-      // Resolve slug to ID
-      const topic = await this.topicRepo.findOne({
-        where: { slug: topicIdOrSlug },
-      });
-      if (topic) {
-        topicId = topic.id;
-      } else {
-        return { items: [], hasMore: false };
+      if (!isUUID) {
+        const topic = await this.topicRepo.findOne({
+          where: { slug: topicIdOrSlug },
+        });
+        if (topic) {
+          topicId = topic.id;
+        } else {
+          return { items: [], hasMore: false };
+        }
       }
-    }
 
-    const query = this.postRepo
-      .createQueryBuilder('post')
-      .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
-      .leftJoinAndSelect('post.author', 'author')
-      .where('pt.topic_id = :topicId', { topicId })
-      .andWhere('post.deleted_at IS NULL');
+      const query = this.postRepo
+        .createQueryBuilder('post')
+        .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
+        .leftJoinAndSelect('post.author', 'author')
+        .where('pt.topic_id = :topicId', { topicId })
+        .andWhere('post.deleted_at IS NULL');
 
-    if (sort === 'ranked') {
-      // Spam/Quality Filter
-      this.logger.log(`Applying spam/quality gate for topic ${topicId}`);
+      if (sort === 'ranked') {
+        this.logger.log(`Applying spam/quality gate for topic ${topicId}`);
+        query.andWhere(
+          "(post.quote_count > 0 OR post.reply_count > 0 OR author.created_at < NOW() - INTERVAL '7 days')",
+        );
+        query.orderBy('(post.quote_count * 3 + post.reply_count)', 'DESC');
+        query.addOrderBy('post.created_at', 'DESC');
+      } else {
+        query.orderBy('post.created_at', 'DESC');
+      }
 
-      // 1. Account Age > 3 days OR has significant engagement
-      // We can't easily check account age in DB if not indexed or simple.
-      // Let's rely on engagement metrics.
-
-      // Ranking Score: quote_count * 3 + reply_count * 1
-      // We also enforce a "gate": must have at least 1 quote OR 1 reply OR author created > 7 days ago
-
-      // PostgreSQL specific date check
-      query.andWhere(
-        "(post.quote_count > 0 OR post.reply_count > 0 OR author.created_at < NOW() - INTERVAL '7 days')",
+      const takeCount = viewerId ? (limit + 1) * 3 : limit + 1;
+      const posts = await query.skip(offset).take(takeCount).getMany();
+      const visible = await this.exploreService.filterPostsVisibleToViewer(
+        posts,
+        viewerId,
       );
-
-      // Order by ranking score without adding non-entity column (avoids getMany() issues)
-      query.orderBy('(post.quote_count * 3 + post.reply_count)', 'DESC');
-      query.addOrderBy('post.created_at', 'DESC');
-    } else {
-      // Recent
-      query.orderBy('post.created_at', 'DESC');
+      const hasMore = visible.length > limit;
+      const items = visible.slice(0, limit);
+      return { items, hasMore };
+    } catch (err) {
+      this.logger.warn('getTopicPosts failed', topicIdOrSlug, sort, err);
+      return { items: [], hasMore: false };
     }
-
-    const takeCount = viewerId ? (limit + 1) * 3 : limit + 1;
-    const posts = await query.skip(offset).take(takeCount).getMany();
-    const visible = await this.exploreService.filterPostsVisibleToViewer(
-      posts,
-      viewerId,
-    );
-    const hasMore = visible.length > limit;
-    const items = visible.slice(0, limit);
-    return { items, hasMore };
   }
 
   async getTopicPeople(
@@ -224,8 +242,10 @@ export class TopicsService {
       .andWhere('post.deleted_at IS NULL')
       .andWhere('author.is_protected = :prot', { prot: false })
       .groupBy('author.id')
-      .orderBy('"totalQuotes"', 'DESC')
-      .addOrderBy('"postCount"', 'DESC')
+      .addGroupBy('author.handle')
+      .addGroupBy('author.display_name')
+      .orderBy('SUM(post.quote_count)', 'DESC')
+      .addOrderBy('COUNT(post.id)', 'DESC')
       .limit(fetchLimit)
       .offset(offset);
 

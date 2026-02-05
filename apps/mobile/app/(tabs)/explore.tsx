@@ -1,27 +1,65 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Text, View, FlatList, Pressable, ScrollView, RefreshControl, PanResponder, TextInput, Keyboard, ActivityIndicator } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { api } from '../../utils/api';
-import { PostItem } from '../../components/PostItem';
-import { TopicCard } from '../../components/ExploreCards';
-import { UserCard } from '../../components/UserCard';
-import { SectionHeader } from '../../components/SectionHeader';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, toDimension, createStyles, FLATLIST_DEFAULTS, SEARCH_BAR } from '../../constants/theme';
-import { ErrorState } from '../../components/ErrorState';
-import { EmptyState, emptyStateCenterWrapStyle } from '../../components/EmptyState';
-import { ListFooterLoader } from '../../components/ListFooterLoader';
-import { SearchModal } from '../../components/SearchModal';
-import { useAuth } from '../../context/auth';
-import { useTabPress } from '../../context/TabPressContext';
-import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import {
+  Text,
+  View,
+  FlatList,
+  Pressable,
+  ScrollView,
+  RefreshControl,
+  TextInput,
+  Keyboard,
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { api } from "../../utils/api";
+import { PostItem } from "../../components/PostItem";
+import { TopicCard } from "../../components/ExploreCards";
+import { UserCard } from "../../components/UserCard";
+import { SectionHeader } from "../../components/SectionHeader";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  toDimension,
+  createStyles,
+  FLATLIST_DEFAULTS,
+  LIST_SCROLL_DEFAULTS,
+  SEARCH_BAR,
+  TABS,
+  TAB_BAR_HEIGHT,
+  LIST_PADDING_EXTRA,
+} from "../../constants/theme";
+import { ErrorState } from "../../components/ErrorState";
+import {
+  EmptyState,
+  emptyStateCenterWrapStyle,
+} from "../../components/EmptyState";
+import {
+  InlineSkeleton,
+  FeedSkeleton,
+  UserCardSkeleton,
+  TopicCardSkeleton,
+} from "../../components/LoadingSkeleton";
+import { ListFooterLoader } from "../../components/ListFooterLoader";
+import { SearchModal } from "../../components/SearchModal";
+import { useAuth } from "../../context/auth";
+import { useTabPress } from "../../context/TabPressContext";
+import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SEARCH_DEBOUNCE_MS = 480;
 const SEARCH_LIMIT = 20;
 
-type SearchFilterTab = 'all' | 'people' | 'topics' | 'posts';
+type SearchFilterTab = "all" | "people" | "topics" | "posts";
 
 /** Stable header component so the search TextInput is not remounted when searchQuery changes (which was dismissing the keyboard on first keystroke). */
 function ExploreListHeader({
@@ -47,21 +85,37 @@ function ExploreListHeader({
   searchFilterTab: SearchFilterTab;
   setSearchFilterTab: (tab: SearchFilterTab) => void;
   activeTab: string;
-  setActiveTab: (tab: 'trending' | 'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom') => void;
+  setActiveTab: (
+    tab:
+      | "trending"
+      | "newest"
+      | "topics"
+      | "people"
+      | "quoted"
+      | "deep-dives"
+      | "newsroom",
+  ) => void;
   inputRef: React.RefObject<TextInput | null>;
   styles: Record<string, any>;
   t: (key: string, fallback?: string) => string;
   EXPLORE_TABS: readonly string[];
 }) {
   return (
-    <View key="explore-list-header" style={[styles.headerContainer, { paddingTop: insetsTop }]}>
+    <View
+      key="explore-list-header"
+      style={[styles.headerContainer, { paddingTop: insetsTop }]}
+    >
       <View style={styles.searchRow}>
         <View style={[SEARCH_BAR.container, styles.searchBarFullWidth]}>
-          <MaterialIcons name="search" size={HEADER.iconSize} color={COLORS.tertiary} />
+          <MaterialIcons
+            name="search"
+            size={HEADER.iconSize}
+            color={COLORS.tertiary}
+          />
           <TextInput
             ref={inputRef}
             style={SEARCH_BAR.input}
-            placeholder={t('explore.searchPlaceholder')}
+            placeholder={t("explore.searchPlaceholder")}
             placeholderTextColor={COLORS.tertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -70,9 +124,13 @@ function ExploreListHeader({
             autoCapitalize="none"
           />
           {searchLoading ? (
-            <ActivityIndicator size="small" color={COLORS.primary} style={styles.searchSpinner} />
+            <InlineSkeleton />
           ) : searchQuery.length > 0 ? (
-            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityLabel={t('common.clear', 'Clear')}>
+            <Pressable
+              onPress={() => setSearchQuery("")}
+              hitSlop={8}
+              accessibilityLabel={t("common.clear", "Clear")}
+            >
               <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
             </Pressable>
           ) : null}
@@ -81,38 +139,75 @@ function ExploreListHeader({
 
       {isSearchActive ? (
         <View style={styles.searchFilterTabs}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.searchFilterContent}>
-            {(['all', 'people', 'topics', 'posts'] as const).map((tab) => (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.searchFilterContent}
+          >
+            {(["all", "people", "topics", "posts"] as const).map((tab) => (
               <Pressable
                 key={tab}
                 onPress={() => setSearchFilterTab(tab)}
-                style={[styles.searchFilterTab, searchFilterTab === tab && styles.searchFilterTabActive]}
+                style={[
+                  styles.searchFilterTab,
+                  searchFilterTab === tab && styles.searchFilterTabActive,
+                ]}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: searchFilterTab === tab }}
               >
-                <Text style={[styles.searchFilterTabText, searchFilterTab === tab && styles.searchFilterTabTextActive]}>
-                  {tab === 'all' ? t('search.all', 'All') : tab === 'people' ? t('search.people', 'People') : tab === 'topics' ? t('search.topics', 'Topics') : t('search.posts', 'Posts')}
+                <Text
+                  style={[
+                    styles.searchFilterTabText,
+                    searchFilterTab === tab && styles.searchFilterTabTextActive,
+                  ]}
+                >
+                  {tab === "all"
+                    ? t("search.all", "All")
+                    : tab === "people"
+                      ? t("search.people", "People")
+                      : tab === "topics"
+                        ? t("search.topics", "Topics")
+                        : t("search.posts", "Posts")}
                 </Text>
               </Pressable>
             ))}
           </ScrollView>
         </View>
       ) : (
-        <View key="explore-tabs" style={styles.tabsContainer}>
-          <ScrollView horizontal showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent} style={styles.tabsScrollView}>
+        <View key="explore-tabs" style={[styles.tabsContainer, TABS.container]}>
+          <ScrollView
+            horizontal
+            {...LIST_SCROLL_DEFAULTS}
+            contentContainerStyle={[styles.tabsContent, TABS.content]}
+            style={[styles.tabsScrollView, TABS.scrollView]}
+          >
             {(EXPLORE_TABS as readonly string[]).map((tab) => (
               <Pressable
                 key={tab}
                 onPress={() => setActiveTab(tab as any)}
-                style={[styles.tab, activeTab === tab && styles.tabActive]}
+                style={[
+                  styles.tab,
+                  TABS.tab,
+                  activeTab === tab && TABS.tabActive,
+                ]}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: activeTab === tab }}
               >
-                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                  {tab === 'deep-dives' ? t('explore.deepDives') :
-                    tab === 'quoted' ? t('explore.quoted') :
-                      tab === 'newsroom' ? t('explore.newsroom') :
-                        t(`explore.${tab}`)}
+                <Text
+                  style={[
+                    styles.tabText,
+                    TABS.tabText,
+                    activeTab === tab && TABS.tabTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {tab === "deep-dives"
+                    ? t("explore.deepDives")
+                    : tab === "quoted"
+                      ? t("explore.quoted")
+                      : tab === "newsroom"
+                        ? t("explore.newsroom")
+                        : t(`explore.${tab}`)}
                 </Text>
               </Pressable>
             ))}
@@ -125,10 +220,10 @@ function ExploreListHeader({
 }
 
 type SearchListItem =
-  | { type: 'section'; key: string; title: string }
-  | { type: 'post'; key: string; [k: string]: unknown }
-  | { type: 'user'; key: string; [k: string]: unknown }
-  | { type: 'topic'; key: string; [k: string]: unknown };
+  | { type: "section"; key: string; title: string }
+  | { type: "post"; key: string; [k: string]: unknown }
+  | { type: "user"; key: string; [k: string]: unknown }
+  | { type: "topic"; key: string; [k: string]: unknown };
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -137,9 +232,18 @@ export default function ExploreScreen() {
   const { isAuthenticated } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [activeTab, setActiveTab] = useState<'trending' | 'newest' | 'topics' | 'people' | 'quoted' | 'deep-dives' | 'newsroom'>('trending');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchFilterTab, setSearchFilterTab] = useState<SearchFilterTab>('all');
+  const [activeTab, setActiveTab] = useState<
+    | "trending"
+    | "newest"
+    | "topics"
+    | "people"
+    | "quoted"
+    | "deep-dives"
+    | "newsroom"
+  >("trending");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFilterTab, setSearchFilterTab] =
+    useState<SearchFilterTab>("all");
   const [searchPosts, setSearchPosts] = useState<any[]>([]);
   const [searchUsers, setSearchUsers] = useState<any[]>([]);
   const [searchTopics, setSearchTopics] = useState<any[]>([]);
@@ -174,35 +278,30 @@ export default function ExploreScreen() {
     return () => clearTimeout(t);
   }, [tabPress?.tabPressCounts?.explore]);
 
-  const EXPLORE_TABS = ['trending', 'newest', 'quoted', 'deep-dives', 'newsroom', 'topics', 'people'] as const;
-  const swipeThreshold = 60;
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          const { dx, dy } = gestureState;
-          return Math.abs(dx) > Math.abs(dy) * 1.2 && Math.abs(dx) > swipeThreshold;
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          const { dx } = gestureState;
-          const idx = EXPLORE_TABS.indexOf(activeTab as any);
-          if (dx < -swipeThreshold && idx < EXPLORE_TABS.length - 1) {
-            Haptics.selectionAsync();
-            setActiveTab(EXPLORE_TABS[idx + 1] as any);
-          } else if (dx > swipeThreshold && idx > 0) {
-            Haptics.selectionAsync();
-            setActiveTab(EXPLORE_TABS[idx - 1] as any);
-          }
-        },
-      }),
-    [activeTab],
-  );
+  const EXPLORE_TABS = [
+    "trending",
+    "newest",
+    "quoted",
+    "deep-dives",
+    "newsroom",
+    "topics",
+    "people",
+  ] as const;
 
   useEffect(() => {
     if (params.tab) {
       const tabName = Array.isArray(params.tab) ? params.tab[0] : params.tab;
-      if (['trending', 'newest', 'topics', 'people', 'quoted', 'deep-dives', 'newsroom'].includes(tabName)) {
+      if (
+        [
+          "trending",
+          "newest",
+          "topics",
+          "people",
+          "quoted",
+          "deep-dives",
+          "newsroom",
+        ].includes(tabName)
+      ) {
         setActiveTab(tabName as any);
       }
     }
@@ -235,7 +334,7 @@ export default function ExploreScreen() {
       setSearchUsers(rawUsers);
       setSearchTopics(rawTopics);
     } catch (err) {
-      console.error('Search failed', err);
+      console.error("Search failed", err);
       setSearchPosts([]);
       setSearchUsers([]);
       setSearchTopics([]);
@@ -265,27 +364,53 @@ export default function ExploreScreen() {
   const isSearchActive = searchQuery.trim().length > 0;
 
   const searchFlatData = useMemo((): SearchListItem[] => {
-    if (searchFilterTab === 'people') {
-      return searchUsers.map((u) => ({ type: 'user' as const, key: u.id, ...u }));
+    if (searchFilterTab === "people") {
+      return searchUsers.map((u) => ({
+        type: "user" as const,
+        key: u.id,
+        ...u,
+      }));
     }
-    if (searchFilterTab === 'topics') {
-      return searchTopics.map((tpc) => ({ type: 'topic' as const, key: tpc.id || tpc.slug, ...tpc }));
+    if (searchFilterTab === "topics") {
+      return searchTopics.map((tpc) => ({
+        type: "topic" as const,
+        key: tpc.id || tpc.slug,
+        ...tpc,
+      }));
     }
-    if (searchFilterTab === 'posts') {
-      return searchPosts.map((p) => ({ type: 'post' as const, key: p.id, ...p }));
+    if (searchFilterTab === "posts") {
+      return searchPosts.map((p) => ({
+        type: "post" as const,
+        key: p.id,
+        ...p,
+      }));
     }
     const out: SearchListItem[] = [];
     if (searchPosts.length > 0) {
-      out.push({ type: 'section', key: 'section-posts', title: t('search.posts', 'Posts') });
-      searchPosts.forEach((p) => out.push({ type: 'post', key: p.id, ...p }));
+      out.push({
+        type: "section",
+        key: "section-posts",
+        title: t("search.posts", "Posts"),
+      });
+      searchPosts.forEach((p) => out.push({ type: "post", key: p.id, ...p }));
     }
     if (searchUsers.length > 0) {
-      out.push({ type: 'section', key: 'section-people', title: t('search.people', 'People') });
-      searchUsers.forEach((u) => out.push({ type: 'user', key: u.id, ...u }));
+      out.push({
+        type: "section",
+        key: "section-people",
+        title: t("search.people", "People"),
+      });
+      searchUsers.forEach((u) => out.push({ type: "user", key: u.id, ...u }));
     }
     if (searchTopics.length > 0) {
-      out.push({ type: 'section', key: 'section-topics', title: t('search.topics', 'Topics') });
-      searchTopics.forEach((tpc) => out.push({ type: 'topic', key: tpc.id || tpc.slug, ...tpc }));
+      out.push({
+        type: "section",
+        key: "section-topics",
+        title: t("search.topics", "Topics"),
+      });
+      searchTopics.forEach((tpc) =>
+        out.push({ type: "topic", key: tpc.id || tpc.slug, ...tpc }),
+      );
     }
     return out;
   }, [searchFilterTab, searchPosts, searchUsers, searchTopics, t]);
@@ -293,7 +418,7 @@ export default function ExploreScreen() {
   const navigateToPost = useCallback(
     (post: any) => {
       Keyboard.dismiss();
-      setSearchQuery('');
+      setSearchQuery("");
       if (post?.id) router.push(`/post/${post.id}`);
     },
     [router],
@@ -301,7 +426,7 @@ export default function ExploreScreen() {
   const navigateToUser = useCallback(
     (user: any) => {
       Keyboard.dismiss();
-      setSearchQuery('');
+      setSearchQuery("");
       if (user?.handle) router.push(`/user/${user.handle}`);
     },
     [router],
@@ -309,8 +434,9 @@ export default function ExploreScreen() {
   const navigateToTopic = useCallback(
     (topic: any) => {
       Keyboard.dismiss();
-      setSearchQuery('');
-      if (topic?.slug || topic?.id) router.push(`/topic/${encodeURIComponent(topic.slug || topic.id)}`);
+      setSearchQuery("");
+      if (topic?.slug || topic?.id)
+        router.push(`/topic/${encodeURIComponent(topic.slug || topic.id)}`);
     },
     [router],
   );
@@ -337,40 +463,48 @@ export default function ExploreScreen() {
     }
     setError(false);
     try {
-      let endpoint = '/explore/topics';
-      if (activeTab === 'newest') endpoint = '/explore/newest';
-      else if (activeTab === 'trending') endpoint = '/explore/trending';
-      else if (activeTab === 'people') endpoint = '/explore/people';
-      else if (activeTab === 'quoted') endpoint = '/explore/quoted-now';
-      else if (activeTab === 'deep-dives') endpoint = '/explore/deep-dives';
-      else if (activeTab === 'newsroom') endpoint = '/explore/newsroom';
-      const params: Record<string, string> = { page: pageNum.toString(), limit: '20', sort: 'recommended' };
+      let endpoint = "/explore/topics";
+      if (activeTab === "newest") endpoint = "/explore/newest";
+      else if (activeTab === "trending") endpoint = "/explore/trending";
+      else if (activeTab === "people") endpoint = "/explore/people";
+      else if (activeTab === "quoted") endpoint = "/explore/quoted-now";
+      else if (activeTab === "deep-dives") endpoint = "/explore/deep-dives";
+      else if (activeTab === "newsroom") endpoint = "/explore/newsroom";
+      const params: Record<string, string> = {
+        page: pageNum.toString(),
+        limit: "20",
+        sort: "recommended",
+      };
       const qs = new URLSearchParams(params).toString();
       const res = await api.get(`${endpoint}?${qs}`);
-      const rawItems = Array.isArray(res.items || res) ? (res.items || res) : [];
+      const rawItems = Array.isArray(res.items || res) ? res.items || res : [];
       const normalized = rawItems.map((item: any) => ({
         ...item,
         author: item.author || {
-          id: item.authorId || '',
-          handle: item.handle || t('post.unknownUser', 'Unknown'),
-          displayName: item.displayName || t('post.unknownUser', 'Unknown'),
+          id: item.authorId || "",
+          handle: item.handle || t("post.unknownUser", "Unknown"),
+          displayName: item.displayName || t("post.unknownUser", "Unknown"),
         },
       }));
       const seen = new Set<string>();
       const items = normalized.filter((item: any) => {
-        const k = item.id ?? item.slug ?? '';
+        const k = item.id ?? item.slug ?? "";
         if (!k || seen.has(k)) return false;
         seen.add(k);
         return true;
       });
-      const hasMoreData = items.length === 20 && (res.hasMore !== false);
+      const hasMoreData = items.length === 20 && res.hasMore !== false;
 
       if (reset) {
         setData(items);
       } else {
-        setData(prev => {
-          const prevSeen = new Set(prev.map((p: any) => p.id ?? p.slug).filter(Boolean));
-          const appended = items.filter((item: any) => !prevSeen.has(item.id ?? item.slug));
+        setData((prev) => {
+          const prevSeen = new Set(
+            prev.map((p: any) => p.id ?? p.slug).filter(Boolean),
+          );
+          const appended = items.filter(
+            (item: any) => !prevSeen.has(item.id ?? item.slug),
+          );
           return prev.concat(appended);
         });
       }
@@ -382,7 +516,7 @@ export default function ExploreScreen() {
         setLoadingMore(false);
         return;
       }
-      console.error('Failed to load content', error);
+      console.error("Failed to load content", error);
       setError(true);
       // Stop pagination on any error (e.g. 503) so we don't retry infinitely when scrolling
       setHasMore(false);
@@ -397,9 +531,13 @@ export default function ExploreScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       // Optimistic update
-      setData(prev => prev.map(item =>
-        item.id === topic.id ? { ...item, isFollowing: !item.isFollowing } : item
-      ));
+      setData((prev) =>
+        prev.map((item) =>
+          item.id === topic.id
+            ? { ...item, isFollowing: !item.isFollowing }
+            : item,
+        ),
+      );
 
       if (topic.isFollowing) {
         await api.delete(`/topics/${encodeURIComponent(topic.slug)}/follow`);
@@ -407,30 +545,42 @@ export default function ExploreScreen() {
         await api.post(`/topics/${encodeURIComponent(topic.slug)}/follow`);
       }
     } catch (err) {
-      console.error('Follow failed', err);
+      console.error("Follow failed", err);
       // Revert on failure
-      setData(prev => prev.map(item =>
-        item.id === topic.id ? { ...item, isFollowing: topic.isFollowing } : item
-      ));
+      setData((prev) =>
+        prev.map((item) =>
+          item.id === topic.id
+            ? { ...item, isFollowing: topic.isFollowing }
+            : item,
+        ),
+      );
     }
   };
 
   const handleFollowUser = async (user: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      setData(prev => prev.map(item =>
-        item.id === user.id ? { ...item, isFollowing: !item.isFollowing } : item
-      ));
+      setData((prev) =>
+        prev.map((item) =>
+          item.id === user.id
+            ? { ...item, isFollowing: !item.isFollowing }
+            : item,
+        ),
+      );
       if (user.isFollowing) {
         await api.delete(`/users/${user.id}/follow`);
       } else {
         await api.post(`/users/${user.id}/follow`);
       }
     } catch (err) {
-      console.error('Follow user failed', err);
-      setData(prev => prev.map(item =>
-        item.id === user.id ? { ...item, isFollowing: user.isFollowing } : item
-      ));
+      console.error("Follow user failed", err);
+      setData((prev) =>
+        prev.map((item) =>
+          item.id === user.id
+            ? { ...item, isFollowing: user.isFollowing }
+            : item,
+        ),
+      );
     }
   };
 
@@ -452,7 +602,15 @@ export default function ExploreScreen() {
     (_w: number, h: number) => {
       contentHeightRef.current = h;
       const listH = listLayoutHeightRef.current;
-      if (listH > 0 && h < listH && hasMore && !loading && !loadingMore && page < MAX_PAGE && !onEndReachedFiredRef.current) {
+      if (
+        listH > 0 &&
+        h < listH &&
+        hasMore &&
+        !loading &&
+        !loadingMore &&
+        page < MAX_PAGE &&
+        !onEndReachedFiredRef.current
+      ) {
         onEndReachedFiredRef.current = true;
         const nextPage = page + 1;
         setPage(nextPage);
@@ -464,61 +622,80 @@ export default function ExploreScreen() {
     [hasMore, loading, loadingMore, page, loadContent],
   );
 
-  const handleListLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
-    listLayoutHeightRef.current = e.nativeEvent.layout.height;
-  }, []);
+  const handleListLayout = useCallback(
+    (e: { nativeEvent: { layout: { height: number } } }) => {
+      listLayoutHeightRef.current = e.nativeEvent.layout.height;
+    },
+    [],
+  );
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadContent(1, true);
   }, [activeTab]);
 
-  const renderItem = useCallback(({ item }: { item: any }) => {
-    if (activeTab === 'newest' || activeTab === 'trending' || activeTab === 'deep-dives') {
-      if (!item || !item.id) return null;
-      return <PostItem post={item} />;
-    } else if (activeTab === 'people') {
-      return (
-        <UserCard
-          item={item}
-          onPress={() => router.push(`/user/${item.handle}`)}
-          onFollow={() => handleFollowUser(item)}
-        />
-      );
-    } else if (activeTab === 'quoted') {
-      if (!item || !item.id) return null;
-      return <PostItem post={item} />;
-    } else if (activeTab === 'newsroom') {
-      if (!item || !item.id) return null;
-      return <PostItem post={item} />;
-    } else {
-      if (!item || !item.id) return null;
-      return (
-        <TopicCard
-          item={item}
-          onPress={() => router.push(`/topic/${encodeURIComponent(item.slug || item.id)}`)}
-          onFollow={() => handleFollow(item)}
-        />
-      );
-    }
-  }, [activeTab, router, handleFollowUser]);
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => {
+      if (
+        activeTab === "newest" ||
+        activeTab === "trending" ||
+        activeTab === "deep-dives"
+      ) {
+        if (!item || !item.id) return null;
+        return <PostItem post={item} />;
+      } else if (activeTab === "people") {
+        return (
+          <UserCard
+            item={item}
+            onPress={() => router.push(`/user/${item.handle}`)}
+            onFollow={() => handleFollowUser(item)}
+          />
+        );
+      } else if (activeTab === "quoted") {
+        if (!item || !item.id) return null;
+        return <PostItem post={item} />;
+      } else if (activeTab === "newsroom") {
+        if (!item || !item.id) return null;
+        return <PostItem post={item} />;
+      } else {
+        if (!item || !item.id) return null;
+        return (
+          <TopicCard
+            item={item}
+            onPress={() =>
+              router.push(`/topic/${encodeURIComponent(item.slug || item.id)}`)
+            }
+            onFollow={() => handleFollow(item)}
+          />
+        );
+      }
+    },
+    [activeTab, router, handleFollowUser],
+  );
 
-  const keyExtractor = useCallback((item: any, index: number) => `explore-${activeTab}-${String(item?.id ?? item?.slug ?? `i-${index}`)}`, [activeTab]);
+  const keyExtractor = useCallback(
+    (item: any, index: number) =>
+      `explore-${activeTab}-${String(item?.id ?? item?.slug ?? `i-${index}`)}`,
+    [activeTab],
+  );
 
-  const searchKeyExtractor = useCallback((item: SearchListItem) => item.key, []);
+  const searchKeyExtractor = useCallback(
+    (item: SearchListItem) => item.key,
+    [],
+  );
   const searchRenderItem = useCallback(
     ({ item }: { item: SearchListItem }) => {
-      if (item.type === 'section') {
+      if (item.type === "section") {
         return <SectionHeader title={item.title} />;
       }
-      if (item.type === 'post') {
+      if (item.type === "post") {
         return (
           <Pressable onPress={() => navigateToPost(item)}>
             <PostItem post={item} />
           </Pressable>
         );
       }
-      if (item.type === 'user') {
+      if (item.type === "user") {
         return (
           <UserCard
             item={item}
@@ -527,7 +704,7 @@ export default function ExploreScreen() {
           />
         );
       }
-      if (item.type === 'topic') {
+      if (item.type === "topic") {
         return (
           <TopicCard
             item={item}
@@ -538,40 +715,36 @@ export default function ExploreScreen() {
       }
       return null;
     },
-    [navigateToPost, navigateToUser, navigateToTopic, handleFollow, handleFollowUser],
-  );
-
-  const listHeader = (
-    <ExploreListHeader
-      insetsTop={insets.top}
-      searchQuery={searchQuery}
-      setSearchQuery={setSearchQuery}
-      searchLoading={searchLoading}
-      isSearchActive={isSearchActive}
-      searchFilterTab={searchFilterTab}
-      setSearchFilterTab={setSearchFilterTab}
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      inputRef={inputRef}
-      styles={styles}
-      t={t}
-      EXPLORE_TABS={EXPLORE_TABS}
-    />
+    [
+      navigateToPost,
+      navigateToUser,
+      navigateToTopic,
+      handleFollow,
+      handleFollowUser,
+    ],
   );
 
   const showSearchResults = isSearchActive;
   const listData = showSearchResults
     ? searchFlatData
-    : (['trending', 'newest', 'quoted', 'deep-dives', 'newsroom'].includes(activeTab) ? data.filter((item: any) => !!item?.author) : data);
-  const listKeyExtractor = showSearchResults ? searchKeyExtractor : keyExtractor;
+    : ["trending", "newest", "quoted", "deep-dives", "newsroom"].includes(
+          activeTab,
+        )
+      ? data.filter((item: any) => !!item?.author)
+      : data;
+  const listKeyExtractor = showSearchResults
+    ? searchKeyExtractor
+    : keyExtractor;
   const listRenderItem = showSearchResults ? searchRenderItem : renderItem;
 
   const searchListEmpty = useMemo(() => {
     if (searchLoading) {
       return (
-        <View style={styles.searchingRow}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-          <Text style={styles.searchingText}>{t('search.searching', 'Searching…')}</Text>
+        <View style={styles.searchListSkeleton}>
+          <UserCardSkeleton />
+          <UserCardSkeleton />
+          <TopicCardSkeleton />
+          <TopicCardSkeleton />
         </View>
       );
     }
@@ -579,44 +752,84 @@ export default function ExploreScreen() {
       <View style={emptyStateCenterWrapStyle}>
         <EmptyState
           icon="search"
-          headline={searchQuery.trim() ? t('search.noResults', 'No results') : t('search.startTyping', 'Search posts, people, topics')}
-          subtext={searchQuery.trim() ? t('search.noResultsHint', 'Try different keywords.') : undefined}
+          headline={
+            searchQuery.trim()
+              ? t("search.noResults", "No results")
+              : t("search.startTyping", "Search posts, people, topics")
+          }
+          subtext={
+            searchQuery.trim()
+              ? t("search.noResultsHint", "Try different keywords.")
+              : undefined
+          }
         />
       </View>
     );
   }, [searchLoading, searchQuery, t]);
 
-  const exploreListEmpty = useMemo(() => (
-    <View style={emptyStateCenterWrapStyle}>
-      {loading ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>{t('common.loading')}</Text>
-        </View>
-      ) : (
-        <EmptyState
-          icon="explore"
-          headline={t('explore.noContent', 'No content yet')}
-          subtext={t('explore.noContentHint', 'Try another filter or check back later.')}
-        />
-      )}
-    </View>
-  ), [loading, t]);
+  const exploreListEmpty = useMemo(
+    () => (
+      <View style={emptyStateCenterWrapStyle}>
+        {loading ? (
+          <FeedSkeleton count={4} />
+        ) : (
+          <EmptyState
+            icon="explore"
+            headline={t("explore.noContent", "No content yet")}
+            subtext={t(
+              "explore.noContentHint",
+              "Try another filter or check back later.",
+            )}
+          />
+        )}
+      </View>
+    ),
+    [loading, t],
+  );
 
   return (
-    <View style={styles.container} {...(!showSearchResults ? panResponder.panHandlers : {})}>
+    <View style={styles.container}>
+      {/* Fixed header so the search TextInput is never remounted (avoids keyboard dismissing after first keystroke) */}
+      <ExploreListHeader
+        insetsTop={insets.top}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchLoading={searchLoading}
+        isSearchActive={isSearchActive}
+        searchFilterTab={searchFilterTab}
+        setSearchFilterTab={setSearchFilterTab}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        inputRef={inputRef}
+        styles={styles}
+        t={t}
+        EXPLORE_TABS={EXPLORE_TABS}
+      />
       {!showSearchResults && error && data.length === 0 ? (
-        <ErrorState onRetry={() => loadContent(1, true)} onDismiss={() => setError(false)} />
+        <ErrorState
+          onRetry={() => loadContent(1, true)}
+          onDismiss={() => setError(false)}
+        />
       ) : (
         <FlatList
           ref={flatListRef}
+          style={styles.listBelowHeader}
           data={listData}
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={listKeyExtractor as (item: any, index: number) => string}
-          ListHeaderComponent={listHeader}
-          renderItem={listRenderItem as (info: { item: any }) => React.ReactElement | null}
-          ListEmptyComponent={showSearchResults ? searchListEmpty : exploreListEmpty}
-          ListFooterComponent={showSearchResults ? null : <ListFooterLoader visible={!!(hasMore && loadingMore)} />}
+          keyExtractor={
+            listKeyExtractor as (item: any, index: number) => string
+          }
+          ListHeaderComponent={null}
+          renderItem={
+            listRenderItem as (info: { item: any }) => React.ReactElement | null
+          }
+          ListEmptyComponent={
+            showSearchResults ? searchListEmpty : exploreListEmpty
+          }
+          ListFooterComponent={
+            showSearchResults ? null : (
+              <ListFooterLoader visible={!!(hasMore && loadingMore)} />
+            )
+          }
           refreshControl={
             showSearchResults ? undefined : (
               <RefreshControl
@@ -627,14 +840,20 @@ export default function ExploreScreen() {
             )
           }
           onEndReached={showSearchResults ? undefined : handleLoadMore}
-          onEndReachedThreshold={showSearchResults ? undefined : 0.2}
-          onContentSizeChange={showSearchResults ? undefined : handleContentSizeChange}
+          onContentSizeChange={
+            showSearchResults ? undefined : handleContentSizeChange
+          }
           onLayout={showSearchResults ? undefined : handleListLayout}
           contentContainerStyle={[
-            { paddingBottom: 80 },
+            {
+              paddingBottom:
+                TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA,
+            },
             listData.length === 0 && { flexGrow: 1 },
           ]}
           keyboardShouldPersistTaps="always"
+          keyboardDismissMode="none"
+          {...LIST_SCROLL_DEFAULTS}
           {...FLATLIST_DEFAULTS}
           initialNumToRender={12}
           maxToRenderPerBatch={12}
@@ -650,6 +869,9 @@ const styles = createStyles({
     flex: 1,
     backgroundColor: COLORS.ink,
   },
+  listBelowHeader: {
+    flex: 1,
+  },
   headerContainer: {
     backgroundColor: COLORS.ink,
     paddingHorizontal: toDimension(HEADER.barPaddingHorizontal),
@@ -658,22 +880,13 @@ const styles = createStyles({
     paddingVertical: SPACING.m,
   },
   searchBarFullWidth: {
-    width: '100%',
+    width: "100%",
   },
   searchSpinner: {
     marginLeft: SPACING.s,
   },
-  searchingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.m,
-    paddingVertical: SPACING.xl,
-  },
-  searchingText: {
-    fontSize: 15,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
+  searchListSkeleton: {
+    paddingVertical: SPACING.m,
   },
   searchFilterTabs: {
     borderBottomWidth: 1,
@@ -683,7 +896,7 @@ const styles = createStyles({
     paddingHorizontal: SPACING.m,
     paddingVertical: SPACING.s,
     gap: SPACING.m,
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   searchFilterTab: {
     paddingVertical: SPACING.s,
@@ -692,7 +905,7 @@ const styles = createStyles({
     backgroundColor: COLORS.hover,
   },
   searchFilterTabActive: {
-    backgroundColor: COLORS.primary + '33',
+    backgroundColor: COLORS.primary + "33",
   },
   searchFilterTabText: {
     fontSize: 15,
@@ -712,21 +925,23 @@ const styles = createStyles({
     flexShrink: 0,
   },
   tabsContent: {
-    gap: SPACING.xl,
+    gap: SPACING.m,
     paddingRight: SPACING.l,
   },
   tab: {
+    flexShrink: 0,
     paddingVertical: SPACING.m,
-    paddingHorizontal: SPACING.xs,
+    paddingHorizontal: SPACING.s,
     borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
+    borderBottomColor: "transparent",
+    alignItems: "center",
   },
   tabActive: {
     borderBottomColor: COLORS.primary,
   },
   tabText: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.tertiary,
     fontFamily: FONTS.semiBold,
   },
@@ -735,7 +950,7 @@ const styles = createStyles({
   },
   emptyState: {
     padding: SPACING.xxxl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     fontSize: 16,
@@ -744,6 +959,6 @@ const styles = createStyles({
   },
   footerLoader: {
     paddingVertical: SPACING.l,
-    alignItems: 'center',
+    alignItems: "center",
   },
 });

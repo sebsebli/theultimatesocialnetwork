@@ -18,9 +18,11 @@ export interface EmailLayoutOptions {
   helpEmail?: string;
 }
 
-// Citewalk System Palette
+// Citewalk System Palette – match mobile app darkness (email clients often lighten backgrounds, so we use pure black for body)
 const C = {
   INK: '#0B0B0C',
+  /** Body/wrapper background: pure black so the mail is as dark as the mobile app (clients may ignore or lighten #0B0B0C) */
+  BG: '#000000',
   PAPER: '#F2F2F2',
   STEEL: '#6E7A8A',
   MUTED: '#A8A8AA',
@@ -34,12 +36,12 @@ const FONT_SANS = `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', R
 const FONT_MONO = `font-family: 'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, monospace;`;
 
 const STYLES = {
-  // Reset & Base
-  wrapper: `margin:0;padding:0;width:100%;background-color:${C.INK};color:${C.PAPER};-webkit-text-size-adjust:100%;`,
-  outerTable: `width:100%;border-collapse:collapse;background-color:${C.INK};`,
+  // Reset & Base – use C.BG so mail is as dark as mobile app
+  wrapper: `margin:0;padding:0;width:100%;background-color:${C.BG};color:${C.PAPER};-webkit-text-size-adjust:100%;`,
+  outerTable: `width:100%;border-collapse:collapse;background-color:${C.BG};`,
 
   // Container
-  innerCell: `max-width:600px;width:100%;padding:40px 20px;background-color:${C.INK};`,
+  innerCell: `max-width:600px;width:100%;padding:40px 20px;background-color:${C.BG};`,
 
   // Header
   header: `padding:0 0 32px 0;border-bottom:1px solid ${C.SUBTLE};margin-bottom:32px;`,
@@ -47,7 +49,7 @@ const STYLES = {
   systemBadge: `display:inline-block;padding:4px 8px;background:${C.SUBTLE};border:1px solid ${C.BORDER};border-radius:4px;color:${C.STEEL};font-size:10px;text-transform:uppercase;letter-spacing:1px;${FONT_MONO}`,
 
   // Content
-  card: `background-color:${C.INK};padding:0;`, // No card background for brutalist feel, just clean text on ink
+  card: `background-color:${C.BG};padding:0;`, // No card background for brutalist feel, just clean text on dark
   title: `color:${C.PAPER};font-size:24px;font-weight:600;line-height:1.2;margin:0 0 24px 0;letter-spacing:-0.5px;${FONT_SANS}`,
   body: `color:${C.MUTED};font-size:16px;line-height:1.6;margin:0 0 24px 0;${FONT_SANS}`,
 
@@ -63,9 +65,9 @@ const STYLES = {
 };
 
 const RESPONSIVE_STYLES = `
-  body { background-color: ${C.INK} !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
-  .email-wrapper { width: 100% !important; background-color: ${C.INK} !important; }
-  .inner-cell { background-color: ${C.INK} !important; }
+  body { background-color: ${C.BG} !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  .email-wrapper { width: 100% !important; background-color: ${C.BG} !important; }
+  .inner-cell { background-color: ${C.BG} !important; }
   .code-box { font-size: 24px !important; padding: 20px !important; letter-spacing: 4px !important; }
   @media only screen and (max-width: 480px) {
     .inner-cell { padding: 30px 16px !important; }
@@ -144,12 +146,12 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
 
   // Header: Logo + System Badge
   const headerContent = `
-    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:${C.INK};" bgcolor="${C.INK}">
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:${C.BG};" bgcolor="${C.BG}">
       <tr>
-        <td align="left" style="background-color:${C.INK};" bgcolor="${C.INK}">
+        <td align="left" style="background-color:${C.BG};" bgcolor="${C.BG}">
           ${logoUrl ? `<img src="${logoUrl}" width="32" height="32" style="${STYLES.logo}" alt="Citewalk" />` : `<span style="font-weight:bold;color:${C.PAPER};">Citewalk</span>`}
         </td>
-        <td align="right" style="background-color:${C.INK};" bgcolor="${C.INK}">
+        <td align="right" style="background-color:${C.BG};" bgcolor="${C.BG}">
           <span style="${STYLES.systemBadge}">System Msg</span>
         </td>
       </tr>
@@ -162,22 +164,24 @@ export function buildEmailHtml(options: EmailLayoutOptions): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>${escapeHtml(title)}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
-  <style type="text/css">${RESPONSIVE_STYLES}</style>
+  <style type="text/css">:root{color-scheme:dark;}${RESPONSIVE_STYLES}</style>
 </head>
-<body style="${STYLES.wrapper}" bgcolor="${C.INK}">
+<body style="${STYLES.wrapper}" bgcolor="${C.BG}">
   <center>
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper" style="background-color:${C.INK};" bgcolor="${C.INK}">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper" style="background-color:${C.BG};" bgcolor="${C.BG}">
       <tr>
-        <td align="center" valign="top" style="background-color:${C.INK};" bgcolor="${C.INK}">
+        <td align="center" valign="top" style="background-color:${C.BG};" bgcolor="${C.BG}">
           <!-- Main Container -->
-          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background-color:${C.INK};" bgcolor="${C.INK}">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background-color:${C.BG};" bgcolor="${C.BG}">
             <tr>
-              <td class="inner-cell" style="${STYLES.innerCell}" bgcolor="${C.INK}">
+              <td class="inner-cell" style="${STYLES.innerCell}" bgcolor="${C.BG}">
                 
                 <!-- Header -->
                 <div style="${STYLES.header}">

@@ -42,10 +42,14 @@ export class TopicsController {
       }
       let isFollowing = false;
       if (user) {
-        isFollowing = await this.topicFollowsService.isFollowing(
-          user.id,
-          topic.id,
-        );
+        try {
+          isFollowing = await this.topicFollowsService.isFollowing(
+            user.id,
+            topic.id,
+          );
+        } catch {
+          // Don't fail the whole request if follow check fails
+        }
       }
       return { ...topic, isFollowing };
     } catch (err) {
@@ -89,20 +93,26 @@ export class TopicsController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number = 20,
   ) {
-    const topic = await this.topicsService.findOne(slug, user?.id);
-    if (!topic) throw new Error('Topic not found');
+    try {
+      const topic = await this.topicsService.findOne(slug, user?.id);
+      if (!topic) throw new NotFoundException('Topic not found');
 
-    const offset = (page - 1) * limit;
-    const people = await this.topicsService.getTopicPeople(
-      topic.id,
-      limit,
-      offset,
-      user?.id,
-    );
-    return {
-      items: people,
-      hasMore: people.length === limit,
-    };
+      const offset = (page - 1) * limit;
+      const people = await this.topicsService.getTopicPeople(
+        topic.id,
+        limit,
+        offset,
+        user?.id,
+      );
+      return {
+        items: people,
+        hasMore: people.length === limit,
+      };
+    } catch (err) {
+      if (err instanceof NotFoundException) throw err;
+      console.error('topics getPeople error', slug, err);
+      return { items: [], hasMore: false };
+    }
   }
 
   @Get(':slug/sources')
@@ -113,20 +123,26 @@ export class TopicsController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number = 20,
     @CurrentUser() user?: { id: string },
   ) {
-    const topic = await this.topicsService.findOne(slug, user?.id);
-    if (!topic) throw new NotFoundException('Topic not found');
+    try {
+      const topic = await this.topicsService.findOne(slug, user?.id);
+      if (!topic) throw new NotFoundException('Topic not found');
 
-    const offset = (page - 1) * limit;
-    const sources = await this.topicsService.getTopicSources(
-      topic.id,
-      limit,
-      offset,
-      user?.id,
-    );
-    return {
-      items: sources,
-      hasMore: sources.length === limit,
-    };
+      const offset = (page - 1) * limit;
+      const sources = await this.topicsService.getTopicSources(
+        topic.id,
+        limit,
+        offset,
+        user?.id,
+      );
+      return {
+        items: sources,
+        hasMore: sources.length === limit,
+      };
+    } catch (err) {
+      if (err instanceof NotFoundException) throw err;
+      console.error('topics getSources error', slug, err);
+      return { items: [], hasMore: false };
+    }
   }
 
   @Post(':slug/follow')

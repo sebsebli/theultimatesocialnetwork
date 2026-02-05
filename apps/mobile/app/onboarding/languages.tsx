@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
-import { Text, View, Pressable, ScrollView, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@expo/vector-icons';
-import { api, setOnboardingStage } from '../../utils/api';
-import { useToast } from '../../context/ToastContext';
-import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../../constants/theme';
-import { CONTENT_LANGUAGES } from '../../constants/languages';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState } from "react";
+import { Text, View, Pressable, ScrollView, Alert } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { MaterialIcons } from "@expo/vector-icons";
+import { api, setOnboardingStage } from "../../utils/api";
+import { useToast } from "../../context/ToastContext";
+import {
+  COLORS,
+  SPACING,
+  SIZES,
+  FONTS,
+  HEADER,
+  createStyles,
+} from "../../constants/theme";
+import { CONTENT_LANGUAGES } from "../../constants/languages";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { InlineSkeleton } from "../../components/LoadingSkeleton";
 
-import * as Localization from 'expo-localization';
+import * as Localization from "expo-localization";
 
 // ...
 
@@ -19,21 +27,23 @@ export default function OnboardingLanguagesScreen() {
   const { showError, showToast } = useToast();
   const insets = useSafeAreaInsets();
 
-  const deviceLang = Localization.getLocales()[0]?.languageCode || 'en';
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([deviceLang]);
+  const deviceLang = Localization.getLocales()[0]?.languageCode || "en";
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([
+    deviceLang,
+  ]);
   const [onlyMyLanguages, setOnlyMyLanguages] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const toggleLanguage = (code: string) => {
     if (selectedLanguages.includes(code)) {
       if (selectedLanguages.length > 1) {
-        setSelectedLanguages(prev => prev.filter(c => c !== code));
+        setSelectedLanguages((prev) => prev.filter((c) => c !== code));
       }
     } else {
       if (selectedLanguages.length < 3) {
-        setSelectedLanguages(prev => [...prev, code]);
+        setSelectedLanguages((prev) => [...prev, code]);
       } else {
-        showToast('You can select up to 3 languages');
+        showToast("You can select up to 3 languages");
       }
     }
   };
@@ -41,14 +51,14 @@ export default function OnboardingLanguagesScreen() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      await api.patch('/users/me', {
+      await api.patch("/users/me", {
         languages: selectedLanguages,
       });
-      await setOnboardingStage('profile');
-      router.push('/onboarding/profile');
+      await setOnboardingStage("profile");
+      router.push("/onboarding/profile");
     } catch (error: any) {
-      console.error('Failed to update languages', error);
-      showError(t('onboarding.updateFailed'));
+      console.error("Failed to update languages", error);
+      showError(t("onboarding.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -64,9 +74,17 @@ export default function OnboardingLanguagesScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
-        <Text style={styles.title}>{t('onboarding.languages.languagesTitle')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.languages.languagesSubtitle')}</Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+      >
+        <Text style={styles.title}>
+          {t("onboarding.languages.languagesTitle")}
+        </Text>
+        <Text style={styles.subtitle}>
+          {t("onboarding.languages.languagesSubtitle")}
+        </Text>
 
         <View style={styles.grid}>
           {CONTENT_LANGUAGES.map((lang) => {
@@ -77,10 +95,20 @@ export default function OnboardingLanguagesScreen() {
                 style={[styles.langCard, isSelected && styles.langCardSelected]}
                 onPress={() => toggleLanguage(lang.code)}
               >
-                <Text style={[styles.langName, isSelected && styles.langNameSelected]}>
+                <Text
+                  style={[
+                    styles.langName,
+                    isSelected && styles.langNameSelected,
+                  ]}
+                >
                   {lang.name}
                 </Text>
-                <Text style={[styles.langNative, isSelected && styles.langNativeSelected]}>
+                <Text
+                  style={[
+                    styles.langNative,
+                    isSelected && styles.langNativeSelected,
+                  ]}
+                >
                   {lang.native}
                 </Text>
                 {isSelected && (
@@ -98,25 +126,42 @@ export default function OnboardingLanguagesScreen() {
           onPress={() => setOnlyMyLanguages(!onlyMyLanguages)}
         >
           <View style={styles.toggleText}>
-            <Text style={styles.toggleLabel}>{t('onboarding.languages.filterExplore')}</Text>
-            <Text style={styles.toggleDesc}>{t('onboarding.languages.filterExploreDesc')}</Text>
+            <Text style={styles.toggleLabel}>
+              {t("onboarding.languages.filterExplore")}
+            </Text>
+            <Text style={styles.toggleDesc}>
+              {t("onboarding.languages.filterExploreDesc")}
+            </Text>
           </View>
           <View style={[styles.switch, onlyMyLanguages && styles.switchActive]}>
-            <View style={[styles.thumb, onlyMyLanguages && styles.thumbActive]} />
+            <View
+              style={[styles.thumb, onlyMyLanguages && styles.thumbActive]}
+            />
           </View>
         </Pressable>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.l }]}>
+      <View
+        style={[styles.footer, { paddingBottom: insets.bottom + SPACING.l }]}
+      >
         <Pressable
-          style={[styles.button, (loading || selectedLanguages.length < 1) && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            (loading || selectedLanguages.length < 1) && styles.buttonDisabled,
+          ]}
           onPress={handleSubmit}
           disabled={loading || selectedLanguages.length < 1}
         >
-          <Text style={styles.buttonText}>
-            {loading ? t('common.loading') : t('common.continue')}
-          </Text>
-          <MaterialIcons name="arrow-forward" size={HEADER.iconSize} color="#FFF" />
+          {loading ? (
+            <InlineSkeleton />
+          ) : (
+            <Text style={styles.buttonText}>{t("common.continue")}</Text>
+          )}
+          <MaterialIcons
+            name="arrow-forward"
+            size={HEADER.iconSize}
+            color="#FFF"
+          />
         </Pressable>
       </View>
     </View>
@@ -131,13 +176,13 @@ const styles = createStyles({
   header: {
     paddingHorizontal: SPACING.l,
     paddingBottom: SPACING.l,
-    alignItems: 'center',
-    position: 'relative',
+    alignItems: "center",
+    position: "relative",
     height: 44,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   stepIndicator: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   stepDot: {
@@ -156,43 +201,43 @@ const styles = createStyles({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginBottom: SPACING.s,
-    textAlign: 'center',
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SPACING.xxl,
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: SPACING.m,
-    justifyContent: 'center',
+    justifyContent: "center",
     marginBottom: SPACING.xl,
   },
   langCard: {
-    width: '47%',
+    width: "47%",
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
     padding: SPACING.l,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    alignItems: 'center',
-    position: 'relative',
+    alignItems: "center",
+    position: "relative",
   },
   langCardSelected: {
-    backgroundColor: 'rgba(110, 122, 138, 0.1)',
+    backgroundColor: "rgba(110, 122, 138, 0.1)",
     borderColor: COLORS.primary,
   },
   langName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     marginBottom: 4,
     fontFamily: FONTS.semiBold,
@@ -209,20 +254,20 @@ const styles = createStyles({
     color: COLORS.tertiary,
   },
   checkBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 8,
     right: 8,
     width: 20,
     height: 20,
     borderRadius: 10,
     backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: COLORS.hover,
     padding: SPACING.l,
     borderRadius: SIZES.borderRadius,
@@ -235,7 +280,7 @@ const styles = createStyles({
   },
   toggleLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     marginBottom: 4,
@@ -260,13 +305,13 @@ const styles = createStyles({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: "#FFF",
   },
   thumbActive: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
   },
   footer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
@@ -277,9 +322,9 @@ const styles = createStyles({
     paddingTop: SPACING.l,
   },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.s,
     backgroundColor: COLORS.primary,
     height: 56,
@@ -290,8 +335,8 @@ const styles = createStyles({
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
+    fontWeight: "600",
+    color: "#FFF",
     fontFamily: FONTS.semiBold,
   },
 });

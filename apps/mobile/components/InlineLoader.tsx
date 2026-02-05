@@ -1,33 +1,34 @@
-import React, { memo } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { COLORS, createStyles, toColor } from '../constants/theme';
+import React, { memo } from "react";
+import { View } from "react-native";
+import { createStyles } from "../constants/theme";
+import { InlineSkeleton } from "./LoadingSkeleton";
 
 export interface InlineLoaderProps {
   /** Optional size: 'small' | 'large'. Default small. */
-  size?: 'small' | 'large';
-  /** Optional color override. Default COLORS.primary. */
+  size?: "small" | "large";
+  /** Optional color override. Unused; kept for API compatibility. */
   color?: string;
   /** Optional style for the wrapper View. */
   style?: object;
 }
 
-function InlineLoaderInner({ size = 'small', color, style }: InlineLoaderProps) {
-  const resolvedColor = color ?? toColor(COLORS.primary);
+function InlineLoaderInner({ style }: InlineLoaderProps) {
   return (
     <View style={[styles.wrapper, style]}>
-      <ActivityIndicator size={size} color={resolvedColor} />
+      <InlineSkeleton />
     </View>
   );
 }
 
-export const InlineLoader = memo(InlineLoaderInner as React.FunctionComponent<InlineLoaderProps>) as (
-  props: InlineLoaderProps
-) => React.ReactElement | null;
+export const InlineLoader = memo(
+  InlineLoaderInner as React.FunctionComponent<InlineLoaderProps>,
+) as (props: InlineLoaderProps) => React.ReactElement | null;
 
 const styles = createStyles({
   wrapper: {
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

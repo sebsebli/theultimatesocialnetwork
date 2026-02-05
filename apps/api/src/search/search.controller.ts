@@ -63,18 +63,21 @@ export class SearchController {
     const ids = hits.map((h) => h.id).filter(Boolean) as string[];
     const posts = await this.postRepo.find({
       where: { id: In(ids) },
-      relations: ['author'],
-      select: {
-        id: true,
-        headerImageKey: true,
-        authorId: true,
-        author: { id: true, isProtected: true },
-      },
+      select: ['id', 'headerImageKey', 'authorId'],
     });
     const byId = new Map(posts.map((p) => [p.id, p]));
     const authorIds = [
       ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
-    ];
+    ] as string[];
+    // Fetch isProtected from DB (do not rely on relation select – it can be undefined and wrongly treat protected as public)
+    const authorProtected = new Map<string, boolean>();
+    if (authorIds.length > 0) {
+      const users = await this.userRepo.find({
+        where: { id: In(authorIds) },
+        select: ['id', 'isProtected'],
+      });
+      for (const u of users) authorProtected.set(u.id, u.isProtected);
+    }
     let followingSet = new Set<string>();
     if (_user?.id && authorIds.length > 0) {
       const follows = await this.followRepo.find({
@@ -84,15 +87,15 @@ export class SearchController {
       followingSet = new Set(follows.map((f) => f.followeeId));
     }
     const viewerId = _user?.id ?? null;
-    // Visibility is from the author's profile: public profile → all posts visible; protected profile → only followers (and self)
+    // Visibility: public profile → all see; protected → only followers (and self)
     const visiblePostIds = new Set(
       posts
         .filter((p) => {
-          const author = p.author;
-          if (!author) return false;
+          if (!p.authorId) return false;
           if (viewerId && p.authorId === viewerId) return true;
-          if (author.isProtected)
-            return viewerId != null && followingSet.has(author.id);
+          const protectedAuthor = authorProtected.get(p.authorId) === true;
+          if (protectedAuthor)
+            return viewerId != null && followingSet.has(p.authorId);
           return true;
         })
         .map((p) => p.id),
@@ -218,7 +221,7 @@ export class SearchController {
               });
           })();
 
-    // Hydrate posts (visibility, headerImageUrl) – same logic as searchPosts
+    // Hydrate posts (visibility, headerImageUrl) – same logic as searchPosts; fetch isProtected from DB, do not rely on relation
     const posts = (result.posts || []) as { id?: string }[];
     const hydratedPosts =
       posts.length === 0
@@ -227,18 +230,20 @@ export class SearchController {
             const ids = posts.map((h) => h.id).filter(Boolean) as string[];
             const fromDb = await this.postRepo.find({
               where: { id: In(ids) },
-              relations: ['author'],
-              select: {
-                id: true,
-                headerImageKey: true,
-                authorId: true,
-                author: { id: true, isProtected: true },
-              },
+              select: ['id', 'headerImageKey', 'authorId'],
             });
             const byId = new Map(fromDb.map((p) => [p.id, p]));
             const authorIds = [
               ...new Set(fromDb.map((p) => p.authorId).filter(Boolean)),
-            ];
+            ] as string[];
+            const authorProtected = new Map<string, boolean>();
+            if (authorIds.length > 0) {
+              const users = await this.userRepo.find({
+                where: { id: In(authorIds) },
+                select: ['id', 'isProtected'],
+              });
+              for (const u of users) authorProtected.set(u.id, u.isProtected);
+            }
             let followingSet = new Set<string>();
             if (_user?.id && authorIds.length > 0) {
               const follows = await this.followRepo.find({
@@ -251,15 +256,15 @@ export class SearchController {
               followingSet = new Set(follows.map((f) => f.followeeId));
             }
             const viewerId = _user?.id ?? null;
-            // Visibility from author profile only: public → visible to all; protected → only followers (and self)
             const visiblePostIds = new Set(
               fromDb
                 .filter((p) => {
-                  const author = p.author;
-                  if (!author) return false;
+                  if (!p.authorId) return false;
                   if (viewerId && p.authorId === viewerId) return true;
-                  if (author.isProtected)
-                    return viewerId != null && followingSet.has(author.id);
+                  const protectedAuthor =
+                    authorProtected.get(p.authorId) === true;
+                  if (protectedAuthor)
+                    return viewerId != null && followingSet.has(p.authorId);
                   return true;
                 })
                 .map((p) => p.id),
@@ -345,15 +350,22 @@ export class SearchController {
                 ? stripped
                 : stripped.slice(0, maxLen) + '…';
             }
+            const getImageUrl = (key: string) =>
+              this.uploadService.getImageUrl(key);
             return topics.map((h) => {
               const postId = topicToPostId.get(h.id!);
               const post = postId ? postMap.get(postId) : undefined;
+              const headerImageKey = post?.headerImageKey ?? null;
               const recentPost = post
                 ? {
                     id: post.id,
                     title: post.title ?? null,
                     bodyExcerpt: bodyExcerpt(post.body),
-                    headerImageKey: post.headerImageKey ?? null,
+                    headerImageKey,
+                    headerImageUrl:
+                      headerImageKey != null && headerImageKey !== ''
+                        ? getImageUrl(headerImageKey)
+                        : null,
                     author: post.author
                       ? {
                           handle: post.author.handle,
@@ -370,6 +382,11 @@ export class SearchController {
                   (h as { title?: string }).title ??
                   (h as { slug?: string }).slug,
                 recentPostImageKey: recentPost?.headerImageKey ?? null,
+                recentPostImageUrl:
+                  recentPost?.headerImageKey != null &&
+                  recentPost.headerImageKey !== ''
+                    ? getImageUrl(recentPost.headerImageKey)
+                    : null,
                 recentPost,
               };
             });
@@ -447,15 +464,21 @@ export class SearchController {
         ? stripped
         : stripped.slice(0, maxLen) + '…';
     }
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
     const hydrated = hits.map((h) => {
       const postId = topicToPostId.get(h.id!);
       const post = postId ? postMap.get(postId) : undefined;
+      const headerImageKey = post?.headerImageKey ?? null;
       const recentPost = post
         ? {
             id: post.id,
             title: post.title ?? null,
             bodyExcerpt: bodyExcerpt(post.body),
-            headerImageKey: post.headerImageKey ?? null,
+            headerImageKey,
+            headerImageUrl:
+              headerImageKey != null && headerImageKey !== ''
+                ? getImageUrl(headerImageKey)
+                : null,
             author: post.author
               ? {
                   handle: post.author.handle,
@@ -468,6 +491,10 @@ export class SearchController {
       return {
         ...h,
         recentPostImageKey: recentPost?.headerImageKey ?? null,
+        recentPostImageUrl:
+          recentPost?.headerImageKey != null && recentPost.headerImageKey !== ''
+            ? getImageUrl(recentPost.headerImageKey)
+            : null,
         recentPost,
       };
     });

@@ -1,27 +1,54 @@
-import { Text, View, FlatList, Pressable, RefreshControl, ActivityIndicator, LayoutAnimation, UIManager, Platform, AppState } from 'react-native';
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { COLORS, FONTS, SIZES, SPACING, HEADER, LAYOUT, toDimension, createStyles, FLATLIST_DEFAULTS } from '../../constants/theme';
-import { ListFooterLoader } from '../../components/ListFooterLoader';
-import { MaterialIcons } from '@expo/vector-icons';
-import { PostItem } from '../../components/PostItem';
-import { useRouter } from 'expo-router';
-import { api } from '../../utils/api';
-import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/auth';
-import { useToast } from '../../context/ToastContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ErrorState } from '../../components/ErrorState';
-import { CenteredEmptyState } from '../../components/EmptyState';
-import { Avatar } from '../../components/Avatar';
-import { useSocket } from '../../context/SocketContext';
-import { UserCard } from '../../components/UserCard';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { HeaderIconButton } from '../../components/HeaderIconButton';
-import { useTabPress } from '../../context/TabPressContext';
-import type { Post } from '../../types';
+import {
+  Text,
+  View,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  LayoutAnimation,
+  UIManager,
+  Platform,
+  AppState,
+} from "react-native";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import {
+  COLORS,
+  FONTS,
+  SIZES,
+  SPACING,
+  HEADER,
+  LAYOUT,
+  toDimension,
+  createStyles,
+  FLATLIST_DEFAULTS,
+  LIST_SCROLL_DEFAULTS,
+  TAB_BAR_HEIGHT,
+  LIST_PADDING_EXTRA,
+} from "../../constants/theme";
+import { ListFooterLoader } from "../../components/ListFooterLoader";
+import { FeedSkeleton } from "../../components/LoadingSkeleton";
+import { MaterialIcons } from "@expo/vector-icons";
+import { PostItem } from "../../components/PostItem";
+import { useRouter } from "expo-router";
+import { api } from "../../utils/api";
+import { useTranslation } from "react-i18next";
+import { useAuth } from "../../context/auth";
+import { useToast } from "../../context/ToastContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ErrorState } from "../../components/ErrorState";
+import { CenteredEmptyState } from "../../components/EmptyState";
+import { Avatar } from "../../components/Avatar";
+import { useSocket } from "../../context/SocketContext";
+import { UserCard } from "../../components/UserCard";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import { HeaderIconButton } from "../../components/HeaderIconButton";
+import { useTabPress } from "../../context/TabPressContext";
+import type { Post } from "../../types";
 
 // Enable LayoutAnimation for Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -64,10 +91,10 @@ export default function HomeScreen() {
       setLoading(false);
     }
     // ... rest of useEffect
-    const subscription = AppState.addEventListener('change', nextAppState => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (
         appState.current.match(/inactive|background/) &&
-        nextAppState === 'active'
+        nextAppState === "active"
       ) {
         if (isAuthenticated) loadFeed(1, true);
       }
@@ -78,14 +105,25 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!loading && posts.length === 0) {
-      api.get('/users/suggested?limit=5').then(res => setSuggestions((Array.isArray(res) ? res : []).filter((u: any) => !u.handle?.startsWith?.('__pending_')))).catch(() => { });
+      api
+        .get("/users/suggested?limit=5")
+        .then((res) =>
+          setSuggestions(
+            (Array.isArray(res) ? res : []).filter(
+              (u: any) => !u.handle?.startsWith?.("__pending_"),
+            ),
+          ),
+        )
+        .catch(() => {});
     }
   }, [loading, posts.length]);
 
   const handleFollowSuggestion = useCallback(async (item: any) => {
     const prev = item.isFollowing;
     setSuggestions((prevList) =>
-      prevList.map((u: any) => (u.id === item.id ? { ...u, isFollowing: !prev } : u))
+      prevList.map((u: any) =>
+        u.id === item.id ? { ...u, isFollowing: !prev } : u,
+      ),
     );
     try {
       if (prev) {
@@ -95,7 +133,9 @@ export default function HomeScreen() {
       }
     } catch {
       setSuggestions((prevList) =>
-        prevList.map((u: any) => (u.id === item.id ? { ...u, isFollowing: prev } : u))
+        prevList.map((u: any) =>
+          u.id === item.id ? { ...u, isFollowing: prev } : u,
+        ),
       );
     }
   }, []);
@@ -114,25 +154,27 @@ export default function HomeScreen() {
       const limit = 40;
       const offset = reset ? 0 : (pageNum - 1) * limit;
       const useCursor = !reset && cursor;
-      const q = `limit=${limit}&offset=${offset}${useCursor ? `&cursor=${encodeURIComponent(cursor!)}` : ''}`;
+      const q = `limit=${limit}&offset=${offset}${useCursor ? `&cursor=${encodeURIComponent(cursor!)}` : ""}`;
       const data = await api.get(`/feed?${q}`);
 
       // Validate payload shape
       if (!data || (!Array.isArray(data) && !Array.isArray(data.items))) {
-        throw new Error('Invalid feed payload');
+        throw new Error("Invalid feed payload");
       }
 
       // Handle feed items...
-      const feedItems = Array.isArray(data.items || data) ? (data.items || data) : [];
+      const feedItems = Array.isArray(data.items || data)
+        ? data.items || data
+        : [];
       const processedPosts = feedItems.map((item: any) => {
-        if (item.type === 'saved_by') {
+        if (item.type === "saved_by") {
           const post = item.data.post || item.data;
           return {
             ...post,
             author: post.author || {
-              id: post.authorId || '',
-              handle: t('post.unknownUser', 'Unknown'),
-              displayName: t('post.unknownUser', 'Unknown')
+              id: post.authorId || "",
+              handle: t("post.unknownUser", "Unknown"),
+              displayName: t("post.unknownUser", "Unknown"),
             },
             isLiked: post.isLiked,
             isKept: post.isKept ?? true,
@@ -144,9 +186,9 @@ export default function HomeScreen() {
         return {
           ...post,
           author: post.author || {
-            id: post.authorId || '',
-            handle: t('post.unknownUser', 'Unknown'),
-            displayName: t('post.unknownUser', 'Unknown')
+            id: post.authorId || "",
+            handle: t("post.unknownUser", "Unknown"),
+            displayName: t("post.unknownUser", "Unknown"),
           },
           isLiked: post.isLiked,
           isKept: post.isKept,
@@ -159,13 +201,14 @@ export default function HomeScreen() {
         setPosts(processedPosts);
         setCursor(data.nextCursor ?? undefined);
       } else {
-        setPosts(prev => [...prev, ...processedPosts]);
+        setPosts((prev) => [...prev, ...processedPosts]);
         if (data.nextCursor) setCursor(data.nextCursor);
       }
       if (data.nextCursor) {
         setHasMore(true);
       } else {
-        const hasMoreData = processedPosts.length === limit && (data.hasMore !== false);
+        const hasMoreData =
+          processedPosts.length === limit && data.hasMore !== false;
         setHasMore(hasMoreData);
       }
     } catch (error: any) {
@@ -186,15 +229,20 @@ export default function HomeScreen() {
         return;
       }
 
-      console.error('[Feed] Load failed', {
+      console.error("[Feed] Load failed", {
         status: error?.status,
         message: error?.message,
         duration,
-        user: isAuthenticated ? 'auth' : 'guest',
+        user: isAuthenticated ? "auth" : "guest",
       });
       setError(true);
       if (posts.length === 0 && !loading) {
-        showError(t('feed.loadError', 'Failed to load feed. Please check your connection.'));
+        showError(
+          t(
+            "feed.loadError",
+            "Failed to load feed. Please check your connection.",
+          ),
+        );
       }
     } finally {
       setLoading(false);
@@ -216,62 +264,112 @@ export default function HomeScreen() {
     loadFeed(1, true);
   }, []);
 
+  const renderItem = useCallback(
+    ({ item }: { item: Post }) => {
+      if (item._isSavedBy && item._savedBy) {
+        const collectionId = (item._savedBy as { collectionId?: string })
+          .collectionId;
+        const goToCollection = () => {
+          if (collectionId) router.push(`/collections/${collectionId}`);
+          else router.push("/collections");
+        };
+        return (
+          <View style={styles.savedByItem}>
+            <Pressable
+              style={styles.savedByHeader}
+              onPress={goToCollection}
+              accessibilityRole="button"
+              accessibilityLabel={
+                t("home.savedByPrefix") +
+                " " +
+                (item._savedBy.userName ?? "") +
+                " " +
+                t("home.savedBySuffix") +
+                " " +
+                (item._savedBy.collectionName ?? "") +
+                " — " +
+                t("collections.open", "Open collection")
+              }
+            >
+              <MaterialIcons
+                name="bookmark"
+                size={HEADER.iconSize}
+                color={COLORS.tertiary}
+              />
+              <Text style={styles.savedByText}>
+                {t("home.savedByPrefix")}{" "}
+                <Text style={styles.savedByHighlight}>
+                  {item._savedBy.userName}
+                </Text>{" "}
+                {t("home.savedBySuffix")}{" "}
+                <Text style={styles.savedByCollectionLink}>
+                  {item._savedBy.collectionName}
+                </Text>
+              </Text>
+              <MaterialIcons
+                name="chevron-right"
+                size={HEADER.iconSize}
+                color={COLORS.tertiary}
+              />
+            </Pressable>
+            <PostItem post={item} />
+          </View>
+        );
+      }
+      return <PostItem post={item} />;
+    },
+    [t, router],
+  );
 
-  const renderItem = useCallback(({ item }: { item: Post }) => {
-    if (item._isSavedBy && item._savedBy) {
-      const collectionId = (item._savedBy as { collectionId?: string }).collectionId;
-      const goToCollection = () => {
-        if (collectionId) router.push(`/collections/${collectionId}`);
-        else router.push('/collections');
-      };
-      return (
-        <View style={styles.savedByItem}>
-          <Pressable style={styles.savedByHeader} onPress={goToCollection} accessibilityRole="button" accessibilityLabel={t('home.savedByPrefix') + ' ' + (item._savedBy.userName ?? '') + ' ' + t('home.savedBySuffix') + ' ' + (item._savedBy.collectionName ?? '') + ' — ' + t('collections.open', 'Open collection')}>
-            <MaterialIcons name="bookmark" size={HEADER.iconSize} color={COLORS.tertiary} />
-            <Text style={styles.savedByText}>
-              {t('home.savedByPrefix')} <Text style={styles.savedByHighlight}>{item._savedBy.userName}</Text> {t('home.savedBySuffix')}{' '}
-              <Text style={styles.savedByCollectionLink}>{item._savedBy.collectionName}</Text>
-            </Text>
-            <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
-          </Pressable>
-          <PostItem post={item} />
-        </View>
-      );
-    }
-    return <PostItem post={item} />;
-  }, [t, router]);
-
-  const keyExtractor = useCallback((item: Post) => item.id || `saved-${item._savedBy?.userId}-${item.id}`, []);
+  const keyExtractor = useCallback(
+    (item: Post) => item.id || `saved-${item._savedBy?.userId}-${item.id}`,
+    [],
+  );
 
   // Updated Empty State Components
   const InviteNudge = () => (
     <Pressable
       style={styles.inviteNudgeContainer}
-      onPress={() => router.push('/invites')}
+      onPress={() => router.push("/invites")}
     >
       <View style={styles.inviteIconCircle}>
-        <MaterialIcons name="person-add" size={HEADER.iconSize} color={COLORS.primary} />
+        <MaterialIcons
+          name="person-add"
+          size={HEADER.iconSize}
+          color={COLORS.primary}
+        />
       </View>
       <View style={styles.inviteTextContainer}>
-        <Text style={styles.inviteTitle}>{t('home.inviteFriends', 'Invite Friends')}</Text>
-        <Text style={styles.inviteDesc}>{t('home.inviteDesc', 'Build your network. Citewalk is better with friends.')}</Text>
+        <Text style={styles.inviteTitle}>
+          {t("home.inviteFriends", "Invite Friends")}
+        </Text>
+        <Text style={styles.inviteDesc}>
+          {t(
+            "home.inviteDesc",
+            "Build your network. Citewalk is better with friends.",
+          )}
+        </Text>
       </View>
-      <MaterialIcons name="chevron-right" size={HEADER.iconSize} color={COLORS.tertiary} />
+      <MaterialIcons
+        name="chevron-right"
+        size={HEADER.iconSize}
+        color={COLORS.tertiary}
+      />
     </Pressable>
   );
 
   return (
     <View style={[styles.container, { paddingBottom: 56 + insets.bottom }]}>
       <ScreenHeader
-        title={t('home.title', 'Home')}
+        title={t("home.title", "Home")}
         showBack={false}
         paddingTop={insets.top}
         right={
           <View style={styles.notificationButtonWrap}>
             <HeaderIconButton
-              onPress={() => router.push('/notifications')}
+              onPress={() => router.push("/notifications")}
               icon="notifications-none"
-              accessibilityLabel={t('home.notifications')}
+              accessibilityLabel={t("home.notifications")}
             />
             {unreadNotifications > 0 && <View style={styles.badge} />}
           </View>
@@ -284,45 +382,61 @@ export default function HomeScreen() {
         <FlatList
           ref={flatListRef}
           data={posts.filter((p: Post) => !!p?.author)}
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
           keyExtractor={keyExtractor}
           contentContainerStyle={[
-            { paddingBottom: 80 },
-            posts.filter((p: Post) => !!p?.author).length === 0 && { flexGrow: 1 },
+            {
+              paddingBottom:
+                TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA,
+            },
+            posts.filter((p: Post) => !!p?.author).length === 0 && {
+              flexGrow: 1,
+            },
           ]}
           renderItem={({ item }: { item: Post }) => renderItem({ item })}
           ListEmptyComponent={
-            <CenteredEmptyState
-              icon="home"
-              headline={t('home.emptyHeadline', 'Your timeline is quiet.')}
-              subtext={t('home.emptySubtext', 'Follow people and topics to see posts here.')}
-              secondaryLabel={t('home.exploreTopics', 'Explore Topics')}
-              onSecondary={() => router.push('/(tabs)/explore?tab=topics')}
-              compact
-            >
-              {!loading && (
-                <View style={styles.emptyActions}>
-                  <InviteNudge />
-                  {suggestions.length > 0 && (
-                    <View style={styles.suggestionsBlock}>
-                      <Text style={styles.suggestionsHeader}>{t('home.suggestedPeople', 'People to follow')}</Text>
-                      {suggestions.map((item: any) => (
-                        <View key={item.id} style={styles.suggestionRow}>
-                          <UserCard
-                            item={item}
-                            onPress={() => router.push(`/user/${item.handle}`)}
-                            onFollow={() => handleFollowSuggestion(item)}
-                          />
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )}
-            </CenteredEmptyState>
+            loading && posts.length === 0 ? (
+              <FeedSkeleton count={4} />
+            ) : (
+              <CenteredEmptyState
+                icon="home"
+                headline={t("home.emptyHeadline", "Your timeline is quiet.")}
+                subtext={t(
+                  "home.emptySubtext",
+                  "Follow people and topics to see posts here.",
+                )}
+                secondaryLabel={t("home.exploreTopics", "Explore Topics")}
+                onSecondary={() => router.push("/(tabs)/explore?tab=topics")}
+                compact
+              >
+                {!loading && (
+                  <View style={styles.emptyActions}>
+                    <InviteNudge />
+                    {suggestions.length > 0 && (
+                      <View style={styles.suggestionsBlock}>
+                        <Text style={styles.suggestionsHeader}>
+                          {t("home.suggestedPeople", "People to follow")}
+                        </Text>
+                        {suggestions.map((item: any) => (
+                          <View key={item.id} style={styles.suggestionRow}>
+                            <UserCard
+                              item={item}
+                              onPress={() =>
+                                router.push(`/user/${item.handle}`)
+                              }
+                              onFollow={() => handleFollowSuggestion(item)}
+                            />
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                )}
+              </CenteredEmptyState>
+            )
           }
-          ListFooterComponent={<ListFooterLoader visible={!!(hasMore && loadingMore)} />}
+          ListFooterComponent={
+            <ListFooterLoader visible={!!(hasMore && loadingMore)} />
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -331,7 +445,7 @@ export default function HomeScreen() {
             />
           }
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
+          {...LIST_SCROLL_DEFAULTS}
           {...FLATLIST_DEFAULTS}
         />
       )}
@@ -346,10 +460,10 @@ const styles = createStyles({
     paddingBottom: 0,
   },
   notificationButtonWrap: {
-    position: 'relative',
+    position: "relative",
   },
   badge: {
-    position: 'absolute',
+    position: "absolute",
     top: 2,
     right: 2,
     width: 8,
@@ -362,15 +476,15 @@ const styles = createStyles({
     borderBottomColor: COLORS.divider,
   },
   savedByHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingTop: SPACING.m,
     gap: 6,
   },
   savedByCollectionLink: {
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
-    textDecorationLine: 'underline',
+    textDecorationLine: "underline",
   },
   savedByText: {
     fontSize: 13,
@@ -382,37 +496,37 @@ const styles = createStyles({
   },
   emptyState: {
     paddingVertical: SPACING.l,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: SPACING.m,
   },
   emptyHeadline: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.paper,
     marginBottom: SPACING.s,
     fontFamily: FONTS.semiBold,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptySubtext: {
     fontSize: 15,
     color: COLORS.secondary,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SPACING.l,
     fontFamily: FONTS.regular,
     lineHeight: 22,
   },
   emptyActions: {
-    width: '100%',
+    width: "100%",
     gap: SPACING.m,
-    alignItems: 'center',
+    alignItems: "center",
   },
   suggestionsBlock: {
-    width: '100%',
+    width: "100%",
     marginBottom: SPACING.s,
   },
   suggestionsHeader: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     marginBottom: SPACING.xs,
     fontFamily: FONTS.semiBold,
@@ -421,20 +535,20 @@ const styles = createStyles({
     marginBottom: SPACING.xs,
   },
   inviteNudgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.primary,
     padding: SPACING.l,
     borderRadius: SIZES.borderRadius,
-    width: '100%',
+    width: "100%",
   },
   inviteIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: COLORS.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: SPACING.m,
   },
   inviteTextContainer: {
@@ -442,7 +556,7 @@ const styles = createStyles({
   },
   inviteTitle: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.ink,
     marginBottom: 2,
     fontFamily: FONTS.semiBold,
@@ -459,12 +573,12 @@ const styles = createStyles({
   },
   secondaryButtonText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
   footerLoader: {
     paddingVertical: SPACING.l,
-    alignItems: 'center',
+    alignItems: "center",
   },
 });

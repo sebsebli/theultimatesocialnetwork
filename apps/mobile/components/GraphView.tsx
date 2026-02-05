@@ -1,14 +1,15 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, Pressable, ActivityIndicator, LayoutChangeEvent } from 'react-native';
-import Svg, { Line, Circle, G, Text as SvgText } from 'react-native-svg';
-import { useRouter } from 'expo-router';
-import { api } from '../utils/api';
-import { COLORS, FONTS, SPACING, SIZES } from '../constants/theme';
-import { MaterialIcons } from '@expo/vector-icons';
+import React, { useEffect, useState, useMemo } from "react";
+import { View, Text, Pressable, LayoutChangeEvent } from "react-native";
+import Svg, { Line, Circle, G, Text as SvgText } from "react-native-svg";
+import { useRouter } from "expo-router";
+import { api } from "../utils/api";
+import { COLORS, FONTS, SPACING, SIZES } from "../constants/theme";
+import { InlineSkeleton } from "./LoadingSkeleton";
+import { MaterialIcons } from "@expo/vector-icons";
 
 interface GraphNode {
   id: string;
-  type: 'post' | 'topic' | 'user' | 'external';
+  type: "post" | "topic" | "user" | "external";
   label: string;
   image?: string | null;
   author?: string;
@@ -40,7 +41,8 @@ export function GraphView({ postId }: { postId: string }) {
   useEffect(() => {
     if (!postId) return;
     setLoading(true);
-    api.get(`/posts/${postId}/graph`)
+    api
+      .get(`/posts/${postId}/graph`)
       .then((res) => {
         setData(res);
       })
@@ -60,7 +62,7 @@ export function GraphView({ postId }: { postId: string }) {
     const R2 = 40; // Offset for L2
 
     const nodesMap = new Map<string, GraphNode>();
-    data.nodes.forEach(n => nodesMap.set(n.id, { ...n }));
+    data.nodes.forEach((n) => nodesMap.set(n.id, { ...n }));
 
     const centerNode = nodesMap.get(data.centerId);
     if (centerNode) {
@@ -73,19 +75,25 @@ export function GraphView({ postId }: { postId: string }) {
     const l1OutgoingIds = new Set<string>();
     const l2Nodes = new Set<string>();
 
-    data.edges.forEach(e => {
+    data.edges.forEach((e) => {
       if (e.target === data.centerId) l1IncomingIds.add(e.source);
       else if (e.source === data.centerId) l1OutgoingIds.add(e.target);
       else {
-        // L2 edge: source or target must be L1. 
+        // L2 edge: source or target must be L1.
         // If source is L1, target is L2.
-        if (l1OutgoingIds.has(e.source) || l1IncomingIds.has(e.source)) l2Nodes.add(e.target);
+        if (l1OutgoingIds.has(e.source) || l1IncomingIds.has(e.source))
+          l2Nodes.add(e.target);
         // If target is L1, source is L2 (incoming to neighbor)
-        if (l1OutgoingIds.has(e.target) || l1IncomingIds.has(e.target)) l2Nodes.add(e.source);
+        if (l1OutgoingIds.has(e.target) || l1IncomingIds.has(e.target))
+          l2Nodes.add(e.source);
       }
     });
 
-    const placeNodesOnArc = (ids: string[], startAngle: number, endAngle: number) => {
+    const placeNodesOnArc = (
+      ids: string[],
+      startAngle: number,
+      endAngle: number,
+    ) => {
       const count = ids.length;
       if (count === 0) return;
       const step = (endAngle - startAngle) / (count + 1);
@@ -107,9 +115,14 @@ export function GraphView({ postId }: { postId: string }) {
     // Place L2 nodes relative to their parents
     // Simple heuristic: Place them slightly further out on the same vector
     const processedL2 = new Set<string>();
-    data.edges.forEach(e => {
+    data.edges.forEach((e) => {
       // Outgoing L2: L1 -> L2
-      if (nodesMap.has(e.source) && nodesMap.has(e.target) && !processedL2.has(e.target) && nodesMap.get(e.target)?.isL2) {
+      if (
+        nodesMap.has(e.source) &&
+        nodesMap.has(e.target) &&
+        !processedL2.has(e.target) &&
+        nodesMap.get(e.target)?.isL2
+      ) {
         const parent = nodesMap.get(e.source)!;
         if (parent.x !== undefined && parent.y !== undefined) {
           // Vector from Center to Parent
@@ -133,33 +146,58 @@ export function GraphView({ postId }: { postId: string }) {
 
   const handleNodePress = (node: GraphNode) => {
     if (node.isCenter) return;
-    if (node.type === 'post') router.push(`/post/${node.id}`);
-    else if (node.type === 'topic') router.push(`/topic/${encodeURIComponent(node.label)}`);
-    else if (node.type === 'user') router.push(`/user/${node.label}`);
-    else if (node.type === 'external' && node.url) {
+    if (node.type === "post") router.push(`/post/${node.id}`);
+    else if (node.type === "topic")
+      router.push(`/topic/${encodeURIComponent(node.label)}`);
+    else if (node.type === "user") router.push(`/user/${node.label}`);
+    else if (node.type === "external" && node.url) {
       // Use standard linking or router
     }
   };
 
-  if (loading) return <View style={{ height: 300, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color={COLORS.primary} /></View>;
+  if (loading)
+    return (
+      <View
+        style={{ height: 300, justifyContent: "center", alignItems: "center" }}
+      >
+        <InlineSkeleton />
+      </View>
+    );
   if (!data || data.nodes.length <= 1) return null; // Only center node? Hide graph.
 
   return (
-    <View 
+    <View
       style={{ marginVertical: SPACING.l }}
-      onLayout={(e: LayoutChangeEvent) => setContainerSize({ width: e.nativeEvent.layout.width, height: 320 })}
+      onLayout={(e: LayoutChangeEvent) =>
+        setContainerSize({ width: e.nativeEvent.layout.width, height: 320 })
+      }
     >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: SPACING.l, marginBottom: SPACING.m }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.tertiary, textTransform: 'uppercase', fontFamily: FONTS.semiBold }}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          paddingHorizontal: SPACING.l,
+          marginBottom: SPACING.m,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 13,
+            fontWeight: "700",
+            color: COLORS.tertiary,
+            textTransform: "uppercase",
+            fontFamily: FONTS.semiBold,
+          }}
+        >
           CITEWALK GRAPH
         </Text>
       </View>
-      
+
       <Svg width={containerSize.width} height={containerSize.height}>
         {/* Edges */}
         {layout?.edges.map((e, i) => {
-          const start = layout.nodes.find(n => n.id === e.source);
-          const end = layout.nodes.find(n => n.id === e.target);
+          const start = layout.nodes.find((n) => n.id === e.source);
+          const end = layout.nodes.find((n) => n.id === e.target);
           if (!start?.x || !end?.x) return null;
           return (
             <Line
@@ -178,8 +216,12 @@ export function GraphView({ postId }: { postId: string }) {
         {layout?.nodes.map((n) => {
           if (n.x === undefined || n.y === undefined) return null;
           const r = n.isCenter ? 24 : n.isL2 ? 8 : 16;
-          const color = n.isCenter ? COLORS.primary : n.isL2 ? COLORS.tertiary : COLORS.secondary;
-          
+          const color = n.isCenter
+            ? COLORS.primary
+            : n.isL2
+              ? COLORS.tertiary
+              : COLORS.secondary;
+
           return (
             <G key={n.id} onPress={() => handleNodePress(n)}>
               <Circle
@@ -207,8 +249,15 @@ export function GraphView({ postId }: { postId: string }) {
           );
         })}
       </Svg>
-      
-      <Text style={{ textAlign: 'center', color: COLORS.tertiary, fontSize: 10, marginTop: -20 }}>
+
+      <Text
+        style={{
+          textAlign: "center",
+          color: COLORS.tertiary,
+          fontSize: 10,
+          marginTop: -20,
+        }}
+      >
         {data.nodes.length} Connected Nodes
       </Text>
     </View>

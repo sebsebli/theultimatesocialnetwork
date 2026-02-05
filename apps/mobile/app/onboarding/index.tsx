@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { useRouter } from 'expo-router';
-import { getOnboardingStage } from '../../utils/api';
-import { View, ActivityIndicator } from 'react-native';
-import { COLORS } from '../../constants/theme';
+import { useEffect } from "react";
+import { useRouter } from "expo-router";
+import { getOnboardingStage } from "../../utils/api";
+import { View } from "react-native";
+import { FullScreenSkeleton } from "../../components/LoadingSkeleton";
 
 /**
  * Entry point for onboarding: redirects to the correct step so users
@@ -14,18 +14,14 @@ export default function OnboardingIndexScreen() {
   useEffect(() => {
     getOnboardingStage().then((stage) => {
       const route =
-        stage === 'profile'
-          ? '/onboarding/profile'
-          : stage === 'starter-packs'
-            ? '/onboarding/starter-packs'
-            : '/onboarding/languages';
+        stage === "profile"
+          ? "/onboarding/profile"
+          : stage === "starter-packs"
+            ? "/onboarding/starter-packs"
+            : "/onboarding/languages";
       router.replace(route as any);
     });
   }, [router]);
 
-  return (
-    <View style={{ flex: 1, backgroundColor: COLORS.ink, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator color={COLORS.primary} size="large" />
-    </View>
-  );
+  return <FullScreenSkeleton />;
 }

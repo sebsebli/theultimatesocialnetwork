@@ -101,6 +101,12 @@ function getConfig() {
     ollamaTextModel: process.env.OLLAMA_TEXT_MODEL || 'granite4:latest',
     /** Falconsai/nsfw_image_detection service URL. When set, used for image moderation. No Ollama vision. */
     moderationImageServiceUrl: process.env.MODERATION_IMAGE_SERVICE_URL || '',
+    /** Timeout for NSFW detector HTTP call (under load it can be slow). Default 45s. */
+    moderationImageTimeoutMs:
+      parseInt(process.env.MODERATION_IMAGE_TIMEOUT_MS || '45000', 10) || 45000,
+    /** If true, when NSFW detector is unavailable after retries allow upload (e.g. for agent runs). Default false. */
+    moderationImageAllowOnUnavailable:
+      process.env.MODERATION_IMAGE_ALLOW_ON_UNAVAILABLE === 'true',
   };
 }
 
@@ -455,7 +461,7 @@ export class ContentModerationService implements OnModuleInit {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      cfg.ollamaImageTimeoutMs,
+      cfg.moderationImageTimeoutMs,
     );
     try {
       const res = await fetch(url, {
@@ -487,8 +493,8 @@ export class ContentModerationService implements OnModuleInit {
     buffer: Buffer,
   ): Promise<{ safe: boolean; reason?: string; confidence: number }> {
     const cfg = getConfig();
-    const maxAttempts = 3;
-    const retryDelayMs = 1000;
+    const maxAttempts = 5;
+    const retryDelayMs = 2000;
 
     // NSFW detector (Falconsai/nsfw_image_detection) when configured; no Ollama vision
     if (cfg.moderationImageServiceUrl) {
@@ -509,6 +515,16 @@ export class ContentModerationService implements OnModuleInit {
           if (attempt < maxAttempts) {
             await new Promise((r) => setTimeout(r, retryDelayMs));
             continue;
+          }
+          if (cfg.moderationImageAllowOnUnavailable) {
+            this.logger.warn(
+              'Image moderation unavailable after retries; allowing upload (MODERATION_IMAGE_ALLOW_ON_UNAVAILABLE=true)',
+            );
+            return {
+              safe: true,
+              reason: 'moderation_unavailable_allowed',
+              confidence: 0,
+            };
           }
           return {
             safe: false,

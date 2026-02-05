@@ -540,7 +540,11 @@ export default {
     title: "Collections",
     create: "Create Collection",
     empty: "No collections",
-    emptyHint: "Create one below.",
+    emptyHint: "Create a collection to organize your saved posts.",
+    searchPlaceholder: "Search collections...",
+    filterAll: "All",
+    filterPublic: "Public",
+    filterPrivate: "Private",
     newTitle: "New Collection",
     titlePlaceholder: "Title",
     visibility: "Visibility",
@@ -637,6 +641,8 @@ export default {
     remove: "Remove",
     actionFailed: "Failed",
     noResults: "None.",
+    delete: "Delete",
+    options: "Options",
   },
   topic: {
     title: "Topic",
@@ -674,6 +680,7 @@ export default {
   messages: {
     typeMessage: "Type message...",
     noMessages: "No messages",
+    noMessagesYet: "No messages yet",
     send: "Send",
     failedSend: "Send failed",
     newMessage: "New Message",
@@ -684,6 +691,11 @@ export default {
     mustFollowOrPrior: "Must follow each other to message.",
     createThreadFailed: "Init failed.",
     noSuggested: "No suggestions.",
+    markUnread: "Mark as unread",
+    deleteConversation: "Delete conversation",
+    deleteConversationConfirm:
+      "This will permanently delete the conversation for both participants.",
+    deleteFailed: "Failed to delete conversation",
   },
   notifications: {
     title: "Activity",

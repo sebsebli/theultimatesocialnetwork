@@ -31,7 +31,7 @@ export async function fetchImageBuffer(url: string): Promise<Buffer | null> {
 export async function pixabaySearch(
   apiKey: string,
   query: string,
-  options: { orientation?: 'horizontal' | 'vertical' | 'all'; perPage?: number } = {},
+  options: { orientation?: 'horizontal' | 'vertical' | 'all'; perPage?: number; page?: number } = {},
 ): Promise<{ url: string; largeUrl?: string }[] | null> {
   const params = new URLSearchParams({
     key: apiKey,
@@ -42,6 +42,9 @@ export async function pixabaySearch(
   });
   if (options.orientation && options.orientation !== 'all') {
     params.set('orientation', options.orientation);
+  }
+  if (options.page != null && options.page >= 1) {
+    params.set('page', String(options.page));
   }
   const res = await fetch(`https://pixabay.com/api/?${params}`);
   if (!res.ok) return null;
@@ -63,13 +66,14 @@ export async function pixabaySearch(
 export async function pexelsSearch(
   apiKey: string,
   query: string,
-  options: { orientation?: 'landscape' | 'portrait' | 'square'; perPage?: number } = {},
+  options: { orientation?: 'landscape' | 'portrait' | 'square'; perPage?: number; page?: number } = {},
 ): Promise<{ url: string; smallUrl?: string }[] | null> {
   const params = new URLSearchParams({
     query,
     per_page: String(options.perPage ?? 5),
   });
   if (options.orientation) params.set('orientation', options.orientation);
+  if (options.page != null && options.page >= 1) params.set('page', String(options.page));
   const res = await fetch(`https://api.pexels.com/v1/search?${params}`, {
     headers: { Authorization: apiKey },
   });
@@ -87,31 +91,61 @@ export async function pexelsSearch(
   }).filter((x) => x.url);
 }
 
+export interface GetAvatarOptions {
+  /** Request this result page so different callers get different images. */
+  page?: number;
+  /** If set, pick the first image whose URL is not in this set (ensures uniqueness across users). */
+  excludeUrls?: Set<string>;
+  /** When using excludeUrls, fetch this many results to choose from. Default 20. */
+  perPage?: number;
+}
+
 /** Get one image buffer for avatar (square-ish). Prefer Pexels portrait, else Pixabay. */
 export async function getAvatarImage(
   config: ImageProviderConfig,
   query: string,
+  options: GetAvatarOptions = {},
 ): Promise<ImageResult | null> {
+  const { page, excludeUrls, perPage = excludeUrls ? 20 : (page != null ? 5 : 5) } = options;
+  const pick = (list: { url: string }[]) => {
+    if (excludeUrls && list.length) {
+      const firstNew = list.find((x) => !excludeUrls.has(x.url));
+      return firstNew ?? null;
+    }
+    if (list.length) {
+      const idx = page != null ? (page - 1) % list.length : Math.floor(Math.random() * list.length);
+      return list[idx] ?? null;
+    }
+    return null;
+  };
+
   if (config.pexelsApiKey) {
     const list = await pexelsSearch(config.pexelsApiKey, query, {
       orientation: 'portrait',
-      perPage: 3,
+      perPage,
+      page: page ?? undefined,
     });
     if (list?.length) {
-      const chosen = list[Math.floor(Math.random() * list.length)];
-      const buffer = await fetchImageBuffer(chosen.url);
-      if (buffer) return { url: chosen.url, buffer, source: 'pexels' };
+      const chosen = pick(list);
+      if (chosen) {
+        const buffer = await fetchImageBuffer(chosen.url);
+        if (buffer) return { url: chosen.url, buffer, source: 'pexels' };
+      }
     }
   }
   if (config.pixabayApiKey) {
     const list = await pixabaySearch(config.pixabayApiKey, query, {
       orientation: 'vertical',
-      perPage: 5,
+      perPage,
+      page: page ?? undefined,
     });
     if (list?.length) {
-      const chosen = list[Math.floor(Math.random() * list.length)];
-      const buffer = await fetchImageBuffer(chosen.largeUrl ?? chosen.url);
-      if (buffer) return { url: chosen.url, buffer, source: 'pixabay' };
+      const chosen = pick(list);
+      if (chosen) {
+        const urlToFetch = (chosen as { url: string; largeUrl?: string }).largeUrl ?? chosen.url;
+        const buffer = await fetchImageBuffer(urlToFetch);
+        if (buffer) return { url: chosen.url, buffer, source: 'pixabay' };
+      }
     }
   }
   return null;

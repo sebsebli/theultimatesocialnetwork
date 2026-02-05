@@ -1,21 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
+import { Text, View, FlatList, RefreshControl } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTranslation } from "react-i18next";
+import { api } from "../../../utils/api";
 import {
-  Text,
-  View,
-  FlatList,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { api } from '../../../utils/api';
-import { COLORS, SPACING, FONTS, LAYOUT, createStyles, FLATLIST_DEFAULTS } from '../../../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../../../components/ScreenHeader';
-import { SourceOrPostCard } from '../../../components/SourceOrPostCard';
-import { CenteredEmptyState } from '../../../components/EmptyState';
-import { ListFooterLoader } from '../../../components/ListFooterLoader';
-import { Post } from '../../../types';
+  COLORS,
+  SPACING,
+  FONTS,
+  LAYOUT,
+  createStyles,
+  FLATLIST_DEFAULTS,
+} from "../../../constants/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScreenHeader } from "../../../components/ScreenHeader";
+import { SourceOrPostCard } from "../../../components/SourceOrPostCard";
+import { CenteredEmptyState } from "../../../components/EmptyState";
+import { ListFooterLoader } from "../../../components/ListFooterLoader";
+import { FeedSkeleton } from "../../../components/LoadingSkeleton";
+import { Post } from "../../../types";
 
 export default function PostQuotesScreen() {
   const router = useRouter();
@@ -35,33 +37,40 @@ export default function PostQuotesScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  const load = useCallback(async (pageNum: number, reset = false) => {
-    if (!postId) return;
-    if (reset) {
-      setLoading(true);
-      // Fetch post details only once
-      api.get<{ title?: string }>(`/posts/${postId}`).then(data => setPostTitle(data?.title ?? null));
-    } else {
-      setLoadingMore(true);
-    }
+  const load = useCallback(
+    async (pageNum: number, reset = false) => {
+      if (!postId) return;
+      if (reset) {
+        setLoading(true);
+        // Fetch post details only once
+        api
+          .get<{ title?: string }>(`/posts/${postId}`)
+          .then((data) => setPostTitle(data?.title ?? null));
+      } else {
+        setLoadingMore(true);
+      }
 
-    try {
-      const res = await api.get<{ items: Post[]; hasMore: boolean } | Post[]>(`/posts/${postId}/referenced-by?page=${pageNum}&limit=20`);
-      const newItems = Array.isArray(res) ? res : res.items;
-      const more = Array.isArray(res) ? false : res.hasMore;
+      try {
+        const res = await api.get<{ items: Post[]; hasMore: boolean } | Post[]>(
+          `/posts/${postId}/referenced-by?page=${pageNum}&limit=20`,
+        );
+        const newItems = Array.isArray(res) ? res : res.items;
+        const more = Array.isArray(res) ? false : res.hasMore;
 
-      setQuotes(prev => reset ? newItems : [...prev, ...newItems]);
-      setHasMore(more);
-      setPage(pageNum);
-    } catch (error) {
-      console.error('Failed to load quotes', error);
-      if (reset) setQuotes([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-    }
-  }, [postId]);
+        setQuotes((prev) => (reset ? newItems : [...prev, ...newItems]));
+        setHasMore(more);
+        setPage(pageNum);
+      } catch (error) {
+        console.error("Failed to load quotes", error);
+        if (reset) setQuotes([]);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
+    },
+    [postId],
+  );
 
   useEffect(() => {
     load(1, true);
@@ -80,8 +89,8 @@ export default function PostQuotesScreen() {
 
   if (loading && quotes.length === 0) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[styles.container, { paddingTop: 0 }]}>
+        <FeedSkeleton count={4} />
       </View>
     );
   }
@@ -89,7 +98,7 @@ export default function PostQuotesScreen() {
   return (
     <View style={styles.container}>
       <ScreenHeader
-        title={`${t('post.quotedBy', 'Quoted by')} ${quotes.length > 0 ? `(${quotes.length})` : ''}`}
+        title={`${t("post.quotedBy", "Quoted by")} ${quotes.length > 0 ? `(${quotes.length})` : ""}`}
         paddingTop={insets.top}
       />
       {postTitle ? (
@@ -102,9 +111,13 @@ export default function PostQuotesScreen() {
         data={quotes}
         keyExtractor={(item: Post) => item.id}
         renderItem={({ item }: { item: Post }) => {
-          const bodyPreview = (item.body ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
-          const title = item.title ?? (bodyPreview || 'Post');
-          const subtitle = item.author?.displayName || item.author?.handle || '';
+          const bodyPreview = (item.body ?? "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 80);
+          const title = item.title ?? (bodyPreview || "Post");
+          const subtitle =
+            item.author?.displayName || item.author?.handle || "";
           return (
             <View style={styles.itemWrap}>
               <SourceOrPostCard
@@ -123,12 +136,24 @@ export default function PostQuotesScreen() {
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+          />
         }
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
         ListEmptyComponent={
-          !loading ? <CenteredEmptyState icon="format-quote" headline={t('post.noQuotesYet', 'No one has quoted this post yet.')} /> : null
+          !loading ? (
+            <CenteredEmptyState
+              icon="format-quote"
+              headline={t(
+                "post.noQuotesYet",
+                "No one has quoted this post yet.",
+              )}
+            />
+          ) : null
         }
         ListFooterComponent={<ListFooterLoader visible={loadingMore} />}
         {...FLATLIST_DEFAULTS}
@@ -139,8 +164,11 @@ export default function PostQuotesScreen() {
 
 const styles = createStyles({
   container: { flex: 1, backgroundColor: COLORS.ink },
-  center: { justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { paddingTop: SPACING.m, paddingHorizontal: LAYOUT.contentPaddingHorizontal },
+  center: { justifyContent: "center", alignItems: "center" },
+  scrollContent: {
+    paddingTop: SPACING.m,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+  },
   itemWrap: { marginBottom: SPACING.s },
   postTitleLabel: {
     fontSize: 13,

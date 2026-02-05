@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -66,5 +68,32 @@ export class MessagesController {
     @Body() dto: { body: string },
   ) {
     return this.messagesService.sendMessage(user.id, threadId, dto.body);
+  }
+
+  /** Mark thread as read or unread (only affects messages from the other participant). */
+  @Patch('threads/:threadId/read')
+  @UseGuards(AuthGuard('jwt'))
+  async setThreadRead(
+    @CurrentUser() user: { id: string },
+    @Param('threadId') threadId: string,
+    @Body() dto: { read: boolean },
+  ) {
+    await this.messagesService.markThreadRead(
+      user.id,
+      threadId,
+      dto.read === true,
+    );
+    return { ok: true };
+  }
+
+  /** Delete thread and all its messages. Both participants lose the conversation. */
+  @Delete('threads/:threadId')
+  @UseGuards(AuthGuard('jwt'))
+  async deleteThread(
+    @CurrentUser() user: { id: string },
+    @Param('threadId') threadId: string,
+  ) {
+    await this.messagesService.deleteThread(user.id, threadId);
+    return { ok: true };
   }
 }
