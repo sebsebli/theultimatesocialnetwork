@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Body,
+  Query,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -83,5 +84,37 @@ export class SafetyController {
   @UseGuards(AuthGuard('jwt'))
   async getMuted(@CurrentUser() user: { id: string }) {
     return this.safetyService.getMuted(user.id);
+  }
+
+  /** Get the current user's moderation history (DSA Art. 17 transparency). */
+  @Get('moderation-history')
+  @UseGuards(AuthGuard('jwt'))
+  async getModerationHistory(
+    @CurrentUser() user: { id: string },
+    @Query('limit') limitStr?: string,
+    @Query('offset') offsetStr?: string,
+  ) {
+    const limit = limitStr ? parseInt(limitStr, 10) : 20;
+    const offset = offsetStr ? parseInt(offsetStr, 10) : 0;
+    return this.safetyService.getUserModerationHistory(
+      user.id,
+      Number.isNaN(limit) ? 20 : limit,
+      Number.isNaN(offset) ? 0 : offset,
+    );
+  }
+
+  /** Submit an appeal for a moderation decision (DSA Art. 20). */
+  @Post('appeals/:moderationRecordId')
+  @UseGuards(AuthGuard('jwt'))
+  async submitAppeal(
+    @CurrentUser() user: { id: string },
+    @Param('moderationRecordId', ParseUUIDPipe) moderationRecordId: string,
+    @Body() dto: { text: string },
+  ) {
+    return this.safetyService.submitAppeal(
+      user.id,
+      moderationRecordId,
+      dto.text,
+    );
   }
 }

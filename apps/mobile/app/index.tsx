@@ -75,6 +75,7 @@ export default function IndexScreen() {
   const [sent, setSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   useEffect(() => {
     checkIntro();
@@ -182,7 +183,7 @@ export default function IndexScreen() {
       const errorMessage =
         apiErr?.status === 429
           ? t("signIn.rateLimited") ||
-          "Too many requests. Please try again later."
+            "Too many requests. Please try again later."
           : t("signIn.failedSend") || "Failed to send verification code";
       showError(errorMessage);
     } finally {
@@ -329,7 +330,10 @@ export default function IndexScreen() {
                 </Text>
                 <Text style={styles.checkEmailSubtitle}>
                   {is2FA
-                    ? t("signIn.twoFactorSubtitle", "Enter code from authenticator app")
+                    ? t(
+                        "signIn.twoFactorSubtitle",
+                        "Enter code from authenticator app",
+                      )
                     : t("signIn.enterCode", { email })}
                 </Text>
               </View>
@@ -350,7 +354,10 @@ export default function IndexScreen() {
                   autoCapitalize="none"
                   autoComplete="email"
                   accessibilityLabel={t("signIn.email", "Email address")}
-                  accessibilityHint={t("signIn.emailHint", "Enter your email address to sign in")}
+                  accessibilityHint={t(
+                    "signIn.emailHint",
+                    "Enter your email address to sign in",
+                  )}
                   returnKeyType="done"
                   onSubmitEditing={handleSendLink}
                 />
@@ -441,19 +448,52 @@ export default function IndexScreen() {
                   </View>
                 )}
 
+                {/* Age Confirmation - Only show for new signups */}
+                {showInviteInput && (
+                  <View style={styles.termsContainer}>
+                    <View style={styles.checkboxContainer}>
+                      <Pressable
+                        onPress={() => setAgeConfirmed(!ageConfirmed)}
+                        style={styles.checkboxPressable}
+                      >
+                        <View
+                          style={[
+                            styles.checkbox,
+                            ageConfirmed && styles.checkboxChecked,
+                          ]}
+                        >
+                          {ageConfirmed && (
+                            <MaterialCommunityIcons
+                              name="check"
+                              size={12}
+                              color={COLORS.ink}
+                            />
+                          )}
+                        </View>
+                      </Pressable>
+                      <Text style={styles.termsText}>
+                        {t(
+                          "signIn.ageConfirmation",
+                          "I confirm that I am at least 16 years old",
+                        )}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
                 <Pressable
                   style={[
                     styles.button,
                     (!email.trim() ||
                       loading ||
-                      (showInviteInput && !acceptedTerms)) &&
-                    styles.buttonDisabled,
+                      (showInviteInput && (!acceptedTerms || !ageConfirmed))) &&
+                      styles.buttonDisabled,
                   ]}
                   onPress={handleSendLink}
                   disabled={
                     !email.trim() ||
                     loading ||
-                    (showInviteInput && !acceptedTerms)
+                    (showInviteInput && (!acceptedTerms || !ageConfirmed))
                   }
                 >
                   {loading ? (
@@ -561,9 +601,9 @@ export default function IndexScreen() {
                   <Text style={styles.buttonTextSecondary}>
                     {cooldown > 0
                       ? t("signIn.resendCodeIn", {
-                        seconds: cooldown,
-                        defaultValue: `Resend code in ${cooldown}s`,
-                      })
+                          seconds: cooldown,
+                          defaultValue: `Resend code in ${cooldown}s`,
+                        })
                       : t("signIn.resendCode", "Resend code")}
                   </Text>
                 </Pressable>

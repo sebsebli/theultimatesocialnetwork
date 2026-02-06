@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Kde si nápady zaslouží své místo.",
-    subtitle: "Sociální síť postavená na citacích.",
+    tagline: "Sociální média bez hluku.",
+    subtitle: "Evropská alternativa.",
     showIntroAgain: "O Citewalk",
     continue: "Přihlásit se",
     privacy: "Soukromí",
@@ -12,23 +12,23 @@ export default {
   intro: {
     title: "Vítej v Citewalk",
     founderMessage:
-      "Vytvořil jsem Citewalk, protože internet odměňuje pobouření místo vhledu. Toto je místo, kde tvá reputace roste, když ostatní citují tvé nápady -- ne když kliknou na srdíčko.",
+      "Vytvořil jsem Citewalk, protože jsem měl dost platforem, které odměňují pobouření místo obsahu. Toto je nezávislý evropský projekt — žádné VC peníze, žádné růstové triky, jen lepší místo pro sdílení nápadů.",
     founderName: "Sebastian, Zakladatel",
     point1:
-      "Tvé příspěvky žijí na znalostním grafu, ne na jednorázovém feedu. Každý nápad, který sdílíš, se stává vyhledatelným, citovatelným a trvalým.",
+      "Žádný algoritmus nerozhoduje, co uvidíš. Tvůj feed je chronologický, tvůj obsah je vyhledatelný podle tématu a dobré psaní vyniká, protože ho lidé skutečně odkazují.",
     point2:
-      "Autorita se zde získává citacemi. Když ostatní autoři odkazují na tvou práci, to je skutečná důvěryhodnost -- ne marnivé metriky.",
+      "Na jiných platformách se nejhlasitější hlas stává virálním. Tady nejcitovanější hlas získává důvěryhodnost. Rosteš tím, že píšeš věci, které stojí za sdílení.",
     point3:
-      "Sleduj témata, ne algoritmy. Ty řídíš, co vidíš. Žádné triky na zapojení, žádné skryté hodnocení -- jen nápady, na kterých ti záleží.",
+      "100% hostováno v EU. Žádné reklamy, žádné sledování, žádné prodávání tvých dat. Postaveno v Evropě jako skutečná alternativa — ne další produkt ze Silicon Valley.",
     point4: "Skuteční lidé. Skutečná diskuse. Žádní boti.",
-    point5: "Postaveno pro porozumění, ne jen konzumaci.",
-    point6: "Sleduj stopu. Každá citace vede někam.",
-    point7: "Piš. Cituj. Buduj znalosti.",
+    point5: "Diskuse postavené na obsahu, ne na útocích.",
+    point6: "Všechno, co napíšeš, zůstává vyhledatelné. Nic nemizí.",
+    point7: "Piš. Spojuj se. Růst.",
     next: "Další",
     skip: "Přeskočit",
     getStarted: "Přihlásit se",
     beginJourney: "Začít",
-    finalMessage: "Kde si nápady zaslouží své místo.",
+    finalMessage: "Internet nepotřebuje další feed. Potřebuje lepší.",
     welcome: "Vítej.",
   },
   signIn: {
@@ -60,7 +60,8 @@ export default {
     acceptTermsError: "Pro pokračování musíš přijmout podmínky",
     verificationSent: "Ověřovací kód odeslán",
     inviteCodeRequiredTitle: "Vyžadován pozvánkový kód",
-    inviteCodeRequiredMessage: "Vypadá to, že jsi tu nový. Zadej svůj pozvánkový kód, abys mohl začít.",
+    inviteCodeRequiredMessage:
+      "Vypadá to, že jsi tu nový. Zadej svůj pozvánkový kód, abys mohl začít.",
     waitBeforeRequest: "Počkej prosím {{seconds}}s",
     wrongEmail: "Špatný email? Vrať se zpět",
     resendCodeIn: "Znovu poslat za {{seconds}}s",
@@ -122,7 +123,8 @@ export default {
       finishing: "Nastavuji...",
       loadingSuggested: "Hledám pro tebe autory...",
       starterPackTitle: "Doporučení autoři",
-      starterPackSubtitle: "Lidé, kteří píší o tématech, která by tě mohla zajímat.",
+      starterPackSubtitle:
+        "Lidé, kteří píší o tématech, která by tě mohla zajímat.",
     },
     finish: "Hotovo",
   },
@@ -366,7 +368,8 @@ export default {
     privateAccount: "Soukromý účet",
     privateAccountHint: "Sleduj tento účet, aby ses viděl jejich aktivitu.",
     followRequest: "Žádost o sledování",
-    followRequestMessage: "Toto je soukromý účet. Bude odeslána žádost o sledování.",
+    followRequestMessage:
+      "Toto je soukromý účet. Bude odeslána žádost o sledování.",
     sendRequest: "Odeslat žádost",
   },
   invites: {
@@ -465,7 +468,8 @@ export default {
     showSavesDesc: "Vidět, co ukládají lidé, které sleduješ",
     explore: "Objevovat",
     enableRecommendations: "Personalizovaná doporučení",
-    enableRecommendationsDesc: "Použij náš relevance engine pro zobrazení příspěvků pro tebe",
+    enableRecommendationsDesc:
+      "Použij náš relevance engine pro zobrazení příspěvků pro tebe",
     relevance: "Relevance",
     relevanceControls: "Váhy relevance",
     relevanceControlsDesc: "Jemně vyladit, co je nejdůležitější",
@@ -488,7 +492,8 @@ export default {
     dangerZoneHint: "Tyto akce jsou trvalé.",
     deleteAccount: "Smazat účet",
     deleteAccountDesc: "Trvale smazat svůj účet a všechna data",
-    deleteAccountConfirm: "Toto trvale smaže tvůj účet. Toto nelze vrátit zpět.",
+    deleteAccountConfirm:
+      "Toto trvale smaže tvůj účet. Toto nelze vrátit zpět.",
     deleteAccountConfirmEmail:
       "Pošleme ti potvrzovací odkaz na email. Klikni na něj do 24 hodin.",
     sendDeletionLink: "Poslat potvrzení",
@@ -527,11 +532,13 @@ export default {
     content: "Obsah",
     offlineReading: "Offline čtení",
     downloadSavedOffline: "Automaticky ukládat pro offline",
-    downloadSavedOfflineHint: "Číst uložené příspěvky bez internetového připojení.",
+    downloadSavedOfflineHint:
+      "Číst uložené příspěvky bez internetového připojení.",
     manageOfflineStorage: "Spravovat úložiště",
     offlineCount: "{{count}} příspěvků v cache",
     removeAllOffline: "Vymazat cache",
-    removeAllOfflineConfirm: "Odebrat všechny offline příspěvky? Toto uvolní úložiště.",
+    removeAllOfflineConfirm:
+      "Odebrat všechny offline příspěvky? Toto uvolní úložiště.",
     offlineStorageSummary: "{{count}} příspěvků · {{size}}",
     noOfflineArticles: "Žádné offline příspěvky",
     noOfflineHint: "Ulož příspěvky, aby ses je mohl číst offline.",
@@ -576,7 +583,8 @@ export default {
     emptyDetail: "Tato kolekce je prázdná.",
     emptyDetailHint: "Ulož příspěvky, aby ses je přidal sem.",
     addCitation: "Přidat do kolekce",
-    addCitationHint: "Procházej příspěvky a klepni na Uložit, aby ses je přidal.",
+    addCitationHint:
+      "Procházej příspěvky a klepni na Uložit, aby ses je přidal.",
     curatorNote: "POZNÁMKA",
     makePublic: "Zveřejnit",
     makePrivate: "Nastavit jako soukromé",
@@ -674,7 +682,8 @@ export default {
     user: "Uživatel",
     topicOrPost: "Téma nebo příspěvek",
     somethingWentWrong: "Něco se pokazilo",
-    unexpectedErrorRetry: "Došlo k neočekávané chybě. Zkus se vrátit na domovskou obrazovku.",
+    unexpectedErrorRetry:
+      "Došlo k neočekávané chybě. Zkus se vrátit na domovskou obrazovku.",
     goToHome: "Jít domů",
   },
   externalLink: {
@@ -702,7 +711,8 @@ export default {
     emptyPeople: "Zatím žádní přispěvatelé",
     emptyPeopleSubtext: "Autoři se zde zobrazí, jak budou psát.",
     emptySources: "Zatím žádné zdroje",
-    emptySourcesSubtext: "Externí zdroje se zobrazí, jak je lidé budou citovat.",
+    emptySourcesSubtext:
+      "Externí zdroje se zobrazí, jak je lidé budou citovat.",
     shareTopic: "Sdílet téma",
     shareTopicMessage: "Podívej se na toto téma na Citewalk",
     searchInTopic: "Hledat v tomto tématu",
@@ -731,13 +741,13 @@ export default {
     searchUsers: "Najít někoho...",
     searchPlaceholder: "Hledat zprávy...",
     loadError: "Nepodařilo se načíst zprávy",
-    mustFollowOrPrior: "Musíte se navzájem sledovat, abyste si mohli posílat zprávy.",
+    mustFollowOrPrior:
+      "Musíte se navzájem sledovat, abyste si mohli posílat zprávy.",
     createThreadFailed: "Nepodařilo se zahájit konverzaci",
     noSuggested: "Právě teď žádné návrhy.",
     markUnread: "Označit jako nepřečtené",
     deleteConversation: "Smazat konverzaci",
-    deleteConversationConfirm:
-      "Toto trvale smaže konverzaci pro vás oba.",
+    deleteConversationConfirm: "Toto trvale smaže konverzaci pro vás oba.",
     deleteFailed: "Nepodařilo se smazat konverzaci",
   },
   notifications: {
@@ -767,7 +777,8 @@ export default {
   waitingList: {
     title: "Připojit se na čekací listinu",
     heading: "Požádat o přístup",
-    description: "Citewalk je momentálně v raném přístupu. Připoj se na čekací listinu a dáme ti vědět, když bude místo.",
+    description:
+      "Citewalk je momentálně v raném přístupu. Připoj se na čekací listinu a dáme ti vědět, když bude místo.",
     emailPlaceholder: "Tvoje emailová adresa",
     join: "Připojit se na čekací listinu",
     success: "Jsi na listině!",

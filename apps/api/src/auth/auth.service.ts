@@ -28,6 +28,11 @@ const otplib = require('otplib') as {
 import { InvitesService } from '../invites/invites.service';
 import { EmailService } from '../shared/email.service';
 import { ConfigService } from '@nestjs/config';
+import {
+  encryptField,
+  decryptField,
+  hashForLookup,
+} from '../shared/field-encryption';
 import { MeilisearchService } from '../search/meilisearch.service';
 
 /** Max failed login attempts before lockout. */
@@ -57,9 +62,29 @@ export class AuthService {
     private meilisearch: MeilisearchService,
   ) {}
 
+  /**
+   * Find a user by email. First tries emailHash lookup (encrypted at rest),
+   * then falls back to plaintext email match (for pre-migration rows).
+   */
+  private async findUserByEmail(email: string): Promise<User | null> {
+    const hash = hashForLookup(email);
+    // Try hash-based lookup first (encrypted rows)
+    let user = await this.userRepo.findOne({ where: { emailHash: hash } });
+    if (user) return user;
+    // Fallback: plaintext email (pre-migration rows)
+    user = await this.userRepo.findOne({ where: { email } });
+    if (user && !user.emailHash) {
+      // Auto-migrate: set hash and encrypt email
+      user.emailHash = hash;
+      user.email = encryptField(email);
+      await this.userRepo.save(user);
+    }
+    return user;
+  }
+
   async login(email: string, inviteCode?: string, lang: string = 'en') {
     // 1. Account lockout check
-    const user = await this.userRepo.findOne({ where: { email } });
+    const user = await this.findUserByEmail(email);
 
     if (user?.lockedUntil && user.lockedUntil > new Date()) {
       const remainingMs = user.lockedUntil.getTime() - Date.now();
@@ -185,7 +210,11 @@ export class AuthService {
       await this.redis.del(attemptsKey);
 
       // Return temp token for 2FA step
-      const tempPayload = { sub: user.id, email: user.email, isPartial: true };
+      const tempPayload = {
+        sub: user.id,
+        email: user.email ? decryptField(user.email) : user.email,
+        isPartial: true,
+      };
       return {
         twoFactorRequired: true,
         tempToken: this.jwtService.sign(tempPayload, { expiresIn: '5m' }),
@@ -204,10 +233,7 @@ export class AuthService {
   // --- Account Lockout ---
 
   private async recordFailedLoginAttempt(email: string): Promise<void> {
-    const user = await this.userRepo.findOne({
-      where: { email },
-      select: ['id', 'failedLoginAttempts'],
-    });
+    const user = await this.findUserByEmail(email);
     if (!user) return;
 
     const newAttempts = (user.failedLoginAttempts ?? 0) + 1;
@@ -241,7 +267,7 @@ export class AuthService {
     inviteCode?: string,
     skipBetaCheck = false,
   ): Promise<User> {
-    let user = await this.userRepo.findOne({ where: { email } });
+    let user = await this.findUserByEmail(email);
 
     // Check if new user
     if (!user) {
@@ -262,7 +288,8 @@ export class AuthService {
       const placeholderHandle = `__pending_${id.replace(/-/g, '').slice(0, 12)}`;
       user = this.userRepo.create({
         id,
-        email,
+        email: encryptField(email),
+        emailHash: hashForLookup(email),
         publicId,
         handle: placeholderHandle,
         displayName: 'Pending',
@@ -295,7 +322,7 @@ export class AuthService {
 
     const payload = {
       sub: user.id,
-      email: user.email,
+      email: user.email ? decryptField(user.email) : user.email,
       sessionId,
       role: user.role,
     };
@@ -446,7 +473,7 @@ export class AuthService {
 
     await this.userRepo.update(userId, {
       twoFactorEnabled: true,
-      twoFactorSecret: secret,
+      twoFactorSecret: encryptField(secret),
       twoFactorBackupCodes: hashedCodes,
     });
     return { success: true, backupCodes: plainCodes };
@@ -476,10 +503,12 @@ export class AuthService {
       throw new UnauthorizedException('2FA not enabled or user not found');
     }
 
+    const decryptedSecret = decryptField(user.twoFactorSecret);
+
     // Try TOTP verification first
     const isValid = otplib.verifySync({
       token,
-      secret: user.twoFactorSecret,
+      secret: decryptedSecret,
     }).valid;
 
     if (!isValid) {
@@ -532,7 +561,7 @@ export class AuthService {
     }
     const isValid = otplib.verifySync({
       token,
-      secret: user.twoFactorSecret,
+      secret: decryptField(user.twoFactorSecret),
     }).valid;
     if (!isValid) throw new BadRequestException('Invalid TOTP code');
 
@@ -556,7 +585,7 @@ export class AuthService {
     // Try TOTP first, then backup code
     const isValid = otplib.verifySync({
       token,
-      secret: user.twoFactorSecret,
+      secret: decryptField(user.twoFactorSecret),
     }).valid;
     if (!isValid) {
       const backupUsed = await this.tryBackupCode(

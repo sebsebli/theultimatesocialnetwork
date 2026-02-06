@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 const STORAGE_KEY = "cookie_consent";
+const COOKIE_NAME = "cookie_consent";
 
 export type CookieConsent = "all" | "essential" | null;
 
@@ -12,8 +13,18 @@ export const COOKIE_CONSENT_CLOSED_EVENT = "cookie-consent-closed";
 function readStoredConsent(): CookieConsent {
   if (typeof window === "undefined") return null;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY) as CookieConsent | null;
-    return stored === "all" || stored === "essential" ? stored : null;
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    // Support legacy values and new JSON format
+    if (stored === "all" || stored === "essential") return stored;
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed.choice === "all" || parsed.choice === "essential")
+        return parsed.choice;
+    } catch {
+      // not JSON
+    }
+    return null;
   } catch {
     return null;
   }
@@ -22,6 +33,28 @@ function readStoredConsent(): CookieConsent {
 /** True if the user has closed the cookie banner (accepted all or essential). */
 export function hasCookieConsent(): boolean {
   return readStoredConsent() !== null;
+}
+
+/** Persist consent in localStorage (with timestamp) and as a cookie for server-side proof. */
+function persistConsent(choice: "all" | "essential") {
+  const record = JSON.stringify({
+    choice,
+    consentedAt: new Date().toISOString(),
+  });
+  try {
+    localStorage.setItem(STORAGE_KEY, record);
+  } catch {
+    // ignore
+  }
+  // Also set a non-httpOnly cookie so the server can verify consent if needed (1 year expiry)
+  try {
+    const expires = new Date(
+      Date.now() + 365 * 24 * 60 * 60 * 1000,
+    ).toUTCString();
+    document.cookie = `${COOKIE_NAME}=${choice};path=/;expires=${expires};SameSite=Lax`;
+  } catch {
+    // ignore
+  }
 }
 
 export function CookieConsentBanner() {
@@ -34,26 +67,18 @@ export function CookieConsentBanner() {
   }, []);
 
   const acceptAll = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, "all");
-      setConsent("all");
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_CLOSED_EVENT));
-      }
-    } catch {
-      // ignore
+    persistConsent("all");
+    setConsent("all");
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_CLOSED_EVENT));
     }
   };
 
   const essentialOnly = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, "essential");
-      setConsent("essential");
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_CLOSED_EVENT));
-      }
-    } catch {
-      // ignore
+    persistConsent("essential");
+    setConsent("essential");
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_CLOSED_EVENT));
     }
   };
 
@@ -71,9 +96,10 @@ export function CookieConsentBanner() {
           We value your privacy
         </h2>
         <p className="text-sm text-[#A8A8AA] leading-relaxed">
-          We use cookies to enhance your experience, analyze site traffic, and
-          serve personalized content. By clicking &quot;Accept All&quot;, you
-          consent to our use of cookies. Read our{" "}
+          We use only essential cookies for authentication and session
+          management. We do not use tracking, analytics, or advertising cookies.
+          By clicking &quot;Accept All&quot;, you acknowledge our use of these
+          essential cookies. Read our{" "}
           <Link
             href="/privacy"
             className="text-[#6E7A8A] hover:text-[#F2F2F2] underline underline-offset-2"

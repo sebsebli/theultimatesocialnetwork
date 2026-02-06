@@ -48,25 +48,28 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
             {betaMode && (
               <div className="inline-flex items-center gap-3 px-3 py-1 border border-[var(--primary)]/30 rounded-full bg-[#0F0F10]/50 backdrop-blur-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-xs text-[var(--secondary)]">Early Access</span>
+                <span className="text-xs text-[var(--secondary)]">
+                  Early Access
+                </span>
               </div>
             )}
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-medium leading-[0.95] tracking-tight text-[var(--foreground)] font-sans">
-              Write ideas <br />
+              Social media, <br />
               <span className="font-serif italic text-[var(--primary)]">
-                that last.
+                without the noise.
               </span>
             </h1>
 
             <p className="text-base font-medium text-[var(--foreground)]/80 max-w-lg">
-              A social network where your reputation grows through citations, not clicks.
+              The European alternative to algorithm-driven platforms. No rage
+              feeds. No engagement tricks. Just your ideas, seen by people who
+              care.
             </p>
 
             <p className="text-lg md:text-xl text-[var(--secondary)] font-light max-w-lg leading-relaxed border-l border-[#333] /* divider-subtle */ pl-6">
-              Every post you write becomes a permanent node in a knowledge graph.
-              Others can cite your ideas, building a web of verifiable trust
-              that grows over time.
+              On other platforms, the loudest voices win. Here, the best writing
+              does. Independent, EU-hosted, and built to last.
             </p>
 
             <div className="pt-4 flex flex-col sm:flex-row gap-4">
@@ -81,7 +84,7 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
                 href="/manifesto"
                 className="inline-flex items-center justify-center px-8 py-4 border border-[#333] /* divider-subtle */ text-[var(--secondary)] font-medium text-sm tracking-wide hover:border-[var(--primary)] hover:text-[var(--foreground)] transition-colors rounded"
               >
-                Read the Manifesto
+                Why we built this
               </Link>
             </div>
           </div>
@@ -103,14 +106,12 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
                 01
               </span>
               <h3 className="text-2xl font-serif text-[var(--foreground)] mb-4 group-hover:text-[var(--primary)] transition-colors">
-                Knowledge Graph
+                No Algorithm, No Gatekeepers
               </h3>
               <p className="text-[var(--secondary)] leading-relaxed text-sm">
-                Every post connects to topics and other posts through{" "}
-                <span className="text-[var(--foreground)] font-mono text-xs bg-[var(--divider)] px-1 rounded">
-                  [[citelinks]]
-                </span>
-                . Your ideas don&apos;t disappear into a feed — they become permanent landmarks in a shared knowledge graph.
+                Your content isn&apos;t buried by an algorithm or boosted by
+                outrage. Everything is chronological, connected by topic, and
+                discoverable on its own merit.
               </p>
             </div>
 
@@ -120,10 +121,12 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
                 02
               </span>
               <h3 className="text-2xl font-serif text-[var(--foreground)] mb-4 group-hover:text-[var(--primary)] transition-colors">
-                Citation Authority
+                Quality Over Volume
               </h3>
               <p className="text-[var(--secondary)] leading-relaxed text-sm">
-                Your reputation grows when other writers cite your work. Not through likes or follower counts, but through genuine intellectual credit.
+                Your visibility grows when people reference your work — not when
+                you post the most or provoke the hardest. Real credibility,
+                earned by substance.
               </p>
             </div>
 
@@ -133,10 +136,12 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
                 03
               </span>
               <h3 className="text-2xl font-serif text-[var(--foreground)] mb-4 group-hover:text-[var(--primary)] transition-colors">
-                Preserved Sources
+                European &amp; Independent
               </h3>
               <p className="text-[var(--secondary)] leading-relaxed text-sm">
-                Every external link you cite is automatically archived. Sources are preserved so the web of knowledge can&apos;t be broken by link rot.
+                100% EU-hosted. No ads, no tracking, no selling your data. Built
+                in Europe as a genuine alternative — not another Silicon Valley
+                product with a European flag on it.
               </p>
             </div>
           </div>
@@ -151,8 +156,9 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
           <div className="w-px h-24 bg-gradient-to-b from-transparent via-[var(--primary)] to-transparent mx-auto mb-12 opacity-50"></div>
 
           <blockquote className="text-2xl md:text-4xl font-serif font-light text-[var(--foreground)] leading-tight mb-12">
-            &quot;We don&apos;t have followers.<br />
-            We have readers.&quot;
+            &quot;The internet doesn&apos;t need another feed.
+            <br />
+            It needs a better one.&quot;
           </blockquote>
 
           <div className="flex flex-col items-center gap-4">
@@ -165,19 +171,22 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
               />
             </div>
             <div className="text-center">
-              <div className="text-sm font-bold text-[var(--foreground)]">Sebastian</div>
+              <div className="text-sm font-bold text-[var(--foreground)]">
+                Sebastian
+              </div>
               <div className="text-xs text-[var(--tertiary)] mt-1">Founder</div>
             </div>
           </div>
 
           <div className="mt-16 max-w-lg mx-auto text-sm text-[var(--tertiary)] leading-relaxed space-y-4 border-t border-[var(--divider)] pt-8">
             <p>
-              Citewalk is an independent project built in Europe. I&apos;m always
-              looking for feedback and early supporters to shape what comes next.
+              I built Citewalk because I was tired of platforms that reward
+              outrage over substance. This is an independent European project —
+              no VC money, no growth hacks, just a better place to share ideas.
             </p>
             <p>
-              The core experience is free and always will be. Some premium features
-              may be added in the future to sustain the project.
+              The core experience is free and always will be. I&apos;m looking
+              for early supporters who want to help shape what comes next.
             </p>
           </div>
         </section>

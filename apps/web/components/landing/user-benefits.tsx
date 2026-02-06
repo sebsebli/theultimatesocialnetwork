@@ -10,7 +10,7 @@ export function UserBenefits() {
           Who it&apos;s for
         </h2>
         <h3 className="text-3xl font-serif text-[#F2F2F2]">
-          Built for people who think.
+          For everyone tired of the algorithm.
         </h3>
       </div>
 
@@ -22,9 +22,8 @@ export function UserBenefits() {
             <h4 className="text-xl font-medium text-[#F2F2F2]">The Reader</h4>
           </div>
           <p className="text-[#A8A8AA] leading-relaxed">
-            Build a personal library of ideas worth keeping. Follow topics that
-            matter to you and discover writers through what they say, not how
-            loud they say it.
+            Discover ideas by topic, not by what an algorithm decided you should
+            see. Follow writers for what they say — not how loud they say it.
           </p>
         </div>
 
@@ -35,9 +34,9 @@ export function UserBenefits() {
             <h4 className="text-xl font-medium text-[#F2F2F2]">The Writer</h4>
           </div>
           <p className="text-[#A8A8AA] leading-relaxed">
-            Your posts are indexed by topic and context, staying discoverable
-            long after you publish. Every profile has a native RSS feed, so
-            your work is never locked in.
+            Your posts stay discoverable long after you publish — not buried
+            after a day. Export everything via RSS. Your work is yours, never
+            locked into a platform.
           </p>
         </div>
 
@@ -50,9 +49,9 @@ export function UserBenefits() {
             </h4>
           </div>
           <p className="text-[#A8A8AA] leading-relaxed">
-            Conversations built on citations, not dunks. Threaded replies and
-            source references encourage thoughtful discussion instead of
-            performative outrage.
+            Discussions built on substance, not dunks. No rage bait, no
+            pile-ons. A place where disagreement can be civil and ideas can
+            actually be exchanged.
           </p>
         </div>
       </div>

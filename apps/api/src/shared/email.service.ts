@@ -10,6 +10,16 @@ import {
 } from './email-templates';
 import { buildEmailHtml } from './email-layout';
 
+/** Mask an email address for logging: "user@example.com" → "u***@e***.com" */
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  const domainParts = domain.split('.');
+  const tld = domainParts.pop() || '';
+  const domainName = domainParts.join('.');
+  return `${local[0]}***@${domainName[0]}***.${tld}`;
+}
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -58,7 +68,7 @@ export class EmailService {
 
     if (!this.transporter) {
       this.logger.warn(
-        `[DEV] Email suppressed (SMTP not configured). To: ${email}, Token: ${token}`,
+        `[DEV] Email suppressed (SMTP not configured). To: ${maskEmail(email)}, Token: [redacted]`,
       );
       return false;
     }
@@ -95,10 +105,13 @@ export class EmailService {
         html,
         text,
       });
-      this.logger.log(`Sign in token sent to ${email}`);
+      this.logger.log(`Sign in token sent to ${maskEmail(email)}`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send sign in token to ${email}:`, error);
+      this.logger.error(
+        `Failed to send sign in token to ${maskEmail(email)}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -127,7 +140,7 @@ export class EmailService {
 
     if (!this.transporter) {
       this.logger.warn(
-        `[DEV] Email suppressed (SMTP not configured). To: ${to}, Code: ${code}`,
+        `[DEV] Email suppressed (SMTP not configured). To: ${maskEmail(to)}, Code: [redacted]`,
       );
       return false;
     }
@@ -173,10 +186,13 @@ export class EmailService {
         html,
         text,
       });
-      this.logger.log(`Invite code sent to ${to}`);
+      this.logger.log(`Invite code sent to ${maskEmail(to)}`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send invite code to ${to}:`, error);
+      this.logger.error(
+        `Failed to send invite code to ${maskEmail(to)}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -192,7 +208,7 @@ export class EmailService {
 
     if (!this.transporter) {
       this.logger.warn(
-        `[DEV] Email suppressed (SMTP not configured). To: ${to}, Confirm URL: ${confirmUrl}`,
+        `[DEV] Email suppressed (SMTP not configured). To: ${maskEmail(to)}, Confirm URL: [redacted]`,
       );
       return false;
     }
@@ -247,11 +263,11 @@ export class EmailService {
         html,
         text,
       });
-      this.logger.log(`Account deletion confirmation sent to ${to}`);
+      this.logger.log(`Account deletion confirmation sent to ${maskEmail(to)}`);
       return true;
     } catch (error) {
       this.logger.error(
-        `Failed to send account deletion confirmation to ${to}:`,
+        `Failed to send account deletion confirmation to ${maskEmail(to)}:`,
         error,
       );
       throw error;
@@ -269,7 +285,7 @@ export class EmailService {
 
     if (!this.transporter) {
       this.logger.warn(
-        `[DEV] Email suppressed (SMTP not configured). To: ${to}, Confirm URL: ${confirmUrl}`,
+        `[DEV] Email suppressed (SMTP not configured). To: ${maskEmail(to)}, Confirm URL: [redacted]`,
       );
       return false;
     }
@@ -316,11 +332,11 @@ export class EmailService {
         html,
         text,
       });
-      this.logger.log(`Email change confirmation sent to ${to}`);
+      this.logger.log(`Email change confirmation sent to ${maskEmail(to)}`);
       return true;
     } catch (error) {
       this.logger.error(
-        `Failed to send email change confirmation to ${to}:`,
+        `Failed to send email change confirmation to ${maskEmail(to)}:`,
         error,
       );
       throw error;
@@ -337,7 +353,7 @@ export class EmailService {
 
     if (!this.transporter) {
       this.logger.warn(
-        `[DEV] Email suppressed (SMTP not configured). To: ${to}, Download URL: ${downloadUrl}`,
+        `[DEV] Email suppressed (SMTP not configured). To: ${maskEmail(to)}, Download URL: [redacted]`,
       );
       return false;
     }
@@ -383,10 +399,13 @@ export class EmailService {
         html,
         text,
       });
-      this.logger.log(`Data export link sent to ${to}`);
+      this.logger.log(`Data export link sent to ${maskEmail(to)}`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send data export link to ${to}:`, error);
+      this.logger.error(
+        `Failed to send data export link to ${maskEmail(to)}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -400,7 +419,7 @@ export class EmailService {
   ): Promise<boolean> {
     if (!this.transporter) {
       this.logger.warn(
-        `[DEV] Email suppressed (SMTP not configured). To: ${to} | Subject: ${subject}`,
+        `[DEV] Email suppressed (SMTP not configured). To: ${maskEmail(to)} | Subject: ${subject}`,
       );
       return false;
     }
@@ -417,10 +436,10 @@ export class EmailService {
         attachments: attachments,
       });
 
-      this.logger.log(`Email sent to ${to}`);
+      this.logger.log(`Email sent to ${maskEmail(to)}`);
       return true;
     } catch (error) {
-      this.logger.error(`Failed to send email to ${to}:`, error);
+      this.logger.error(`Failed to send email to ${maskEmail(to)}:`, error);
       throw error;
     }
   }

@@ -22,6 +22,23 @@ const REQUEST_TIMEOUT_MS = parseInt(
 );
 
 async function bootstrap() {
+  // Safety net: prevent unhandled Redis socket errors from crashing the process.
+  // The @redis/client emits SocketClosedUnexpectedlyError on Commander instances;
+  // if any internal subscriber misses an error handler, this catches it.
+  process.on('uncaughtException', (err) => {
+    if (
+      err?.name === 'SocketClosedUnexpectedlyError' ||
+      err?.message?.includes('Socket closed unexpectedly')
+    ) {
+      console.error(
+        `[UncaughtException] Redis socket error (non-fatal): ${err.message}`,
+      );
+      return; // Don't crash — Redis clients will reconnect
+    }
+    console.error('[UncaughtException] Fatal:', err);
+    process.exit(1);
+  });
+
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 

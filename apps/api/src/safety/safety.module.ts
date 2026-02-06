@@ -14,6 +14,7 @@ import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { Reply } from '../entities/reply.entity';
 import { ModerationRecord } from '../entities/moderation-record.entity';
+import { Notification } from '../entities/notification.entity';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ModerationRecord } from '../entities/moderation-record.entity';
       Post,
       Reply,
       ModerationRecord,
+      Notification,
     ]),
   ],
   controllers: [SafetyController, SafetyAdminController],

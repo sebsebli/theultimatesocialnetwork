@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Där idéer får sin plats.",
-    subtitle: "Ett socialt nätverk byggt på citat.",
+    tagline: "Sociala medier utan bruset.",
+    subtitle: "Det europeiska alternativet.",
     showIntroAgain: "Om Citewalk",
     continue: "Logga in",
     privacy: "Integritet",
@@ -12,23 +12,24 @@ export default {
   intro: {
     title: "Välkommen till Citewalk",
     founderMessage:
-      "Jag byggde Citewalk eftersom internet belönar upprördhet över insikt. Det här är en plats där ditt rykte växer när andra citerar dina idéer -- inte när de klickar på ett hjärta.",
+      "Jag byggde Citewalk eftersom jag var trött på plattformar som belönar upprördhet över innehåll. Det här är ett oberoende europeiskt projekt — inga VC-pengar, inga tillväxtknep, bara en bättre plats att dela idéer.",
     founderName: "Sebastian, Grundare",
     point1:
-      "Dina inlägg lever på en kunskapsgraf, inte en engångsflöde. Varje idé du delar blir sökbar, citerbar och permanent.",
+      "Ingen algoritm bestämmer vad du ser. Ditt flöde är kronologiskt, ditt innehåll är sökbart efter ämne, och bra skrivande stiger eftersom folk faktiskt refererar till det.",
     point2:
-      "Auktoritet här tjänas genom citat. När andra författare refererar till ditt arbete, det är verklig trovärdighet -- inte fåfängamätvärden.",
+      "På andra plattformar blir den argaste rösten viral. Här tjänar den mest refererade rösten trovärdighet. Du växer genom att skriva saker värt att dela.",
     point3:
-      "Följ ämnen, inte algoritmer. Du kontrollerar vad du ser. Inga engagemangstrick, ingen dold ranking -- bara idéerna du bryr dig om.",
+      "100% EU-hostat. Inga annonser, ingen spårning, ingen försäljning av dina data. Byggt i Europa som ett äkta alternativ — inte ännu en Silicon Valley-produkt.",
     point4: "Riktiga människor. Verklig diskurs. Inga botar.",
-    point5: "Byggd för förståelse, inte bara konsumtion.",
-    point6: "Följ spåret. Varje citat leder någonstans.",
-    point7: "Skriv. Citera. Bygg kunskap.",
+    point5: "Diskussioner byggda på innehåll, inte på dunkar.",
+    point6: "Allt du skriver förblir sökbart. Ingenting försvinner.",
+    point7: "Publicera. Anslut. Väx.",
     next: "Nästa",
     skip: "Hoppa över",
     getStarted: "Logga in",
     beginJourney: "Kom igång",
-    finalMessage: "Där idéer får sin plats.",
+    finalMessage:
+      "Internet behöver inte ett nytt flöde. Det behöver ett bättre.",
     welcome: "Välkommen.",
   },
   signIn: {
@@ -51,7 +52,8 @@ export default {
     invalidEmail: "Det ser inte ut som en giltig e-postadress",
     userNotFound: "Inget konto hittades för denna e-post",
     rateLimited: "För många försök. Vänta en stund.",
-    signUpAgreement: "Genom att fortsätta godkänner du våra {{terms}} och {{privacy}}",
+    signUpAgreement:
+      "Genom att fortsätta godkänner du våra {{terms}} och {{privacy}}",
     termsLink: "Villkor",
     privacyLink: "Integritetspolicy",
     joinWaitlist: "Har du inte tillgång? Gå med i väntelistan",
@@ -60,7 +62,8 @@ export default {
     acceptTermsError: "Vänligen godkänn villkoren för att fortsätta",
     verificationSent: "Verifieringskod skickad",
     inviteCodeRequiredTitle: "Inbjudningskod krävs",
-    inviteCodeRequiredMessage: "Det verkar som att du är ny här. Ange din inbjudningskod för att komma igång.",
+    inviteCodeRequiredMessage:
+      "Det verkar som att du är ny här. Ange din inbjudningskod för att komma igång.",
     waitBeforeRequest: "Vänta {{seconds}}s",
     wrongEmail: "Fel e-post? Gå tillbaka",
     resendCodeIn: "Skicka igen om {{seconds}}s",
@@ -108,7 +111,8 @@ export default {
       search: "Sök språk...",
       continue: "Fortsätt",
       languagesTitle: "Lässpråk",
-      languagesSubtitle: "Vi använder detta för att visa dig relevant innehåll.",
+      languagesSubtitle:
+        "Vi använder detta för att visa dig relevant innehåll.",
       filterExplore: "Filtrera Utforska",
       filterExploreDesc: "Visa endast inlägg på mina språk",
       updateFailed: "Kunde inte spara. Försök igen.",
@@ -269,7 +273,8 @@ export default {
     addReply: "Svara...",
     replyNotFound: "Svar hittades inte",
     signInToComment: "Logga in för att kommentera",
-    signInToCommentSubtext: "Du måste vara inloggad för att lämna en kommentar.",
+    signInToCommentSubtext:
+      "Du måste vara inloggad för att lämna en kommentar.",
     noSources: "Inga externa källor.",
     noQuotes: "Inga citat ännu.",
     delete: "Radera inlägg",
@@ -366,7 +371,8 @@ export default {
     privateAccount: "Privat konto",
     privateAccountHint: "Följ detta konto för att se deras aktivitet.",
     followRequest: "Följförfrågan",
-    followRequestMessage: "Detta är ett privat konto. En följförfrågan kommer att skickas.",
+    followRequestMessage:
+      "Detta är ett privat konto. En följförfrågan kommer att skickas.",
     sendRequest: "Skicka förfrågan",
   },
   invites: {
@@ -411,7 +417,8 @@ export default {
     unblockUser: "Avblockera användare",
     muteUser: "Dämpa användare",
     unmuteUser: "Avdämpa användare",
-    blockConfirm: "Blockera denna person? Ni kommer inte att se varandras innehåll.",
+    blockConfirm:
+      "Blockera denna person? Ni kommer inte att se varandras innehåll.",
     unblockConfirm: "Avblockera denna person?",
     muteConfirm: "Dämpa denna person? Deras inlägg kommer att döljas.",
     unmuteConfirm: "Avdämpa denna person?",
@@ -465,7 +472,8 @@ export default {
     showSavesDesc: "Se vad personer du följer sparar",
     explore: "Utforska",
     enableRecommendations: "Personifierade rekommendationer",
-    enableRecommendationsDesc: "Använd vår relevansmotor för att visa inlägg åt dig",
+    enableRecommendationsDesc:
+      "Använd vår relevansmotor för att visa inlägg åt dig",
     relevance: "Relevans",
     relevanceControls: "Relevansvikter",
     relevanceControlsDesc: "Finjustera vad som betyder mest",
@@ -488,7 +496,8 @@ export default {
     dangerZoneHint: "Dessa åtgärder är permanenta.",
     deleteAccount: "Radera konto",
     deleteAccountDesc: "Radera ditt konto och all data permanent",
-    deleteAccountConfirm: "Detta kommer att permanent radera ditt konto. Detta kan inte ångras.",
+    deleteAccountConfirm:
+      "Detta kommer att permanent radera ditt konto. Detta kan inte ångras.",
     deleteAccountConfirmEmail:
       "Vi skickar en bekräftelselänk till din e-post. Klicka på den inom 24 timmar.",
     sendDeletionLink: "Skicka bekräftelse",
@@ -531,7 +540,8 @@ export default {
     manageOfflineStorage: "Hantera lagring",
     offlineCount: "{{count}} inlägg cachade",
     removeAllOffline: "Rensa cache",
-    removeAllOfflineConfirm: "Ta bort alla offlineinlägg? Detta frigör lagringsutrymme.",
+    removeAllOfflineConfirm:
+      "Ta bort alla offlineinlägg? Detta frigör lagringsutrymme.",
     offlineStorageSummary: "{{count}} inlägg · {{size}}",
     noOfflineArticles: "Inga offlineinlägg",
     noOfflineHint: "Spara inlägg för att läsa dem offline.",
@@ -576,7 +586,8 @@ export default {
     emptyDetail: "Denna samling är tom.",
     emptyDetailHint: "Spara inlägg för att lägga till dem här.",
     addCitation: "Lägg till i samling",
-    addCitationHint: "Bläddra bland inlägg och tryck på Spara för att lägga till dem.",
+    addCitationHint:
+      "Bläddra bland inlägg och tryck på Spara för att lägga till dem.",
     curatorNote: "OBS",
     makePublic: "Gör offentlig",
     makePrivate: "Gör privat",
@@ -674,7 +685,8 @@ export default {
     user: "Användare",
     topicOrPost: "Ämne eller inlägg",
     somethingWentWrong: "Något gick fel",
-    unexpectedErrorRetry: "Ett oväntat fel uppstod. Försök gå tillbaka till startsidan.",
+    unexpectedErrorRetry:
+      "Ett oväntat fel uppstod. Försök gå tillbaka till startsidan.",
     goToHome: "Gå hem",
   },
   externalLink: {
@@ -702,7 +714,8 @@ export default {
     emptyPeople: "Inga bidragsgivare ännu",
     emptyPeopleSubtext: "Författare kommer att visas här när de publicerar.",
     emptySources: "Inga källor ännu",
-    emptySourcesSubtext: "Externa källor kommer att visas när personer citerar dem.",
+    emptySourcesSubtext:
+      "Externa källor kommer att visas när personer citerar dem.",
     shareTopic: "Dela ämne",
     shareTopicMessage: "Kolla in detta ämne på Citewalk",
     searchInTopic: "Sök detta ämne",
@@ -767,7 +780,8 @@ export default {
   waitingList: {
     title: "Gå med i väntelistan",
     heading: "Begär tillgång",
-    description: "Citewalk är för närvarande i tidig åtkomst. Gå med i väntelistan så meddelar vi dig när det finns en plats.",
+    description:
+      "Citewalk är för närvarande i tidig åtkomst. Gå med i väntelistan så meddelar vi dig när det finns en plats.",
     emailPlaceholder: "Din e-postadress",
     join: "Gå med i väntelistan",
     success: "Du är på listan!",

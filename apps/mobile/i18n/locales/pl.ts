@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Gdzie pomysły zdobywają swoje miejsce.",
-    subtitle: "Sieć społecznościowa oparta na cytowaniach.",
+    tagline: "Media społecznościowe bez hałasu.",
+    subtitle: "Europejska alternatywa.",
     showIntroAgain: "O Citewalk",
     continue: "Zaloguj się",
     privacy: "Prywatność",
@@ -12,23 +12,24 @@ export default {
   intro: {
     title: "Witaj w Citewalk",
     founderMessage:
-      "Stworzyłem Citewalk, bo internet nagradza oburzenie bardziej niż wgląd. To miejsce, gdzie twoja reputacja rośnie, gdy inni cytują twoje pomysły — nie gdy klikają serduszko.",
+      "Stworzyłem Citewalk, bo byłem zmęczony platformami, które nagradzają oburzenie zamiast treści. To niezależny europejski projekt — bez pieniędzy VC, bez trików na wzrost, po prostu lepsze miejsce do dzielenia się pomysłami.",
     founderName: "Sebastian, Założyciel",
     point1:
-      "Twoje posty żyją na grafie wiedzy, nie na jednorazowym feedzie. Każdy pomysł, którym się dzielisz, staje się znajdowalny, cytowalny i trwały.",
+      "Żaden algorytm nie decyduje, co widzisz. Twój feed jest chronologiczny, twoja treść jest znajdowalna po temacie, a dobre teksty rosną, bo ludzie faktycznie się do nich odnoszą.",
     point2:
-      "Autorytet zdobywa się tutaj przez cytowania. Gdy inni pisarze odnoszą się do twojej pracy, to prawdziwa wiarygodność — nie mierniki próżności.",
+      "Na innych platformach najbardziej wściekły głos staje się wiralowy. Tutaj najbardziej cytowany głos zdobywa wiarygodność. Rośniesz, pisząc rzeczy warte dzielenia.",
     point3:
-      "Obserwuj tematy, nie algorytmy. Ty kontrolujesz, co widzisz. Żadnych trików na zaangażowanie, żadnych ukrytych rankingów — tylko pomysły, na których ci zależy.",
+      "100% hostowane w UE. Bez reklam, bez śledzenia, bez sprzedaży twoich danych. Zbudowane w Europie jako prawdziwa alternatywa — nie kolejny produkt z Doliny Krzemowej.",
     point4: "Prawdziwi ludzie. Prawdziwa dyskusja. Bez botów.",
-    point5: "Zbudowane dla zrozumienia, nie tylko konsumpcji.",
-    point6: "Podążaj śladem. Każde cytowanie prowadzi gdzieś dalej.",
-    point7: "Pisz. Cytuj. Buduj wiedzę.",
+    point5: "Dyskusje oparte na treści, nie na atakach.",
+    point6: "Wszystko, co napiszesz, pozostaje znajdowalne. Nic nie znika.",
+    point7: "Publikuj. Łącz się. Rozwijaj.",
     next: "Dalej",
     skip: "Pomiń",
     getStarted: "Zaloguj się",
     beginJourney: "Zacznij",
-    finalMessage: "Gdzie pomysły zdobywają swoje miejsce.",
+    finalMessage:
+      "Internet nie potrzebuje kolejnego feedu. Potrzebuje lepszego.",
     welcome: "Witaj.",
   },
   signIn: {
@@ -51,7 +52,8 @@ export default {
     invalidEmail: "To nie wygląda na poprawny email",
     userNotFound: "Nie znaleziono konta dla tego emaila",
     rateLimited: "Zbyt wiele prób. Poczekaj chwilę.",
-    signUpAgreement: "Kontynuując, zgadzasz się na nasz {{terms}} i {{privacy}}",
+    signUpAgreement:
+      "Kontynuując, zgadzasz się na nasz {{terms}} i {{privacy}}",
     termsLink: "Regulamin",
     privacyLink: "Polityka prywatności",
     joinWaitlist: "Nie masz dostępu? Dołącz do listy oczekujących",
@@ -60,7 +62,8 @@ export default {
     acceptTermsError: "Zaakceptuj regulamin, aby kontynuować",
     verificationSent: "Kod weryfikacyjny wysłany",
     inviteCodeRequiredTitle: "Wymagany kod zaproszenia",
-    inviteCodeRequiredMessage: "Wygląda na to, że jesteś tu nowy. Wpisz kod zaproszenia, aby zacząć.",
+    inviteCodeRequiredMessage:
+      "Wygląda na to, że jesteś tu nowy. Wpisz kod zaproszenia, aby zacząć.",
     waitBeforeRequest: "Poczekaj {{seconds}}s",
     wrongEmail: "Zły email? Wróć",
     resendCodeIn: "Wyślij ponownie za {{seconds}}s",
@@ -96,11 +99,13 @@ export default {
       updateFailed: "Coś poszło nie tak. Spróbuj ponownie.",
       fieldsRequired: "Wypełnij wszystkie wymagane pola",
       publicDescription: "Każdy może znaleźć i przeczytać twoje posty.",
-      privateDescription: "Tylko zatwierdzeni obserwujący mogą zobaczyć twoje posty.",
+      privateDescription:
+        "Tylko zatwierdzeni obserwujący mogą zobaczyć twoje posty.",
     },
     bioPlaceholder: "O czym piszesz? Czym się interesujesz?",
     publicDescription: "Każdy może znaleźć i przeczytać twoje posty.",
-    privateDescription: "Tylko zatwierdzeni obserwujący mogą zobaczyć twoje posty.",
+    privateDescription:
+      "Tylko zatwierdzeni obserwujący mogą zobaczyć twoje posty.",
     languages: {
       title: "Co czytasz?",
       subtitle: "Wybierz języki, w których czujesz się komfortowo",
@@ -122,7 +127,8 @@ export default {
       finishing: "Konfigurowanie...",
       loadingSuggested: "Szukanie pisarzy dla ciebie...",
       starterPackTitle: "Polecani pisarze",
-      starterPackSubtitle: "Ludzie piszący o tematach, które mogą cię zainteresować.",
+      starterPackSubtitle:
+        "Ludzie piszący o tematach, które mogą cię zainteresować.",
     },
     finish: "Gotowe",
   },
@@ -338,7 +344,8 @@ export default {
     noCollectionsHint: "Publiczne kolekcje pojawią się tutaj.",
     noCollectionsOwnHint: "Utwórz kolekcję, aby organizować swoje zapisy.",
     noReplies: "Brak komentarzy",
-    noRepliesHint: "Komentarze, które zostawiasz pod postami, pojawią się tutaj.",
+    noRepliesHint:
+      "Komentarze, które zostawiasz pod postami, pojawią się tutaj.",
     privateProfileHint:
       "Obserwuj to konto, aby zobaczyć jego posty i aktywność.",
     noQuotes: "Brak cytowań",
@@ -366,7 +373,8 @@ export default {
     privateAccount: "Konto prywatne",
     privateAccountHint: "Obserwuj to konto, aby zobaczyć jego aktywność.",
     followRequest: "Prośba o obserwowanie",
-    followRequestMessage: "To jest konto prywatne. Zostanie wysłana prośba o obserwowanie.",
+    followRequestMessage:
+      "To jest konto prywatne. Zostanie wysłana prośba o obserwowanie.",
     sendRequest: "Wyślij prośbę",
   },
   invites: {
@@ -411,7 +419,8 @@ export default {
     unblockUser: "Odblokuj użytkownika",
     muteUser: "Wycisz użytkownika",
     unmuteUser: "Przywróć dźwięk użytkownika",
-    blockConfirm: "Zablokować tę osobę? Nie będziecie widzieć treści siebie nawzajem.",
+    blockConfirm:
+      "Zablokować tę osobę? Nie będziecie widzieć treści siebie nawzajem.",
     unblockConfirm: "Odblokować tę osobę?",
     muteConfirm: "Wyciszyć tę osobę? Jej posty będą ukryte.",
     unmuteConfirm: "Przywrócić dźwięk tej osobie?",
@@ -465,7 +474,8 @@ export default {
     showSavesDesc: "Zobacz, co zapisują osoby, które obserwujesz",
     explore: "Odkrywanie",
     enableRecommendations: "Spersonalizowane rekomendacje",
-    enableRecommendationsDesc: "Użyj naszego silnika trafności, aby pokazać ci posty",
+    enableRecommendationsDesc:
+      "Użyj naszego silnika trafności, aby pokazać ci posty",
     relevance: "Trafność",
     relevanceControls: "Wagi trafności",
     relevanceControlsDesc: "Dostosuj, co jest najważniejsze",
@@ -488,7 +498,8 @@ export default {
     dangerZoneHint: "Te działania są trwałe.",
     deleteAccount: "Usuń konto",
     deleteAccountDesc: "Trwale usuń swoje konto i wszystkie dane",
-    deleteAccountConfirm: "To trwale usunie twoje konto. Nie można tego cofnąć.",
+    deleteAccountConfirm:
+      "To trwale usunie twoje konto. Nie można tego cofnąć.",
     deleteAccountConfirmEmail:
       "Wyślemy link potwierdzający na twój email. Kliknij go w ciągu 24 godzin.",
     sendDeletionLink: "Wyślij potwierdzenie",
@@ -527,11 +538,13 @@ export default {
     content: "Treść",
     offlineReading: "Czytanie offline",
     downloadSavedOffline: "Automatyczne zapisywanie offline",
-    downloadSavedOfflineHint: "Czytaj zapisane posty bez połączenia z internetem.",
+    downloadSavedOfflineHint:
+      "Czytaj zapisane posty bez połączenia z internetem.",
     manageOfflineStorage: "Zarządzaj przechowywaniem",
     offlineCount: "{{count}} postów w pamięci podręcznej",
     removeAllOffline: "Wyczyść pamięć podręczną",
-    removeAllOfflineConfirm: "Usunąć wszystkie posty offline? To zwolni miejsce.",
+    removeAllOfflineConfirm:
+      "Usunąć wszystkie posty offline? To zwolni miejsce.",
     offlineStorageSummary: "{{count}} postów · {{size}}",
     noOfflineArticles: "Brak postów offline",
     noOfflineHint: "Zapisuj posty, aby czytać je offline.",
@@ -545,7 +558,8 @@ export default {
     takePhoto: "Zrób zdjęcie",
     choosePhoto: "Wybierz z biblioteki",
     removePhoto: "Usuń zdjęcie",
-    photoPermissionDenied: "Wymagany jest dostęp do aparatu lub biblioteki zdjęć.",
+    photoPermissionDenied:
+      "Wymagany jest dostęp do aparatu lub biblioteki zdjęć.",
     photoUpdated: "Zdjęcie zaktualizowane",
     photoRemoved: "Zdjęcie usunięte",
     tapToChangePhoto: "Zmień zdjęcie",
@@ -674,7 +688,8 @@ export default {
     user: "Użytkownik",
     topicOrPost: "Temat lub post",
     somethingWentWrong: "Coś poszło nie tak",
-    unexpectedErrorRetry: "Wystąpił nieoczekiwany błąd. Spróbuj wrócić do ekranu głównego.",
+    unexpectedErrorRetry:
+      "Wystąpił nieoczekiwany błąd. Spróbuj wrócić do ekranu głównego.",
     goToHome: "Strona główna",
   },
   externalLink: {
@@ -702,7 +717,8 @@ export default {
     emptyPeople: "Brak współtwórców",
     emptyPeopleSubtext: "Pisarze pojawią się tutaj, gdy będą pisać.",
     emptySources: "Brak źródeł",
-    emptySourcesSubtext: "Zewnętrzne źródła pojawią się, gdy ludzie je zacytują.",
+    emptySourcesSubtext:
+      "Zewnętrzne źródła pojawią się, gdy ludzie je zacytują.",
     shareTopic: "Udostępnij temat",
     shareTopicMessage: "Sprawdź ten temat na Citewalk",
     searchInTopic: "Szukaj w tym temacie",
@@ -731,13 +747,13 @@ export default {
     searchUsers: "Znajdź kogoś...",
     searchPlaceholder: "Szukaj wiadomości...",
     loadError: "Nie udało się załadować wiadomości",
-    mustFollowOrPrior: "Musisz obserwować się nawzajem, aby wysyłać wiadomości.",
+    mustFollowOrPrior:
+      "Musisz obserwować się nawzajem, aby wysyłać wiadomości.",
     createThreadFailed: "Nie udało się rozpocząć rozmowy",
     noSuggested: "Brak sugestii w tej chwili.",
     markUnread: "Oznacz jako nieprzeczytane",
     deleteConversation: "Usuń rozmowę",
-    deleteConversationConfirm:
-      "To trwale usunie rozmowę dla was obojga.",
+    deleteConversationConfirm: "To trwale usunie rozmowę dla was obojga.",
     deleteFailed: "Nie udało się usunąć rozmowy",
   },
   notifications: {
@@ -767,7 +783,8 @@ export default {
   waitingList: {
     title: "Dołącz do listy oczekujących",
     heading: "Poproś o dostęp",
-    description: "Citewalk jest obecnie w wczesnym dostępie. Dołącz do listy oczekujących, a damy ci znać, gdy będzie miejsce.",
+    description:
+      "Citewalk jest obecnie w wczesnym dostępie. Dołącz do listy oczekujących, a damy ci znać, gdy będzie miejsce.",
     emailPlaceholder: "Twój adres email",
     join: "Dołącz do listy",
     success: "Jesteś na liście!",

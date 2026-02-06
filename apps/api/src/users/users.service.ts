@@ -28,6 +28,11 @@ import { Block } from '../entities/block.entity';
 import { Mute } from '../entities/mute.entity';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { CollectionsService } from '../collections/collections.service';
+import {
+  encryptField,
+  decryptField,
+  hashForLookup,
+} from '../shared/field-encryption';
 import { EmailService } from '../shared/email.service';
 import { UploadService } from '../upload/upload.service';
 import { InteractionsService } from '../interactions/interactions.service';
@@ -340,16 +345,28 @@ export class UsersService {
     }
 
     // Email change: require confirmation — do not update email directly; send confirmation to new address
-    if (updates.email != null && updates.email !== user.email) {
+    // Compare against decrypted email (user.email may be encrypted at rest)
+    const currentPlaintextEmail = user.email
+      ? decryptField(user.email)
+      : user.email;
+    if (updates.email != null && updates.email !== currentPlaintextEmail) {
       const newEmail = updates.email.trim().toLowerCase();
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(newEmail)) {
         throw new BadRequestException('Please enter a valid email address.');
       }
-      const existing = await this.userRepo.findOne({
-        where: { email: newEmail },
+      const existingByHash = await this.userRepo.findOne({
+        where: { emailHash: hashForLookup(newEmail) },
         select: ['id'],
       });
+      // Also check plaintext for pre-migration rows
+      const existingByPlain = !existingByHash
+        ? await this.userRepo.findOne({
+            where: { email: newEmail },
+            select: ['id'],
+          })
+        : null;
+      const existing = existingByHash ?? existingByPlain;
       if (existing && existing.id !== id) {
         throw new BadRequestException(
           'This email is already in use by another account.',
@@ -557,6 +574,15 @@ export class UsersService {
       select: ['emailProductUpdates'],
     });
     return pref?.emailProductUpdates ?? false;
+  }
+
+  async updatePrivacySettings(
+    userId: string,
+    settings: Record<string, boolean>,
+  ) {
+    await this.userRepo.update(userId, {
+      privacySettings: settings as User['privacySettings'],
+    });
   }
 
   async getNotificationPrefs(userId: string) {
@@ -770,27 +796,44 @@ export class UsersService {
     // type === 'cited': posts that this user has cited (outgoing quotes). Query from Post (cited) via PostEdge so we use the same entity pattern as 'quotes'.
     if (type === 'cited') {
       try {
-        const qb = this.postRepo
-          .createQueryBuilder('cited')
-          .innerJoin(PostEdge, 'edge', 'edge.to_post_id = cited.id')
-          .innerJoin(
-            'posts',
-            'fromPost',
-            'fromPost.id = edge.from_post_id AND fromPost.author_id = :userId AND fromPost.deleted_at IS NULL',
-          )
-          .where('edge.edgeType = :edgeType', { edgeType: EdgeType.QUOTE })
-          .andWhere('cited.deletedAt IS NULL')
-          .leftJoinAndSelect('cited.author', 'author')
-          .orderBy('edge.createdAt', 'DESC')
-          .setParameter('userId', userId)
-          .skip(skip)
-          .take(limit + 1);
-
+        // Two-step query: raw SQL for IDs (avoids TypeORM DISTINCT wrapper issue
+        // with skip/take on raw-joined entities), then fetch full entities.
+        const params: unknown[] = [EdgeType.QUOTE, userId, limit + 1, skip];
+        let cursorClause = '';
         if (cursorDate && !isNaN(cursorDate.getTime())) {
-          qb.andWhere('edge.createdAt < :cursor', { cursor: cursorDate });
+          cursorClause = 'AND e.created_at < $5';
+          params.push(cursorDate);
         }
+        const idRows: { id: string }[] = await this.postRepo.query(
+          `SELECT DISTINCT cited.id
+           FROM posts cited
+           INNER JOIN post_edges e ON e.to_post_id = cited.id
+           INNER JOIN posts fp ON fp.id = e.from_post_id
+             AND fp.author_id = $2 AND fp.deleted_at IS NULL
+           WHERE e.edge_type = $1
+             AND cited.deleted_at IS NULL
+             ${cursorClause}
+           ORDER BY cited.id
+           LIMIT $3 OFFSET $4`,
+          params,
+        );
+        const citedIds: string[] = (idRows as { id: string }[]).map(
+          (r) => r.id,
+        );
 
-        const citedPosts = await qb.getMany();
+        let citedPosts: Post[] = [];
+        if (citedIds.length > 0) {
+          citedPosts = await this.postRepo
+            .createQueryBuilder('cited')
+            .leftJoinAndSelect('cited.author', 'author')
+            .whereInIds(citedIds)
+            .getMany();
+          // Preserve order from id list
+          const orderMap = new Map(citedIds.map((id, i) => [id, i]));
+          citedPosts.sort(
+            (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+          );
+        }
         const hasMore = citedPosts.length > limit;
         const slice = citedPosts.slice(0, limit);
 
@@ -968,10 +1011,17 @@ export class UsersService {
     if (new Date() > req.expiresAt) {
       throw new BadRequestException('This confirmation link has expired.');
     }
-    const existing = await this.userRepo.findOne({
-      where: { email: req.newEmail },
+    const existByHash2 = await this.userRepo.findOne({
+      where: { emailHash: hashForLookup(req.newEmail) },
       select: ['id'],
     });
+    const existByPlain2 = !existByHash2
+      ? await this.userRepo.findOne({
+          where: { email: req.newEmail },
+          select: ['id'],
+        })
+      : null;
+    const existing = existByHash2 ?? existByPlain2;
     if (existing && existing.id !== req.userId) {
       throw new BadRequestException(
         'This email is already in use by another account.',
@@ -979,7 +1029,10 @@ export class UsersService {
     }
     req.consumedAt = new Date();
     await this.emailChangeRequestRepo.save(req);
-    await this.userRepo.update(req.userId, { email: req.newEmail });
+    await this.userRepo.update(req.userId, {
+      email: encryptField(req.newEmail),
+      emailHash: hashForLookup(req.newEmail),
+    });
     const user = await this.userRepo.findOneOrFail({
       where: { id: req.userId },
     });
@@ -1158,7 +1211,7 @@ export class UsersService {
           handle: raw.user.handle,
           displayName: raw.user.displayName,
           bio: raw.user.bio ?? null,
-          email: raw.user.email ?? null,
+          email: raw.user.email ? decryptField(raw.user.email) : null,
           languages: raw.user.languages ?? [],
           isProtected: raw.user.isProtected ?? false,
           createdAt: raw.user.createdAt,

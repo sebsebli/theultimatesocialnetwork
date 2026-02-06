@@ -60,7 +60,9 @@ export default function SettingsScreen() {
     api
       .get<{ handle?: string }>("/users/me")
       .then(setMe)
-      .catch(() => { /* network failure handled silently */ });
+      .catch(() => {
+        /* network failure handled silently */
+      });
   }, []);
 
   const onDownloadSavedToggle = async (value: boolean) => {
@@ -315,6 +317,20 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t("settings.privacyDataProcessing", "Privacy & Data Processing")}
+          </Text>
+          <SettingItem
+            icon="privacy-tip"
+            label={t(
+              "settings.dataProcessingPreferences",
+              "Data processing preferences",
+            )}
+            onPress={() => router.push("/settings/privacy-preferences")}
+          />
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t("settings.safety")}</Text>
           <SettingItem
             icon="block"
@@ -341,9 +357,22 @@ export default function SettingsScreen() {
             onPress={() => openLink("https://citewalk.app/privacy")}
           />
           <SettingItem
+            icon="gavel"
+            label={t("settings.communityGuidelines", "Community Guidelines")}
+            onPress={() =>
+              openLink("https://citewalk.app/community-guidelines")
+            }
+          />
+          <SettingItem
             icon="info-outline"
             label={t("welcome.imprint")}
             onPress={() => openLink("https://citewalk.app/imprint")}
+          />
+          <SettingItem
+            icon="help-outline"
+            label={t("settings.contactUs", "Contact & Support")}
+            value="hello@citewalk.com"
+            onPress={() => Linking.openURL("mailto:hello@citewalk.com")}
           />
           {me?.handle ? (
             <SettingItem
@@ -356,7 +385,9 @@ export default function SettingsScreen() {
                   Platform.OS === "android"
                     ? { message: url, title }
                     : { url, message: url, title },
-                ).catch(() => { /* network failure handled silently */ });
+                ).catch(() => {
+                  /* network failure handled silently */
+                });
               }}
             />
           ) : null}

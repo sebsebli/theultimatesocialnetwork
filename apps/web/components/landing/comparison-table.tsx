@@ -3,29 +3,34 @@
 export function ComparisonTable() {
   const rows = [
     {
-      feature: "Algorithm",
-      feed: "Engagement-optimized",
-      citewalk: "Chronological + relevance",
+      feature: "What you see",
+      feed: "Algorithm decides for you",
+      citewalk: "Chronological, you decide",
     },
     {
-      feature: "Links",
-      feed: "Link rot / suppressed",
-      citewalk: "Archived & permanent",
+      feature: "What gets rewarded",
+      feed: "Outrage & volume",
+      citewalk: "Substance & references",
     },
     {
-      feature: "Reputation",
-      feed: "Likes & follower count",
-      citewalk: "Citations from peers",
+      feature: "Content lifespan",
+      feed: "Gone in 24 hours",
+      citewalk: "Permanent & discoverable",
     },
     {
-      feature: "Content",
-      feed: "Ephemeral feed",
-      citewalk: "Knowledge graph",
+      feature: "Hosting",
+      feed: "US / opaque",
+      citewalk: "EU-hosted, GDPR by design",
     },
     {
       feature: "Your data",
       feed: "Platform-locked",
-      citewalk: "JSON export + RSS",
+      citewalk: "Full export + RSS",
+    },
+    {
+      feature: "Business model",
+      feed: "Ads & your attention",
+      citewalk: "Free core, no ads ever",
     },
   ];
 
@@ -33,7 +38,7 @@ export function ComparisonTable() {
     <section className="px-6 md:px-12 max-w-[1000px] mx-auto py-24">
       <div className="text-center mb-16">
         <h2 className="text-xs font-mono text-[#6E7A8A] uppercase tracking-widest mb-4">
-          Benchmark
+          Comparison
         </h2>
         <h3 className="text-3xl font-serif text-[#F2F2F2]">
           How Citewalk is different
@@ -44,7 +49,7 @@ export function ComparisonTable() {
         {/* Header */}
         <div className="grid grid-cols-3 border-b border-[#1A1A1D] bg-[#1A1A1D]/50 text-xs font-mono text-[#6E6E73] uppercase tracking-widest">
           <div className="p-4 pl-6">Feature</div>
-          <div className="p-4 border-l border-[#1A1A1D]">The Feed</div>
+          <div className="p-4 border-l border-[#1A1A1D]">Big Tech</div>
           <div className="p-4 border-l border-[#1A1A1D] text-[#F2F2F2]">
             Citewalk
           </div>

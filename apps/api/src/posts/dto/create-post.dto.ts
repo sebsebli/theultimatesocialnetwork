@@ -39,4 +39,10 @@ export class CreatePostDto {
   @IsOptional()
   @IsString()
   visibility?: string;
+
+  /** Content warning label (e.g. "Graphic imagery", "Sensitive topic"). Collapses the post behind a warning on clients. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  contentWarning?: string;
 }

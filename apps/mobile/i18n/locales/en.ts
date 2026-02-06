@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Where ideas earn their place.",
-    subtitle: "A social network built on citations.",
+    tagline: "Social media, without the noise.",
+    subtitle: "The European alternative.",
     showIntroAgain: "About Citewalk",
     continue: "Sign in",
     privacy: "Privacy",
@@ -12,23 +12,24 @@ export default {
   intro: {
     title: "Welcome to Citewalk",
     founderMessage:
-      "I built Citewalk because the internet rewards outrage over insight. This is a place where your reputation grows when others cite your ideas -- not when they click a heart.",
+      "I built Citewalk because I was tired of platforms that reward outrage over substance. This is an independent European project — no VC money, no growth hacks, just a better place to share ideas.",
     founderName: "Sebastian, Founder",
     point1:
-      "Your posts live on a knowledge graph, not a disposable feed. Every idea you share becomes findable, citable, and permanent.",
+      "No algorithm decides what you see. Your feed is chronological, your content is discoverable by topic, and good writing rises because people actually reference it.",
     point2:
-      "Authority here is earned through citations. When other writers reference your work, that's real credibility -- not vanity metrics.",
+      "On other platforms, the angriest voice goes viral. Here, the most referenced voice earns credibility. You grow by writing things worth sharing.",
     point3:
-      "Follow topics, not algorithms. You control what you see. No engagement tricks, no hidden ranking -- just the ideas you care about.",
+      "100% EU-hosted. No ads, no tracking, no selling your data. Built in Europe as a genuine alternative — not another Silicon Valley product.",
     point4: "Real people. Real discourse. No bots.",
-    point5: "Built for comprehension, not just consumption.",
-    point6: "Follow the trail. Every citation leads somewhere.",
-    point7: "Write. Cite. Build knowledge.",
+    point5: "Discussions built on substance, not dunks.",
+    point6: "Everything you write stays discoverable. Nothing disappears.",
+    point7: "Post. Connect. Grow.",
     next: "Next",
     skip: "Skip",
     getStarted: "Sign in",
     beginJourney: "Get started",
-    finalMessage: "Where ideas earn their place.",
+    finalMessage:
+      "The internet doesn't need another feed. It needs a better one.",
     welcome: "Welcome.",
   },
   signIn: {
@@ -51,7 +52,8 @@ export default {
     invalidEmail: "That doesn't look like a valid email",
     userNotFound: "No account found for this email",
     rateLimited: "Too many attempts. Please wait a moment.",
-    signUpAgreement: "By continuing, you agree to our {{terms}} and {{privacy}}",
+    signUpAgreement:
+      "By continuing, you agree to our {{terms}} and {{privacy}}",
     termsLink: "Terms",
     privacyLink: "Privacy Policy",
     joinWaitlist: "Don't have access? Join the waitlist",
@@ -60,7 +62,8 @@ export default {
     acceptTermsError: "Please accept the terms to continue",
     verificationSent: "Verification code sent",
     inviteCodeRequiredTitle: "Invite code required",
-    inviteCodeRequiredMessage: "Looks like you're new here. Enter your invite code to get started.",
+    inviteCodeRequiredMessage:
+      "Looks like you're new here. Enter your invite code to get started.",
     waitBeforeRequest: "Please wait {{seconds}}s",
     wrongEmail: "Wrong email? Go back",
     resendCodeIn: "Resend in {{seconds}}s",
@@ -70,6 +73,8 @@ export default {
     twoFactorSubtitle: "Enter the code from your authenticator app",
     invalid2FA: "Invalid code. Please try again.",
     emailHint: "Your email address",
+    ageConfirmation: "I confirm that I am at least 16 years old",
+    ageRequiredError: "You must be at least 16 years old to use Citewalk",
   },
   onboarding: {
     profile: {
@@ -192,6 +197,10 @@ export default {
     headerImageAttached: "Header image added",
     formatNotAllowedOnRefs: "References are plain text only.",
     startTypingToSeeSuggestions: "Type to search...",
+    contentWarningToggle: "Content warning",
+    contentWarningPlaceholder:
+      "Describe the warning (e.g. violence, sensitive topic)",
+    defaultContentWarning: "Sensitive content",
   },
   post: {
     moreContent: "...",
@@ -339,8 +348,7 @@ export default {
     noCollectionsOwnHint: "Create a collection to organize your saves.",
     noReplies: "No comments yet",
     noRepliesHint: "Comments you leave on posts will show up here.",
-    privateProfileHint:
-      "Follow this account to see their posts and activity.",
+    privateProfileHint: "Follow this account to see their posts and activity.",
     noQuotes: "No citations yet",
     noQuotesHint: "Posts that cite this person will appear here.",
     noCited: "No cited posts yet",
@@ -366,7 +374,8 @@ export default {
     privateAccount: "Private account",
     privateAccountHint: "Follow this account to see their activity.",
     followRequest: "Follow request",
-    followRequestMessage: "This is a private account. A follow request will be sent.",
+    followRequestMessage:
+      "This is a private account. A follow request will be sent.",
     sendRequest: "Send request",
   },
   invites: {
@@ -465,7 +474,8 @@ export default {
     showSavesDesc: "See what people you follow are saving",
     explore: "Explore",
     enableRecommendations: "Personalized recommendations",
-    enableRecommendationsDesc: "Use our relevance engine to surface posts for you",
+    enableRecommendationsDesc:
+      "Use our relevance engine to surface posts for you",
     relevance: "Relevance",
     relevanceControls: "Relevance weights",
     relevanceControlsDesc: "Fine-tune what matters most",
@@ -488,7 +498,8 @@ export default {
     dangerZoneHint: "These actions are permanent.",
     deleteAccount: "Delete account",
     deleteAccountDesc: "Permanently delete your account and all data",
-    deleteAccountConfirm: "This will permanently delete your account. This can't be undone.",
+    deleteAccountConfirm:
+      "This will permanently delete your account. This can't be undone.",
     deleteAccountConfirmEmail:
       "We'll send a confirmation link to your email. Click it within 24 hours.",
     sendDeletionLink: "Send confirmation",
@@ -527,7 +538,8 @@ export default {
     content: "Content",
     offlineReading: "Offline reading",
     downloadSavedOffline: "Auto-save for offline",
-    downloadSavedOfflineHint: "Read saved posts without an internet connection.",
+    downloadSavedOfflineHint:
+      "Read saved posts without an internet connection.",
     manageOfflineStorage: "Manage storage",
     offlineCount: "{{count}} posts cached",
     removeAllOffline: "Clear cache",
@@ -537,7 +549,27 @@ export default {
     noOfflineHint: "Save posts to read them offline.",
     removeDownload: "Remove download",
     removeDownloadConfirm: "Remove this post from your device?",
-    legal: "Legal",
+    legal: "Legal & Support",
+    communityGuidelines: "Community Guidelines",
+    privacyDataProcessing: "Privacy & Data Processing",
+    dataProcessingPreferences: "Data processing preferences",
+    privacyUpdated: "Preferences saved",
+    privacyInfoText:
+      "Under GDPR Art. 21, you have the right to object to data processing based on legitimate interest. Toggle off any processing you wish to opt out of. Essential processing (security, authentication) cannot be disabled.",
+    privacyRecommendations: "Personalised recommendations",
+    privacyRecommendationsDesc: "AI-based content suggestions in Explore feed",
+    privacyAnalytics: "Read time & view analytics",
+    privacyAnalyticsDesc:
+      "Tracking reading time and post views for content quality signals",
+    privacyModerationProfiling: "Moderation profiling",
+    privacyModerationProfilingDesc:
+      "Using your posting history to adjust trust scores. Note: content safety checks remain active regardless.",
+    privacyFooterNote:
+      "For other data processing objections or to exercise further GDPR rights, contact hello@citewalk.com. We will respond within one month.",
+    contactSupEmail: "hello@citewalk.com",
+    contactUs: "Contact & Support",
+    deletionExplanation:
+      "Your account will be deactivated immediately. After 30 days, your user record will be permanently deleted. Your posts will be anonymised (author removed, content cleared, media deleted).",
     pushEnabled: "Push notifications enabled",
     pushEnableError: "Couldn't enable push notifications",
     profileUpdated: "Profile updated",
@@ -590,7 +622,8 @@ export default {
     createFailed: "Couldn't create collection",
     itemsCount: "{{count}} items",
     delete: "Delete collection",
-    deleteConfirm: "Delete this collection? The posts inside won't be affected.",
+    deleteConfirm:
+      "Delete this collection? The posts inside won't be affected.",
     deleted: "Collection deleted",
     deleteFailed: "Couldn't delete collection",
     options: "Options",
@@ -674,7 +707,8 @@ export default {
     user: "User",
     topicOrPost: "Topic or post",
     somethingWentWrong: "Something went wrong",
-    unexpectedErrorRetry: "An unexpected error occurred. Try going back to the home screen.",
+    unexpectedErrorRetry:
+      "An unexpected error occurred. Try going back to the home screen.",
     goToHome: "Go home",
   },
   externalLink: {
@@ -767,7 +801,8 @@ export default {
   waitingList: {
     title: "Join the waitlist",
     heading: "Request access",
-    description: "Citewalk is currently in early access. Join the waitlist and we'll let you know when there's a spot.",
+    description:
+      "Citewalk is currently in early access. Join the waitlist and we'll let you know when there's a spot.",
     emailPlaceholder: "Your email address",
     join: "Join waitlist",
     success: "You're on the list!",

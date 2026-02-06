@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Der ideer fortjener sin plass.",
-    subtitle: "Et sosialt nettverk bygget på sitater.",
+    tagline: "Sosiale medier uten støy.",
+    subtitle: "Det europeiske alternativet.",
     showIntroAgain: "Om Citewalk",
     continue: "Logg inn",
     privacy: "Personvern",
@@ -12,23 +12,23 @@ export default {
   intro: {
     title: "Velkommen til Citewalk",
     founderMessage:
-      "Jeg bygde Citewalk fordi internett belønner opprør over innsikt. Dette er et sted der ditt omdømme vokser når andre siterer dine ideer -- ikke når de klikker på et hjerte.",
+      "Jeg bygde Citewalk fordi jeg var lei av plattformer som belønner opprør over substans. Dette er et uavhengig europeisk prosjekt — ingen VC-penger, ingen veksttriks, bare et bedre sted å dele ideer.",
     founderName: "Sebastian, Grunnlegger",
     point1:
-      "Dine innlegg lever på en kunnskapsgraf, ikke en engangsfeed. Hver idé du deler blir søkbar, siterbar og permanent.",
+      "Ingen algoritme bestemmer hva du ser. Feedet ditt er kronologisk, innholdet ditt er oppdagbart etter emne, og godt skriving stiger fordi folk faktisk refererer til det.",
     point2:
-      "Autoritet her oppnås gjennom sitater. Når andre forfattere refererer til ditt arbeid, er det ekte troverdighet -- ikke forfengelighet.",
+      "På andre plattformer går den sinteste stemmen viralt. Her tjener den mest refererte stemmen troverdighet. Du vokser ved å skrive ting verdt å dele.",
     point3:
-      "Følg emner, ikke algoritmer. Du kontrollerer det du ser. Ingen engasjementstriks, ingen skjult rangering -- bare ideene du bryr deg om.",
-    point4: "Ekte mennesker. Ekte diskurs. Ingen boter.",
-    point5: "Bygget for forståelse, ikke bare konsum.",
-    point6: "Følg sporet. Hvert sitat fører et sted.",
-    point7: "Skriv. Siter. Bygg kunnskap.",
+      "100% EU-vert. Ingen annonser, ingen sporing, ingen salg av dine data. Bygget i Europa som et ekte alternativ — ikke enda et Silicon Valley-produkt.",
+    point4: "Virkelige mennesker. Ekte diskurs. Ingen boter.",
+    point5: "Diskusjoner bygget på substans, ikke angrep.",
+    point6: "Alt du skriver forblir oppdagbart. Ingenting forsvinner.",
+    point7: "Publiser. Koble. Voks.",
     next: "Neste",
     skip: "Hopp over",
     getStarted: "Logg inn",
     beginJourney: "Kom i gang",
-    finalMessage: "Der ideer fortjener sin plass.",
+    finalMessage: "Internett trenger ikke enda en feed. Det trenger en bedre.",
     welcome: "Velkommen.",
   },
   signIn: {
@@ -60,7 +60,8 @@ export default {
     acceptTermsError: "Vennligst godta vilkårene for å fortsette",
     verificationSent: "Verifiseringskode sendt",
     inviteCodeRequiredTitle: "Invitasjonskode påkrevd",
-    inviteCodeRequiredMessage: "Det ser ut til at du er ny her. Skriv inn invitasjonskoden din for å komme i gang.",
+    inviteCodeRequiredMessage:
+      "Det ser ut til at du er ny her. Skriv inn invitasjonskoden din for å komme i gang.",
     waitBeforeRequest: "Vennligst vent {{seconds}}s",
     wrongEmail: "Feil e-post? Gå tilbake",
     resendCodeIn: "Send på nytt om {{seconds}}s",
@@ -269,7 +270,8 @@ export default {
     addReply: "Svar...",
     replyNotFound: "Svar ikke funnet",
     signInToComment: "Logg inn for å kommentere",
-    signInToCommentSubtext: "Du må være innlogget for å legge igjen en kommentar.",
+    signInToCommentSubtext:
+      "Du må være innlogget for å legge igjen en kommentar.",
     noSources: "Ingen eksterne kilder.",
     noQuotes: "Ingen sitater ennå.",
     delete: "Slett innlegg",
@@ -336,7 +338,8 @@ export default {
     noCollections: "Ingen offentlige samlinger",
     noCollectionsOwn: "Ingen samlinger ennå",
     noCollectionsHint: "Offentlige samlinger vil vises her.",
-    noCollectionsOwnHint: "Opprett en samling for å organisere lagringene dine.",
+    noCollectionsOwnHint:
+      "Opprett en samling for å organisere lagringene dine.",
     noReplies: "Ingen kommentarer ennå",
     noRepliesHint: "Kommentarer du legger igjen på innlegg vil vises her.",
     privateProfileHint:
@@ -366,7 +369,8 @@ export default {
     privateAccount: "Privat konto",
     privateAccountHint: "Følg denne kontoen for å se deres aktivitet.",
     followRequest: "Følgeforespørsel",
-    followRequestMessage: "Dette er en privat konto. En følgeforespørsel vil bli sendt.",
+    followRequestMessage:
+      "Dette er en privat konto. En følgeforespørsel vil bli sendt.",
     sendRequest: "Send forespørsel",
   },
   invites: {
@@ -465,7 +469,8 @@ export default {
     showSavesDesc: "Se hva folk du følger lagrer",
     explore: "Utforsk",
     enableRecommendations: "Personlige anbefalinger",
-    enableRecommendationsDesc: "Bruk vår relevansmotor for å vise innlegg for deg",
+    enableRecommendationsDesc:
+      "Bruk vår relevansmotor for å vise innlegg for deg",
     relevance: "Relevans",
     relevanceControls: "Relevansvekter",
     relevanceControlsDesc: "Finjuster det som betyr mest",
@@ -488,7 +493,8 @@ export default {
     dangerZoneHint: "Disse handlingene er permanente.",
     deleteAccount: "Slett konto",
     deleteAccountDesc: "Slett kontoen din og alle data permanent",
-    deleteAccountConfirm: "Dette vil permanent slette kontoen din. Dette kan ikke angres.",
+    deleteAccountConfirm:
+      "Dette vil permanent slette kontoen din. Dette kan ikke angres.",
     deleteAccountConfirmEmail:
       "Vi sender en bekreftelseslenke til e-posten din. Klikk den innen 24 timer.",
     sendDeletionLink: "Send bekreftelse",
@@ -531,7 +537,8 @@ export default {
     manageOfflineStorage: "Administrer lagring",
     offlineCount: "{{count}} innlegg i cache",
     removeAllOffline: "Tøm cache",
-    removeAllOfflineConfirm: "Fjern alle offline innlegg? Dette frigir lagring.",
+    removeAllOfflineConfirm:
+      "Fjern alle offline innlegg? Dette frigir lagring.",
     offlineStorageSummary: "{{count}} innlegg · {{size}}",
     noOfflineArticles: "Ingen offline innlegg",
     noOfflineHint: "Lagre innlegg for å lese dem offline.",
@@ -590,7 +597,8 @@ export default {
     createFailed: "Kunne ikke opprette samling",
     itemsCount: "{{count}} elementer",
     delete: "Slett samling",
-    deleteConfirm: "Slette denne samlingen? Innleggene inni vil ikke bli påvirket.",
+    deleteConfirm:
+      "Slette denne samlingen? Innleggene inni vil ikke bli påvirket.",
     deleted: "Samling slettet",
     deleteFailed: "Kunne ikke slette samling",
     options: "Alternativer",
@@ -674,7 +682,8 @@ export default {
     user: "Bruker",
     topicOrPost: "Emne eller innlegg",
     somethingWentWrong: "Noe gikk galt",
-    unexpectedErrorRetry: "En uventet feil oppstod. Prøv å gå tilbake til hjem-skjermen.",
+    unexpectedErrorRetry:
+      "En uventet feil oppstod. Prøv å gå tilbake til hjem-skjermen.",
     goToHome: "Gå hjem",
   },
   externalLink: {
@@ -767,7 +776,8 @@ export default {
   waitingList: {
     title: "Bli med på ventelisten",
     heading: "Be om tilgang",
-    description: "Citewalk er for øyeblikket i tidlig tilgang. Bli med på ventelisten så gir vi deg beskjed når det er en plass.",
+    description:
+      "Citewalk er for øyeblikket i tidlig tilgang. Bli med på ventelisten så gir vi deg beskjed når det er en plass.",
     emailPlaceholder: "Din e-postadresse",
     join: "Bli med på ventelisten",
     success: "Du er på listen!",

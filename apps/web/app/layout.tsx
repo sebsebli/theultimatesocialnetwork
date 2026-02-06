@@ -29,18 +29,18 @@ const ibmPlexSerif = IBM_Plex_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Citewalk | The Sovereign Knowledge Graph",
+  title: "Citewalk | The European Social Network",
   description:
-    "Citewalk is the sovereign knowledge graph. A quiet, verified archive designed for context and comprehension. 100% EU-hosted. History is written by those who write.",
+    "Citewalk is the European alternative to algorithm-driven social media. No rage feeds, no engagement tricks — just good writing that gets seen. Independent, EU-hosted, and free.",
   keywords: [
-    "Knowledge Graph",
-    "Sovereign Data",
-    "Citation Network",
-    "Slow Social",
-    "EU Hosting",
-    "Data Sovereignty",
+    "European Social Network",
+    "Alternative Social Media",
+    "EU Hosted",
+    "Privacy-first",
     "Citewalk",
-    "Context",
+    "Independent Platform",
+    "No Algorithm",
+    "Writing Platform",
   ],
   authors: [{ name: "Dr. Sebastian Lindner", url: "https://citewalk.com" }],
   creator: "Dr. Sebastian Lindner",

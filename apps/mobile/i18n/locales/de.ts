@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Wo Ideen ihren Platz verdienen.",
-    subtitle: "Ein soziales Netzwerk, gebaut auf Zitaten.",
+    tagline: "Social Media ohne den Lärm.",
+    subtitle: "Die europäische Alternative.",
     showIntroAgain: "Über Citewalk",
     continue: "Anmelden",
     privacy: "Datenschutz",
@@ -12,23 +12,24 @@ export default {
   intro: {
     title: "Willkommen bei Citewalk",
     founderMessage:
-      "Ich habe Citewalk gebaut, weil das Internet Empörung statt Erkenntnis belohnt. Hier wächst dein Ruf, wenn andere deine Ideen zitieren – nicht wenn sie ein Herz klicken.",
+      "Ich habe Citewalk gebaut, weil ich müde war von Plattformen, die Empörung über Substanz belohnen. Dies ist ein unabhängiges europäisches Projekt – kein VC-Geld, keine Wachstumstricks, einfach ein besserer Ort, um Ideen zu teilen.",
     founderName: "Sebastian, Gründer",
     point1:
-      "Deine Beiträge leben auf einem Wissensgraphen, nicht in einem vergänglichen Feed. Jede Idee bleibt auffindbar, zitierbar und dauerhaft.",
+      "Kein Algorithmus entscheidet, was du siehst. Dein Feed ist chronologisch, deine Inhalte sind nach Themen auffindbar, und gute Texte steigen, weil Menschen sie tatsächlich zitieren.",
     point2:
-      "Autorität wird hier durch Zitate verdient. Wenn andere Autoren auf deine Arbeit verweisen, ist das echte Glaubwürdigkeit – keine Eitelkeitsmetrik.",
+      "Auf anderen Plattformen geht die wütendste Stimme viral. Hier verdient die am meisten zitierte Stimme Glaubwürdigkeit. Du wächst, indem du Dinge schreibst, die es wert sind, geteilt zu werden.",
     point3:
-      "Folge Themen, nicht Algorithmen. Du bestimmst, was du siehst. Keine Engagement-Tricks, kein verstecktes Ranking – nur die Ideen, die dich interessieren.",
-    point4: "Echte Menschen. Echter Austausch. Keine Bots.",
-    point5: "Gemacht für Verständnis, nicht nur für Konsum.",
-    point6: "Folge der Spur. Jedes Zitat führt irgendwohin.",
-    point7: "Schreiben. Zitieren. Wissen aufbauen.",
+      "100% EU-gehostet. Keine Werbung, kein Tracking, kein Verkauf deiner Daten. In Europa gebaut als echte Alternative – nicht noch ein weiteres Silicon-Valley-Produkt.",
+    point4: "Echte Menschen. Echter Diskurs. Keine Bots.",
+    point5: "Diskussionen auf Basis von Substanz, nicht von Provokationen.",
+    point6: "Alles, was du schreibst, bleibt auffindbar. Nichts verschwindet.",
+    point7: "Posten. Verbinden. Wachsen.",
     next: "Weiter",
     skip: "Überspringen",
     getStarted: "Anmelden",
     beginJourney: "Loslegen",
-    finalMessage: "Wo Ideen ihren Platz verdienen.",
+    finalMessage:
+      "Das Internet braucht keinen weiteren Feed. Es braucht einen besseren.",
     welcome: "Willkommen.",
   },
   signIn: {
@@ -51,7 +52,8 @@ export default {
     invalidEmail: "Das sieht nicht nach einer gültigen E-Mail aus",
     userNotFound: "Kein Konto mit dieser E-Mail gefunden",
     rateLimited: "Zu viele Versuche. Warte einen Moment.",
-    signUpAgreement: "Mit der Anmeldung stimmst du unseren {{terms}} und der {{privacy}} zu",
+    signUpAgreement:
+      "Mit der Anmeldung stimmst du unseren {{terms}} und der {{privacy}} zu",
     termsLink: "Nutzungsbedingungen",
     privacyLink: "Datenschutzerklärung",
     joinWaitlist: "Noch keinen Zugang? Auf die Warteliste",
@@ -60,7 +62,8 @@ export default {
     acceptTermsError: "Bitte akzeptiere die Nutzungsbedingungen",
     verificationSent: "Bestätigungscode gesendet",
     inviteCodeRequiredTitle: "Einladungscode erforderlich",
-    inviteCodeRequiredMessage: "Du bist neu hier. Gib deinen Einladungscode ein, um loszulegen.",
+    inviteCodeRequiredMessage:
+      "Du bist neu hier. Gib deinen Einladungscode ein, um loszulegen.",
     waitBeforeRequest: "Bitte warte {{seconds}} Sekunden",
     wrongEmail: "Falsche E-Mail? Zurück",
     resendCodeIn: "Erneut senden in {{seconds}}s",
@@ -96,7 +99,8 @@ export default {
       updateFailed: "Hat nicht geklappt. Versuch es nochmal.",
       fieldsRequired: "Bitte fülle alle Pflichtfelder aus",
       publicDescription: "Jeder kann deine Beiträge finden und lesen.",
-      privateDescription: "Nur bestätigte Follower können deine Beiträge sehen.",
+      privateDescription:
+        "Nur bestätigte Follower können deine Beiträge sehen.",
     },
     bioPlaceholder: "Worüber schreibst du? Was interessiert dich?",
     publicDescription: "Jeder kann deine Beiträge finden und lesen.",
@@ -122,7 +126,8 @@ export default {
       finishing: "Wird eingerichtet...",
       loadingSuggested: "Autoren werden gesucht...",
       starterPackTitle: "Empfohlene Autoren",
-      starterPackSubtitle: "Menschen, die über Themen schreiben, die dich interessieren könnten.",
+      starterPackSubtitle:
+        "Menschen, die über Themen schreiben, die dich interessieren könnten.",
     },
     finish: "Fertig",
   },
@@ -337,9 +342,11 @@ export default {
     noCollections: "Keine öffentlichen Sammlungen",
     noCollectionsOwn: "Noch keine Sammlungen",
     noCollectionsHint: "Öffentliche Sammlungen erscheinen hier.",
-    noCollectionsOwnHint: "Erstelle eine Sammlung, um deine Favoriten zu organisieren.",
+    noCollectionsOwnHint:
+      "Erstelle eine Sammlung, um deine Favoriten zu organisieren.",
     noReplies: "Noch keine Kommentare",
-    noRepliesHint: "Kommentare, die du unter Beiträgen hinterlässt, erscheinen hier.",
+    noRepliesHint:
+      "Kommentare, die du unter Beiträgen hinterlässt, erscheinen hier.",
     privateProfileHint:
       "Folge diesem Konto, um Beiträge und Aktivitäten zu sehen.",
     noQuotes: "Noch keine Zitate",
@@ -367,7 +374,8 @@ export default {
     privateAccount: "Privates Konto",
     privateAccountHint: "Folge diesem Konto, um die Aktivitäten zu sehen.",
     followRequest: "Folgeanfrage",
-    followRequestMessage: "Dies ist ein privates Konto. Eine Folgeanfrage wird gesendet.",
+    followRequestMessage:
+      "Dies ist ein privates Konto. Eine Folgeanfrage wird gesendet.",
     sendRequest: "Anfrage senden",
   },
   invites: {
@@ -412,9 +420,11 @@ export default {
     unblockUser: "Nutzer entblocken",
     muteUser: "Nutzer stummschalten",
     unmuteUser: "Stummschaltung aufheben",
-    blockConfirm: "Diese Person blockieren? Ihr seht keine Inhalte mehr voneinander.",
+    blockConfirm:
+      "Diese Person blockieren? Ihr seht keine Inhalte mehr voneinander.",
     unblockConfirm: "Diese Person entblockieren?",
-    muteConfirm: "Diese Person stummschalten? Ihre Beiträge werden ausgeblendet.",
+    muteConfirm:
+      "Diese Person stummschalten? Ihre Beiträge werden ausgeblendet.",
     unmuteConfirm: "Stummschaltung aufheben?",
     blockedMessage: "Nutzer blockiert",
     unblockedMessage: "Nutzer entblockiert",
@@ -466,7 +476,8 @@ export default {
     showSavesDesc: "Sieh, was andere speichern",
     explore: "Entdecken",
     enableRecommendations: "Personalisierte Empfehlungen",
-    enableRecommendationsDesc: "Unsere Relevanz-Engine zeigt dir passende Beiträge",
+    enableRecommendationsDesc:
+      "Unsere Relevanz-Engine zeigt dir passende Beiträge",
     relevance: "Relevanz",
     relevanceControls: "Gewichtung",
     relevanceControlsDesc: "Was dir am wichtigsten ist",
@@ -489,7 +500,8 @@ export default {
     dangerZoneHint: "Diese Aktionen sind endgültig.",
     deleteAccount: "Konto löschen",
     deleteAccountDesc: "Konto und alle Daten dauerhaft löschen",
-    deleteAccountConfirm: "Dein Konto wird dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
+    deleteAccountConfirm:
+      "Dein Konto wird dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
     deleteAccountConfirmEmail:
       "Wir senden dir einen Bestätigungslink per E-Mail. Klicke innerhalb von 24 Stunden darauf.",
     sendDeletionLink: "Bestätigung senden",
@@ -497,7 +509,8 @@ export default {
     deleteReasonOptional: "Grund (optional)",
     deleteReasonPlaceholder: "z.B. nutze die Plattform nicht mehr",
     deleteConfirm: "Konto löschen",
-    deleteConfirmMessage: "Bist du sicher? Das kann nicht rückgängig gemacht werden.",
+    deleteConfirmMessage:
+      "Bist du sicher? Das kann nicht rückgängig gemacht werden.",
     deleteButton: "Mein Konto löschen",
     requestMyData: "Meine Daten anfordern",
     requestDataModalMessage:
@@ -532,7 +545,8 @@ export default {
     manageOfflineStorage: "Speicher verwalten",
     offlineCount: "{{count}} Beiträge zwischengespeichert",
     removeAllOffline: "Cache leeren",
-    removeAllOfflineConfirm: "Alle Offline-Beiträge entfernen? Das gibt Speicherplatz frei.",
+    removeAllOfflineConfirm:
+      "Alle Offline-Beiträge entfernen? Das gibt Speicherplatz frei.",
     offlineStorageSummary: "{{count}} Beiträge · {{size}}",
     noOfflineArticles: "Keine Offline-Beiträge",
     noOfflineHint: "Speichere Beiträge, um sie offline zu lesen.",
@@ -546,7 +560,8 @@ export default {
     takePhoto: "Foto aufnehmen",
     choosePhoto: "Aus Bibliothek wählen",
     removePhoto: "Foto entfernen",
-    photoPermissionDenied: "Zugriff auf Kamera oder Fotobibliothek erforderlich.",
+    photoPermissionDenied:
+      "Zugriff auf Kamera oder Fotobibliothek erforderlich.",
     photoUpdated: "Foto aktualisiert",
     photoRemoved: "Foto entfernt",
     tapToChangePhoto: "Foto ändern",
@@ -560,7 +575,8 @@ export default {
     title: "Sammlungen",
     create: "Neue Sammlung",
     empty: "Noch keine Sammlungen",
-    emptyHint: "Erstelle eine Sammlung, um gespeicherte Beiträge zu organisieren.",
+    emptyHint:
+      "Erstelle eine Sammlung, um gespeicherte Beiträge zu organisieren.",
     searchPlaceholder: "Sammlungen durchsuchen...",
     filterAll: "Alle",
     filterPublic: "Öffentlich",
@@ -649,7 +665,8 @@ export default {
     ago: "her",
     linkedItems: "Verlinkte Beiträge",
     noInternet: "Keine Internetverbindung",
-    offline: "Du bist offline. Einige Funktionen sind möglicherweise nicht verfügbar.",
+    offline:
+      "Du bist offline. Einige Funktionen sind möglicherweise nicht verfügbar.",
     viewProfile: "Profil anzeigen",
     follow: "{{name}} folgen",
     unfollow: "{{name}} entfolgen",
@@ -675,7 +692,8 @@ export default {
     user: "Nutzer",
     topicOrPost: "Thema oder Beitrag",
     somethingWentWrong: "Etwas ist schiefgelaufen",
-    unexpectedErrorRetry: "Ein unerwarteter Fehler ist aufgetreten. Versuche, zur Startseite zurückzukehren.",
+    unexpectedErrorRetry:
+      "Ein unerwarteter Fehler ist aufgetreten. Versuche, zur Startseite zurückzukehren.",
     goToHome: "Zur Startseite",
   },
   externalLink: {
@@ -703,7 +721,8 @@ export default {
     emptyPeople: "Noch keine Mitwirkenden",
     emptyPeopleSubtext: "Autoren erscheinen hier, sobald sie schreiben.",
     emptySources: "Noch keine Quellen",
-    emptySourcesSubtext: "Externe Quellen erscheinen hier, sobald sie zitiert werden.",
+    emptySourcesSubtext:
+      "Externe Quellen erscheinen hier, sobald sie zitiert werden.",
     shareTopic: "Thema teilen",
     shareTopicMessage: "Schau dir dieses Thema auf Citewalk an",
     searchInTopic: "In diesem Thema suchen",
@@ -732,7 +751,8 @@ export default {
     searchUsers: "Jemanden suchen...",
     searchPlaceholder: "Nachrichten durchsuchen...",
     loadError: "Nachrichten konnten nicht geladen werden",
-    mustFollowOrPrior: "Ihr müsst euch gegenseitig folgen, um Nachrichten zu senden.",
+    mustFollowOrPrior:
+      "Ihr müsst euch gegenseitig folgen, um Nachrichten zu senden.",
     createThreadFailed: "Unterhaltung konnte nicht gestartet werden",
     noSuggested: "Gerade keine Vorschläge.",
     markUnread: "Als ungelesen markieren",
@@ -768,7 +788,8 @@ export default {
   waitingList: {
     title: "Warteliste",
     heading: "Zugang anfordern",
-    description: "Citewalk ist derzeit im Early Access. Trag dich auf die Warteliste ein und wir melden uns, wenn ein Platz frei wird.",
+    description:
+      "Citewalk ist derzeit im Early Access. Trag dich auf die Warteliste ein und wir melden uns, wenn ein Platz frei wird.",
     emailPlaceholder: "Deine E-Mail-Adresse",
     join: "Auf die Warteliste",
     success: "Du bist auf der Liste!",

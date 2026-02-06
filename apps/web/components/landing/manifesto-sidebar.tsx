@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 
 const sections = [
-  { id: "preamble", label: "Preamble" },
-  { id: "attention", label: "01. The crisis of context" },
-  { id: "intention", label: "02. The architecture of trust" },
-  { id: "sovereignty", label: "03. Digital sovereignty" },
+  { id: "preamble", label: "Why we built this" },
+  { id: "attention", label: "01. The problem" },
+  { id: "intention", label: "02. A different network" },
+  { id: "sovereignty", label: "03. European & independent" },
 ];
 
 function useActiveSection() {
@@ -22,7 +22,7 @@ function useActiveSection() {
           }
         }
       },
-      { rootMargin: "-20% 0px -60% 0px" }
+      { rootMargin: "-20% 0px -60% 0px" },
     );
 
     sections.forEach(({ id }) => {
@@ -52,10 +52,11 @@ export function ManifestoSidebar() {
               <li key={id}>
                 <a
                   href={`#${id}`}
-                  className={`block transition-colors duration-200 ${activeId === id
+                  className={`block transition-colors duration-200 ${
+                    activeId === id
                       ? "text-[var(--foreground)] font-medium"
                       : "text-[var(--secondary)] hover:text-[var(--foreground)]"
-                    }`}
+                  }`}
                 >
                   {label}
                 </a>
@@ -98,10 +99,11 @@ export function ManifestoMobileToc() {
         <a
           key={id}
           href={`#${id}`}
-          className={`whitespace-nowrap text-sm transition-colors ${activeId === id
+          className={`whitespace-nowrap text-sm transition-colors ${
+            activeId === id
               ? "text-[var(--foreground)] font-medium"
               : "text-[var(--secondary)] hover:text-[var(--foreground)]"
-            }`}
+          }`}
         >
           {label}
         </a>

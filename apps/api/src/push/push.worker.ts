@@ -12,6 +12,7 @@ import { ApnsSender } from './senders/apns.sender';
 import { FcmSender } from './senders/fcm.sender';
 import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 import Redis from 'ioredis';
+import { decryptField } from '../shared/field-encryption';
 
 @Injectable()
 export class PushWorker implements OnApplicationBootstrap {
@@ -63,9 +64,12 @@ export class PushWorker implements OnApplicationBootstrap {
       let result: { ok: boolean; invalidToken?: boolean; error?: string };
 
       try {
+        // Decrypt token before sending (may be encrypted at rest)
+        const rawToken = decryptField(token.token);
+
         if (token.provider === PushProvider.APNS) {
           result = await this.apnsSender.send({
-            deviceToken: token.token,
+            deviceToken: rawToken,
             title: outbox.title,
             body: outbox.body,
             data: dataPayload,
@@ -74,7 +78,7 @@ export class PushWorker implements OnApplicationBootstrap {
           });
         } else {
           result = await this.fcmSender.send({
-            token: token.token,
+            token: rawToken,
             title: outbox.title,
             body: outbox.body,
             data: dataPayload,

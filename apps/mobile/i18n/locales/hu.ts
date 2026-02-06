@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Ahol az ötletek megérdemlik a helyüket.",
-    subtitle: "Egy közösségi hálózat idézetekre építve.",
+    tagline: "Közösségi média zaj nélkül.",
+    subtitle: "Az európai alternatíva.",
     showIntroAgain: "A Citewalk-ról",
     continue: "Bejelentkezés",
     privacy: "Adatvédelem",
@@ -10,26 +10,26 @@ export default {
     imprint: "Impresszum",
   },
   intro: {
-    title: "Üdvözöljük a Citewalk-ban",
+    title: "Üdvözöl a Citewalk",
     founderMessage:
-      "Azért építettem a Citewalk-ot, mert az internet a felháborodást jutalmazza az éleslátás helyett. Ez egy hely, ahol a hírneved akkor nő, amikor mások idézik az ötleteidet -- nem amikor szívet kattintanak.",
+      "Azért építettem a Citewalk-ot, mert elegem volt azokból a platformokból, amelyek a felháborodást jutalmazzák a tartalom helyett. Ez egy független európai projekt — nincs VC pénz, nincs növekedési trükk, csak egy jobb hely az ötletek megosztására.",
     founderName: "Sebastian, Alapító",
     point1:
-      "A bejegyzéseid egy tudásgráfon élnek, nem egy eldobható hírfolyamban. Minden ötlet, amit megosztasz, megtalálhatóvá, idézhetővé és állandóvá válik.",
+      "Nincs algoritmus, ami eldönti, mit látsz. A feeded kronológiai, a tartalmad témák szerint felfedezhető, és a jó írás azért emelkedik ki, mert az emberek ténylegesen hivatkoznak rá.",
     point2:
-      "Itt a tekintélyt idézetekkel érdemlik ki. Amikor más írók hivatkoznak a munkádra, az valódi hitelesség -- nem hiúságmetrikák.",
+      "Más platformokon a legdühösebb hang válik virálissá. Itt a legtöbbet hivatkozott hang érdemli ki a hitelességet. Azzal nősz, hogy olyan dolgokat írsz, amelyeket érdemes megosztani.",
     point3:
-      "Kövesd a témákat, ne az algoritmusokat. Te irányítod, mit látsz. Nincs engagement trükk, nincs rejtett rangsorolás -- csak az ötletek, amik érdekelnek.",
-    point4: "Valódi emberek. Valódi párbeszéd. Nincs bot.",
-    point5: "A megértésre építve, nem csak a fogyasztásra.",
-    point6: "Kövesd a nyomot. Minden idézet valahová vezet.",
-    point7: "Írj. Idézz. Építs tudást.",
-    next: "Tovább",
+      "100% EU-ban üzemeltetve. Nincs reklám, nincs követés, nincs adataid eladása. Európában építve, mint valódi alternatíva — nem egy újabb Silicon Valley termék.",
+    point4: "Valódi emberek. Valódi diskurzus. Nincs bot.",
+    point5: "Tartalmon alapuló viták, nem támadások.",
+    point6: "Minden, amit írsz, felfedezhető marad. Semmi nem tűnik el.",
+    point7: "Írj. Kapcsolódj. Nőj.",
+    next: "Következő",
     skip: "Kihagyás",
     getStarted: "Bejelentkezés",
-    beginJourney: "Kezdjük",
-    finalMessage: "Ahol az ötletek megérdemlik a helyüket.",
-    welcome: "Üdvözöljük.",
+    beginJourney: "Kezdés",
+    finalMessage: "Az internetnek nem kell még egy feed. Jobb feed kell neki.",
+    welcome: "Üdvözölünk.",
   },
   signIn: {
     title: "Bejelentkezés",
@@ -51,7 +51,8 @@ export default {
     invalidEmail: "Ez nem úgy néz ki, mint egy érvényes email",
     userNotFound: "Nem található fiók ezzel az email címmel",
     rateLimited: "Túl sok próbálkozás. Kérlek várj egy kicsit.",
-    signUpAgreement: "A folytatással elfogadod a {{terms}} és {{privacy}} feltételeinket",
+    signUpAgreement:
+      "A folytatással elfogadod a {{terms}} és {{privacy}} feltételeinket",
     termsLink: "Feltételek",
     privacyLink: "Adatvédelmi Irányelvek",
     joinWaitlist: "Nincs hozzáférésed? Csatlakozz a várólistához",
@@ -60,7 +61,8 @@ export default {
     acceptTermsError: "Kérlek fogadd el a feltételeket a folytatáshoz",
     verificationSent: "Ellenőrző kód elküldve",
     inviteCodeRequiredTitle: "Meghívó kód szükséges",
-    inviteCodeRequiredMessage: "Úgy néz ki, új vagy itt. Add meg a meghívó kódodat a kezdéshez.",
+    inviteCodeRequiredMessage:
+      "Úgy néz ki, új vagy itt. Add meg a meghívó kódodat a kezdéshez.",
     waitBeforeRequest: "Kérlek várj {{seconds}} másodpercet",
     wrongEmail: "Rossz email? Menj vissza",
     resendCodeIn: "Újraküldés {{seconds}} másodperc múlva",
@@ -95,12 +97,15 @@ export default {
       handleHint: "Kisbetűk, számok, aláhúzás",
       updateFailed: "Valami hiba történt. Próbáld újra.",
       fieldsRequired: "Kérlek töltsd ki az összes kötelező mezőt",
-      publicDescription: "Bárki megtalálhatja és elolvashatja a bejegyzéseidet.",
-      privateDescription: "Csak a jóváhagyott követők láthatják a bejegyzéseidet.",
+      publicDescription:
+        "Bárki megtalálhatja és elolvashatja a bejegyzéseidet.",
+      privateDescription:
+        "Csak a jóváhagyott követők láthatják a bejegyzéseidet.",
     },
     bioPlaceholder: "Miről írsz? Mi érdekel?",
     publicDescription: "Bárki megtalálhatja és elolvashatja a bejegyzéseidet.",
-    privateDescription: "Csak a jóváhagyott követők láthatják a bejegyzéseidet.",
+    privateDescription:
+      "Csak a jóváhagyott követők láthatják a bejegyzéseidet.",
     languages: {
       title: "Mit olvasol?",
       subtitle: "Válaszd ki azokat a nyelveket, amelyekben kényelmesen olvasol",
@@ -108,7 +113,8 @@ export default {
       search: "Nyelvek keresése...",
       continue: "Folytatás",
       languagesTitle: "Olvasási nyelvek",
-      languagesSubtitle: "Ezt használjuk, hogy releváns tartalmat mutassunk neked.",
+      languagesSubtitle:
+        "Ezt használjuk, hogy releváns tartalmat mutassunk neked.",
       filterExplore: "Felfedezés szűrése",
       filterExploreDesc: "Csak az én nyelveimben lévő bejegyzéseket mutasd",
       updateFailed: "Nem sikerült menteni. Próbáld újra.",
@@ -122,7 +128,8 @@ export default {
       finishing: "Beállítások...",
       loadingSuggested: "Írók keresése neked...",
       starterPackTitle: "Ajánlott írók",
-      starterPackSubtitle: "Emberek, akik olyan témákról írnak, amik érdekelhetnek.",
+      starterPackSubtitle:
+        "Emberek, akik olyan témákról írnak, amik érdekelhetnek.",
     },
     finish: "Kész",
   },
@@ -336,15 +343,18 @@ export default {
     noCollections: "Nincs nyilvános gyűjtemény",
     noCollectionsOwn: "Még nincs gyűjtemény",
     noCollectionsHint: "A nyilvános gyűjtemények itt fognak megjelenni.",
-    noCollectionsOwnHint: "Hozz létre egy gyűjteményt a mentéseid rendszerezéséhez.",
+    noCollectionsOwnHint:
+      "Hozz létre egy gyűjteményt a mentéseid rendszerezéséhez.",
     noReplies: "Még nincs hozzászólás",
     noRepliesHint: "A bejegyzésekre írt hozzászólásaid itt fognak megjelenni.",
     privateProfileHint:
       "Kövesd ezt a fiókot, hogy lásd a bejegyzéseit és tevékenységét.",
     noQuotes: "Még nincs idézet",
-    noQuotesHint: "Azok a bejegyzések, amelyek ezt az embert idézik, itt fognak megjelenni.",
+    noQuotesHint:
+      "Azok a bejegyzések, amelyek ezt az embert idézik, itt fognak megjelenni.",
     noCited: "Még nincs idézett bejegyzés",
-    noCitedHint: "Azok a bejegyzések, amelyeket ez az ember idézett, itt fognak megjelenni.",
+    noCitedHint:
+      "Azok a bejegyzések, amelyeket ez az ember idézett, itt fognak megjelenni.",
     userNotFound: "Felhasználó nem található",
     loadError: "Nem sikerült betölteni a profilt",
     options: "Beállítások",
@@ -411,7 +421,8 @@ export default {
     unblockUser: "Felhasználó blokkolásának feloldása",
     muteUser: "Felhasználó némítása",
     unmuteUser: "Felhasználó némításának feloldása",
-    blockConfirm: "Blokkolod ezt az embert? Nem fogjátok látni egymás tartalmait.",
+    blockConfirm:
+      "Blokkolod ezt az embert? Nem fogjátok látni egymás tartalmait.",
     unblockConfirm: "Feloldod ezt az embert?",
     muteConfirm: "Némítod ezt az embert? A bejegyzései el lesznek rejtve.",
     unmuteConfirm: "Feloldod ezt az embert?",
@@ -465,7 +476,8 @@ export default {
     showSavesDesc: "Lásd, mit mentenek a követetteid",
     explore: "Felfedezés",
     enableRecommendations: "Személyre szabott ajánlások",
-    enableRecommendationsDesc: "Használd a relevancia motorunkat, hogy bejegyzéseket találjunk neked",
+    enableRecommendationsDesc:
+      "Használd a relevancia motorunkat, hogy bejegyzéseket találjunk neked",
     relevance: "Relevancia",
     relevanceControls: "Relevancia súlyok",
     relevanceControlsDesc: "Finomhangold, mi számít a legtöbbet",
@@ -488,7 +500,8 @@ export default {
     dangerZoneHint: "Ezek a műveletek véglegesek.",
     deleteAccount: "Fiók törlése",
     deleteAccountDesc: "Fiókod és minden adatod végleges törlése",
-    deleteAccountConfirm: "Ez véglegesen törli a fiókodat. Ez nem vonható vissza.",
+    deleteAccountConfirm:
+      "Ez véglegesen törli a fiókodat. Ez nem vonható vissza.",
     deleteAccountConfirmEmail:
       "Megerősítő linket küldünk az emailedre. Kattints rá 24 órán belül.",
     sendDeletionLink: "Megerősítés küldése",
@@ -521,17 +534,20 @@ export default {
     emailUpdated: "Email frissítve",
     emailInUse: "Ez az email már használatban van",
     invalidEmail: "Érvénytelen email formátum",
-    contactSupport: "Segítségre van szükséged? Lépj kapcsolatba az ügyfélszolgálattal.",
+    contactSupport:
+      "Segítségre van szükséged? Lépj kapcsolatba az ügyfélszolgálattal.",
     privacyChangeInfo: "Ezt a Beállításokban módosíthatod.",
     editProfile: "Profil szerkesztése",
     content: "Tartalom",
     offlineReading: "Offline olvasás",
     downloadSavedOffline: "Automatikus mentés offline olvasáshoz",
-    downloadSavedOfflineHint: "Mentett bejegyzések olvasása internetkapcsolat nélkül.",
+    downloadSavedOfflineHint:
+      "Mentett bejegyzések olvasása internetkapcsolat nélkül.",
     manageOfflineStorage: "Tárhely kezelése",
     offlineCount: "{{count}} bejegyzés gyorsítótárazva",
     removeAllOffline: "Gyorsítótár törlése",
-    removeAllOfflineConfirm: "Eltávolítod az összes offline bejegyzést? Ez felszabadítja a tárhelyet.",
+    removeAllOfflineConfirm:
+      "Eltávolítod az összes offline bejegyzést? Ez felszabadítja a tárhelyet.",
     offlineStorageSummary: "{{count}} bejegyzés · {{size}}",
     noOfflineArticles: "Nincs offline bejegyzés",
     noOfflineHint: "Mentsd el a bejegyzéseket offline olvasáshoz.",
@@ -549,7 +565,8 @@ export default {
     photoUpdated: "Fotó frissítve",
     photoRemoved: "Fotó eltávolítva",
     tapToChangePhoto: "Fotó módosítása",
-    handleChangeHint: "A felhasználóneveket 14 naponta egyszer lehet módosítani.",
+    handleChangeHint:
+      "A felhasználóneveket 14 naponta egyszer lehet módosítani.",
     profilePhoto: "Profilkép",
   },
   security: {
@@ -559,7 +576,8 @@ export default {
     title: "Gyűjtemények",
     create: "Új gyűjtemény",
     empty: "Még nincs gyűjtemény",
-    emptyHint: "Hozz létre egy gyűjteményt a mentett bejegyzések rendszerezéséhez.",
+    emptyHint:
+      "Hozz létre egy gyűjteményt a mentett bejegyzések rendszerezéséhez.",
     searchPlaceholder: "Gyűjtemények keresése...",
     filterAll: "Összes",
     filterPublic: "Nyilvános",
@@ -576,7 +594,8 @@ export default {
     emptyDetail: "Ez a gyűjtemény üres.",
     emptyDetailHint: "Mentsd el a bejegyzéseket, hogy ide hozzáadd őket.",
     addCitation: "Hozzáadás gyűjteményhez",
-    addCitationHint: "Böngészd a bejegyzéseket és koppints a Mentésre a hozzáadáshoz.",
+    addCitationHint:
+      "Böngészd a bejegyzéseket és koppints a Mentésre a hozzáadáshoz.",
     curatorNote: "MEGJEGYZÉS",
     makePublic: "Nyilvánossá tétel",
     makePrivate: "Priváttá tétel",
@@ -590,7 +609,8 @@ export default {
     createFailed: "Nem sikerült létrehozni a gyűjteményt",
     itemsCount: "{{count}} elem",
     delete: "Gyűjtemény törlése",
-    deleteConfirm: "Törlöd ezt a gyűjteményt? A benne lévő bejegyzések nem érintettek.",
+    deleteConfirm:
+      "Törlöd ezt a gyűjteményt? A benne lévő bejegyzések nem érintettek.",
     deleted: "Gyűjtemény törölve",
     deleteFailed: "Nem sikerült törölni a gyűjteményt",
     options: "Beállítások",
@@ -674,7 +694,8 @@ export default {
     user: "Felhasználó",
     topicOrPost: "Téma vagy bejegyzés",
     somethingWentWrong: "Valami hiba történt",
-    unexpectedErrorRetry: "Váratlan hiba történt. Próbáld meg visszamenni a kezdőlapra.",
+    unexpectedErrorRetry:
+      "Váratlan hiba történt. Próbáld meg visszamenni a kezdőlapra.",
     goToHome: "Kezdőlapra",
   },
   externalLink: {
@@ -702,7 +723,8 @@ export default {
     emptyPeople: "Még nincs közreműködő",
     emptyPeopleSubtext: "Az írók itt fognak megjelenni, ahogy írnak.",
     emptySources: "Még nincs forrás",
-    emptySourcesSubtext: "A külső források itt fognak megjelenni, ahogy az emberek idézik őket.",
+    emptySourcesSubtext:
+      "A külső források itt fognak megjelenni, ahogy az emberek idézik őket.",
     shareTopic: "Téma megosztása",
     shareTopicMessage: "Nézd meg ezt a témát a Citewalk-on",
     searchInTopic: "Keresés ebben a témában",
@@ -731,7 +753,8 @@ export default {
     searchUsers: "Valaki keresése...",
     searchPlaceholder: "Üzenetek keresése...",
     loadError: "Nem sikerült betölteni az üzeneteket",
-    mustFollowOrPrior: "Kölcsönösen követnetek kell egymást az üzenetküldéshez.",
+    mustFollowOrPrior:
+      "Kölcsönösen követnetek kell egymást az üzenetküldéshez.",
     createThreadFailed: "Nem sikerült elindítani a beszélgetést",
     noSuggested: "Most nincs javaslat.",
     markUnread: "Olvasatlannak jelölés",
@@ -767,7 +790,8 @@ export default {
   waitingList: {
     title: "Csatlakozz a várólistához",
     heading: "Hozzáférés kérése",
-    description: "A Citewalk jelenleg korai hozzáférésben van. Csatlakozz a várólistához és értesítünk, amikor lesz hely.",
+    description:
+      "A Citewalk jelenleg korai hozzáférésben van. Csatlakozz a várólistához és értesítünk, amikor lesz hely.",
     emailPlaceholder: "Az email címed",
     join: "Csatlakozás a várólistához",
     success: "Rajta vagy a listán!",

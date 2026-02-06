@@ -459,11 +459,11 @@ export class CollectionsService {
       createdAt: string;
     }> = await this.externalSourceRepo.query(extQuery, extParams);
     const externalItems: CollectionSourceItem[] = extRows.map((r) => ({
-      type: 'external',
+      type: 'external' as const,
       id: r.id,
       url: r.url,
       title: r.title,
-      createdAt: r.createdAt,
+      createdAt: new Date(r.createdAt),
     }));
 
     // 3) Linked posts (LINK edges from visible collection posts)

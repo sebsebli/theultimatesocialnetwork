@@ -25,6 +25,7 @@ import {
 } from '../entities/moderation-record.entity';
 import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 import Redis from 'ioredis';
+import { decryptField } from '../shared/field-encryption';
 
 interface PostJobData {
   postId: string;
@@ -93,8 +94,9 @@ export class PostWorker implements OnApplicationBootstrap {
 
       // Skip async moderation for agent users (email @agents.local). Agent API skips sync check;
       // if we ran moderation here we would soft-delete agent-created posts on false positives.
-      const authorEmail =
+      const rawAuthorEmail =
         (post.author as { email?: string } | null)?.email ?? '';
+      const authorEmail = rawAuthorEmail ? decryptField(rawAuthorEmail) : '';
       const isAgentUser =
         typeof authorEmail === 'string' &&
         authorEmail.toLowerCase().endsWith('@agents.local');
@@ -161,15 +163,20 @@ export class PostWorker implements OnApplicationBootstrap {
         await this.neo4jService.run(
           `
               MERGE (u:User {id: $userId})
+              SET u.handle = $handle
               MERGE (p:Post {id: $postId})
-              SET p.createdAt = $createdAt, p.readingTime = $readingTime
+              SET p.createdAt = $createdAt,
+                  p.readingTime = $readingTime,
+                  p.title = $title
               MERGE (u)-[:AUTHORED]->(p)
               `,
           {
             userId,
+            handle: post.author?.handle ?? null,
             postId: post.id,
             createdAt: post.createdAt.toISOString(),
             readingTime: post.readingTimeMinutes,
+            title: post.title ?? null,
           },
         );
 

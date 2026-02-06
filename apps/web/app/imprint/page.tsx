@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import { getLocale } from "next-intl/server";
+import { ImprintContentDE } from "./de";
 
 export const metadata: Metadata = {
   title: "Imprint | Citewalk",
@@ -10,7 +12,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ImprintPage() {
+export default async function ImprintPage() {
+  const locale = await getLocale();
+  const isGerman = locale === "de";
+
   return (
     <div className="min-h-screen bg-[#0B0B0C] text-[#F2F2F2] font-sans selection:bg-[#F2F2F2] selection:text-[#0B0B0C]">
       {/* Technical Header */}
@@ -38,7 +43,7 @@ export default function ImprintPage() {
       <main className="max-w-3xl mx-auto px-6 pt-32 pb-20">
         <div className="mb-12 border-b border-[#1A1A1D] pb-8">
           <h1 className="text-4xl md:text-5xl font-medium mb-4 tracking-tight text-[#F2F2F2]">
-            Imprint
+            {isGerman ? "Impressum" : "Imprint"}
           </h1>
           <div className="flex flex-col md:flex-row gap-4 md:items-center text-xs font-mono text-[#6E6E73] uppercase tracking-widest">
             <span>Impressum</span>
@@ -48,79 +53,86 @@ export default function ImprintPage() {
         </div>
 
         <div className="prose prose-invert prose-p:text-[#A8A8AA] prose-headings:text-[#F2F2F2] prose-headings:font-medium prose-a:text-[#F2F2F2] prose-strong:text-[#F2F2F2] max-w-none font-serif leading-relaxed">
-          <section className="mb-12">
-            <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
-              Service Provider
-            </h2>
-            <div className="bg-[#121215] p-6 border border-[#1A1A1D] rounded">
-              <p className="mb-2 font-bold text-white text-lg">
-                Dr. Sebastian Lindner
-              </p>
-              <p className="font-mono text-sm">[Address Placeholder]</p>
-              <p className="font-mono text-sm">10115 Berlin</p>
-              <p className="font-mono text-sm">Germany</p>
-            </div>
-          </section>
+          {isGerman ? (
+            <ImprintContentDE />
+          ) : (
+            <>
+              <section className="mb-12">
+                <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
+                  Service Provider
+                </h2>
+                <div className="bg-[#121215] p-6 border border-[#1A1A1D] rounded">
+                  <p className="mb-2 font-bold text-white text-lg">
+                    Dr. Sebastian Lindner
+                  </p>
+                  <p className="font-mono text-sm">c/o Grosch Postflex #2836</p>
+                  <p className="font-mono text-sm">Emsdettener Str. 10</p>
+                  <p className="font-mono text-sm">48268 Greven</p>
+                  <p className="font-mono text-sm">Germany</p>
+                </div>
+              </section>
 
-          <section className="mb-12">
-            <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
-              Contact
-            </h2>
-            <div className="grid gap-2 font-mono text-sm">
-              <div className="flex justify-between border-b border-[#1A1A1D] pb-2">
-                <span className="text-[#6E6E73]">EMAIL</span>
-                <span>hello@citewalk.com</span>
-              </div>
-              <div className="flex justify-between border-b border-[#1A1A1D] pb-2">
-                <span className="text-[#6E6E73]">WEB</span>
-                <span>citewalk.com</span>
-              </div>
-            </div>
-          </section>
+              <section className="mb-12">
+                <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
+                  Contact
+                </h2>
+                <div className="grid gap-2 font-mono text-sm">
+                  <div className="flex justify-between border-b border-[#1A1A1D] pb-2">
+                    <span className="text-[#6E6E73]">EMAIL</span>
+                    <span>hello@citewalk.com</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#1A1A1D] pb-2">
+                    <span className="text-[#6E6E73]">WEB</span>
+                    <span>citewalk.com</span>
+                  </div>
+                </div>
+              </section>
 
-          <section className="mb-12">
-            <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
-              Legal Status
-            </h2>
-            <p>
-              Operated as a private initiative / freelancer
-              (Freiberufler/Einzelunternehmer).
-            </p>
-          </section>
+              <section className="mb-12">
+                <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
+                  Legal Status
+                </h2>
+                <p>
+                  Operated as a private initiative / freelancer
+                  (Freiberufler/Einzelunternehmer).
+                </p>
+              </section>
 
-          <section className="mb-12">
-            <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
-              Dispute Resolution
-            </h2>
-            <p>
-              The European Commission provides a platform for online dispute
-              resolution (OS):{" "}
-              <a
-                href="https://ec.europa.eu/consumers/odr/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#F2F2F2] underline decoration-[#6E7A8A]"
-              >
-                https://ec.europa.eu/consumers/odr/
-              </a>
-              .
-            </p>
-            <p className="mt-2">
-              We are not willing or obliged to participate in dispute settlement
-              proceedings before a consumer arbitration board.
-            </p>
-          </section>
+              <section className="mb-12">
+                <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
+                  Dispute Resolution
+                </h2>
+                <p>
+                  The European Commission provides a platform for online dispute
+                  resolution (OS):{" "}
+                  <a
+                    href="https://ec.europa.eu/consumers/odr/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#F2F2F2] underline decoration-[#6E7A8A]"
+                  >
+                    https://ec.europa.eu/consumers/odr/
+                  </a>
+                  .
+                </p>
+                <p className="mt-2">
+                  We are not willing or obliged to participate in dispute
+                  settlement proceedings before a consumer arbitration board.
+                </p>
+              </section>
 
-          <section className="mb-12">
-            <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
-              Content Liability
-            </h2>
-            <p>
-              As a service provider, we are responsible for our own content on
-              these pages in accordance with general laws pursuant to § 7
-              Paragraph 1 TMG.
-            </p>
-          </section>
+              <section className="mb-12">
+                <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">
+                  Content Liability
+                </h2>
+                <p>
+                  As a service provider, we are responsible for our own content
+                  on these pages in accordance with general laws pursuant to § 7
+                  Paragraph 1 TMG.
+                </p>
+              </section>
+            </>
+          )}
         </div>
       </main>
     </div>

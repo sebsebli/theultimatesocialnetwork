@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://citewalk.com/sitemap.xml
+
+# Legal & static pages
+Allow: /privacy
+Allow: /terms
+Allow: /imprint
+Allow: /community-guidelines
+Allow: /manifesto
+Allow: /roadmap
+
+# Disallow authenticated areas
+Disallow: /settings
+Disallow: /api/

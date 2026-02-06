@@ -31,6 +31,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { AgentApiModule } from './agent-api/agent-api.module';
 import { EventBusModule } from './common/event-bus';
 import { GraphModule } from './graph/graph.module';
+import { RssModule } from './rss/rss.module';
 import { CleanupService } from './cleanup/cleanup.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Post } from './entities/post.entity';
@@ -102,6 +103,8 @@ import * as Joi from 'joi';
         /** Global throttle: requests per IP per window. Default 60/min for abuse mitigation. */
         THROTTLE_LIMIT: Joi.number().min(1).max(1000).default(60),
         THROTTLE_TTL_MS: Joi.number().min(1000).max(3600000).default(60000),
+        /** 64-char hex key for AES-256-GCM encryption of sensitive fields (e.g. 2FA secrets). */
+        FIELD_ENCRYPTION_KEY: Joi.string().hex().length(64).optional(),
         /** Dev-only: accept this token in POST /auth/verify (e.g. 123456). Agents use CITE_DEV_TOKEN. */
         DEV_TOKEN: Joi.string().optional(),
       }),
@@ -144,6 +147,7 @@ import * as Joi from 'joi';
     AgentApiModule,
     EventBusModule,
     GraphModule,
+    RssModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

@@ -22,7 +22,12 @@ import {
   ModerationReasonCode,
   ModerationSource,
   ModerationTargetType,
+  AppealStatus,
 } from '../entities/moderation-record.entity';
+import {
+  Notification,
+  NotificationType,
+} from '../entities/notification.entity';
 
 import { ContentModerationService } from './content-moderation.service';
 import { TrustService } from './trust.service';
@@ -44,6 +49,8 @@ export class SafetyService {
     @InjectRepository(Reply) private replyRepo: Repository<Reply>,
     @InjectRepository(ModerationRecord)
     private moderationRecordRepo: Repository<ModerationRecord>,
+    @InjectRepository(Notification)
+    private notificationRepo: Repository<Notification>,
     @Optional()
     @Inject(ContentModerationService)
     private contentModeration?: ContentModerationService,
@@ -126,7 +133,12 @@ export class SafetyService {
       contentSnapshot: params.contentSnapshot.substring(0, 10000), // cap length
       source: params.source,
     });
-    return this.moderationRecordRepo.save(record);
+    const saved = await this.moderationRecordRepo.save(record);
+
+    // DSA Art. 17: notify the author with a statement of reasons
+    await this.notifyAuthorOfModeration(saved);
+
+    return saved;
   }
 
   private isValidUUID(uuid: string): boolean {
@@ -397,6 +409,173 @@ export class SafetyService {
       where: { muterId: userId, mutedId: otherUserId },
     });
     return count > 0;
+  }
+
+  /**
+   * Send a MODERATION notification to the author (DSA Art. 17 — statement of reasons).
+   */
+  private async notifyAuthorOfModeration(
+    record: ModerationRecord,
+  ): Promise<void> {
+    try {
+      const notification = this.notificationRepo.create({
+        userId: record.authorId,
+        type: NotificationType.MODERATION,
+        actorUserId: null,
+        postId:
+          record.targetType === ModerationTargetType.POST
+            ? record.targetId
+            : null,
+        replyId:
+          record.targetType === ModerationTargetType.REPLY
+            ? record.targetId
+            : null,
+        metadata: {
+          moderationRecordId: record.id,
+          reasonCode: record.reasonCode,
+          reasonText: record.reasonText,
+          guidelineViolated: this.mapReasonToGuideline(record.reasonCode),
+          appealDeadlineDays: 30,
+        },
+      });
+      await this.notificationRepo.save(notification);
+      await this.moderationRecordRepo.update(record.id, { notified: true });
+    } catch {
+      // Non-fatal: moderation still proceeds even if notification fails
+    }
+  }
+
+  /** Map reason code to community guideline section number for the statement of reasons. */
+  private mapReasonToGuideline(code: ModerationReasonCode): string {
+    switch (code) {
+      case ModerationReasonCode.HARASSMENT:
+        return 'Community Guideline §1 — Treat Others with Respect';
+      case ModerationReasonCode.HATE:
+        return 'Community Guideline §1 — No hate speech';
+      case ModerationReasonCode.VIOLENCE:
+        return 'Community Guideline §1 — No threats of violence';
+      case ModerationReasonCode.SPAM:
+        return 'Community Guideline §3 — No Spam or Manipulation';
+      case ModerationReasonCode.ADVERTISING:
+        return 'Community Guideline §3 — No excessive advertising';
+      case ModerationReasonCode.REPEATED:
+        return 'Community Guideline §3 — No spam (repetitive content)';
+      default:
+        return 'Community Guidelines — see citewalk.com/community-guidelines';
+    }
+  }
+
+  /**
+   * Get moderation history for a specific user (their own moderation records).
+   */
+  async getUserModerationHistory(
+    userId: string,
+    limit = 20,
+    offset = 0,
+  ): Promise<{ items: ModerationRecord[]; total: number }> {
+    const [items, total] = await this.moderationRecordRepo.findAndCount({
+      where: { authorId: userId },
+      order: { createdAt: 'DESC' },
+      take: Math.min(limit, 50),
+      skip: offset,
+    });
+    return { items, total };
+  }
+
+  /**
+   * Submit an appeal for a moderation decision (DSA Art. 20).
+   * Users can appeal within 30 days of the moderation action.
+   */
+  async submitAppeal(
+    userId: string,
+    moderationRecordId: string,
+    appealText: string,
+  ): Promise<ModerationRecord> {
+    const record = await this.moderationRecordRepo.findOne({
+      where: { id: moderationRecordId, authorId: userId },
+    });
+    if (!record) {
+      throw new NotFoundException('Moderation record not found');
+    }
+
+    // Check 30-day appeal window
+    const appealDeadline = new Date(record.createdAt);
+    appealDeadline.setDate(appealDeadline.getDate() + 30);
+    if (new Date() > appealDeadline) {
+      throw new BadRequestException(
+        'Appeal window has expired (30 days from moderation action)',
+      );
+    }
+
+    if (record.appealStatus !== AppealStatus.NONE) {
+      throw new BadRequestException('An appeal has already been submitted');
+    }
+
+    record.appealStatus = AppealStatus.PENDING;
+    record.appealText = appealText.trim().substring(0, 5000);
+    record.appealedAt = new Date();
+    return this.moderationRecordRepo.save(record);
+  }
+
+  /**
+   * Resolve an appeal (admin). If upheld, restore the content.
+   */
+  async resolveAppeal(
+    moderationRecordId: string,
+    upheld: boolean,
+    resolution: string,
+  ): Promise<ModerationRecord> {
+    const record = await this.moderationRecordRepo.findOne({
+      where: { id: moderationRecordId },
+    });
+    if (!record) {
+      throw new NotFoundException('Moderation record not found');
+    }
+    if (record.appealStatus !== AppealStatus.PENDING) {
+      throw new BadRequestException('No pending appeal to resolve');
+    }
+
+    record.appealStatus = upheld ? AppealStatus.UPHELD : AppealStatus.REJECTED;
+    record.appealResolvedAt = new Date();
+    record.appealResolution = resolution.trim().substring(0, 5000);
+
+    if (upheld) {
+      // Restore the soft-deleted content
+      if (record.targetType === ModerationTargetType.POST) {
+        await this.postRepo.restore(record.targetId);
+      } else if (record.targetType === ModerationTargetType.REPLY) {
+        await this.replyRepo.restore(record.targetId);
+      }
+    }
+
+    const saved = await this.moderationRecordRepo.save(record);
+
+    // Notify the user of the appeal result
+    try {
+      const notification = this.notificationRepo.create({
+        userId: record.authorId,
+        type: NotificationType.MODERATION,
+        actorUserId: null,
+        postId:
+          record.targetType === ModerationTargetType.POST
+            ? record.targetId
+            : null,
+        replyId:
+          record.targetType === ModerationTargetType.REPLY
+            ? record.targetId
+            : null,
+        metadata: {
+          moderationRecordId: record.id,
+          appealResult: upheld ? 'upheld' : 'rejected',
+          appealResolution: resolution,
+        },
+      });
+      await this.notificationRepo.save(notification);
+    } catch {
+      // non-fatal
+    }
+
+    return saved;
   }
 
   async checkContent(

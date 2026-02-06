@@ -6,7 +6,7 @@ import { PublicFooter } from "@/components/landing/public-footer";
 export const metadata: Metadata = {
   title: "Roadmap | Citewalk",
   description:
-    "The future of Citewalk. Active development status and master plan.",
+    "What we're building at Citewalk. See what's live, what's coming, and where we're headed.",
   alternates: {
     canonical: "https://citewalk.com/roadmap",
   },
@@ -23,15 +23,16 @@ export default async function RoadmapPage() {
       <main id="main-content" className="max-w-4xl mx-auto pt-32 pb-20 px-6">
         <header className="mb-20 grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8">
           <div className="text-xs font-mono text-[var(--primary)] uppercase tracking-widest pt-2">
-            Master Plan
+            Roadmap
           </div>
           <div>
             <h1 className="text-4xl md:text-5xl font-medium text-[var(--foreground)] mb-6 tracking-tight">
-              Evolution
+              What we&apos;re building
             </h1>
             <p className="text-lg text-[var(--secondary)] font-light leading-relaxed max-w-2xl">
-              We are building a 100-year platform. This document outlines the
-              trajectory of the protocol. We think in eras, not versions.
+              Here&apos;s what&apos;s live today, what we&apos;re working on,
+              and where we&apos;re headed. We build in the open and ship when
+              it&apos;s ready.
             </p>
           </div>
         </header>
@@ -45,7 +46,7 @@ export default async function RoadmapPage() {
             {/* Status Dot */}
             <div className="hidden md:flex justify-end pr-8 pt-2 relative">
               <span className="text-xs font-mono text-emerald-500 uppercase tracking-widest">
-                Era I
+                Phase I
               </span>
               <div className="absolute right-[-5px] top-[10px] w-2.5 h-2.5 rounded-full bg-[var(--background)] border-2 border-emerald-500 z-10" />
             </div>
@@ -54,22 +55,20 @@ export default async function RoadmapPage() {
               <div className="flex items-center gap-3 mb-6 md:hidden">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs font-mono text-emerald-500 uppercase tracking-widest">
-                  Era I: The Archive
+                  Phase I: Live Now
                 </span>
               </div>
 
               <h2 className="text-2xl font-serif text-[var(--foreground)] mb-2">
-                The Archive
+                The Foundations
               </h2>
-              <p className="text-[var(--tertiary)] mb-8 text-sm">
-                Establishing Truth (Current)
-              </p>
+              <p className="text-[var(--tertiary)] mb-8 text-sm">Live now</p>
 
               <div className="grid gap-4">
                 <div className="p-5 border border-[var(--divider)] bg-[#0F0F10] rounded hover:border-[var(--primary)] transition-colors">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-[var(--foreground)]">
-                      Citation Protocol
+                      Cite any idea with [[links]]
                     </h3>
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-500 border border-emerald-900/30 bg-emerald-900/10 px-2 py-0.5 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-emerald-500" />
@@ -77,17 +76,18 @@ export default async function RoadmapPage() {
                     </span>
                   </div>
                   <p className="text-sm text-[var(--secondary)] leading-relaxed">
-                    The core graph engine.{" "}
+                    Use{" "}
                     <span className="text-[var(--foreground)] font-mono text-xs">
                       [[citelinks]]
                     </span>{" "}
-                    allow bidirectional connection between all nodes.
+                    to connect any post to topics, sources, or other writers.
+                    Every link goes both ways.
                   </p>
                 </div>
                 <div className="p-5 border border-[var(--divider)] bg-[#0F0F10] rounded hover:border-[var(--primary)] transition-colors">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-[var(--foreground)]">
-                      Sovereign Infrastructure
+                      EU-hosted, privacy-first
                     </h3>
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-500 border border-emerald-900/30 bg-emerald-900/10 px-2 py-0.5 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-emerald-500" />
@@ -95,14 +95,14 @@ export default async function RoadmapPage() {
                     </span>
                   </div>
                   <p className="text-sm text-[var(--secondary)] leading-relaxed">
-                    EU-only hosting (Hetzner). Full GDPR compliance. Data is
-                    owned by the author, not the platform.
+                    All data hosted in Europe. GDPR-compliant by design. Your
+                    writing belongs to you, not the platform.
                   </p>
                 </div>
                 <div className="p-5 border border-[var(--divider)] bg-[#0F0F10] rounded hover:border-[var(--primary)] transition-colors">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-[var(--foreground)]">
-                      Anti-Dopamine Metrics
+                      No vanity metrics
                     </h3>
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-emerald-500 border border-emerald-900/30 bg-emerald-900/10 px-2 py-0.5 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-emerald-500" />
@@ -110,8 +110,8 @@ export default async function RoadmapPage() {
                     </span>
                   </div>
                   <p className="text-sm text-[var(--secondary)] leading-relaxed">
-                    Like counts are private. We optimize for comprehension, not
-                    addiction.
+                    Like counts are private. We care about whether people read
+                    your work, not how many times they tapped a heart.
                   </p>
                 </div>
               </div>
@@ -122,7 +122,7 @@ export default async function RoadmapPage() {
           <article className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8 relative">
             <div className="hidden md:flex justify-end pr-8 pt-2 relative">
               <span className="text-xs font-mono text-[var(--primary)] uppercase tracking-widest">
-                Era II
+                Phase II
               </span>
               <div className="absolute right-[-5px] top-[10px] w-2.5 h-2.5 rounded-full bg-[var(--background)] border-2 border-[var(--primary)] z-10" />
             </div>
@@ -131,22 +131,22 @@ export default async function RoadmapPage() {
               <div className="flex items-center gap-3 mb-6 md:hidden">
                 <div className="w-2.5 h-2.5 rounded-full bg-[var(--primary)]" />
                 <span className="text-xs font-mono text-[var(--primary)] uppercase tracking-widest">
-                  Era II: The Society
+                  Phase II: Coming Soon
                 </span>
               </div>
 
               <h2 className="text-2xl font-serif text-[var(--foreground)] mb-2">
-                The Society
+                Growing the Network
               </h2>
               <p className="text-[var(--tertiary)] mb-8 text-sm">
-                Expansion (2026)
+                Coming in 2026
               </p>
 
               <div className="grid gap-4">
                 <div className="p-5 border border-[var(--divider)] bg-[var(--background)] rounded opacity-80 hover:opacity-100 transition-opacity">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-[var(--foreground)]">
-                      Context Preservation
+                      Link Archiving
                     </h3>
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-amber-500 border border-amber-900/30 bg-amber-900/10 px-2 py-0.5 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-amber-500" />
@@ -154,14 +154,15 @@ export default async function RoadmapPage() {
                     </span>
                   </div>
                   <p className="text-sm text-[var(--secondary)] leading-relaxed">
-                    Integration with Internet Archive. We automatically snapshot
-                    external links to prevent history from rotting.
+                    Automatic snapshots of external links via Internet Archive,
+                    so your sources stay alive even if the original page
+                    disappears.
                   </p>
                 </div>
                 <div className="p-5 border border-[var(--divider)] bg-[var(--background)] rounded opacity-80 hover:opacity-100 transition-opacity">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-[var(--foreground)]">
-                      Open Federation
+                      Fediverse Integration
                     </h3>
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-[var(--tertiary)] border border-[#333] /* divider-subtle */ bg-[var(--divider)] px-2 py-0.5 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-[var(--tertiary)]" />
@@ -169,8 +170,9 @@ export default async function RoadmapPage() {
                     </span>
                   </div>
                   <p className="text-sm text-[var(--secondary)] leading-relaxed">
-                    ActivityPub compatibility. Citewalk will become a node in the
-                    open Fediverse, allowing you to follow anyone, anywhere.
+                    ActivityPub support so you can follow and be followed by
+                    people on Mastodon, Bluesky bridges, and other open
+                    platforms.
                   </p>
                 </div>
               </div>
@@ -181,7 +183,7 @@ export default async function RoadmapPage() {
           <article className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8 relative">
             <div className="hidden md:flex justify-end pr-8 pt-2 relative">
               <span className="text-xs font-mono text-[#333] /* divider-subtle */ uppercase tracking-widest">
-                Era III
+                Phase III
               </span>
               <div className="absolute right-[-5px] top-[10px] w-2.5 h-2.5 rounded-full bg-[var(--background)] border-2 border-[#333] /* divider-subtle */ z-10" />
             </div>
@@ -190,23 +192,23 @@ export default async function RoadmapPage() {
               <div className="flex items-center gap-3 mb-6 md:hidden">
                 <div className="w-2.5 h-2.5 rounded-full bg-[#333] /* divider-subtle */" />
                 <span className="text-xs font-mono text-[#333] /* divider-subtle */ uppercase tracking-widest">
-                  Era III: The Intelligence
+                  Phase III: On the Horizon
                 </span>
               </div>
 
               <h2 className="text-2xl font-serif text-[var(--foreground)] mb-2">
-                The Intelligence
+                Smarter Connections
               </h2>
-              <p className="text-[var(--tertiary)] mb-8 text-sm">Synthesis (Future)</p>
+              <p className="text-[var(--tertiary)] mb-8 text-sm">Future</p>
 
               <div className="grid gap-4">
                 <div className="p-5 border border-[var(--divider)] bg-[var(--background)] rounded">
                   <h3 className="font-medium text-[var(--foreground)] mb-2">
-                    Semantic Synthesis
+                    AI-powered discovery
                   </h3>
                   <p className="text-sm text-[var(--secondary)]">
-                    Local-first AI that helps you find connections between
-                    disparate ideas in your graph.
+                    Private, on-device AI that helps you find surprising
+                    connections between ideas you&apos;ve written about.
                   </p>
                 </div>
               </div>
@@ -221,7 +223,8 @@ export default async function RoadmapPage() {
                 Contribute to the Codebase
               </h3>
               <p className="text-sm text-[var(--secondary)]">
-                We are open to contributors. Help us build the protocol.
+                We&apos;re open to contributors. If you care about this,
+                we&apos;d love your help.
               </p>
             </div>
             <a

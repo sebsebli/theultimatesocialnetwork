@@ -1,8 +1,10 @@
 import {
   Controller,
   Get,
+  Patch,
   Param,
   Query,
+  Body,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -48,5 +50,21 @@ export class SafetyAdminController {
   @Get('by-author/:userId')
   async getByAuthor(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.safetyService.getModerationStatsByAuthor(userId);
+  }
+
+  /**
+   * Resolve a pending appeal (DSA Art. 20).
+   * Body: { upheld: boolean, resolution: string }
+   */
+  @Patch('appeals/:recordId')
+  async resolveAppeal(
+    @Param('recordId', ParseUUIDPipe) recordId: string,
+    @Body() dto: { upheld: boolean; resolution: string },
+  ) {
+    return this.safetyService.resolveAppeal(
+      recordId,
+      dto.upheld,
+      dto.resolution,
+    );
   }
 }

@@ -139,6 +139,11 @@ export class NotificationHelperService {
       case NotificationType.LIKE:
         // Likes are private/quiet usually, often no push
         return { title: null, body: null };
+      case NotificationType.MODERATION:
+        return {
+          title: 'Content Moderation Notice',
+          body: 'One of your posts was removed for a guideline violation. Open to see details and appeal.',
+        };
       default:
         return { title: null, body: null };
     }

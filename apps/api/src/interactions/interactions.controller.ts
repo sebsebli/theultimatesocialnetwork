@@ -8,9 +8,16 @@ import {
   Body,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { IsNumber, Min } from 'class-validator';
 import { InteractionsService } from './interactions.service';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
+
+class RecordReadTimeDto {
+  @IsNumber()
+  @Min(1)
+  duration: number;
+}
 
 @Controller('posts') // Nesting under posts for standard REST feel
 export class InteractionsController {
@@ -31,7 +38,7 @@ export class InteractionsController {
   async recordTime(
     @CurrentUser() user: { id: string },
     @Param('id', ParseUUIDPipe) postId: string,
-    @Body() body: { duration: number },
+    @Body() body: RecordReadTimeDto,
   ) {
     await this.interactionsService.recordReadDuration(
       user.id,

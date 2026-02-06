@@ -119,9 +119,9 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://storage.ko-fi.com",
-              "style-src 'self' 'unsafe-inline' https://storage.ko-fi.com https://fonts.googleapis.com",
+              "style-src 'self' 'unsafe-inline' https://storage.ko-fi.com",
               `img-src 'self' data: https: blob: ${apiOrigin} http://localhost:3000 http://127.0.0.1:3000 https://storage.ko-fi.com`,
-              "font-src 'self' data: https://fonts.gstatic.com",
+              "font-src 'self' data:",
               "connect-src 'self' https: https://storage.ko-fi.com",
               "frame-ancestors 'self'",
               "base-uri 'self'",

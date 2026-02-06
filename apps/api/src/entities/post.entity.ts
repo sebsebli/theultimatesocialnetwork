@@ -94,6 +94,13 @@ export class Post {
   @Column({ name: 'reading_time_minutes', type: 'float', default: 0 })
   readingTimeMinutes: number;
 
+  /**
+   * Content warning text (Apple 1.2.1(a) / DSA). When set, the post is
+   * collapsed behind a warning label on clients. Null = no warning.
+   */
+  @Column({ name: 'content_warning', type: 'text', nullable: true })
+  contentWarning: string | null;
+
   @Column({ type: 'jsonb', nullable: true })
   media: {
     type: 'gif' | 'video';

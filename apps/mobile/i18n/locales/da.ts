@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Hvor idéer fortjener deres plads.",
-    subtitle: "Et socialt netværk bygget på citater.",
+    tagline: "Sociale medier uden støjen.",
+    subtitle: "Det europæiske alternativ.",
     showIntroAgain: "Om Citewalk",
     continue: "Log ind",
     privacy: "Privatliv",
@@ -12,23 +12,24 @@ export default {
   intro: {
     title: "Velkommen til Citewalk",
     founderMessage:
-      "Jeg byggede Citewalk fordi internettet belønner forargelse over indsigt. Dette er et sted, hvor dit ry vokser, når andre citerer dine idéer -- ikke når de klikker på et hjerte.",
+      "Jeg byggede Citewalk, fordi jeg var træt af platforme, der belønner forargelse over indhold. Dette er et uafhængigt europæisk projekt — ingen VC-penge, ingen væksttricks, bare et bedre sted at dele idéer.",
     founderName: "Sebastian, Grundlægger",
     point1:
-      "Dine opslag lever på en vidensgraf, ikke en engangsfeed. Hver idé du deler bliver findbar, citerbar og permanent.",
+      "Ingen algoritme bestemmer, hvad du ser. Dit feed er kronologisk, dit indhold er søgbart efter emne, og godt skriv stiger, fordi folk faktisk refererer til det.",
     point2:
-      "Autoritet her optjenes gennem citater. Når andre forfattere refererer til dit arbejde, er det ægte troværdighed -- ikke tomme metrics.",
+      "På andre platforme bliver den vredeste stemme viral. Her tjener den mest refererede stemme troværdighed. Du vokser ved at skrive ting værd at dele.",
     point3:
-      "Følg emner, ikke algoritmer. Du styrer, hvad du ser. Ingen engagement-tricks, ingen skjult rangering -- bare de idéer, du bekymrer dig om.",
+      "100% EU-hostet. Ingen annoncer, ingen sporing, ingen salg af dine data. Bygget i Europa som et ægte alternativ — ikke endnu et Silicon Valley-produkt.",
     point4: "Rigtige mennesker. Ægte diskurs. Ingen bots.",
-    point5: "Bygget til forståelse, ikke kun forbrug.",
-    point6: "Følg sporet. Hvert citat fører et sted hen.",
-    point7: "Skriv. Citer. Byg viden.",
+    point5: "Diskussioner bygget på indhold, ikke på dunks.",
+    point6: "Alt du skriver forbliver søgbart. Intet forsvinder.",
+    point7: "Publicér. Forbind. Voks.",
     next: "Næste",
     skip: "Spring over",
     getStarted: "Log ind",
     beginJourney: "Kom i gang",
-    finalMessage: "Hvor idéer fortjener deres plads.",
+    finalMessage:
+      "Internettet har ikke brug for endnu et feed. Det har brug for et bedre.",
     welcome: "Velkommen.",
   },
   signIn: {
@@ -51,7 +52,8 @@ export default {
     invalidEmail: "Det ligner ikke en gyldig email",
     userNotFound: "Ingen konto fundet for denne email",
     rateLimited: "For mange forsøg. Vent et øjeblik.",
-    signUpAgreement: "Ved at fortsætte accepterer du vores {{terms}} og {{privacy}}",
+    signUpAgreement:
+      "Ved at fortsætte accepterer du vores {{terms}} og {{privacy}}",
     termsLink: "Vilkår",
     privacyLink: "Privatlivspolitik",
     joinWaitlist: "Har du ikke adgang? Tilmeld dig ventelisten",
@@ -60,7 +62,8 @@ export default {
     acceptTermsError: "Accepter venligst vilkårene for at fortsætte",
     verificationSent: "Verifikationskode sendt",
     inviteCodeRequiredTitle: "Invitationskode påkrævet",
-    inviteCodeRequiredMessage: "Det ser ud til, at du er ny her. Indtast din invitationskode for at komme i gang.",
+    inviteCodeRequiredMessage:
+      "Det ser ud til, at du er ny her. Indtast din invitationskode for at komme i gang.",
     waitBeforeRequest: "Vent venligst {{seconds}}s",
     wrongEmail: "Forkert email? Gå tilbage",
     resendCodeIn: "Send igen om {{seconds}}s",
@@ -269,7 +272,8 @@ export default {
     addReply: "Svar...",
     replyNotFound: "Svar ikke fundet",
     signInToComment: "Log ind for at kommentere",
-    signInToCommentSubtext: "Du skal være logget ind for at efterlade en kommentar.",
+    signInToCommentSubtext:
+      "Du skal være logget ind for at efterlade en kommentar.",
     noSources: "Ingen eksterne kilder.",
     noQuotes: "Ingen citater endnu.",
     delete: "Slet opslag",
@@ -339,8 +343,7 @@ export default {
     noCollectionsOwnHint: "Opret en samling for at organisere dine gemte.",
     noReplies: "Ingen kommentarer endnu",
     noRepliesHint: "Kommentarer du efterlader på opslag vil vises her.",
-    privateProfileHint:
-      "Følg denne konto for at se deres opslag og aktivitet.",
+    privateProfileHint: "Følg denne konto for at se deres opslag og aktivitet.",
     noQuotes: "Ingen citater endnu",
     noQuotesHint: "Opslag der citerer denne person vil vises her.",
     noCited: "Ingen citerede opslag endnu",
@@ -366,7 +369,8 @@ export default {
     privateAccount: "Privat konto",
     privateAccountHint: "Følg denne konto for at se deres aktivitet.",
     followRequest: "Følgeanmodning",
-    followRequestMessage: "Dette er en privat konto. En følgeanmodning vil blive sendt.",
+    followRequestMessage:
+      "Dette er en privat konto. En følgeanmodning vil blive sendt.",
     sendRequest: "Send anmodning",
   },
   invites: {
@@ -465,7 +469,8 @@ export default {
     showSavesDesc: "Se hvad folk du følger gemmer",
     explore: "Udforsk",
     enableRecommendations: "Personlige anbefalinger",
-    enableRecommendationsDesc: "Brug vores relevansmotor til at vise opslag til dig",
+    enableRecommendationsDesc:
+      "Brug vores relevansmotor til at vise opslag til dig",
     relevance: "Relevans",
     relevanceControls: "Relevansvægte",
     relevanceControlsDesc: "Finjustér hvad der betyder mest",
@@ -488,7 +493,8 @@ export default {
     dangerZoneHint: "Disse handlinger er permanente.",
     deleteAccount: "Slet konto",
     deleteAccountDesc: "Slet permanent din konto og alle data",
-    deleteAccountConfirm: "Dette vil permanent slette din konto. Dette kan ikke fortrydes.",
+    deleteAccountConfirm:
+      "Dette vil permanent slette din konto. Dette kan ikke fortrydes.",
     deleteAccountConfirmEmail:
       "Vi sender et bekræftelseslink til din email. Klik på det inden for 24 timer.",
     sendDeletionLink: "Send bekræftelse",
@@ -531,7 +537,8 @@ export default {
     manageOfflineStorage: "Administrer lagerplads",
     offlineCount: "{{count}} opslag cachet",
     removeAllOffline: "Ryd cache",
-    removeAllOfflineConfirm: "Fjern alle offline opslag? Dette frigør lagerplads.",
+    removeAllOfflineConfirm:
+      "Fjern alle offline opslag? Dette frigør lagerplads.",
     offlineStorageSummary: "{{count}} opslag · {{size}}",
     noOfflineArticles: "Ingen offline opslag",
     noOfflineHint: "Gem opslag for at læse dem offline.",
@@ -674,7 +681,8 @@ export default {
     user: "Bruger",
     topicOrPost: "Emne eller opslag",
     somethingWentWrong: "Noget gik galt",
-    unexpectedErrorRetry: "Der opstod en uventet fejl. Prøv at gå tilbage til hjemmeskærmen.",
+    unexpectedErrorRetry:
+      "Der opstod en uventet fejl. Prøv at gå tilbage til hjemmeskærmen.",
     goToHome: "Gå hjem",
   },
   externalLink: {
@@ -767,7 +775,8 @@ export default {
   waitingList: {
     title: "Tilmeld dig ventelisten",
     heading: "Anmod om adgang",
-    description: "Citewalk er i øjeblikket i tidlig adgang. Tilmeld dig ventelisten, og vi giver dig besked, når der er en plads.",
+    description:
+      "Citewalk er i øjeblikket i tidlig adgang. Tilmeld dig ventelisten, og vi giver dig besked, når der er en plads.",
     emailPlaceholder: "Din emailadresse",
     join: "Tilmeld venteliste",
     success: "Du er på listen!",

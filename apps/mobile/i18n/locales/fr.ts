@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Où les idées gagnent leur place.",
-    subtitle: "Un réseau social construit sur les citations.",
+    tagline: "Les réseaux sociaux, sans le bruit.",
+    subtitle: "L'alternative européenne.",
     showIntroAgain: "À propos de Citewalk",
     continue: "Se connecter",
     privacy: "Confidentialité",
@@ -12,23 +12,25 @@ export default {
   intro: {
     title: "Bienvenue sur Citewalk",
     founderMessage:
-      "J'ai créé Citewalk parce que l'internet récompense l'indignation plutôt que l'insight. C'est un endroit où ta réputation grandit quand d'autres citent tes idées — pas quand ils cliquent sur un cœur.",
+      "J'ai créé Citewalk parce que j'étais fatigué des plateformes qui récompensent l'indignation plutôt que la substance. C'est un projet européen indépendant — pas d'argent de VC, pas de trucs de croissance, juste un meilleur endroit pour partager des idées.",
     founderName: "Sebastian, Fondateur",
     point1:
-      "Tes posts vivent sur un graphe de connaissances, pas sur un fil jetable. Chaque idée que tu partages devient trouvable, citable et permanente.",
+      "Aucun algorithme ne décide de ce que tu vois. Ton fil est chronologique, ton contenu est découvrable par sujet, et les bons écrits montent parce que les gens les citent vraiment.",
     point2:
-      "L'autorité ici se gagne par les citations. Quand d'autres auteurs référencent ton travail, c'est une vraie crédibilité — pas des métriques de vanité.",
+      "Sur d'autres plateformes, la voix la plus en colère devient virale. Ici, la voix la plus citée gagne en crédibilité. Tu grandis en écrivant des choses qui valent la peine d'être partagées.",
     point3:
-      "Suis des sujets, pas des algorithmes. Tu contrôles ce que tu vois. Pas de trucs d'engagement, pas de classement caché — juste les idées qui t'intéressent.",
+      "100% hébergé dans l'UE. Pas de pub, pas de tracking, pas de vente de tes données. Construit en Europe comme une vraie alternative — pas un autre produit de la Silicon Valley.",
     point4: "De vraies personnes. Un vrai discours. Pas de bots.",
-    point5: "Conçu pour la compréhension, pas seulement la consommation.",
-    point6: "Suis la piste. Chaque citation mène quelque part.",
-    point7: "Écris. Cite. Construis la connaissance.",
+    point5:
+      "Des discussions basées sur la substance, pas sur les provocations.",
+    point6: "Tout ce que tu écris reste découvrable. Rien ne disparaît.",
+    point7: "Publie. Connecte-toi. Grandis.",
     next: "Suivant",
     skip: "Passer",
     getStarted: "Se connecter",
     beginJourney: "Commencer",
-    finalMessage: "Où les idées gagnent leur place.",
+    finalMessage:
+      "Internet n'a pas besoin d'un autre fil. Il a besoin d'un meilleur.",
     welcome: "Bienvenue.",
   },
   signIn: {
@@ -51,7 +53,8 @@ export default {
     invalidEmail: "Ça ne ressemble pas à un email valide",
     userNotFound: "Aucun compte trouvé pour cet email",
     rateLimited: "Trop de tentatives. Attends un moment.",
-    signUpAgreement: "En continuant, tu acceptes nos {{terms}} et notre {{privacy}}",
+    signUpAgreement:
+      "En continuant, tu acceptes nos {{terms}} et notre {{privacy}}",
     termsLink: "Conditions",
     privacyLink: "Politique de confidentialité",
     joinWaitlist: "Tu n'as pas accès ? Rejoins la liste d'attente",
@@ -60,7 +63,8 @@ export default {
     acceptTermsError: "Accepte les conditions pour continuer",
     verificationSent: "Code de vérification envoyé",
     inviteCodeRequiredTitle: "Code d'invitation requis",
-    inviteCodeRequiredMessage: "On dirait que tu es nouveau ici. Entre ton code d'invitation pour commencer.",
+    inviteCodeRequiredMessage:
+      "On dirait que tu es nouveau ici. Entre ton code d'invitation pour commencer.",
     waitBeforeRequest: "Attends {{seconds}}s",
     wrongEmail: "Mauvais email ? Retour",
     resendCodeIn: "Renvoyer dans {{seconds}}s",
@@ -87,7 +91,8 @@ export default {
       continue: "Continuer",
       displayNameRequired: "Ajoute un nom d'affichage",
       handleRequired: "Choisis un nom d'utilisateur",
-      handleInvalid: "Seulement des lettres minuscules, chiffres et underscores",
+      handleInvalid:
+        "Seulement des lettres minuscules, chiffres et underscores",
       handleTaken: "Ce nom d'utilisateur est pris",
       handleAvailable: "Disponible",
       handleTooShort: "Trop court (min 3 caractères)",
@@ -108,7 +113,8 @@ export default {
       search: "Rechercher des langues...",
       continue: "Continuer",
       languagesTitle: "Langues de lecture",
-      languagesSubtitle: "On utilisera ça pour te montrer du contenu pertinent.",
+      languagesSubtitle:
+        "On utilisera ça pour te montrer du contenu pertinent.",
       filterExplore: "Filtrer Explore",
       filterExploreDesc: "Afficher uniquement les posts dans mes langues",
       updateFailed: "Impossible d'enregistrer. Réessaye.",
@@ -122,7 +128,8 @@ export default {
       finishing: "Configuration en cours...",
       loadingSuggested: "Recherche d'auteurs pour toi...",
       starterPackTitle: "Auteurs recommandés",
-      starterPackSubtitle: "Des personnes qui écrivent sur des sujets qui pourraient t'intéresser.",
+      starterPackSubtitle:
+        "Des personnes qui écrivent sur des sujets qui pourraient t'intéresser.",
     },
     finish: "Terminé",
   },
@@ -269,7 +276,8 @@ export default {
     addReply: "Répondre...",
     replyNotFound: "Réponse introuvable",
     signInToComment: "Connecte-toi pour commenter",
-    signInToCommentSubtext: "Tu dois être connecté pour laisser un commentaire.",
+    signInToCommentSubtext:
+      "Tu dois être connecté pour laisser un commentaire.",
     noSources: "Aucune source externe.",
     noQuotes: "Pas encore de citations.",
     delete: "Supprimer le post",
@@ -336,9 +344,11 @@ export default {
     noCollections: "Aucune collection publique",
     noCollectionsOwn: "Pas encore de collections",
     noCollectionsHint: "Les collections publiques apparaîtront ici.",
-    noCollectionsOwnHint: "Crée une collection pour organiser tes enregistrements.",
+    noCollectionsOwnHint:
+      "Crée une collection pour organiser tes enregistrements.",
     noReplies: "Pas encore de commentaires",
-    noRepliesHint: "Les commentaires que tu laisses sur les posts apparaîtront ici.",
+    noRepliesHint:
+      "Les commentaires que tu laisses sur les posts apparaîtront ici.",
     privateProfileHint:
       "Abonne-toi à ce compte pour voir ses posts et son activité.",
     noQuotes: "Pas encore de citations",
@@ -366,13 +376,15 @@ export default {
     privateAccount: "Compte privé",
     privateAccountHint: "Abonne-toi à ce compte pour voir son activité.",
     followRequest: "Demande d'abonnement",
-    followRequestMessage: "C'est un compte privé. Une demande d'abonnement sera envoyée.",
+    followRequestMessage:
+      "C'est un compte privé. Une demande d'abonnement sera envoyée.",
     sendRequest: "Envoyer la demande",
   },
   invites: {
     title: "Inviter",
     heroTitle: "Inviter par email",
-    heroText: "Envoie une invitation à quelqu'un que tu aimerais avoir sur Citewalk.",
+    heroText:
+      "Envoie une invitation à quelqu'un que tu aimerais avoir sur Citewalk.",
     remaining: "Restantes",
     emailPlaceholder: "Son adresse email",
     sendInvite: "Envoyer l'invitation",
@@ -411,7 +423,8 @@ export default {
     unblockUser: "Débloquer l'utilisateur",
     muteUser: "Masquer l'utilisateur",
     unmuteUser: "Afficher l'utilisateur",
-    blockConfirm: "Bloquer cette personne ? Vous ne verrez plus le contenu de chacun.",
+    blockConfirm:
+      "Bloquer cette personne ? Vous ne verrez plus le contenu de chacun.",
     unblockConfirm: "Débloquer cette personne ?",
     muteConfirm: "Masquer cette personne ? Ses posts seront cachés.",
     unmuteConfirm: "Afficher cette personne ?",
@@ -465,7 +478,8 @@ export default {
     showSavesDesc: "Voir ce que les personnes que tu suis enregistrent",
     explore: "Explorer",
     enableRecommendations: "Recommandations personnalisées",
-    enableRecommendationsDesc: "Utilise notre moteur de pertinence pour te proposer des posts",
+    enableRecommendationsDesc:
+      "Utilise notre moteur de pertinence pour te proposer des posts",
     relevance: "Pertinence",
     relevanceControls: "Poids de pertinence",
     relevanceControlsDesc: "Ajuste ce qui compte le plus",
@@ -487,8 +501,10 @@ export default {
     dangerZone: "Zone de danger",
     dangerZoneHint: "Ces actions sont permanentes.",
     deleteAccount: "Supprimer le compte",
-    deleteAccountDesc: "Supprimer définitivement ton compte et toutes les données",
-    deleteAccountConfirm: "Cela supprimera définitivement ton compte. C'est irréversible.",
+    deleteAccountDesc:
+      "Supprimer définitivement ton compte et toutes les données",
+    deleteAccountConfirm:
+      "Cela supprimera définitivement ton compte. C'est irréversible.",
     deleteAccountConfirmEmail:
       "On enverra un lien de confirmation à ton email. Clique dessus dans les 24 heures.",
     sendDeletionLink: "Envoyer la confirmation",
@@ -527,11 +543,13 @@ export default {
     content: "Contenu",
     offlineReading: "Lecture hors ligne",
     downloadSavedOffline: "Enregistrement automatique pour hors ligne",
-    downloadSavedOfflineHint: "Lis les posts enregistrés sans connexion internet.",
+    downloadSavedOfflineHint:
+      "Lis les posts enregistrés sans connexion internet.",
     manageOfflineStorage: "Gérer le stockage",
     offlineCount: "{{count}} posts en cache",
     removeAllOffline: "Vider le cache",
-    removeAllOfflineConfirm: "Retirer tous les posts hors ligne ? Cela libère de l'espace.",
+    removeAllOfflineConfirm:
+      "Retirer tous les posts hors ligne ? Cela libère de l'espace.",
     offlineStorageSummary: "{{count}} posts · {{size}}",
     noOfflineArticles: "Aucun post hors ligne",
     noOfflineHint: "Enregistre des posts pour les lire hors ligne.",
@@ -545,11 +563,13 @@ export default {
     takePhoto: "Prendre une photo",
     choosePhoto: "Choisir dans la bibliothèque",
     removePhoto: "Retirer la photo",
-    photoPermissionDenied: "L'accès à l'appareil photo ou à la bibliothèque de photos est requis.",
+    photoPermissionDenied:
+      "L'accès à l'appareil photo ou à la bibliothèque de photos est requis.",
     photoUpdated: "Photo mise à jour",
     photoRemoved: "Photo retirée",
     tapToChangePhoto: "Modifier la photo",
-    handleChangeHint: "Les noms d'utilisateur peuvent être changés une fois toutes les 14 jours.",
+    handleChangeHint:
+      "Les noms d'utilisateur peuvent être changés une fois toutes les 14 jours.",
     profilePhoto: "Photo de profil",
   },
   security: {
@@ -576,7 +596,8 @@ export default {
     emptyDetail: "Cette collection est vide.",
     emptyDetailHint: "Enregistre des posts pour les ajouter ici.",
     addCitation: "Ajouter à la collection",
-    addCitationHint: "Parcours les posts et appuie sur Enregistrer pour les ajouter.",
+    addCitationHint:
+      "Parcours les posts et appuie sur Enregistrer pour les ajouter.",
     curatorNote: "NOTE",
     makePublic: "Rendre publique",
     makePrivate: "Rendre privée",
@@ -590,7 +611,8 @@ export default {
     createFailed: "Impossible de créer la collection",
     itemsCount: "{{count}} éléments",
     delete: "Supprimer la collection",
-    deleteConfirm: "Supprimer cette collection ? Les posts à l'intérieur ne seront pas affectés.",
+    deleteConfirm:
+      "Supprimer cette collection ? Les posts à l'intérieur ne seront pas affectés.",
     deleted: "Collection supprimée",
     deleteFailed: "Impossible de supprimer la collection",
     options: "Options",
@@ -648,7 +670,8 @@ export default {
     ago: "il y a",
     linkedItems: "Posts liés",
     noInternet: "Pas de connexion internet",
-    offline: "Tu es hors ligne. Certaines fonctionnalités peuvent être indisponibles.",
+    offline:
+      "Tu es hors ligne. Certaines fonctionnalités peuvent être indisponibles.",
     viewProfile: "Voir le profil",
     follow: "Suivre {{name}}",
     unfollow: "Ne plus suivre {{name}}",
@@ -674,7 +697,8 @@ export default {
     user: "Utilisateur",
     topicOrPost: "Sujet ou post",
     somethingWentWrong: "Quelque chose s'est mal passé",
-    unexpectedErrorRetry: "Une erreur inattendue s'est produite. Essaie de retourner à l'écran d'accueil.",
+    unexpectedErrorRetry:
+      "Une erreur inattendue s'est produite. Essaie de retourner à l'écran d'accueil.",
     goToHome: "Aller à l'accueil",
   },
   externalLink: {
@@ -700,9 +724,11 @@ export default {
     emptyPosts: "Pas encore de posts",
     emptyPostsSubtext: "Sois le premier à écrire sur ce sujet.",
     emptyPeople: "Pas encore de contributeurs",
-    emptyPeopleSubtext: "Les auteurs apparaîtront ici au fur et à mesure qu'ils publient.",
+    emptyPeopleSubtext:
+      "Les auteurs apparaîtront ici au fur et à mesure qu'ils publient.",
     emptySources: "Pas encore de sources",
-    emptySourcesSubtext: "Les sources externes apparaîtront quand les gens les citent.",
+    emptySourcesSubtext:
+      "Les sources externes apparaîtront quand les gens les citent.",
     shareTopic: "Partager le sujet",
     shareTopicMessage: "Découvre ce sujet sur Citewalk",
     searchInTopic: "Rechercher dans ce sujet",
@@ -731,7 +757,8 @@ export default {
     searchUsers: "Trouver quelqu'un...",
     searchPlaceholder: "Rechercher des messages...",
     loadError: "Impossible de charger les messages",
-    mustFollowOrPrior: "Vous devez vous suivre mutuellement pour envoyer des messages.",
+    mustFollowOrPrior:
+      "Vous devez vous suivre mutuellement pour envoyer des messages.",
     createThreadFailed: "Impossible de démarrer la conversation",
     noSuggested: "Aucune suggestion pour l'instant.",
     markUnread: "Marquer comme non lu",
@@ -767,7 +794,8 @@ export default {
   waitingList: {
     title: "Rejoindre la liste d'attente",
     heading: "Demander l'accès",
-    description: "Citewalk est actuellement en accès anticipé. Rejoins la liste d'attente et on te préviendra quand il y aura une place.",
+    description:
+      "Citewalk est actuellement en accès anticipé. Rejoins la liste d'attente et on te préviendra quand il y aura une place.",
     emailPlaceholder: "Ton adresse email",
     join: "Rejoindre la liste d'attente",
     success: "Tu es sur la liste !",

@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Missä ideat ansaitsevat paikkansa.",
-    subtitle: "Sosiaalinen verkosto, joka perustuu viittauksiin.",
+    tagline: "Sosiaalinen media ilman meteliä.",
+    subtitle: "Eurooppalainen vaihtoehto.",
     showIntroAgain: "Tietoa Citewalkista",
     continue: "Kirjaudu sisään",
     privacy: "Tietosuoja",
@@ -12,23 +12,23 @@ export default {
   intro: {
     title: "Tervetuloa Citewalkiin",
     founderMessage:
-      "Rakensin Citewalkin, koska internet palkitsee raivon ennemmin kuin oivalluksen. Tässä maineesi kasvaa, kun muut viittaavat ideoihisi -- ei kun he klikkaavat sydäntä.",
+      "Rakensin Citewalkin, koska olin kyllästynyt alustoihin, jotka palkitsevat närkästyksen sisällön sijaan. Tämä on itsenäinen eurooppalainen projekti — ei VC-rahaa, ei kasvutemppuja, vain parempi paikka jakaa ideoita.",
     founderName: "Sebastian, Perustaja",
     point1:
-      "Julkaisusi elävät tietoverkossa, ei kertakäyttöisessä syötteessä. Jokaisesta ideastasi tulee löydettävä, viitattava ja pysyvä.",
+      "Mikään algoritmi ei päättää mitä näet. Syöteesi on kronologinen, sisältösi on löydettävissä aiheen mukaan, ja hyvä kirjoitus nousee, koska ihmiset viittaavat siihen.",
     point2:
-      "Auktoriteetti täällä ansaitaan viittausten kautta. Kun muut kirjoittajat viittaavat työhösi, se on todellista luotettavuutta -- ei turhamaisia mittareita.",
+      "Muilla alustoilla vihaisin ääni menee viraaliksi. Täällä eniten viitatuin ääni ansaitsee luotettavuuden. Kasvat kirjoittamalla jakamisen arvoisia asioita.",
     point3:
-      "Seuraa aiheita, ei algoritmeja. Sinä hallitset mitä näet. Ei engagement-temppuja, ei piilotettua järjestystä -- vain ideat, joista välität.",
+      "100% EU-palvelimilla. Ei mainoksia, ei seurantaa, ei datasi myyntiä. Rakennettu Euroopassa aito vaihtoehto — ei taas yksi Silicon Valleyn tuote.",
     point4: "Oikeita ihmisiä. Oikeaa keskustelua. Ei botteja.",
-    point5: "Rakennettu ymmärtämiseen, ei vain kulutukseen.",
-    point6: "Seuraa jälkeä. Jokainen viittaus johtaa jonnekin.",
-    point7: "Kirjoita. Viittaa. Rakenna tietoa.",
+    point5: "Keskustelut rakennettu sisällölle, ei nokittelulle.",
+    point6: "Kaikki mitä kirjoitat pysyy löydettävissä. Mikään ei katoa.",
+    point7: "Julkaise. Yhdisty. Kasva.",
     next: "Seuraava",
     skip: "Ohita",
     getStarted: "Kirjaudu sisään",
     beginJourney: "Aloita",
-    finalMessage: "Missä ideat ansaitsevat paikkansa.",
+    finalMessage: "Internet ei tarvitse uutta syötettä. Se tarvitsee paremman.",
     welcome: "Tervetuloa.",
   },
   signIn: {
@@ -60,7 +60,8 @@ export default {
     acceptTermsError: "Hyväksy käyttöehdot jatkaaksesi",
     verificationSent: "Vahvistuskoodi lähetetty",
     inviteCodeRequiredTitle: "Kutsukoodi vaaditaan",
-    inviteCodeRequiredMessage: "Näyttää siltä, että olet uusi täällä. Syötä kutsukoodisi aloittaaksesi.",
+    inviteCodeRequiredMessage:
+      "Näyttää siltä, että olet uusi täällä. Syötä kutsukoodisi aloittaaksesi.",
     waitBeforeRequest: "Odota {{seconds}}s",
     wrongEmail: "Väärä sähköposti? Palaa takaisin",
     resendCodeIn: "Lähetä uudelleen {{seconds}}s kuluttua",
@@ -108,7 +109,8 @@ export default {
       search: "Etsi kieliä...",
       continue: "Jatka",
       languagesTitle: "Lukukielet",
-      languagesSubtitle: "Käytämme tätä näyttääksemme sinulle relevanttia sisältöä.",
+      languagesSubtitle:
+        "Käytämme tätä näyttääksemme sinulle relevanttia sisältöä.",
       filterExplore: "Suodata Selaa",
       filterExploreDesc: "Näytä vain julkaisut omilla kielilläni",
       updateFailed: "Ei voitu tallentaa. Yritä uudelleen.",
@@ -122,7 +124,8 @@ export default {
       finishing: "Asetetaan...",
       loadingSuggested: "Etsitään kirjoittajia sinulle...",
       starterPackTitle: "Suositellut kirjoittajat",
-      starterPackSubtitle: "Ihmisiä, jotka kirjoittavat aiheista, joista saatat nauttia.",
+      starterPackSubtitle:
+        "Ihmisiä, jotka kirjoittavat aiheista, joista saatat nauttia.",
     },
     finish: "Valmis",
   },
@@ -269,7 +272,8 @@ export default {
     addReply: "Vastaa...",
     replyNotFound: "Vastausta ei löytynyt",
     signInToComment: "Kirjaudu sisään kommentoidaksesi",
-    signInToCommentSubtext: "Sinun täytyy olla kirjautuneena jättääksesi kommentin.",
+    signInToCommentSubtext:
+      "Sinun täytyy olla kirjautuneena jättääksesi kommentin.",
     noSources: "Ei ulkoisia lähteitä.",
     noQuotes: "Ei viittauksia vielä.",
     delete: "Poista julkaisu",
@@ -465,7 +469,8 @@ export default {
     showSavesDesc: "Katso mitä seuraamasi ihmiset tallentavat",
     explore: "Selaa",
     enableRecommendations: "Personoidut suositukset",
-    enableRecommendationsDesc: "Käytä relevanssimoottoria näyttääksemme sinulle julkaisuja",
+    enableRecommendationsDesc:
+      "Käytä relevanssimoottoria näyttääksemme sinulle julkaisuja",
     relevance: "Relevanssi",
     relevanceControls: "Relevanssipainot",
     relevanceControlsDesc: "Hienosäädä mikä on tärkeintä",
@@ -527,11 +532,13 @@ export default {
     content: "Sisältö",
     offlineReading: "Offline-lukeminen",
     downloadSavedOffline: "Tallenna automaattisesti offline-lukemista varten",
-    downloadSavedOfflineHint: "Lue tallennettuja julkaisuja ilman internet-yhteyttä.",
+    downloadSavedOfflineHint:
+      "Lue tallennettuja julkaisuja ilman internet-yhteyttä.",
     manageOfflineStorage: "Hallitse tallennustilaa",
     offlineCount: "{{count}} julkaisua välimuistissa",
     removeAllOffline: "Tyhjennä välimuisti",
-    removeAllOfflineConfirm: "Poistetaanko kaikki offline-julkaisut? Tämä vapauttaa tallennustilaa.",
+    removeAllOfflineConfirm:
+      "Poistetaanko kaikki offline-julkaisut? Tämä vapauttaa tallennustilaa.",
     offlineStorageSummary: "{{count}} julkaisua · {{size}}",
     noOfflineArticles: "Ei offline-julkaisuja",
     noOfflineHint: "Tallenna julkaisuja lukeaksesi ne offline-tilassa.",
@@ -545,7 +552,8 @@ export default {
     takePhoto: "Ota kuva",
     choosePhoto: "Valitse kirjastosta",
     removePhoto: "Poista kuva",
-    photoPermissionDenied: "Kameran tai valokuvakirjaston käyttöoikeus vaaditaan.",
+    photoPermissionDenied:
+      "Kameran tai valokuvakirjaston käyttöoikeus vaaditaan.",
     photoUpdated: "Kuva päivitetty",
     photoRemoved: "Kuva poistettu",
     tapToChangePhoto: "Vaihda kuva",
@@ -590,7 +598,8 @@ export default {
     createFailed: "Kokoelmaa ei voitu luoda",
     itemsCount: "{{count}} kohdetta",
     delete: "Poista kokoelma",
-    deleteConfirm: "Poistetaanko tämä kokoelma? Kokoelman julkaisut eivät muutu.",
+    deleteConfirm:
+      "Poistetaanko tämä kokoelma? Kokoelman julkaisut eivät muutu.",
     deleted: "Kokoelma poistettu",
     deleteFailed: "Kokoelmaa ei voitu poistaa",
     options: "Asetukset",
@@ -648,7 +657,8 @@ export default {
     ago: "sitten",
     linkedItems: "Linkitetyt julkaisut",
     noInternet: "Ei internet-yhteyttä",
-    offline: "Olet offline-tilassa. Jotkin ominaisuudet eivät ole käytettävissä.",
+    offline:
+      "Olet offline-tilassa. Jotkin ominaisuudet eivät ole käytettävissä.",
     viewProfile: "Näytä profiili",
     follow: "Seuraa {{name}}",
     unfollow: "Poista seuraus {{name}}",
@@ -674,7 +684,8 @@ export default {
     user: "Käyttäjä",
     topicOrPost: "Aihe tai julkaisu",
     somethingWentWrong: "Jotain meni pieleen",
-    unexpectedErrorRetry: "Odottamaton virhe tapahtui. Yritä palata kotinäytölle.",
+    unexpectedErrorRetry:
+      "Odottamaton virhe tapahtui. Yritä palata kotinäytölle.",
     goToHome: "Siirry kotiin",
   },
   externalLink: {
@@ -702,7 +713,8 @@ export default {
     emptyPeople: "Ei osallistujia vielä",
     emptyPeopleSubtext: "Kirjoittajat näkyvät täällä kun he julkaisevat.",
     emptySources: "Ei lähteitä vielä",
-    emptySourcesSubtext: "Ulkoiset lähteet näkyvät kun ihmiset viittaavat niihin.",
+    emptySourcesSubtext:
+      "Ulkoiset lähteet näkyvät kun ihmiset viittaavat niihin.",
     shareTopic: "Jaa aihe",
     shareTopicMessage: "Tutustu tähän aiheeseen Citewalkissa",
     searchInTopic: "Etsi tästä aiheesta",
@@ -731,13 +743,13 @@ export default {
     searchUsers: "Etsi joku...",
     searchPlaceholder: "Etsi viestejä...",
     loadError: "Viestiä ei voitu ladata",
-    mustFollowOrPrior: "Teidän täytyy seurata toisianne lähettääksenne viestejä.",
+    mustFollowOrPrior:
+      "Teidän täytyy seurata toisianne lähettääksenne viestejä.",
     createThreadFailed: "Keskustelua ei voitu aloittaa",
     noSuggested: "Ei ehdotuksia juuri nyt.",
     markUnread: "Merkitse lukemattomaksi",
     deleteConversation: "Poista keskustelu",
-    deleteConversationConfirm:
-      "Tämä poistaa keskustelun pysyvästi molemmilta.",
+    deleteConversationConfirm: "Tämä poistaa keskustelun pysyvästi molemmilta.",
     deleteFailed: "Keskustelua ei voitu poistaa",
   },
   notifications: {
@@ -767,7 +779,8 @@ export default {
   waitingList: {
     title: "Liity jonoon",
     heading: "Pyydä pääsyä",
-    description: "Citewalk on tällä hetkellä varhaisessa pääsytilassa. Liity jonoon ja ilmoitamme kun paikka aukeaa.",
+    description:
+      "Citewalk on tällä hetkellä varhaisessa pääsytilassa. Liity jonoon ja ilmoitamme kun paikka aukeaa.",
     emailPlaceholder: "Sähköpostiosoitteesi",
     join: "Liity jonoon",
     success: "Olet listalla!",

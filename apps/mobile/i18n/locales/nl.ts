@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Waar ideeën hun plek verdienen.",
-    subtitle: "Een sociaal netwerk gebouwd op citaties.",
+    tagline: "Sociale media, zonder de ruis.",
+    subtitle: "Het Europese alternatief.",
     showIntroAgain: "Over Citewalk",
     continue: "Inloggen",
     privacy: "Privacy",
@@ -12,23 +12,24 @@ export default {
   intro: {
     title: "Welkom bij Citewalk",
     founderMessage:
-      "Ik heb Citewalk gebouwd omdat het internet verontwaardiging beloont boven inzicht. Dit is een plek waar je reputatie groeit wanneer anderen je ideeën citeren -- niet wanneer ze op een hartje klikken.",
+      "Ik heb Citewalk gebouwd omdat ik moe was van platforms die verontwaardiging belonen boven inhoud. Dit is een onafhankelijk Europees project — geen VC-geld, geen groeitrucs, gewoon een betere plek om ideeën te delen.",
     founderName: "Sebastian, Oprichter",
     point1:
-      "Je berichten leven op een kennisgrafiek, niet op een wegwerpfeed. Elk idee dat je deelt wordt vindbaar, citeerbaar en permanent.",
+      "Geen algoritme bepaalt wat je ziet. Je feed is chronologisch, je content is vindbaar op onderwerp, en goede schrijfsels stijgen omdat mensen ze daadwerkelijk refereren.",
     point2:
-      "Autoriteit wordt hier verdiend door citaties. Wanneer andere schrijvers je werk refereren, dat is echte geloofwaardigheid -- geen ijdelheidsmetrieken.",
+      "Op andere platforms gaat de boosste stem viraal. Hier verdient de meest gerefereerde stem geloofwaardigheid. Je groeit door dingen te schrijven die het delen waard zijn.",
     point3:
-      "Volg onderwerpen, niet algoritmes. Jij bepaalt wat je ziet. Geen engagementtrucs, geen verborgen ranking -- alleen de ideeën waar je om geeft.",
+      "100% EU-gehost. Geen advertenties, geen tracking, geen verkoop van je data. Gebouwd in Europa als een echt alternatief — niet nog een Silicon Valley-product.",
     point4: "Echte mensen. Echt gesprek. Geen bots.",
-    point5: "Gebouwd voor begrip, niet alleen consumptie.",
-    point6: "Volg het spoor. Elke citatie leidt ergens naartoe.",
-    point7: "Schrijf. Citeer. Bouw kennis.",
+    point5: "Discussies gebouwd op inhoud, niet op dunks.",
+    point6: "Alles wat je schrijft blijft vindbaar. Niets verdwijnt.",
+    point7: "Plaatsen. Verbinden. Groeien.",
     next: "Volgende",
     skip: "Overslaan",
     getStarted: "Inloggen",
     beginJourney: "Aan de slag",
-    finalMessage: "Waar ideeën hun plek verdienen.",
+    finalMessage:
+      "Het internet heeft geen nieuwe feed nodig. Het heeft een betere nodig.",
     welcome: "Welkom.",
   },
   signIn: {
@@ -51,7 +52,8 @@ export default {
     invalidEmail: "Dat ziet er niet uit als een geldig e-mailadres",
     userNotFound: "Geen account gevonden voor dit e-mailadres",
     rateLimited: "Te veel pogingen. Wacht even.",
-    signUpAgreement: "Door door te gaan, ga je akkoord met onze {{terms}} en {{privacy}}",
+    signUpAgreement:
+      "Door door te gaan, ga je akkoord met onze {{terms}} en {{privacy}}",
     termsLink: "Voorwaarden",
     privacyLink: "Privacybeleid",
     joinWaitlist: "Geen toegang? Meld je aan voor de wachtlijst",
@@ -60,7 +62,8 @@ export default {
     acceptTermsError: "Accepteer de voorwaarden om door te gaan",
     verificationSent: "Verificatiecode verzonden",
     inviteCodeRequiredTitle: "Uitnodigingscode vereist",
-    inviteCodeRequiredMessage: "Het lijkt erop dat je nieuw bent. Voer je uitnodigingscode in om te beginnen.",
+    inviteCodeRequiredMessage:
+      "Het lijkt erop dat je nieuw bent. Voer je uitnodigingscode in om te beginnen.",
     waitBeforeRequest: "Wacht {{seconds}}s",
     wrongEmail: "Verkeerd e-mailadres? Ga terug",
     resendCodeIn: "Opnieuw verzenden over {{seconds}}s",
@@ -96,7 +99,8 @@ export default {
       updateFailed: "Er ging iets mis. Probeer het opnieuw.",
       fieldsRequired: "Vul alle verplichte velden in",
       publicDescription: "Iedereen kan je berichten vinden en lezen.",
-      privateDescription: "Alleen goedgekeurde volgers kunnen je berichten zien.",
+      privateDescription:
+        "Alleen goedgekeurde volgers kunnen je berichten zien.",
     },
     bioPlaceholder: "Waar schrijf je over? Waar ben je nieuwsgierig naar?",
     publicDescription: "Iedereen kan je berichten vinden en lezen.",
@@ -122,7 +126,8 @@ export default {
       finishing: "Alles instellen...",
       loadingSuggested: "Schrijvers voor je zoeken...",
       starterPackTitle: "Aanbevolen schrijvers",
-      starterPackSubtitle: "Mensen die schrijven over onderwerpen die je misschien leuk vindt.",
+      starterPackSubtitle:
+        "Mensen die schrijven over onderwerpen die je misschien leuk vindt.",
     },
     finish: "Klaar",
   },
@@ -269,11 +274,13 @@ export default {
     addReply: "Reageren...",
     replyNotFound: "Reactie niet gevonden",
     signInToComment: "Log in om te reageren",
-    signInToCommentSubtext: "Je moet ingelogd zijn om een reactie achter te laten.",
+    signInToCommentSubtext:
+      "Je moet ingelogd zijn om een reactie achter te laten.",
     noSources: "Geen externe bronnen.",
     noQuotes: "Nog geen citaties.",
     delete: "Bericht verwijderen",
-    deleteConfirm: "Dit bericht verwijderen? Dit kan niet ongedaan worden gemaakt.",
+    deleteConfirm:
+      "Dit bericht verwijderen? Dit kan niet ongedaan worden gemaakt.",
     deleteFailed: "Kon niet verwijderen. Probeer het opnieuw.",
     deleted: "Bericht verwijderd",
     topic: "Onderwerp",
@@ -336,7 +343,8 @@ export default {
     noCollections: "Geen openbare collecties",
     noCollectionsOwn: "Nog geen collecties",
     noCollectionsHint: "Openbare collecties verschijnen hier.",
-    noCollectionsOwnHint: "Maak een collectie om je opgeslagen berichten te organiseren.",
+    noCollectionsOwnHint:
+      "Maak een collectie om je opgeslagen berichten te organiseren.",
     noReplies: "Nog geen reacties",
     noRepliesHint: "Reacties die je achterlaat op berichten verschijnen hier.",
     privateProfileHint:
@@ -366,13 +374,15 @@ export default {
     privateAccount: "Privéaccount",
     privateAccountHint: "Volg dit account om hun activiteit te zien.",
     followRequest: "Volgverzoek",
-    followRequestMessage: "Dit is een privéaccount. Er wordt een volgverzoek verzonden.",
+    followRequestMessage:
+      "Dit is een privéaccount. Er wordt een volgverzoek verzonden.",
     sendRequest: "Verzoek verzenden",
   },
   invites: {
     title: "Uitnodigen",
     heroTitle: "Uitnodigen per e-mail",
-    heroText: "Stuur een uitnodiging naar iemand die je graag op Citewalk zou willen hebben.",
+    heroText:
+      "Stuur een uitnodiging naar iemand die je graag op Citewalk zou willen hebben.",
     remaining: "Resterend",
     emailPlaceholder: "Hun e-mailadres",
     sendInvite: "Uitnodiging verzenden",
@@ -411,7 +421,8 @@ export default {
     unblockUser: "Gebruiker deblokkeren",
     muteUser: "Gebruiker dempen",
     unmuteUser: "Gebruiker niet meer dempen",
-    blockConfirm: "Deze persoon blokkeren? Je zult elkaars content niet meer zien.",
+    blockConfirm:
+      "Deze persoon blokkeren? Je zult elkaars content niet meer zien.",
     unblockConfirm: "Deze persoon deblokkeren?",
     muteConfirm: "Deze persoon dempen? Hun berichten worden verborgen.",
     unmuteConfirm: "Deze persoon niet meer dempen?",
@@ -465,7 +476,8 @@ export default {
     showSavesDesc: "Zie wat mensen die je volgt opslaan",
     explore: "Ontdekken",
     enableRecommendations: "Gepersonaliseerde aanbevelingen",
-    enableRecommendationsDesc: "Gebruik onze relevantiemotor om berichten voor je te tonen",
+    enableRecommendationsDesc:
+      "Gebruik onze relevantiemotor om berichten voor je te tonen",
     relevance: "Relevantie",
     relevanceControls: "Relevantiegewichten",
     relevanceControlsDesc: "Stel af wat het belangrijkst is",
@@ -488,7 +500,8 @@ export default {
     dangerZoneHint: "Deze acties zijn permanent.",
     deleteAccount: "Account verwijderen",
     deleteAccountDesc: "Verwijder je account en alle data permanent",
-    deleteAccountConfirm: "Dit verwijdert je account permanent. Dit kan niet ongedaan worden gemaakt.",
+    deleteAccountConfirm:
+      "Dit verwijdert je account permanent. Dit kan niet ongedaan worden gemaakt.",
     deleteAccountConfirmEmail:
       "We sturen een bevestigingslink naar je e-mail. Klik er binnen 24 uur op.",
     sendDeletionLink: "Bevestiging verzenden",
@@ -496,7 +509,8 @@ export default {
     deleteReasonOptional: "Reden (optioneel)",
     deleteReasonPlaceholder: "bijv. gebruik het platform niet meer",
     deleteConfirm: "Account verwijderen",
-    deleteConfirmMessage: "Weet je het zeker? Dit kan niet ongedaan worden gemaakt.",
+    deleteConfirmMessage:
+      "Weet je het zeker? Dit kan niet ongedaan worden gemaakt.",
     deleteButton: "Mijn account verwijderen",
     requestMyData: "Mijn data opvragen",
     requestDataModalMessage:
@@ -527,11 +541,13 @@ export default {
     content: "Content",
     offlineReading: "Offline lezen",
     downloadSavedOffline: "Automatisch opslaan voor offline",
-    downloadSavedOfflineHint: "Lees opgeslagen berichten zonder internetverbinding.",
+    downloadSavedOfflineHint:
+      "Lees opgeslagen berichten zonder internetverbinding.",
     manageOfflineStorage: "Opslag beheren",
     offlineCount: "{{count}} berichten gecached",
     removeAllOffline: "Cache wissen",
-    removeAllOfflineConfirm: "Alle offline berichten verwijderen? Dit maakt opslag vrij.",
+    removeAllOfflineConfirm:
+      "Alle offline berichten verwijderen? Dit maakt opslag vrij.",
     offlineStorageSummary: "{{count}} berichten · {{size}}",
     noOfflineArticles: "Geen offline berichten",
     noOfflineHint: "Sla berichten op om ze offline te lezen.",
@@ -549,7 +565,8 @@ export default {
     photoUpdated: "Foto bijgewerkt",
     photoRemoved: "Foto verwijderd",
     tapToChangePhoto: "Foto wijzigen",
-    handleChangeHint: "Gebruikersnamen kunnen één keer per 14 dagen worden gewijzigd.",
+    handleChangeHint:
+      "Gebruikersnamen kunnen één keer per 14 dagen worden gewijzigd.",
     profilePhoto: "Profielfoto",
   },
   security: {
@@ -576,7 +593,8 @@ export default {
     emptyDetail: "Deze collectie is leeg.",
     emptyDetailHint: "Sla berichten op om ze hier toe te voegen.",
     addCitation: "Toevoegen aan collectie",
-    addCitationHint: "Blader door berichten en tik op Opslaan om ze toe te voegen.",
+    addCitationHint:
+      "Blader door berichten en tik op Opslaan om ze toe te voegen.",
     curatorNote: "OPMERKING",
     makePublic: "Openbaar maken",
     makePrivate: "Privé maken",
@@ -590,7 +608,8 @@ export default {
     createFailed: "Kon collectie niet aanmaken",
     itemsCount: "{{count}} items",
     delete: "Collectie verwijderen",
-    deleteConfirm: "Deze collectie verwijderen? De berichten erin worden niet beïnvloed.",
+    deleteConfirm:
+      "Deze collectie verwijderen? De berichten erin worden niet beïnvloed.",
     deleted: "Collectie verwijderd",
     deleteFailed: "Kon collectie niet verwijderen",
     options: "Opties",
@@ -648,7 +667,8 @@ export default {
     ago: "geleden",
     linkedItems: "Gelinkte berichten",
     noInternet: "Geen internetverbinding",
-    offline: "Je bent offline. Sommige functies zijn mogelijk niet beschikbaar.",
+    offline:
+      "Je bent offline. Sommige functies zijn mogelijk niet beschikbaar.",
     viewProfile: "Profiel bekijken",
     follow: "{{name}} volgen",
     unfollow: "{{name}} niet meer volgen",
@@ -674,7 +694,8 @@ export default {
     user: "Gebruiker",
     topicOrPost: "Onderwerp of bericht",
     somethingWentWrong: "Er ging iets mis",
-    unexpectedErrorRetry: "Er is een onverwachte fout opgetreden. Probeer terug te gaan naar het startscherm.",
+    unexpectedErrorRetry:
+      "Er is een onverwachte fout opgetreden. Probeer terug te gaan naar het startscherm.",
     goToHome: "Ga naar startpagina",
   },
   externalLink: {
@@ -700,9 +721,11 @@ export default {
     emptyPosts: "Nog geen berichten",
     emptyPostsSubtext: "Wees de eerste om over dit onderwerp te schrijven.",
     emptyPeople: "Nog geen bijdragers",
-    emptyPeopleSubtext: "Schrijvers verschijnen hier wanneer ze berichten plaatsen.",
+    emptyPeopleSubtext:
+      "Schrijvers verschijnen hier wanneer ze berichten plaatsen.",
     emptySources: "Nog geen bronnen",
-    emptySourcesSubtext: "Externe bronnen verschijnen wanneer mensen ze citeren.",
+    emptySourcesSubtext:
+      "Externe bronnen verschijnen wanneer mensen ze citeren.",
     shareTopic: "Onderwerp delen",
     shareTopicMessage: "Bekijk dit onderwerp op Citewalk",
     searchInTopic: "Zoeken in dit onderwerp",
@@ -731,7 +754,8 @@ export default {
     searchUsers: "Zoek iemand...",
     searchPlaceholder: "Zoek berichten...",
     loadError: "Kon berichten niet laden",
-    mustFollowOrPrior: "Je moet elkaar volgen om berichten te kunnen verzenden.",
+    mustFollowOrPrior:
+      "Je moet elkaar volgen om berichten te kunnen verzenden.",
     createThreadFailed: "Kon gesprek niet starten",
     noSuggested: "Geen suggesties op dit moment.",
     markUnread: "Markeren als ongelezen",
@@ -767,7 +791,8 @@ export default {
   waitingList: {
     title: "Meld je aan voor de wachtlijst",
     heading: "Toegang aanvragen",
-    description: "Citewalk is momenteel in early access. Meld je aan voor de wachtlijst en we laten je weten wanneer er een plek is.",
+    description:
+      "Citewalk is momenteel in early access. Meld je aan voor de wachtlijst en we laten je weten wanneer er een plek is.",
     emailPlaceholder: "Je e-mailadres",
     join: "Aanmelden voor wachtlijst",
     success: "Je staat op de lijst!",

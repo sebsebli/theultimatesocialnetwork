@@ -189,6 +189,43 @@ export class UsersController {
     return this.usersService.updateNotificationPrefs(user.id, body);
   }
 
+  @Get('me/privacy-settings')
+  @UseGuards(AuthGuard('jwt'))
+  async getPrivacySettings(@CurrentUser() user: { id: string }) {
+    const u = await this.usersService.findById(user.id);
+    return u?.privacySettings ?? {};
+  }
+
+  @Patch('me/privacy-settings')
+  @UseGuards(AuthGuard('jwt'))
+  async updatePrivacySettings(
+    @CurrentUser() user: { id: string },
+    @Body()
+    body: {
+      disableRecommendations?: boolean;
+      disableModerationProfiling?: boolean;
+      disableAnalytics?: boolean;
+    },
+  ) {
+    const u = await this.usersService.findById(user.id);
+    if (!u) return { success: false };
+    const current = u.privacySettings ?? {};
+    const updated = {
+      ...current,
+      ...(body.disableRecommendations !== undefined && {
+        disableRecommendations: body.disableRecommendations,
+      }),
+      ...(body.disableModerationProfiling !== undefined && {
+        disableModerationProfiling: body.disableModerationProfiling,
+      }),
+      ...(body.disableAnalytics !== undefined && {
+        disableAnalytics: body.disableAnalytics,
+      }),
+    };
+    await this.usersService.updatePrivacySettings(user.id, updated);
+    return { success: true, privacySettings: updated };
+  }
+
   @Get('me/following')
   @UseGuards(AuthGuard('jwt'))
   async getFollowing(

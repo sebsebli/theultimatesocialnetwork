@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PushToken, PushProvider } from '../entities/push-token.entity';
 import { RegisterPushTokenDto } from './dto/register-push-token.dto';
+import { encryptField, hashForLookup } from '../shared/field-encryption';
 
 @Injectable()
 export class PushService {
@@ -11,21 +12,34 @@ export class PushService {
   ) {}
 
   async register(userId: string, dto: RegisterPushTokenDto) {
-    // Upsert logic
+    const tokenHash = hashForLookup(dto.token);
+
+    // Upsert logic — use hash for dedup
     let token = await this.pushTokenRepo.findOne({
-      where: { provider: dto.provider as PushProvider, token: dto.token },
+      where: { tokenHash, provider: dto.provider as PushProvider },
     });
+    // Fallback: plaintext lookup for pre-migration rows
+    if (!token) {
+      token = await this.pushTokenRepo.findOne({
+        where: { provider: dto.provider as PushProvider, token: dto.token },
+      });
+    }
 
     if (token) {
       token.userId = userId;
       token.lastSeenAt = new Date();
       token.disabledAt = null; // Re-enable
-      // Update other fields if changed
+      // Migrate to encrypted if not yet
+      if (!token.tokenHash) {
+        token.token = encryptField(dto.token);
+        token.tokenHash = tokenHash;
+      }
     } else {
       token = this.pushTokenRepo.create({
         userId,
         provider: dto.provider as PushProvider,
-        token: dto.token,
+        token: encryptField(dto.token),
+        tokenHash,
         platform: dto.platform,
         deviceId: dto.device_id,
         appVersion: dto.app_version,

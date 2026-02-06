@@ -160,6 +160,12 @@ export default function DangerZoneScreen() {
                 "We will send a confirmation link to your email. Click it within 24 hours to permanently delete your account.",
               )}
             </Text>
+            <Text style={styles.deleteModalExplanation}>
+              {t(
+                "settings.deletionExplanation",
+                "Your account will be deactivated immediately. After 30 days, your user record will be permanently deleted. Your posts will be anonymised (author removed, content cleared, media deleted).",
+              )}
+            </Text>
             <Text style={styles.deleteModalLabel}>
               {t(
                 "settings.deleteReasonOptional",
@@ -208,7 +214,10 @@ export default function DangerZoneScreen() {
                 ]}
                 onPress={confirmDeleteAccount}
                 disabled={deletingAccount}
-                accessibilityLabel={t("settings.sendDeletionLink", "Send confirmation email")}
+                accessibilityLabel={t(
+                  "settings.sendDeletionLink",
+                  "Send confirmation email",
+                )}
                 accessibilityRole="button"
               >
                 {deletingAccount ? (
@@ -313,6 +322,13 @@ const styles = createStyles({
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
     lineHeight: 22,
+    marginBottom: SPACING.s,
+  },
+  deleteModalExplanation: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    lineHeight: 20,
     marginBottom: SPACING.m,
   },
   deleteModalLabel: {

@@ -43,7 +43,7 @@ export function PublicNav({ isAuthenticated }: PublicNavProps) {
             href="/manifesto"
             className="hover:text-[var(--foreground)] transition-colors"
           >
-            Manifesto
+            About
           </Link>
           <Link
             href="/roadmap"
@@ -77,7 +77,7 @@ export function PublicNav({ isAuthenticated }: PublicNavProps) {
             className="block text-[var(--secondary)] hover:text-[var(--foreground)] transition-colors py-2"
             onClick={() => setMenuOpen(false)}
           >
-            Manifesto
+            About
           </Link>
           <Link
             href="/roadmap"

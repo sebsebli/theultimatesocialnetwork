@@ -27,26 +27,9 @@ export class InteractionsService {
     postId: string,
     durationSeconds: number,
   ) {
-    if (!userId || durationSeconds <= 0) return;
+    if (!userId || !durationSeconds || durationSeconds <= 0) return;
 
-    // Use query builder for atomic upsert
-    await this.readRepo
-      .createQueryBuilder()
-      .insert()
-      .into(PostRead)
-      .values({
-        userId,
-        postId,
-        durationSeconds,
-        lastReadAt: new Date(),
-      })
-      .orUpdate(['duration_seconds', 'last_read_at'], ['user_id', 'post_id'])
-      .setParameters({ durationSeconds })
-      // This part is tricky with QueryBuilder inserts,
-      // let's use a simpler standard approach if orUpdate syntax varies by DB
-      .execute();
-
-    // Actually, for duration accumulation:
+    // Atomic upsert: accumulate duration on conflict
     await this.dataSource.query(
       `INSERT INTO post_reads (user_id, post_id, duration_seconds, last_read_at) 
        VALUES ($1, $2, $3, NOW())

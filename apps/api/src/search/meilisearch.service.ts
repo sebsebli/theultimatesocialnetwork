@@ -74,6 +74,34 @@ export class MeilisearchService implements OnModuleInit {
         'replyCount',
       ]);
 
+      // Enable the vector store experimental feature before configuring
+      // embedders. Without this, Meilisearch rejects the embedders setting
+      // with a "requires enabling the vector store experimental feature" warning.
+      const meiliHost = (
+        this.configService.get<string>('MEILISEARCH_HOST') ||
+        'http://localhost:7700'
+      ).replace(/\/$/, '');
+      const meiliKey =
+        this.configService.get<string>('MEILISEARCH_MASTER_KEY') || 'masterKey';
+      try {
+        await fetch(`${meiliHost}/experimental-features`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${meiliKey}`,
+          },
+          body: JSON.stringify({ vectorStore: true }),
+        });
+        this.logger.log(
+          'Meilisearch vector store experimental feature enabled.',
+        );
+      } catch (vecErr) {
+        this.logger.warn(
+          'Could not enable vector store feature:',
+          vecErr instanceof Error ? vecErr.message : String(vecErr),
+        );
+      }
+
       // Enable vector search (Meilisearch v1.6+)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       await (index as any).updateSettings({

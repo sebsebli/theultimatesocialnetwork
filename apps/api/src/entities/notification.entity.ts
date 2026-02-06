@@ -14,6 +14,7 @@ export enum NotificationType {
   MENTION = 'MENTION',
   COLLECTION_ADD = 'COLLECTION_ADD',
   DM = 'DM',
+  MODERATION = 'MODERATION',
 }
 
 @Entity('notifications')
@@ -35,6 +36,7 @@ export class Notification {
       'MENTION',
       'COLLECTION_ADD',
       'DM',
+      'MODERATION',
     ],
     enumName: 'notifications_type_enum',
   })
@@ -57,4 +59,8 @@ export class Notification {
 
   @Column({ name: 'read_at', type: 'timestamp', nullable: true })
   readAt: Date | null;
+
+  /** Optional JSONB metadata for rich notifications (e.g. moderation reason, appeal info). */
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, any> | null;
 }

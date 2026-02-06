@@ -22,6 +22,7 @@ import {
 } from '../entities/moderation-record.entity';
 import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 import Redis from 'ioredis';
+import { decryptField } from '../shared/field-encryption';
 
 interface ReplyJobData {
   replyId: string;
@@ -72,7 +73,8 @@ export class ReplyWorker implements OnApplicationBootstrap {
         where: { id: userId },
         select: ['email'],
       });
-      const authorEmail = author?.email ?? '';
+      const rawAuthorEmail = author?.email ?? '';
+      const authorEmail = rawAuthorEmail ? decryptField(rawAuthorEmail) : '';
       const isAgentUser =
         typeof authorEmail === 'string' &&
         authorEmail.toLowerCase().endsWith('@agents.local');

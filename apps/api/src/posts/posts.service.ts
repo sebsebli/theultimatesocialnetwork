@@ -147,6 +147,7 @@ export class PostsService {
         readingTimeMinutes: readingTime,
         status: dto.status ?? 'PUBLISHED',
         media: dto.media ?? null,
+        contentWarning: dto.contentWarning?.trim() || null,
       });
 
       // Explicitly save as single entity

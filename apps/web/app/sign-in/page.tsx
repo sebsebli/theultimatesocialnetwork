@@ -37,6 +37,7 @@ function SignInForm() {
   const [email, setEmail] = useState("");
   const [inviteCode, setInviteCode] = useState(codeFromUrl ?? "");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [token, setToken] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [tempToken, setTempToken] = useState("");
@@ -106,6 +107,12 @@ function SignInForm() {
       setError(
         "Please accept the Terms of Service and Privacy Policy to continue",
       );
+      setLoading(false);
+      return;
+    }
+
+    if (showInviteInput && !ageConfirmed) {
+      setError("You must confirm that you are at least 16 years old");
       setLoading(false);
       return;
     }
@@ -461,11 +468,25 @@ function SignInForm() {
         </label>
       )}
 
+      {showInviteInput && (
+        <label className="flex items-start gap-3 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={ageConfirmed}
+            onChange={(e) => setAgeConfirmed(e.target.checked)}
+            className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary focus:ring-2 focus:ring-offset-0 focus:ring-offset-ink"
+          />
+          <span className="text-sm text-secondary group-hover:text-paper transition-colors">
+            I confirm that I am at least 16 years old.
+          </span>
+        </label>
+      )}
+
       <button
         type="submit"
         disabled={
           loading ||
-          (showInviteInput && !acceptedTerms) ||
+          (showInviteInput && (!acceptedTerms || !ageConfirmed)) ||
           (showInviteInput && !inviteCode.trim())
         }
         className={`${buttonPrimary} min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ink`}
@@ -518,7 +539,7 @@ function SignInPageContent() {
       <div className="hidden md:flex md:flex-1 md:flex-col md:justify-center md:items-center md:px-12 lg:px-16 xl:px-24 md:border-r md:border-divider">
         <div className="max-w-md w-full flex flex-col items-center text-center">
           <Image
-            src="/icon.png"
+            src="/logo_transparent.png"
             alt="Citewalk"
             width={72}
             height={72}
@@ -568,7 +589,7 @@ function SignInPageContent() {
         <div className="flex-1 flex flex-col justify-center min-h-0 items-center gap-8 md:items-stretch md:max-w-md md:mx-auto w-full">
           <div className="flex flex-col items-center gap-4 text-center md:hidden">
             <Image
-              src="/icon.png"
+              src="/logo_transparent.png"
               alt="Citewalk"
               width={88}
               height={88}

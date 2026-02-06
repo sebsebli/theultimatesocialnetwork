@@ -55,6 +55,9 @@ export class KafkaEventBus extends IEventBus {
   /**
    * Ensure a topic exists before producing or consuming.
    * Uses the Admin client to create topics idempotently.
+   *
+   * Checks existing topics first to avoid kafkajs ERROR-level protocol
+   * logs that fire when the broker returns "topic already exists" codes.
    */
   private async ensureTopic(topic: string): Promise<void> {
     if (this.ensuredTopics.has(topic)) return;
@@ -65,7 +68,16 @@ export class KafkaEventBus extends IEventBus {
     }
 
     try {
-      await this.admin.createTopics({
+      // List existing topics first — avoids the ERROR-level kafkajs
+      // protocol log that fires when the broker rejects a duplicate.
+      const existing = await this.admin.listTopics();
+      if (existing.includes(topic)) {
+        this.logger.log(`Topic '${topic}' already exists — skipping creation.`);
+        this.ensuredTopics.add(topic);
+        return;
+      }
+
+      const created = await this.admin.createTopics({
         waitForLeaders: true,
         topics: [
           {
@@ -75,9 +87,14 @@ export class KafkaEventBus extends IEventBus {
           },
         ],
       });
-      this.logger.log(
-        `Topic '${topic}' ensured (${this.numPartitions} partitions).`,
-      );
+      if (created) {
+        this.logger.log(
+          `Topic '${topic}' created (${this.numPartitions} partitions).`,
+        );
+      } else {
+        // createTopics returns false when topic already existed (race condition)
+        this.logger.log(`Topic '${topic}' already exists.`);
+      }
     } catch (err) {
       // Topic may already exist — that's fine
       if (
@@ -85,7 +102,7 @@ export class KafkaEventBus extends IEventBus {
         !(err as Error).message?.includes('TOPIC_ALREADY_EXISTS')
       ) {
         this.logger.warn(
-          `Failed to create topic '${topic}' (may already exist): ${(err as Error).message}`,
+          `Failed to create topic '${topic}': ${(err as Error).message}`,
         );
       }
     }

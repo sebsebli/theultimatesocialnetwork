@@ -37,6 +37,13 @@ export class Neo4jQueryService {
   /**
    * Get the citation graph around a post using a single multi-hop Cypher query.
    * Returns nodes and edges for L1 (direct connections) and L2 (2nd-degree) visualization.
+   *
+   * The graph includes:
+   *  - L1: direct outgoing (LINKS_TO, QUOTES, IN_TOPIC, MENTIONS, CITES_EXTERNAL)
+   *  - L1: incoming citations (LINKS_TO, QUOTES)
+   *  - L2: outgoing from L1 posts
+   *  - L2: co-topic siblings (other posts in the same topics as center)
+   *  - L2: co-citation siblings (other posts citing the same external URLs)
    */
   async getPostGraph(
     postId: string,
@@ -58,13 +65,12 @@ export class Neo4jQueryService {
     if (!this.isAvailable()) return null;
 
     try {
-      // Single query: center -> L1 outgoing + L1 incoming + L2 outgoing from L1
       const result = await this.neo4j.run(
         `
         // Center post
         MATCH (center:Post {id: $postId})
 
-        // L1: outgoing connections (what this post cites/links/mentions)
+        // ─── L1: outgoing connections (what this post cites/links/mentions) ───
         OPTIONAL MATCH (center)-[r1]->(l1)
         WHERE type(r1) IN ['LINKS_TO', 'QUOTES', 'IN_TOPIC', 'MENTIONS', 'CITES_EXTERNAL']
         WITH center, COLLECT(DISTINCT {
@@ -73,7 +79,7 @@ export class Neo4jQueryService {
           direction: 'outgoing'
         })[0..$maxL1] AS l1Out
 
-        // L1: incoming connections (what cites this post)
+        // ─── L1: incoming connections (what cites this post) ───
         OPTIONAL MATCH (l1In)-[r2]->(center)
         WHERE type(r2) IN ['LINKS_TO', 'QUOTES']
         WITH center, l1Out, COLLECT(DISTINCT {
@@ -82,22 +88,44 @@ export class Neo4jQueryService {
           direction: 'incoming'
         })[0..20] AS l1In
 
-        // Combine L1
         WITH center, l1Out + l1In AS l1All
 
-        // L2: outgoing from L1 posts (what L1 posts cite)
-        UNWIND l1All AS l1Item
-        WITH center, l1All, l1Item
-        WHERE l1Item.node IS NOT NULL AND labels(l1Item.node)[0] = 'Post'
-        OPTIONAL MATCH (l1Item.node)-[r3]->(l2)
-        WHERE type(r3) IN ['LINKS_TO', 'QUOTES', 'IN_TOPIC', 'CITES_EXTERNAL']
-          AND l2 <> center
+        // ─── L2a: co-topic siblings (other posts sharing the same topics) ───
+        OPTIONAL MATCH (center)-[:IN_TOPIC]->(t:Topic)<-[:IN_TOPIC]-(coTopic:Post)
+        WHERE coTopic <> center
         WITH center, l1All,
              COLLECT(DISTINCT {
-               source: l1Item.node.id,
-               node: l2,
-               rel: type(r3)
-             })[0..$maxL2] AS l2All
+               source: t.slug,
+               node: coTopic,
+               rel: 'SHARED_TOPIC'
+             })[0..15] AS l2CoTopic
+
+        // ─── L2b: co-citation siblings (other posts citing same external URLs) ───
+        OPTIONAL MATCH (center)-[:CITES_EXTERNAL]->(eu:ExternalUrl)<-[:CITES_EXTERNAL]-(coCite:Post)
+        WHERE coCite <> center
+        WITH center, l1All, l2CoTopic,
+             COLLECT(DISTINCT {
+               source: eu.url,
+               node: coCite,
+               rel: 'SHARED_SOURCE'
+             })[0..15] AS l2CoSource
+
+        // ─── L2c: outgoing from L1 posts (what L1 posts cite) ───
+        // Safe UNWIND: use [null] fallback so co-topic/co-source results survive
+        WITH center, l1All, l2CoTopic, l2CoSource,
+             [item IN l1All WHERE item.node IS NOT NULL AND 'Post' IN labels(item.node) | item.node] AS l1Posts
+        UNWIND (CASE WHEN size(l1Posts) > 0 THEN l1Posts ELSE [null] END) AS l1Post
+        OPTIONAL MATCH (l1Post)-[r3]->(l2)
+        WHERE l1Post IS NOT NULL
+          AND type(r3) IN ['LINKS_TO', 'QUOTES', 'IN_TOPIC', 'CITES_EXTERNAL']
+          AND l2 <> center
+        WITH center, l1All, l2CoTopic, l2CoSource,
+             [x IN COLLECT(
+               CASE WHEN l2 IS NOT NULL
+                 THEN {source: l1Post.id, node: l2, rel: type(r3)}
+                 ELSE null
+               END
+             ) WHERE x IS NOT NULL][0..$maxL2] AS l2FromPosts
 
         RETURN
           center.id AS centerId,
@@ -110,7 +138,7 @@ export class Neo4jQueryService {
               direction: item.direction
             }
           ] AS l1Nodes,
-          [item IN l2All WHERE item.node IS NOT NULL |
+          [item IN l2FromPosts + l2CoTopic + l2CoSource WHERE item.node IS NOT NULL |
             {
               id: item.node.id,
               labels: labels(item.node),
@@ -167,32 +195,38 @@ export class Neo4jQueryService {
       // Process L1 nodes
       for (const item of l1Raw) {
         const nodeType = this.labelToType(item.labels);
-        const id =
-          item.id ?? item.props?.id ?? item.props?.url ?? item.props?.slug;
+        const id = String(
+          item.id ??
+            (item.props?.id as string | undefined) ??
+            (item.props?.url as string | undefined) ??
+            (item.props?.slug as string | undefined) ??
+            '',
+        );
         if (!id || seen.has(id)) continue;
         seen.add(id);
 
         nodes.push({
-          id,
+          id: String(id),
           type: nodeType,
-          label:
-            item.props?.title ||
-            item.props?.handle ||
-            item.props?.slug ||
-            item.props?.url ||
-            'Node',
-          url: item.props?.url,
+          label: String(
+            (item.props?.title as string | undefined) ||
+              (item.props?.handle as string | undefined) ||
+              (item.props?.slug as string | undefined) ||
+              (item.props?.url as string | undefined) ||
+              'Node',
+          ),
+          url: item.props?.url as string | undefined,
         });
 
         if (item.direction === 'outgoing') {
           edges.push({
             source: postId,
-            target: id,
+            target: String(id),
             type: this.relToEdgeType(item.rel),
           });
         } else {
           edges.push({
-            source: id,
+            source: String(id),
             target: postId,
             type: this.relToEdgeType(item.rel),
           });
@@ -202,28 +236,34 @@ export class Neo4jQueryService {
       // Process L2 nodes
       for (const item of l2Raw) {
         const nodeType = this.labelToType(item.labels);
-        const id =
-          item.id ?? item.props?.id ?? item.props?.url ?? item.props?.slug;
+        const id = String(
+          item.id ??
+            (item.props?.id as string | undefined) ??
+            (item.props?.url as string | undefined) ??
+            (item.props?.slug as string | undefined) ??
+            '',
+        );
         if (!id || seen.has(id)) continue;
         seen.add(id);
 
         nodes.push({
-          id,
+          id: String(id),
           type: nodeType,
-          label:
-            item.props?.title ||
-            item.props?.handle ||
-            item.props?.slug ||
-            item.props?.url ||
-            'Node',
-          url: item.props?.url,
+          label: String(
+            (item.props?.title as string | undefined) ||
+              (item.props?.handle as string | undefined) ||
+              (item.props?.slug as string | undefined) ||
+              (item.props?.url as string | undefined) ||
+              'Node',
+          ),
+          url: item.props?.url as string | undefined,
           isL2: true,
         });
 
         if (item.source) {
           edges.push({
             source: item.source,
-            target: id,
+            target: String(id),
             type: this.relToEdgeType(item.rel),
           });
         }
@@ -648,6 +688,10 @@ export class Neo4jQueryService {
         return 'follows';
       case 'REPLIED_TO':
         return 'reply';
+      case 'SHARED_TOPIC':
+        return 'shared_topic';
+      case 'SHARED_SOURCE':
+        return 'shared_source';
       default:
         return rel.toLowerCase();
     }

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Post } from '../entities/post.entity';
+import { Post, PostVisibility } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
 import { Notification } from '../entities/notification.entity';
 import { PushOutbox } from '../entities/push-outbox.entity';
@@ -80,7 +80,7 @@ export class CleanupService {
         headerImageKey: null,
         headerImageBlurhash: null,
         media: null,
-        visibility: 'PUBLIC' as 'PUBLIC' | 'PRIVATE' | 'UNLISTED', // Reset visibility
+        visibility: PostVisibility.PUBLIC, // Reset visibility
         status: 'PUBLISHED', // Keep published state for graph consistency
         updatedAt: new Date(),
         // deletedAt remains set, so it's still "soft deleted" in queries

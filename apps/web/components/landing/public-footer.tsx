@@ -5,13 +5,15 @@ export function PublicFooter() {
     <footer className="px-6 md:px-12 py-12 border-t border-[var(--divider)] bg-[var(--background)] relative z-10">
       <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium text-[var(--secondary)]">Citewalk</span>
+          <span className="text-xs font-medium text-[var(--secondary)]">
+            Citewalk
+          </span>
           <div className="flex gap-4 text-xs text-[var(--tertiary)]">
-            <span>Hosted in the EU</span>
+            <span>Independent &amp; European</span>
             <span className="text-[var(--divider)]">&middot;</span>
-            <span>Privacy-first</span>
+            <span>No ads, no tracking</span>
             <span className="text-[var(--divider)]">&middot;</span>
-            <span>Local AI</span>
+            <span>EU-hosted</span>
           </div>
           <span className="text-xs text-[var(--divider)] mt-1">
             &copy; 2026 Sebastian
@@ -23,7 +25,7 @@ export function PublicFooter() {
             href="/manifesto"
             className="hover:text-[var(--foreground)] transition-colors"
           >
-            Manifesto
+            About
           </Link>
           <Link
             href="/roadmap"
@@ -48,6 +50,12 @@ export function PublicFooter() {
             className="hover:text-[var(--foreground)] transition-colors"
           >
             Terms
+          </Link>
+          <Link
+            href="/community-guidelines"
+            className="hover:text-[var(--foreground)] transition-colors"
+          >
+            Guidelines
           </Link>
           <Link
             href="/ai-transparency"

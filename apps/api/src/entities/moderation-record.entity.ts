@@ -31,6 +31,14 @@ export enum ModerationSource {
   REPORT_THRESHOLD = 'REPORT_THRESHOLD',
 }
 
+/** Status of a moderation appeal (DSA Art. 20). */
+export enum AppealStatus {
+  NONE = 'NONE',
+  PENDING = 'PENDING',
+  UPHELD = 'UPHELD',
+  REJECTED = 'REJECTED',
+}
+
 @Entity('moderation_records')
 export class ModerationRecord {
   @PrimaryGeneratedColumn('uuid')
@@ -82,4 +90,32 @@ export class ModerationRecord {
   @CreateDateColumn({ name: 'created_at' })
   @Index()
   createdAt: Date;
+
+  /** Whether the author was notified (DSA Art. 17). */
+  @Column({ name: 'notified', default: false })
+  notified: boolean;
+
+  /* ── Appeal fields (DSA Art. 20) ── */
+
+  @Column({
+    name: 'appeal_status',
+    type: 'enum',
+    enum: AppealStatus,
+    default: AppealStatus.NONE,
+  })
+  appealStatus: AppealStatus;
+
+  /** User-submitted appeal text. */
+  @Column({ name: 'appeal_text', type: 'text', nullable: true })
+  appealText: string | null;
+
+  @Column({ name: 'appealed_at', type: 'timestamp', nullable: true })
+  appealedAt: Date | null;
+
+  @Column({ name: 'appeal_resolved_at', type: 'timestamp', nullable: true })
+  appealResolvedAt: Date | null;
+
+  /** Admin resolution note for the appeal. */
+  @Column({ name: 'appeal_resolution', type: 'text', nullable: true })
+  appealResolution: string | null;
 }

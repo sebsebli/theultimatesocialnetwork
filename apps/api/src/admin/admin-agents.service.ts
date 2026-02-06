@@ -12,6 +12,7 @@ import { User } from '../entities/user.entity';
 import { AuthService } from '../auth/auth.service';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { Neo4jService } from '../database/neo4j.service';
+import { decryptField } from '../shared/field-encryption';
 
 const HANDLE_REGEX = /^[a-z0-9_]{2,30}$/;
 
@@ -126,13 +127,15 @@ export class AdminAgentsService {
         id: user.id,
         handle: user.handle,
         displayName: user.displayName,
-        email: user.email,
+        email: decryptField(user.email),
       },
     };
   }
 
   /**
    * List users with email ending in @agents.local (for --resume-from-db).
+   * Note: agent users keep plaintext emails (synthetic @agents.local addresses),
+   * so the LIKE query works directly. Real users with encrypted emails won't match.
    */
   async listAgentUsers(): Promise<
     { email: string; handle: string; displayName: string; bio: string }[]
@@ -143,7 +146,7 @@ export class AdminAgentsService {
       order: { createdAt: 'ASC' },
     });
     return users.map((u) => ({
-      email: u.email ?? '',
+      email: decryptField(u.email ?? ''),
       handle: u.handle,
       displayName: u.displayName ?? u.handle,
       bio: u.bio ?? '',
@@ -169,7 +172,7 @@ export class AdminAgentsService {
         id: user.id,
         handle: user.handle,
         displayName: user.displayName,
-        email: user.email,
+        email: decryptField(user.email),
       },
     };
   }

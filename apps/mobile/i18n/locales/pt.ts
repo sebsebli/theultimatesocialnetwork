@@ -1,8 +1,8 @@
 export default {
   welcome: {
     title: "Citewalk",
-    tagline: "Onde as ideias ganham o seu lugar.",
-    subtitle: "Uma rede social construída sobre citações.",
+    tagline: "Redes sociais, sem o ruído.",
+    subtitle: "A alternativa europeia.",
     showIntroAgain: "Sobre o Citewalk",
     continue: "Iniciar sessão",
     privacy: "Privacidade",
@@ -12,23 +12,23 @@ export default {
   intro: {
     title: "Bem-vindo ao Citewalk",
     founderMessage:
-      "Criei o Citewalk porque a internet recompensa a indignação em vez da perspicácia. Este é um lugar onde a tua reputação cresce quando outros citam as tuas ideias -- não quando clicam num coração.",
+      "Criei o Citewalk porque estava cansado de plataformas que recompensam a indignação sobre a substância. Este é um projeto europeu independente — sem dinheiro de VC, sem truques de crescimento, apenas um lugar melhor para partilhar ideias.",
     founderName: "Sebastian, Fundador",
     point1:
-      "As tuas publicações vivem num grafo de conhecimento, não num feed descartável. Cada ideia que partilhas torna-se encontrável, citável e permanente.",
+      "Nenhum algoritmo decide o que vês. O teu feed é cronológico, o teu conteúdo é descobrível por tópico, e os bons textos sobem porque as pessoas realmente os referenciam.",
     point2:
-      "A autoridade aqui é conquistada através de citações. Quando outros escritores referenciam o teu trabalho, isso é credibilidade real -- não métricas de vaidade.",
+      "Noutras plataformas, a voz mais zangada torna-se viral. Aqui, a voz mais referenciada ganha credibilidade. Cresces escrevendo coisas que valem a pena ser partilhadas.",
     point3:
-      "Segue tópicos, não algoritmos. Tu controlas o que vês. Sem truques de envolvimento, sem ranking oculto -- apenas as ideias de que te importas.",
+      "100% alojado na UE. Sem anúncios, sem rastreamento, sem vender os teus dados. Construído na Europa como uma alternativa genuína — não outro produto do Silicon Valley.",
     point4: "Pessoas reais. Discurso real. Sem bots.",
-    point5: "Construído para compreensão, não apenas consumo.",
-    point6: "Segue o rasto. Cada citação leva a algum lugar.",
-    point7: "Escreve. Cita. Constrói conhecimento.",
+    point5: "Discussões baseadas em substância, não em provocações.",
+    point6: "Tudo o que escreves permanece descobrível. Nada desaparece.",
+    point7: "Publica. Liga-te. Cresce.",
     next: "Seguinte",
     skip: "Saltar",
     getStarted: "Iniciar sessão",
     beginJourney: "Começar",
-    finalMessage: "Onde as ideias ganham o seu lugar.",
+    finalMessage: "A internet não precisa de outro feed. Precisa de um melhor.",
     welcome: "Bem-vindo.",
   },
   signIn: {
@@ -51,7 +51,8 @@ export default {
     invalidEmail: "Isso não parece um email válido",
     userNotFound: "Nenhuma conta encontrada para este email",
     rateLimited: "Demasiadas tentativas. Aguarda um momento.",
-    signUpAgreement: "Ao continuar, concordas com os nossos {{terms}} e {{privacy}}",
+    signUpAgreement:
+      "Ao continuar, concordas com os nossos {{terms}} e {{privacy}}",
     termsLink: "Termos",
     privacyLink: "Política de Privacidade",
     joinWaitlist: "Não tens acesso? Junta-te à lista de espera",
@@ -60,7 +61,8 @@ export default {
     acceptTermsError: "Por favor, aceita os termos para continuar",
     verificationSent: "Código de verificação enviado",
     inviteCodeRequiredTitle: "Código de convite necessário",
-    inviteCodeRequiredMessage: "Parece que és novo aqui. Introduz o teu código de convite para começar.",
+    inviteCodeRequiredMessage:
+      "Parece que és novo aqui. Introduz o teu código de convite para começar.",
     waitBeforeRequest: "Por favor, aguarda {{seconds}}s",
     wrongEmail: "Email errado? Voltar",
     resendCodeIn: "Reenviar em {{seconds}}s",
@@ -95,12 +97,16 @@ export default {
       handleHint: "Letras minúsculas, números, sublinhados",
       updateFailed: "Algo correu mal. Tenta novamente.",
       fieldsRequired: "Por favor, preenche todos os campos obrigatórios",
-      publicDescription: "Qualquer pessoa pode encontrar e ler as tuas publicações.",
-      privateDescription: "Apenas seguidores aprovados podem ver as tuas publicações.",
+      publicDescription:
+        "Qualquer pessoa pode encontrar e ler as tuas publicações.",
+      privateDescription:
+        "Apenas seguidores aprovados podem ver as tuas publicações.",
     },
     bioPlaceholder: "Sobre o que escreves? O que te desperta curiosidade?",
-    publicDescription: "Qualquer pessoa pode encontrar e ler as tuas publicações.",
-    privateDescription: "Apenas seguidores aprovados podem ver as tuas publicações.",
+    publicDescription:
+      "Qualquer pessoa pode encontrar e ler as tuas publicações.",
+    privateDescription:
+      "Apenas seguidores aprovados podem ver as tuas publicações.",
     languages: {
       title: "O que lês?",
       subtitle: "Escolhe os idiomas em que te sentes confortável a ler",
@@ -122,7 +128,8 @@ export default {
       finishing: "A configurar...",
       loadingSuggested: "A encontrar escritores para ti...",
       starterPackTitle: "Escritores recomendados",
-      starterPackSubtitle: "Pessoas que escrevem sobre tópicos que possas gostar.",
+      starterPackSubtitle:
+        "Pessoas que escrevem sobre tópicos que possas gostar.",
     },
     finish: "Concluído",
   },
@@ -269,7 +276,8 @@ export default {
     addReply: "Responder...",
     replyNotFound: "Resposta não encontrada",
     signInToComment: "Inicia sessão para comentar",
-    signInToCommentSubtext: "Precisas de iniciar sessão para deixar um comentário.",
+    signInToCommentSubtext:
+      "Precisas de iniciar sessão para deixar um comentário.",
     noSources: "Sem fontes externas.",
     noQuotes: "Ainda sem citações.",
     delete: "Eliminar publicação",
@@ -336,9 +344,11 @@ export default {
     noCollections: "Sem coleções públicas",
     noCollectionsOwn: "Ainda sem coleções",
     noCollectionsHint: "As coleções públicas aparecerão aqui.",
-    noCollectionsOwnHint: "Cria uma coleção para organizares os teus guardados.",
+    noCollectionsOwnHint:
+      "Cria uma coleção para organizares os teus guardados.",
     noReplies: "Ainda sem comentários",
-    noRepliesHint: "Os comentários que deixares nas publicações aparecerão aqui.",
+    noRepliesHint:
+      "Os comentários que deixares nas publicações aparecerão aqui.",
     privateProfileHint:
       "Segue esta conta para veres as suas publicações e atividade.",
     noQuotes: "Ainda sem citações",
@@ -366,7 +376,8 @@ export default {
     privateAccount: "Conta privada",
     privateAccountHint: "Segue esta conta para veres a sua atividade.",
     followRequest: "Pedido de seguimento",
-    followRequestMessage: "Esta é uma conta privada. Será enviado um pedido de seguimento.",
+    followRequestMessage:
+      "Esta é uma conta privada. Será enviado um pedido de seguimento.",
     sendRequest: "Enviar pedido",
   },
   invites: {
@@ -465,7 +476,8 @@ export default {
     showSavesDesc: "Vê o que as pessoas que segues estão a guardar",
     explore: "Explorar",
     enableRecommendations: "Recomendações personalizadas",
-    enableRecommendationsDesc: "Usa o nosso motor de relevância para te mostrar publicações",
+    enableRecommendationsDesc:
+      "Usa o nosso motor de relevância para te mostrar publicações",
     relevance: "Relevância",
     relevanceControls: "Pesos de relevância",
     relevanceControlsDesc: "Ajusta o que mais importa",
@@ -488,7 +500,8 @@ export default {
     dangerZoneHint: "Estas ações são permanentes.",
     deleteAccount: "Eliminar conta",
     deleteAccountDesc: "Elimina permanentemente a tua conta e todos os dados",
-    deleteAccountConfirm: "Isto eliminará permanentemente a tua conta. Isto não pode ser desfeito.",
+    deleteAccountConfirm:
+      "Isto eliminará permanentemente a tua conta. Isto não pode ser desfeito.",
     deleteAccountConfirmEmail:
       "Enviaremos um link de confirmação para o teu email. Clica nele nas próximas 24 horas.",
     sendDeletionLink: "Enviar confirmação",
@@ -527,11 +540,13 @@ export default {
     content: "Conteúdo",
     offlineReading: "Leitura offline",
     downloadSavedOffline: "Guardar automaticamente para offline",
-    downloadSavedOfflineHint: "Lê publicações guardadas sem ligação à internet.",
+    downloadSavedOfflineHint:
+      "Lê publicações guardadas sem ligação à internet.",
     manageOfflineStorage: "Gerir armazenamento",
     offlineCount: "{{count}} publicações em cache",
     removeAllOffline: "Limpar cache",
-    removeAllOfflineConfirm: "Remover todas as publicações offline? Isto liberta espaço de armazenamento.",
+    removeAllOfflineConfirm:
+      "Remover todas as publicações offline? Isto liberta espaço de armazenamento.",
     offlineStorageSummary: "{{count}} publicações · {{size}}",
     noOfflineArticles: "Sem publicações offline",
     noOfflineHint: "Guarda publicações para as leres offline.",
@@ -545,11 +560,13 @@ export default {
     takePhoto: "Tirar foto",
     choosePhoto: "Escolher da biblioteca",
     removePhoto: "Remover foto",
-    photoPermissionDenied: "É necessário acesso à câmara ou biblioteca de fotos.",
+    photoPermissionDenied:
+      "É necessário acesso à câmara ou biblioteca de fotos.",
     photoUpdated: "Foto atualizada",
     photoRemoved: "Foto removida",
     tapToChangePhoto: "Alterar foto",
-    handleChangeHint: "Os nomes de utilizador podem ser alterados uma vez a cada 14 dias.",
+    handleChangeHint:
+      "Os nomes de utilizador podem ser alterados uma vez a cada 14 dias.",
     profilePhoto: "Foto de perfil",
   },
   security: {
@@ -576,7 +593,8 @@ export default {
     emptyDetail: "Esta coleção está vazia.",
     emptyDetailHint: "Guarda publicações para as adicionares aqui.",
     addCitation: "Adicionar à coleção",
-    addCitationHint: "Navega pelas publicações e toca em Guardar para as adicionares.",
+    addCitationHint:
+      "Navega pelas publicações e toca em Guardar para as adicionares.",
     curatorNote: "NOTA",
     makePublic: "Tornar pública",
     makePrivate: "Tornar privada",
@@ -590,7 +608,8 @@ export default {
     createFailed: "Não foi possível criar a coleção",
     itemsCount: "{{count}} itens",
     delete: "Eliminar coleção",
-    deleteConfirm: "Eliminar esta coleção? As publicações dentro não serão afetadas.",
+    deleteConfirm:
+      "Eliminar esta coleção? As publicações dentro não serão afetadas.",
     deleted: "Coleção eliminada",
     deleteFailed: "Não foi possível eliminar a coleção",
     options: "Opções",
@@ -648,7 +667,8 @@ export default {
     ago: "atrás",
     linkedItems: "Publicações ligadas",
     noInternet: "Sem ligação à internet",
-    offline: "Estás offline. Algumas funcionalidades podem estar indisponíveis.",
+    offline:
+      "Estás offline. Algumas funcionalidades podem estar indisponíveis.",
     viewProfile: "Ver perfil",
     follow: "Seguir {{name}}",
     unfollow: "Deixar de seguir {{name}}",
@@ -674,7 +694,8 @@ export default {
     user: "Utilizador",
     topicOrPost: "Tópico ou publicação",
     somethingWentWrong: "Algo correu mal",
-    unexpectedErrorRetry: "Ocorreu um erro inesperado. Tenta voltar ao ecrã inicial.",
+    unexpectedErrorRetry:
+      "Ocorreu um erro inesperado. Tenta voltar ao ecrã inicial.",
     goToHome: "Ir para início",
   },
   externalLink: {
@@ -702,7 +723,8 @@ export default {
     emptyPeople: "Ainda sem contribuidores",
     emptyPeopleSubtext: "Os escritores aparecerão aqui à medida que publicam.",
     emptySources: "Ainda sem fontes",
-    emptySourcesSubtext: "As fontes externas aparecerão quando as pessoas as citarem.",
+    emptySourcesSubtext:
+      "As fontes externas aparecerão quando as pessoas as citarem.",
     shareTopic: "Partilhar tópico",
     shareTopicMessage: "Vê este tópico no Citewalk",
     searchInTopic: "Pesquisar neste tópico",
@@ -731,7 +753,8 @@ export default {
     searchUsers: "Encontrar alguém...",
     searchPlaceholder: "Pesquisar mensagens...",
     loadError: "Não foi possível carregar as mensagens",
-    mustFollowOrPrior: "Precisas de seguir-vos mutuamente para enviar mensagens.",
+    mustFollowOrPrior:
+      "Precisas de seguir-vos mutuamente para enviar mensagens.",
     createThreadFailed: "Não foi possível iniciar a conversa",
     noSuggested: "Sem sugestões neste momento.",
     markUnread: "Marcar como não lido",
@@ -767,7 +790,8 @@ export default {
   waitingList: {
     title: "Junta-te à lista de espera",
     heading: "Solicitar acesso",
-    description: "O Citewalk está atualmente em acesso antecipado. Junta-te à lista de espera e avisaremos-te quando houver uma vaga.",
+    description:
+      "O Citewalk está atualmente em acesso antecipado. Junta-te à lista de espera e avisaremos-te quando houver uma vaga.",
     emailPlaceholder: "O teu endereço de email",
     join: "Juntar-me à lista",
     success: "Estás na lista!",

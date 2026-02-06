@@ -20,6 +20,14 @@ export class User {
   @Column({ unique: true, nullable: true })
   email: string;
 
+  /**
+   * HMAC-SHA256 hash of the lowercased email, used for deterministic lookups
+   * when the email column is encrypted at rest. Indexed for fast queries.
+   */
+  @Column({ name: 'email_hash', type: 'text', nullable: true })
+  @Index()
+  emailHash: string | null;
+
   @Column({ unique: true })
   @Index()
   handle: string;
@@ -111,6 +119,20 @@ export class User {
 
   @Column({ type: 'jsonb', default: {} })
   preferences: Record<string, any>;
+
+  /**
+   * GDPR Art. 21 — self-service data processing objection preferences.
+   * Users can toggle off specific legitimate-interest processing activities.
+   */
+  @Column({ name: 'privacy_settings', type: 'jsonb', default: {} })
+  privacySettings: {
+    /** Opt out of AI-based content recommendations in Explore (Art. 6(1)(f)). */
+    disableRecommendations?: boolean;
+    /** Opt out of AI-based content moderation profiling (Art. 6(1)(f)). Note: moderation itself remains active for platform safety. */
+    disableModerationProfiling?: boolean;
+    /** Opt out of read-time / view analytics (Art. 6(1)(f)). */
+    disableAnalytics?: boolean;
+  };
 
   @Column({
     name: 'last_username_change_at',

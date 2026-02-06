@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   Unique,
+  Index,
 } from 'typeorm';
 
 export enum PushProvider {
@@ -27,8 +28,19 @@ export class PushToken {
   })
   provider: PushProvider;
 
+  /**
+   * Push token value (encrypted at rest via field-encryption).
+   * The unique constraint (provider, token) uses the encrypted value.
+   */
   @Column()
   token: string;
+
+  /**
+   * HMAC-SHA256 hash of the token for dedup/lookup without decryption.
+   */
+  @Column({ name: 'token_hash', type: 'text', nullable: true })
+  @Index()
+  tokenHash: string | null;
 
   @Column()
   platform: string;

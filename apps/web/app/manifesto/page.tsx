@@ -10,9 +10,9 @@ import {
 import { ManifestoCta } from "@/components/landing/manifesto-cta";
 
 export const metadata: Metadata = {
-  title: "Manifesto | Citewalk",
+  title: "About | Citewalk",
   description:
-    "The principles behind Citewalk. Why we're building a social network around citations.",
+    "Why we built Citewalk. The European alternative to algorithm-driven social media — where good writing wins, not outrage.",
   alternates: {
     canonical: "https://citewalk.com/manifesto",
   },
@@ -35,14 +35,14 @@ export default async function ManifestoPage() {
 
           <section id="preamble" className="mb-24 scroll-mt-24">
             <h1 className="text-5xl md:text-7xl leading-[0.95] font-medium mb-12 text-[#F2F2F2]">
-              The Algorithm <br />
-              <span className="text-[#6E7A8A] italic">of Truth.</span>
+              Why we <br />
+              <span className="text-[#6E7A8A] italic">built this.</span>
             </h1>
 
             <p className="text-xl md:text-2xl leading-relaxed text-[#A8A8AA] border-l-2 border-[#6E7A8A] pl-8 py-2">
-              The internet was built to connect knowledge. Somewhere along the
-              way, it became a machine for forgetting. We&apos;re building a place
-              that remembers.
+              Social media is broken. The platforms we use every day are
+              designed to amplify outrage, not understanding. We&apos;re
+              building the alternative — from Europe, on our own terms.
             </p>
           </section>
 
@@ -50,19 +50,20 @@ export default async function ManifestoPage() {
             <div className="flex items-baseline gap-4 mb-8 border-b border-[#1A1A1D] pb-4">
               <span className="font-mono text-[#6E7A8A] text-xs">01</span>
               <h2 className="text-2xl font-sans font-bold text-[#F2F2F2]">
-                The Crisis of Context
+                The problem with today&apos;s platforms
               </h2>
             </div>
             <div className="prose prose-invert prose-lg text-[#A8A8AA] font-serif">
               <p>
-                Today&apos;s social platforms strip information from its source. A
-                screenshot travels faster than a citation. Outrage spreads
-                faster than correction.
+                A handful of US companies control how billions of people see the
+                world. Their algorithms decide what you read, who gets heard,
+                and what disappears. The loudest, most provocative content wins
+                — by design.
               </p>
               <p>
-                This isn&apos;t a bug — it&apos;s a business model. When context disappears,
-                engagement goes up. But a society without context can&apos;t tell
-                truth from noise.
+                This isn&apos;t a side effect. It&apos;s the business model.
+                Rage drives engagement, engagement drives ads, and your
+                attention is the product. We think there&apos;s a better way.
               </p>
             </div>
           </section>
@@ -71,38 +72,39 @@ export default async function ManifestoPage() {
             <div className="flex items-baseline gap-4 mb-8 border-b border-[#1A1A1D] pb-4">
               <span className="font-mono text-[#6E7A8A] text-xs">02</span>
               <h2 className="text-2xl font-sans font-bold text-[#F2F2F2]">
-                The Architecture of Trust
+                A different kind of social network
               </h2>
             </div>
             <div className="prose prose-invert prose-lg text-[#A8A8AA] font-serif space-y-8">
               <p>
-                Citewalk works more like a journal than a feed. Claims are
-                connected to their sources. Reputation is earned through
-                citations, not bought or gamed.
+                Citewalk doesn&apos;t have an engagement algorithm. There&apos;s
+                no invisible hand deciding who gets seen. Your feed is
+                chronological, your content is discoverable by topic, and good
+                writing rises because people actually share and reference it.
               </p>
 
               <div className="grid gap-6">
                 <div className="bg-[#121215] p-6 rounded border border-[#1A1A1D]">
                   <h3 className="font-sans font-bold text-[#F2F2F2] flex items-center gap-2 mb-2">
                     <MdVerified className="text-[#6E7A8A]" />
-                    Citations as credibility
+                    Substance wins
                   </h3>
                   <p className="text-base">
-                    In a feed, the loudest voice wins. In a knowledge graph,
-                    the most cited voice wins. Your authority grows when other
-                    writers reference your work.
+                    On other platforms, the angriest voice goes viral. Here, the
+                    most referenced voice earns credibility. You grow by writing
+                    things worth sharing — not by provoking reactions.
                   </p>
                 </div>
 
                 <div className="bg-[#121215] p-6 rounded border border-[#1A1A1D]">
                   <h3 className="font-sans font-bold text-[#F2F2F2] flex items-center gap-2 mb-2">
                     <MdLink className="text-[#6E7A8A]" />
-                    Preserving the web
+                    Nothing disappears
                   </h3>
                   <p className="text-base">
-                    Hyperlinks were the internet&apos;s superpower. Citewalk
-                    preserves every external source you cite, ensuring that
-                    knowledge doesn&apos;t disappear when a page goes down.
+                    Posts stay connected and discoverable. External sources are
+                    archived automatically. Your ideas don&apos;t get buried in
+                    a feed after 24 hours — they last.
                   </p>
                 </div>
               </div>
@@ -113,19 +115,20 @@ export default async function ManifestoPage() {
             <div className="flex items-baseline gap-4 mb-8 border-b border-[#1A1A1D] pb-4">
               <span className="font-mono text-[#6E7A8A] text-xs">03</span>
               <h2 className="text-2xl font-sans font-bold text-[#F2F2F2]">
-                Digital Sovereignty
+                Built in Europe, owned by no one
               </h2>
             </div>
             <div className="prose prose-invert prose-lg text-[#A8A8AA] font-serif">
-              <p>You&apos;re not a user here. You&apos;re an author.</p>
               <p>
-                Citewalk is an independent European project. We host in the EU
-                and follow GDPR — not because we have to, but because we
-                believe your data should belong to you.
+                Citewalk is an independent European project. No venture capital,
+                no ad revenue model, no data harvesting. We host everything in
+                the EU under GDPR — because your data and your attention are not
+                products to sell.
               </p>
               <p>
-                Everything you write is portable: RSS feeds for every profile,
-                full JSON export, and zero advertising. Your ideas, your data.
+                Everything you publish is portable: RSS feeds for every profile,
+                full data export, and zero advertising. You can leave anytime
+                and take everything with you. No lock-in, ever.
               </p>
             </div>
           </section>
