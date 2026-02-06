@@ -13,7 +13,9 @@ import { wsConnectionsActive, wsConnectionsTotal } from '../common/metrics';
 
 const origins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((url) => url.trim())
-  : (process.env.NODE_ENV === 'production' ? [] : '*');
+  : process.env.NODE_ENV === 'production'
+    ? []
+    : '*';
 
 /** Maximum sockets per user to prevent memory issues from reconnect storms. */
 const MAX_SOCKETS_PER_USER = 10;
@@ -35,7 +37,12 @@ const PING_TIMEOUT_MS = 5 * 60 * 1000;
 })
 @Injectable()
 export class RealtimeGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, OnModuleDestroy {
+  implements
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnGatewayInit,
+    OnModuleDestroy
+{
   @WebSocketServer()
   server: Server;
 
@@ -43,11 +50,14 @@ export class RealtimeGateway
   private userSockets = new Map<string, Set<string>>(); // userId -> Set<socketId>
   private cleanupTimer: NodeJS.Timeout | null = null;
 
-  constructor(private jwtService: JwtService) { }
+  constructor(private jwtService: JwtService) {}
 
   afterInit() {
     // Periodic cleanup of stale entries
-    this.cleanupTimer = setInterval(() => this.cleanupStaleEntries(), CLEANUP_INTERVAL_MS);
+    this.cleanupTimer = setInterval(
+      () => this.cleanupStaleEntries(),
+      CLEANUP_INTERVAL_MS,
+    );
   }
 
   onModuleDestroy() {
@@ -91,8 +101,11 @@ export class RealtimeGateway
       // Extract token from auth object or authorization header
       const rawToken =
         (auth as { token?: string })?.token ||
-        (headers as { authorization?: string })?.authorization || '';
-      const token = rawToken.startsWith('Bearer ') ? rawToken.slice(7) : rawToken.split(' ')[1];
+        (headers as { authorization?: string })?.authorization ||
+        '';
+      const token = rawToken.startsWith('Bearer ')
+        ? rawToken.slice(7)
+        : rawToken.split(' ')[1];
 
       if (!token) {
         wsConnectionsTotal.inc({ status: 'rejected' });
@@ -105,13 +118,15 @@ export class RealtimeGateway
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         payload = this.jwtService.verify(token);
       } catch (err) {
-        this.logger.warn(`WS auth failed: ${err instanceof Error ? err.message : 'unknown'}`);
+        this.logger.warn(
+          `WS auth failed: ${err instanceof Error ? err.message : 'unknown'}`,
+        );
         wsConnectionsTotal.inc({ status: 'rejected' });
         client.disconnect();
         return;
       }
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const userId = payload.sub as string;
+      const userId = payload.sub;
 
       client.data.userId = userId;
 
@@ -142,7 +157,9 @@ export class RealtimeGateway
 
       this.logger.log(`User connected: ${userId} (Socket: ${client.id})`);
     } catch (err) {
-      this.logger.error(`WS connection error: ${err instanceof Error ? err.message : 'unknown'}`);
+      this.logger.error(
+        `WS connection error: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
       wsConnectionsTotal.inc({ status: 'rejected' });
       client.disconnect();
     }

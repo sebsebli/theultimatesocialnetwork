@@ -27,7 +27,7 @@ export default function PostQuotesPage() {
   const t = useTranslations("post");
   const { error: toastError } = useToast();
   const postId = params.id as string;
-  const [postTitle, setPostTitle] = useState<string | null>(null);
+  const [, setPostTitle] = useState<string | null>(null);
   const [quotes, setQuotes] = useState<ReferencedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);

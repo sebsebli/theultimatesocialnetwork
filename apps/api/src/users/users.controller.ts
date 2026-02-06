@@ -43,7 +43,7 @@ export class UsersController {
     private readonly uploadService: UploadService,
     private readonly safetyService: SafetyService,
     private readonly topicFollowsService: TopicFollowsService,
-  ) { }
+  ) {}
 
   @Patch('me')
   @UseGuards(AuthGuard('jwt'))
@@ -394,7 +394,7 @@ export class UsersController {
     );
     stream.pipe(res);
     stream.on('end', () => {
-      this.usersService.deleteExport(exportRecord.id).catch(() => { });
+      this.usersService.deleteExport(exportRecord.id).catch(() => {});
     });
     stream.on('error', () => {
       res.end();

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Record as Neo4jRecord } from 'neo4j-driver';
 import { Neo4jService } from './neo4j.service';
 
 /**
@@ -42,7 +43,16 @@ export class Neo4jQueryService {
     maxL1 = 40,
     maxL2 = 30,
   ): Promise<{
-    nodes: Array<{ id: string; type: string; label: string; image?: string; author?: string; url?: string; isCenter?: boolean; isL2?: boolean }>;
+    nodes: Array<{
+      id: string;
+      type: string;
+      label: string;
+      image?: string;
+      author?: string;
+      url?: string;
+      isCenter?: boolean;
+      isL2?: boolean;
+    }>;
     edges: Array<{ source: string; target: string; type: string }>;
   } | null> {
     if (!this.isAvailable()) return null;
@@ -115,57 +125,107 @@ export class Neo4jQueryService {
 
       if (!result.records?.length) return null;
 
-      const record = result.records[0];
-      const centerId = record.get('centerId');
-      const l1Raw = record.get('l1Nodes') || [];
-      const l2Raw = record.get('l2Nodes') || [];
+      const record = result.records[0] as Neo4jRecord;
+      const centerId = record.get('centerId') as string;
+      const l1Raw = (record.get('l1Nodes') || []) as Array<{
+        id?: string;
+        labels: string[];
+        props?: Record<string, unknown>;
+        rel: string;
+        direction?: string;
+      }>;
+      const l2Raw = (record.get('l2Nodes') || []) as Array<{
+        id?: string;
+        labels: string[];
+        props?: Record<string, unknown>;
+        rel: string;
+        source?: string;
+      }>;
 
-      const nodes: Array<{ id: string; type: string; label: string; image?: string; author?: string; url?: string; isCenter?: boolean; isL2?: boolean }> = [];
+      const nodes: Array<{
+        id: string;
+        type: string;
+        label: string;
+        image?: string;
+        author?: string;
+        url?: string;
+        isCenter?: boolean;
+        isL2?: boolean;
+      }> = [];
       const edges: Array<{ source: string; target: string; type: string }> = [];
       const seen = new Set<string>();
 
       // Center node
-      nodes.push({ id: centerId, type: 'post', label: 'Center', isCenter: true });
+      nodes.push({
+        id: centerId,
+        type: 'post',
+        label: 'Center',
+        isCenter: true,
+      });
       seen.add(centerId);
 
       // Process L1 nodes
       for (const item of l1Raw) {
         const nodeType = this.labelToType(item.labels);
-        const id = item.id ?? item.props?.id ?? item.props?.url ?? item.props?.slug;
+        const id =
+          item.id ?? item.props?.id ?? item.props?.url ?? item.props?.slug;
         if (!id || seen.has(id)) continue;
         seen.add(id);
 
         nodes.push({
           id,
           type: nodeType,
-          label: item.props?.title || item.props?.handle || item.props?.slug || item.props?.url || 'Node',
+          label:
+            item.props?.title ||
+            item.props?.handle ||
+            item.props?.slug ||
+            item.props?.url ||
+            'Node',
           url: item.props?.url,
         });
 
         if (item.direction === 'outgoing') {
-          edges.push({ source: postId, target: id, type: this.relToEdgeType(item.rel) });
+          edges.push({
+            source: postId,
+            target: id,
+            type: this.relToEdgeType(item.rel),
+          });
         } else {
-          edges.push({ source: id, target: postId, type: this.relToEdgeType(item.rel) });
+          edges.push({
+            source: id,
+            target: postId,
+            type: this.relToEdgeType(item.rel),
+          });
         }
       }
 
       // Process L2 nodes
       for (const item of l2Raw) {
         const nodeType = this.labelToType(item.labels);
-        const id = item.id ?? item.props?.id ?? item.props?.url ?? item.props?.slug;
+        const id =
+          item.id ?? item.props?.id ?? item.props?.url ?? item.props?.slug;
         if (!id || seen.has(id)) continue;
         seen.add(id);
 
         nodes.push({
           id,
           type: nodeType,
-          label: item.props?.title || item.props?.handle || item.props?.slug || item.props?.url || 'Node',
+          label:
+            item.props?.title ||
+            item.props?.handle ||
+            item.props?.slug ||
+            item.props?.url ||
+            'Node',
           url: item.props?.url,
           isL2: true,
         });
 
         if (item.source) {
-          edges.push({ source: item.source, target: id, type: this.relToEdgeType(item.rel) });
+          edges.push({
+            source: item.source,
+            target: id,
+            type: this.relToEdgeType(item.rel),
+          });
         }
       }
 
@@ -208,9 +268,13 @@ export class Neo4jQueryService {
         { userId, limit: this.toInt(limit), excludePostIds },
       );
 
-      return result.records.map((r: any) => r.get('postId'));
+      return result.records.map(
+        (r) => (r as Neo4jRecord).get('postId') as string,
+      );
     } catch (e) {
-      this.logger.warn(`Neo4j getExtendedNetworkPostIds failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Neo4j getExtendedNetworkPostIds failed: ${(e as Error).message}`,
+      );
       return [];
     }
   }
@@ -227,7 +291,14 @@ export class Neo4jQueryService {
   async getRecommendedPeopleIds(
     userId: string,
     limit = 20,
-  ): Promise<Array<{ userId: string; mutualFollows: number; coCitations: number; score: number }>> {
+  ): Promise<
+    Array<{
+      userId: string;
+      mutualFollows: number;
+      coCitations: number;
+      score: number;
+    }>
+  > {
     if (!this.isAvailable()) return [];
 
     try {
@@ -255,14 +326,19 @@ export class Neo4jQueryService {
         { userId, limit: this.toInt(limit) },
       );
 
-      return result.records.map((r: any) => ({
-        userId: r.get('userId'),
-        mutualFollows: this.toNumber(r.get('mutualFollows')),
-        coCitations: this.toNumber(r.get('coCitations')),
-        score: this.toNumber(r.get('score')),
-      }));
+      return result.records.map((r) => {
+        const record = r as Neo4jRecord;
+        return {
+          userId: record.get('userId') as string,
+          mutualFollows: this.toNumber(record.get('mutualFollows')),
+          coCitations: this.toNumber(record.get('coCitations')),
+          score: this.toNumber(record.get('score')),
+        };
+      });
     } catch (e) {
-      this.logger.warn(`Neo4j getRecommendedPeopleIds failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Neo4j getRecommendedPeopleIds failed: ${(e as Error).message}`,
+      );
       return [];
     }
   }
@@ -278,7 +354,9 @@ export class Neo4jQueryService {
   async getDeepDivePostIds(
     limit = 20,
     skip = 0,
-  ): Promise<Array<{ postId: string; chainDepth: number; citedByCount: number }>> {
+  ): Promise<
+    Array<{ postId: string; chainDepth: number; citedByCount: number }>
+  > {
     if (!this.isAvailable()) return [];
 
     try {
@@ -309,13 +387,18 @@ export class Neo4jQueryService {
         { limit: this.toInt(limit), skip: this.toInt(skip) },
       );
 
-      return result.records.map((r: any) => ({
-        postId: r.get('postId'),
-        chainDepth: this.toNumber(r.get('chainDepth')),
-        citedByCount: this.toNumber(r.get('citedByCount')),
-      }));
+      return result.records.map((r) => {
+        const record = r as Neo4jRecord;
+        return {
+          postId: record.get('postId') as string,
+          chainDepth: this.toNumber(record.get('chainDepth')),
+          citedByCount: this.toNumber(record.get('citedByCount')),
+        };
+      });
     } catch (e) {
-      this.logger.warn(`Neo4j getDeepDivePostIds failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Neo4j getDeepDivePostIds failed: ${(e as Error).message}`,
+      );
       return [];
     }
   }
@@ -366,12 +449,17 @@ export class Neo4jQueryService {
         { topicSlug, limit: this.toInt(limit) },
       );
 
-      return result.records.map((r: any) => ({
-        postId: r.get('postId'),
-        centrality: this.toNumber(r.get('centrality')),
-      }));
+      return result.records.map((r) => {
+        const record = r as Neo4jRecord;
+        return {
+          postId: record.get('postId') as string,
+          centrality: this.toNumber(record.get('centrality')),
+        };
+      });
     } catch (e) {
-      this.logger.warn(`Neo4j getTopicCentralPostIds failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Neo4j getTopicCentralPostIds failed: ${(e as Error).message}`,
+      );
       return [];
     }
   }
@@ -413,11 +501,14 @@ export class Neo4jQueryService {
 
       const scores = new Map<string, number>();
       for (const record of result.records) {
-        scores.set(record.get('postId'), this.toNumber(record.get('boost')));
+        const r = record as Neo4jRecord;
+        scores.set(r.get('postId') as string, this.toNumber(r.get('boost')));
       }
       return scores;
     } catch (e) {
-      this.logger.warn(`Neo4j getNetworkProximityScores failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Neo4j getNetworkProximityScores failed: ${(e as Error).message}`,
+      );
       return new Map();
     }
   }
@@ -450,12 +541,17 @@ export class Neo4jQueryService {
         { postId, limit: this.toInt(limit) },
       );
 
-      return result.records.map((r: any) => ({
-        postId: r.get('postId'),
-        coCitationCount: this.toNumber(r.get('coCitationCount')),
-      }));
+      return result.records.map((r) => {
+        const record = r as Neo4jRecord;
+        return {
+          postId: record.get('postId') as string,
+          coCitationCount: this.toNumber(record.get('coCitationCount')),
+        };
+      });
     } catch (e) {
-      this.logger.warn(`Neo4j getCoCitedPostIds failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Neo4j getCoCitedPostIds failed: ${(e as Error).message}`,
+      );
       return [];
     }
   }
@@ -496,12 +592,17 @@ export class Neo4jQueryService {
         { userId, limit: this.toInt(limit) },
       );
 
-      return result.records.map((r: any) => ({
-        postId: r.get('postId'),
-        score: this.toNumber(r.get('score')),
-      }));
+      return result.records.map((r) => {
+        const record = r as Neo4jRecord;
+        return {
+          postId: record.get('postId') as string,
+          score: this.toNumber(record.get('score')),
+        };
+      });
     } catch (e) {
-      this.logger.warn(`Neo4j getNetworkQuotedPostIds failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Neo4j getNetworkQuotedPostIds failed: ${(e as Error).message}`,
+      );
       return [];
     }
   }
@@ -514,34 +615,56 @@ export class Neo4jQueryService {
     if (!labels?.length) return 'unknown';
     const label = labels[0];
     switch (label) {
-      case 'Post': return 'post';
-      case 'User': return 'user';
-      case 'Topic': return 'topic';
-      case 'ExternalUrl': return 'external';
-      case 'Reply': return 'reply';
-      default: return label.toLowerCase();
+      case 'Post':
+        return 'post';
+      case 'User':
+        return 'user';
+      case 'Topic':
+        return 'topic';
+      case 'ExternalUrl':
+        return 'external';
+      case 'Reply':
+        return 'reply';
+      default:
+        return label.toLowerCase();
     }
   }
 
   private relToEdgeType(rel: string): string {
     switch (rel) {
-      case 'LINKS_TO': return 'link';
-      case 'QUOTES': return 'quote';
-      case 'IN_TOPIC': return 'topic';
-      case 'MENTIONS': return 'mention';
-      case 'CITES_EXTERNAL': return 'cites';
-      case 'AUTHORED': return 'authored';
-      case 'FOLLOWS': return 'follows';
-      case 'REPLIED_TO': return 'reply';
-      default: return rel.toLowerCase();
+      case 'LINKS_TO':
+        return 'link';
+      case 'QUOTES':
+        return 'quote';
+      case 'IN_TOPIC':
+        return 'topic';
+      case 'MENTIONS':
+        return 'mention';
+      case 'CITES_EXTERNAL':
+        return 'cites';
+      case 'AUTHORED':
+        return 'authored';
+      case 'FOLLOWS':
+        return 'follows';
+      case 'REPLIED_TO':
+        return 'reply';
+      default:
+        return rel.toLowerCase();
     }
   }
 
   /** Convert Neo4j Integer to JS number. */
-  private toNumber(val: any): number {
+  private toNumber(val: unknown): number {
     if (val == null) return 0;
     if (typeof val === 'number') return val;
-    if (typeof val?.toNumber === 'function') return val.toNumber();
+    if (
+      typeof val === 'object' &&
+      val !== null &&
+      'toNumber' in val &&
+      typeof (val as { toNumber(): number }).toNumber === 'function'
+    ) {
+      return (val as { toNumber(): number }).toNumber();
+    }
     return Number(val) || 0;
   }
 

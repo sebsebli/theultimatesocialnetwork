@@ -25,7 +25,8 @@ export default function OnboardingStarterPacksPage() {
           setAccounts(Array.isArray(data) ? (data as SuggestedAccount[]) : []);
         }
       } catch (error) {
-        if (process.env.NODE_ENV !== "production") console.error("Failed to load suggested accounts", error);
+        if (process.env.NODE_ENV !== "production")
+          console.error("Failed to load suggested accounts", error);
       } finally {
         setLoading(false);
       }
@@ -49,7 +50,8 @@ export default function OnboardingStarterPacksPage() {
       const method = isFollowing ? "DELETE" : "POST";
       await fetch(`/api/users/${id}/follow`, { method });
     } catch (e) {
-      if (process.env.NODE_ENV !== "production") console.error("Failed to toggle follow", e);
+      if (process.env.NODE_ENV !== "production")
+        console.error("Failed to toggle follow", e);
       // Revert on failure
       setFollowing(following);
     }
@@ -114,10 +116,11 @@ export default function OnboardingStarterPacksPage() {
                 </div>
                 <button
                   onClick={() => toggleFollow(account.id)}
-                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${following.has(account.id)
+                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${
+                    following.has(account.id)
                       ? "bg-primary border-primary text-white"
                       : "border-primary text-primary hover:bg-primary/10"
-                    }`}
+                  }`}
                 >
                   {following.has(account.id) ? "Following" : "Follow"}
                 </button>

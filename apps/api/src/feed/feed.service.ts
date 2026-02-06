@@ -39,7 +39,7 @@ export class FeedService {
     private uploadService: UploadService,
     private interactionsService: InteractionsService,
     private exploreService: ExploreService,
-  ) { }
+  ) {}
 
   async getHomeFeed(
     userId: string,
@@ -100,7 +100,9 @@ export class FeedService {
       });
       mutes.forEach((m) => excludedUserIds.add(m.mutedId));
       excludedUserIds.add('00000000-0000-0000-0000-000000000000');
-      this.redis.setex(blockMuteCacheKey, 300, JSON.stringify([...excludedUserIds])).catch(() => { });
+      this.redis
+        .setex(blockMuteCacheKey, 300, JSON.stringify([...excludedUserIds]))
+        .catch(() => {});
     }
 
     // Cache following IDs for 2 min (changes rarely, read every page load)
@@ -110,7 +112,10 @@ export class FeedService {
     try {
       const cached = await this.redis.get(followCacheKey);
       if (cached) {
-        const parsed = JSON.parse(cached) as { users: string[]; topics: string[] };
+        const parsed = JSON.parse(cached) as {
+          users: string[];
+          topics: string[];
+        };
         followingIds = parsed.users.filter((id) => !excludedUserIds.has(id));
         followedTopicIds = parsed.topics;
       } else {
@@ -118,12 +123,23 @@ export class FeedService {
       }
     } catch {
       const [follows, topicFollows] = await Promise.all([
-        this.followRepo.find({ where: { followerId: userId }, select: ['followeeId'] }),
+        this.followRepo.find({
+          where: { followerId: userId },
+          select: ['followeeId'],
+        }),
         this.topicFollowRepo.find({ where: { userId }, select: ['topicId'] }),
       ]);
-      followingIds = follows.map((f) => f.followeeId).filter((id) => !excludedUserIds.has(id));
+      followingIds = follows
+        .map((f) => f.followeeId)
+        .filter((id) => !excludedUserIds.has(id));
       followedTopicIds = topicFollows.map((f) => f.topicId);
-      this.redis.setex(followCacheKey, 120, JSON.stringify({ users: followingIds, topics: followedTopicIds })).catch(() => { });
+      this.redis
+        .setex(
+          followCacheKey,
+          120,
+          JSON.stringify({ users: followingIds, topics: followedTopicIds }),
+        )
+        .catch(() => {});
     }
 
     // Always include self

@@ -20,7 +20,7 @@ export class NotificationHelperService {
     private pushOutboxRepo: Repository<PushOutbox>,
     // private realtimeGateway: RealtimeGateway,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async createNotification(data: {
     userId: string;
@@ -84,7 +84,9 @@ export class NotificationHelperService {
         });
         const savedOutbox = await this.pushOutboxRepo.save(outbox);
 
-        await this.eventBus.publish('push-processing', 'send', { id: savedOutbox.id });
+        await this.eventBus.publish('push-processing', 'send', {
+          id: savedOutbox.id,
+        });
       }
     } catch (e) {
       console.error('Failed to queue push notification', e);

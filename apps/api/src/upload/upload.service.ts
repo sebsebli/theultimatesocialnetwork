@@ -161,9 +161,7 @@ export class UploadService implements OnModuleInit {
     const asyncExplicitlyDisabled =
       this.configService.get<string>('MODERATION_IMAGE_ASYNC') === 'false';
     const moderationAsync =
-      !asyncExplicitlyDisabled &&
-      !!options?.uploadType &&
-      !!options?.userId;
+      !asyncExplicitlyDisabled && !!options?.uploadType && !!options?.userId;
 
     if (!moderationAsync) {
       const safety = await this.safetyService.checkImage(file.buffer);
@@ -263,10 +261,9 @@ export class UploadService implements OnModuleInit {
       this.configService.get<string>('API_URL')?.replace(/\/$/, '');
     if (publicApiBase) {
       // Nest uses setGlobalPrefix('api'), so images are at /api/images/:key
-      const path =
-        publicApiBase.endsWith('/api')
-          ? `/images/${encodeURIComponent(key)}`
-          : `/api/images/${encodeURIComponent(key)}`;
+      const path = publicApiBase.endsWith('/api')
+        ? `/images/${encodeURIComponent(key)}`
+        : `/api/images/${encodeURIComponent(key)}`;
       return `${publicApiBase}${path}`;
     }
     const publicUrl =

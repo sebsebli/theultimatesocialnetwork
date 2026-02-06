@@ -23,4 +23,4 @@ import { SharedModule } from '../shared/shared.module';
   providers: [FollowsService, FollowWorker],
   exports: [FollowsService],
 })
-export class FollowsModule { }
+export class FollowsModule {}

@@ -51,19 +51,27 @@ import * as Joi from 'joi';
       pinoHttp: {
         customProps: (req) => ({
           context: 'HTTP',
-          requestId: (req as { headers?: Record<string, string> })?.headers?.['x-request-id'] ?? undefined,
+          requestId:
+            (req as { headers?: Record<string, string> })?.headers?.[
+              'x-request-id'
+            ] ?? undefined,
         }),
         // Redact sensitive headers from logs
-        redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["x-metrics-secret"]', 'req.headers["x-health-secret"]'],
+        redact: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.headers["x-metrics-secret"]',
+          'req.headers["x-health-secret"]',
+        ],
         transport:
           process.env.NODE_ENV !== 'production' &&
-            process.env.NODE_ENV !== 'test'
+          process.env.NODE_ENV !== 'test'
             ? {
-              target: 'pino-pretty',
-              options: {
-                singleLine: true,
-              },
-            }
+                target: 'pino-pretty',
+                options: {
+                  singleLine: true,
+                },
+              }
             : undefined,
       },
     }),
@@ -147,4 +155,4 @@ import * as Joi from 'joi';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

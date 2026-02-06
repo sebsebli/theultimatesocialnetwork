@@ -21,4 +21,4 @@ import { SharedModule } from '../shared/shared.module';
   providers: [UploadService, ImageModerationWorker],
   exports: [UploadService],
 })
-export class UploadModule { }
+export class UploadModule {}

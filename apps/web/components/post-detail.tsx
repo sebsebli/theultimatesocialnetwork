@@ -89,16 +89,15 @@ function PostDetailInner({
 
   useEffect(() => {
     // Track view on mount
-    let _cancelled = false;
     if (!isPublic) {
-      fetch(`/api/posts/${post.id}/view`, { method: "POST" })
-        .catch(() => { /* view tracking best-effort */ });
+      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => {
+        /* view tracking best-effort */
+      });
     }
 
     // Track read time on unmount
     startTimeRef.current = Date.now();
     return () => {
-      _cancelled = true;
       const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
       if (duration > 5 && !isPublic) {
         fetch(`/api/posts/${post.id}/read-time`, {
@@ -106,7 +105,9 @@ function PostDetailInner({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ duration }),
           keepalive: true, // Ensure request sends even if navigating away
-        }).catch(() => { /* read-time tracking best-effort */ });
+        }).catch(() => {
+          /* read-time tracking best-effort */
+        });
       }
     };
   }, [post.id, isPublic]);
@@ -310,10 +311,10 @@ function PostDetailInner({
             onCopyLink={
               !post.author?.isProtected
                 ? () => {
-                  const url = `${window.location.origin}/post/${post.id}`;
-                  navigator.clipboard.writeText(url);
-                  toastSuccess("Link copied to clipboard");
-                }
+                    const url = `${window.location.origin}/post/${post.id}`;
+                    navigator.clipboard.writeText(url);
+                    toastSuccess("Link copied to clipboard");
+                  }
                 : undefined
             }
           />
@@ -694,20 +695,18 @@ function PostDetailInner({
 
       {/* Tabs: Sources (if content visible) | Quoted by | Graph — then Replies */}
       <div className={`px-5 py-6 space-y-8 ${isPublic ? "pb-24" : ""}`}>
-        <section
-          ref={tabsSectionRef}
-          className="border-t border-divider pt-6"
-        >
+        <section ref={tabsSectionRef} className="border-t border-divider pt-6">
           <div className="flex border-b border-divider mb-4 overflow-x-auto no-scrollbar">
             {postTabs.map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setPostTab(tab)}
-                className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activePostTab === tab
-                  ? "border-primary text-paper"
-                  : "border-transparent text-tertiary hover:text-paper"
-                  }`}
+                className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                  activePostTab === tab
+                    ? "border-primary text-paper"
+                    : "border-transparent text-tertiary hover:text-paper"
+                }`}
               >
                 {tab === "sources"
                   ? "Sources"

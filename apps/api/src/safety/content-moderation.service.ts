@@ -424,8 +424,8 @@ export class ContentModerationService implements OnModuleInit {
         const reasonCode = safe
           ? undefined
           : this.parseReasonFromGranite(
-            result.reasons?.[0] ?? result.reasons?.[1] ?? 'other',
-          );
+              result.reasons?.[0] ?? result.reasons?.[1] ?? 'other',
+            );
         end();
         if (!safe) moderationStageCounter.inc({ stage: 'ollama_block' });
         else moderationStageCounter.inc({ stage: 'ollama_allow' });
@@ -445,7 +445,9 @@ export class ContentModerationService implements OnModuleInit {
         `Ollama text moderation failed${isCircuitOpen ? ' (circuit open)' : ''}`,
         (e as Error).message,
       );
-      moderationStageCounter.inc({ stage: isCircuitOpen ? 'ollama_circuit_open' : 'ollama_fail' });
+      moderationStageCounter.inc({
+        stage: isCircuitOpen ? 'ollama_circuit_open' : 'ollama_fail',
+      });
       // Fail open with degraded confidence: flag for async re-moderation
       return {
         safe: true,

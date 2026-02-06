@@ -48,7 +48,7 @@ export class PostWorker implements OnApplicationBootstrap {
     private metadataService: MetadataService,
     @Inject('REDIS_CLIENT') private redis: Redis,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async onApplicationBootstrap() {
     await this.eventBus.subscribe<PostJobData>(
@@ -121,7 +121,7 @@ export class PostWorker implements OnApplicationBootstrap {
               contentSnapshot: post.body,
               source: ModerationSource.ASYNC_CHECK,
             })
-            .catch(() => { });
+            .catch(() => {});
           await this.postRepo.softDelete(postId);
           end();
           workerJobCounter.inc({ worker: 'post', status: 'moderated' });
@@ -142,9 +142,9 @@ export class PostWorker implements OnApplicationBootstrap {
         authorId: post.authorId,
         author: post.author
           ? {
-            displayName: post.author.displayName || post.author.handle,
-            handle: post.author.handle,
-          }
+              displayName: post.author.displayName || post.author.handle,
+              handle: post.author.handle,
+            }
           : undefined,
         authorProtected: post.author?.isProtected,
         lang: post.lang,
@@ -246,7 +246,9 @@ export class PostWorker implements OnApplicationBootstrap {
                 { fromId: post.id, toId: edge.toPostId },
               );
             } catch (e) {
-              this.logger.warn(`Neo4j LINKS_TO sync failed (non-fatal): ${(e as Error).message}`);
+              this.logger.warn(
+                `Neo4j LINKS_TO sync failed (non-fatal): ${(e as Error).message}`,
+              );
             }
           } else if (edge.edgeType === EdgeType.QUOTE) {
             try {
@@ -259,7 +261,9 @@ export class PostWorker implements OnApplicationBootstrap {
                 { fromId: post.id, toId: edge.toPostId },
               );
             } catch (e) {
-              this.logger.warn(`Neo4j QUOTES sync failed (non-fatal): ${(e as Error).message}`);
+              this.logger.warn(
+                `Neo4j QUOTES sync failed (non-fatal): ${(e as Error).message}`,
+              );
             }
 
             const quotedPost = await this.postRepo.findOne({

@@ -1,6 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import Redis from 'ioredis';
+import { Record as Neo4jRecord } from 'neo4j-driver';
 import { Neo4jService } from '../database/neo4j.service';
 
 /**
@@ -59,7 +60,9 @@ export class GraphComputeService {
       const duration = Date.now() - start;
       this.logger.log(`Graph feature computation completed in ${duration}ms.`);
     } catch (e) {
-      this.logger.error(`Graph feature computation failed: ${(e as Error).message}`);
+      this.logger.error(
+        `Graph feature computation failed: ${(e as Error).message}`,
+      );
     } finally {
       this.isRunning = false;
     }
@@ -100,18 +103,23 @@ export class GraphComputeService {
         const pipeline = this.redis.pipeline();
         pipeline.del('graph:post-authority');
 
-        for (const record of result.records) {
-          const postId = record.get('postId');
+        for (const rec of result.records) {
+          const record = rec as Neo4jRecord;
+          const postId = record.get('postId') as string;
           const authority = this.toNumber(record.get('authority'));
           pipeline.zadd('graph:post-authority', authority, postId);
         }
         pipeline.expire('graph:post-authority', this.REDIS_TTL);
         await pipeline.exec();
 
-        this.logger.debug(`Computed authority scores for ${result.records.length} posts.`);
+        this.logger.debug(
+          `Computed authority scores for ${result.records.length} posts.`,
+        );
       }
     } catch (e) {
-      this.logger.warn(`Post authority computation failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Post authority computation failed: ${(e as Error).message}`,
+      );
     }
   }
 
@@ -157,18 +165,23 @@ export class GraphComputeService {
         const pipeline = this.redis.pipeline();
         pipeline.del('graph:user-influence');
 
-        for (const record of result.records) {
-          const userId = record.get('userId');
+        for (const rec of result.records) {
+          const record = rec as Neo4jRecord;
+          const userId = record.get('userId') as string;
           const influence = this.toNumber(record.get('influence'));
           pipeline.zadd('graph:user-influence', influence, userId);
         }
         pipeline.expire('graph:user-influence', this.REDIS_TTL);
         await pipeline.exec();
 
-        this.logger.debug(`Computed influence scores for ${result.records.length} users.`);
+        this.logger.debug(
+          `Computed influence scores for ${result.records.length} users.`,
+        );
       }
     } catch (e) {
-      this.logger.warn(`User influence computation failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `User influence computation failed: ${(e as Error).message}`,
+      );
     }
   }
 
@@ -211,18 +224,23 @@ export class GraphComputeService {
         const pipeline = this.redis.pipeline();
         pipeline.del('graph:trending-velocity');
 
-        for (const record of result.records) {
-          const postId = record.get('postId');
+        for (const rec of result.records) {
+          const record = rec as Neo4jRecord;
+          const postId = record.get('postId') as string;
           const velocity = this.toNumber(record.get('velocity'));
           pipeline.zadd('graph:trending-velocity', velocity, postId);
         }
         pipeline.expire('graph:trending-velocity', this.REDIS_TTL);
         await pipeline.exec();
 
-        this.logger.debug(`Computed trending velocity for ${result.records.length} posts.`);
+        this.logger.debug(
+          `Computed trending velocity for ${result.records.length} posts.`,
+        );
       }
     } catch (e) {
-      this.logger.warn(`Trending velocity computation failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Trending velocity computation failed: ${(e as Error).message}`,
+      );
     }
   }
 
@@ -253,11 +271,15 @@ export class GraphComputeService {
 
       if (result.records.length > 0) {
         // Build adjacency: topic -> [related topics]
-        const clusters = new Map<string, Array<{ topic: string; strength: number }>>();
+        const clusters = new Map<
+          string,
+          Array<{ topic: string; strength: number }>
+        >();
 
-        for (const record of result.records) {
-          const t1 = record.get('topic1');
-          const t2 = record.get('topic2');
+        for (const rec of result.records) {
+          const record = rec as Neo4jRecord;
+          const t1 = record.get('topic1') as string;
+          const t2 = record.get('topic2') as string;
           const strength = this.toNumber(record.get('sharedPosts'));
 
           if (!clusters.has(t1)) clusters.set(t1, []);
@@ -272,15 +294,21 @@ export class GraphComputeService {
         for (const [slug, related] of clusters) {
           const key = `graph:topic-clusters:${slug}`;
           pipeline.del(key);
-          const sorted = related.sort((a, b) => b.strength - a.strength).slice(0, 10);
+          const sorted = related
+            .sort((a, b) => b.strength - a.strength)
+            .slice(0, 10);
           pipeline.set(key, JSON.stringify(sorted), 'EX', this.REDIS_TTL);
         }
 
         await pipeline.exec();
-        this.logger.debug(`Computed topic clusters for ${clusters.size} topics.`);
+        this.logger.debug(
+          `Computed topic clusters for ${clusters.size} topics.`,
+        );
       }
     } catch (e) {
-      this.logger.warn(`Topic cluster computation failed: ${(e as Error).message}`);
+      this.logger.warn(
+        `Topic cluster computation failed: ${(e as Error).message}`,
+      );
     }
   }
 
@@ -298,7 +326,9 @@ export class GraphComputeService {
   }
 
   /** Get authority score for specific posts. */
-  async getPostAuthorityScores(postIds: string[]): Promise<Map<string, number>> {
+  async getPostAuthorityScores(
+    postIds: string[],
+  ): Promise<Map<string, number>> {
     if (postIds.length === 0) return new Map();
     try {
       const pipeline = this.redis.pipeline();
@@ -331,17 +361,25 @@ export class GraphComputeService {
   /** Get top posts by trending velocity. */
   async getTrendingByVelocity(limit = 20): Promise<string[]> {
     try {
-      return await this.redis.zrevrange('graph:trending-velocity', 0, limit - 1);
+      return await this.redis.zrevrange(
+        'graph:trending-velocity',
+        0,
+        limit - 1,
+      );
     } catch {
       return [];
     }
   }
 
   /** Get related topics for a given topic (from co-citation clusters). */
-  async getRelatedTopics(topicSlug: string): Promise<Array<{ topic: string; strength: number }>> {
+  async getRelatedTopics(
+    topicSlug: string,
+  ): Promise<Array<{ topic: string; strength: number }>> {
     try {
       const data = await this.redis.get(`graph:topic-clusters:${topicSlug}`);
-      return data ? JSON.parse(data) : [];
+      return data
+        ? (JSON.parse(data) as Array<{ topic: string; strength: number }>)
+        : [];
     } catch {
       return [];
     }
@@ -351,10 +389,16 @@ export class GraphComputeService {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  private toNumber(val: any): number {
+  private toNumber(val: unknown): number {
     if (val == null) return 0;
     if (typeof val === 'number') return val;
-    if (typeof val?.toNumber === 'function') return val.toNumber();
+    if (
+      typeof val === 'object' &&
+      val !== null &&
+      'toNumber' in val &&
+      typeof (val as { toNumber: unknown }).toNumber === 'function'
+    )
+      return (val as { toNumber(): number }).toNumber();
     return Number(val) || 0;
   }
 }

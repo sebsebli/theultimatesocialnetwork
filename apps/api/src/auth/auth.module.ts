@@ -19,7 +19,7 @@ import Redis from 'ioredis';
   imports: [
     PassportModule,
     ConfigModule,
-    TypeOrmModule.forFeature([User, Session, NotificationPref]),  // User needed by JwtStrategy for banned check
+    TypeOrmModule.forFeature([User, Session, NotificationPref]), // User needed by JwtStrategy for banned check
     InvitesModule,
     SharedModule,
     SearchModule,
@@ -70,4 +70,4 @@ import Redis from 'ioredis';
   ],
   exports: [AuthService, PassportModule],
 })
-export class AuthModule { }
+export class AuthModule {}

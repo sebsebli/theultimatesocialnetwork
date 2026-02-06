@@ -24,9 +24,9 @@ import { Neo4jQueryService } from './neo4j-query.service';
             ? false
             : isProduction
               ? {
-                rejectUnauthorized: true,
-                ca: configService.get('DB_CA_CERT'),
-              }
+                  rejectUnauthorized: true,
+                  ca: configService.get<string>('DB_CA_CERT'),
+                }
               : false;
 
         const poolExtra = {
@@ -37,8 +37,8 @@ import { Neo4jQueryService } from './neo4j-query.service';
           statement_timeout: 30000, // 30s per statement
           idle_in_transaction_session_timeout: 10000, // 10s idle transaction
           // Connection health
-          idleTimeoutMillis: 30000,       // Close idle connections after 30s
-          connectionTimeoutMillis: 5000,  // Fail fast on connection acquire (5s)
+          idleTimeoutMillis: 30000, // Close idle connections after 30s
+          connectionTimeoutMillis: 5000, // Fail fast on connection acquire (5s)
         };
 
         // Build base config (shared between single and replication modes)
@@ -87,4 +87,4 @@ import { Neo4jQueryService } from './neo4j-query.service';
   providers: [Neo4jService, Neo4jQueryService],
   exports: [TypeOrmModule, Neo4jService, Neo4jQueryService],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}

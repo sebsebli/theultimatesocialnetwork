@@ -77,7 +77,8 @@ import { CollectionItem } from '../entities/collection-item.entity';
     {
       provide: 'REDIS_CLIENT',
       useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL') || 'redis://redis:6379';
+        const redisUrl =
+          config.get<string>('REDIS_URL') || 'redis://redis:6379';
         const isCluster = config.get<string>('REDIS_CLUSTER') === 'true';
         return createRedisClient(redisUrl, isCluster);
       },
@@ -86,4 +87,4 @@ import { CollectionItem } from '../entities/collection-item.entity';
   ],
   exports: [UsersService],
 })
-export class UsersModule { }
+export class UsersModule {}

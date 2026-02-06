@@ -1,5 +1,12 @@
 import { Logger } from '@nestjs/common';
-import { Kafka, Producer, Consumer, Admin, logLevel, CompressionTypes } from 'kafkajs';
+import {
+  Kafka,
+  Producer,
+  Consumer,
+  Admin,
+  logLevel,
+  CompressionTypes,
+} from 'kafkajs';
 import type {
   EventPublishOptions,
   EventSubscribeOptions,
@@ -68,7 +75,9 @@ export class KafkaEventBus extends IEventBus {
           },
         ],
       });
-      this.logger.log(`Topic '${topic}' ensured (${this.numPartitions} partitions).`);
+      this.logger.log(
+        `Topic '${topic}' ensured (${this.numPartitions} partitions).`,
+      );
     } catch (err) {
       // Topic may already exist — that's fine
       if (
@@ -152,7 +161,10 @@ export class KafkaEventBus extends IEventBus {
     await consumer.run({
       eachMessage: async ({ message, partition }) => {
         try {
-          const parsed = JSON.parse(message.value?.toString() ?? '{}');
+          const parsed = JSON.parse(message.value?.toString() ?? '{}') as {
+            event: string;
+            data: unknown;
+          };
           await handler(parsed.event ?? 'unknown', parsed.data as T);
         } catch (err) {
           this.logger.error(
@@ -164,9 +176,7 @@ export class KafkaEventBus extends IEventBus {
     });
 
     this.consumers.push(consumer);
-    this.logger.log(
-      `Subscribed to '${topic}' (Kafka, group=${groupId}).`,
-    );
+    this.logger.log(`Subscribed to '${topic}' (Kafka, group=${groupId}).`);
   }
 
   async shutdown(): Promise<void> {

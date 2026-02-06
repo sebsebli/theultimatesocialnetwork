@@ -10,9 +10,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - Index on posts(created_at DESC) for feed ordering
  * - Index on follows(follower_id, followee_id) for follow-check queries
  */
-export class AddCompositePerformanceIndexes1771500000000
-  implements MigrationInterface
-{
+export class AddCompositePerformanceIndexes1771500000000 implements MigrationInterface {
   name = 'AddCompositePerformanceIndexes1771500000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -54,11 +52,19 @@ export class AddCompositePerformanceIndexes1771500000000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_notifications_user_created"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_follows_follower_followee"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_notifications_user_created"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_follows_follower_followee"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_external_sources_url"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_collection_items_collection_added"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_post_topics_topic_post"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_collection_items_collection_added"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_post_topics_topic_post"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_posts_created_desc"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_posts_author_created"`);
   }

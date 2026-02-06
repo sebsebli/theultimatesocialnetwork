@@ -29,7 +29,7 @@ export class FollowWorker implements OnApplicationBootstrap {
     private notificationHelper: NotificationHelperService,
     @Inject('REDIS_CLIENT') private redis: Redis,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async onApplicationBootstrap() {
     await this.eventBus.subscribe<FollowJobData>(
@@ -61,7 +61,9 @@ export class FollowWorker implements OnApplicationBootstrap {
             { followerId, followeeId },
           );
         } catch (e) {
-          this.logger.warn(`Neo4j follow sync failed (non-fatal): ${(e as Error).message}`);
+          this.logger.warn(
+            `Neo4j follow sync failed (non-fatal): ${(e as Error).message}`,
+          );
         }
 
         // 3. Notification
@@ -85,7 +87,9 @@ export class FollowWorker implements OnApplicationBootstrap {
             { followerId, followeeId },
           );
         } catch (e) {
-          this.logger.warn(`Neo4j unfollow sync failed (non-fatal): ${(e as Error).message}`);
+          this.logger.warn(
+            `Neo4j unfollow sync failed (non-fatal): ${(e as Error).message}`,
+          );
         }
       }
     } catch (e) {

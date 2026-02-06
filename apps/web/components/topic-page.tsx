@@ -100,11 +100,13 @@ function TopicPageInner({ topic }: TopicPageProps) {
     const postsWithImage = (topic.posts ?? posts).filter(
       (p) => p?.headerImageKey,
     );
-    return postsWithImage.sort(
-      (a, b) =>
-        new Date(b.createdAt ?? 0).getTime() -
-        new Date(a.createdAt ?? 0).getTime(),
-    )[0] ?? null;
+    return (
+      postsWithImage.sort(
+        (a, b) =>
+          new Date(b.createdAt ?? 0).getTime() -
+          new Date(a.createdAt ?? 0).getTime(),
+      )[0] ?? null
+    );
   }, [topic.posts, posts]);
   const headerImageUrl = headerImagePost?.headerImageKey
     ? getImageUrl(headerImagePost.headerImageKey)
@@ -158,7 +160,11 @@ function TopicPageInner({ topic }: TopicPageProps) {
   );
 
   const loadPosts = useCallback(
-    async (page: number, append: boolean, sort: "recent" | "ranked" = "recent") => {
+    async (
+      page: number,
+      append: boolean,
+      sort: "recent" | "ranked" = "recent",
+    ) => {
       if (append) setLoadingMorePosts(true);
       try {
         const res = await fetch(
@@ -194,7 +200,9 @@ function TopicPageInner({ topic }: TopicPageProps) {
         if (!res.ok) return;
         const data = await res.json();
         const items = (data.items ?? []) as TopicSource[];
-        setHasMoreSources(items.length >= POSTS_PAGE_SIZE && data.hasMore !== false);
+        setHasMoreSources(
+          items.length >= POSTS_PAGE_SIZE && data.hasMore !== false,
+        );
         if (append) {
           setSources((prev) => [...prev, ...items]);
         } else {
@@ -219,7 +227,9 @@ function TopicPageInner({ topic }: TopicPageProps) {
         if (!res.ok) return;
         const data = await res.json();
         const items = (data.items ?? []) as TopicPerson[];
-        setHasMorePeople(items.length >= POSTS_PAGE_SIZE && data.hasMore !== false);
+        setHasMorePeople(
+          items.length >= POSTS_PAGE_SIZE && data.hasMore !== false,
+        );
         if (append) {
           setPeople((prev) => [...prev, ...items]);
         } else {
@@ -273,11 +283,15 @@ function TopicPageInner({ topic }: TopicPageProps) {
         if (!cancelled) {
           const list = Array.isArray(data) ? data : (data?.items ?? []);
           setMoreTopics(
-            list.filter((t: TopicSummary) => t.slug !== topic.slug).slice(0, 10),
+            list
+              .filter((t: TopicSummary) => t.slug !== topic.slug)
+              .slice(0, 10),
           );
         }
       })
-      .catch(() => { /* topics load best-effort */ });
+      .catch(() => {
+        /* topics load best-effort */
+      });
     return () => {
       cancelled = true;
     };
@@ -294,8 +308,16 @@ function TopicPageInner({ topic }: TopicPageProps) {
           const page = nextPageRef.current;
           nextPageRef.current = page + 1;
           setPostsPage((p) => p + 1);
-          loadPosts(page, true, activeTab === "discussed" ? "ranked" : "recent");
-        } else if (activeTab === "sources" && hasMoreSources && !loadingSources) {
+          loadPosts(
+            page,
+            true,
+            activeTab === "discussed" ? "ranked" : "recent",
+          );
+        } else if (
+          activeTab === "sources" &&
+          hasMoreSources &&
+          !loadingSources
+        ) {
           const next = sourcesPage + 1;
           setSourcesPage(next);
           loadSources(next, true);
@@ -531,8 +553,7 @@ function TopicPageInner({ topic }: TopicPageProps) {
                       className="block p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
                     >
                       <p className="font-medium text-paper truncate">
-                        {s.title ||
-                          (s.url ? new URL(s.url).hostname : "Link")}
+                        {s.title || (s.url ? new URL(s.url).hostname : "Link")}
                       </p>
                       <p className="text-xs text-tertiary truncate mt-0.5">
                         {s.url}

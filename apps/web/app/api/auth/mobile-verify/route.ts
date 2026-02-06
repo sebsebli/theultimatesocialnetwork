@@ -1,27 +1,27 @@
-import { NextResponse } from 'next/server';
-import { getApiUrl, createSecureErrorResponse } from '@/lib/security';
+import { NextResponse } from "next/server";
+import { getApiUrl, createSecureErrorResponse } from "@/lib/security";
 
 // ... (validation functions same as verify/route.ts) ...
 function validateEmail(email: string): boolean {
-  if (!email || typeof email !== 'string') return false;
+  if (!email || typeof email !== "string") return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email) && email.length <= 255;
 }
 
 function validateToken(token: string): boolean {
-  if (!token || typeof token !== 'string') return false;
+  if (!token || typeof token !== "string") return false;
   return /^[a-zA-Z0-9-]{4,50}$/.test(token);
 }
 
 function sanitizeString(input: string, maxLength: number = 1000): string {
-  if (!input || typeof input !== 'string') return '';
-  return input.replace(/\0/g, '').trim().slice(0, maxLength);
+  if (!input || typeof input !== "string") return "";
+  return input.replace(/\0/g, "").trim().slice(0, maxLength);
 }
 
 const API_URL = getApiUrl();
 
 export async function POST(request: Request) {
-  // Mobile app might not send Origin header in the same way, 
+  // Mobile app might not send Origin header in the same way,
   // but we can check if the request looks legitimate or skip Origin check for mobile if needed.
   // For now, let's assume validateOrigin handles null/missing origin gracefully or we skip it.
   // const origin = request.headers.get('origin');
@@ -34,34 +34,42 @@ export async function POST(request: Request) {
     const token = sanitizeString(body.token);
 
     if (!validateEmail(email)) {
-      return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
 
     if (!validateToken(token)) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
+      return NextResponse.json({ error: "Invalid token" }, { status: 400 });
     }
 
     const res = await fetch(`${API_URL}/auth/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, token }),
     });
 
     if (!res.ok) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const data = await res.json();
     const { accessToken, refreshToken, user } = data;
 
-    if (!accessToken || typeof accessToken !== 'string') {
-      return NextResponse.json({ error: 'Invalid response' }, { status: 500 });
+    if (!accessToken || typeof accessToken !== "string") {
+      return NextResponse.json({ error: "Invalid response" }, { status: 500 });
     }
 
     // Return both tokens in body for mobile app to store in SecureStore
-    return NextResponse.json({ success: true, accessToken, refreshToken, user });
-  } catch (_error) {
-    const errorResponse = createSecureErrorResponse('Internal Error', 500);
-    return NextResponse.json({ error: errorResponse.error }, { status: errorResponse.status });
+    return NextResponse.json({
+      success: true,
+      accessToken,
+      refreshToken,
+      user,
+    });
+  } catch {
+    const errorResponse = createSecureErrorResponse("Internal Error", 500);
+    return NextResponse.json(
+      { error: errorResponse.error },
+      { status: errorResponse.status },
+    );
   }
 }

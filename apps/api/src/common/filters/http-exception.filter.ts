@@ -30,7 +30,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         : 'Internal server error';
 
     // Track error metrics
-    const route = request.route?.path ?? request.path ?? 'unknown';
+    const route =
+      (request as { route?: { path?: string } }).route?.path ??
+      (request as { path?: string }).path ??
+      'unknown';
     httpErrorTotal.inc({
       method: request.method,
       route,
@@ -59,9 +62,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     // In production: never leak internal details for 5xx errors
     const safeMessage =
-      this.isProduction && status >= 500
-        ? 'Internal server error'
-        : errorMsg;
+      this.isProduction && status >= 500 ? 'Internal server error' : errorMsg;
 
     // Normalized error response — do NOT expose `path` in production (information leakage)
     const body: Record<string, unknown> = {

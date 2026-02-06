@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from './users.service';
 import { User } from '../entities/user.entity';
@@ -148,7 +148,9 @@ describe('UsersService', () => {
       };
       jest
         .spyOn(postRepo, 'createQueryBuilder')
-        .mockReturnValue(mockQueryBuilder as unknown as any);
+        .mockReturnValue(
+          mockQueryBuilder as unknown as SelectQueryBuilder<Post>,
+        );
 
       await service.getUserPosts(
         'user-id',
@@ -180,7 +182,9 @@ describe('UsersService', () => {
       };
       jest
         .spyOn(postRepo, 'createQueryBuilder')
-        .mockReturnValue(mockQueryBuilder as unknown as any);
+        .mockReturnValue(
+          mockQueryBuilder as unknown as SelectQueryBuilder<Post>,
+        );
 
       await service.getUserPosts(
         'user-id',

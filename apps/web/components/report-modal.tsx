@@ -27,10 +27,9 @@ export function ReportModal({
   targetId,
   targetType,
 }: ReportModalProps) {
-  const t = useTranslations("post"); // Assuming translations are similar or falling back
   const tCommon = useTranslations("common");
   const { success: toastSuccess, error: toastError } = useToast();
-  
+
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [loading, setLoading] = useState(false);

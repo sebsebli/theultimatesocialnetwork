@@ -65,7 +65,8 @@ export function postToPlain(
   if (!p || typeof p !== 'object') return null;
   const deletedAt = (p as { deletedAt?: Date | null }).deletedAt;
   const isDeleted = deletedAt != null;
-  const isPrivateStub = (p as { isPrivateStub?: boolean }).isPrivateStub === true;
+  const isPrivateStub =
+    (p as { isPrivateStub?: boolean }).isPrivateStub === true;
   const canShowContent = viewerCanSeeContent && !isDeleted && !isPrivateStub;
   const headerImageUrl =
     canShowContent && p.headerImageKey && getImageUrl

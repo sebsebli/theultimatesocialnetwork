@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, user, needsOnboarding });
-  } catch (_error) {
+  } catch {
     const errorResponse = createSecureErrorResponse("Internal Error", 500);
     return NextResponse.json(
       { error: errorResponse.error },

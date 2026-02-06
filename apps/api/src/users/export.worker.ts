@@ -27,18 +27,14 @@ export class ExportWorker implements OnApplicationBootstrap {
     private emailService: EmailService,
     private uploadService: UploadService,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async onApplicationBootstrap() {
     await this.eventBus.subscribe<ExportJobData>(
       'data-export',
       async (_event, data) => {
         this.logger.log(`Processing export for user ${data.userId}`);
-        await this.processExport(
-          data.userId,
-          data.email,
-          data.lang || 'en',
-        );
+        await this.processExport(data.userId, data.email, data.lang || 'en');
       },
       { concurrency: 2 },
     );

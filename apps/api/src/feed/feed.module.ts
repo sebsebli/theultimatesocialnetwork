@@ -37,4 +37,4 @@ import { ExploreModule } from '../explore/explore.module';
   providers: [FeedService, FeedFanoutService],
   exports: [FeedFanoutService],
 })
-export class FeedModule { }
+export class FeedModule {}

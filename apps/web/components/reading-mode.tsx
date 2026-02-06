@@ -102,12 +102,9 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
   // Track view when opening reading mode (parity with post detail)
   useEffect(() => {
     if (post.id && post.id !== "preview") {
-      let _cancelled = false;
-      fetch(`/api/posts/${post.id}/view`, { method: "POST" })
-        .catch(() => { /* view tracking best-effort */ });
-      return () => {
-        _cancelled = true;
-      };
+      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => {
+        /* view tracking best-effort */
+      });
     }
   }, [post.id]);
 
@@ -320,9 +317,10 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
                 </Link>
                 <div className="text-tertiary text-sm flex items-center gap-2">
                   {formatDate(post.createdAt)}
-                  {post.readingTimeMinutes != null && post.readingTimeMinutes > 0 && (
-                    <span>· {post.readingTimeMinutes} min read</span>
-                  )}
+                  {post.readingTimeMinutes != null &&
+                    post.readingTimeMinutes > 0 && (
+                      <span>· {post.readingTimeMinutes} min read</span>
+                    )}
                 </div>
               </div>
             </div>
@@ -342,27 +340,27 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
                     const body =
                       post.title != null && post.title !== ""
                         ? stripLeadingH1IfMatch(
-                          post.body,
-                          post.title ?? undefined,
-                        )
+                            post.body,
+                            post.title ?? undefined,
+                          )
                         : displayTitle
                           ? (() => {
-                            const first =
-                              post.body.split("\n")[0]?.trim() ?? "";
-                            if (
-                              first === "# " + displayTitle ||
-                              first === "#" + displayTitle
-                            )
-                              return stripLeadingH1IfMatch(
-                                post.body,
-                                displayTitle,
-                              );
-                            return post.body.includes("\n")
-                              ? post.body
-                                .slice(post.body.indexOf("\n") + 1)
-                                .trimStart()
-                              : "";
-                          })()
+                              const first =
+                                post.body.split("\n")[0]?.trim() ?? "";
+                              if (
+                                first === "# " + displayTitle ||
+                                first === "#" + displayTitle
+                              )
+                                return stripLeadingH1IfMatch(
+                                  post.body,
+                                  displayTitle,
+                                );
+                              return post.body.includes("\n")
+                                ? post.body
+                                    .slice(post.body.indexOf("\n") + 1)
+                                    .trimStart()
+                                : "";
+                            })()
                           : post.body;
                     return renderMarkdownForReading(
                       body,

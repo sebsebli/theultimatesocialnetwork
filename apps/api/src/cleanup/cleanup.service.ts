@@ -80,7 +80,7 @@ export class CleanupService {
         headerImageKey: null,
         headerImageBlurhash: null,
         media: null,
-        visibility: 'PUBLIC' as any, // Reset visibility
+        visibility: 'PUBLIC' as 'PUBLIC' | 'PRIVATE' | 'UNLISTED', // Reset visibility
         status: 'PUBLISHED', // Keep published state for graph consistency
         updatedAt: new Date(),
         // deletedAt remains set, so it's still "soft deleted" in queries
@@ -92,7 +92,9 @@ export class CleanupService {
       .execute();
 
     if (result.affected && result.affected > 0) {
-      this.logger.log(`Anonymized ${result.affected} old posts (GDPR cleanup).`);
+      this.logger.log(
+        `Anonymized ${result.affected} old posts (GDPR cleanup).`,
+      );
     }
   }
 
@@ -109,37 +111,39 @@ export class CleanupService {
       .where('u.deleted_at IS NOT NULL')
       .andWhere('u.deleted_at < :date', { date: thirtyDaysAgo })
       .getMany();
-    
-    const userIds = usersToDelete.map(u => u.id);
-    
-    if (userIds.length > 0) {
-        // Anonymize posts immediately for these users
-        await this.postRepo
-            .createQueryBuilder()
-            .update(Post)
-            .set({
-                authorId: null,
-                body: '', // We also clear body as it implies authorship/personal data
-                headerImageKey: null,
-                headerImageBlurhash: null,
-                media: null,
-                updatedAt: new Date(),
-                deletedAt: new Date(), // Mark as deleted if not already
-            })
-            .where('author_id IN (:...userIds)', { userIds })
-            .execute();
 
-        // Now hard delete the users
-        const result = await this.userRepo
+    const userIds = usersToDelete.map((u) => u.id);
+
+    if (userIds.length > 0) {
+      // Anonymize posts immediately for these users
+      await this.postRepo
+        .createQueryBuilder()
+        .update(Post)
+        .set({
+          authorId: null,
+          body: '', // We also clear body as it implies authorship/personal data
+          headerImageKey: null,
+          headerImageBlurhash: null,
+          media: null,
+          updatedAt: new Date(),
+          deletedAt: new Date(), // Mark as deleted if not already
+        })
+        .where('author_id IN (:...userIds)', { userIds })
+        .execute();
+
+      // Now hard delete the users
+      const result = await this.userRepo
         .createQueryBuilder()
         .delete()
         .from(User)
         .where('id IN (:...userIds)', { userIds })
         .execute();
 
-        if (result.affected && result.affected > 0) {
-            this.logger.log(`Hard deleted ${result.affected} old users and anonymized their posts.`);
-        }
+      if (result.affected && result.affected > 0) {
+        this.logger.log(
+          `Hard deleted ${result.affected} old users and anonymized their posts.`,
+        );
+      }
     }
   }
 }

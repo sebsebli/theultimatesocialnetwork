@@ -16,7 +16,12 @@ import { randomInt, randomBytes, createHash } from 'crypto';
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- otplib v2 flat API
 const otplib = require('otplib') as {
   generateSecret: () => string;
-  generateURI: (opts: { issuer: string; label: string; secret: string; type: string }) => string;
+  generateURI: (opts: {
+    issuer: string;
+    label: string;
+    secret: string;
+    type: string;
+  }) => string;
   verifySync: (opts: { token: string; secret: string }) => { valid: boolean };
 };
 
@@ -50,7 +55,7 @@ export class AuthService {
     private emailService: EmailService,
     private configService: ConfigService,
     private meilisearch: MeilisearchService,
-  ) { }
+  ) {}
 
   async login(email: string, inviteCode?: string, lang: string = 'en') {
     // 1. Account lockout check
@@ -118,7 +123,9 @@ export class AuthService {
             const parsed = JSON.parse(storedData) as { inviteCode?: string };
             storedInviteCode = parsed.inviteCode;
           }
-        } catch { /* ignore parse errors */ }
+        } catch {
+          /* ignore parse errors */
+        }
         const user = await this.validateOrCreateUser(email, storedInviteCode);
         await this.resetLoginAttempts(user.id);
         return this.generateTokens(user, sessionMeta);
@@ -405,13 +412,21 @@ export class AuthService {
       (user.handle && user.handle.trim()) ||
       user.id ||
       'user';
-    const otpauthUrl = otplib.generateURI({ issuer: 'Citewalk', label: accountName, secret, type: 'totp' });
+    const otpauthUrl = otplib.generateURI({
+      issuer: 'Citewalk',
+      label: accountName,
+      secret,
+      type: 'totp',
+    });
 
     return { secret, otpauthUrl };
   }
 
   /** Generate backup codes for 2FA recovery. Returns plain codes (show once to user). */
-  private generateBackupCodes(): { plainCodes: string[]; hashedCodes: { hash: string; used: boolean }[] } {
+  private generateBackupCodes(): {
+    plainCodes: string[];
+    hashedCodes: { hash: string; used: boolean }[];
+  } {
     const plainCodes: string[] = [];
     const hashedCodes: { hash: string; used: boolean }[] = [];
     for (let i = 0; i < BACKUP_CODE_COUNT; i++) {
@@ -469,7 +484,11 @@ export class AuthService {
 
     if (!isValid) {
       // Try backup code
-      const backupUsed = await this.tryBackupCode(userId, token, user.twoFactorBackupCodes);
+      const backupUsed = await this.tryBackupCode(
+        userId,
+        token,
+        user.twoFactorBackupCodes,
+      );
       if (!backupUsed) {
         throw new UnauthorizedException('Invalid 2FA code');
       }
@@ -487,9 +506,7 @@ export class AuthService {
     if (!backupCodes || backupCodes.length === 0) return false;
 
     const codeHash = sha256(code.trim().toLowerCase());
-    const idx = backupCodes.findIndex(
-      (bc) => bc.hash === codeHash && !bc.used,
-    );
+    const idx = backupCodes.findIndex((bc) => bc.hash === codeHash && !bc.used);
     if (idx === -1) return false;
 
     // Mark as used
@@ -513,7 +530,10 @@ export class AuthService {
     if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
       throw new BadRequestException('2FA is not enabled');
     }
-    const isValid = otplib.verifySync({ token, secret: user.twoFactorSecret }).valid;
+    const isValid = otplib.verifySync({
+      token,
+      secret: user.twoFactorSecret,
+    }).valid;
     if (!isValid) throw new BadRequestException('Invalid TOTP code');
 
     const { plainCodes, hashedCodes } = this.generateBackupCodes();
@@ -539,8 +559,13 @@ export class AuthService {
       secret: user.twoFactorSecret,
     }).valid;
     if (!isValid) {
-      const backupUsed = await this.tryBackupCode(userId, token, user.twoFactorBackupCodes);
-      if (!backupUsed) throw new BadRequestException('Invalid TOTP or backup code');
+      const backupUsed = await this.tryBackupCode(
+        userId,
+        token,
+        user.twoFactorBackupCodes,
+      );
+      if (!backupUsed)
+        throw new BadRequestException('Invalid TOTP or backup code');
     }
 
     await this.userRepo.update(userId, {

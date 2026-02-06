@@ -29,10 +29,7 @@ export async function getAuthorProtectedMap(
   );
 
   for (const row of rows ?? []) {
-    result.set(
-      row.id,
-      row.is_protected === true || row.is_protected === 't',
-    );
+    result.set(row.id, row.is_protected === true || row.is_protected === 't');
   }
 
   return result;

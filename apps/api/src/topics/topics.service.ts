@@ -14,27 +14,27 @@ import { UploadService } from '../upload/upload.service';
 
 export type TopicSourceItem =
   | {
-    type: 'external';
-    id: string;
-    url: string;
-    title: string | null;
-    createdAt: Date;
-  }
+      type: 'external';
+      id: string;
+      url: string;
+      title: string | null;
+      createdAt: Date;
+    }
   | {
-    type: 'post';
-    id: string;
-    title: string | null;
-    createdAt: Date;
-    headerImageKey: string | null;
-    authorHandle: string | null;
-  }
+      type: 'post';
+      id: string;
+      title: string | null;
+      createdAt: Date;
+      headerImageKey: string | null;
+      authorHandle: string | null;
+    }
   | {
-    type: 'topic';
-    id: string;
-    slug: string;
-    title: string;
-    createdAt: Date;
-  };
+      type: 'topic';
+      id: string;
+      slug: string;
+      title: string;
+      createdAt: Date;
+    };
 
 @Injectable()
 export class TopicsService {
@@ -52,7 +52,7 @@ export class TopicsService {
     private exploreService: ExploreService,
     private graphCompute: GraphComputeService,
     private uploadService: UploadService,
-  ) { }
+  ) {}
 
   async findOne(slugOrId: string, viewerId?: string) {
     let topic: Topic | null = null;
@@ -84,7 +84,13 @@ export class TopicsService {
 
     try {
       // Run all enrichment queries in parallel for speed
-      const [startHereResult, recentResult, postCountRow, contributorRow, relatedResult] = await Promise.all([
+      const [
+        startHereResult,
+        recentResult,
+        postCountRow,
+        contributorRow,
+        relatedResult,
+      ] = await Promise.all([
         this.exploreService.getTopicStartHere(topic.id, 10, viewerId),
         this.getRecentPostForTopic(topic.id, viewerId),
         this.postTopicRepo
@@ -115,18 +121,18 @@ export class TopicsService {
 
     const recentPostImageUrl =
       recentPostData?.headerImageKey != null &&
-        recentPostData.headerImageKey !== ''
+      recentPostData.headerImageKey !== ''
         ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
         : null;
     const recentPost = recentPostData
       ? {
-        ...recentPostData,
-        headerImageUrl:
-          recentPostData.headerImageKey != null &&
+          ...recentPostData,
+          headerImageUrl:
+            recentPostData.headerImageKey != null &&
             recentPostData.headerImageKey !== ''
-            ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
-            : null,
-      }
+              ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
+              : null,
+        }
       : null;
 
     return {
@@ -179,12 +185,12 @@ export class TopicsService {
     const bodyExcerpt =
       body && typeof body === 'string'
         ? body
-          .replace(/#{1,6}\s*/g, '')
-          .replace(/\*\*([^*]+)\*\*/g, '$1')
-          .replace(/_([^_]+)_/g, '$1')
-          .replace(/\n+/g, ' ')
-          .trim()
-          .slice(0, 120) + (body.length > 120 ? '…' : '')
+            .replace(/#{1,6}\s*/g, '')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/_([^_]+)_/g, '$1')
+            .replace(/\n+/g, ' ')
+            .trim()
+            .slice(0, 120) + (body.length > 120 ? '…' : '')
         : '';
     return {
       id: p.id,
@@ -255,7 +261,10 @@ export class TopicsService {
         query.andWhere('author.is_protected = false');
       }
 
-      const posts = await query.skip(offset).take(limit + 1).getMany();
+      const posts = await query
+        .skip(offset)
+        .take(limit + 1)
+        .getMany();
       const hasMore = posts.length > limit;
       const items = posts.slice(0, limit);
       return { items, hasMore };
@@ -378,14 +387,15 @@ export class TopicsService {
       );
       visiblePostIds = new Set(visible.map((p) => p.id));
     } else {
-      const publicIds = (await this.postRepo.query(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const publicIds: Array<{ id: string }> = await this.postRepo.query(
         `
         SELECT p.id FROM posts p
         INNER JOIN users u ON u.id = p.author_id AND u.is_protected = false
         WHERE p.id = ANY($1::uuid[]) AND p.deleted_at IS NULL
         `,
         [topicPostIds],
-      )) as { id: string }[];
+      );
       visiblePostIds = new Set(publicIds.map((r) => r.id));
     }
 
@@ -394,13 +404,6 @@ export class TopicsService {
       : `INNER JOIN users postAuthor ON postAuthor.id = p.author_id AND postAuthor.is_protected = false`;
 
     // 2) External sources (distinct by url) from visible topic posts
-    type ExtRow = {
-      id: string;
-      url: string;
-      title: string | null;
-      createdAt: Date;
-      postId: string;
-    };
     const extQuery =
       viewerId === undefined
         ? `
@@ -428,20 +431,20 @@ export class TopicsService {
       `;
     const extParams =
       viewerId === undefined ? [topicId] : [topicId, [...visiblePostIds]];
-    const extRows = (await this.externalSourceRepo.query(
-      extQuery,
-      extParams,
-    )) as ExtRow[];
-    const externalItems: TopicSourceItem[] = extRows.map(
-      (r) =>
-        ({
-          type: 'external',
-          id: r.id,
-          url: r.url,
-          title: r.title,
-          createdAt: r.createdAt,
-        }) as TopicSourceItem,
-    );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const extRows: Array<{
+      id: string;
+      url: string;
+      title: string;
+      createdAt: string;
+    }> = await this.externalSourceRepo.query(extQuery, extParams);
+    const externalItems: TopicSourceItem[] = extRows.map((r) => ({
+      type: 'external',
+      id: r.id,
+      url: r.url,
+      title: r.title,
+      createdAt: r.createdAt,
+    }));
 
     // 3) Linked posts (LINK edges from visible topic posts); dedupe by to_post_id
     const edges = await this.postEdgeRepo.find({
@@ -500,9 +503,9 @@ export class TopicsService {
       otherTopicIds.length === 0
         ? []
         : await this.topicRepo.find({
-          where: { id: In(otherTopicIds) },
-          select: ['id', 'slug', 'title', 'createdAt'],
-        });
+            where: { id: In(otherTopicIds) },
+            select: ['id', 'slug', 'title', 'createdAt'],
+          });
     const topicItems: TopicSourceItem[] = topics.map((t) => ({
       type: 'topic',
       id: t.id,

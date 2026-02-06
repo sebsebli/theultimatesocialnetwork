@@ -15,27 +15,27 @@ import { UploadService } from '../upload/upload.service';
 
 export type CollectionSourceItem =
   | {
-    type: 'external';
-    id: string;
-    url: string;
-    title: string | null;
-    createdAt: Date;
-  }
+      type: 'external';
+      id: string;
+      url: string;
+      title: string | null;
+      createdAt: Date;
+    }
   | {
-    type: 'post';
-    id: string;
-    title: string | null;
-    createdAt: Date;
-    headerImageKey: string | null;
-    authorHandle: string | null;
-  }
+      type: 'post';
+      id: string;
+      title: string | null;
+      createdAt: Date;
+      headerImageKey: string | null;
+      authorHandle: string | null;
+    }
   | {
-    type: 'topic';
-    id: string;
-    slug: string;
-    title: string;
-    createdAt: Date;
-  };
+      type: 'topic';
+      id: string;
+      slug: string;
+      title: string;
+      createdAt: Date;
+    };
 
 @Injectable()
 export class CollectionsService {
@@ -54,7 +54,7 @@ export class CollectionsService {
     private externalSourceRepo: Repository<ExternalSource>,
     private exploreService: ExploreService,
     private uploadService: UploadService,
-  ) { }
+  ) {}
 
   async create(
     userId: string,
@@ -207,12 +207,12 @@ export class CollectionsService {
       const body = row.bodyRaw ?? '';
       const bodyExcerpt = body
         ? body
-          .replace(/#{1,6}\s*/g, '')
-          .replace(/\*\*([^*]+)\*\*/g, '$1')
-          .replace(/_([^_]+)_/g, '$1')
-          .replace(/\n+/g, ' ')
-          .trim()
-          .slice(0, 120) + (body.length > 120 ? '…' : '')
+            .replace(/#{1,6}\s*/g, '')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/_([^_]+)_/g, '$1')
+            .replace(/\n+/g, ' ')
+            .trim()
+            .slice(0, 120) + (body.length > 120 ? '…' : '')
         : '';
       out[row.collectionId] = {
         postId: row.postId ?? '',
@@ -297,13 +297,18 @@ export class CollectionsService {
     }
 
     if (sort === 'ranked') {
-      qb.orderBy('(p.quoteCount * 3 + p.replyCount)', 'DESC')
-        .addOrderBy('p.createdAt', 'DESC');
+      qb.orderBy('(p.quoteCount * 3 + p.replyCount)', 'DESC').addOrderBy(
+        'p.createdAt',
+        'DESC',
+      );
     } else {
       qb.orderBy('p.createdAt', 'DESC');
     }
 
-    const items = await qb.skip(offset).take(limit + 1).getMany();
+    const items = await qb
+      .skip(offset)
+      .take(limit + 1)
+      .getMany();
     const hasMore = items.length > limit;
     const slice = items.slice(0, limit);
     return { items: slice, hasMore };
@@ -400,14 +405,15 @@ export class CollectionsService {
       );
       visiblePostIds = new Set(visible.map((p) => p.id));
     } else {
-      const publicIds = (await this.postRepo.query(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const publicIds: Array<{ id: string }> = await this.postRepo.query(
         `
         SELECT p.id FROM posts p
         INNER JOIN users u ON u.id = p.author_id AND u.is_protected = false
         WHERE p.id = ANY($1::uuid[]) AND p.deleted_at IS NULL
         `,
         [collectionPostIds],
-      )) as { id: string }[];
+      );
       visiblePostIds = new Set(publicIds.map((r) => r.id));
     }
 
@@ -416,13 +422,6 @@ export class CollectionsService {
       : `INNER JOIN users postAuthor ON postAuthor.id = p.author_id AND postAuthor.is_protected = false`;
 
     // 2) External sources (distinct by url) from visible collection posts
-    type ExtRow = {
-      id: string;
-      url: string;
-      title: string | null;
-      createdAt: Date;
-      postId: string;
-    };
     const extQuery =
       viewerId === undefined
         ? `
@@ -452,19 +451,20 @@ export class CollectionsService {
       viewerId === undefined
         ? [collectionId]
         : [collectionId, [...visiblePostIds]];
-    const extRows = (await this.externalSourceRepo.query(
-      extQuery,
-      extParams,
-    )) as ExtRow[];
-    const externalItems: CollectionSourceItem[] = extRows.map(
-      (r) => ({
-        type: 'external',
-        id: r.id,
-        url: r.url,
-        title: r.title,
-        createdAt: r.createdAt,
-      }),
-    );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const extRows: Array<{
+      id: string;
+      url: string;
+      title: string;
+      createdAt: string;
+    }> = await this.externalSourceRepo.query(extQuery, extParams);
+    const externalItems: CollectionSourceItem[] = extRows.map((r) => ({
+      type: 'external',
+      id: r.id,
+      url: r.url,
+      title: r.title,
+      createdAt: r.createdAt,
+    }));
 
     // 3) Linked posts (LINK edges from visible collection posts)
     const edges = await this.postEdgeRepo.find({
@@ -522,9 +522,9 @@ export class CollectionsService {
       topicIds.length === 0
         ? []
         : await this.topicRepo.find({
-          where: { id: In(topicIds) },
-          select: ['id', 'slug', 'title', 'createdAt'],
-        });
+            where: { id: In(topicIds) },
+            select: ['id', 'slug', 'title', 'createdAt'],
+          });
     const topicItems: CollectionSourceItem[] = topics.map((t) => ({
       type: 'topic',
       id: t.id,

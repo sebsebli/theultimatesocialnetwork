@@ -25,7 +25,10 @@ export function createRedisClient(
   isCluster?: boolean,
   options?: Record<string, any>,
 ): Redis | Cluster {
-  const urls = redisUrl.split(',').map((u) => u.trim()).filter(Boolean);
+  const urls = redisUrl
+    .split(',')
+    .map((u) => u.trim())
+    .filter(Boolean);
   const useCluster = isCluster || urls.length > 1;
 
   if (useCluster) {
@@ -56,7 +59,7 @@ export function createRedisClient(
       },
       enableReadyCheck: true,
       slotsRefreshTimeout: 5000,
-    }) as any; // Cluster extends Redis and is API-compatible
+    }) as Redis | Cluster; // Cluster extends Redis and is API-compatible
   }
 
   // Standalone mode

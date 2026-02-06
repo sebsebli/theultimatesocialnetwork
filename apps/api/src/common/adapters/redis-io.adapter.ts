@@ -26,7 +26,8 @@ export class RedisIoAdapter extends IoAdapter {
       const pubClient = createClient({
         url: redisUrl,
         socket: {
-          reconnectStrategy: (retries: number) => Math.min(retries * 200, 10000),
+          reconnectStrategy: (retries: number) =>
+            Math.min(retries * 200, 10000),
           connectTimeout: 10000,
           keepAlive: true,
         },
@@ -45,7 +46,10 @@ export class RedisIoAdapter extends IoAdapter {
       await Promise.all([pubClient.connect(), subClient.connect()]);
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      this.adapterConstructor = createAdapter(pubClient as RedisClientType, subClient as RedisClientType);
+      this.adapterConstructor = createAdapter(
+        pubClient as RedisClientType,
+        subClient as RedisClientType,
+      );
       this.usingRedis = true;
       this.logger.log(`WebSocket adapter: Redis (${redisUrl})`);
     } catch (err) {

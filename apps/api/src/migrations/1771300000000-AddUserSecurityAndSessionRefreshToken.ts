@@ -5,8 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - users: failed_login_attempts, locked_until (account lockout)
  * - sessions: refresh_token_hash (for refresh token validation)
  */
-export class AddUserSecurityAndSessionRefreshToken1771300000000
-  implements MigrationInterface {
+export class AddUserSecurityAndSessionRefreshToken1771300000000 implements MigrationInterface {
   name = 'AddUserSecurityAndSessionRefreshToken1771300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

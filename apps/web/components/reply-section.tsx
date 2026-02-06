@@ -95,9 +95,19 @@ function ReplySectionInner({
     const el = document.getElementById(`reply-${highlightReplyId}`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.classList.add("ring-2", "ring-primary", "ring-offset-2", "ring-offset-ink");
+      el.classList.add(
+        "ring-2",
+        "ring-primary",
+        "ring-offset-2",
+        "ring-offset-ink",
+      );
       const t = setTimeout(() => {
-        el.classList.remove("ring-2", "ring-primary", "ring-offset-2", "ring-offset-ink");
+        el.classList.remove(
+          "ring-2",
+          "ring-primary",
+          "ring-offset-2",
+          "ring-offset-ink",
+        );
       }, 3000);
       return () => clearTimeout(t);
     }
@@ -115,7 +125,9 @@ function ReplySectionInner({
       });
     };
     sync(replies);
-    Object.values(childrenByParent).flat().forEach((r) => sync([r]));
+    Object.values(childrenByParent)
+      .flat()
+      .forEach((r) => sync([r]));
     setLikedReplyIds(liked);
     setLikeCounts(counts);
   }, [replies, childrenByParent]);
@@ -145,12 +157,18 @@ function ReplySectionInner({
       });
       setLikeCounts((prev) => ({
         ...prev,
-        [replyId]: Math.max(0, (prev[replyId] ?? 0) + (currentlyLiked ? -1 : 1)),
+        [replyId]: Math.max(
+          0,
+          (prev[replyId] ?? 0) + (currentlyLiked ? -1 : 1),
+        ),
       }));
       try {
         const res = await fetch(
           `/api/posts/${postId}/replies/${replyId}/like`,
-          { method: currentlyLiked ? "DELETE" : "POST", credentials: "include" },
+          {
+            method: currentlyLiked ? "DELETE" : "POST",
+            credentials: "include",
+          },
         );
         if (!res.ok) throw new Error("Failed");
       } catch {
@@ -162,7 +180,10 @@ function ReplySectionInner({
         });
         setLikeCounts((prev) => ({
           ...prev,
-          [replyId]: Math.max(0, (prev[replyId] ?? 0) + (currentlyLiked ? 1 : -1)),
+          [replyId]: Math.max(
+            0,
+            (prev[replyId] ?? 0) + (currentlyLiked ? 1 : -1),
+          ),
         }));
         toastError("Failed to update like");
       }
@@ -174,15 +195,17 @@ function ReplySectionInner({
     async (replyId: string, parentReplyId: string | null) => {
       if (!postId) return;
       try {
-        const res = await fetch(
-          `/api/posts/${postId}/replies/${replyId}`,
-          { method: "DELETE", credentials: "include" },
-        );
+        const res = await fetch(`/api/posts/${postId}/replies/${replyId}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
         if (!res.ok) throw new Error("Failed");
         if (parentReplyId) {
           setChildrenByParent((prev) => ({
             ...prev,
-            [parentReplyId]: (prev[parentReplyId] || []).filter((r) => r.id !== replyId),
+            [parentReplyId]: (prev[parentReplyId] || []).filter(
+              (r) => r.id !== replyId,
+            ),
           }));
         } else {
           setReplies((prev) => prev.filter((r) => r.id !== replyId));
@@ -255,12 +278,12 @@ function ReplySectionInner({
             saved.author ??
             (user
               ? {
-                id: user.id,
-                handle: user.handle ?? "",
-                displayName: user.displayName ?? "",
-                avatarKey: user.avatarKey ?? null,
-                avatarUrl: user.avatarUrl ?? null,
-              }
+                  id: user.id,
+                  handle: user.handle ?? "",
+                  displayName: user.displayName ?? "",
+                  avatarKey: user.avatarKey ?? null,
+                  avatarUrl: user.avatarUrl ?? null,
+                }
               : saved.author),
         };
         if (parentReplyId) {
@@ -390,259 +413,263 @@ function ReplySectionInner({
       ) : (
         <div className="space-y-4">
           {rootReplies.map((reply) => (
-              <div
-                key={reply.id}
-                id={`reply-${reply.id}`}
-                className="pl-4 border-l-2 border-divider rounded-r transition-[box-shadow]"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <Link href={`/user/${reply.author.handle}`}>
-                    <Avatar
-                      avatarKey={reply.author.avatarKey}
-                      avatarUrl={reply.author.avatarUrl}
-                      displayName={reply.author.displayName}
-                      handle={reply.author.handle}
-                      size="sm"
-                    />
-                  </Link>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <Link href={`/user/${reply.author.handle}`}>
-                        <span className="text-sm font-semibold text-paper hover:text-primary">
-                          {reply.author.displayName}
-                        </span>
-                      </Link>
-                      <div className="flex items-center gap-2">
-                        {user && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReplyingToReplyId(reply.id);
-                              setShowReplyBox(true);
-                            }}
-                            className="text-primary text-xs font-medium hover:underline"
-                            aria-label={`Reply to ${reply.author.displayName}`}
-                          >
-                            {t("comment")}
-                          </button>
-                        )}
-                        <OverflowMenu
-                          replyId={reply.id}
-                          userId={reply.author.id}
-                          userHandle={reply.author.handle}
-                          isAuthor={user?.id === reply.author.id}
-                          onDelete={
-                            user?.id === reply.author.id
-                              ? () => handleDeleteReply(reply.id, null)
-                              : undefined
-                          }
-                        />
-                      </div>
+            <div
+              key={reply.id}
+              id={`reply-${reply.id}`}
+              className="pl-4 border-l-2 border-divider rounded-r transition-[box-shadow]"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Link href={`/user/${reply.author.handle}`}>
+                  <Avatar
+                    avatarKey={reply.author.avatarKey}
+                    avatarUrl={reply.author.avatarUrl}
+                    displayName={reply.author.displayName}
+                    handle={reply.author.handle}
+                    size="sm"
+                  />
+                </Link>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <Link href={`/user/${reply.author.handle}`}>
+                      <span className="text-sm font-semibold text-paper hover:text-primary">
+                        {reply.author.displayName}
+                      </span>
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      {user && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReplyingToReplyId(reply.id);
+                            setShowReplyBox(true);
+                          }}
+                          className="text-primary text-xs font-medium hover:underline"
+                          aria-label={`Reply to ${reply.author.displayName}`}
+                        >
+                          {t("comment")}
+                        </button>
+                      )}
+                      <OverflowMenu
+                        replyId={reply.id}
+                        userId={reply.author.id}
+                        userHandle={reply.author.handle}
+                        isAuthor={user?.id === reply.author.id}
+                        onDelete={
+                          user?.id === reply.author.id
+                            ? () => handleDeleteReply(reply.id, null)
+                            : undefined
+                        }
+                      />
                     </div>
-                    <span className="text-xs text-tertiary ml-2 -mt-1 block">
-                      @{reply.author.handle} • {formatTime(reply.createdAt)}
-                    </span>
                   </div>
+                  <span className="text-xs text-tertiary ml-2 -mt-1 block">
+                    @{reply.author.handle} • {formatTime(reply.createdAt)}
+                  </span>
                 </div>
-                <p className="text-sm text-secondary leading-relaxed">
-                  {reply.body}
-                </p>
-                <div className="flex items-center gap-3 mt-1">
-                  {user && (
+              </div>
+              <p className="text-sm text-secondary leading-relaxed">
+                {reply.body}
+              </p>
+              <div className="flex items-center gap-3 mt-1">
+                {user && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleLikeReply(
+                        reply.id,
+                        likedReplyIds.has(reply.id) ?? reply.isLiked ?? false,
+                      )
+                    }
+                    className="flex items-center gap-1 text-tertiary hover:text-paper text-xs"
+                    aria-label={
+                      likedReplyIds.has(reply.id) || reply.isLiked
+                        ? "Unlike reply"
+                        : "Like reply"
+                    }
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill={
+                        likedReplyIds.has(reply.id) || reply.isLiked
+                          ? "currentColor"
+                          : "none"
+                      }
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                    <span>
+                      {likeCounts[reply.id] ??
+                        reply.privateLikeCount ??
+                        reply.likeCount ??
+                        0}
+                    </span>
+                  </button>
+                )}
+              </div>
+              {(reply.subreplyCount ?? 0) > 0 && (
+                <div className="mt-2">
+                  {!expandedParents.has(reply.id) ? (
                     <button
                       type="button"
-                      onClick={() =>
-                        handleLikeReply(
-                          reply.id,
-                          likedReplyIds.has(reply.id) ?? reply.isLiked ?? false,
-                        )
-                      }
-                      className="flex items-center gap-1 text-tertiary hover:text-paper text-xs"
-                      aria-label={
-                        likedReplyIds.has(reply.id) || reply.isLiked
-                          ? "Unlike reply"
-                          : "Like reply"
-                      }
+                      onClick={() => loadChildren(reply.id)}
+                      className="text-primary text-xs font-medium hover:underline"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill={
-                          likedReplyIds.has(reply.id) || reply.isLiked
-                            ? "currentColor"
-                            : "none"
-                        }
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                        />
-                      </svg>
-                      <span>
-                        {likeCounts[reply.id] ??
-                          reply.privateLikeCount ??
-                          reply.likeCount ??
-                          0}
-                      </span>
+                      {t("viewComments", { count: reply.subreplyCount ?? 0 })}
                     </button>
-                  )}
-                </div>
-                {(reply.subreplyCount ?? 0) > 0 && (
-                  <div className="mt-2">
-                    {!expandedParents.has(reply.id) ? (
-                      <button
-                        type="button"
-                        onClick={() => loadChildren(reply.id)}
-                        className="text-primary text-xs font-medium hover:underline"
-                      >
-                        {t("viewComments", { count: reply.subreplyCount ?? 0 })}
-                      </button>
-                    ) : (
-                      <div className="mt-3 space-y-3 pl-4 border-l-2 border-divider/70">
-                        {(childrenByParent[reply.id] || []).map((child) => (
-                          <div key={child.id} id={`reply-${child.id}`} className="rounded transition-[box-shadow]">
-                            <div className="flex items-center gap-3 mb-1">
-                              <Link href={`/user/${child.author.handle}`}>
-                                <Avatar
-                                  avatarKey={child.author.avatarKey}
-                                  avatarUrl={child.author.avatarUrl}
-                                  displayName={child.author.displayName}
-                                  handle={child.author.handle}
-                                  size="sm"
-                                />
-                              </Link>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between">
-                                  <Link href={`/user/${child.author.handle}`}>
-                                    <span className="text-sm font-semibold text-paper hover:text-primary">
-                                      {child.author.displayName}
-                                    </span>
-                                  </Link>
-                                  <div className="flex items-center gap-2">
-                                    {user && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setReplyingToReplyId(child.id);
-                                          setShowReplyBox(true);
-                                        }}
-                                        className="text-primary text-xs font-medium hover:underline"
-                                        aria-label={`Reply to ${child.author.displayName}`}
-                                      >
-                                        {t("comment")}
-                                      </button>
-                                    )}
-                                    <OverflowMenu
-                                      replyId={child.id}
-                                      userId={child.author.id}
-                                      userHandle={child.author.handle}
-                                      isAuthor={user?.id === child.author.id}
-                                      onDelete={
-                                        user?.id === child.author.id
-                                          ? () =>
+                  ) : (
+                    <div className="mt-3 space-y-3 pl-4 border-l-2 border-divider/70">
+                      {(childrenByParent[reply.id] || []).map((child) => (
+                        <div
+                          key={child.id}
+                          id={`reply-${child.id}`}
+                          className="rounded transition-[box-shadow]"
+                        >
+                          <div className="flex items-center gap-3 mb-1">
+                            <Link href={`/user/${child.author.handle}`}>
+                              <Avatar
+                                avatarKey={child.author.avatarKey}
+                                avatarUrl={child.author.avatarUrl}
+                                displayName={child.author.displayName}
+                                handle={child.author.handle}
+                                size="sm"
+                              />
+                            </Link>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <Link href={`/user/${child.author.handle}`}>
+                                  <span className="text-sm font-semibold text-paper hover:text-primary">
+                                    {child.author.displayName}
+                                  </span>
+                                </Link>
+                                <div className="flex items-center gap-2">
+                                  {user && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setReplyingToReplyId(child.id);
+                                        setShowReplyBox(true);
+                                      }}
+                                      className="text-primary text-xs font-medium hover:underline"
+                                      aria-label={`Reply to ${child.author.displayName}`}
+                                    >
+                                      {t("comment")}
+                                    </button>
+                                  )}
+                                  <OverflowMenu
+                                    replyId={child.id}
+                                    userId={child.author.id}
+                                    userHandle={child.author.handle}
+                                    isAuthor={user?.id === child.author.id}
+                                    onDelete={
+                                      user?.id === child.author.id
+                                        ? () =>
                                             handleDeleteReply(
                                               child.id,
                                               reply.id,
                                             )
-                                          : undefined
-                                      }
-                                    />
-                                  </div>
+                                        : undefined
+                                    }
+                                  />
                                 </div>
-                                <span className="text-xs text-tertiary">
-                                  @{child.author.handle} •{" "}
-                                  {formatTime(child.createdAt)}
-                                </span>
                               </div>
+                              <span className="text-xs text-tertiary">
+                                @{child.author.handle} •{" "}
+                                {formatTime(child.createdAt)}
+                              </span>
                             </div>
-                            <p className="text-sm text-secondary leading-relaxed">
-                              {child.body}
-                            </p>
-                            {user && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleLikeReply(
-                                    child.id,
-                                    likedReplyIds.has(child.id) ??
+                          </div>
+                          <p className="text-sm text-secondary leading-relaxed">
+                            {child.body}
+                          </p>
+                          {user && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleLikeReply(
+                                  child.id,
+                                  likedReplyIds.has(child.id) ??
                                     child.isLiked ??
                                     false,
-                                  )
-                                }
-                                className="flex items-center gap-1 text-tertiary hover:text-paper text-xs mt-1"
-                                aria-label={
+                                )
+                              }
+                              className="flex items-center gap-1 text-tertiary hover:text-paper text-xs mt-1"
+                              aria-label={
+                                likedReplyIds.has(child.id) || child.isLiked
+                                  ? "Unlike reply"
+                                  : "Like reply"
+                              }
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill={
                                   likedReplyIds.has(child.id) || child.isLiked
-                                    ? "Unlike reply"
-                                    : "Like reply"
+                                    ? "currentColor"
+                                    : "none"
                                 }
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
                               >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill={
-                                    likedReplyIds.has(child.id) || child.isLiked
-                                      ? "currentColor"
-                                      : "none"
-                                  }
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                                  />
-                                </svg>
-                                <span>
-                                  {likeCounts[child.id] ??
-                                    child.privateLikeCount ??
-                                    child.likeCount ??
-                                    0}
-                                </span>
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {replyingToReplyId === reply.id && showReplyBox && (
-                  <form onSubmit={handleSubmitReply} className="mt-3">
-                    <textarea
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      placeholder={t("writeComment")}
-                      className="w-full min-h-[80px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                      autoFocus
-                    />
-                    <div className="flex justify-end gap-2 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowReplyBox(false);
-                          setReplyingToReplyId(null);
-                          setReplyText("");
-                        }}
-                        className="text-secondary text-sm hover:text-paper"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={!replyText.trim()}
-                        className="px-3 py-1.5 bg-primary text-white rounded-full text-sm disabled:opacity-50"
-                      >
-                        {t("postComment")}
-                      </button>
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                                />
+                              </svg>
+                              <span>
+                                {likeCounts[child.id] ??
+                                  child.privateLikeCount ??
+                                  child.likeCount ??
+                                  0}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  </form>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              )}
+              {replyingToReplyId === reply.id && showReplyBox && (
+                <form onSubmit={handleSubmitReply} className="mt-3">
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder={t("writeComment")}
+                    className="w-full min-h-[80px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowReplyBox(false);
+                        setReplyingToReplyId(null);
+                        setReplyText("");
+                      }}
+                      className="text-secondary text-sm hover:text-paper"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!replyText.trim()}
+                      className="px-3 py-1.5 bg-primary text-white rounded-full text-sm disabled:opacity-50"
+                    >
+                      {t("postComment")}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </section>

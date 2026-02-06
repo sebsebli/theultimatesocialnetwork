@@ -39,4 +39,4 @@ import { ExploreModule } from '../explore/explore.module';
   providers: [PostsService, PostWorker],
   exports: [PostsService],
 })
-export class PostsModule { }
+export class PostsModule {}

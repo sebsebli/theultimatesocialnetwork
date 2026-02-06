@@ -16,16 +16,13 @@ export class AgentApiGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    
+
     // 1. Check IP (Localhost only)
     // Note: In Docker/K8s, this might be the ingress IP. We rely on the secret more.
     // But user asked for "ONLY accessible from within the server (or on localhost etc.)"
     const ip = request.ip || request.socket.remoteAddress;
-    const isLocal =
-      ip === '127.0.0.1' ||
-      ip === '::1' ||
-      ip === '::ffff:127.0.0.1' ||
-      (ip && ip.startsWith('172.')); // Docker network often 172.x
+    // Note: IP check is informational; security relies on the secret header.
+    // Docker/K8s environments may report non-localhost IPs (e.g. 172.x).
 
     // 2. Check Secret Header
     const secret = this.configService.get<string>('CITE_AGENT_SECRET');

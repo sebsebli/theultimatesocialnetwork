@@ -53,6 +53,7 @@ function AutocompleteDropdownInner({
     }, 300);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, type, excludeUserId]);
 
   useEffect(() => {
@@ -203,6 +204,7 @@ function AutocompleteDropdownInner({
                   {item.type === "topic" && "#"}
                   {item.type === "post" &&
                     (item.headerImageKey || item.headerImageUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={
                           item.headerImageKey

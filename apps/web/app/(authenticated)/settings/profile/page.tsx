@@ -460,12 +460,13 @@ export default function SettingsProfilePage() {
               }
               placeholder="janedoe"
               maxLength={HANDLE_MAX}
-              className={`w-full h-12 pl-8 pr-4 bg-white/5 border rounded-xl text-paper placeholder-tertiary ${isHandleChanged && handleStatus === "taken"
+              className={`w-full h-12 pl-8 pr-4 bg-white/5 border rounded-xl text-paper placeholder-tertiary ${
+                isHandleChanged && handleStatus === "taken"
                   ? "border-red-500/50"
                   : handleStatus === "available"
                     ? "border-green-500/50"
                     : "border-divider"
-                }`}
+              }`}
             />
           </div>
           <div className="flex justify-between mt-1 text-xs text-tertiary">

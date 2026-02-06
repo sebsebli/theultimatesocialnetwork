@@ -43,4 +43,4 @@ import { createRedisClient } from '../common/redis-factory';
     'REDIS_CLIENT',
   ],
 })
-export class SharedModule { }
+export class SharedModule {}

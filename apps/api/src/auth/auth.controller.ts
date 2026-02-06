@@ -34,7 +34,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   @Post('login')
   @Throttle({ default: { limit: 10, ttl: 60000 } })

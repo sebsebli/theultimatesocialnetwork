@@ -38,7 +38,7 @@ export default function DangerZonePage() {
         const data = await res.json().catch(() => ({}));
         toastError(data.error ?? "Failed to request account deletion");
       }
-    } catch (e) {
+    } catch {
       toastError("Failed to request account deletion");
     } finally {
       setDeleting(false);

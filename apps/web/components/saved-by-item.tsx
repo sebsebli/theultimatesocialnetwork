@@ -15,7 +15,6 @@ export interface SavedByItemProps {
 }
 
 function SavedByItemInner({
-  userId: _userId,
   userName,
   collectionId,
   collectionName,

@@ -53,7 +53,10 @@ export class FeedFanoutService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @Inject('REDIS_CLIENT') private redis: Redis,
   ) {
-    const threshold = parseInt(process.env.FEED_CELEBRITY_THRESHOLD || '10000', 10);
+    const threshold = parseInt(
+      process.env.FEED_CELEBRITY_THRESHOLD || '10000',
+      10,
+    );
     this.CELEBRITY_THRESHOLD = isNaN(threshold) ? 10000 : threshold;
     this.logger.log(
       `Feed fanout: hybrid mode (celebrity threshold: ${this.CELEBRITY_THRESHOLD} followers).`,
@@ -120,7 +123,10 @@ export class FeedFanoutService {
   /**
    * Update the author's recent posts list (for pull-on-read).
    */
-  private async updateAuthorFeed(authorId: string, postId: string): Promise<void> {
+  private async updateAuthorFeed(
+    authorId: string,
+    postId: string,
+  ): Promise<void> {
     const key = `feed:author:${authorId}`;
     const pipeline = this.redis.pipeline();
     pipeline.lpush(key, postId);
@@ -157,9 +163,7 @@ export class FeedFanoutService {
         pipeline.sismember('feed:celebrities', uid);
       }
       const results = await pipeline.exec();
-      celebrityIds = followedUserIds.filter(
-        (_, i) => results?.[i]?.[1] === 1,
-      );
+      celebrityIds = followedUserIds.filter((_, i) => results?.[i]?.[1] === 1);
     } catch {
       // If celebrity check fails, just use push feed
     }

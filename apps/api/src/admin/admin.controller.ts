@@ -30,7 +30,7 @@ function getClientIp(req: Request): string | undefined {
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) { }
+  constructor(private readonly adminService: AdminService) {}
 
   @Get('reports')
   @Roles('admin', 'moderator')
@@ -52,8 +52,12 @@ export class AdminController {
   ) {
     const result = await this.adminService.resolveReport(id, dto.status);
     await this.adminService.logAction(
-      user.id, 'resolve_report', 'report', id,
-      { status: dto.status }, getClientIp(req),
+      user.id,
+      'resolve_report',
+      'report',
+      id,
+      { status: dto.status },
+      getClientIp(req),
     );
     return result;
   }
@@ -87,7 +91,12 @@ export class AdminController {
     @Req() req: Request,
   ) {
     await this.adminService.logAction(
-      user.id, 'reindex_search', 'system', null, null, getClientIp(req),
+      user.id,
+      'reindex_search',
+      'system',
+      null,
+      null,
+      getClientIp(req),
     );
     return this.adminService.triggerSearchReindex();
   }
@@ -100,7 +109,12 @@ export class AdminController {
     @Req() req: Request,
   ) {
     await this.adminService.logAction(
-      user.id, 'rebuild_graph', 'system', null, null, getClientIp(req),
+      user.id,
+      'rebuild_graph',
+      'system',
+      null,
+      null,
+      getClientIp(req),
     );
     return this.adminService.triggerGraphRebuild();
   }
@@ -113,7 +127,12 @@ export class AdminController {
     @Req() req: Request,
   ) {
     await this.adminService.logAction(
-      user.id, 'compute_graph_features', 'system', null, null, getClientIp(req),
+      user.id,
+      'compute_graph_features',
+      'system',
+      null,
+      null,
+      getClientIp(req),
     );
     return this.adminService.triggerGraphCompute();
   }

@@ -17,7 +17,10 @@ import { MeilisearchService } from './search/meilisearch.service';
 const CHECK_TIMEOUT_MS = 5000;
 
 /** Race a promise against a timeout; resolves to false if timed out. */
-function withTimeout<T>(promise: Promise<T>, ms = CHECK_TIMEOUT_MS): Promise<T> {
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms = CHECK_TIMEOUT_MS,
+): Promise<T> {
   return Promise.race([
     promise,
     new Promise<never>((_, reject) =>
@@ -115,13 +118,16 @@ export class HealthController {
 
     const results = await Promise.allSettled(checks);
 
-    result.services.database = results[0].status === 'fulfilled' ? 'up' : 'down';
+    result.services.database =
+      results[0].status === 'fulfilled' ? 'up' : 'down';
     result.services.redis = results[1].status === 'fulfilled' ? 'up' : 'down';
-    result.services.meilisearch = results[2].status === 'fulfilled' ? 'up' : 'down';
+    result.services.meilisearch =
+      results[2].status === 'fulfilled' ? 'up' : 'down';
     if (neo4jEnabled) {
       const neo4jResult = results[3];
       result.services.neo4j =
-        neo4jResult.status === 'fulfilled' && (neo4jResult.value as { healthy?: boolean })?.healthy
+        neo4jResult.status === 'fulfilled' &&
+        (neo4jResult.value as { healthy?: boolean })?.healthy
           ? 'up'
           : 'down';
     }

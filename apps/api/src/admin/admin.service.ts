@@ -22,7 +22,7 @@ export class AdminService {
     private meilisearch: MeilisearchService,
     private neo4j: Neo4jService,
     private graphCompute: GraphComputeService,
-  ) { }
+  ) {}
 
   /** Log an admin/moderator action for security auditing. */
   async logAction(
@@ -78,7 +78,12 @@ export class AdminService {
     return this.reportRepo.save(report);
   }
 
-  async banUser(userId: string, reason: string, actorId?: string, ipAddress?: string) {
+  async banUser(
+    userId: string,
+    reason: string,
+    actorId?: string,
+    ipAddress?: string,
+  ) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -86,7 +91,14 @@ export class AdminService {
     const result = await this.userRepo.save(user);
 
     if (actorId) {
-      await this.logAction(actorId, 'ban_user', 'user', userId, { reason }, ipAddress);
+      await this.logAction(
+        actorId,
+        'ban_user',
+        'user',
+        userId,
+        { reason },
+        ipAddress,
+      );
     }
     return result;
   }
@@ -99,7 +111,14 @@ export class AdminService {
     const result = await this.userRepo.save(user);
 
     if (actorId) {
-      await this.logAction(actorId, 'unban_user', 'user', userId, null, ipAddress);
+      await this.logAction(
+        actorId,
+        'unban_user',
+        'user',
+        userId,
+        null,
+        ipAddress,
+      );
     }
     return result;
   }
@@ -111,7 +130,7 @@ export class AdminService {
   triggerSearchReindex(): { message: string } {
     void this.meilisearch
       .reindexFromPostgres()
-      .then(() => { })
+      .then(() => {})
       .catch((err) => console.error('Admin reindex failed', err));
     return {
       message:
@@ -144,9 +163,9 @@ export class AdminService {
     if (!this.neo4j.isEnabled()) {
       return { message: 'Neo4j is not configured. Graph compute skipped.' };
     }
-    void this.graphCompute.computeAll().catch((err) =>
-      this.logger.error('On-demand graph compute failed', err),
-    );
+    void this.graphCompute
+      .computeAll()
+      .catch((err) => this.logger.error('On-demand graph compute failed', err));
     return { message: 'Graph feature computation started in background.' };
   }
 
@@ -155,7 +174,7 @@ export class AdminService {
     let offset = 0;
     let total = 0;
     this.logger.log('Neo4j graph rebuild from PostgreSQL started.');
-    for (; ;) {
+    for (;;) {
       const posts = await this.postRepo.find({
         where: {},
         relations: [

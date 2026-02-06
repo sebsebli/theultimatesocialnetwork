@@ -22,4 +22,4 @@ import { AdminService } from './admin.service';
   providers: [AdminAgentsService, AdminKeyGuard, AdminService],
   exports: [AdminService],
 })
-export class AdminModule { }
+export class AdminModule {}

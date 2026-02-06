@@ -28,7 +28,7 @@ export class FollowsService {
     private neo4jService: Neo4jService,
     private notificationHelper: NotificationHelperService,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async follow(followerId: string, followeeId: string) {
     if (followerId === followeeId) {

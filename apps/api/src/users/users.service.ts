@@ -107,7 +107,7 @@ export class UsersService {
     private configService: ConfigService,
     private uploadService: UploadService,
     private interactionsService: InteractionsService,
-  ) { }
+  ) {}
 
   /**
    * Minimum quote_received_count to be in the top 10% most-quoted users.
@@ -172,18 +172,18 @@ export class UsersService {
       // Batch follow checks into a single parallel block
       viewerId && viewerId !== user.id
         ? Promise.all([
-          this.followRepo.findOne({
-            where: { followerId: user.id, followeeId: viewerId },
-            select: ['followerId'],
-          }),
-          this.followRepo.findOne({
-            where: { followerId: viewerId, followeeId: user.id },
-            select: ['followerId'],
-          }),
-        ]).then(([followsMeResult, isFollowingResult]) => ({
-          followsMe: !!followsMeResult,
-          isFollowing: !!isFollowingResult,
-        }))
+            this.followRepo.findOne({
+              where: { followerId: user.id, followeeId: viewerId },
+              select: ['followerId'],
+            }),
+            this.followRepo.findOne({
+              where: { followerId: viewerId, followeeId: user.id },
+              select: ['followerId'],
+            }),
+          ]).then(([followsMeResult, isFollowingResult]) => ({
+            followsMe: !!followsMeResult,
+            isFollowing: !!isFollowingResult,
+          }))
         : Promise.resolve({ followsMe: false, isFollowing: false }),
       this.getProfileCounts(user.id),
     ]);
@@ -191,7 +191,12 @@ export class UsersService {
     let hasPendingFollowRequest = false;
     let posts: Post[] = [];
 
-    if (viewerId && viewerId !== user.id && user.isProtected && !followInfo.isFollowing) {
+    if (
+      viewerId &&
+      viewerId !== user.id &&
+      user.isProtected &&
+      !followInfo.isFollowing
+    ) {
       // Protected profile, not following: check pending request, hide posts
       const pendingRequest = await this.followRequestRepo.findOne({
         where: {
@@ -667,9 +672,9 @@ export class UsersService {
               : undefined;
           const viewerState = viewerId
             ? {
-              isLiked: likedIds.has(p.id),
-              isKept: keptIds.has(p.id),
-            }
+                isLiked: likedIds.has(p.id),
+                isKept: keptIds.has(p.id),
+              }
             : undefined;
           return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
         }),
@@ -734,9 +739,9 @@ export class UsersService {
         const postIds = slice.map((p) => p.id).filter(Boolean);
         const { likedIds, keptIds } = viewerId
           ? await this.interactionsService.getLikeKeepForViewer(
-            viewerId,
-            postIds,
-          )
+              viewerId,
+              postIds,
+            )
           : { likedIds: new Set<string>(), keptIds: new Set<string>() };
         const getImageUrl = (key: string) =>
           this.uploadService.getImageUrl(key);
@@ -749,9 +754,9 @@ export class UsersService {
                 : undefined;
             const viewerState = viewerId
               ? {
-                isLiked: likedIds.has(p.id),
-                isKept: keptIds.has(p.id),
-              }
+                  isLiked: likedIds.has(p.id),
+                  isKept: keptIds.has(p.id),
+                }
               : undefined;
             return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
           }),
@@ -792,9 +797,9 @@ export class UsersService {
         const postIds = slice.map((p) => p.id).filter(Boolean);
         const { likedIds, keptIds } = viewerId
           ? await this.interactionsService.getLikeKeepForViewer(
-            viewerId,
-            postIds,
-          )
+              viewerId,
+              postIds,
+            )
           : { likedIds: new Set<string>(), keptIds: new Set<string>() };
         const getImageUrl = (key: string) =>
           this.uploadService.getImageUrl(key);
@@ -807,9 +812,9 @@ export class UsersService {
                 : undefined;
             const viewerState = viewerId
               ? {
-                isLiked: likedIds.has(p.id),
-                isKept: keptIds.has(p.id),
-              }
+                  isLiked: likedIds.has(p.id),
+                  isKept: keptIds.has(p.id),
+                }
               : undefined;
             return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
           }),
@@ -1107,9 +1112,9 @@ export class UsersService {
     const dmUsers =
       dmUserIds.size > 0
         ? await this.userRepo.find({
-          where: { id: In([...dmUserIds]) },
-          select: ['id', 'handle', 'displayName'],
-        })
+            where: { id: In([...dmUserIds]) },
+            select: ['id', 'handle', 'displayName'],
+          })
         : [];
     const userMap = new Map(
       dmUsers.map((u) => [
@@ -1150,15 +1155,15 @@ export class UsersService {
 
     const profile = raw.user
       ? {
-        handle: raw.user.handle,
-        displayName: raw.user.displayName,
-        bio: raw.user.bio ?? null,
-        email: raw.user.email ?? null,
-        languages: raw.user.languages ?? [],
-        isProtected: raw.user.isProtected ?? false,
-        createdAt: raw.user.createdAt,
-        updatedAt: raw.user.updatedAt,
-      }
+          handle: raw.user.handle,
+          displayName: raw.user.displayName,
+          bio: raw.user.bio ?? null,
+          email: raw.user.email ?? null,
+          languages: raw.user.languages ?? [],
+          isProtected: raw.user.isProtected ?? false,
+          createdAt: raw.user.createdAt,
+          updatedAt: raw.user.updatedAt,
+        }
       : null;
 
     const posts = (raw.posts ?? []).map((p: Post & { author?: User }) => ({
@@ -1272,18 +1277,18 @@ export class UsersService {
 
     const notificationPrefs = raw.notificationPrefs
       ? {
-        pushEnabled: raw.notificationPrefs.pushEnabled,
-        replies: raw.notificationPrefs.replies,
-        quotes: raw.notificationPrefs.quotes,
-        mentions: raw.notificationPrefs.mentions,
-        dms: raw.notificationPrefs.dms,
-        follows: raw.notificationPrefs.follows,
-        saves: raw.notificationPrefs.saves,
-        quietHoursStart: raw.notificationPrefs.quietHoursStart ?? null,
-        quietHoursEnd: raw.notificationPrefs.quietHoursEnd ?? null,
-        emailMarketing: raw.notificationPrefs.emailMarketing,
-        emailProductUpdates: raw.notificationPrefs.emailProductUpdates,
-      }
+          pushEnabled: raw.notificationPrefs.pushEnabled,
+          replies: raw.notificationPrefs.replies,
+          quotes: raw.notificationPrefs.quotes,
+          mentions: raw.notificationPrefs.mentions,
+          dms: raw.notificationPrefs.dms,
+          follows: raw.notificationPrefs.follows,
+          saves: raw.notificationPrefs.saves,
+          quietHoursStart: raw.notificationPrefs.quietHoursStart ?? null,
+          quietHoursEnd: raw.notificationPrefs.quietHoursEnd ?? null,
+          emailMarketing: raw.notificationPrefs.emailMarketing,
+          emailProductUpdates: raw.notificationPrefs.emailProductUpdates,
+        }
       : null;
 
     return {
@@ -1417,18 +1422,22 @@ export class UsersService {
         previewImageKey: latest?.headerImageKey ?? null,
         recentPost: latest
           ? {
-            id: latest.postId,
-            title: latest.title ?? null,
-            bodyExcerpt: latest.bodyExcerpt ?? null,
-            headerImageKey: latest.headerImageKey ?? null,
-          }
+              id: latest.postId,
+              title: latest.title ?? null,
+              bodyExcerpt: latest.bodyExcerpt ?? null,
+              headerImageKey: latest.headerImageKey ?? null,
+            }
           : null,
       };
     });
     return { items, hasMore: collections.length > limit };
   }
 
-  async getFollowing(userId: string, limit = 50, offset = 0): Promise<{ items: User[]; hasMore: boolean }> {
+  async getFollowing(
+    userId: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<{ items: User[]; hasMore: boolean }> {
     const follows = await this.followRepo.find({
       where: { followerId: userId },
       relations: ['followee'],
@@ -1444,7 +1453,11 @@ export class UsersService {
     return { items, hasMore };
   }
 
-  async getFollowers(userId: string, limit = 50, offset = 0): Promise<{ items: User[]; hasMore: boolean }> {
+  async getFollowers(
+    userId: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<{ items: User[]; hasMore: boolean }> {
     const follows = await this.followRepo.find({
       where: { followeeId: userId },
       relations: ['follower'],

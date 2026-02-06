@@ -29,7 +29,10 @@ export interface CircuitBreakerOptions {
   /** Name for logging purposes. */
   name?: string;
   /** Optional logger (e.g. NestJS Logger instance). Falls back to console. */
-  logger?: { warn: (...args: unknown[]) => void; log: (...args: unknown[]) => void };
+  logger?: {
+    warn: (...args: unknown[]) => void;
+    log: (...args: unknown[]) => void;
+  };
 }
 
 export class CircuitBreaker {
@@ -39,7 +42,10 @@ export class CircuitBreaker {
   private readonly failureThreshold: number;
   private readonly cooldownMs: number;
   private readonly name: string;
-  private readonly logger: { warn: (...args: unknown[]) => void; log: (...args: unknown[]) => void };
+  private readonly logger: {
+    warn: (...args: unknown[]) => void;
+    log: (...args: unknown[]) => void;
+  };
 
   constructor(options: CircuitBreakerOptions = {}) {
     this.failureThreshold = options.failureThreshold ?? 5;
@@ -88,7 +94,9 @@ export class CircuitBreaker {
     const oldState = this.state;
     this.state = newState;
     circuitBreakerState.set({ name: this.name }, STATE_VALUES[newState]);
-    this.logger.log(`[${this.name}] Circuit transition: ${oldState} → ${newState}`);
+    this.logger.log(
+      `[${this.name}] Circuit transition: ${oldState} → ${newState}`,
+    );
     if (newState === CircuitState.OPEN) {
       circuitBreakerTrips.inc({ name: this.name });
       this.logger.warn(
@@ -99,7 +107,9 @@ export class CircuitBreaker {
 
   private onSuccess(): void {
     if (this.state === CircuitState.HALF_OPEN) {
-      this.logger.log(`[${this.name}] Half-open test succeeded, closing circuit`);
+      this.logger.log(
+        `[${this.name}] Half-open test succeeded, closing circuit`,
+      );
     }
     this.failureCount = 0;
     this.transitionTo(CircuitState.CLOSED);

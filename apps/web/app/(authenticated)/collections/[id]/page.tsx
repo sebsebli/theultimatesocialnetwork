@@ -81,12 +81,14 @@ export default function CollectionDetailPage(props: {
   const [otherCollections, setOtherCollections] = useState<CollectionSummary[]>(
     [],
   );
-  const [tabLoaded, setTabLoaded] = useState<Record<CollectionTabKey, boolean>>({
-    newest: true,
-    ranked: false,
-    sources: false,
-    contributors: false,
-  });
+  const [tabLoaded, setTabLoaded] = useState<Record<CollectionTabKey, boolean>>(
+    {
+      newest: true,
+      ranked: false,
+      sources: false,
+      contributors: false,
+    },
+  );
   const loadMoreSentinel = useRef<HTMLDivElement>(null);
   const nextOffsetRef = useRef(0);
   const sourcesPageRef = useRef(1);
@@ -141,7 +143,8 @@ export default function CollectionDetailPage(props: {
         setShareSaves(data.shareSaves || false);
       }
     } catch (error) {
-      if (process.env.NODE_ENV !== "production") console.error("Failed to load collection", error);
+      if (process.env.NODE_ENV !== "production")
+        console.error("Failed to load collection", error);
     } finally {
       setLoading(false);
     }
@@ -167,7 +170,9 @@ export default function CollectionDetailPage(props: {
           setItems(newItems);
         }
         nextOffsetRef.current = offset + newItems.length;
-        setHasMore(newItems.length >= ITEMS_PAGE_SIZE && data.hasMore !== false);
+        setHasMore(
+          newItems.length >= ITEMS_PAGE_SIZE && data.hasMore !== false,
+        );
       } catch {
         setHasMore(false);
       } finally {
@@ -199,7 +204,9 @@ export default function CollectionDetailPage(props: {
         } else {
           setSources(list);
         }
-        setHasMoreSources(list.length >= ITEMS_PAGE_SIZE && data.hasMore !== false);
+        setHasMoreSources(
+          list.length >= ITEMS_PAGE_SIZE && data.hasMore !== false,
+        );
         sourcesPageRef.current = page;
       } catch {
         setHasMoreSources(false);
@@ -225,7 +232,9 @@ export default function CollectionDetailPage(props: {
         } else {
           setContributors(list);
         }
-        setHasMoreContributors(list.length >= ITEMS_PAGE_SIZE && data.hasMore !== false);
+        setHasMoreContributors(
+          list.length >= ITEMS_PAGE_SIZE && data.hasMore !== false,
+        );
         contributorsPageRef.current = page;
       } catch {
         setHasMoreContributors(false);
@@ -262,9 +271,17 @@ export default function CollectionDetailPage(props: {
         if (!entries[0]?.isIntersecting) return;
         if (activeTab === "newest" || activeTab === "ranked") {
           loadMoreItems();
-        } else if (activeTab === "sources" && hasMoreSources && !loadingSources) {
+        } else if (
+          activeTab === "sources" &&
+          hasMoreSources &&
+          !loadingSources
+        ) {
           loadSources(sourcesPageRef.current + 1, true);
-        } else if (activeTab === "contributors" && hasMoreContributors && !loadingContributors) {
+        } else if (
+          activeTab === "contributors" &&
+          hasMoreContributors &&
+          !loadingContributors
+        ) {
           loadContributors(contributorsPageRef.current + 1, true);
         }
       },
@@ -298,7 +315,9 @@ export default function CollectionDetailPage(props: {
           );
         }
       })
-      .catch(() => { /* collections load best-effort */ });
+      .catch(() => {
+        /* collections load best-effort */
+      });
     return () => {
       cancelled = true;
     };
@@ -313,7 +332,8 @@ export default function CollectionDetailPage(props: {
       });
       if (res.ok) setShareSaves(!shareSaves);
     } catch (error) {
-      if (process.env.NODE_ENV !== "production") console.error("Failed to update shareSaves", error);
+      if (process.env.NODE_ENV !== "production")
+        console.error("Failed to update shareSaves", error);
     }
   };
 
@@ -330,7 +350,8 @@ export default function CollectionDetailPage(props: {
       });
       if (res.ok) router.push("/collections");
     } catch (error) {
-      if (process.env.NODE_ENV !== "production") console.error("Failed to delete collection", error);
+      if (process.env.NODE_ENV !== "production")
+        console.error("Failed to delete collection", error);
     }
   };
 
@@ -456,10 +477,11 @@ export default function CollectionDetailPage(props: {
             <div className="flex justify-end">
               <button
                 onClick={handleShareSavesToggle}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${shareSaves
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  shareSaves
                     ? "bg-primary text-white"
                     : "bg-white/5 text-secondary hover:bg-white/10"
-                  }`}
+                }`}
               >
                 {shareSaves ? "Sharing saves" : "Share saves"}
               </button>
@@ -485,10 +507,11 @@ export default function CollectionDetailPage(props: {
                 key={key}
                 type="button"
                 onClick={() => setActiveTab(key)}
-                className={`shrink-0 px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === key
+                className={`shrink-0 px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === key
                     ? "border-primary text-paper"
                     : "border-transparent text-tertiary hover:text-paper"
-                  }`}
+                }`}
               >
                 {label}
               </button>
@@ -497,19 +520,50 @@ export default function CollectionDetailPage(props: {
           {(activeTab === "sources" || activeTab === "contributors") && (
             <div className="px-4 pb-3">
               <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                <svg className="w-5 h-5 text-tertiary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="w-5 h-5 text-tertiary shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
                 <input
                   type="search"
-                  placeholder={activeTab === "sources" ? "Search sources..." : "Search contributors..."}
+                  placeholder={
+                    activeTab === "sources"
+                      ? "Search sources..."
+                      : "Search contributors..."
+                  }
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 bg-transparent text-paper placeholder-tertiary text-sm outline-none min-w-0"
                 />
                 {searchQuery.length > 0 && (
-                  <button type="button" onClick={() => setSearchQuery("")} className="p-1 text-tertiary hover:text-paper" aria-label="Clear">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="p-1 text-tertiary hover:text-paper"
+                    aria-label="Clear"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
                   </button>
                 )}
               </div>
@@ -605,94 +659,96 @@ export default function CollectionDetailPage(props: {
             </>
           )}
 
-          {activeTab === "sources" && (() => {
-            const q = searchQuery.trim().toLowerCase();
-            const filtered = q
-              ? sources.filter(
-                (s) =>
-                  (s.title ?? "").toLowerCase().includes(q) ||
-                  (s.url ?? "").toLowerCase().includes(q),
-              )
-              : sources;
-            return filtered.length > 0 ? (
-              <>
-                {filtered.map((s, i) => (
-                  <a
-                    key={s.url ?? s.id ?? i}
-                    href={s.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    <p className="font-medium text-paper truncate">
-                      {s.title || (s.url ? new URL(s.url).hostname : "Link")}
-                    </p>
-                    <p className="text-xs text-tertiary truncate mt-0.5">
-                      {s.url}
-                    </p>
-                  </a>
-                ))}
-                <div ref={loadMoreSentinel} className="h-4" />
-                {loadingSources && (
-                  <p className="text-secondary text-sm py-4 text-center">
-                    Loading…
-                  </p>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-secondary text-sm">
-                  {sources.length === 0
-                    ? "No sources in this collection yet."
-                    : "No matching sources."}
-                </p>
-              </div>
-            );
-          })()}
-
-          {activeTab === "contributors" && (() => {
-            const q = searchQuery.trim().toLowerCase();
-            const filtered = q
-              ? contributors.filter(
-                (c) =>
-                  (c.displayName ?? "").toLowerCase().includes(q) ||
-                  (c.handle ?? "").toLowerCase().includes(q),
-              )
-              : contributors;
-            return filtered.length > 0 ? (
-              <>
-                <div className="space-y-2">
-                  {filtered.map((person) => (
-                    <UserCard
-                      key={person.id}
-                      person={{
-                        id: person.id,
-                        handle: person.handle,
-                        displayName: person.displayName,
-                        isFollowing: person.isFollowing,
-                        avatarKey: person.avatarKey,
-                        avatarUrl: person.avatarUrl,
-                      }}
-                    />
+          {activeTab === "sources" &&
+            (() => {
+              const q = searchQuery.trim().toLowerCase();
+              const filtered = q
+                ? sources.filter(
+                    (s) =>
+                      (s.title ?? "").toLowerCase().includes(q) ||
+                      (s.url ?? "").toLowerCase().includes(q),
+                  )
+                : sources;
+              return filtered.length > 0 ? (
+                <>
+                  {filtered.map((s, i) => (
+                    <a
+                      key={s.url ?? s.id ?? i}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                    >
+                      <p className="font-medium text-paper truncate">
+                        {s.title || (s.url ? new URL(s.url).hostname : "Link")}
+                      </p>
+                      <p className="text-xs text-tertiary truncate mt-0.5">
+                        {s.url}
+                      </p>
+                    </a>
                   ))}
-                </div>
-                <div ref={loadMoreSentinel} className="h-4" />
-                {loadingContributors && (
-                  <p className="text-secondary text-sm py-4 text-center">
-                    Loading…
+                  <div ref={loadMoreSentinel} className="h-4" />
+                  {loadingSources && (
+                    <p className="text-secondary text-sm py-4 text-center">
+                      Loading…
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-secondary text-sm">
+                    {sources.length === 0
+                      ? "No sources in this collection yet."
+                      : "No matching sources."}
                   </p>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-secondary text-sm">
-                  {contributors.length === 0
-                    ? "No contributors yet."
-                    : "No matching contributors."}
-                </p>
-              </div>
-            );
-          })()}
+                </div>
+              );
+            })()}
+
+          {activeTab === "contributors" &&
+            (() => {
+              const q = searchQuery.trim().toLowerCase();
+              const filtered = q
+                ? contributors.filter(
+                    (c) =>
+                      (c.displayName ?? "").toLowerCase().includes(q) ||
+                      (c.handle ?? "").toLowerCase().includes(q),
+                  )
+                : contributors;
+              return filtered.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    {filtered.map((person) => (
+                      <UserCard
+                        key={person.id}
+                        person={{
+                          id: person.id,
+                          handle: person.handle,
+                          displayName: person.displayName,
+                          isFollowing: person.isFollowing,
+                          avatarKey: person.avatarKey,
+                          avatarUrl: person.avatarUrl,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div ref={loadMoreSentinel} className="h-4" />
+                  {loadingContributors && (
+                    <p className="text-secondary text-sm py-4 text-center">
+                      Loading…
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-secondary text-sm">
+                    {contributors.length === 0
+                      ? "No contributors yet."
+                      : "No matching contributors."}
+                  </p>
+                </div>
+              );
+            })()}
         </div>
       </div>
 

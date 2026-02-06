@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
@@ -31,12 +36,15 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
     this.enabled = !!uri && uri.trim().length > 0;
     this.uri = uri || '';
     this.user = this.configService.get<string>('NEO4J_USER') || 'neo4j';
-    this.password = this.configService.get<string>('NEO4J_PASSWORD') || 'password';
+    this.password =
+      this.configService.get<string>('NEO4J_PASSWORD') || 'password';
   }
 
   async onModuleInit() {
     if (!this.enabled) {
-      this.logger.log('Neo4j is disabled (NEO4J_URI not set). All graph operations will be skipped.');
+      this.logger.log(
+        'Neo4j is disabled (NEO4J_URI not set). All graph operations will be skipped.',
+      );
       return;
     }
     await this.connect();
@@ -116,7 +124,10 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
     return this.driver?.session() ?? null;
   }
 
-  async run(query: string, params: Record<string, any> = {}): Promise<{ records: any[] }> {
+  async run(
+    query: string,
+    params: Record<string, any> = {},
+  ): Promise<{ records: any[] }> {
     // If Neo4j is not configured at all, silently skip
     if (!this.enabled || !this.driver) {
       return { records: [] };

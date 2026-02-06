@@ -5,8 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - users.two_factor_backup_codes (JSONB) for 2FA recovery codes
  * - audit_logs table for admin action tracking
  */
-export class AddBackupCodesAndAuditLogs1771400000000
-  implements MigrationInterface {
+export class AddBackupCodesAndAuditLogs1771400000000 implements MigrationInterface {
   name = 'AddBackupCodesAndAuditLogs1771400000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

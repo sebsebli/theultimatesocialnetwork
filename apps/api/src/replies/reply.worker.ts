@@ -43,7 +43,7 @@ export class ReplyWorker implements OnApplicationBootstrap {
     private safetyService: SafetyService,
     @Inject('REDIS_CLIENT') private redis: Redis,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async onApplicationBootstrap() {
     await this.eventBus.subscribe<ReplyJobData>(
@@ -96,7 +96,7 @@ export class ReplyWorker implements OnApplicationBootstrap {
               contentSnapshot: reply.body,
               source: ModerationSource.ASYNC_CHECK,
             })
-            .catch(() => { });
+            .catch(() => {});
           await this.replyRepo.softDelete(replyId);
           await this.postRepo.decrement({ id: postId }, 'replyCount', 1);
           this.logger.warn(
@@ -121,7 +121,9 @@ export class ReplyWorker implements OnApplicationBootstrap {
           { userId, postId, replyId, createdAt: reply.createdAt.toISOString() },
         );
       } catch (e) {
-        this.logger.warn(`Neo4j reply sync failed (non-fatal): ${(e as Error).message}`);
+        this.logger.warn(
+          `Neo4j reply sync failed (non-fatal): ${(e as Error).message}`,
+        );
       }
 
       // 3. Notifications (Post Author)
@@ -151,7 +153,9 @@ export class ReplyWorker implements OnApplicationBootstrap {
               { replyId, userId: mention.mentionedUserId },
             );
           } catch (e) {
-            this.logger.warn(`Neo4j mention sync failed (non-fatal): ${(e as Error).message}`);
+            this.logger.warn(
+              `Neo4j mention sync failed (non-fatal): ${(e as Error).message}`,
+            );
           }
 
           await this.notificationHelper.createNotification({

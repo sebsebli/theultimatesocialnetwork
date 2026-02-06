@@ -18,12 +18,11 @@ import { KafkaEventBus } from './kafka-event-bus';
     {
       provide: EVENT_BUS,
       useFactory: (config: ConfigService) => {
-        const brokers =
-          config
-            .get<string>('KAFKA_BROKERS')
-            ?.split(',')
-            .map((b) => b.trim())
-            .filter(Boolean) || ['kafka:9092'];
+        const brokers = config
+          .get<string>('KAFKA_BROKERS')
+          ?.split(',')
+          .map((b) => b.trim())
+          .filter(Boolean) || ['kafka:9092'];
         return new KafkaEventBus(brokers);
       },
       inject: [ConfigService],
@@ -31,4 +30,4 @@ import { KafkaEventBus } from './kafka-event-bus';
   ],
   exports: [EVENT_BUS],
 })
-export class EventBusModule { }
+export class EventBusModule {}

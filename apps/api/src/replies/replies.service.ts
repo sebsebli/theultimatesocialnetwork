@@ -44,7 +44,7 @@ export class RepliesService {
     private meilisearch: MeilisearchService,
     private configService: ConfigService,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async create(
     userId: string,
@@ -192,11 +192,11 @@ export class RepliesService {
           authorId: postWithAuthor.authorId || '',
           author: postWithAuthor.author
             ? {
-              displayName:
-                postWithAuthor.author.displayName ||
-                postWithAuthor.author.handle,
-              handle: postWithAuthor.author.handle,
-            }
+                displayName:
+                  postWithAuthor.author.displayName ||
+                  postWithAuthor.author.handle,
+                handle: postWithAuthor.author.handle,
+              }
             : undefined,
           authorProtected: postWithAuthor.author?.isProtected,
           lang: postWithAuthor.lang,

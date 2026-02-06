@@ -25,7 +25,7 @@ export class PushWorker implements OnApplicationBootstrap {
     private fcmSender: FcmSender,
     @Inject('REDIS_CLIENT') private redis: Redis,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async onApplicationBootstrap() {
     await this.eventBus.subscribe<{ id: string }>(

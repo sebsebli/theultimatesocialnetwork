@@ -29,4 +29,4 @@ import { SearchModule } from '../search/search.module';
   providers: [RepliesService, ReplyWorker],
   exports: [RepliesService],
 })
-export class RepliesModule { }
+export class RepliesModule {}

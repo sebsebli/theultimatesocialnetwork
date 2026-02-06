@@ -267,12 +267,13 @@ export class RecommendationService {
           ]);
 
           // Batch-load topic associations for all candidates (avoids N+1)
-          const allPostTopics = candidatePostIds.length > 0
-            ? await this.postTopicRepo.find({
-                where: { postId: In(candidatePostIds) },
-                select: ['postId', 'topicId'],
-              })
-            : [];
+          const allPostTopics =
+            candidatePostIds.length > 0
+              ? await this.postTopicRepo.find({
+                  where: { postId: In(candidatePostIds) },
+                  select: ['postId', 'topicId'],
+                })
+              : [];
           const postToTopics = new Map<string, string[]>();
           for (const pt of allPostTopics) {
             const arr = postToTopics.get(pt.postId) || [];
@@ -287,8 +288,7 @@ export class RecommendationService {
 
             // Network boost (direct follow)
             const followBoost =
-              post.authorId &&
-              userProfile.followedUsers.includes(post.authorId)
+              post.authorId && userProfile.followedUsers.includes(post.authorId)
                 ? 0.3 * w.network
                 : 0;
 
@@ -323,9 +323,10 @@ export class RecommendationService {
 
             // Pre-computed authority boost (from periodic graph PageRank)
             const rawAuthority = authorityScores.get(post.id) ?? 0;
-            const authorityBoost = rawAuthority > 0
-              ? Math.min(rawAuthority / 20, 0.5) * w.quotes // Normalize & cap at 0.5
-              : 0;
+            const authorityBoost =
+              rawAuthority > 0
+                ? Math.min(rawAuthority / 20, 0.5) * w.quotes // Normalize & cap at 0.5
+                : 0;
 
             return {
               post,
@@ -370,7 +371,9 @@ export class RecommendationService {
    */
   private async getTrendingPosts(limit: number): Promise<Post[]> {
     // Try pre-computed trending velocity first
-    const trendingIds = await this.graphCompute.getTrendingByVelocity(limit * 2);
+    const trendingIds = await this.graphCompute.getTrendingByVelocity(
+      limit * 2,
+    );
 
     if (trendingIds.length > 0) {
       const posts = await this.postRepo.find({
@@ -384,9 +387,7 @@ export class RecommendationService {
         .map((id) => postMap.get(id))
         .filter(
           (p): p is Post =>
-            p !== undefined &&
-            !p.deletedAt &&
-            (!p.author?.isProtected),
+            p !== undefined && !p.deletedAt && !p.author?.isProtected,
         )
         .slice(0, limit);
 
@@ -417,16 +418,19 @@ export class RecommendationService {
     limit: number,
   ): Promise<Post[]> {
     // Prioritize posts from followed users
-    const followedPosts = followedUsers.length > 0
-      ? await this.postRepo
-        .createQueryBuilder('post')
-        .leftJoinAndSelect('post.author', 'author')
-        .where('post.author_id IN (:...userIds)', { userIds: followedUsers })
-        .andWhere('post.deleted_at IS NULL')
-        .orderBy('post.createdAt', 'DESC')
-        .take(limit)
-        .getMany()
-      : [];
+    const followedPosts =
+      followedUsers.length > 0
+        ? await this.postRepo
+            .createQueryBuilder('post')
+            .leftJoinAndSelect('post.author', 'author')
+            .where('post.author_id IN (:...userIds)', {
+              userIds: followedUsers,
+            })
+            .andWhere('post.deleted_at IS NULL')
+            .orderBy('post.createdAt', 'DESC')
+            .take(limit)
+            .getMany()
+        : [];
 
     if (followedPosts.length >= limit) {
       return followedPosts;
@@ -497,7 +501,10 @@ export class RecommendationService {
 
     // ----- Graph-based recommendations (Neo4j) -----
     // Mutual follows + co-citation patterns — much more powerful than topic overlap
-    const graphRecs = await this.neo4jQuery.getRecommendedPeopleIds(userId, limit * 2);
+    const graphRecs = await this.neo4jQuery.getRecommendedPeopleIds(
+      userId,
+      limit * 2,
+    );
 
     // ----- Postgres fallback: topic overlap -----
     let similarUsers: { authorId: string; topicOverlap: string }[] = [];

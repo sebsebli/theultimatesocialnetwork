@@ -40,7 +40,7 @@ export class ImageModerationWorker implements OnApplicationBootstrap {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async onApplicationBootstrap() {
     await this.eventBus.subscribe<ImageModerationJobData>(

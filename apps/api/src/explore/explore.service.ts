@@ -42,7 +42,7 @@ export class ExploreService {
     private neo4jQuery: Neo4jQueryService,
     @Inject('REDIS_CLIENT') private redis: Redis,
     private uploadService: UploadService,
-  ) { }
+  ) {}
 
   /** Helper for caching simple paginated results (1-5 min TTL). */
   private async cached<T>(
@@ -235,18 +235,18 @@ export class ExploreService {
       reasons:
         s.score > 0
           ? [
-            ...(prefs.languages.length &&
+              ...(prefs.languages.length &&
               s.post.lang != null &&
               prefs.languages.includes(s.post.lang)
-              ? ['Your language']
-              : []),
-            ...(postToTopics
-              .get(s.post.id)
-              ?.some((tid) => prefs.followedTopicIds.has(tid))
-              ? ['Topic you follow']
-              : []),
-            ...(s.post.reasons || []),
-          ].slice(0, 2)
+                ? ['Your language']
+                : []),
+              ...(postToTopics
+                .get(s.post.id)
+                ?.some((tid) => prefs.followedTopicIds.has(tid))
+                ? ['Topic you follow']
+                : []),
+              ...(s.post.reasons || []),
+            ].slice(0, 2)
           : s.post.reasons,
     }));
   }
@@ -339,17 +339,17 @@ export class ExploreService {
     const latestRows: LatestRow[] =
       topicIds.length > 0
         ? await this.dataSource
-          .createQueryBuilder()
-          .select('pt.topic_id', 'topicId')
-          .addSelect('p.id', 'postId')
-          .from(PostTopic, 'pt')
-          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-          .where('pt.topic_id IN (:...topicIds)', { topicIds })
-          .orderBy('pt.topic_id')
-          .addOrderBy('p.created_at', 'DESC')
-          .distinctOn(['pt.topic_id'])
-          .getRawMany<LatestRow>()
-          .catch(() => [])
+            .createQueryBuilder()
+            .select('pt.topic_id', 'topicId')
+            .addSelect('p.id', 'postId')
+            .from(PostTopic, 'pt')
+            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+            .where('pt.topic_id IN (:...topicIds)', { topicIds })
+            .orderBy('pt.topic_id')
+            .addOrderBy('p.created_at', 'DESC')
+            .distinctOn(['pt.topic_id'])
+            .getRawMany<LatestRow>()
+            .catch(() => [])
         : [];
 
     const postIds = [...new Set(latestRows.map((r) => r.postId))];
@@ -358,17 +358,17 @@ export class ExploreService {
     const posts =
       postIds.length > 0
         ? await this.postRepo.find({
-          where: { id: In(postIds) },
-          relations: ['author'],
-          select: [
-            'id',
-            'authorId',
-            'title',
-            'body',
-            'headerImageKey',
-            'createdAt',
-          ],
-        })
+            where: { id: In(postIds) },
+            relations: ['author'],
+            select: [
+              'id',
+              'authorId',
+              'title',
+              'body',
+              'headerImageKey',
+              'createdAt',
+            ],
+          })
         : [];
     const visiblePosts = await this.filterPostsVisibleToViewer(posts, userId);
     const visiblePostIds = new Set(visiblePosts.map((p) => p.id));
@@ -396,22 +396,22 @@ export class ExploreService {
       const headerImageKey = post?.headerImageKey ?? null;
       const recentPost = post
         ? {
-          id: post.id,
-          title: post.title ?? null,
-          bodyExcerpt: bodyExcerpt(post.body),
-          headerImageKey,
-          headerImageUrl:
-            headerImageKey != null && headerImageKey !== ''
-              ? getImageUrl(headerImageKey)
+            id: post.id,
+            title: post.title ?? null,
+            bodyExcerpt: bodyExcerpt(post.body),
+            headerImageKey,
+            headerImageUrl:
+              headerImageKey != null && headerImageKey !== ''
+                ? getImageUrl(headerImageKey)
+                : null,
+            author: post.author
+              ? {
+                  handle: post.author.handle,
+                  displayName: post.author.displayName ?? post.author.handle,
+                }
               : null,
-          author: post.author
-            ? {
-              handle: post.author.handle,
-              displayName: post.author.displayName ?? post.author.handle,
-            }
-            : null,
-          createdAt: post.createdAt?.toISOString?.() ?? null,
-        }
+            createdAt: post.createdAt?.toISOString?.() ?? null,
+          }
         : null;
       return {
         id: t.id,
@@ -482,9 +482,7 @@ export class ExploreService {
         followingSet = new Set(followees.map((f) => f.followeeId));
       }
       filtered = users.filter(
-        (u) =>
-          u.id !== userId &&
-          (!u.isProtected || followingSet.has(u.id)),
+        (u) => u.id !== userId && (!u.isProtected || followingSet.has(u.id)),
       );
     } else {
       filtered = users.filter((u) => !u.isProtected);
@@ -627,7 +625,10 @@ export class ExploreService {
     if (userId) {
       // Neo4j network proximity boost: re-rank by how close the post authors are in your social graph
       const postIdsForProximity = result.map((p) => p.id);
-      const proximityScores = await this.neo4jQuery.getNetworkProximityScores(userId, postIdsForProximity);
+      const proximityScores = await this.neo4jQuery.getNetworkProximityScores(
+        userId,
+        postIdsForProximity,
+      );
       if (proximityScores.size > 0) {
         // Add reason "In your network" for posts from connected users
         result = result.map((p) => ({
@@ -675,9 +676,15 @@ export class ExploreService {
   ): Promise<Post[]> {
     // Try Neo4j graph centrality first
     // We need the topic slug for the Cypher query
-    const topic = await this.topicRepo.findOne({ where: { id: topicId }, select: ['slug'] });
+    const topic = await this.topicRepo.findOne({
+      where: { id: topicId },
+      select: ['slug'],
+    });
     if (topic?.slug) {
-      const centralPosts = await this.neo4jQuery.getTopicCentralPostIds(topic.slug, limit * 2);
+      const centralPosts = await this.neo4jQuery.getTopicCentralPostIds(
+        topic.slug,
+        limit * 2,
+      );
       if (centralPosts.length > 0) {
         const centralPostIds = centralPosts.map((c) => c.postId);
         const posts = await this.postRepo.find({
@@ -687,8 +694,13 @@ export class ExploreService {
         const visible = await this.filterPostsVisibleToViewer(posts, viewerId);
 
         // Re-sort by Neo4j centrality score
-        const centralityMap = new Map(centralPosts.map((c) => [c.postId, c.centrality]));
-        visible.sort((a, b) => (centralityMap.get(b.id) ?? 0) - (centralityMap.get(a.id) ?? 0));
+        const centralityMap = new Map(
+          centralPosts.map((c) => [c.postId, c.centrality]),
+        );
+        visible.sort(
+          (a, b) =>
+            (centralityMap.get(b.id) ?? 0) - (centralityMap.get(a.id) ?? 0),
+        );
         if (visible.length > 0) {
           return visible.slice(0, limit);
         }
@@ -799,23 +811,30 @@ export class ExploreService {
     const cacheKey = `explore:deep-dives:ids:${skip}:${limitNum}:${langKeyDD}`;
 
     // Neo4j: real citation chain depth (variable-length path traversal)
-    const neo4jDeepDives = await this.neo4jQuery.getDeepDivePostIds(limitNum + 1, skip);
+    const neo4jDeepDives = await this.neo4jQuery.getDeepDivePostIds(
+      limitNum + 1,
+      skip,
+    );
 
-    const rankedIds = neo4jDeepDives.length > 0
-      ? neo4jDeepDives.map((dd) => ({ postId: dd.postId, count: String(dd.citedByCount) }))
-      : await this.cached(cacheKey, 600, () =>
-          // Postgres fallback: simple backlink count
-          this.postEdgeRepo
-            .createQueryBuilder('edge')
-            .select('edge.to_post_id', 'postId')
-            .addSelect('COUNT(*)', 'count')
-            .where('edge.edge_type = :type', { type: EdgeType.LINK })
-            .groupBy('edge.to_post_id')
-            .orderBy('COUNT(*)', 'DESC')
-            .offset(skip)
-            .limit(limitNum + 1)
-            .getRawMany<{ postId: string; count: string }>(),
-        );
+    const rankedIds =
+      neo4jDeepDives.length > 0
+        ? neo4jDeepDives.map((dd) => ({
+            postId: dd.postId,
+            count: String(dd.citedByCount),
+          }))
+        : await this.cached(cacheKey, 600, () =>
+            // Postgres fallback: simple backlink count
+            this.postEdgeRepo
+              .createQueryBuilder('edge')
+              .select('edge.to_post_id', 'postId')
+              .addSelect('COUNT(*)', 'count')
+              .where('edge.edge_type = :type', { type: EdgeType.LINK })
+              .groupBy('edge.to_post_id')
+              .orderBy('COUNT(*)', 'DESC')
+              .offset(skip)
+              .limit(limitNum + 1)
+              .getRawMany<{ postId: string; count: string }>(),
+          );
 
     if (rankedIds.length === 0) {
       return { items: [], hasMore: false };

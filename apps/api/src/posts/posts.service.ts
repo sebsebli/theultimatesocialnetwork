@@ -49,7 +49,7 @@ export class PostsService {
     private embeddingService: EmbeddingService,
     private configService: ConfigService,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) { }
+  ) {}
 
   async create(
     userId: string,
@@ -168,7 +168,10 @@ export class PostsService {
     }
 
     if (savedPost.status === 'PUBLISHED' && !skipQueue) {
-      await this.eventBus.publish('post-processing', 'process', { postId: savedPost.id, userId });
+      await this.eventBus.publish('post-processing', 'process', {
+        postId: savedPost.id,
+        userId,
+      });
       // Index immediately so the post is searchable before the worker runs (worker will overwrite with embedding/topicIds).
       this.postRepo
         .findOne({
@@ -203,9 +206,9 @@ export class PostsService {
             authorId: post.authorId || '',
             author: post.author
               ? {
-                displayName: post.author.displayName ?? post.author.handle,
-                handle: post.author.handle,
-              }
+                  displayName: post.author.displayName ?? post.author.handle,
+                  handle: post.author.handle,
+                }
               : undefined,
             authorProtected: post.author?.isProtected,
             lang: post.lang,
@@ -274,7 +277,10 @@ export class PostsService {
       await queryRunner.commitTransaction();
 
       if (isPublishing) {
-        await this.eventBus.publish('post-processing', 'process', { postId: savedPost.id, userId });
+        await this.eventBus.publish('post-processing', 'process', {
+          postId: savedPost.id,
+          userId,
+        });
         // Index immediately so the post is searchable before the worker runs.
         this.postRepo
           .findOne({
@@ -309,9 +315,9 @@ export class PostsService {
               authorId: post.authorId || '',
               author: post.author
                 ? {
-                  displayName: post.author.displayName ?? post.author.handle,
-                  handle: post.author.handle,
-                }
+                    displayName: post.author.displayName ?? post.author.handle,
+                    handle: post.author.handle,
+                  }
                 : undefined,
               authorProtected: post.author?.isProtected,
               lang: post.lang,
@@ -387,7 +393,8 @@ export class PostsService {
       const b = (mdMatch[2] ?? '').trim();
       const urlStartsHttp = (s: string) => /^https?:\/\//i.test(s);
       if (urlStartsHttp(b)) externalUrls.push({ url: b, title: a || null });
-      else if (urlStartsHttp(a)) externalUrls.push({ url: a, title: b || null });
+      else if (urlStartsHttp(a))
+        externalUrls.push({ url: a, title: b || null });
     }
 
     // Parse mentions
@@ -405,13 +412,21 @@ export class PostsService {
 
     const [existingPosts, existingTopics, mentionedUsers] = await Promise.all([
       uniquePostUuids.length > 0
-        ? manager.find(Post, { where: uniquePostUuids.map((id) => ({ id })), select: ['id'] })
+        ? manager.find(Post, {
+            where: uniquePostUuids.map((id) => ({ id })),
+            select: ['id'],
+          })
         : Promise.resolve([]),
       uniqueTopicSlugs.length > 0
-        ? manager.find(Topic, { where: uniqueTopicSlugs.map((slug) => ({ slug })) })
+        ? manager.find(Topic, {
+            where: uniqueTopicSlugs.map((slug) => ({ slug })),
+          })
         : Promise.resolve([]),
       uniqueHandles.length > 0
-        ? manager.find(User, { where: uniqueHandles.map((handle) => ({ handle })), select: ['id', 'handle'] })
+        ? manager.find(User, {
+            where: uniqueHandles.map((handle) => ({ handle })),
+            select: ['id', 'handle'],
+          })
         : Promise.resolve([]),
     ]);
 
@@ -492,10 +507,12 @@ export class PostsService {
 
     // Fire-and-forget: index new topics + archive.org saves
     for (const topic of newTopicsToIndex) {
-      this.meilisearch.indexTopic(topic).catch((err) => this.logger.error('Failed to index topic', err));
+      this.meilisearch
+        .indexTopic(topic)
+        .catch((err) => this.logger.error('Failed to index topic', err));
     }
     for (const url of archiveUrls) {
-      fetch(`https://web.archive.org/save/${url}`).catch(() => { });
+      fetch(`https://web.archive.org/save/${url}`).catch(() => {});
     }
   }
 
@@ -509,20 +526,23 @@ export class PostsService {
         where: { id: postId },
         select: ['id', 'body', 'authorId', 'deletedAt'],
       });
-      if (!post || (post as Post).deletedAt != null) return;
+      if (!post || post.deletedAt != null) return;
       const userId = post.authorId ?? post.id;
       await manager.delete(PostEdge, { fromPostId: postId });
       await manager.delete(ExternalSource, { postId });
       await manager.delete(PostTopic, { postId });
       await manager.delete(Mention, { postId });
-      await this.processPublishedPost(post as Post, manager, userId);
+      await this.processPublishedPost(post, manager, userId);
     });
   }
 
   /**
    * Re-extract sources for all non-deleted posts. Use after fixing markdown/wikilink parsing.
    */
-  async reExtractAllPostsSources(): Promise<{ processed: number; errors: number }> {
+  async reExtractAllPostsSources(): Promise<{
+    processed: number;
+    errors: number;
+  }> {
     const posts = await this.postRepo.find({
       where: { deletedAt: IsNull() },
       select: ['id'],
@@ -533,10 +553,13 @@ export class PostsService {
       try {
         await this.reExtractSourcesForPost(p.id);
         processed++;
-        if (processed % 100 === 0) this.logger.log(`Re-extracted ${processed}/${posts.length} posts`);
+        if (processed % 100 === 0)
+          this.logger.log(`Re-extracted ${processed}/${posts.length} posts`);
       } catch (err) {
         errors++;
-        this.logger.warn(`Re-extract failed for post ${p.id}: ${(err as Error).message}`);
+        this.logger.warn(
+          `Re-extract failed for post ${p.id}: ${(err as Error).message}`,
+        );
       }
     }
     return { processed, errors };
@@ -706,9 +729,9 @@ export class PostsService {
     const posts =
       uniquePostIds.length > 0
         ? await this.postRepo.find({
-          where: { id: In(uniquePostIds) },
-          select: ['id', 'title', 'headerImageKey', 'authorId'],
-        })
+            where: { id: In(uniquePostIds) },
+            select: ['id', 'title', 'headerImageKey', 'authorId'],
+          })
         : [];
     const authorIds = [
       ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
@@ -716,9 +739,9 @@ export class PostsService {
     const authors =
       authorIds.length > 0
         ? await this.userRepo.find({
-          where: { id: In(authorIds) },
-          select: ['id', 'avatarKey'],
-        })
+            where: { id: In(authorIds) },
+            select: ['id', 'avatarKey'],
+          })
         : [];
     const authorMap = new Map(authors.map((a) => [a.id, a.avatarKey ?? null]));
     const postList = posts.map((p) => ({
@@ -741,17 +764,17 @@ export class PostsService {
     const latestRows: LatestRow[] =
       foundTopicIds.length > 0
         ? await this.dataSource
-          .createQueryBuilder()
-          .select('pt.topic_id', 'topicId')
-          .addSelect('p.id', 'postId')
-          .from(PostTopic, 'pt')
-          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-          .where('pt.topic_id IN (:...topicIds)', { topicIds: foundTopicIds })
-          .distinctOn(['pt.topic_id'])
-          .orderBy('pt.topic_id')
-          .addOrderBy('p.created_at', 'DESC')
-          .getRawMany<LatestRow>()
-          .catch(() => [])
+            .createQueryBuilder()
+            .select('pt.topic_id', 'topicId')
+            .addSelect('p.id', 'postId')
+            .from(PostTopic, 'pt')
+            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+            .where('pt.topic_id IN (:...topicIds)', { topicIds: foundTopicIds })
+            .distinctOn(['pt.topic_id'])
+            .orderBy('pt.topic_id')
+            .addOrderBy('p.created_at', 'DESC')
+            .getRawMany<LatestRow>()
+            .catch(() => [])
         : [];
     const latestPostIds = [...new Set(latestRows.map((r) => r.postId))];
     const topicToImageKey = new Map<string, string | null>();
@@ -849,11 +872,11 @@ export class PostsService {
             authorId: quotedUpdated.authorId || '',
             author: quotedUpdated.author
               ? {
-                displayName:
-                  quotedUpdated.author.displayName ||
-                  quotedUpdated.author.handle,
-                handle: quotedUpdated.author.handle,
-              }
+                  displayName:
+                    quotedUpdated.author.displayName ||
+                    quotedUpdated.author.handle,
+                  handle: quotedUpdated.author.handle,
+                }
               : undefined,
             authorProtected: quotedUpdated.author?.isProtected,
             lang: quotedUpdated.lang,
@@ -869,7 +892,10 @@ export class PostsService {
     }
 
     // Now queue it with consistent state
-    await this.eventBus.publish('post-processing', 'process', { postId: quotePost.id, userId });
+    await this.eventBus.publish('post-processing', 'process', {
+      postId: quotePost.id,
+      userId,
+    });
 
     return quotePost;
   }
@@ -900,17 +926,17 @@ export class PostsService {
     const latestRows: LatestRow[] =
       topicIds.length > 0
         ? await this.dataSource
-          .createQueryBuilder()
-          .select('pt.topic_id', 'topicId')
-          .addSelect('p.id', 'postId')
-          .from(PostTopic, 'pt')
-          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-          .where('pt.topic_id IN (:...topicIds)', { topicIds })
-          .distinctOn(['pt.topic_id'])
-          .orderBy('pt.topic_id')
-          .addOrderBy('p.created_at', 'DESC')
-          .getRawMany<LatestRow>()
-          .catch(() => [])
+            .createQueryBuilder()
+            .select('pt.topic_id', 'topicId')
+            .addSelect('p.id', 'postId')
+            .from(PostTopic, 'pt')
+            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+            .where('pt.topic_id IN (:...topicIds)', { topicIds })
+            .distinctOn(['pt.topic_id'])
+            .orderBy('pt.topic_id')
+            .addOrderBy('p.created_at', 'DESC')
+            .getRawMany<LatestRow>()
+            .catch(() => [])
         : [];
     const latestPostIds = [...new Set(latestRows.map((r) => r.postId))];
     const topicToImageKey = new Map<string, string | null>();

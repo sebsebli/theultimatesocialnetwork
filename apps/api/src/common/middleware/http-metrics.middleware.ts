@@ -20,9 +20,9 @@ export function httpMetricsMiddleware(
     const durationSec = durationNs / 1e9;
 
     // Prefer Express route pattern; fall back to first two path segments
-    const route = req.route?.path
-      ? `${req.baseUrl || ''}${req.route.path}`
-      : normalizeRoute(req.path);
+    const route = (req as { route?: { path?: string } }).route?.path
+      ? `${req.baseUrl || ''}${(req as { route: { path: string } }).route.path}`
+      : normalizeRoute((req as { path: string }).path);
 
     const labels = {
       method: req.method,

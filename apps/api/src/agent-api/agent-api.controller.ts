@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { AgentApiGuard } from './guards/agent-api.guard';
 import { AgentApiService } from './agent-api.service';
 import { CreatePostDto } from '../posts/dto/create-post.dto';
@@ -24,7 +19,9 @@ export class AgentApiController {
   }
 
   @Post('replies')
-  async createReply(@Body() body: { userId: string; postId: string; body: string }) {
+  async createReply(
+    @Body() body: { userId: string; postId: string; body: string },
+  ) {
     return this.agentService.createReply(body.userId, body.postId, body.body);
   }
 }
