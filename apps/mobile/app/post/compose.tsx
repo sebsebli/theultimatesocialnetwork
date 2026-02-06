@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -14,6 +14,7 @@ import {
   Keyboard,
   useWindowDimensions,
   Linking,
+  ViewStyle,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
@@ -77,7 +78,7 @@ function LinkInputFields({
   setLinkText: (s: string) => void;
   onAdd: () => void;
   onClose: () => void;
-  styles: Record<string, any>;
+  styles: Record<string, object>;
   maxDisplayLength?: number;
 }) {
   const { t } = useTranslation();
@@ -153,8 +154,14 @@ export default function ComposeScreen() {
     if (!userId) return;
     api
       .get("/users/me")
-      .then((u: any) => setMeUser(u))
-      .catch(() => {});
+      .then((u: unknown) => setMeUser(u as {
+        id: string;
+        handle: string;
+        displayName: string;
+        avatarKey?: string | null;
+        avatarUrl?: string | null;
+      }))
+      .catch(() => { /* user info fetch best-effort */ });
   }, [userId]);
 
   useEffect(() => {
@@ -226,9 +233,9 @@ export default function ComposeScreen() {
       if (quotePostId) {
         try {
           const res = await api.get(`/posts/${quotePostId}`);
-          setQuotedPost(res?.data ?? res);
+          setQuotedPost(((res as Record<string, unknown>)?.data ?? res) as Post);
         } catch (e) {
-          console.error(e);
+          if (__DEV__) console.error(e);
         }
       } else if (replyToPostId) {
         // We might want to show what we are replying to?
@@ -296,7 +303,7 @@ export default function ComposeScreen() {
   // We'll store them in a map: id -> Post object, slug -> Topic object
   const [sourcePreviews, setSourcePreviews] = useState<{
     postById: Record<string, Post>;
-    topicBySlug: Record<string, any>;
+    topicBySlug: Record<string, object>;
   }>({ postById: {}, topicBySlug: {} });
 
   const normalizeTopicSlug = (slug: string) =>
@@ -331,22 +338,24 @@ export default function ComposeScreen() {
     const fetchMissing = async () => {
       try {
         const newPosts: Record<string, Post> = {};
-        const newTopics: Record<string, any> = {};
+        const newTopics: Record<string, object> = {};
         const newMeta: Record<string, { title?: string }> = {};
 
         await Promise.all([
           ...missingPosts.map(async (id) => {
             try {
-              const { data } = await api.get(`/posts/${id}`);
-              newPosts[id] = data;
-              newMeta[id] = { title: data.title || "Post" };
+              const res = await api.get(`/posts/${id}`);
+              const data = ((res as Record<string, unknown>)?.data ?? res) as Record<string, unknown>;
+              newPosts[id] = data as unknown as Post;
+              newMeta[id] = { title: (data.title as string) || "Post" };
             } catch {} // Ignore errors for individual fetches
           }),
           ...missingTopics.map(async (slug) => {
             try {
-              const { data } = await api.get(
+              const res = await api.get(
                 `/topics/${encodeURIComponent(slug)}`,
               );
+              const data = ((res as Record<string, unknown>)?.data ?? res) as Record<string, unknown>;
               newTopics[slug] = data;
             } catch {} // Ignore errors for individual fetches
           }),
@@ -358,7 +367,7 @@ export default function ComposeScreen() {
         }));
         setReferenceMetadata((prev) => ({ ...prev, ...newMeta }));
       } catch (e) {
-        console.error("Failed to fetch preview metadata", e);
+        if (__DEV__) console.error("Failed to fetch preview metadata", e);
       }
     };
 
@@ -391,17 +400,18 @@ export default function ComposeScreen() {
       setHeaderUploading(true);
       const uploadId = ++headerUploadIdRef.current;
       api
-        .upload("/upload/header-image", asset)
-        .then((res: { key?: string; url?: string; blurhash?: string }) => {
+        .upload("/upload/header-image", { uri: asset.uri, fileName: asset.fileName ?? undefined, mimeType: asset.mimeType ?? undefined, type: asset.type ?? undefined, fileSize: asset.fileSize })
+        .then((res) => {
+          const result = res as { key?: string; url?: string; blurhash?: string } | null;
           if (uploadId !== headerUploadIdRef.current) return;
-          setUploadedHeaderKey(res?.key ?? null);
-          setUploadedHeaderBlurhash(res?.blurhash);
+          setUploadedHeaderKey(result?.key ?? null);
+          setUploadedHeaderBlurhash(result?.blurhash);
           setHeaderUploadError(null);
         })
-        .catch((err: any) => {
+        .catch((err: unknown) => {
           if (uploadId !== headerUploadIdRef.current) return;
           setHeaderUploadError(
-            err?.message ??
+            (err as { message?: string })?.message ??
               t("compose.imageUploadFailed", "Image failed to upload"),
           );
         })
@@ -414,7 +424,7 @@ export default function ComposeScreen() {
   const removeHeaderImage = () => {
     const key = uploadedHeaderKeyRef.current;
     if (key) {
-      api.post("/upload/abandon", { key }).catch(() => {});
+      api.post("/upload/abandon", { key }).catch(() => { /* abandon upload best-effort */ });
     }
     setHeaderImage(null);
     setHeaderImageAsset(null);
@@ -428,12 +438,12 @@ export default function ComposeScreen() {
     return () => {
       const key = uploadedHeaderKeyRef.current;
       if (key && publishedWithHeaderKeyRef.current !== key) {
-        api.post("/upload/abandon", { key }).catch(() => {});
+        api.post("/upload/abandon", { key }).catch(() => { /* abandon upload best-effort */ });
       }
     };
   }, []);
 
-  const insertText = (text: string) => {
+  const insertText = useCallback((text: string) => {
     const newBody =
       body.slice(0, selection.start) + text + body.slice(selection.end);
     const newCursorPos = selection.start + text.length;
@@ -443,9 +453,9 @@ export default function ComposeScreen() {
       () => setSelection({ start: newCursorPos, end: newCursorPos }),
       0,
     );
-  };
+  }, [body, selection, setBody, setSelection]);
 
-  const formatSelection = (
+  const formatSelection = useCallback((
     type: "bold" | "italic" | "quote" | "list" | "ordered-list" | "code",
   ) => {
     const selectedText = body.slice(selection.start, selection.end);
@@ -507,7 +517,7 @@ export default function ComposeScreen() {
       const endPos = selection.start + newText.length;
       setTimeout(() => setSelection({ start: endPos, end: endPos }), 0);
     }
-  };
+  }, [body, selection, setBody, setSelection]);
 
   const openLinkInput = () => {
     // If text selected, use it as display text
@@ -581,7 +591,7 @@ export default function ComposeScreen() {
     return text;
   };
 
-  const handlePublish = async () => {
+  const handlePublish = useCallback(async () => {
     if (!body.trim()) return;
     if (isPublishing) return;
 
@@ -664,14 +674,14 @@ export default function ComposeScreen() {
 
       // Navigate away (do not open the quoted/reply post; just go back)
       router.back();
-    } catch (error: any) {
-      console.error("Failed to publish", error);
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to publish", error);
       showError(t("compose.error", "Failed to publish. Please try again."));
     } finally {
       setIsPublishing(false);
       setPublishPhase("idle");
     }
-  };
+  }, [body, isPublishing, headerImageAsset, headerUploading, headerUploadError, uploadedHeaderKey, uploadedHeaderBlurhash, quotePostId, replyToPostId, draftKey, showError, showSuccess, t, router, clearDraft]);
 
   // --- Suggestions Logic ---
   const checkTriggers = (text: string, cursorIndex: number) => {
@@ -715,7 +725,6 @@ export default function ComposeScreen() {
         return;
       }
       if (suggestionType !== "topic") setSuggestionType("topic");
-      // @ts-ignore - Argument count mismatch until hook is updated
       search(query, "topic", smartCiteEnabled);
       return;
     }
@@ -726,7 +735,7 @@ export default function ComposeScreen() {
     }
   };
 
-  const handleSuggestionSelect = (item: any) => {
+  const handleSuggestionSelect = useCallback((item: Record<string, unknown>) => {
     const beforeCursor = body.slice(0, selection.start);
     const afterCursor = body.slice(selection.start);
 
@@ -741,10 +750,10 @@ export default function ComposeScreen() {
       const truncateAlias = (s: string) =>
         (s || "").slice(0, TITLE_MAX_LENGTH).replace(/\ G]/g, "");
       if (item.type === "post") {
-        const alias = truncateAlias(item.displayName || item.title || "Post");
-        insertion = `[[post:${item.id}|${alias}]] `;
+        const alias = truncateAlias((item.displayName as string) || (item.title as string) || "Post");
+        insertion = `[[post:${item.id as string}|${alias}]] `;
       } else {
-        const alias = truncateAlias(item.slug || item.title || "");
+        const alias = truncateAlias((item.slug as string) || (item.title as string) || "");
         insertion = `[[${alias}]] `;
       }
     }
@@ -756,27 +765,27 @@ export default function ComposeScreen() {
       setBody(newBody);
       setSelection({ start: newCursorPos, end: newCursorPos });
       if (suggestionType === "mention" && item.handle) {
-        setConfirmedMentionHandles((prev) => new Set(prev).add(item.handle));
+        setConfirmedMentionHandles((prev) => new Set(prev).add(item.handle as string));
       }
     }
     setSuggestionType("none");
     clearSearch();
-  };
+  }, [body, selection, suggestionType, setBody, setSelection, setSuggestionType, clearSearch]);
 
   // --- Components ---
 
   const SuggestionsView = () => {
     if (suggestionType === "none") return null;
-    let list: any[] =
+    let list: Record<string, unknown>[] =
       suggestionType === "mention"
         ? suggestions.filter(
-            (item: any) =>
-              item.id !== userId && !item.handle?.startsWith?.("__pending_"),
+            (item: Record<string, unknown>) =>
+              item.id !== userId && (item.handle as string | undefined)?.startsWith?.("__pending_") !== true,
           )
         : suggestions;
     if (suggestionType === "topic") {
       const seen = new Set<string>();
-      list = list.filter((item: any) => {
+      list = list.filter((item: Record<string, unknown>) => {
         const key =
           item.type === "post"
             ? `post:${item.id}`
@@ -788,11 +797,11 @@ export default function ComposeScreen() {
     }
     const topics =
       suggestionType === "topic"
-        ? list.filter((i: any) => i.type === "topic")
+        ? list.filter((i: Record<string, unknown>) => i.type === "topic")
         : [];
     const posts =
       suggestionType === "topic"
-        ? list.filter((i: any) => i.type === "post")
+        ? list.filter((i: Record<string, unknown>) => i.type === "post")
         : [];
     const showSections =
       suggestionType === "topic" && topics.length > 0 && posts.length > 0;
@@ -839,7 +848,7 @@ export default function ComposeScreen() {
       );
     };
 
-    const renderSuggestionItem = (item: any) => (
+    const renderSuggestionItem = (item: Record<string, unknown>) => (
       <Pressable
         key={`${item.type}-${item.id ?? item.slug}`}
         style={styles.suggestionItem}
@@ -850,10 +859,10 @@ export default function ComposeScreen() {
             <Avatar
               size={40}
               uri={getAvatarUri({
-                avatarKey: item.avatarKey,
-                avatarUrl: item.avatarUrl,
+                avatarKey: item.avatarKey as string | null | undefined,
+                avatarUrl: item.avatarUrl as string | null | undefined,
               })}
-              name={(item.displayName || item.handle) ?? ""}
+              name={((item.displayName as string) || (item.handle as string)) ?? ""}
             />
           ) : item.type === "post" &&
             (item.headerImageKey || item.headerImageUrl) ? (
@@ -861,8 +870,8 @@ export default function ComposeScreen() {
               source={{
                 uri:
                   getPostHeaderImageUri({
-                    headerImageUrl: item.headerImageUrl,
-                    headerImageKey: item.headerImageKey,
+                    headerImageUrl: item.headerImageUrl as string | null | undefined,
+                    headerImageKey: item.headerImageKey as string | null | undefined,
                   }) ?? "",
               }}
               style={styles.suggestionPostImage}
@@ -913,7 +922,7 @@ export default function ComposeScreen() {
                 >
                   {t("compose.topics", "Topics")}
                 </Text>
-                {topics.map((item: any) => renderSuggestionItem(item))}
+                {topics.map((item: Record<string, unknown>) => renderSuggestionItem(item))}
               </>
             )}
             {posts.length > 0 && (
@@ -921,7 +930,7 @@ export default function ComposeScreen() {
                 <Text style={styles.suggestionSectionHeader}>
                   {t("compose.posts", "Posts")}
                 </Text>
-                {posts.map((item: any) => renderSuggestionItem(item))}
+                {posts.map((item: Record<string, unknown>) => renderSuggestionItem(item))}
               </>
             )}
           </ScrollView>
@@ -1198,7 +1207,7 @@ export default function ComposeScreen() {
       visibility: "PUBLIC",
       readingTimeMinutes,
     };
-    (p as any).referenceMetadata = referenceMetadata;
+    (p as unknown as Record<string, unknown>).referenceMetadata = referenceMetadata;
     return p;
   }, [body, sanitizedTitle, referenceMetadata, userId, meUser, t]);
 
@@ -1732,7 +1741,7 @@ export default function ComposeScreen() {
                   </Text>
                 ) : (
                   <View style={styles.previewSourcesList}>
-                    {previewSources.map((source: any, index: number) => {
+                    {previewSources.map((source: Record<string, unknown>, index: number) => {
                       const title =
                         source.title ||
                         source.url ||
@@ -1743,7 +1752,7 @@ export default function ComposeScreen() {
                         source.type === "external" && source.url
                           ? (() => {
                               try {
-                                return new URL(source.url).hostname.replace(
+                                return new URL(source.url as string).hostname.replace(
                                   "www.",
                                   "",
                                 );
@@ -1772,7 +1781,7 @@ export default function ComposeScreen() {
                             {source.type === "user" ? (
                               <View style={styles.previewSourceAvatar}>
                                 <Text style={styles.previewSourceAvatarText}>
-                                  {(source.title || source.handle || "?")
+                                  {((source.title as string) || (source.handle as string) || "?")
                                     .charAt(0)
                                     .toUpperCase()}
                                 </Text>
@@ -1954,7 +1963,7 @@ const styles = createStyles({
     color: COLORS.error,
   },
   removeImgBtn: {
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: COLORS.overlay,
     padding: 6,
     borderRadius: 12,
   },
@@ -2147,7 +2156,7 @@ const styles = createStyles({
     right: 0,
     bottom: 0,
     padding: SPACING.l,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: COLORS.overlay,
   },
   previewHeroTitleText: {
     fontSize: 28,
@@ -2171,7 +2180,7 @@ const styles = createStyles({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.badge,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2273,7 +2282,7 @@ const styles = createStyles({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.badge,
     alignItems: "center",
     justifyContent: "center",
     marginRight: SPACING.m,

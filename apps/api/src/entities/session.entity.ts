@@ -25,6 +25,11 @@ export class Session {
   @Column({ name: 'token_hash', type: 'text', unique: true })
   tokenHash: string;
 
+  /** SHA-256 hash of the refresh token. Used to validate refresh requests. */
+  @Column({ name: 'refresh_token_hash', type: 'text', nullable: true })
+  @Index()
+  refreshTokenHash: string | null;
+
   @Column({ name: 'ip_address', type: 'text', nullable: true })
   ipAddress: string | null;
 

@@ -62,6 +62,8 @@ function TopicCollectionHeaderInner({
 }: TopicCollectionHeaderProps) {
   const hasHero = !!headerImageUri;
   const insets = useSafeAreaInsets();
+  // Slightly reduced top so overlay buttons aren’t too low (min 8pt for small insets)
+  const overlayBarPaddingTop = Math.max(8, insets.top - 20);
 
   return (
     <View style={[styles.wrapper, hasHero && styles.wrapperRelative]}>
@@ -88,21 +90,21 @@ function TopicCollectionHeaderInner({
                       <View style={styles.metricsRow}>
                         {(metrics.postCount != null ||
                           metrics.itemCount != null) && (
-                          <Text style={styles.heroMetricText}>
-                            {(
-                              metrics.postCount ??
-                              metrics.itemCount ??
-                              0
-                            ).toLocaleString()}{" "}
-                            {type === "collection" ? "items" : "posts"}
-                          </Text>
-                        )}
+                            <Text style={styles.heroMetricText}>
+                              {(
+                                metrics.postCount ??
+                                metrics.itemCount ??
+                                0
+                              ).toLocaleString()}{" "}
+                              {type === "collection" ? "items" : "posts"}
+                            </Text>
+                          )}
                         {metrics.contributorCount != null && (
                           <>
                             {(metrics.postCount != null ||
                               metrics.itemCount != null) && (
-                              <Text style={styles.heroMetricText}> • </Text>
-                            )}
+                                <Text style={styles.heroMetricText}> • </Text>
+                              )}
                             <Text style={styles.heroMetricText}>
                               {metrics.contributorCount.toLocaleString()}{" "}
                               contributors
@@ -134,7 +136,7 @@ function TopicCollectionHeaderInner({
             </View>
           </View>
           <View
-            style={[styles.overlayBar, { paddingTop: insets.top + SPACING.s }]}
+            style={[styles.overlayBar, { paddingTop: overlayBarPaddingTop }]}
             pointerEvents="box-none"
           >
             <HeaderIconButton
@@ -161,7 +163,7 @@ function TopicCollectionHeaderInner({
         </View>
       ) : null}
       {!hasHero ? (
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: overlayBarPaddingTop }]}>
           <View style={styles.headerBar}>
             <HeaderIconButton
               onPress={onBack}
@@ -194,21 +196,21 @@ function TopicCollectionHeaderInner({
                   <View style={styles.metricsRow}>
                     {(metrics.postCount != null ||
                       metrics.itemCount != null) && (
-                      <Text style={styles.metricText}>
-                        {(
-                          metrics.postCount ??
-                          metrics.itemCount ??
-                          0
-                        ).toLocaleString()}{" "}
-                        {type === "collection" ? "items" : "posts"}
-                      </Text>
-                    )}
+                        <Text style={styles.metricText}>
+                          {(
+                            metrics.postCount ??
+                            metrics.itemCount ??
+                            0
+                          ).toLocaleString()}{" "}
+                          {type === "collection" ? "items" : "posts"}
+                        </Text>
+                      )}
                     {metrics.contributorCount != null && (
                       <>
                         {(metrics.postCount != null ||
                           metrics.itemCount != null) && (
-                          <Text style={styles.metricText}> • </Text>
-                        )}
+                            <Text style={styles.metricText}> • </Text>
+                          )}
                         <Text style={styles.metricText}>
                           {metrics.contributorCount.toLocaleString()}{" "}
                           contributors
@@ -275,7 +277,6 @@ const styles = createStyles({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
-    paddingTop: SPACING.s,
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     zIndex: 10,
   },
@@ -337,7 +338,6 @@ const styles = createStyles({
   header: {
     width: "100%",
     paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
-    paddingTop: SPACING.s,
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
   },
   headerBar: {

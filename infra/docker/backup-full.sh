@@ -30,17 +30,21 @@ PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT
 echo "[$(date)] PostgreSQL backup done: ${PG_FILE}"
 
 # -----------------------------------------------------------------------------
-# 2. Neo4j (Cypher export; file written by Neo4j server to shared /backups)
+# 2. Neo4j (optional — skipped when NEO4J_URI is not set)
 # -----------------------------------------------------------------------------
-NEO4J_FILE="${FULL_DIR}/neo4j.cypher"
-echo "[$(date)] Backing up Neo4j (Cypher export)..."
-cypher-shell -a "$NEO4J_URI" -u neo4j -p "$NEO4J_PASSWORD" --format plain \
-  "CALL apoc.export.cypher.all('${NEO4J_FILE}', { format: 'cypherShell', useOptimizations: { type: 'UNWIND_BATCH', unwindBatchSize: 20 } }) YIELD file, batches RETURN file" \
-  >/dev/null 2>&1 || true
-if [ ! -s "$NEO4J_FILE" ]; then
-  echo "// Neo4j export (empty or APOC not available)" > "$NEO4J_FILE"
+if [ -n "$NEO4J_URI" ]; then
+  NEO4J_FILE="${FULL_DIR}/neo4j.cypher"
+  echo "[$(date)] Backing up Neo4j (Cypher export)..."
+  cypher-shell -a "$NEO4J_URI" -u neo4j -p "$NEO4J_PASSWORD" --format plain \
+    "CALL apoc.export.cypher.all('${NEO4J_FILE}', { format: 'cypherShell', useOptimizations: { type: 'UNWIND_BATCH', unwindBatchSize: 20 } }) YIELD file, batches RETURN file" \
+    >/dev/null 2>&1 || true
+  if [ ! -s "$NEO4J_FILE" ]; then
+    echo "// Neo4j export (empty or APOC not available)" > "$NEO4J_FILE"
+  fi
+  echo "[$(date)] Neo4j backup done: ${NEO4J_FILE}"
+else
+  echo "[$(date)] Neo4j backup skipped (NEO4J_URI not set)."
 fi
-echo "[$(date)] Neo4j backup done: ${NEO4J_FILE}"
 
 # -----------------------------------------------------------------------------
 # 3. MinIO (mirror bucket to backup dir)

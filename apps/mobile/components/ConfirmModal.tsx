@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, Modal, Pressable } from "react-native";
+import React, { useCallback, useState } from "react";
+import { View, Text, Modal, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -45,17 +45,17 @@ export function ConfirmModal({
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     setLoading(true);
     try {
       await onConfirm();
       onCancel(); // Close modal on success
-    } catch (_e) {
+    } catch {
       // Caller shows error via toast; we just stop loading
     } finally {
       setLoading(false);
     }
-  };
+  }, [onConfirm, onCancel]);
 
   if (!visible) return null;
 
@@ -69,7 +69,7 @@ export function ConfirmModal({
           <View style={styles.handleBar} />
           {icon ? (
             <MaterialIcons
-              name={icon as any}
+              name={icon as keyof typeof MaterialIcons.glyphMap}
               size={32}
               color={destructive ? COLORS.error : COLORS.primary}
               style={styles.titleIcon}
@@ -88,6 +88,8 @@ export function ConfirmModal({
               ]}
               onPress={handleConfirm}
               disabled={loading}
+              accessibilityLabel={confirmLabel}
+              accessibilityRole="button"
             >
               {loading ? (
                 <InlineSkeleton />
@@ -111,6 +113,8 @@ export function ConfirmModal({
               ]}
               onPress={onCancel}
               disabled={loading}
+              accessibilityLabel={cancelLabel}
+              accessibilityRole="button"
             >
               <Text style={styles.cancelButtonText}>{cancelLabel}</Text>
             </Pressable>
@@ -138,7 +142,7 @@ const styles = createStyles({
     paddingTop: SPACING.m,
     width: "100%",
     maxWidth: 360,
-    shadowColor: "#000",
+    shadowColor: COLORS.ink,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 16,

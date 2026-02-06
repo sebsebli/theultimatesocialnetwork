@@ -65,6 +65,8 @@ function EmptyStateInner({
             <Pressable
               style={({ pressed }: { pressed: boolean }) => [styles.primaryBtn, pressed && styles.btnPressed]}
               onPress={onAction}
+              accessibilityLabel={actionLabel}
+              accessibilityRole="button"
             >
               <Text style={styles.primaryBtnText}>{actionLabel}</Text>
             </Pressable>
@@ -73,6 +75,8 @@ function EmptyStateInner({
             <Pressable
               style={({ pressed }: { pressed: boolean }) => [styles.secondaryBtn, pressed && styles.btnPressed]}
               onPress={onSecondary}
+              accessibilityLabel={secondaryLabel}
+              accessibilityRole="button"
             >
               <Text style={styles.secondaryBtnText}>{secondaryLabel}</Text>
             </Pressable>

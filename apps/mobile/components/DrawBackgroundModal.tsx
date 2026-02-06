@@ -51,7 +51,7 @@ export interface DrawBackgroundModalProps {
   onSaved: (key: string, url?: string) => void;
   /** Current profile header image URL so user can see where they are drawing */
   profileHeaderUrl?: string | null;
-  user?: any;
+  user?: { id?: string; handle?: string; displayName?: string; avatarKey?: string | null; avatarUrl?: string | null; followerCount?: number; followingCount?: number; postCount?: number; bio?: string } | null;
 }
 
 export function DrawBackgroundModal({
@@ -134,10 +134,11 @@ export function DrawBackgroundModal({
         fileName: "profile-header.png",
       };
       const uploadRes = await api.upload("/upload/profile-header", file);
-      if (uploadRes?.key) {
-        await api.patch("/users/me", { profileHeaderKey: uploadRes.key });
+      const uploadResult = uploadRes as { key?: string; url?: string } | null;
+      if (uploadResult?.key) {
+        await api.patch("/users/me", { profileHeaderKey: uploadResult.key });
         showSuccess(t("profile.headerUpdated", "Header updated."));
-        onSaved(uploadRes.key, uploadRes.url);
+        onSaved(uploadResult.key, uploadResult.url);
         onClose();
       }
     } catch (e) {

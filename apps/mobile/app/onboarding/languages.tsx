@@ -43,7 +43,7 @@ export default function OnboardingLanguagesScreen() {
       if (selectedLanguages.length < 3) {
         setSelectedLanguages((prev) => [...prev, code]);
       } else {
-        showToast("You can select up to 3 languages");
+        showToast(t("onboarding.maxLanguages", "You can select up to 3 languages"));
       }
     }
   };
@@ -56,8 +56,8 @@ export default function OnboardingLanguagesScreen() {
       });
       await setOnboardingStage("profile");
       router.push("/onboarding/profile");
-    } catch (error: any) {
-      console.error("Failed to update languages", error);
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to update languages", error);
       showError(t("onboarding.updateFailed"));
     } finally {
       setLoading(false);
@@ -94,6 +94,8 @@ export default function OnboardingLanguagesScreen() {
                 key={lang.code}
                 style={[styles.langCard, isSelected && styles.langCardSelected]}
                 onPress={() => toggleLanguage(lang.code)}
+                accessibilityRole="button"
+                accessibilityLabel={`${lang.name}${lang.native ? `, ${lang.native}` : ''}${isSelected ? ', selected' : ''}`}
               >
                 <Text
                   style={[
@@ -113,7 +115,7 @@ export default function OnboardingLanguagesScreen() {
                 </Text>
                 {isSelected && (
                   <View style={styles.checkBadge}>
-                    <MaterialIcons name="check" size={12} color="#FFF" />
+                    <MaterialIcons name="check" size={12} color={COLORS.paper} />
                   </View>
                 )}
               </Pressable>
@@ -124,6 +126,8 @@ export default function OnboardingLanguagesScreen() {
         <Pressable
           style={styles.toggleRow}
           onPress={() => setOnlyMyLanguages(!onlyMyLanguages)}
+          accessibilityRole="button"
+          accessibilityLabel={t("onboarding.languages.filterExplore")}
         >
           <View style={styles.toggleText}>
             <Text style={styles.toggleLabel}>
@@ -151,6 +155,8 @@ export default function OnboardingLanguagesScreen() {
           ]}
           onPress={handleSubmit}
           disabled={loading || selectedLanguages.length < 1}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.continue")}
         >
           {loading ? (
             <InlineSkeleton />
@@ -160,7 +166,7 @@ export default function OnboardingLanguagesScreen() {
           <MaterialIcons
             name="arrow-forward"
             size={HEADER.iconSize}
-            color="#FFF"
+            color={COLORS.paper}
           />
         </Pressable>
       </View>
@@ -232,7 +238,7 @@ const styles = createStyles({
     position: "relative",
   },
   langCardSelected: {
-    backgroundColor: "rgba(110, 122, 138, 0.1)",
+    backgroundColor: COLORS.badge,
     borderColor: COLORS.primary,
   },
   langName: {
@@ -305,7 +311,7 @@ const styles = createStyles({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.paper,
   },
   thumbActive: {
     alignSelf: "flex-end",
@@ -336,7 +342,7 @@ const styles = createStyles({
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFF",
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
 });

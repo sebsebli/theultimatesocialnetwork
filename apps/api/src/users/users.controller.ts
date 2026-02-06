@@ -22,7 +22,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { CurrentUser } from '../shared/current-user.decorator';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
-import { Queue } from 'bullmq';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import {
@@ -39,11 +39,11 @@ import { TopicFollowsService } from '../topics/topic-follows.service';
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
-    @Inject('EXPORT_QUEUE') private exportQueue: Queue,
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
     private readonly uploadService: UploadService,
     private readonly safetyService: SafetyService,
     private readonly topicFollowsService: TopicFollowsService,
-  ) {}
+  ) { }
 
   @Patch('me')
   @UseGuards(AuthGuard('jwt'))
@@ -120,9 +120,9 @@ export class UsersController {
       : null;
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
     const profileBackgroundColor = '#0B0B0C';
-    const threshold = await this.usersService.getQuotesBadgeThreshold();
-    const quotesBadgeEligible = (me.quoteReceivedCount ?? 0) >= threshold;
     const counts = await this.usersService.getProfileCounts(me.id);
+    const threshold = await this.usersService.getQuotesBadgeThreshold();
+    const quotesBadgeEligible = (counts.quoteReceivedCount ?? 0) >= threshold;
     return {
       ...plain,
       avatarKey: me.avatarKey ?? undefined,
@@ -137,7 +137,9 @@ export class UsersController {
       collectionCount: counts.collectionCount,
       keepsCount: counts.keepsCount,
       citedCount: counts.citedCount,
+      quoteReceivedCount: counts.quoteReceivedCount ?? 0,
       posts: me.posts?.map((p) => postToPlain(p, getImageUrl)),
+      preferences: me.preferences ?? {},
     };
   }
 
@@ -189,16 +191,30 @@ export class UsersController {
 
   @Get('me/following')
   @UseGuards(AuthGuard('jwt'))
-  async getFollowing(@CurrentUser() user: { id: string }) {
-    const following = await this.usersService.getFollowing(user.id);
-    return following.map((u) => this.withAvatarUrl(u));
+  async getFollowing(
+    @CurrentUser() user: { id: string },
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+  ) {
+    const result = await this.usersService.getFollowing(user.id, limit, offset);
+    return {
+      items: result.items.map((u) => this.withAvatarUrl(u)),
+      hasMore: result.hasMore,
+    };
   }
 
   @Get('me/followers')
   @UseGuards(AuthGuard('jwt'))
-  async getFollowers(@CurrentUser() user: { id: string }) {
-    const followers = await this.usersService.getFollowers(user.id);
-    return followers.map((u) => this.withAvatarUrl(u));
+  async getFollowers(
+    @CurrentUser() user: { id: string },
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+  ) {
+    const result = await this.usersService.getFollowers(user.id, limit, offset);
+    return {
+      items: result.items.map((u) => this.withAvatarUrl(u)),
+      hasMore: result.hasMore,
+    };
   }
 
   @Delete('me/followers/:id')
@@ -336,7 +352,7 @@ export class UsersController {
       );
     }
     await this.usersService.recordExportRequest(user.id);
-    await this.exportQueue.add('export-job', {
+    await this.eventBus.publish('data-export', 'export-job', {
       userId: user.id,
       email,
     });
@@ -378,7 +394,7 @@ export class UsersController {
     );
     stream.pipe(res);
     stream.on('end', () => {
-      this.usersService.deleteExport(exportRecord.id).catch(() => {});
+      this.usersService.deleteExport(exportRecord.id).catch(() => { });
     });
     stream.on('error', () => {
       res.end();
@@ -587,19 +603,33 @@ export class UsersController {
   }
 
   @Get(':idOrHandle/following')
-  async getFollowingByUser(@Param('idOrHandle') idOrHandle: string) {
+  async getFollowingByUser(
+    @Param('idOrHandle') idOrHandle: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+  ) {
     const userId = await this.usersService.resolveUserId(idOrHandle);
     if (!userId) throw new NotFoundException('User not found');
-    const following = await this.usersService.getFollowing(userId);
-    return following.map((u) => this.withAvatarUrl(u));
+    const result = await this.usersService.getFollowing(userId, limit, offset);
+    return {
+      items: result.items.map((u) => this.withAvatarUrl(u)),
+      hasMore: result.hasMore,
+    };
   }
 
   @Get(':idOrHandle/followers')
-  async getFollowersByUser(@Param('idOrHandle') idOrHandle: string) {
+  async getFollowersByUser(
+    @Param('idOrHandle') idOrHandle: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+  ) {
     const userId = await this.usersService.resolveUserId(idOrHandle);
     if (!userId) throw new NotFoundException('User not found');
-    const followers = await this.usersService.getFollowers(userId);
-    return followers.map((u) => this.withAvatarUrl(u));
+    const result = await this.usersService.getFollowers(userId, limit, offset);
+    return {
+      items: result.items.map((u) => this.withAvatarUrl(u)),
+      hasMore: result.hasMore,
+    };
   }
 
   @Get(':idOrHandle/followed-topics')
@@ -648,6 +678,7 @@ export class UsersController {
       (user as { collectionCount?: number })?.collectionCount ?? 0;
     const keepsCount = (user as { keepsCount?: number })?.keepsCount ?? 0;
     const citedCount = (user as { citedCount?: number })?.citedCount ?? 0;
+    const quoteReceivedCount = user?.quoteReceivedCount ?? 0;
 
     return {
       ...plain,
@@ -666,6 +697,7 @@ export class UsersController {
       collectionCount,
       keepsCount,
       citedCount,
+      quoteReceivedCount,
     };
   }
 }

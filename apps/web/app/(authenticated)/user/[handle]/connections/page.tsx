@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useAuth } from "@/components/auth-provider";
+import { useToast } from "@/components/ui/toast";
 import { UserCard } from "@/components/user-card";
 import { TopicCard } from "@/components/topic-card";
 import {
@@ -42,9 +44,12 @@ interface TopicItem {
 export default function ConnectionsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const { success, error: toastError } = useToast();
   const handle = params.handle as string;
   const tabParam = searchParams.get("tab") as Tab | null;
   const t = useTranslations("profile");
+  const isSelf = Boolean(handle && user && (user as { handle?: string }).handle === handle);
 
   const [activeTab, setActiveTab] = useState<Tab>(
     tabParam === "following"
@@ -160,6 +165,25 @@ export default function ConnectionsPage() {
     }
   };
 
+  const handleRemoveFollower = useCallback(
+    async (person: Person) => {
+      try {
+        const res = await fetch(`/api/me/followers/${person.id}`, {
+          method: "DELETE",
+        });
+        if (res.ok) {
+          setItems((prev) => prev.filter((p) => p.id !== person.id));
+          success("Follower removed");
+        } else {
+          toastError("Failed to remove follower");
+        }
+      } catch {
+        toastError("Failed to remove follower");
+      }
+    },
+    [success, toastError],
+  );
+
   const handleFollowTopic = async (topic: TopicItem, follow: boolean) => {
     const method = follow ? "POST" : "DELETE";
     const res = await fetch(
@@ -208,33 +232,30 @@ export default function ConnectionsPage() {
         <button
           type="button"
           onClick={() => switchTab("followers")}
-          className={`flex-1 px-4 py-3 text-center text-sm font-semibold transition-colors ${
-            activeTab === "followers"
+          className={`flex-1 px-4 py-3 text-center text-sm font-semibold transition-colors ${activeTab === "followers"
               ? "text-primary border-b-2 border-primary"
               : "text-tertiary hover:text-paper"
-          }`}
+            }`}
         >
           {t("followers")}
         </button>
         <button
           type="button"
           onClick={() => switchTab("following")}
-          className={`flex-1 px-4 py-3 text-center text-sm font-semibold transition-colors ${
-            activeTab === "following"
+          className={`flex-1 px-4 py-3 text-center text-sm font-semibold transition-colors ${activeTab === "following"
               ? "text-primary border-b-2 border-primary"
               : "text-tertiary hover:text-paper"
-          }`}
+            }`}
         >
           {t("following")}
         </button>
         <button
           type="button"
           onClick={() => switchTab("topics")}
-          className={`flex-1 px-4 py-3 text-center text-sm font-semibold transition-colors ${
-            activeTab === "topics"
+          className={`flex-1 px-4 py-3 text-center text-sm font-semibold transition-colors ${activeTab === "topics"
               ? "text-primary border-b-2 border-primary"
               : "text-tertiary hover:text-paper"
-          }`}
+            }`}
         >
           {t("topics")}
         </button>
@@ -317,7 +338,14 @@ export default function ConnectionsPage() {
                   <UserCard
                     key={person.id}
                     person={person}
-                    onFollow={() => handleFollow(person)}
+                    onFollow={
+                      activeTab === "following" ? () => handleFollow(person) : undefined
+                    }
+                    onRemove={
+                      isSelf && activeTab === "followers"
+                        ? () => handleRemoveFollower(person)
+                        : undefined
+                    }
                   />
                 ))}
               </div>

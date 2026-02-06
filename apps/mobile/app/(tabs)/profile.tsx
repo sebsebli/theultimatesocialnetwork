@@ -15,7 +15,6 @@ import {
   RefreshControl,
   Modal,
   TextInput,
-  Linking,
   Share,
   InteractionManager,
   Platform,
@@ -34,6 +33,7 @@ import {
   getApiBaseUrl,
   getWebAppBaseUrl,
 } from "../../utils/api";
+import { useOpenExternalLink } from "../../hooks/useOpenExternalLink";
 import { PostItem } from "../../components/PostItem";
 import { CollectionCard } from "../../components/CollectionCard";
 import {
@@ -84,9 +84,10 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuth();
   const { showError } = useToast();
+  const { openExternalLink } = useOpenExternalLink();
   const insets = useSafeAreaInsets();
-  const [user, setUser] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
+  const [user, setUser] = useState<Record<string, unknown> | null>(null);
+  const [posts, setPosts] = useState<Record<string, unknown>[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -106,10 +107,10 @@ export default function ProfileScreen() {
   // Collections tab: options sheet, edit modal, delete confirm
   const [collectionOptionsVisible, setCollectionOptionsVisible] =
     useState(false);
-  const [selectedCollection, setSelectedCollection] = useState<any>(null);
+  const [selectedCollection, setSelectedCollection] = useState<Record<string, unknown> | null>(null);
   const [editCollectionModalVisible, setEditCollectionModalVisible] =
     useState(false);
-  const [editingCollection, setEditingCollection] = useState<any>(null);
+  const [editingCollection, setEditingCollection] = useState<Record<string, unknown> | null>(null);
   const [editCollectionTitle, setEditCollectionTitle] = useState("");
   const [editCollectionDescription, setEditCollectionDescription] =
     useState("");
@@ -142,13 +143,13 @@ export default function ProfileScreen() {
   const loadTabContent = useCallback(
     async (uid: string, pageNum: number, reset: boolean) => {
       try {
-        let postsData: any;
+        let postsData: Record<string, unknown>;
         if (activeTab === "saved") {
           postsData = await api.get(`/keeps?page=${pageNum}&limit=20`);
           const rawItems = Array.isArray(postsData?.items)
             ? postsData.items
             : [];
-          const items = rawItems.map((k: any) => k.post).filter(Boolean);
+          const items = rawItems.map((k: Record<string, unknown>) => k.post).filter(Boolean) as Record<string, unknown>[];
           if (reset) {
             setPosts(items);
           } else {
@@ -178,18 +179,18 @@ export default function ProfileScreen() {
             `/users/${uid}/posts?page=${pageNum}&limit=20&type=${activeTab}`,
           );
         }
-        const items = Array.isArray(postsData?.items ?? postsData)
+        const items = (Array.isArray(postsData?.items ?? postsData)
           ? (postsData?.items ?? postsData)
-          : [];
+          : []) as Record<string, unknown>[];
         if (reset) {
           setPosts(items);
         } else {
           setPosts((prev) => [...prev, ...items]);
         }
         setHasMore(items.length === 20 && postsData?.hasMore !== false);
-      } catch (error: any) {
-        if (error?.status === 401) return;
-        console.error("Failed to load tab content", error);
+      } catch (error: unknown) {
+        if ((error as { status?: number })?.status === 401) return;
+        if (__DEV__) console.error("Failed to load tab content", error);
         setHasMore(false);
         if (reset && !loadingMore) {
           showError(
@@ -204,7 +205,7 @@ export default function ProfileScreen() {
   const loadProfile = useCallback(
     async (pageNum: number, reset = false) => {
       try {
-        let data: any;
+        let data: Record<string, unknown>;
         if (handle) {
           data = await api.get(`/users/${handle}`);
           setIsSelf(false);
@@ -213,17 +214,17 @@ export default function ProfileScreen() {
           setIsSelf(true);
         }
 
-        userIdRef.current = data?.id ?? null;
+        userIdRef.current = (data?.id as string | undefined) ?? null;
         setUser(data);
         if (data?.isFollowing !== undefined) {
-          setIsFollowing(data.isFollowing);
+          setIsFollowing(data.isFollowing as boolean);
         }
 
-        const uid = data?.id ?? "me";
+        const uid = (data?.id as string | undefined) ?? "me";
         await loadTabContent(uid, pageNum, reset);
-      } catch (error: any) {
-        if (error?.status === 401) return;
-        console.error("Failed to load profile", error);
+      } catch (error: unknown) {
+        if ((error as { status?: number })?.status === 401) return;
+        if (__DEV__) console.error("Failed to load profile", error);
         setHasMore(false);
         if (reset && !loadingMore) {
           showError(
@@ -255,7 +256,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (activeTab === prevTabRef.current) return;
     prevTabRef.current = activeTab;
-    const uid = user?.id ?? userIdRef.current;
+    const uid = (user?.id as string | undefined) ?? userIdRef.current;
     if (!uid) return;
     setPage(1);
     setPosts([]);
@@ -264,11 +265,11 @@ export default function ProfileScreen() {
     loadTabContent(uid, 1, true).finally(() => setTabContentLoading(false));
   }, [activeTab, user?.id, loadTabContent]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadProfile(1, true);
     setRefreshing(false);
-  };
+  }, [loadProfile]);
 
   const handleLoadMore = useCallback(() => {
     if (!refreshing && !loadingMore && hasMore) {
@@ -281,6 +282,13 @@ export default function ProfileScreen() {
 
   const listBottomPadding = TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA;
 
+  const filteredPosts = useMemo(() => {
+    if (activeTab === "collections") {
+      return posts;
+    }
+    return posts.filter((p: Record<string, unknown>) => !!p?.author);
+  }, [posts, activeTab]);
+
   const handleFollow = async () => {
     if (isSelf) {
       router.push("/settings/profile");
@@ -291,19 +299,21 @@ export default function ProfileScreen() {
     setIsFollowing(!previousState); // Optimistic
 
     try {
+      const userId = user?.id as string | undefined;
+      if (!userId) return;
       if (previousState) {
-        await api.delete(`/users/${user.id}/follow`);
+        await api.delete(`/users/${userId}/follow`);
       } else {
-        await api.post(`/users/${user.id}/follow`);
+        await api.post(`/users/${userId}/follow`);
       }
     } catch (error) {
-      console.error("Failed to update follow status", error);
+      if (__DEV__) console.error("Failed to update follow status", error);
       setIsFollowing(previousState); // Revert
     }
   };
 
   const renderItem = useCallback(
-    ({ item }: { item: any }) => (
+    ({ item }: { item: Record<string, unknown> }) => (
       <PostItem
         post={activeTab === "saved" ? { ...item, isKept: true } : item}
         onDeleted={
@@ -321,7 +331,7 @@ export default function ProfileScreen() {
     [isSelf, activeTab],
   );
 
-  const openCollectionOptions = useCallback((collection: any) => {
+  const openCollectionOptions = useCallback((collection: Record<string, unknown>) => {
     Haptics.selectionAsync();
     setSelectedCollection(collection);
     setCollectionOptionsVisible(true);
@@ -337,10 +347,10 @@ export default function ProfileScreen() {
   const handleEditCollectionPress = useCallback(() => {
     if (!selectedCollection) return;
     setEditingCollection(selectedCollection);
-    setEditCollectionTitle(selectedCollection.title);
-    setEditCollectionDescription(selectedCollection.description ?? "");
+    setEditCollectionTitle(String(selectedCollection.title ?? ""));
+    setEditCollectionDescription(String(selectedCollection.description ?? ""));
     setEditCollectionIsPublic(selectedCollection.isPublic !== false);
-    setEditCollectionShareSaves(!!(selectedCollection as any).shareSaves);
+    setEditCollectionShareSaves(!!(selectedCollection as Record<string, unknown>).shareSaves);
     setEditCollectionModalVisible(true);
     setCollectionOptionsVisible(false);
     setSelectedCollection(null);
@@ -357,15 +367,15 @@ export default function ProfileScreen() {
         shareSaves: editCollectionShareSaves,
       });
       setPosts((prev) =>
-        prev.map((p: any) =>
+        prev.map((p: Record<string, unknown>) =>
           p.id === c.id
             ? {
-                ...p,
-                title: editCollectionTitle.trim(),
-                description: editCollectionDescription.trim() || undefined,
-                isPublic: editCollectionIsPublic,
-                shareSaves: editCollectionShareSaves,
-              }
+              ...p,
+              title: editCollectionTitle.trim(),
+              description: editCollectionDescription.trim() || undefined,
+              isPublic: editCollectionIsPublic,
+              shareSaves: editCollectionShareSaves,
+            }
             : p,
         ),
       );
@@ -397,7 +407,7 @@ export default function ProfileScreen() {
     if (!c) return;
     try {
       await api.delete(`/collections/${c.id}`);
-      setPosts((prev) => prev.filter((p: any) => p.id !== c.id));
+      setPosts((prev) => prev.filter((p: Record<string, unknown>) => p.id !== c.id));
       setDeleteCollectionConfirmVisible(false);
       setSelectedCollection(null);
     } catch (e) {
@@ -406,7 +416,7 @@ export default function ProfileScreen() {
   }, [selectedCollection, showError, t]);
 
   const renderCollectionItem = useCallback(
-    ({ item }: { item: any }) => (
+    ({ item }: { item: Record<string, unknown> }) => (
       <CollectionCard
         item={{
           id: item.id,
@@ -428,17 +438,17 @@ export default function ProfileScreen() {
     [isSelf, router, openCollectionOptions],
   );
 
-  const keyExtractor = useCallback((item: any) => item.id, []);
+  const keyExtractor = useCallback((item: Record<string, unknown>) => item.id, []);
 
   const removeAvatar = useCallback(async () => {
     if (!isSelf || !user) return;
     try {
       await api.patch("/users/me", { avatarKey: null });
-      setUser((prev: any) =>
+      setUser((prev: Record<string, unknown> | null) =>
         prev ? { ...prev, avatarUrl: null, avatarKey: null } : prev,
       );
     } catch (e) {
-      console.error(e);
+      if (__DEV__) console.error(e);
       showError(t("profile.photoUpdateFailed", "Failed to remove photo."));
     }
   }, [isSelf, user, showError, t]);
@@ -466,27 +476,34 @@ export default function ProfileScreen() {
       const asset = result.assets[0];
       setPendingAvatarUri(asset.uri);
       setAvatarUploading(true);
-      const uploadRes = await api.upload("/upload/profile-picture", asset);
-      const key = uploadRes?.key ?? (uploadRes as any)?.data?.key;
+      const uploadRes = await api.upload<{ key?: string; url?: string } | null>("/upload/profile-picture", {
+        uri: asset.uri,
+        fileName: asset.fileName ?? undefined,
+        mimeType: asset.mimeType ?? undefined,
+        type: asset.type ?? undefined,
+        fileSize: asset.fileSize,
+      });
+      const uploadResult = uploadRes as { key?: string; url?: string } | null;
+      const key = uploadResult?.key;
       if (!key || typeof key !== "string") {
         setPendingAvatarUri(null);
         showError(t("profile.photoUpdateFailed", "Failed to update photo."));
         return;
       }
       await api.patch("/users/me", { avatarKey: key });
-      setUser((prev: any) =>
+      setUser((prev: Record<string, unknown> | null) =>
         prev
           ? {
-              ...prev,
-              avatarUrl:
-                uploadRes?.url ?? (uploadRes as any)?.url ?? getImageUrl(key),
-              avatarKey: key,
-            }
+            ...prev,
+            avatarUrl:
+              uploadResult?.url ?? getImageUrl(key),
+            avatarKey: key,
+          }
           : prev,
       );
       setPendingAvatarUri(null);
     } catch (e) {
-      console.error(e);
+      if (__DEV__) console.error(e);
       setPendingAvatarUri(null);
       showError(t("profile.photoUpdateFailed", "Failed to update photo."));
     } finally {
@@ -507,18 +524,19 @@ export default function ProfileScreen() {
   );
 
   const rssFeedUrl = user?.handle
-    ? `${getApiBaseUrl()}/rss/${encodeURIComponent(user.handle)}`
+    ? `${getApiBaseUrl()}/rss/${encodeURIComponent(String(user.handle))}`
     : "";
   const handleOpenRssFeed = useCallback(() => {
     setProfileOptionsVisible(false);
-    if (rssFeedUrl) Linking.openURL(rssFeedUrl);
-  }, [rssFeedUrl]);
+    if (rssFeedUrl) openExternalLink(rssFeedUrl, { skipDialog: true });
+  }, [rssFeedUrl, openExternalLink]);
 
   const handleShareProfile = useCallback(() => {
     if (!user?.handle) return;
     setProfileOptionsVisible(false);
-    const profileUrl = `${getWebAppBaseUrl()}/user/${encodeURIComponent(user.handle)}`;
-    const displayName = user.displayName || user.handle;
+    const handleStr = String(user.handle);
+    const profileUrl = `${getWebAppBaseUrl()}/user/${encodeURIComponent(handleStr)}`;
+    const displayName = String(user.displayName ?? user.handle ?? "");
     const message = t("profile.shareProfileMessage", {
       defaultValue: "Check out {{name}} (@{{handle}}) on Citewalk",
       name: displayName,
@@ -534,7 +552,7 @@ export default function ProfileScreen() {
         Platform.OS === "android"
           ? { message: `${message}\n${profileUrl}`, title }
           : { message: `${message}\n${profileUrl}`, url: profileUrl, title };
-      setTimeout(() => Share.share(sharePayload).catch(() => {}), 350);
+      setTimeout(() => Share.share(sharePayload).catch(() => { /* share dismissed */ }), 350);
     });
   }, [user?.handle, user?.displayName, t]);
 
@@ -592,11 +610,7 @@ export default function ProfileScreen() {
       ) : (
         <FlatList
           ref={flatListRef}
-          data={
-            activeTab === "collections"
-              ? posts
-              : posts.filter((p: any) => !!p?.author)
-          }
+          data={filteredPosts}
           contentInset={Platform.OS === "ios" ? { top: insets.top } : undefined}
           contentOffset={
             Platform.OS === "ios" ? { x: 0, y: -insets.top } : undefined
@@ -656,8 +670,8 @@ export default function ProfileScreen() {
                         />
                       ) : (
                         <Text style={styles.avatarText}>
-                          {user.displayName?.charAt(0) ||
-                            user.handle?.charAt(0).toUpperCase()}
+                          {String(user.displayName ?? "").charAt(0) ||
+                            String(user.handle ?? "").charAt(0).toUpperCase()}
                         </Text>
                       )}
                     </Pressable>
@@ -726,7 +740,7 @@ export default function ProfileScreen() {
                       }
                     >
                       <Text style={styles.followersFollowingText}>
-                        {formatCompactNumber(user.followerCount)}{" "}
+                        {formatCompactNumber((user.followerCount as number | undefined) ?? 0)}{" "}
                         {t("profile.followers").toLowerCase()}
                       </Text>
                     </Pressable>
@@ -741,7 +755,7 @@ export default function ProfileScreen() {
                       }
                     >
                       <Text style={styles.followersFollowingText}>
-                        {formatCompactNumber(user.followingCount)}{" "}
+                        {formatCompactNumber((user.followingCount as number | undefined) ?? 0)}{" "}
                         {t("profile.following").toLowerCase()}
                       </Text>
                     </Pressable>
@@ -759,20 +773,20 @@ export default function ProfileScreen() {
                 >
                   {(isSelf
                     ? ([
-                        "posts",
-                        "replies",
-                        "quotes",
-                        "cited",
-                        "saved",
-                        "collections",
-                      ] as const)
+                      "posts",
+                      "replies",
+                      "quotes",
+                      "cited",
+                      "saved",
+                      "collections",
+                    ] as const)
                     : ([
-                        "posts",
-                        "replies",
-                        "quotes",
-                        "cited",
-                        "collections",
-                      ] as const)
+                      "posts",
+                      "replies",
+                      "quotes",
+                      "cited",
+                      "collections",
+                    ] as const)
                   ).map((tab) => {
                     const count =
                       tab === "posts"
@@ -796,7 +810,7 @@ export default function ProfileScreen() {
                         ]}
                         onPress={() => setActiveTab(tab)}
                         accessibilityLabel={
-                          count != null && count > 0
+                          typeof count === "number"
                             ? `${t(`profile.${tab}`)} ${count}`
                             : t(`profile.${tab}`)
                         }
@@ -812,7 +826,7 @@ export default function ProfileScreen() {
                           numberOfLines={1}
                         >
                           {t(`profile.${tab}`)}
-                          {count != null && count > 0
+                          {typeof count === "number"
                             ? ` (${formatCompactNumber(count)})`
                             : ""}
                         </Text>
@@ -923,39 +937,39 @@ export default function ProfileScreen() {
                   subtext={
                     activeTab === "saved"
                       ? t(
-                          "profile.noSavedHint",
-                          "Bookmark posts from the reading view to see them here.",
-                        )
+                        "profile.noSavedHint",
+                        "Bookmark posts from the reading view to see them here.",
+                      )
                       : activeTab === "posts"
                         ? t(
-                            "profile.noPostsHint",
-                            "Share your first post or quote someone.",
-                          )
+                          "profile.noPostsHint",
+                          "Share your first post or quote someone.",
+                        )
                         : activeTab === "collections"
                           ? isSelf
                             ? t(
-                                "profile.noCollectionsOwnHint",
-                                "Create a collection to organize your posts.",
-                              )
+                              "profile.noCollectionsOwnHint",
+                              "Create a collection to organize your posts.",
+                            )
                             : t(
-                                "profile.noCollectionsHint",
-                                "Public collections will appear here.",
-                              )
+                              "profile.noCollectionsHint",
+                              "Public collections will appear here.",
+                            )
                           : activeTab === "replies"
                             ? t(
-                                "profile.noRepliesHint",
-                                "Replies will show here.",
-                              )
+                              "profile.noRepliesHint",
+                              "Replies will show here.",
+                            )
                             : activeTab === "quotes"
                               ? t(
-                                  "profile.noQuotesHint",
-                                  "Quotes will show here.",
-                                )
+                                "profile.noQuotesHint",
+                                "Quotes will show here.",
+                              )
                               : activeTab === "cited"
                                 ? t(
-                                    "profile.noCitedHint",
-                                    "Posts this user has cited appear here.",
-                                  )
+                                  "profile.noCitedHint",
+                                  "Posts this user has cited appear here.",
+                                )
                                 : undefined
                   }
                   secondaryLabel={
@@ -992,10 +1006,7 @@ export default function ProfileScreen() {
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: listBottomPadding },
-            (activeTab === "collections"
-              ? posts
-              : posts.filter((p: any) => !!p?.author)
-            ).length === 0 && { flexGrow: 1 },
+            filteredPosts.length === 0 && { flexGrow: 1 },
           ]}
         />
       )}
@@ -1006,6 +1017,8 @@ export default function ProfileScreen() {
         <Pressable
           style={styles.avatarModalOverlay}
           onPress={() => setAvatarModalVisible(false)}
+          accessibilityLabel={t("profile.avatar", "Profile photo")}
+          accessibilityRole="button"
         >
           <View style={styles.avatarModalContent}>
             {avatarUri ? (
@@ -1019,6 +1032,8 @@ export default function ProfileScreen() {
             <Pressable
               style={styles.avatarModalClose}
               onPress={() => setAvatarModalVisible(false)}
+              accessibilityLabel={t("common.close", "Close")}
+              accessibilityRole="button"
             >
               <Text style={styles.avatarModalCloseText}>
                 {t("common.close")}
@@ -1037,6 +1052,8 @@ export default function ProfileScreen() {
           <Pressable
             style={styles.actionModalBackdrop}
             onPress={closeAvatarAction}
+            accessibilityLabel={t("common.close", "Close")}
+            accessibilityRole="button"
           />
           <View
             style={[
@@ -1059,6 +1076,8 @@ export default function ProfileScreen() {
                   closeAvatarAction();
                   setAvatarModalVisible(true);
                 }}
+                accessibilityLabel={t("profile.viewFullSize", "View full size")}
+                accessibilityRole="button"
               >
                 <MaterialIcons
                   name="visibility"
@@ -1082,6 +1101,12 @@ export default function ProfileScreen() {
                   setTimeout(() => changeAvatar(), 500);
                 });
               }}
+              accessibilityLabel={
+                hasAvatar
+                  ? t("profile.changePhoto", "Change photo")
+                  : t("profile.changePhoto", "Add photo")
+              }
+              accessibilityRole="button"
             >
               <MaterialIcons
                 name="photo-camera"
@@ -1105,6 +1130,8 @@ export default function ProfileScreen() {
                   closeAvatarAction();
                   removeAvatar();
                 }}
+                accessibilityLabel={t("profile.removePhoto", "Remove photo")}
+                accessibilityRole="button"
               >
                 <MaterialIcons
                   name="delete-outline"
@@ -1127,6 +1154,8 @@ export default function ProfileScreen() {
                 pressed && styles.actionModalOptionPressed,
               ]}
               onPress={closeAvatarAction}
+              accessibilityLabel={t("common.cancel", "Cancel")}
+              accessibilityRole="button"
             >
               <Text style={styles.actionModalCancelText}>
                 {t("common.cancel")}
@@ -1174,6 +1203,8 @@ export default function ProfileScreen() {
         <Pressable
           style={styles.editCollectionModalOverlay}
           onPress={() => setEditCollectionModalVisible(false)}
+          accessibilityLabel={t("collections.edit", "Edit collection")}
+          accessibilityRole="button"
         >
           <View
             style={[
@@ -1224,13 +1255,13 @@ export default function ProfileScreen() {
                 <Text style={styles.editCollectionVisibilityHint}>
                   {editCollectionIsPublic
                     ? t(
-                        "collections.visibilityPublic",
-                        "Public — anyone can see this collection",
-                      )
+                      "collections.visibilityPublic",
+                      "Public — anyone can see this collection",
+                    )
                     : t(
-                        "collections.visibilityPrivate",
-                        "Private — only your followers can see it",
-                      )}
+                      "collections.visibilityPrivate",
+                      "Private — only your followers can see it",
+                    )}
                 </Text>
               </View>
               <Switch
@@ -1256,6 +1287,8 @@ export default function ProfileScreen() {
                   setEditCollectionIsPublic(true);
                   setEditCollectionShareSaves(false);
                 }}
+                accessibilityLabel={t("common.cancel", "Cancel")}
+                accessibilityRole="button"
               >
                 <Text style={styles.editCollectionModalButtonTextCancel}>
                   {t("common.cancel")}
@@ -1265,10 +1298,12 @@ export default function ProfileScreen() {
                 style={[
                   styles.editCollectionModalButtonSave,
                   !editCollectionTitle.trim() &&
-                    styles.editCollectionModalButtonDisabled,
+                  styles.editCollectionModalButtonDisabled,
                 ]}
                 onPress={handleSaveEditCollection}
                 disabled={!editCollectionTitle.trim()}
+                accessibilityLabel={t("common.save", "Save")}
+                accessibilityRole="button"
               >
                 <Text style={styles.editCollectionModalButtonTextSave}>
                   {t("common.save", "Save")}
@@ -1315,15 +1350,15 @@ export default function ProfileScreen() {
           },
           ...(isSelf
             ? [
-                {
-                  label: t("settings.title", "Settings"),
-                  onPress: () => {
-                    setProfileOptionsVisible(false);
-                    router.push("/settings");
-                  },
-                  icon: "settings" as const,
+              {
+                label: t("settings.title", "Settings"),
+                onPress: () => {
+                  setProfileOptionsVisible(false);
+                  router.push("/settings");
                 },
-              ]
+                icon: "settings" as const,
+              },
+            ]
             : []),
         ]}
       />
@@ -1502,7 +1537,7 @@ const styles = createStyles({
     marginBottom: 2,
   },
   actionModalOptionPressed: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: COLORS.pressed,
   },
   actionModalOptionDestructive: {},
   actionModalOptionText: {

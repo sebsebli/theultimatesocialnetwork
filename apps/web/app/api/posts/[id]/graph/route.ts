@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-
-const API_URL = process.env.API_URL || "http://localhost:3000";
+import { getApiUrl } from "@/lib/security";
 
 export async function GET(
   _request: NextRequest,
@@ -9,6 +8,9 @@ export async function GET(
 ) {
   const params = await props.params;
   const token = (await cookies()).get("token")?.value;
+  const apiBase = getApiUrl().replace(/\/$/, "");
+  // Nest uses setGlobalPrefix('api'), so path must include /api
+  const base = apiBase.endsWith("/api") ? apiBase : `${apiBase}/api`;
 
   const headers: HeadersInit = {};
   if (token) {
@@ -16,7 +18,7 @@ export async function GET(
   }
 
   try {
-    const res = await fetch(`${API_URL}/posts/${params.id}/graph`, {
+    const res = await fetch(`${base}/posts/${params.id}/graph`, {
       headers,
     });
 

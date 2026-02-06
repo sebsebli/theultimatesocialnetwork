@@ -39,7 +39,11 @@ const publicAuthRoutes = ["/welcome", "/sign-in"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get("token")?.value;
+  // Consider the user authenticated if EITHER access token or refresh token exists.
+  // The refresh token allows seamless re-auth when the short-lived access token expires.
+  const token =
+    request.cookies.get("token")?.value ||
+    request.cookies.get("refreshToken")?.value;
 
   // Static / well-known: allow without running auth logic
   if (pathname.startsWith("/.well-known")) {

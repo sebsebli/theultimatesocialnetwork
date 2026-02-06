@@ -14,6 +14,11 @@ export function GraphBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    // Respect reduced-motion preference
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -24,6 +29,7 @@ export function GraphBackground() {
     let points: Point[] = [];
     let width = 0;
     let height = 0;
+    let paused = false;
 
     const handleResize = () => {
       width = window.innerWidth;
@@ -51,22 +57,24 @@ export function GraphBackground() {
     handleResize();
     window.addEventListener("resize", handleResize);
 
-    const draw = () => {
+    const drawFrame = (animate: boolean) => {
       if (!ctx) return;
       ctx.clearRect(0, 0, width, height);
 
-      // Update positions
-      points.forEach((p) => {
-        p.x += p.vx;
-        p.y += p.vy;
+      if (animate) {
+        // Update positions
+        points.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy;
 
-        // Bounce off walls
-        if (p.x < 0 || p.x > width) p.vx *= -1;
-        if (p.y < 0 || p.y > height) p.vy *= -1;
-      });
+          // Bounce off walls
+          if (p.x < 0 || p.x > width) p.vx *= -1;
+          if (p.y < 0 || p.y > height) p.vy *= -1;
+        });
+      }
 
       // Draw connections
-      ctx.strokeStyle = "rgba(110, 122, 138, 0.15)"; // Steel color, low opacity
+      ctx.strokeStyle = "rgba(110, 122, 138, 0.15)";
       ctx.lineWidth = 1;
 
       for (let i = 0; i < points.length; i++) {
@@ -79,7 +87,6 @@ export function GraphBackground() {
             ctx.beginPath();
             ctx.moveTo(points[i].x, points[i].y);
             ctx.lineTo(points[j].x, points[j].y);
-            // Opacity based on distance
             ctx.globalAlpha = 1 - dist / 150;
             ctx.stroke();
           }
@@ -88,20 +95,46 @@ export function GraphBackground() {
 
       // Draw points
       ctx.globalAlpha = 0.4;
-      ctx.fillStyle = "#6E7A8A"; // Steel
+      ctx.fillStyle = "#6E7A8A";
       points.forEach((p) => {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
       });
+    };
 
+    // For reduced motion: draw once, no animation loop
+    if (prefersReducedMotion) {
+      drawFrame(false);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    }
+
+    const draw = () => {
+      if (paused) return;
+      drawFrame(true);
       animationFrameId = requestAnimationFrame(draw);
     };
 
     draw();
 
+    // Pause animation when tab is not visible
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        paused = true;
+        cancelAnimationFrame(animationFrameId);
+      } else {
+        paused = false;
+        draw();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       window.removeEventListener("resize", handleResize);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);

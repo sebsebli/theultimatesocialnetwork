@@ -1,10 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(
@@ -20,6 +20,12 @@ export class RolesGuard implements CanActivate {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (!user || !user.role) {
       return false;
+    }
+
+    // Check if user is banned (bannedAt is set)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (user.bannedAt) {
+      throw new ForbiddenException('Account has been suspended');
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument

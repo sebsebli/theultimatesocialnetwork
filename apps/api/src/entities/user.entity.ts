@@ -63,8 +63,25 @@ export class User {
   })
   twoFactorSecret: string | null;
 
+  /** Hashed one-time backup codes for 2FA recovery. JSON array of { hash, used } objects. */
+  @Column({
+    name: 'two_factor_backup_codes',
+    type: 'jsonb',
+    nullable: true,
+    select: false,
+  })
+  twoFactorBackupCodes: { hash: string; used: boolean }[] | null;
+
   @Column({ name: 'token_version', default: 0 })
   tokenVersion: number;
+
+  /** Number of consecutive failed login attempts (for account lockout). */
+  @Column({ name: 'failed_login_attempts', default: 0 })
+  failedLoginAttempts: number;
+
+  /** Timestamp when the account lockout expires. */
+  @Column({ name: 'locked_until', type: 'timestamp', nullable: true })
+  lockedUntil: Date | null;
 
   @Column({ name: 'invites_remaining', default: 3 })
   invitesRemaining: number;

@@ -49,14 +49,26 @@ export function ShareModal({
 
   useEffect(() => {
     if (isOpen) {
-      queueMicrotask(() => setLoading(true));
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) setLoading(true);
+      });
       fetch("/api/messages/threads")
         .then((res) => (res.ok ? res.json() : []))
         .then((data) => {
-          setThreads(Array.isArray(data) ? data.slice(0, 8) : []);
+          if (!cancelled) {
+            setThreads(Array.isArray(data) ? data.slice(0, 8) : []);
+          }
         })
-        .catch(() => setThreads([]))
-        .finally(() => setLoading(false));
+        .catch(() => {
+          if (!cancelled) setThreads([]);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
     }
   }, [isOpen]);
 

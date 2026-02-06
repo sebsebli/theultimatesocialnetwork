@@ -23,7 +23,7 @@ export default function SettingsLanguagesPage() {
       .then((u: { languages?: string[] } | null) => {
         if (u?.languages?.length) setSelected(u.languages);
       })
-      .catch(() => {})
+      .catch(() => { /* language load best-effort */ })
       .finally(() => setLoading(false));
   }, []);
 

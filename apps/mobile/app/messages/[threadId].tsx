@@ -13,14 +13,14 @@ export default function MessageThreadScreen() {
   const insets = useSafeAreaInsets();
   const { threadId } = useLocalSearchParams();
   const { t } = useTranslation();
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Array<{ id: string; body: string; senderId?: string; createdAt: string }>>([]);
   const [inputText, setTextInput] = useState('');
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    api.get('/users/me').then(setCurrentUser).catch(() => { });
+    api.get<{ id: string }>('/users/me').then((u) => setCurrentUser({ id: u.id })).catch(() => { /* current user lookup best-effort */ });
   }, []);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function MessageThreadScreen() {
       const data = await api.get(`/messages/threads/${threadId}/messages`);
       setMessages(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Failed to load messages', error);
+      if (__DEV__) console.error('Failed to load messages', error);
     } finally {
       setLoading(false);
     }
@@ -56,11 +56,11 @@ export default function MessageThreadScreen() {
     flatListRef.current?.scrollToEnd({ animated: true });
 
     try {
-      const saved = await api.post(`/messages/threads/${threadId}/messages`, { body: optimisticMessage.body });
+      const saved = await api.post<{ id: string; body: string; senderId?: string; createdAt: string }>(`/messages/threads/${threadId}/messages`, { body: optimisticMessage.body });
       // Replace optimistic message with saved one
       setMessages(prev => prev.map(m => m.id === tempId ? saved : m));
     } catch (error) {
-      console.error('Failed to send message', error);
+      if (__DEV__) console.error('Failed to send message', error);
       // Remove optimistic message on failure
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setTextInput(optimisticMessage.body); // Restore text
@@ -81,8 +81,8 @@ export default function MessageThreadScreen() {
         data={messages}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        keyExtractor={(item: any) => item.id}
-        renderItem={({ item }: { item: any }) => {
+        keyExtractor={(item: { id: string }) => item.id}
+        renderItem={({ item }: { item: { id: string; body: string; senderId?: string; createdAt: string } }) => {
           const isMe = item.senderId === 'me' || (currentUser && item.senderId === currentUser.id);
 
           return (
@@ -194,7 +194,7 @@ const styles = createStyles({
   },
   sendButtonText: {
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
 });

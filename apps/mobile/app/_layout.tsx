@@ -10,21 +10,19 @@ import {
   IBMPlexSerif_600SemiBold,
 } from "@expo-google-fonts/ibm-plex-serif";
 import { Stack, useSegments, useRouter } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { StatusBar } from "expo-status-bar";
 import "../i18n";
-// Note: Reanimated is installed but not actively used in this app.
-// The babel plugin is configured for potential future use.
-// We don't import it here to avoid worklets version mismatch errors in Expo Go.
 import { configureNotifications } from "../utils/push-notifications";
 import { COLORS } from "../constants/theme";
 import { AuthProvider, useAuth } from "../context/auth";
 import { ToastProvider, useToast } from "../context/ToastContext";
+import { ExternalLinkProvider } from "../context/ExternalLinkContext";
 import { SocketProvider } from "../context/SocketContext";
 import { DraftProvider } from "../context/DraftContext";
 import { SettingsProvider } from "../context/SettingsContext";
 import { setApiErrorToastHandler } from "../utils/api";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import { FullScreenSkeleton } from "../components/LoadingSkeleton";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ErrorFallbackWithNav } from "../components/ErrorFallbackWithNav";
@@ -35,6 +33,14 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as NavigationBar from "expo-navigation-bar";
 import { Platform, Linking } from "react-native";
 import * as Notifications from "expo-notifications";
+
+/** Allowed deep-link schemes. Only open links matching these to prevent open-redirect attacks. */
+const ALLOWED_DEEP_LINK_SCHEMES = ["citewalk://", "https://citewalk.com", "https://www.citewalk.com"];
+
+function isAllowedDeepLink(url: string): boolean {
+  if (!url || typeof url !== "string") return false;
+  return ALLOWED_DEEP_LINK_SCHEMES.some((scheme) => url.startsWith(scheme));
+}
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 
@@ -140,30 +146,32 @@ export default function RootLayout() {
   const appReady = useRef(false);
 
   // Callback when app is ready (auth loaded + route ready)
-  const handleAppReady = () => {
+  const handleAppReady = useCallback(() => {
     if (!appReady.current) {
       appReady.current = true;
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Configure notification handler (non-blocking)
     try {
       configureNotifications();
-    } catch (error) {
-      // console.warn('Failed to configure notifications:', error);
+    } catch {
+      if (__DEV__) console.warn("Failed to configure notifications");
     }
 
-    // Handle notification taps
+    // Handle notification taps — validate deep link before opening
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         try {
-          const deepLink = response.notification.request.content.data.deepLink;
-          if (deepLink) {
-            Linking.openURL(deepLink as string);
+          const deepLink = response.notification.request.content.data?.deepLink;
+          if (typeof deepLink === "string" && isAllowedDeepLink(deepLink)) {
+            Linking.openURL(deepLink);
+          } else if (__DEV__ && deepLink) {
+            console.warn("Blocked untrusted deep link:", deepLink);
           }
-        } catch (e) {
-          // console.error('Failed to handle notification tap:', e);
+        } catch {
+          if (__DEV__) console.warn("Failed to handle notification tap");
         }
       },
     );
@@ -173,17 +181,20 @@ export default function RootLayout() {
     };
   }, []);
 
-  const MyDarkTheme = {
-    ...DarkTheme,
-    colors: {
-      ...DarkTheme.colors,
-      background: COLORS.ink,
-      text: COLORS.paper,
-      primary: COLORS.primary,
-      card: COLORS.ink,
-      border: COLORS.divider,
-    },
-  };
+  const MyDarkTheme = useMemo(
+    () => ({
+      ...DarkTheme,
+      colors: {
+        ...DarkTheme.colors,
+        background: COLORS.ink,
+        text: COLORS.paper,
+        primary: COLORS.primary,
+        card: COLORS.ink,
+        border: COLORS.divider,
+      },
+    }),
+    [],
+  );
 
   if (!loaded && !error) {
     return null;
@@ -195,19 +206,21 @@ export default function RootLayout() {
       <ErrorBoundary fallback={<ErrorFallbackWithNav />}>
         <AuthProvider>
           <ToastProvider>
-            <ApiErrorToastRegistration />
-            <SocketProvider>
-              <SettingsProvider>
-                <DraftProvider>
-                  <ThemeProvider value={MyDarkTheme}>
-                    <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
-                      <OfflineBanner />
-                      <AppContent onReady={handleAppReady} />
-                    </View>
-                  </ThemeProvider>
-                </DraftProvider>
-              </SettingsProvider>
-            </SocketProvider>
+            <ExternalLinkProvider>
+              <ApiErrorToastRegistration />
+              <SocketProvider>
+                <SettingsProvider>
+                  <DraftProvider>
+                    <ThemeProvider value={MyDarkTheme}>
+                      <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
+                        <OfflineBanner />
+                        <AppContent onReady={handleAppReady} />
+                      </View>
+                    </ThemeProvider>
+                  </DraftProvider>
+                </SettingsProvider>
+              </SocketProvider>
+            </ExternalLinkProvider>
           </ToastProvider>
         </AuthProvider>
       </ErrorBoundary>

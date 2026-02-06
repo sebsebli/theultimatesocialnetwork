@@ -30,26 +30,23 @@ function getClientIp(req: {
   return req.ip;
 }
 
-/** Skip throttle for admin requests (X-Admin-Key) or authenticated requests (Bearer token). */
-function isAdminOrAuthenticated(req: {
+/** Check if request has admin key. */
+function isAdminRequest(req: {
   headers?: Record<string, string | string[] | undefined>;
 }): boolean {
   const adminKey = req.headers?.['x-admin-key'];
-  if (adminKey && typeof adminKey === 'string' && adminKey.length > 0)
-    return true;
-  const auth = req.headers?.[authorization];
-  const h = Array.isArray(auth) ? auth[0] : auth;
-  if (typeof h === 'string' && h.startsWith('Bearer ')) return true;
-  return false;
+  return !!(adminKey && typeof adminKey === 'string' && adminKey.length > 0);
 }
+
 const authorization = 'authorization';
 
 /**
- * Throttler guard that skips rate limiting for:
+ * Throttler guard with per-user and per-IP rate limiting:
  * - Non-production (NODE_ENV !== 'production'): always skip — only enforce in production.
- * - Requests from localhost / same server (testing, admin, demo agents).
- * - Admin requests (X-Admin-Key) or authenticated requests (Authorization: Bearer) so agent seed and uploads are not throttled.
- * Other IPs in production are limited as configured.
+ * - Trusted IPs (localhost / Docker): skip — for testing, admin, demo agents.
+ * - Admin requests (X-Admin-Key): skip — for agent seed and internal use.
+ * - Authenticated requests (Bearer token): throttled per-user at a higher limit (300/min).
+ * - Unauthenticated requests: throttled per-IP at the configured limit (default 60/min).
  */
 @Injectable()
 export class TrustedIpThrottlerGuard extends ThrottlerGuard {
@@ -63,7 +60,7 @@ export class TrustedIpThrottlerGuard extends ThrottlerGuard {
       ip?: string;
       headers?: Record<string, string | string[] | undefined>;
     }>();
-    if (isAdminOrAuthenticated(request)) {
+    if (isAdminRequest(request)) {
       return true;
     }
     const ip = getClientIp(request);
@@ -71,5 +68,29 @@ export class TrustedIpThrottlerGuard extends ThrottlerGuard {
       return true;
     }
     return super.shouldSkip(context);
+  }
+
+  /**
+   * Generate tracker key: per-user for authenticated requests (higher limit),
+   * per-IP for unauthenticated requests.
+   */
+  protected override async getTracker(
+    req: Record<string, unknown>,
+  ): Promise<string> {
+    await Promise.resolve(); // satisfy require-await: work is sync but parent is async
+    const request = req as {
+      ip?: string;
+      headers?: Record<string, string | string[] | undefined>;
+    };
+    // Check for Bearer token to identify authenticated requests
+    const auth = request.headers?.[authorization];
+    const h = Array.isArray(auth) ? auth[0] : auth;
+    if (typeof h === 'string' && h.startsWith('Bearer ')) {
+      // Use a user-based tracker key (token suffix to distinguish users)
+      return `user:${h.slice(-20)}`;
+    }
+    // Fallback to IP-based tracking
+    const ip = getClientIp(request) ?? 'unknown';
+    return `ip:${ip}`;
   }
 }

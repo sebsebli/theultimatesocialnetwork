@@ -31,6 +31,7 @@ import { MessageRowSkeleton } from "./LoadingSkeleton";
 import * as Clipboard from "expo-clipboard";
 import { useToast } from "../context/ToastContext";
 import { api, getWebAppBaseUrl } from "../utils/api";
+import * as Haptics from "expo-haptics";
 
 export interface ShareSheetOpenOptions {
   /** When true, public URL options (Copy link, Share via...) are hidden; only DM options shown. */
@@ -106,6 +107,7 @@ const ShareSheet = forwardRef<ShareSheetRef, Record<string, never>>(
     };
 
     const handleCopyLink = async () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setVisible(false);
       if (postId) {
         const linkUrl = `${getWebAppBaseUrl()}/post/${postId}`;
@@ -183,6 +185,12 @@ const ShareSheet = forwardRef<ShareSheetRef, Record<string, never>>(
                     key={thread.id}
                     style={styles.recentContact}
                     onPress={() => handleSendToThread(thread.id)}
+                    accessibilityLabel={
+                      thread.otherUser.displayName ||
+                      thread.otherUser.handle ||
+                      t("post.unknownUser", "Unknown")
+                    }
+                    accessibilityRole="button"
                   >
                     <View style={styles.recentAvatar}>
                       <Text style={styles.recentAvatarText}>
@@ -202,7 +210,12 @@ const ShareSheet = forwardRef<ShareSheetRef, Record<string, never>>(
                 ))}
               </ScrollView>
             ) : null}
-            <Pressable style={styles.option} onPress={handleNewMessage}>
+            <Pressable
+              style={styles.option}
+              onPress={handleNewMessage}
+              accessibilityLabel={t("messages.newMessage", "New message")}
+              accessibilityRole="button"
+            >
               <View style={styles.iconContainer}>
                 <MaterialIcons
                   name="add-circle-outline"
@@ -220,7 +233,12 @@ const ShareSheet = forwardRef<ShareSheetRef, Record<string, never>>(
                 <Text style={styles.sectionLabel}>
                   {t("post.otherWays", "Other ways")}
                 </Text>
-                <Pressable style={styles.option} onPress={handleCopyLink}>
+                <Pressable
+                  style={styles.option}
+                  onPress={handleCopyLink}
+                  accessibilityLabel={t("post.copyLink", "Copy Link")}
+                  accessibilityRole="button"
+                >
                   <View style={styles.iconContainer}>
                     <MaterialIcons
                       name="content-copy"
@@ -378,4 +396,5 @@ const styles = createStyles({
   },
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- React 19 forwardRef compatibility
 export default ShareSheet as any;

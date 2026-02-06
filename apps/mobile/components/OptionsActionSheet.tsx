@@ -44,7 +44,7 @@ export function OptionsActionSheet({
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onCancel} />
+        <Pressable style={styles.backdrop} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Close" />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.l }]} onStartShouldSetResponder={() => true}>
           <View style={styles.handle} />
           {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -62,10 +62,12 @@ export function OptionsActionSheet({
                   opt.destructive && styles.optionDestructive,
                 ]}
                 onPress={() => handleOption(opt.onPress)}
+                accessibilityRole="button"
+                accessibilityLabel={opt.label}
               >
                 {opt.icon ? (
                   <MaterialIcons
-                    name={opt.icon as any}
+                    name={opt.icon as keyof typeof MaterialIcons.glyphMap}
                     size={HEADER.iconSize}
                     color={opt.destructive ? COLORS.error : COLORS.secondary}
                     style={styles.optionIcon}
@@ -80,6 +82,8 @@ export function OptionsActionSheet({
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [styles.cancel, pressed && styles.optionPressed]}
             onPress={onCancel}
+            accessibilityRole="button"
+            accessibilityLabel={cancelLabel}
           >
             <Text style={styles.cancelText}>{cancelLabel}</Text>
           </Pressable>
@@ -136,7 +140,7 @@ const styles = createStyles({
     marginRight: SPACING.m,
   },
   optionsScroll: {},
-  optionPressed: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  optionPressed: { backgroundColor: COLORS.pressed },
   optionDestructive: {},
   optionText: {
     fontSize: MODAL.buttonFontSize,

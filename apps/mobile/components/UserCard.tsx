@@ -1,7 +1,8 @@
-import React, { memo } from 'react';
-import { View, Text, Pressable, Image } from 'react-native';
+import React, { memo, useCallback } from 'react';
+import { View, Text, Pressable, Image, type GestureResponderEvent } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { getImageUrl, getAvatarUri } from '../utils/api';
+import { getAvatarUri } from '../utils/api';
+import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, FONTS, LAYOUT, createStyles } from '../constants/theme';
 
 /**
@@ -25,26 +26,35 @@ interface UserCardProps {
 }
 
 function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
-  const handleFollowPress = (e: any) => {
+  const { t } = useTranslation();
+  const displayName = item.displayName || item.handle;
+
+  const handleFollowPress = useCallback((e: GestureResponderEvent) => {
     e?.stopPropagation?.();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onFollow?.();
-  };
+  }, [onFollow]);
 
   return (
-    <Pressable onPress={onPress} style={styles.card}>
+    <Pressable
+      onPress={onPress}
+      style={styles.card}
+      accessibilityLabel={`${displayName}, @${item.handle}`}
+      accessibilityRole="button"
+      accessibilityHint={t('common.viewProfile', 'View profile')}
+    >
       <View style={styles.row}>
-        <View style={styles.avatar}>
+        <View style={styles.avatar} accessibilityElementsHidden>
           {getAvatarUri(item) ? (
             <Image source={{ uri: getAvatarUri(item)! }} style={styles.avatarImage} />
           ) : (
             <Text style={styles.avatarText}>
-              {(item.displayName || item.handle || '?').charAt(0).toUpperCase()}
+              {displayName.charAt(0).toUpperCase()}
             </Text>
           )}
         </View>
         <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={1}>{item.displayName || item.handle}</Text>
+          <Text style={styles.name} numberOfLines={1}>{displayName}</Text>
           <Text style={styles.handle}>@{item.handle}</Text>
           {item.bio ? (
             <Text style={styles.bio} numberOfLines={2}>{item.bio}</Text>
@@ -54,9 +64,15 @@ function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
           <Pressable
             style={[styles.followBtn, item.isFollowing && styles.followBtnActive]}
             onPress={handleFollowPress}
+            accessibilityLabel={
+              item.isFollowing
+                ? t('common.unfollow', { name: displayName, defaultValue: `Unfollow ${displayName}` })
+                : t('common.follow', { name: displayName, defaultValue: `Follow ${displayName}` })
+            }
+            accessibilityRole="button"
           >
             <Text style={[styles.followBtnText, item.isFollowing && styles.followBtnTextActive]}>
-              {item.isFollowing ? 'Following' : 'Follow'}
+              {item.isFollowing ? t('common.following', 'Following') : t('common.followAction', 'Follow')}
             </Text>
           </Pressable>
         )}

@@ -25,6 +25,22 @@ const COLORS = {
   topic: '#6BB39B',
   /** [[post:id]] in-body links – same as primary for consistency */
   postLink: '#6E7A8A',
+  /** Success indicators, toggles */
+  success: '#22C55E',
+  /** Badge / chip background – primary at 20% opacity */
+  badge: 'rgba(110, 122, 138, 0.2)',
+  /** Heavy overlay for reading modes, bottom sheets */
+  overlayHeavy: 'rgba(0, 0, 0, 0.75)',
+  /** Code block background */
+  codeBackground: '#1E1E1E',
+  /** Code block text */
+  codeText: '#D4D4D4',
+  /** Graph node: topic */
+  graphTopic: '#5EC4A0',
+  /** Graph node: user/author */
+  graphUser: '#5BA8E8',
+  /** Graph node: external source */
+  graphSource: '#E8A85B',
 };
 
 const SPACING = {

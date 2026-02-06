@@ -7,10 +7,10 @@ export function UserBenefits() {
     <section className="px-6 md:px-12 max-w-[1200px] mx-auto py-24 border-b border-[#1A1A1D]">
       <div className="text-center mb-16">
         <h2 className="text-xs font-mono text-[#6E7A8A] uppercase tracking-widest mb-4">
-          Ecosystem
+          Who it&apos;s for
         </h2>
         <h3 className="text-3xl font-serif text-[#F2F2F2]">
-          For everyone who reads.
+          Built for people who think.
         </h3>
       </div>
 
@@ -22,8 +22,9 @@ export function UserBenefits() {
             <h4 className="text-xl font-medium text-[#F2F2F2]">The Reader</h4>
           </div>
           <p className="text-[#A8A8AA] leading-relaxed">
-            Escape the doomscroll. Build a personal library of ideas, not just a
-            feed of fleeting moments. Follow topics, not just influencers.
+            Build a personal library of ideas worth keeping. Follow topics that
+            matter to you and discover writers through what they say, not how
+            loud they say it.
           </p>
         </div>
 
@@ -34,9 +35,9 @@ export function UserBenefits() {
             <h4 className="text-xl font-medium text-[#F2F2F2]">The Writer</h4>
           </div>
           <p className="text-[#A8A8AA] leading-relaxed">
-            Write posts that last. Your work is indexed by topic and context,
-            ensuring it remains discoverable long after the initial publish
-            date. Plus, native RSS feeds for every profile.
+            Your posts are indexed by topic and context, staying discoverable
+            long after you publish. Every profile has a native RSS feed, so
+            your work is never locked in.
           </p>
         </div>
 
@@ -49,8 +50,9 @@ export function UserBenefits() {
             </h4>
           </div>
           <p className="text-[#A8A8AA] leading-relaxed">
-            Debate without the noise. Threaded conversations and citations
-            encourage nuanced discussion rather than shout-matches.
+            Conversations built on citations, not dunks. Threaded replies and
+            source references encourage thoughtful discussion instead of
+            performative outrage.
           </p>
         </div>
       </div>

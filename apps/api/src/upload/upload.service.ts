@@ -3,7 +3,6 @@ import {
   BadRequestException,
   Logger,
   OnModuleInit,
-  Optional,
   Inject,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,8 +10,8 @@ import * as MinIO from 'minio';
 import sharp, { type ResizeOptions } from 'sharp';
 import { encode } from 'blurhash';
 import { v4 as uuidv4 } from 'uuid';
-import { Queue } from 'bullmq';
 import { SafetyService } from '../safety/safety.service';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 import type { ImageUploadType } from './image-moderation.worker';
 
 /**
@@ -43,9 +42,8 @@ export class UploadService implements OnModuleInit {
   constructor(
     private configService: ConfigService,
     private safetyService: SafetyService,
-    @Optional()
-    @Inject('IMAGE_MODERATION_QUEUE')
-    private imageModerationQueue: Queue | null,
+    @Inject(EVENT_BUS)
+    private eventBus: IEventBus,
   ) {
     this.minioClient = new MinIO.Client({
       endPoint: this.configService.get('MINIO_ENDPOINT') || 'localhost',
@@ -165,8 +163,7 @@ export class UploadService implements OnModuleInit {
     const moderationAsync =
       !asyncExplicitlyDisabled &&
       !!options?.uploadType &&
-      !!options?.userId &&
-      !!this.imageModerationQueue;
+      !!options?.userId;
 
     if (!moderationAsync) {
       const safety = await this.safetyService.checkImage(file.buffer);
@@ -243,9 +240,8 @@ export class UploadService implements OnModuleInit {
       }
     }
 
-    const queue = this.imageModerationQueue;
-    if (moderationAsync && options?.uploadType && options?.userId && queue) {
-      await queue.add('moderate', {
+    if (moderationAsync && options?.uploadType && options?.userId) {
+      await this.eventBus.publish('image-moderation', 'moderate', {
         key,
         uploadType: options.uploadType,
         userId: options.userId,
@@ -266,7 +262,12 @@ export class UploadService implements OnModuleInit {
       this.configService.get<string>('PUBLIC_API_URL')?.replace(/\/$/, '') ||
       this.configService.get<string>('API_URL')?.replace(/\/$/, '');
     if (publicApiBase) {
-      return `${publicApiBase}/images/${encodeURIComponent(key)}`;
+      // Nest uses setGlobalPrefix('api'), so images are at /api/images/:key
+      const path =
+        publicApiBase.endsWith('/api')
+          ? `/images/${encodeURIComponent(key)}`
+          : `/api/images/${encodeURIComponent(key)}`;
+      return `${publicApiBase}${path}`;
     }
     const publicUrl =
       this.configService.get<string>('MINIO_PUBLIC_URL') ??

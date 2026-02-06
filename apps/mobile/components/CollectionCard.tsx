@@ -154,7 +154,7 @@ const styles = createStyles({
   thumbPlaceholder: {
     width: "100%",
     height: "100%",
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.badge,
     alignItems: "center",
     justifyContent: "center",
   },

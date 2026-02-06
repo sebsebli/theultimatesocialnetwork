@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Blurhash } from "react-blurhash";
 import { renderMarkdown, extractWikilinks } from "@/utils/markdown";
+import { sanitizeHTML } from "@/lib/sanitize-html";
 import { getImageUrl } from "@/lib/security";
 import { getPostDisplayTitle } from "@/utils/compose-helpers";
 import { Avatar } from "./avatar";
@@ -20,6 +21,7 @@ export interface Post {
   title?: string | null;
   createdAt: string;
   author: {
+    id?: string;
     handle: string;
     displayName: string;
     avatarKey?: string | null;
@@ -45,6 +47,8 @@ export interface PostItemProps {
   isPublic?: boolean;
   /** When provided, called after successful un-keep so parent can remove from list (e.g. Keeps/Saved tab). */
   onKeep?: () => void;
+  /** When provided, called after successful delete so parent can remove from list or redirect. */
+  onDeleted?: () => void;
 }
 
 function PostItemInner({
@@ -52,6 +56,7 @@ function PostItemInner({
   isAuthor = false,
   isPublic = false,
   onKeep,
+  onDeleted,
 }: PostItemProps) {
   const t = useTranslations("post");
   const tCommon = useTranslations("common");
@@ -59,10 +64,12 @@ function PostItemInner({
   const router = useRouter();
   const showPrivateOverlay = post.viewerCanSeeContent === false;
   const [liked, setLiked] = useState(post.isLiked ?? false);
+  const [likeAnimating, setLikeAnimating] = useState(false);
   const [kept, setKept] = useState(post.isKept ?? false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setLiked(post.isLiked ?? false);
@@ -76,6 +83,8 @@ function PostItemInner({
       router.push("/sign-in");
       return;
     }
+    setLikeAnimating(true);
+    setTimeout(() => setLikeAnimating(false), 150);
     const previous = liked;
     setLiked(!previous);
 
@@ -116,6 +125,25 @@ function PostItemInner({
     } catch {
       setKept(previous);
       toastError("Failed to update save");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (isPublic || !isAuthor || deleting) return;
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Failed to delete post");
+      }
+      onDeleted?.();
+      router.push("/");
+    } catch {
+      toastError("Failed to delete post");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -249,9 +277,13 @@ function PostItemInner({
                 <div
                   className="prose prose-invert max-w-none text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300"
                   dangerouslySetInnerHTML={{
-                    __html: renderMarkdown(post.body, {
-                      referenceMetadata: post.referenceMetadata,
-                    }),
+                    // Safe: Content is sanitized HTML from renderMarkdown which processes user markdown
+                    // and escapes dangerous content. Additional DOMPurify sanitization ensures XSS protection.
+                    __html: sanitizeHTML(
+                      renderMarkdown(post.body, {
+                        referenceMetadata: post.referenceMetadata,
+                      }),
+                    ),
                   }}
                 />
                 {post.body.length > 300 && (
@@ -426,10 +458,10 @@ function PostItemInner({
           type="button"
           onClick={handleLike}
           aria-label={liked ? t("liked") : t("like")}
-          className={`flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${liked ? "text-like" : ""}`}
+          className={`flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${liked ? "text-like" : ""}`}
         >
           <svg
-            className={`w-5 h-5 ${liked ? "fill-current" : ""}`}
+            className={`w-5 h-5 transition-transform duration-150 ${likeAnimating ? "scale-125" : "scale-100"} ${liked ? "fill-current" : ""}`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -577,15 +609,17 @@ function PostItemInner({
         )}
         <OverflowMenu
           postId={post.id}
-          userId={post.author.handle}
+          userId={post.author.id ?? post.author.handle}
+          userHandle={post.author.handle}
           isAuthor={isAuthor}
           onReport={() => setShowReportModal(true)}
+          onDelete={isAuthor && !isPublic ? handleDelete : undefined}
           onCopyLink={
             !post.author?.isProtected
               ? () => {
-                  const url = `${window.location.origin}/post/${post.id}`;
-                  navigator.clipboard.writeText(url);
-                }
+                const url = `${window.location.origin}/post/${post.id}`;
+                navigator.clipboard.writeText(url);
+              }
               : undefined
           }
         />

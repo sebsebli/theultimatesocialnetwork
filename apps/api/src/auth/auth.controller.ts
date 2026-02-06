@@ -13,6 +13,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { VerifyDto } from './dto/verify.dto';
 import { Confirm2FADto } from './dto/confirm-2fa.dto';
+import { Disable2FADto } from './dto/disable-2fa.dto';
 import { Login2FADto } from './dto/login-2fa.dto';
 import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
@@ -33,7 +34,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   @Post('login')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -54,6 +55,25 @@ export class AuthController {
     });
   }
 
+  /** Refresh access token using a valid refresh token. Issues new access + refresh (rotation). */
+  @Post('refresh')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  async refresh(
+    @Req() req: Request,
+    @Body() body: { refreshToken: string; deviceInfo?: string },
+  ) {
+    if (!body.refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+    const ipAddress = getClientIp(req);
+    const deviceInfo = body.deviceInfo?.trim() || undefined;
+    return this.authService.refreshAccessToken(body.refreshToken, {
+      ipAddress,
+      deviceInfo,
+    });
+  }
+
   @Post('2fa/setup')
   @UseGuards(AuthGuard('jwt'))
   async setup2FA(@CurrentUser() user: User) {
@@ -64,6 +84,22 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   async confirm2FA(@CurrentUser() user: User, @Body() dto: Confirm2FADto) {
     return this.authService.enable2FA(user.id, dto.token, dto.secret);
+  }
+
+  @Post('2fa/disable')
+  @UseGuards(AuthGuard('jwt'))
+  async disable2FA(@CurrentUser() user: User, @Body() dto: Disable2FADto) {
+    return this.authService.disable2FA(user.id, dto.token);
+  }
+
+  /** Regenerate 2FA backup codes. Requires a valid TOTP token. */
+  @Post('2fa/backup-codes')
+  @UseGuards(AuthGuard('jwt'))
+  async regenerateBackupCodes(
+    @CurrentUser() user: User,
+    @Body() body: { token: string },
+  ) {
+    return this.authService.regenerateBackupCodes(user.id, body.token);
   }
 
   @Post('2fa/login')
@@ -89,11 +125,13 @@ export class AuthController {
     });
   }
 
+  /** Logout: revoke the refresh token so the session cannot be refreshed. */
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout() {
-    // Statistically stateless JWT logout, but provided for standard API compatibility
-    // and potential future blacklisting or session management.
+  async logout(@Body() body: { refreshToken?: string }) {
+    if (body.refreshToken) {
+      await this.authService.revokeRefreshToken(body.refreshToken);
+    }
     return { success: true };
   }
 }

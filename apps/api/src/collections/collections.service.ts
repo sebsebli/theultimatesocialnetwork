@@ -4,11 +4,38 @@ import { In, Repository } from 'typeorm';
 import { Collection } from '../entities/collection.entity';
 import { CollectionItem } from '../entities/collection-item.entity';
 import { Post } from '../entities/post.entity';
+import { PostEdge, EdgeType } from '../entities/post-edge.entity';
+import { PostTopic } from '../entities/post-topic.entity';
+import { Topic } from '../entities/topic.entity';
 import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { ExploreService } from '../explore/explore.service';
 import { UploadService } from '../upload/upload.service';
+
+export type CollectionSourceItem =
+  | {
+    type: 'external';
+    id: string;
+    url: string;
+    title: string | null;
+    createdAt: Date;
+  }
+  | {
+    type: 'post';
+    id: string;
+    title: string | null;
+    createdAt: Date;
+    headerImageKey: string | null;
+    authorHandle: string | null;
+  }
+  | {
+    type: 'topic';
+    id: string;
+    slug: string;
+    title: string;
+    createdAt: Date;
+  };
 
 @Injectable()
 export class CollectionsService {
@@ -18,13 +45,16 @@ export class CollectionsService {
     @InjectRepository(CollectionItem)
     private itemRepo: Repository<CollectionItem>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
+    @InjectRepository(PostEdge) private postEdgeRepo: Repository<PostEdge>,
+    @InjectRepository(PostTopic) private postTopicRepo: Repository<PostTopic>,
+    @InjectRepository(Topic) private topicRepo: Repository<Topic>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
     @InjectRepository(ExternalSource)
     private externalSourceRepo: Repository<ExternalSource>,
     private exploreService: ExploreService,
     private uploadService: UploadService,
-  ) {}
+  ) { }
 
   async create(
     userId: string,
@@ -128,7 +158,7 @@ export class CollectionsService {
     };
   }
 
-  /** Latest post per collection by post.created_at DESC (for header image = most recent post). */
+  /** Latest post per collection by post.created_at DESC (for header image = most recent post). Uses SQL DISTINCT ON to avoid loading all items into memory. */
   async getLatestItemPreviewByPostDate(collectionIds: string[]): Promise<
     Record<
       string,
@@ -141,18 +171,29 @@ export class CollectionsService {
     >
   > {
     if (collectionIds.length === 0) return {};
-    const items = await this.itemRepo.find({
-      where: { collectionId: In(collectionIds) },
-      relations: ['post'],
-      order: { addedAt: 'DESC' },
-    });
-    const withPost = items.filter((i) => i.post && !i.post.deletedAt);
-    withPost.sort(
-      (a, b) =>
-        new Date(b.post.createdAt).getTime() -
-        new Date(a.post.createdAt).getTime(),
-    );
-    const seen = new Set<string>();
+
+    // Use SQL DISTINCT ON to get latest post per collection efficiently
+    const rows = await this.itemRepo
+      .createQueryBuilder('ci')
+      .innerJoin('ci.post', 'p')
+      .select('ci.collection_id', 'collectionId')
+      .addSelect('p.id', 'postId')
+      .addSelect('p.title', 'title')
+      .addSelect('SUBSTRING(p.body FROM 1 FOR 150)', 'bodyRaw')
+      .addSelect('p.header_image_key', 'headerImageKey')
+      .where('ci.collection_id IN (:...ids)', { ids: collectionIds })
+      .andWhere('p.deleted_at IS NULL')
+      .orderBy('ci.collection_id')
+      .addOrderBy('p.created_at', 'DESC')
+      .distinctOn(['ci.collection_id'])
+      .getRawMany<{
+        collectionId: string;
+        postId: string;
+        title: string | null;
+        bodyRaw: string | null;
+        headerImageKey: string | null;
+      }>();
+
     const out: Record<
       string,
       {
@@ -162,25 +203,22 @@ export class CollectionsService {
         headerImageKey: string | null;
       }
     > = {};
-    for (const item of withPost) {
-      if (seen.has(item.collectionId)) continue;
-      seen.add(item.collectionId);
-      const body = item.post?.body;
-      const bodyExcerpt =
-        body && typeof body === 'string'
-          ? body
-              .replace(/#{1,6}\s*/g, '')
-              .replace(/\*\*([^*]+)\*\*/g, '$1')
-              .replace(/_([^_]+)_/g, '$1')
-              .replace(/\n+/g, ' ')
-              .trim()
-              .slice(0, 120) + (body.length > 120 ? '…' : '')
-          : '';
-      out[item.collectionId] = {
-        postId: item.post?.id ?? '',
-        title: item.post?.title ?? null,
+    for (const row of rows) {
+      const body = row.bodyRaw ?? '';
+      const bodyExcerpt = body
+        ? body
+          .replace(/#{1,6}\s*/g, '')
+          .replace(/\*\*([^*]+)\*\*/g, '$1')
+          .replace(/_([^_]+)_/g, '$1')
+          .replace(/\n+/g, ' ')
+          .trim()
+          .slice(0, 120) + (body.length > 120 ? '…' : '')
+        : '';
+      out[row.collectionId] = {
+        postId: row.postId ?? '',
+        title: row.title ?? null,
         bodyExcerpt,
-        headerImageKey: item.post?.headerImageKey ?? null,
+        headerImageKey: row.headerImageKey ?? null,
       };
     }
     return out;
@@ -231,7 +269,7 @@ export class CollectionsService {
     return { ...collection, ...preview, ...counts, items };
   }
 
-  /** Paginated items for a collection. sort: 'recent' = by post.created_at DESC, 'ranked' = by engagement. Caller must ensure viewer has access. Filters to posts visible to viewer. */
+  /** Paginated items for a collection. sort: 'recent' = by post.created_at DESC, 'ranked' = by engagement. Caller must ensure viewer has access. Visibility filtered at SQL level. */
   async getItemsPage(
     collectionId: string,
     limit: number,
@@ -239,49 +277,35 @@ export class CollectionsService {
     sort: 'recent' | 'ranked' = 'recent',
     viewerId?: string,
   ): Promise<{ items: CollectionItem[]; hasMore: boolean }> {
-    const fetchSize = viewerId ? (limit + 1) * 2 : limit + 1;
-    if (sort === 'ranked') {
-      const qb = this.itemRepo
-        .createQueryBuilder('ci')
-        .innerJoinAndSelect('ci.post', 'p')
-        .leftJoinAndSelect('p.author', 'author')
-        .where('ci.collection_id = :collectionId', { collectionId })
-        .andWhere('p.deleted_at IS NULL')
-        .orderBy('(p.quoteCount * 3 + p.replyCount)', 'DESC')
-        .addOrderBy('p.createdAt', 'DESC')
-        .skip(offset)
-        .take(fetchSize);
-      const items = await qb.getMany();
-      const posts = items.map((i) => i.post).filter(Boolean);
-      const visiblePosts = await this.exploreService.filterPostsVisibleToViewer(
-        posts,
-        viewerId,
-      );
-      const visibleIds = new Set(visiblePosts.map((p) => p.id));
-      const filtered = items.filter((i) => i.post && visibleIds.has(i.post.id));
-      const hasMore = filtered.length > limit;
-      const slice = filtered.slice(0, limit);
-      return { items: slice, hasMore };
-    }
     const qb = this.itemRepo
       .createQueryBuilder('ci')
       .innerJoinAndSelect('ci.post', 'p')
       .leftJoinAndSelect('p.author', 'author')
       .where('ci.collection_id = :collectionId', { collectionId })
-      .andWhere('p.deleted_at IS NULL')
-      .orderBy('p.createdAt', 'DESC')
-      .skip(offset)
-      .take(fetchSize);
-    const items = await qb.getMany();
-    const posts = items.map((i) => i.post).filter(Boolean);
-    const visiblePosts = await this.exploreService.filterPostsVisibleToViewer(
-      posts,
-      viewerId,
-    );
-    const visibleIds = new Set(visiblePosts.map((p) => p.id));
-    const filtered = items.filter((i) => i.post && visibleIds.has(i.post.id));
-    const hasMore = filtered.length > limit;
-    const slice = filtered.slice(0, limit);
+      .andWhere('p.deleted_at IS NULL');
+
+    // SQL-level visibility filter instead of over-fetching and filtering in JS
+    if (viewerId) {
+      qb.andWhere(
+        `(author.is_protected = false OR author.id = :viewerId OR EXISTS (
+          SELECT 1 FROM follows f WHERE f.follower_id = :viewerId AND f.followee_id = author.id
+        ))`,
+        { viewerId },
+      );
+    } else {
+      qb.andWhere('author.is_protected = false');
+    }
+
+    if (sort === 'ranked') {
+      qb.orderBy('(p.quoteCount * 3 + p.replyCount)', 'DESC')
+        .addOrderBy('p.createdAt', 'DESC');
+    } else {
+      qb.orderBy('p.createdAt', 'DESC');
+    }
+
+    const items = await qb.skip(offset).take(limit + 1).getMany();
+    const hasMore = items.length > limit;
+    const slice = items.slice(0, limit);
     return { items: slice, hasMore };
   }
 
@@ -356,38 +380,52 @@ export class CollectionsService {
     limit: number,
     offset: number,
     viewerId?: string,
-  ): Promise<
-    { id: string; url: string; title: string | null; createdAt: Date }[]
-  > {
-    const toSource = (r: {
-      id: string;
-      url: string;
-      title: string | null;
-      createdAt: Date;
-      postId?: string;
-    }) => ({
-      id: r.id,
-      url: r.url,
-      title: r.title,
-      createdAt: r.createdAt,
-    });
+  ): Promise<CollectionSourceItem[]> {
+    // 1) Post IDs in this collection
+    const collectionPostIds = await this.itemRepo
+      .find({ where: { collectionId }, select: ['postId'] })
+      .then((rows) => rows.map((r) => r.postId));
+    if (collectionPostIds.length === 0) return [];
 
-    // One row per distinct URL (most recent occurrence), from all posts in the collection
+    let visiblePostIds: Set<string>;
+    if (viewerId) {
+      const posts = await this.postRepo.find({
+        where: { id: In(collectionPostIds) },
+        relations: ['author'],
+        select: ['id', 'authorId'],
+      });
+      const visible = await this.exploreService.filterPostsVisibleToViewer(
+        posts,
+        viewerId,
+      );
+      visiblePostIds = new Set(visible.map((p) => p.id));
+    } else {
+      const publicIds = (await this.postRepo.query(
+        `
+        SELECT p.id FROM posts p
+        INNER JOIN users u ON u.id = p.author_id AND u.is_protected = false
+        WHERE p.id = ANY($1::uuid[]) AND p.deleted_at IS NULL
+        `,
+        [collectionPostIds],
+      )) as { id: string }[];
+      visiblePostIds = new Set(publicIds.map((r) => r.id));
+    }
+
     const publicClause = viewerId
       ? ''
       : `INNER JOIN users postAuthor ON postAuthor.id = p.author_id AND postAuthor.is_protected = false`;
-    const fetchLimit = viewerId ? offset + limit * 5 : limit;
-    const fetchOffset = viewerId ? 0 : offset;
 
-    type SourceRow = {
+    // 2) External sources (distinct by url) from visible collection posts
+    type ExtRow = {
       id: string;
       url: string;
       title: string | null;
       createdAt: Date;
       postId: string;
     };
-    const rows = (await this.externalSourceRepo.query(
-      `
+    const extQuery =
+      viewerId === undefined
+        ? `
       WITH distinct_sources AS (
         SELECT DISTINCT ON (es.url) es.id, es.url, es.title, es.created_at, es.post_id AS "postId"
         FROM external_sources es
@@ -397,28 +435,124 @@ export class CollectionsService {
         WHERE ci.collection_id = $1
         ORDER BY es.url, es.created_at DESC
       )
-      SELECT id, url, title, created_at AS "createdAt", "postId"
-      FROM distinct_sources
-      ORDER BY "createdAt" DESC
-      LIMIT $2 OFFSET $3
-      `,
-      [collectionId, fetchLimit, fetchOffset],
-    )) as unknown as SourceRow[];
+      SELECT id, url, title, created_at AS "createdAt", "postId" FROM distinct_sources ORDER BY "createdAt" DESC
+      `
+        : `
+      WITH distinct_sources AS (
+        SELECT DISTINCT ON (es.url) es.id, es.url, es.title, es.created_at, es.post_id AS "postId"
+        FROM external_sources es
+        INNER JOIN collection_items ci ON ci.post_id = es.post_id
+        INNER JOIN posts p ON p.id = es.post_id AND p.deleted_at IS NULL
+        WHERE ci.collection_id = $1 AND es.post_id = ANY($2::uuid[])
+        ORDER BY es.url, es.created_at DESC
+      )
+      SELECT id, url, title, created_at AS "createdAt", "postId" FROM distinct_sources ORDER BY "createdAt" DESC
+      `;
+    const extParams =
+      viewerId === undefined
+        ? [collectionId]
+        : [collectionId, [...visiblePostIds]];
+    const extRows = (await this.externalSourceRepo.query(
+      extQuery,
+      extParams,
+    )) as ExtRow[];
+    const externalItems: CollectionSourceItem[] = extRows.map(
+      (r) => ({
+        type: 'external',
+        id: r.id,
+        url: r.url,
+        title: r.title,
+        createdAt: r.createdAt,
+      }),
+    );
 
-    if (rows.length === 0) return [];
-    if (!viewerId) return rows.map(toSource);
-
-    const postIds = [...new Set(rows.map((r) => r.postId))];
-    const posts = await this.postRepo.find({
-      where: { id: In(postIds) },
-      relations: ['author'],
-      select: ['id', 'authorId'],
+    // 3) Linked posts (LINK edges from visible collection posts)
+    const edges = await this.postEdgeRepo.find({
+      where: {
+        fromPostId: In([...visiblePostIds]),
+        edgeType: EdgeType.LINK,
+      },
+      relations: ['toPost', 'toPost.author'],
+      order: { createdAt: 'DESC' },
     });
-    const visible: Post[] =
-      await this.exploreService.filterPostsVisibleToViewer(posts, viewerId);
-    const visiblePostIds = new Set(visible.map((p) => p.id));
-    const filtered = rows.filter((r) => visiblePostIds.has(r.postId));
-    return filtered.slice(offset, offset + limit).map(toSource);
+    const toPostIds = [...new Set(edges.map((e) => e.toPostId))];
+    const toPosts = await this.postRepo.find({
+      where: { id: In(toPostIds) },
+      relations: ['author'],
+      select: ['id', 'title', 'createdAt', 'headerImageKey', 'authorId'],
+    });
+    const visibleToPosts = await this.exploreService.filterPostsVisibleToViewer(
+      toPosts,
+      viewerId,
+    );
+    const visibleToPostIds = new Set(visibleToPosts.map((p) => p.id));
+    const authorHandles = new Map<string, string>();
+    for (const p of visibleToPosts) {
+      if (p.author?.handle) authorHandles.set(p.id, p.author.handle);
+    }
+    const postItems: CollectionSourceItem[] = [];
+    const seenPostIds = new Set<string>();
+    for (const e of edges) {
+      if (!visibleToPostIds.has(e.toPostId) || seenPostIds.has(e.toPostId))
+        continue;
+      seenPostIds.add(e.toPostId);
+      const post = e.toPost;
+      if (!post) continue;
+      postItems.push({
+        type: 'post',
+        id: post.id,
+        title: post.title ?? null,
+        createdAt: e.createdAt,
+        headerImageKey: post.headerImageKey ?? null,
+        authorHandle: authorHandles.get(post.id) ?? null,
+      });
+    }
+
+    // 4) Topics tagged on visible collection posts
+    const topicLinks = await this.postTopicRepo
+      .createQueryBuilder('pt')
+      .select('pt.topic_id', 'topicId')
+      .where('pt.post_id IN (:...postIds)', {
+        postIds: [...visiblePostIds],
+      })
+      .groupBy('pt.topic_id')
+      .getRawMany<{ topicId: string }>();
+    const topicIds = topicLinks.map((r) => r.topicId);
+    const topics =
+      topicIds.length === 0
+        ? []
+        : await this.topicRepo.find({
+          where: { id: In(topicIds) },
+          select: ['id', 'slug', 'title', 'createdAt'],
+        });
+    const topicItems: CollectionSourceItem[] = topics.map((t) => ({
+      type: 'topic',
+      id: t.id,
+      slug: t.slug,
+      title: t.title,
+      createdAt: t.createdAt,
+    }));
+
+    // 5) Merge, sort by createdAt desc, dedupe, paginate
+    const merged: CollectionSourceItem[] = [
+      ...externalItems,
+      ...postItems,
+      ...topicItems,
+    ].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    const seen = new Set<string>();
+    const deduped = merged.filter((item) => {
+      const key =
+        item.type === 'external'
+          ? `ext:${item.url}`
+          : `${item.type}:${item.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return deduped.slice(offset, offset + limit);
   }
 
   async getCollectionContributors(
@@ -431,6 +565,7 @@ export class CollectionsService {
       id: string;
       handle: string;
       displayName: string;
+      avatarKey: string | null;
       postCount: number;
       totalQuotes: number;
     }[]
@@ -441,6 +576,7 @@ export class CollectionsService {
       .select('author.id', 'id')
       .addSelect('author.handle', 'handle')
       .addSelect('author.display_name', 'displayName')
+      .addSelect('author.avatar_key', 'avatarKey')
       .addSelect('COUNT(post.id)', 'postCount')
       .addSelect('COALESCE(SUM(post.quote_count), 0)', 'totalQuotes')
       .from(CollectionItem, 'ci')
@@ -454,6 +590,7 @@ export class CollectionsService {
       .groupBy('author.id')
       .addGroupBy('author.handle')
       .addGroupBy('author.display_name')
+      .addGroupBy('author.avatar_key')
       .orderBy('"totalQuotes"', 'DESC')
       .addOrderBy('"postCount"', 'DESC')
       .limit(fetchLimit)
@@ -463,6 +600,7 @@ export class CollectionsService {
       id: string;
       handle: string;
       displayName: string;
+      avatarKey: string | null;
       postCount: string;
       totalQuotes: string;
     }>();
@@ -494,6 +632,7 @@ export class CollectionsService {
       id: r.id,
       handle: r.handle,
       displayName: r.displayName ?? r.handle,
+      avatarKey: r.avatarKey ?? null,
       postCount: parseInt(r.postCount, 10),
       totalQuotes: parseInt(r.totalQuotes, 10),
     }));

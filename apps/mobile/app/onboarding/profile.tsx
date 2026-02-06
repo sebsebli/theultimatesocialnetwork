@@ -147,9 +147,10 @@ export default function OnboardingProfileScreen() {
       });
       await setOnboardingStage("starter-packs");
       router.push("/onboarding/starter-packs");
-    } catch (error: any) {
-      console.error("Failed to update profile", error);
-      showError(error?.message || t("onboarding.profile.updateFailed"));
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to update profile", error);
+      const errorMessage = (error as { message?: string })?.message;
+      showError(errorMessage || t("onboarding.profile.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -294,6 +295,8 @@ export default function OnboardingProfileScreen() {
           <Pressable
             style={styles.privacyToggle}
             onPress={() => setIsProtected(!isProtected)}
+            accessibilityRole="button"
+            accessibilityLabel={isProtected ? t("common.private") : t("common.public")}
           >
             <View style={styles.privacyTextContainer}>
               <View style={styles.privacyHeader}>
@@ -329,6 +332,8 @@ export default function OnboardingProfileScreen() {
           ]}
           onPress={handleSubmit}
           disabled={!canSubmit || loading}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.continue")}
         >
           {loading ? (
             <InlineSkeleton />

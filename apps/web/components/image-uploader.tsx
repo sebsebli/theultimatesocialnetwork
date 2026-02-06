@@ -109,6 +109,7 @@ function ImageUploaderInner({
         disabled={uploading}
         className={`size-10 flex items-center justify-center rounded-lg transition-colors disabled:opacity-50 ${isDragging ? "text-primary" : "text-tertiary hover:text-paper hover:bg-white/5"}`}
         title="Header photo"
+        aria-label="Upload header photo"
       >
         {uploading ? (
           <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -144,6 +145,7 @@ function ImageUploaderInner({
       </button>
       {preview && (
         <div className="mt-2 relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={preview}
             alt="Preview"
@@ -155,6 +157,7 @@ function ImageUploaderInner({
               if (fileInputRef.current) fileInputRef.current.value = "";
             }}
             className="absolute top-2 right-2 p-1 bg-ink/80 rounded-full text-white hover:bg-ink"
+            aria-label="Remove preview"
           >
             <svg
               className="w-4 h-4"

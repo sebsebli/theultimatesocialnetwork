@@ -1,9 +1,9 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { Tabs, Redirect, useRouter, usePathname } from "expo-router";
-import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { COLORS, SPACING, FONTS } from "../../constants/theme";
+import { MaterialIcons } from "@expo/vector-icons";
+import { COLORS } from "../../constants/theme";
 import { FullScreenSkeleton } from "../../components/LoadingSkeleton";
-import { Text, View, Pressable } from "react-native";
+import { View, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/auth";
 import { useSocket } from "../../context/SocketContext";
@@ -41,27 +41,35 @@ function TabLayoutInner() {
   }
 
   const emitTabPress = tabPress?.emitTabPress ?? (() => {});
-  const onTabPress = (tab: TabKey) => {
-    if (currentTab === tab) emitTabPress(tab);
-  };
+  const onTabPress = useCallback(
+    (tab: TabKey) => {
+      if (currentTab === tab) emitTabPress(tab);
+    },
+    [currentTab, emitTabPress],
+  );
+
+  const tabBarStyle = useMemo(
+    () => ({
+      backgroundColor: COLORS.ink,
+      height: 50 + insets.bottom,
+      paddingTop: 5,
+      paddingBottom: insets.bottom,
+      paddingHorizontal: 0,
+      position: "absolute" as const,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      borderTopWidth: 1,
+      borderTopColor: COLORS.divider,
+    }),
+    [insets.bottom],
+  );
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: COLORS.ink,
-          height: 50 + insets.bottom,
-          paddingTop: 5,
-          paddingBottom: insets.bottom,
-          paddingHorizontal: 0,
-          position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          borderTopWidth: 1,
-          borderTopColor: COLORS.divider,
-        },
+        tabBarStyle,
         tabBarActiveTintColor: COLORS.paper,
         tabBarInactiveTintColor: COLORS.primary,
         tabBarShowLabel: false,
@@ -120,7 +128,7 @@ function TabLayoutInner() {
       <Tabs.Screen
         name="compose"
         listeners={() => ({
-          tabPress: (e: any) => {
+          tabPress: (e: { preventDefault: () => void }) => {
             e.preventDefault();
             router.push("/post/compose");
           },
@@ -132,9 +140,15 @@ function TabLayoutInner() {
             ...props
           }: {
             children: React.ReactNode;
+            style?: object;
             [key: string]: unknown;
           }) => (
-            <Pressable {...props} style={[{ flex: 1 }, props.style]}>
+            <Pressable
+              {...props}
+              style={[{ flex: 1 }, props.style]}
+              accessibilityLabel="Compose new post"
+              accessibilityRole="button"
+            >
               <View
                 style={{
                   flex: 1,
@@ -152,7 +166,7 @@ function TabLayoutInner() {
                     backgroundColor: COLORS.primary,
                     alignItems: "center",
                     justifyContent: "center",
-                    shadowColor: "#000",
+                    shadowColor: COLORS.ink,
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.25,
                     shadowRadius: 4,

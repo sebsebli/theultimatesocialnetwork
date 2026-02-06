@@ -16,7 +16,7 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
   },
 
-  // Image optimization (for next/image; Avatar uses <img> so CSP img-src is what allows API images)
+  // Image optimization (for next/image). Allow both /images/* (API on same host:3000) and /api/images/* (API behind nginx at /api).
   images: {
     remotePatterns: [
       {
@@ -33,9 +33,21 @@ const nextConfig = {
       },
       {
         protocol: 'http',
+        hostname: 'localhost',
+        port: '',
+        pathname: '/api/images/**',
+      },
+      {
+        protocol: 'http',
         hostname: '127.0.0.1',
         port: '3000',
         pathname: '/images/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '',
+        pathname: '/api/images/**',
       },
       {
         protocol: 'http',
@@ -43,8 +55,19 @@ const nextConfig = {
         pathname: '/images/**',
       },
       {
+        protocol: 'http',
+        hostname: 'localhost',
+        pathname: '/api/images/**',
+      },
+      {
         protocol: 'https',
         hostname: '**',
+        pathname: '/images/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**',
+        pathname: '/api/images/**',
       },
     ],
   },

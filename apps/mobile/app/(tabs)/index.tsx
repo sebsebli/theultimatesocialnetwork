@@ -59,7 +59,7 @@ export default function HomeScreen() {
   const { showError } = useToast();
   const { unreadNotifications } = useSocket();
   const insets = useSafeAreaInsets();
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -67,7 +67,7 @@ export default function HomeScreen() {
   const [page, setPage] = useState(1);
   const [cursor, setCursor] = useState<string | undefined>();
   const [hasMore, setHasMore] = useState(true);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<Record<string, unknown>[]>([]);
   const appState = useRef(AppState.currentState);
   const flatListRef = useRef<FlatList>(null);
   const tabPress = useTabPress();
@@ -107,21 +107,22 @@ export default function HomeScreen() {
     if (!loading && posts.length === 0) {
       api
         .get("/users/suggested?limit=5")
-        .then((res) =>
+        .then((res: unknown) =>
           setSuggestions(
             (Array.isArray(res) ? res : []).filter(
-              (u: any) => !u.handle?.startsWith?.("__pending_"),
+              (u: Record<string, unknown>) =>
+                !(typeof u.handle === "string" && u.handle.startsWith("__pending_")),
             ),
           ),
         )
-        .catch(() => {});
+        .catch(() => { /* suggested users fetch best-effort */ });
     }
   }, [loading, posts.length]);
 
-  const handleFollowSuggestion = useCallback(async (item: any) => {
+  const handleFollowSuggestion = useCallback(async (item: Record<string, unknown>) => {
     const prev = item.isFollowing;
     setSuggestions((prevList) =>
-      prevList.map((u: any) =>
+      prevList.map((u) =>
         u.id === item.id ? { ...u, isFollowing: !prev } : u,
       ),
     );
@@ -133,7 +134,7 @@ export default function HomeScreen() {
       }
     } catch {
       setSuggestions((prevList) =>
-        prevList.map((u: any) =>
+        prevList.map((u) =>
           u.id === item.id ? { ...u, isFollowing: prev } : u,
         ),
       );
@@ -155,38 +156,46 @@ export default function HomeScreen() {
       const offset = reset ? 0 : (pageNum - 1) * limit;
       const useCursor = !reset && cursor;
       const q = `limit=${limit}&offset=${offset}${useCursor ? `&cursor=${encodeURIComponent(cursor!)}` : ""}`;
-      const data = await api.get(`/feed?${q}`);
+      const data = await api.get<{
+        items?: Array<Record<string, unknown>>;
+        nextCursor?: string;
+        hasMore?: boolean;
+      } | Array<Record<string, unknown>>>(`/feed?${q}`);
 
       // Validate payload shape
-      if (!data || (!Array.isArray(data) && !Array.isArray(data.items))) {
+      if (!data || (!Array.isArray(data) && !Array.isArray((data as { items?: unknown[] }).items))) {
         throw new Error("Invalid feed payload");
       }
 
       // Handle feed items...
-      const feedItems = Array.isArray(data.items || data)
-        ? data.items || data
-        : [];
-      const processedPosts = feedItems.map((item: any) => {
-        if (item.type === "saved_by") {
-          const post = item.data.post || item.data;
+      const feedItems = Array.isArray(data)
+        ? data
+        : Array.isArray((data as { items?: unknown[] }).items)
+          ? (data as { items: unknown[] }).items
+          : [];
+      const processedPosts = feedItems.map((item) => {
+        const typedItem = item as Record<string, unknown>;
+        if (typedItem.type === "saved_by") {
+          const postData = typedItem.data as Record<string, unknown>;
+          const post = (postData.post || postData) as Record<string, unknown>;
           return {
             ...post,
-            author: post.author || {
-              id: post.authorId || "",
+            author: (post.author as Record<string, unknown>) || {
+              id: (post.authorId as string) || "",
               handle: t("post.unknownUser", "Unknown"),
               displayName: t("post.unknownUser", "Unknown"),
             },
             isLiked: post.isLiked,
-            isKept: post.isKept ?? true,
+            isKept: (post.isKept as boolean) ?? true,
             _isSavedBy: true,
-            _savedBy: item.data,
+            _savedBy: postData,
           };
         }
-        const post = item.data || item;
+        const post = (typedItem.data || typedItem) as Record<string, unknown>;
         return {
           ...post,
-          author: post.author || {
-            id: post.authorId || "",
+          author: (post.author as Record<string, unknown>) || {
+            id: (post.authorId as string) || "",
             handle: t("post.unknownUser", "Unknown"),
             displayName: t("post.unknownUser", "Unknown"),
           },
@@ -197,31 +206,33 @@ export default function HomeScreen() {
 
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
+      const paginatedData = Array.isArray(data) ? null : (data as { nextCursor?: string; hasMore?: boolean });
       if (reset) {
-        setPosts(processedPosts);
-        setCursor(data.nextCursor ?? undefined);
+        setPosts(processedPosts as unknown as Post[]);
+        setCursor(paginatedData?.nextCursor ?? undefined);
       } else {
-        setPosts((prev) => [...prev, ...processedPosts]);
-        if (data.nextCursor) setCursor(data.nextCursor);
+        setPosts((prev) => [...prev, ...(processedPosts as unknown as Post[])]);
+        if (paginatedData?.nextCursor) setCursor(paginatedData.nextCursor);
       }
-      if (data.nextCursor) {
+      if (paginatedData?.nextCursor) {
         setHasMore(true);
       } else {
         const hasMoreData =
-          processedPosts.length === limit && data.hasMore !== false;
+          processedPosts.length === limit && paginatedData?.hasMore !== false;
         setHasMore(hasMoreData);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const duration = Date.now() - startTime;
+      const feedErr = error as { status?: number; message?: string };
 
-      if (error?.status === 401) {
+      if (feedErr?.status === 401) {
         setLoading(false);
         setRefreshing(false);
         setLoadingMore(false);
         return;
       }
       // Backend GET /feed returns 403 "Complete onboarding first" when profile is placeholder (handle starts with __pending_).
-      if (error?.status === 403) {
+      if (feedErr?.status === 403) {
         setLoading(false);
         setRefreshing(false);
         setLoadingMore(false);
@@ -229,12 +240,14 @@ export default function HomeScreen() {
         return;
       }
 
-      console.error("[Feed] Load failed", {
-        status: error?.status,
-        message: error?.message,
-        duration,
-        user: isAuthenticated ? "auth" : "guest",
-      });
+      if (__DEV__) {
+        console.error("[Feed] Load failed", {
+          status: feedErr?.status,
+          message: feedErr?.message,
+          duration,
+          user: isAuthenticated ? "auth" : "guest",
+        });
+      }
       setError(true);
       if (posts.length === 0 && !loading) {
         showError(
@@ -326,6 +339,11 @@ export default function HomeScreen() {
     [],
   );
 
+  const filteredPosts = useMemo(
+    () => posts.filter((p: Post) => !!p?.author),
+    [posts],
+  );
+
   // Updated Empty State Components
   const InviteNudge = () => (
     <Pressable
@@ -381,14 +399,14 @@ export default function HomeScreen() {
       ) : (
         <FlatList
           ref={flatListRef}
-          data={posts.filter((p: Post) => !!p?.author)}
+          data={filteredPosts}
           keyExtractor={keyExtractor}
           contentContainerStyle={[
             {
               paddingBottom:
                 TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA,
             },
-            posts.filter((p: Post) => !!p?.author).length === 0 && {
+            filteredPosts.length === 0 && {
               flexGrow: 1,
             },
           ]}
@@ -416,7 +434,7 @@ export default function HomeScreen() {
                         <Text style={styles.suggestionsHeader}>
                           {t("home.suggestedPeople", "People to follow")}
                         </Text>
-                        {suggestions.map((item: any) => (
+                        {suggestions.map((item) => (
                           <View key={item.id} style={styles.suggestionRow}>
                             <UserCard
                               item={item}

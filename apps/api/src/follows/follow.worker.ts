@@ -2,18 +2,16 @@ import {
   Injectable,
   Logger,
   OnApplicationBootstrap,
-  OnApplicationShutdown,
   Inject,
 } from '@nestjs/common';
-import { Worker, Job } from 'bullmq';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { NotificationType } from '../entities/notification.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
+import Redis from 'ioredis';
 
 interface FollowJobData {
   type: 'follow' | 'unfollow';
@@ -22,44 +20,25 @@ interface FollowJobData {
 }
 
 @Injectable()
-export class FollowWorker
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+export class FollowWorker implements OnApplicationBootstrap {
   private readonly logger = new Logger(FollowWorker.name);
-  private worker: Worker;
 
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
-    private configService: ConfigService,
     private neo4jService: Neo4jService,
     private notificationHelper: NotificationHelperService,
     @Inject('REDIS_CLIENT') private redis: Redis,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
-  onApplicationBootstrap() {
-    const redisUrl = this.configService.get<string>('REDIS_URL');
-
-    this.worker = new Worker<FollowJobData>(
+  async onApplicationBootstrap() {
+    await this.eventBus.subscribe<FollowJobData>(
       'follow-processing',
-      async (job: Job<FollowJobData>) => {
-        await this.processFollow(job.data);
+      async (_event, data) => {
+        await this.processFollow(data);
       },
-      {
-        connection: new Redis(redisUrl || 'redis://redis:6379', {
-          maxRetriesPerRequest: null,
-        }),
-      },
+      { concurrency: 5 },
     );
-
-    this.worker.on('failed', (job, err) => {
-      this.logger.error(`Job ${job?.id} failed: ${err.message}`);
-    });
-  }
-
-  onApplicationShutdown() {
-    this.worker.close().catch((err: Error) => {
-      console.error('Error closing worker', err);
-    });
   }
 
   async processFollow(data: FollowJobData) {
@@ -71,15 +50,19 @@ export class FollowWorker
         await this.userRepo.increment({ id: followeeId }, 'followerCount', 1);
         await this.userRepo.increment({ id: followerId }, 'followingCount', 1);
 
-        // 2. Neo4j Sync
-        await this.neo4jService.run(
-          `
-                MERGE (u1:User {id: $followerId})
-                MERGE (u2:User {id: $followeeId})
-                MERGE (u1)-[:FOLLOWS]->(u2)
-                `,
-          { followerId, followeeId },
-        );
+        // 2. Neo4j Sync (optional — skipped when Neo4j is not configured)
+        try {
+          await this.neo4jService.run(
+            `
+                  MERGE (u1:User {id: $followerId})
+                  MERGE (u2:User {id: $followeeId})
+                  MERGE (u1)-[:FOLLOWS]->(u2)
+                  `,
+            { followerId, followeeId },
+          );
+        } catch (e) {
+          this.logger.warn(`Neo4j follow sync failed (non-fatal): ${(e as Error).message}`);
+        }
 
         // 3. Notification
         await this.notificationHelper.createNotification({
@@ -92,13 +75,18 @@ export class FollowWorker
         await this.userRepo.decrement({ id: followeeId }, 'followerCount', 1);
         await this.userRepo.decrement({ id: followerId }, 'followingCount', 1);
 
-        await this.neo4jService.run(
-          `
-                MATCH (u1:User {id: $followerId})-[r:FOLLOWS]->(u2:User {id: $followeeId})
-                DELETE r
-                `,
-          { followerId, followeeId },
-        );
+        // Neo4j Sync (optional)
+        try {
+          await this.neo4jService.run(
+            `
+                  MATCH (u1:User {id: $followerId})-[r:FOLLOWS]->(u2:User {id: $followeeId})
+                  DELETE r
+                  `,
+            { followerId, followeeId },
+          );
+        } catch (e) {
+          this.logger.warn(`Neo4j unfollow sync failed (non-fatal): ${(e as Error).message}`);
+        }
       }
     } catch (e) {
       this.logger.error(`Error processing follow job ${type}`, e);

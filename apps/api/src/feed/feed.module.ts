@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FeedController } from './feed.controller';
 import { FeedService } from './feed.service';
+import { FeedFanoutService } from './feed-fanout.service';
 import { Post } from '../entities/post.entity';
 import { Follow } from '../entities/follow.entity';
 import { CollectionItem } from '../entities/collection-item.entity';
@@ -33,6 +34,7 @@ import { ExploreModule } from '../explore/explore.module';
     InteractionsModule,
   ],
   controllers: [FeedController],
-  providers: [FeedService],
+  providers: [FeedService, FeedFanoutService],
+  exports: [FeedFanoutService],
 })
-export class FeedModule {}
+export class FeedModule { }

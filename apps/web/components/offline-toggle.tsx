@@ -57,6 +57,7 @@ export function OfflineToggle({ post }: OfflineToggleProps) {
           : "text-tertiary hover:text-paper hover:bg-white/5"
       }`}
       title={isOffline ? "Remove from offline" : "Save for offline"}
+      aria-label={isOffline ? "Remove from offline" : "Save for offline"}
     >
       <svg
         className="w-5 h-5"

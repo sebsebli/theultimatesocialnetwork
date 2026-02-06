@@ -39,7 +39,7 @@ export default function AdminDashboard() {
         setReports(data.items || []);
       }
     } catch (err) {
-      console.error(err);
+      if (process.env.NODE_ENV !== "production") console.error(err);
     }
   };
 
@@ -53,7 +53,7 @@ export default function AdminDashboard() {
       });
       setReports((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
-      console.error(err);
+      if (process.env.NODE_ENV !== "production") console.error(err);
     } finally {
       setActionLoading(null);
     }
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
       });
       handleResolve(id); // Also resolve the report
     } catch (err) {
-      console.error(err);
+      if (process.env.NODE_ENV !== "production") console.error(err);
     } finally {
       setActionLoading(null);
     }

@@ -60,7 +60,7 @@ export default function SettingsScreen() {
     api
       .get<{ handle?: string }>("/users/me")
       .then(setMe)
-      .catch(() => {});
+      .catch(() => { /* network failure handled silently */ });
   }, []);
 
   const onDownloadSavedToggle = async (value: boolean) => {
@@ -92,8 +92,9 @@ export default function SettingsScreen() {
           "Check your email for a download link. The link expires in 7 days and can only be used once.",
         ),
       );
-    } catch (e: any) {
-      const status = e?.status;
+    } catch (e: unknown) {
+      const error = e as { status?: number; message?: string };
+      const status = error?.status;
       if (status === 429) {
         showError(
           t(
@@ -103,7 +104,7 @@ export default function SettingsScreen() {
         );
       } else {
         showError(
-          e?.message ??
+          error?.message ??
             t("settings.myDataExportFailed", "Failed to request your data"),
         );
       }
@@ -124,12 +125,20 @@ export default function SettingsScreen() {
         showSuccess(t("settings.pushEnabled", "Push notifications enabled"));
       }
     } catch (error) {
-      console.error("Failed to enable push", error);
+      if (__DEV__) console.error("Failed to enable push", error);
       showError(
         t("settings.pushEnableError", "Failed to enable push notifications"),
       );
     }
   };
+
+  interface SettingItemProps {
+    icon: string;
+    label: string;
+    onPress: () => void;
+    destructive?: boolean;
+    value?: string;
+  }
 
   const SettingItem = ({
     icon,
@@ -137,13 +146,15 @@ export default function SettingsScreen() {
     onPress,
     destructive = false,
     value,
-  }: any) => (
+  }: SettingItemProps) => (
     <Pressable
       style={({ pressed }: { pressed: boolean }) => [
         styles.item,
         pressed && styles.itemPressed,
       ]}
       onPress={onPress}
+      accessibilityLabel={label}
+      accessibilityRole="button"
     >
       <View style={styles.itemLeft}>
         <MaterialIcons
@@ -345,7 +356,7 @@ export default function SettingsScreen() {
                   Platform.OS === "android"
                     ? { message: url, title }
                     : { url, message: url, title },
-                ).catch(() => {});
+                ).catch(() => { /* network failure handled silently */ });
               }}
             />
           ) : null}

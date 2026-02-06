@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, memo } from "react";
-import { View, Animated, ViewStyle } from "react-native";
+import { View, Animated, ViewStyle, AccessibilityInfo } from "react-native";
 import {
   COLORS,
   SPACING,
@@ -44,10 +44,13 @@ function SkeletonInner({
     return () => animation.stop();
   }, []);
 
-  const AnimatedView = Animated.View as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- React 19 Animated.View type compatibility
+  const AView = Animated.View as any;
   return (
-    <AnimatedView
+    <AView
       style={[styles.skeleton, { width, height, borderRadius, opacity }, style]}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
     />
   );
 }
@@ -251,7 +254,7 @@ export function TopicCardSkeleton() {
 
 const styles = createStyles({
   skeleton: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: COLORS.pressed,
   },
   postContainer: {
     padding: SPACING.l,

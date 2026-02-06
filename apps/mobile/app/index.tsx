@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Text,
   View,
@@ -7,8 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
-  useWindowDimensions,
-  Dimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -50,8 +48,6 @@ export default function IndexScreen() {
   const { signIn, isAuthenticated, isLoading, onboardingComplete } = useAuth();
   const { showError, showSuccess, showToast } = useToast();
   const { t } = useTranslation();
-  const { height: windowHeight } = useWindowDimensions();
-  const screenHeight = Dimensions.get("window").height;
 
   // Redirect if authenticated: home if onboarding done, else onboarding (index redirects to correct stage)
   useEffect(() => {
@@ -148,11 +144,12 @@ export default function IndexScreen() {
       showSuccess(
         t("signIn.verificationSent", "Verification code sent to your email"),
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const apiErr = error as { status?: number; message?: string };
       // Check for specific beta invite requirement
       if (
-        error?.status === 400 &&
-        error.message === "Invite code required for registration"
+        apiErr?.status === 400 &&
+        apiErr.message === "Invite code required for registration"
       ) {
         setShowInviteInput(true);
         showError(
@@ -167,8 +164,8 @@ export default function IndexScreen() {
 
       // Check for rate limit
       if (
-        error?.status === 400 &&
-        error.message === "Please wait before sending another code"
+        apiErr?.status === 400 &&
+        apiErr.message === "Please wait before sending another code"
       ) {
         setCooldown(60);
         showToast(
@@ -183,9 +180,9 @@ export default function IndexScreen() {
       }
 
       const errorMessage =
-        error?.status === 429
+        apiErr?.status === 429
           ? t("signIn.rateLimited") ||
-            "Too many requests. Please try again later."
+          "Too many requests. Please try again later."
           : t("signIn.failedSend") || "Failed to send verification code";
       showError(errorMessage);
     } finally {
@@ -204,7 +201,13 @@ export default function IndexScreen() {
     setLoading(true);
     try {
       const deviceInfo = getDeviceNameForSession();
-      const response = await api.post("/auth/verify", {
+      const response = await api.post<{
+        twoFactorRequired?: boolean;
+        tempToken?: string;
+        accessToken?: string;
+        refreshToken?: string;
+        user?: Record<string, unknown>;
+      }>("/auth/verify", {
         email: email.trim().toLowerCase(),
         token: token.trim(),
         deviceInfo,
@@ -212,23 +215,24 @@ export default function IndexScreen() {
 
       // Handle 2FA Challenge
       if (response.twoFactorRequired) {
-        setTempToken(response.tempToken);
+        setTempToken(response.tempToken!);
         setIs2FA(true);
         setLoading(false);
         return;
       }
 
-      const { accessToken, user } = response;
+      const { accessToken, refreshToken: signInRefreshToken, user } = response;
 
       if (!accessToken || typeof accessToken !== "string") {
         throw new Error("Invalid response from server");
       }
 
       await SecureStore.setItemAsync("user", JSON.stringify(user));
-      await signIn(accessToken);
-    } catch (error: any) {
+      await signIn(accessToken, signInRefreshToken);
+    } catch (error: unknown) {
+      const verifyErr = error as { status?: number };
       const errorMessage =
-        error?.status === 401
+        verifyErr?.status === 401
           ? t("signIn.invalid") || "Invalid token"
           : t("signIn.error") || "An error occurred";
       showError(errorMessage);
@@ -242,16 +246,20 @@ export default function IndexScreen() {
     setLoading(true);
     try {
       const deviceInfo = getDeviceNameForSession();
-      const response = await api.post("/auth/2fa/login", {
+      const response = await api.post<{
+        accessToken: string;
+        refreshToken: string;
+        user: Record<string, unknown>;
+      }>("/auth/2fa/login", {
         token: totpCode.trim(),
         tempToken,
         deviceInfo,
       });
-      const { accessToken, user } = response;
+      const { accessToken, refreshToken: twoFARefreshToken, user } = response;
       await SecureStore.setItemAsync("user", JSON.stringify(user));
-      await signIn(accessToken);
-    } catch (error: any) {
-      showError("Invalid 2FA code");
+      await signIn(accessToken, twoFARefreshToken);
+    } catch {
+      showError(t("signIn.invalid2FA", "Invalid 2FA code"));
     } finally {
       setLoading(false);
     }
@@ -277,7 +285,7 @@ export default function IndexScreen() {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
       });
     } catch (error) {
-      console.error("Failed to open browser:", error);
+      if (__DEV__) console.error("Failed to open browser:", error);
       // Fallback to regular linking
       Linking.openURL(url);
     }
@@ -302,6 +310,7 @@ export default function IndexScreen() {
                   source={require("../assets/logo_transparent.png")}
                   style={styles.logo}
                   contentFit="contain"
+                  cachePolicy="memory"
                 />
                 <Text style={styles.appName}>Citewalk</Text>
                 <Text style={styles.tagline}>
@@ -315,12 +324,12 @@ export default function IndexScreen() {
               <View style={[styles.textContainer, styles.checkEmailBlock]}>
                 <Text style={styles.checkEmailTitle}>
                   {is2FA
-                    ? "Two-Factor Auth"
+                    ? t("signIn.twoFactorTitle", "Two-Factor Auth")
                     : t("signIn.checkEmailTitle", "Check your email")}
                 </Text>
                 <Text style={styles.checkEmailSubtitle}>
                   {is2FA
-                    ? "Enter code from authenticator app"
+                    ? t("signIn.twoFactorSubtitle", "Enter code from authenticator app")
                     : t("signIn.enterCode", { email })}
                 </Text>
               </View>
@@ -340,6 +349,10 @@ export default function IndexScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
+                  accessibilityLabel={t("signIn.email", "Email address")}
+                  accessibilityHint={t("signIn.emailHint", "Enter your email address to sign in")}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSendLink}
                 />
 
                 {showInviteInput && (
@@ -434,7 +447,7 @@ export default function IndexScreen() {
                     (!email.trim() ||
                       loading ||
                       (showInviteInput && !acceptedTerms)) &&
-                      styles.buttonDisabled,
+                    styles.buttonDisabled,
                   ]}
                   onPress={handleSendLink}
                   disabled={
@@ -446,7 +459,9 @@ export default function IndexScreen() {
                   {loading ? (
                     <InlineSkeleton />
                   ) : (
-                    <Text style={styles.buttonText}>Send magic link</Text>
+                    <Text style={styles.buttonText}>
+                      {t("signIn.sendMagicLink", "Send magic link")}
+                    </Text>
                   )}
                 </Pressable>
 
@@ -546,9 +561,9 @@ export default function IndexScreen() {
                   <Text style={styles.buttonTextSecondary}>
                     {cooldown > 0
                       ? t("signIn.resendCodeIn", {
-                          seconds: cooldown,
-                          defaultValue: `Resend code in ${cooldown}s`,
-                        })
+                        seconds: cooldown,
+                        defaultValue: `Resend code in ${cooldown}s`,
+                      })
                       : t("signIn.resendCode", "Resend code")}
                   </Text>
                 </Pressable>
@@ -710,7 +725,7 @@ const styles = createStyles({
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   buttonTextSecondary: {

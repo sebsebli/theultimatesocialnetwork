@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@citewalk/design-tokens": "file:../../packages/design-tokens",
+    "@types/dompurify": "^3.0.5",
     "@types/react-window": "^1.8.8",
     "clsx": "^2.1.1",
+    "dompurify": "^3.3.1",
     "eslint-config-next": "^16.1.6",
     "next": "16.1.6",
     "next-intl": "^4.7.0",

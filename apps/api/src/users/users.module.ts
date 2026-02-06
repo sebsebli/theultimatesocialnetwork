@@ -19,9 +19,7 @@ import { Notification } from '../entities/notification.entity';
 import { NotificationPref } from '../entities/notification-pref.entity';
 import { Collection } from '../entities/collection.entity';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
 import { ExportWorker } from './export.worker';
-import { Queue } from 'bullmq';
 
 import { SharedModule } from '../shared/shared.module';
 import { SearchModule } from '../search/search.module';
@@ -30,7 +28,7 @@ import { CollectionsModule } from '../collections/collections.module';
 import { SafetyModule } from '../safety/safety.module';
 import { TopicsModule } from '../topics/topics.module';
 import { InteractionsModule } from '../interactions/interactions.module';
-import { defaultQueueConfig } from '../common/queue-config';
+import { createRedisClient } from '../common/redis-factory';
 
 import { DmThread } from '../entities/dm-thread.entity';
 import { DmMessage } from '../entities/dm-message.entity';
@@ -79,25 +77,13 @@ import { CollectionItem } from '../entities/collection-item.entity';
     {
       provide: 'REDIS_CLIENT',
       useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL');
-        return new Redis(redisUrl || 'redis://redis:6379');
-      },
-      inject: [ConfigService],
-    },
-    {
-      provide: 'EXPORT_QUEUE',
-      useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL');
-        return new Queue('data-export', {
-          connection: new Redis(redisUrl || 'redis://redis:6379', {
-            maxRetriesPerRequest: null,
-          }),
-          ...defaultQueueConfig,
-        });
+        const redisUrl = config.get<string>('REDIS_URL') || 'redis://redis:6379';
+        const isCluster = config.get<string>('REDIS_CLUSTER') === 'true';
+        return createRedisClient(redisUrl, isCluster);
       },
       inject: [ConfigService],
     },
   ],
   exports: [UsersService],
 })
-export class UsersModule {}
+export class UsersModule { }

@@ -32,8 +32,8 @@ export default function NewMessageScreen() {
   const { showError } = useToast();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
-  const [suggested, setSuggested] = useState<any[]>([]);
+  const [results, setResults] = useState<Record<string, unknown>[]>([]);
+  const [suggested, setSuggested] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const [suggestedLoading, setSuggestedLoading] = useState(true);
 
@@ -45,14 +45,14 @@ export default function NewMessageScreen() {
         const list = Array.isArray(res) ? res : [];
         setSuggested(
           list.filter(
-            (u: any) =>
+            (u: Record<string, unknown>) =>
               u.id &&
               u.id !== currentUserId &&
-              !u.handle?.startsWith?.("__pending_"),
+              !(u.handle as string | undefined)?.startsWith?.("__pending_"),
           ),
         );
       } catch (error) {
-        console.error(error);
+        if (__DEV__) console.error(error);
         setSuggested([]);
       } finally {
         setSuggestedLoading(false);
@@ -69,18 +69,18 @@ export default function NewMessageScreen() {
       }
       setLoading(true);
       try {
-        const res = await api.get(
+        const res = await api.get<{ hits?: Record<string, unknown>[] }>(
           `/search/users?q=${encodeURIComponent(query.trim())}&limit=20`,
         );
         const hits = res.hits || [];
         setResults(
           hits.filter(
-            (u: any) =>
-              u.id !== currentUserId && !u.handle?.startsWith?.("__pending_"),
+            (u: Record<string, unknown>) =>
+              u.id !== currentUserId && !(u.handle as string | undefined)?.startsWith?.("__pending_"),
           ),
         );
       } catch (error) {
-        console.error(error);
+        if (__DEV__) console.error(error);
         setResults([]);
       } finally {
         setLoading(false);
@@ -91,15 +91,15 @@ export default function NewMessageScreen() {
     return () => clearTimeout(timeout);
   }, [query, currentUserId]);
 
-  const handleSelectUser = async (user: any) => {
+  const handleSelectUser = async (user: Record<string, unknown>) => {
     try {
-      const thread = await api.post("/messages/threads", { userId: user.id });
+      const thread = await api.post<{ id: string }>("/messages/threads", { userId: user.id });
       if (thread && thread.id) {
         router.replace(`/(tabs)/messages/${thread.id}`);
       }
-    } catch (error: any) {
-      console.error("Failed to create thread", error);
-      if (error?.status === 403) {
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to create thread", error);
+      if ((error as { status?: number })?.status === 403) {
         showError(
           t(
             "messages.mustFollowOrPrior",
@@ -143,7 +143,12 @@ export default function NewMessageScreen() {
             returnKeyType="search"
           />
           {query.length > 0 ? (
-            <Pressable onPress={() => setQuery("")} hitSlop={8}>
+            <Pressable
+              onPress={() => setQuery("")}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.clear", "Clear search")}
+            >
               <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
             </Pressable>
           ) : null}

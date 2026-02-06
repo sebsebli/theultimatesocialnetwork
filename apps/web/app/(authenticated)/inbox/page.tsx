@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { MessagesTab } from "@/components/messages-tab";
@@ -27,12 +27,28 @@ interface Notification {
   readAt?: string;
 }
 
+interface GroupedNotification {
+  key: string;
+  type: string;
+  actors: { handle: string; displayName: string }[];
+  post?: { id: string; title?: string };
+  replyId?: string;
+  readAt?: string | null;
+  latestCreatedAt?: string;
+  count: number;
+}
+
 export default function InboxPage() {
   const searchParams = useSearchParams();
   const threadIdFromUrl = searchParams.get("thread");
   const initialMessageFromUrl = searchParams.get("initialMessage");
+  const tabFromUrl = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"notifications" | "messages">(
-    threadIdFromUrl || initialMessageFromUrl ? "messages" : "notifications",
+    threadIdFromUrl || initialMessageFromUrl
+      ? "messages"
+      : tabFromUrl === "messages"
+        ? "messages"
+        : "notifications",
   );
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,6 +64,8 @@ export default function InboxPage() {
     if (activeTab === "notifications" && notifications.length === 0) {
       loadNotifications(1, true);
     }
+    // Note: loadNotifications handles its own state updates and doesn't need cleanup
+    // as it checks loading state internally
   }, [activeTab, notifications.length]);
 
   // Real-time listener
@@ -85,13 +103,51 @@ export default function InboxPage() {
         setLoadError(true);
       }
     } catch (error) {
-      console.error("Failed to load notifications", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to load notifications", error);
       if (reset) setLoadError(true);
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
   };
+
+  const groupedNotifications = useMemo((): GroupedNotification[] => {
+    const groups = new Map<string, GroupedNotification>();
+    const result: GroupedNotification[] = [];
+    
+    for (const notif of notifications) {
+      const postId = notif.post?.id ?? '';
+      const groupable = notif.type === 'LIKE' || notif.type === 'FOLLOW';
+      const groupKey = groupable ? `${notif.type}:${postId}` : `single:${notif.id}`;
+      
+      const existing = groups.get(groupKey);
+      if (existing && groupable && notif.actor) {
+        if (!existing.actors.some(a => a.handle === notif.actor!.handle)) {
+          existing.actors.push(notif.actor);
+        }
+        existing.count++;
+        if (!notif.readAt) existing.readAt = null;
+        if (!existing.latestCreatedAt || notif.createdAt > existing.latestCreatedAt) {
+          existing.latestCreatedAt = notif.createdAt;
+        }
+      } else {
+        const group: GroupedNotification = {
+          key: groupKey + ':' + notif.id,
+          type: notif.type,
+          actors: notif.actor ? [notif.actor] : [],
+          post: notif.post,
+          replyId: notif.replyId,
+          readAt: notif.readAt ?? null,
+          latestCreatedAt: notif.createdAt,
+          count: 1,
+        };
+        groups.set(groupKey, group);
+        result.push(group);
+      }
+    }
+    
+    return result;
+  }, [notifications]);
 
   const handleLoadMore = () => {
     if (!loading && !loadingMore && hasMore) {
@@ -112,32 +168,32 @@ export default function InboxPage() {
         })),
       );
     } catch (e) {
-      console.error(e);
+      if (process.env.NODE_ENV !== "production") console.error(e);
       loadNotifications(1, true); // Reload on failure
     }
   };
 
-  const formatNotificationText = (notif: Notification) => {
-    const actorName = notif.actor?.displayName || "Someone";
+  const formatNotificationText = (notif: GroupedNotification) => {
+    const names = notif.actors.map(a => a.displayName || a.handle);
+    let actorText: string;
+    if (names.length === 0) actorText = "Someone";
+    else if (names.length === 1) actorText = names[0];
+    else if (names.length === 2) actorText = `${names[0]} and ${names[1]}`;
+    else actorText = `${names[0]}, ${names[1]}, and ${notif.count - 2} others`;
+    
     switch (notif.type) {
-      case "FOLLOW":
-        return `${actorName} followed you`;
-      case "REPLY":
-        return `${actorName} replied to your post`;
-      case "QUOTE":
-        return `${actorName} quoted your post`;
-      case "LIKE":
-        return `${actorName} liked your post`;
-      case "MENTION":
-        return `${actorName} mentioned you`;
-      default:
-        return "New notification";
+      case "FOLLOW": return `${actorText} followed you`;
+      case "REPLY": return `${actorText} replied to your post`;
+      case "QUOTE": return `${actorText} quoted your post`;
+      case "LIKE": return `${actorText} liked your post`;
+      case "MENTION": return `${actorText} mentioned you`;
+      default: return "New notification";
     }
   };
 
-  const getNotificationLink = (notif: Notification) => {
-    if (notif.type === "FOLLOW" && notif.actor?.handle) {
-      return `/user/${notif.actor.handle}`;
+  const getNotificationLink = (notif: GroupedNotification) => {
+    if (notif.type === "FOLLOW" && notif.actors[0]?.handle) {
+      return `/user/${notif.actors[0].handle}`;
     }
     if (notif.post?.id) {
       return `/post/${notif.post.id}`;
@@ -164,21 +220,19 @@ export default function InboxPage() {
       <div className="sticky top-[53px] z-40 bg-ink border-b border-divider flex">
         <button
           onClick={() => setActiveTab("notifications")}
-          className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
-            activeTab === "notifications"
+          className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === "notifications"
               ? "border-primary text-paper"
               : "border-transparent text-tertiary hover:text-paper"
-          }`}
+            }`}
         >
           Notifications
         </button>
         <button
           onClick={() => setActiveTab("messages")}
-          className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
-            activeTab === "messages"
+          className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === "messages"
               ? "border-primary text-paper"
               : "border-transparent text-tertiary hover:text-paper"
-          }`}
+            }`}
         >
           Messages
         </button>
@@ -218,22 +272,22 @@ export default function InboxPage() {
               </div>
             ) : (
               <>
-                {notifications.map((notif) => (
+                {groupedNotifications.map((notif) => (
                   <Link
-                    key={notif.id}
+                    key={notif.key}
                     href={getNotificationLink(notif)}
                     className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
                   >
                     <div className="flex items-start gap-3">
                       <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
-                        {notif.actor?.displayName?.charAt(0) || "N"}
+                        {notif.actors[0]?.displayName?.charAt(0) || "N"}
                       </div>
                       <div className="flex-1">
                         <p className="text-paper text-sm">
                           {formatNotificationText(notif)}
                         </p>
                         <p className="text-tertiary text-xs mt-1">
-                          {new Date(notif.createdAt).toLocaleDateString()}
+                          {notif.latestCreatedAt ? new Date(notif.latestCreatedAt).toLocaleDateString() : ''}
                         </p>
                       </div>
                       {!notif.readAt && (

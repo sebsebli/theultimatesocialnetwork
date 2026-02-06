@@ -38,6 +38,10 @@ import {
   UserCardSkeleton,
   TopicCardSkeleton,
 } from "../../components/LoadingSkeleton";
+import type { User, Topic } from "../../types";
+import type { UserCardItem } from "../../components/UserCard";
+
+type ConnectionItem = UserCardItem | Topic;
 
 export default function ConnectionsScreen() {
   const { t } = useTranslation();
@@ -52,11 +56,11 @@ export default function ConnectionsScreen() {
   const [activeTab, setActiveTab] = useState<
     "followers" | "following" | "topics"
   >(initialTab);
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<ConnectionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPrivate, setIsPrivate] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<ConnectionItem[]>([]);
 
   useEffect(() => {
     loadData();
@@ -67,50 +71,53 @@ export default function ConnectionsScreen() {
     setIsPrivate(false);
     setSuggestions([]);
     try {
-      let data;
+      let data: Record<string, unknown> | Record<string, unknown>[];
       const baseUrl = handle ? `/users/${handle}` : "/users/me";
 
       if (activeTab === "followers") {
-        data = await api.get(`${baseUrl}/followers`);
+        data = await api.get<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>(`${baseUrl}/followers`);
       } else if (activeTab === "following") {
-        data = await api.get(`${baseUrl}/following`);
+        data = await api.get<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>(`${baseUrl}/following`);
       } else {
         if (handle) {
           try {
-            data = await api.get(`${baseUrl}/followed-topics`);
+            data = await api.get<Record<string, unknown>[]>(`${baseUrl}/followed-topics`);
           } catch {
             data = [];
           }
         } else {
-          data = await api.get("/topics/me/following");
+          data = await api.get<Record<string, unknown>[]>("/topics/me/following");
         }
       }
 
-      const itemList = data || [];
-      setItems(itemList);
+      // API returns { items, hasMore } for followers/following; array for topics
+      const dataTyped = data as { items?: Record<string, unknown>[] } | Record<string, unknown>[] | undefined;
+      const itemList = Array.isArray(dataTyped) ? dataTyped : dataTyped?.items || [];
+      setItems(itemList as unknown as ConnectionItem[]);
 
       // Load suggestions if empty and viewing self
       if (itemList.length === 0 && !handle) {
         if (activeTab === "topics") {
-          const res = await api.get("/explore/topics?limit=4");
-          setSuggestions(Array.isArray(res) ? res : res.items || []);
+          const res = await api.get<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>("/explore/topics?limit=4");
+          const resTyped = res as { items?: Record<string, unknown>[] } | Record<string, unknown>[] | undefined;
+          setSuggestions((Array.isArray(resTyped) ? resTyped : resTyped?.items || []) as unknown as ConnectionItem[]);
         } else {
-          const res = await api.get("/users/suggested?limit=4");
-          setSuggestions(Array.isArray(res) ? res : []);
+          const res = await api.get<Record<string, unknown>[]>("/users/suggested?limit=4");
+          setSuggestions((Array.isArray(res) ? res : []) as unknown as ConnectionItem[]);
         }
       }
-    } catch (e: any) {
-      if (e?.status === 403) {
+    } catch (e: unknown) {
+      if ((e as { status?: number })?.status === 403) {
         setIsPrivate(true);
       } else {
-        console.error(e);
+        if (__DEV__) console.error(e);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAction = async (item: any) => {
+  const handleAction = async (item: ConnectionItem) => {
     if (handle) return; // Cannot modify others' lists
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -123,7 +130,8 @@ export default function ConnectionsScreen() {
         await api.delete(`/users/${item.id}/follow`);
       } else if (activeTab === "topics") {
         // Unfollow topic
-        await api.delete(`/topics/${encodeURIComponent(item.slug)}/follow`);
+        const topicItem = item as Topic;
+        await api.delete(`/topics/${encodeURIComponent(topicItem.slug)}/follow`);
       }
       // Remove from list
       setItems((prev) => prev.filter((i) => i.id !== item.id));
@@ -132,14 +140,15 @@ export default function ConnectionsScreen() {
     }
   };
 
-  const handleFollowTopic = async (item: any) => {
+  const handleFollowTopic = async (item: ConnectionItem) => {
     if (handle) return;
+    const topicItem = item as Topic;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      await api.post(`/topics/${encodeURIComponent(item.slug)}/follow`);
-      setItems((prev) => [{ ...item, isFollowing: true }, ...prev]);
+      await api.post(`/topics/${encodeURIComponent(topicItem.slug)}/follow`);
+      setItems((prev) => [{ ...topicItem, isFollowing: true }, ...prev]);
       setSuggestions((prev) =>
-        prev.filter((s: any) => s.slug !== item.slug && s.id !== item.id),
+        prev.filter((s) => ('slug' in s ? s.slug !== topicItem.slug : true) && s.id !== topicItem.id),
       );
     } catch (e) {
       showError(t("common.actionFailed"));
@@ -150,12 +159,12 @@ export default function ConnectionsScreen() {
     if (!searchQuery) return items;
     const q = searchQuery.toLowerCase();
     return items.filter((item) => {
-      const title = item.displayName || item.title || item.handle || "";
+      const title = ('displayName' in item ? item.displayName : undefined) || ('title' in item ? item.title : undefined) || ('handle' in item ? item.handle : undefined) || "";
       return title.toLowerCase().includes(q);
     });
   }, [items, searchQuery]);
 
-  const handleFollowUser = async (user: any) => {
+  const handleFollowUser = async (user: UserCardItem) => {
     if (!user?.id) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
@@ -174,16 +183,17 @@ export default function ConnectionsScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => {
-    if (activeTab === "topics") {
+  const renderItem = ({ item }: { item: ConnectionItem }) => {
+    if (activeTab === "topics" && 'slug' in item) {
+      const topic = item as Topic;
       return (
         <View style={styles.itemWrapper}>
           <View style={styles.itemContent}>
             <TopicCard
-              item={{ ...item, isFollowing: true }}
+              item={{ ...topic, isFollowing: true }}
               onPress={() =>
                 router.push(
-                  `/topic/${encodeURIComponent(item.slug || item.id)}`,
+                  `/topic/${encodeURIComponent(topic.slug || topic.id)}`,
                 )
               }
             />
@@ -191,7 +201,9 @@ export default function ConnectionsScreen() {
           {!handle && (
             <Pressable
               style={styles.removeBtn}
-              onPress={() => handleAction(item)}
+              onPress={() => handleAction(topic)}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.remove", "Remove")}
             >
               <MaterialIcons
                 name="close"
@@ -203,19 +215,22 @@ export default function ConnectionsScreen() {
         </View>
       );
     } else {
+      const user = item as UserCardItem;
       return (
         <View style={styles.itemWrapper}>
           <View style={styles.itemContent}>
             <UserCard
-              item={item}
-              onPress={() => router.push(`/user/${item.handle}`)}
-              onFollow={handle ? () => handleFollowUser(item) : undefined}
+              item={user}
+              onPress={() => router.push(`/user/${user.handle}`)}
+              onFollow={handle ? () => handleFollowUser(user) : undefined}
             />
           </View>
           {!handle && (
             <Pressable
               style={styles.removeBtn}
-              onPress={() => handleAction(item)}
+              onPress={() => handleAction(user)}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.remove", "Remove")}
             >
               <MaterialIcons
                 name="close"
@@ -247,31 +262,35 @@ export default function ConnectionsScreen() {
                 ? t("profile.topicsToFollow", "Topics to follow")
                 : t("home.suggestedPeople", "Suggested for you")}
             </Text>
-            {suggestions.map((item) => (
-              <View key={item.id || item.slug} style={styles.suggestionItem}>
-                <View style={styles.itemWrapper}>
-                  <View style={styles.itemContent}>
-                    {activeTab === "topics" ? (
-                      <TopicCard
-                        item={item}
-                        onPress={() =>
-                          router.push(
-                            `/topic/${encodeURIComponent(item.slug || item.id)}`,
-                          )
-                        }
-                        onFollow={() => handleFollowTopic(item)}
-                      />
-                    ) : (
-                      <UserCard
-                        item={item}
-                        onPress={() => router.push(`/user/${item.handle}`)}
-                        onFollow={() => handleFollowUser(item)}
-                      />
-                    )}
+            {suggestions.map((item) => {
+              const topicItem = item as Topic;
+              const userItem = item as UserCardItem;
+              return (
+                <View key={item.id || (topicItem as unknown as Record<string, unknown>).slug as string} style={styles.suggestionItem}>
+                  <View style={styles.itemWrapper}>
+                    <View style={styles.itemContent}>
+                      {activeTab === "topics" ? (
+                        <TopicCard
+                          item={topicItem}
+                          onPress={() =>
+                            router.push(
+                              `/topic/${encodeURIComponent(topicItem.slug || topicItem.id)}`,
+                            )
+                          }
+                          onFollow={() => handleFollowTopic(item)}
+                        />
+                      ) : (
+                        <UserCard
+                          item={userItem}
+                          onPress={() => router.push(`/user/${userItem.handle}`)}
+                          onFollow={() => handleFollowUser(userItem)}
+                        />
+                      )}
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </EmptyState>
@@ -291,9 +310,9 @@ export default function ConnectionsScreen() {
             size={HEADER.iconSize}
             color={COLORS.secondary}
           />
-          <Text style={styles.privateText}>This account is private</Text>
+          <Text style={styles.privateText}>{t("profile.privateAccount", "This account is private")}</Text>
           <Text style={styles.privateSubText}>
-            Follow this account to see their connections.
+            {t("profile.privateAccountHint", "Follow this account to see their connections.")}
           </Text>
         </View>
       </View>
@@ -324,7 +343,12 @@ export default function ConnectionsScreen() {
             returnKeyType="search"
           />
           {searchQuery.length > 0 ? (
-            <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
+            <Pressable
+              onPress={() => setSearchQuery("")}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.clear", "Clear search")}
+            >
               <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
             </Pressable>
           ) : null}
@@ -348,10 +372,14 @@ export default function ConnectionsScreen() {
               ]}
               onPress={() => {
                 Haptics.selectionAsync();
-                setActiveTab(tab as any);
+                setActiveTab(tab as "followers" | "following" | "topics");
               }}
               accessibilityRole="tab"
               accessibilityState={{ selected: activeTab === tab }}
+              accessibilityLabel={t(
+                `profile.${tab}`,
+                tab.charAt(0).toUpperCase() + tab.slice(1),
+              )}
             >
               <Text
                 style={[

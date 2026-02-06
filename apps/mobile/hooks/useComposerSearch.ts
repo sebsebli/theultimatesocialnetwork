@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { api } from '../utils/api';
 
 export type SearchResult = {
@@ -75,30 +75,35 @@ export function useComposerSearch() {
             return;
           }
 
-          const topicHits = Array.isArray(topicRes?.hits) ? topicRes.hits : [];
-          const postHits = Array.isArray(postRes?.hits) ? postRes.hits : [];
-          const topics = topicHits.map((t: any) => ({ ...t, type: 'topic', id: t.id || t.slug }));
-          const posts = postHits.map((p: any) => ({
-            ...p,
-            type: 'post',
-            id: p.id,
-            displayName: p.title || 'Untitled Post',
-            authorHandle: p.author?.handle,
-            authorDisplayName: p.author?.displayName,
-            headerImageKey: p.headerImageKey,
-            headerImageUrl: p.headerImageUrl,
-            createdAt: p.createdAt,
-            quoteCount: p.quoteCount ?? 0,
-            replyCount: p.replyCount ?? 0,
-          }));
+          const tr = topicRes as Record<string, unknown> | null;
+          const pr = postRes as Record<string, unknown> | null;
+          const topicHits = Array.isArray(tr?.hits) ? (tr.hits as Record<string, unknown>[]) : [];
+          const postHits = Array.isArray(pr?.hits) ? (pr.hits as Record<string, unknown>[]) : [];
+          const topics: SearchResult[] = topicHits.map((t: Record<string, unknown>) => ({ ...t, type: 'topic' as const, id: String(t.id || t.slug) }));
+          const posts: SearchResult[] = postHits.map((p: Record<string, unknown>) => {
+            const author = p.author as Record<string, unknown> | undefined;
+            return {
+              ...p,
+              type: 'post' as const,
+              id: String(p.id),
+              displayName: String(p.title || 'Untitled Post'),
+              authorHandle: author?.handle as string | undefined,
+              authorDisplayName: author?.displayName as string | undefined,
+              headerImageKey: p.headerImageKey as string | undefined,
+              headerImageUrl: p.headerImageUrl as string | undefined,
+              createdAt: p.createdAt as string | undefined,
+              quoteCount: (p.quoteCount as number) ?? 0,
+              replyCount: (p.replyCount as number) ?? 0,
+            };
+          });
           const seen = new Set<string>();
-          const dedupedTopics = topics.filter((x: any) => {
+          const dedupedTopics = topics.filter((x) => {
             const key = `topic:${x.id ?? x.slug}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
           });
-          const dedupedPosts = posts.filter((x: any) => {
+          const dedupedPosts = posts.filter((x) => {
             const key = `post:${x.id}`;
             if (seen.has(key)) return false;
             seen.add(key);
@@ -110,13 +115,14 @@ export function useComposerSearch() {
 
           if (searchRequestId.current !== requestId) return;
 
-          const userHits = Array.isArray(res?.hits) ? res.hits : [];
-          newResults = userHits.map((u: any) => ({
+          const ur = res as Record<string, unknown> | null;
+          const userHits = Array.isArray(ur?.hits) ? (ur.hits as Record<string, unknown>[]) : [];
+          newResults = userHits.map((u: Record<string, unknown>) => ({
             ...u,
-            type: 'mention',
-            id: u.id,
-            avatarKey: u.avatarKey,
-            avatarUrl: u.avatarUrl,
+            type: 'mention' as const,
+            id: String(u.id),
+            avatarKey: u.avatarKey as string | undefined,
+            avatarUrl: u.avatarUrl as string | undefined,
           }));
         }
 
@@ -133,10 +139,18 @@ export function useComposerSearch() {
 
   const clearSearch = useCallback(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = null;
     setResults([]);
     setIsSearching(false);
     setType('none');
     setQuery('');
+  }, []);
+
+  // Cleanup pending timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
   }, []);
 
   return {

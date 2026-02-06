@@ -13,7 +13,6 @@ import {
   IsNull,
   type FindOptionsWhere,
 } from 'typeorm';
-import { Queue } from 'bullmq';
 import { Reply } from '../entities/reply.entity';
 import { ReplyLike } from '../entities/reply-like.entity';
 import { Post } from '../entities/post.entity';
@@ -24,6 +23,7 @@ import { Neo4jService } from '../database/neo4j.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 import { SafetyService } from '../safety/safety.service';
 import { MeilisearchService } from '../search/meilisearch.service';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 
 const REPLY_BODY_MIN = 2;
 const REPLY_BODY_MAX = 1000;
@@ -43,8 +43,8 @@ export class RepliesService {
     private safetyService: SafetyService,
     private meilisearch: MeilisearchService,
     private configService: ConfigService,
-    @Inject('REPLY_QUEUE') private replyQueue: Queue,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
   async create(
     userId: string,
@@ -172,7 +172,7 @@ export class RepliesService {
     }
 
     // Queue Job for Side Effects (Safety Stage 2, Neo4j, Notifications)
-    await this.replyQueue.add('process', {
+    await this.eventBus.publish('reply-processing', 'process', {
       replyId: savedReply.id,
       userId,
       postId,
@@ -192,11 +192,11 @@ export class RepliesService {
           authorId: postWithAuthor.authorId || '',
           author: postWithAuthor.author
             ? {
-                displayName:
-                  postWithAuthor.author.displayName ||
-                  postWithAuthor.author.handle,
-                handle: postWithAuthor.author.handle,
-              }
+              displayName:
+                postWithAuthor.author.displayName ||
+                postWithAuthor.author.handle,
+              handle: postWithAuthor.author.handle,
+            }
             : undefined,
           authorProtected: postWithAuthor.author?.isProtected,
           lang: postWithAuthor.lang,

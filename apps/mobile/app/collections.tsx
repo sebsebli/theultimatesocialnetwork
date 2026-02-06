@@ -82,7 +82,7 @@ export default function CollectionsScreen() {
       const data = await api.get("/collections");
       setCollections(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Failed to load collections", error);
+      if (__DEV__) console.error("Failed to load collections", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -103,7 +103,7 @@ export default function CollectionsScreen() {
           description: item.description,
           itemCount: item.itemCount,
           previewImageKey: item.previewImageKey,
-          recentPost: (item as any).recentPost ?? undefined,
+          recentPost: (item as unknown as Record<string, unknown>).recentPost ?? undefined,
         }}
         onPress={() => {
           Haptics.selectionAsync();
@@ -129,7 +129,7 @@ export default function CollectionsScreen() {
       setNewIsPublic(true);
       loadCollections();
     } catch (error) {
-      console.error("Failed to create collection", error);
+      if (__DEV__) console.error("Failed to create collection", error);
       showError(t("collections.failedCreate"));
     }
   };
@@ -390,7 +390,7 @@ const styles = createStyles({
     fontFamily: FONTS.medium,
   },
   filterPillTextActive: {
-    color: "#FFFFFF",
+    color: COLORS.paper,
   },
   skeletonList: {
     paddingVertical: SPACING.s,
@@ -408,7 +408,7 @@ const styles = createStyles({
     borderRadius: SIZES.borderRadiusPill,
   },
   buttonText: {
-    color: "#FFFFFF",
+    color: COLORS.paper,
     fontWeight: "600",
     fontFamily: FONTS.semiBold,
   },

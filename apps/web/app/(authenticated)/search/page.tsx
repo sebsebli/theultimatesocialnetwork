@@ -10,6 +10,7 @@ import {
   EmptyState,
   emptyStateCenterClassName,
 } from "@/components/ui/empty-state";
+import { getRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } from "@/lib/recent-searches";
 
 type SearchTab = "all" | "posts" | "people" | "topics";
 
@@ -59,6 +60,11 @@ function SearchContent() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  useEffect(() => {
+    setRecentSearches(getRecentSearches());
+  }, []);
 
   const activeTabRef = useRef(activeTab);
   const handleSearchRef = useRef<
@@ -79,7 +85,11 @@ function SearchContent() {
   const handleSearch = useCallback(
     async (searchQuery: string, type: SearchTab, append = false) => {
       if (append) setLoadingMore(true);
-      else setLoading(true);
+      else {
+        setLoading(true);
+        addRecentSearch(searchQuery);
+        setRecentSearches(getRecentSearches());
+      }
       const limit = type === "all" && !topicSlug ? ALL_PAGE_SIZE : PAGE_SIZE;
       const offset = append
         ? type === "posts" || topicSlug
@@ -195,7 +205,7 @@ function SearchContent() {
           }
         }
       } catch (error) {
-        console.error("Search error", error);
+        if (process.env.NODE_ENV !== "production") console.error("Search error", error);
         if (!append) setResults({ posts: [], users: [], topics: [] });
       } finally {
         setLoading(false);
@@ -222,12 +232,16 @@ function SearchContent() {
       setHasMore({ posts: true, users: true, topics: true });
       return;
     }
+    let cancelled = false;
     debounceRef.current = setTimeout(() => {
-      setOffsets({ posts: 0, users: 0, topics: 0 });
-      handleSearchRef.current?.(query, activeTabRef.current, false);
+      if (!cancelled) {
+        setOffsets({ posts: 0, users: 0, topics: 0 });
+        handleSearchRef.current?.(query, activeTabRef.current, false);
+      }
       debounceRef.current = null;
     }, DEBOUNCE_MS);
     return () => {
+      cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query]);
@@ -291,6 +305,7 @@ function SearchContent() {
           <button
             onClick={() => router.back()}
             className="text-secondary hover:text-paper"
+            aria-label="Go back"
           >
             <svg
               className="w-6 h-6"
@@ -376,16 +391,84 @@ function SearchContent() {
             <p className="text-secondary text-sm">Searching...</p>
           </div>
         ) : !query ? (
-          <div className={emptyStateCenterClassName}>
-            <EmptyState
-              icon="search"
-              headline={
-                topicSlug ? `Search in ${topicSlug}` : "Search Citewalk"
-              }
-              subtext="Find people, topics, and posts."
-              compact
-            />
-          </div>
+          recentSearches.length > 0 ? (
+            <div className="px-4 md:px-6 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold text-tertiary uppercase tracking-wider">
+                  Recent searches
+                </h3>
+                <button
+                  onClick={() => {
+                    clearRecentSearches();
+                    setRecentSearches([]);
+                  }}
+                  className="text-xs text-primary hover:underline font-medium"
+                >
+                  Clear all
+                </button>
+              </div>
+              <div className="space-y-1">
+                {recentSearches.map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors group cursor-pointer"
+                    onClick={() => setQuery(item)}
+                  >
+                    <svg
+                      className="w-4 h-4 text-tertiary shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="flex-1 text-sm text-paper truncate">
+                      {item}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const updated = removeRecentSearch(item);
+                        setRecentSearches(updated);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-tertiary hover:text-paper transition-opacity p-1"
+                      aria-label={`Remove ${item}`}
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className={emptyStateCenterClassName}>
+              <EmptyState
+                icon="search"
+                headline={
+                  topicSlug ? `Search in ${topicSlug}` : "Search Citewalk"
+                }
+                subtext="Find people, topics, and posts."
+                compact
+              />
+            </div>
+          )
         ) : (
           <div className="flex flex-col">
             {activeTab === "all" && !topicSlug ? (

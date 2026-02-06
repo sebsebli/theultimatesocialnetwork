@@ -2,12 +2,8 @@ import {
   Injectable,
   Logger,
   OnApplicationBootstrap,
-  OnApplicationShutdown,
   Inject,
 } from '@nestjs/common';
-import { Worker, Job } from 'bullmq';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Reply } from '../entities/reply.entity';
@@ -24,6 +20,8 @@ import {
   ModerationSource,
   ModerationTargetType,
 } from '../entities/moderation-record.entity';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
+import Redis from 'ioredis';
 
 interface ReplyJobData {
   replyId: string;
@@ -32,48 +30,29 @@ interface ReplyJobData {
 }
 
 @Injectable()
-export class ReplyWorker
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+export class ReplyWorker implements OnApplicationBootstrap {
   private readonly logger = new Logger(ReplyWorker.name);
-  private worker: Worker;
 
   constructor(
     @InjectRepository(Reply) private replyRepo: Repository<Reply>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Mention) private mentionRepo: Repository<Mention>,
-    private configService: ConfigService,
     private neo4jService: Neo4jService,
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
     @Inject('REDIS_CLIENT') private redis: Redis,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
-  onApplicationBootstrap() {
-    const redisUrl = this.configService.get<string>('REDIS_URL');
-
-    this.worker = new Worker<ReplyJobData>(
+  async onApplicationBootstrap() {
+    await this.eventBus.subscribe<ReplyJobData>(
       'reply-processing',
-      async (job: Job<ReplyJobData>) => {
-        await this.processReply(job.data);
+      async (_event, data) => {
+        await this.processReply(data);
       },
-      {
-        connection: new Redis(redisUrl || 'redis://redis:6379', {
-          maxRetriesPerRequest: null,
-        }),
-      },
+      { concurrency: 5 },
     );
-
-    this.worker.on('failed', (job, err) => {
-      this.logger.error(`Job ${job?.id} failed: ${err.message}`);
-    });
-  }
-
-  onApplicationShutdown() {
-    this.worker.close().catch((err: Error) => {
-      console.error('Error closing worker', err);
-    });
   }
 
   async processReply(data: ReplyJobData) {
@@ -117,7 +96,7 @@ export class ReplyWorker
               contentSnapshot: reply.body,
               source: ModerationSource.ASYNC_CHECK,
             })
-            .catch(() => {});
+            .catch(() => { });
           await this.replyRepo.softDelete(replyId);
           await this.postRepo.decrement({ id: postId }, 'replyCount', 1);
           this.logger.warn(
@@ -129,17 +108,21 @@ export class ReplyWorker
         }
       }
 
-      // 2. Neo4j Sync
-      await this.neo4jService.run(
-        `
-              MATCH (p:Post {id: $postId})
-              MERGE (u:User {id: $userId})
-              CREATE (r:Reply {id: $replyId, createdAt: $createdAt})
-              MERGE (u)-[:AUTHORED]->(r)
-              MERGE (r)-[:REPLIED_TO]->(p)
-              `,
-        { userId, postId, replyId, createdAt: reply.createdAt.toISOString() },
-      );
+      // 2. Neo4j Sync (optional — skipped when Neo4j is not configured)
+      try {
+        await this.neo4jService.run(
+          `
+                MATCH (p:Post {id: $postId})
+                MERGE (u:User {id: $userId})
+                CREATE (r:Reply {id: $replyId, createdAt: $createdAt})
+                MERGE (u)-[:AUTHORED]->(r)
+                MERGE (r)-[:REPLIED_TO]->(p)
+                `,
+          { userId, postId, replyId, createdAt: reply.createdAt.toISOString() },
+        );
+      } catch (e) {
+        this.logger.warn(`Neo4j reply sync failed (non-fatal): ${(e as Error).message}`);
+      }
 
       // 3. Notifications (Post Author)
       const post = await this.postRepo.findOne({ where: { id: postId } });
@@ -153,19 +136,23 @@ export class ReplyWorker
         });
       }
 
-      // 4. Mentions (Notify)
+      // 4. Mentions (Notify + optional Neo4j sync)
       const mentions = await this.mentionRepo.find({ where: { replyId } });
       for (const mention of mentions) {
         if (mention.mentionedUserId !== userId) {
-          // Neo4j Mention Sync (Reply mentions User)
-          await this.neo4jService.run(
-            `
-                      MATCH (r:Reply {id: $replyId})
-                      MERGE (u:User {id: $userId})
-                      MERGE (r)-[:MENTIONS]->(u)
-                      `,
-            { replyId, userId: mention.mentionedUserId },
-          );
+          // Neo4j Mention Sync (optional)
+          try {
+            await this.neo4jService.run(
+              `
+                        MATCH (r:Reply {id: $replyId})
+                        MERGE (u:User {id: $userId})
+                        MERGE (r)-[:MENTIONS]->(u)
+                        `,
+              { replyId, userId: mention.mentionedUserId },
+            );
+          } catch (e) {
+            this.logger.warn(`Neo4j mention sync failed (non-fatal): ${(e as Error).message}`);
+          }
 
           await this.notificationHelper.createNotification({
             userId: mention.mentionedUserId,

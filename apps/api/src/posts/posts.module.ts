@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Queue } from 'bullmq';
-import Redis from 'ioredis';
+import { ConfigModule } from '@nestjs/config';
 import { PostsController } from './posts.controller';
 import { PostsService } from './posts.service';
 import { PostWorker } from './post.worker';
@@ -12,6 +10,7 @@ import { Mention } from '../entities/mention.entity';
 import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { DatabaseModule } from '../database/database.module';
+import { FeedModule } from '../feed/feed.module';
 import { SearchModule } from '../search/search.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SharedModule } from '../shared/shared.module';
@@ -20,13 +19,13 @@ import { UploadModule } from '../upload/upload.module';
 import { MetadataModule } from '../metadata/metadata.module';
 import { InteractionsModule } from '../interactions/interactions.module';
 import { ExploreModule } from '../explore/explore.module';
-import { defaultQueueConfig } from '../common/queue-config';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Post, ExternalSource, Mention, User, Follow]),
     ConfigModule,
     DatabaseModule,
+    FeedModule,
     SearchModule,
     NotificationsModule,
     SharedModule,
@@ -37,23 +36,7 @@ import { defaultQueueConfig } from '../common/queue-config';
     ExploreModule,
   ],
   controllers: [PostsController],
-  providers: [
-    PostsService,
-    PostWorker,
-    {
-      provide: 'POST_QUEUE',
-      useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL');
-        return new Queue('post-processing', {
-          connection: new Redis(redisUrl || 'redis://redis:6379', {
-            maxRetriesPerRequest: null,
-          }),
-          ...defaultQueueConfig,
-        });
-      },
-      inject: [ConfigService],
-    },
-  ],
+  providers: [PostsService, PostWorker],
   exports: [PostsService],
 })
-export class PostsModule {}
+export class PostsModule { }

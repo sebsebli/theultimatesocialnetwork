@@ -68,7 +68,7 @@ export const buttonStyles = createStyles({
   primaryText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
   primaryDisabled: {
@@ -102,7 +102,7 @@ export const buttonStyles = createStyles({
     borderColor: COLORS.primary,
   },
   secondaryTextActive: {
-    color: '#FFFFFF',
+    color: COLORS.paper,
   },
 
   // Pill button (small)
@@ -125,7 +125,7 @@ export const buttonStyles = createStyles({
     borderColor: COLORS.primary,
   },
   pillTextActive: {
-    color: '#FFFFFF',
+    color: COLORS.paper,
   },
 
   // Text button (link style)
@@ -418,7 +418,7 @@ export const modalStyles = createStyles({
     fontFamily: FONTS.semiBold,
   },
   buttonTextConfirm: {
-    color: '#FFFFFF',
+    color: COLORS.paper,
     fontWeight: '600',
     fontFamily: FONTS.semiBold,
   },
@@ -470,7 +470,7 @@ export const toggleStyles = createStyles({
     backgroundColor: COLORS.tertiary,
   },
   thumbActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.paper,
     marginLeft: 'auto',
   },
 });

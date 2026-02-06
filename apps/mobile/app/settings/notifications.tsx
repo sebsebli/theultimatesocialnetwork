@@ -50,7 +50,7 @@ export default function NotificationsSettingsScreen() {
         }));
       }
     } catch (error) {
-      console.error('Failed to load notification prefs', error);
+      if (__DEV__) console.error('Failed to load notification prefs', error);
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,14 @@ export default function NotificationsSettingsScreen() {
     }
   };
 
-  const NotificationItem = ({ label, value, onValueChange, description }: any) => (
+  interface NotificationItemProps {
+    label: string;
+    value: boolean;
+    onValueChange: (v: boolean) => void;
+    description?: string;
+  }
+
+  const NotificationItem = ({ label, value, onValueChange, description }: NotificationItemProps) => (
     <View style={styles.item}>
       <View style={styles.textContainer}>
         <Text style={styles.label}>{label}</Text>
@@ -75,7 +82,7 @@ export default function NotificationsSettingsScreen() {
       </View>
       <Switch
         trackColor={{ false: COLORS.divider, true: COLORS.primary }}
-        thumbColor={'#FFF'}
+        thumbColor={COLORS.paper}
         ios_backgroundColor={COLORS.divider}
         onValueChange={onValueChange}
         value={value}

@@ -21,9 +21,11 @@ export default function SettingsLanguagesScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/users/me').then((u: any) => {
-      if (u?.languages?.length) setSelected(u.languages);
-    }).catch(() => { }).finally(() => setLoading(false));
+    api.get('/users/me').then((u: unknown) => {
+      const user = u as Record<string, unknown>;
+      const languages = user?.languages;
+      if (Array.isArray(languages) && languages.length) setSelected(languages as string[]);
+    }).catch(() => { /* network failure handled silently */ }).finally(() => setLoading(false));
   }, []);
 
   const toggleLanguage = (code: string) => {
@@ -47,7 +49,7 @@ export default function SettingsLanguagesScreen() {
       showSuccess(t('settings.languagesUpdated'));
       router.back();
     } catch (error) {
-      console.error('Failed to save languages', error);
+      if (__DEV__) console.error('Failed to save languages', error);
       showError(t('settings.failedSaveLanguages'));
     } finally {
       setSaving(false);
@@ -69,6 +71,8 @@ export default function SettingsLanguagesScreen() {
             onPress={handleSave}
             disabled={saving || selected.length < 1}
             style={({ pressed }: { pressed: boolean }) => [{ padding: SPACING.s, margin: -SPACING.s }, (pressed || saving || selected.length < 1) && { opacity: 0.5 }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.save')}
           >
             <Text style={headerRightSaveStyle}>{t('common.save')}</Text>
           </Pressable>
@@ -95,7 +99,12 @@ export default function SettingsLanguagesScreen() {
             returnKeyType="search"
           />
           {search.length > 0 ? (
-            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <Pressable
+              onPress={() => setSearch('')}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.clear', 'Clear search')}
+            >
               <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
             </Pressable>
           ) : null}
@@ -120,7 +129,7 @@ export default function SettingsLanguagesScreen() {
                 </Text>
                 {isSelected && (
                   <View style={styles.checkBadge}>
-                    <MaterialIcons name="check" size={12} color="#FFF" />
+                    <MaterialIcons name="check" size={12} color={COLORS.paper} />
                   </View>
                 )}
               </Pressable>
@@ -177,7 +186,7 @@ const styles = createStyles({
     position: 'relative',
   },
   langCardSelected: {
-    backgroundColor: 'rgba(110, 122, 138, 0.1)',
+    backgroundColor: COLORS.badge,
     borderColor: COLORS.primary,
   },
   langName: {
@@ -227,7 +236,7 @@ const styles = createStyles({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
 });

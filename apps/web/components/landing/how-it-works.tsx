@@ -8,13 +8,13 @@ export function HowItWorks() {
       <div className="flex flex-col md:flex-row items-start justify-between gap-12 md:gap-8">
         <div className="md:w-1/4">
           <h2 className="text-xs font-mono text-[#6E7A8A] uppercase tracking-widest mb-4">
-            Protocol
+            How it works
           </h2>
           <h3 className="text-3xl font-serif text-[#F2F2F2] mb-4">
-            How it works
+            Three steps
           </h3>
           <p className="text-[#A8A8AA] text-sm leading-relaxed">
-            A simple loop to turn noise into signal.
+            Write, connect, and let your ideas speak for themselves.
           </p>
         </div>
 
@@ -41,9 +41,9 @@ export function HowItWorks() {
             </div>
             <h4 className="text-[#F2F2F2] font-medium mb-2">2. Cite</h4>
             <p className="text-[#6E6E73] text-xs leading-relaxed">
-              Connect ideas using{" "}
+              Link ideas using{" "}
               <span className="text-[#E8B86D]">[[citelinks]]</span>, @mentions,
-              and external URLs. Reference people and sources directly.
+              and external sources. Every reference strengthens the network.
             </p>
           </div>
 
@@ -54,8 +54,8 @@ export function HowItWorks() {
             </div>
             <h4 className="text-[#F2F2F2] font-medium mb-2">3. Graph</h4>
             <p className="text-[#6E6E73] text-xs leading-relaxed">
-              Your post becomes a node in the global graph. You gain authority
-              when others cite you.
+              Your post becomes part of a living knowledge graph. When others
+              cite you, your authority grows — real credibility, earned by ideas.
             </p>
           </div>
         </div>

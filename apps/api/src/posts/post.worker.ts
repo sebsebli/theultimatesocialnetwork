@@ -2,18 +2,14 @@ import {
   Injectable,
   Logger,
   OnApplicationBootstrap,
-  OnApplicationShutdown,
   Inject,
 } from '@nestjs/common';
-import { Worker, Job } from 'bullmq';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Post } from '../entities/post.entity';
 import { ExternalSource } from '../entities/external-source.entity';
-import { Follow } from '../entities/follow.entity';
 import { NotificationType } from '../entities/notification.entity';
+import { FeedFanoutService } from '../feed/feed-fanout.service';
 import { MetadataService } from '../metadata/metadata.service';
 import { Neo4jService } from '../database/neo4j.service';
 import { MeilisearchService } from '../search/meilisearch.service';
@@ -27,6 +23,8 @@ import {
   ModerationSource,
   ModerationTargetType,
 } from '../entities/moderation-record.entity';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
+import Redis from 'ioredis';
 
 interface PostJobData {
   postId: string;
@@ -34,18 +32,14 @@ interface PostJobData {
 }
 
 @Injectable()
-export class PostWorker
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+export class PostWorker implements OnApplicationBootstrap {
   private readonly logger = new Logger(PostWorker.name);
-  private worker: Worker;
 
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(ExternalSource)
     private externalSourceRepo: Repository<ExternalSource>,
-    @InjectRepository(Follow) private followRepo: Repository<Follow>,
-    private configService: ConfigService,
+    private feedFanout: FeedFanoutService,
     private neo4jService: Neo4jService,
     private meilisearchService: MeilisearchService,
     private embeddingService: EmbeddingService,
@@ -53,33 +47,18 @@ export class PostWorker
     private safetyService: SafetyService,
     private metadataService: MetadataService,
     @Inject('REDIS_CLIENT') private redis: Redis,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
-  onApplicationBootstrap() {
-    const redisUrl = this.configService.get<string>('REDIS_URL');
-
-    this.worker = new Worker<PostJobData>(
+  async onApplicationBootstrap() {
+    await this.eventBus.subscribe<PostJobData>(
       'post-processing',
-      async (job: Job<PostJobData>) => {
-        this.logger.log(`Processing post ${job.data.postId}`);
-        await this.processPost(job.data.postId, job.data.userId);
+      async (_event, data) => {
+        this.logger.log(`Processing post ${data.postId}`);
+        await this.processPost(data.postId, data.userId);
       },
-      {
-        connection: new Redis(redisUrl || 'redis://redis:6379', {
-          maxRetriesPerRequest: null,
-        }),
-      },
+      { concurrency: 5 },
     );
-
-    this.worker.on('failed', (job, err) => {
-      this.logger.error(`Job ${job?.id} failed: ${err.message}`);
-    });
-  }
-
-  onApplicationShutdown() {
-    this.worker.close().catch((err: Error) => {
-      console.error('Error closing worker', err);
-    });
   }
 
   async processPost(postId: string, userId: string) {
@@ -142,7 +121,7 @@ export class PostWorker
               contentSnapshot: post.body,
               source: ModerationSource.ASYNC_CHECK,
             })
-            .catch(() => {});
+            .catch(() => { });
           await this.postRepo.softDelete(postId);
           end();
           workerJobCounter.inc({ worker: 'post', status: 'moderated' });
@@ -163,9 +142,9 @@ export class PostWorker
         authorId: post.authorId,
         author: post.author
           ? {
-              displayName: post.author.displayName || post.author.handle,
-              handle: post.author.handle,
-            }
+            displayName: post.author.displayName || post.author.handle,
+            handle: post.author.handle,
+          }
           : undefined,
         authorProtected: post.author?.isProtected,
         lang: post.lang,
@@ -177,58 +156,111 @@ export class PostWorker
         embedding: embedding || undefined,
       });
 
-      // 2. Neo4j Sync
-      await this.neo4jService.run(
-        `
-            MERGE (u:User {id: $userId})
-            MERGE (p:Post {id: $postId})
-            SET p.createdAt = $createdAt, p.readingTime = $readingTime
-            MERGE (u)-[:AUTHORED]->(p)
-            `,
-        {
-          userId,
-          postId: post.id,
-          createdAt: post.createdAt.toISOString(),
-          readingTime: post.readingTimeMinutes,
-        },
-      );
+      // 2. Neo4j Sync (optional — skipped when Neo4j is not configured)
+      try {
+        await this.neo4jService.run(
+          `
+              MERGE (u:User {id: $userId})
+              MERGE (p:Post {id: $postId})
+              SET p.createdAt = $createdAt, p.readingTime = $readingTime
+              MERGE (u)-[:AUTHORED]->(p)
+              `,
+          {
+            userId,
+            postId: post.id,
+            createdAt: post.createdAt.toISOString(),
+            readingTime: post.readingTimeMinutes,
+          },
+        );
 
-      // Topics
-      if (post.postTopics?.length) {
-        for (const pt of post.postTopics) {
+        // Topics
+        if (post.postTopics?.length) {
+          for (const pt of post.postTopics) {
+            await this.neo4jService.run(
+              `
+                      MATCH (p:Post {id: $postId})
+                      MERGE (t:Topic {slug: $slug})
+                      ON CREATE SET t.title = $title
+                      MERGE (p)-[:IN_TOPIC]->(t)
+                      `,
+              { postId: post.id, slug: pt.topic.slug, title: pt.topic.title },
+            );
+          }
+        }
+
+        // Mentions (Neo4j sync only)
+        if (post.mentions?.length) {
+          for (const mention of post.mentions) {
+            if (mention.mentionedUserId !== userId) {
+              await this.neo4jService.run(
+                `
+                          MATCH (p:Post {id: $postId})
+                          MERGE (u:User {id: $userId})
+                          MERGE (p)-[:MENTIONS]->(u)
+                          `,
+                { postId: post.id, userId: mention.mentionedUserId },
+              );
+            }
+          }
+        }
+
+        // External sources: connect Post -> ExternalUrl in graph
+        const externalSources = await this.externalSourceRepo.find({
+          where: { postId },
+          select: ['url', 'title'],
+        });
+        for (const source of externalSources) {
+          if (!source.url?.trim()) continue;
           await this.neo4jService.run(
             `
-                    MATCH (p:Post {id: $postId})
-                    MERGE (t:Topic {slug: $slug})
-                    ON CREATE SET t.title = $title
-                    MERGE (p)-[:IN_TOPIC]->(t)
-                    `,
-            { postId: post.id, slug: pt.topic.slug, title: pt.topic.title },
+              MATCH (p:Post {id: $postId})
+              MERGE (u:ExternalUrl {url: $url})
+              ON CREATE SET u.title = $title
+              ON MATCH SET u.title = CASE WHEN $title IS NOT NULL AND $title <> '' THEN $title ELSE u.title END
+              MERGE (p)-[:CITES_EXTERNAL]->(u)
+              `,
+            {
+              postId: post.id,
+              url: source.url.trim(),
+              title: source.title?.trim() ?? null,
+            },
           );
         }
+      } catch (e) {
+        this.logger.warn(
+          `Neo4j sync failed for post ${postId} (non-fatal): ${(e as Error).message}`,
+        );
       }
 
-      // Edges
+      // 2b. Edges — notifications (always needed) + Neo4j sync (optional)
       if (post.outgoingEdges?.length) {
         for (const edge of post.outgoingEdges) {
           if (edge.edgeType === EdgeType.LINK) {
-            await this.neo4jService.run(
-              `
-                        MATCH (p1:Post {id: $fromId})
-                        MERGE (p2:Post {id: $toId})
-                        MERGE (p1)-[:LINKS_TO]->(p2)
-                        `,
-              { fromId: post.id, toId: edge.toPostId },
-            );
+            try {
+              await this.neo4jService.run(
+                `
+                          MATCH (p1:Post {id: $fromId})
+                          MERGE (p2:Post {id: $toId})
+                          MERGE (p1)-[:LINKS_TO]->(p2)
+                          `,
+                { fromId: post.id, toId: edge.toPostId },
+              );
+            } catch (e) {
+              this.logger.warn(`Neo4j LINKS_TO sync failed (non-fatal): ${(e as Error).message}`);
+            }
           } else if (edge.edgeType === EdgeType.QUOTE) {
-            await this.neo4jService.run(
-              `
-                        MATCH (p1:Post {id: $fromId})
-                        MATCH (p2:Post {id: $toId})
-                        MERGE (p1)-[:QUOTES]->(p2)
-                        `,
-              { fromId: post.id, toId: edge.toPostId },
-            );
+            try {
+              await this.neo4jService.run(
+                `
+                          MATCH (p1:Post {id: $fromId})
+                          MATCH (p2:Post {id: $toId})
+                          MERGE (p1)-[:QUOTES]->(p2)
+                          `,
+                { fromId: post.id, toId: edge.toPostId },
+              );
+            } catch (e) {
+              this.logger.warn(`Neo4j QUOTES sync failed (non-fatal): ${(e as Error).message}`);
+            }
 
             const quotedPost = await this.postRepo.findOne({
               where: { id: edge.toPostId },
@@ -249,19 +281,10 @@ export class PostWorker
         }
       }
 
-      // Mentions
+      // 2c. Mention notifications (always needed, independent of Neo4j)
       if (post.mentions?.length) {
         for (const mention of post.mentions) {
           if (mention.mentionedUserId !== userId) {
-            await this.neo4jService.run(
-              `
-                        MATCH (p:Post {id: $postId})
-                        MERGE (u:User {id: $userId})
-                        MERGE (p)-[:MENTIONS]->(u)
-                        `,
-              { postId: post.id, userId: mention.mentionedUserId },
-            );
-
             await this.notificationHelper.createNotification({
               userId: mention.mentionedUserId,
               type: NotificationType.MENTION,
@@ -272,59 +295,11 @@ export class PostWorker
         }
       }
 
-      // 2c. External sources: connect Post -> ExternalUrl in graph (sources already in DB from processPublishedPost)
-      const externalSources = await this.externalSourceRepo.find({
-        where: { postId },
-        select: ['url', 'title'],
-      });
-      for (const source of externalSources) {
-        if (!source.url?.trim()) continue;
-        try {
-          await this.neo4jService.run(
-            `
-            MATCH (p:Post {id: $postId})
-            MERGE (u:ExternalUrl {url: $url})
-            ON CREATE SET u.title = $title
-            ON MATCH SET u.title = CASE WHEN $title IS NOT NULL AND $title <> '' THEN $title ELSE u.title END
-            MERGE (p)-[:CITES_EXTERNAL]->(u)
-            `,
-            {
-              postId: post.id,
-              url: source.url.trim(),
-              title: source.title?.trim() ?? null,
-            },
-          );
-        } catch (e) {
-          this.logger.warn(
-            `Neo4j external source sync failed for ${source.url}: ${(e as Error).message}`,
-          );
-        }
+      // 3. Feed Fan-out (hybrid push/pull via FeedFanoutService)
+      const fanoutCount = await this.feedFanout.fanOutPost(post.id, userId);
+      if (fanoutCount > 0) {
+        this.logger.debug(`Feed fanout: pushed to ${fanoutCount} followers.`);
       }
-
-      // 3. Feed Fan-out
-      const BATCH_SIZE = 1000;
-      let page = 0;
-      let followers: Follow[];
-
-      do {
-        followers = await this.followRepo.find({
-          where: { followeeId: userId },
-          select: ['followerId'],
-          take: BATCH_SIZE,
-          skip: page * BATCH_SIZE,
-        });
-
-        if (followers.length > 0) {
-          const pipeline = this.redis.pipeline();
-          for (const follow of followers) {
-            const key = `feed:${follow.followerId}`;
-            pipeline.lpush(key, post.id);
-            pipeline.ltrim(key, 0, 500); // Keep top 500
-          }
-          await pipeline.exec();
-        }
-        page++;
-      } while (followers.length === BATCH_SIZE);
 
       // 4. Fetch URL metadata for external sources missing title or description
       const allSources = await this.externalSourceRepo.find({

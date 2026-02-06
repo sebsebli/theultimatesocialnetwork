@@ -20,6 +20,7 @@ import {
   EmptyState,
   emptyStateCenterWrapStyle,
 } from "../components/EmptyState";
+import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../context/ToastContext";
 import {
   COLORS,
@@ -39,17 +40,18 @@ export default function KeepsScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { showSuccess, showError } = useToast();
-  const [keeps, setKeeps] = useState<any[]>([]);
+  const [keeps, setKeeps] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Picker state
   const [showPicker, setShowPicker] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [collections, setCollections] = useState<Record<string, unknown>[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unsorted" | "in-collections">(
     "all",
@@ -83,8 +85,15 @@ export default function KeepsScreen() {
       if (filter === "in-collections") params.append("inCollection", "true");
       if (filter === "unsorted") params.append("inCollection", "false");
 
-      const data = await api.get(`/keeps?${params.toString()}`);
-      const items = Array.isArray(data.items || data) ? data.items || data : [];
+      const data = await api.get<{
+        items?: unknown[];
+        hasMore?: boolean;
+      } | unknown[]>(`/keeps?${params.toString()}`);
+      const items = Array.isArray(data)
+        ? (data as Record<string, unknown>[])
+        : Array.isArray((data as { items?: unknown[] }).items)
+          ? ((data as { items: unknown[] }).items as Record<string, unknown>[])
+          : [];
 
       if (reset) {
         setKeeps(items);
@@ -92,10 +101,15 @@ export default function KeepsScreen() {
         setKeeps((prev) => [...prev, ...items]);
       }
 
-      const hasMoreData = items.length === 20 && data.hasMore !== false;
+      const paginatedData = Array.isArray(data) ? null : (data as { hasMore?: boolean });
+      const hasMoreData = items.length === 20 && paginatedData?.hasMore !== false;
       setHasMore(hasMoreData);
+      setError(null);
     } catch (error) {
-      console.error("Failed to load keeps", error);
+      if (__DEV__) console.error("Failed to load keeps", error);
+      if (reset) {
+        setError(t("keeps.loadError", "Failed to load keeps"));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -117,23 +131,31 @@ export default function KeepsScreen() {
   }, [search, filter]);
 
   const renderItem = useCallback(
-    ({ item }: { item: any }) => (
-      <View style={styles.keepContainer}>
-        <PostItem
-          post={{ ...item.post, isKept: true }}
-          onKeep={() =>
-            setKeeps((prev) =>
-              prev.filter((k: any) => k.post?.id !== item.post?.id),
-            )
-          }
-        />
-        <View style={styles.keepActions}>
-          <Pressable
-            style={styles.addButton}
-            onPress={() => {
-              setSelectedPostId(item.post.id);
-              setShowPicker(true);
-            }}
+    ({ item }: { item: Record<string, unknown> }) => {
+      const post = item.post as Record<string, unknown> | undefined;
+      const postId = post?.id as string | undefined;
+      return (
+        <View style={styles.keepContainer}>
+          <PostItem
+            post={{ ...post, isKept: true } as Record<string, unknown>}
+            onKeep={() =>
+              setKeeps((prev) =>
+                prev.filter((k: Record<string, unknown>) => {
+                  const kPost = k.post as Record<string, unknown> | undefined;
+                  return kPost?.id !== postId;
+                }),
+              )
+            }
+          />
+          <View style={styles.keepActions}>
+            <Pressable
+              style={styles.addButton}
+              onPress={() => {
+                if (postId) {
+                  setSelectedPostId(postId);
+                  setShowPicker(true);
+                }
+              }}
             accessibilityLabel={t("keeps.addToCollection")}
             accessibilityRole="button"
           >
@@ -148,18 +170,19 @@ export default function KeepsScreen() {
           </Pressable>
         </View>
       </View>
-    ),
+      );
+    },
     [t],
   );
 
-  const keyExtractor = useCallback((item: any) => item.id, []);
+  const keyExtractor = useCallback((item: Record<string, unknown>) => item.id, []);
 
   const loadCollections = async () => {
     try {
       const data = await api.get("/collections");
       setCollections(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Failed to load collections", error);
+      if (__DEV__) console.error("Failed to load collections", error);
     }
   };
 
@@ -173,7 +196,7 @@ export default function KeepsScreen() {
       setSelectedPostId(null);
       showSuccess(t("keeps.addedToCollection"));
     } catch (error) {
-      console.error("Failed to add to collection", error);
+      if (__DEV__) console.error("Failed to add to collection", error);
       showError(t("keeps.failedAddToCollection"));
     }
   };
@@ -199,7 +222,12 @@ export default function KeepsScreen() {
             returnKeyType="search"
           />
           {search.length > 0 ? (
-            <Pressable onPress={() => setSearch("")} hitSlop={8}>
+            <Pressable
+              onPress={() => setSearch("")}
+              hitSlop={12}
+              accessibilityLabel={t("common.clearSearch", "Clear search")}
+              accessibilityRole="button"
+            >
               <MaterialIcons name="close" size={20} color={COLORS.tertiary} />
             </Pressable>
           ) : null}
@@ -257,7 +285,10 @@ export default function KeepsScreen() {
       </View>
 
       <FlatList
-        data={keeps.filter((item: any) => !!item?.post?.author)}
+        data={keeps.filter((item: Record<string, unknown>) => {
+          const post = item.post as Record<string, unknown> | undefined;
+          return !!post?.author;
+        })}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
         keyExtractor={keyExtractor}
@@ -266,6 +297,14 @@ export default function KeepsScreen() {
           <View style={emptyStateCenterWrapStyle}>
             {loading ? (
               <FeedSkeleton count={4} />
+            ) : error ? (
+              <ErrorState
+                message={error}
+                onRetry={() => {
+                  setError(null);
+                  loadKeeps(1, true);
+                }}
+              />
             ) : (
               <EmptyState
                 icon="bookmark-border"
@@ -278,7 +317,10 @@ export default function KeepsScreen() {
           </View>
         }
         contentContainerStyle={
-          keeps.filter((item: any) => !!item?.post?.author).length === 0
+          keeps.filter((item: Record<string, unknown>) => {
+            const post = item.post as Record<string, unknown> | undefined;
+            return !!post?.author;
+          }).length === 0
             ? { flexGrow: 1 }
             : undefined
         }
@@ -315,14 +357,16 @@ export default function KeepsScreen() {
             </View>
             <FlatList
               data={collections}
-              keyExtractor={(item: any) => item.id}
+              keyExtractor={(item: Record<string, unknown>) => item.id}
               style={{ maxHeight: 300 }}
               showsVerticalScrollIndicator={false}
               showsHorizontalScrollIndicator={false}
-              renderItem={({ item }: { item: any }) => (
+              renderItem={({ item }: { item: Record<string, unknown> }) => (
                 <Pressable
                   style={styles.collectionItem}
-                  onPress={() => addToCollection(item.id)}
+                  onPress={() => addToCollection(item.id as string)}
+                  accessibilityLabel={`${t("keeps.addToCollection")} ${item.title}`}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.collectionTitle}>{item.title}</Text>
                   <Text style={styles.addIcon}>+</Text>
@@ -374,7 +418,7 @@ const styles = createStyles({
     fontFamily: FONTS.medium,
   },
   filterPillTextActive: {
-    color: "#FFFFFF",
+    color: COLORS.paper,
   },
   keepContainer: {
     borderBottomWidth: 1,
@@ -391,7 +435,7 @@ const styles = createStyles({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(110, 122, 138, 0.1)",
+    backgroundColor: COLORS.badge,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,

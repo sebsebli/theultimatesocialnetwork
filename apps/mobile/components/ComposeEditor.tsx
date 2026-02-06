@@ -27,6 +27,8 @@ export function ComposeEditor() {
         <Pressable
           onPress={() => router.push('/post/compose')}
           style={styles.collapsedButton}
+          accessibilityRole="button"
+          accessibilityLabel={t('compose.placeholder')}
         >
           <View style={styles.collapsedContent}>
             <MaterialIcons name="edit" size={HEADER.iconSize} color={COLORS.tertiary} />
@@ -56,6 +58,8 @@ export function ComposeEditor() {
             onPress={() => router.push('/post/compose')}
             disabled={!body.trim()}
             style={[styles.continueButton, !body.trim() && styles.continueButtonDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.continue')}
           >
             <Text style={styles.continueButtonText}>{t('common.continue')}</Text>
           </Pressable>
@@ -117,7 +121,7 @@ const styles = createStyles({
   continueButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
 });

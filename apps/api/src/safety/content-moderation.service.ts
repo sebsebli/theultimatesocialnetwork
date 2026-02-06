@@ -26,6 +26,7 @@ import {
   simhashFromString,
 } from './simhash.util';
 import { moderationStageCounter, moderationDuration } from '../common/metrics';
+import { CircuitBreaker } from '../common/circuit-breaker';
 
 export type ModerationResult = {
   safe: boolean;
@@ -131,6 +132,20 @@ export class ContentModerationService implements OnModuleInit {
   private hasTextModel = false;
   private hasImageModel = false;
   private ollama: Ollama;
+
+  /** Circuit breaker for Ollama LLM calls. Opens after 5 failures, cooldown 30s. */
+  private readonly ollamaBreaker = new CircuitBreaker({
+    name: 'Ollama',
+    failureThreshold: 5,
+    cooldownMs: 30000,
+  });
+
+  /** Circuit breaker for NSFW image detection service. Opens after 3 failures, cooldown 60s. */
+  private readonly nsfwBreaker = new CircuitBreaker({
+    name: 'NSFWDetector',
+    failureThreshold: 3,
+    cooldownMs: 60000,
+  });
 
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
@@ -371,63 +386,70 @@ export class ContentModerationService implements OnModuleInit {
 
     const end = moderationDuration.startTimer({ stage: 'ollama' });
     try {
-      const contentToEvaluate = text.substring(0, 4000).trim();
-      const userContent = `Content to evaluate:\n\n${contentToEvaluate}`;
+      // Use circuit breaker to prevent hammering a failing Ollama instance
+      return await this.ollamaBreaker.execute(async () => {
+        const contentToEvaluate = text.substring(0, 4000).trim();
+        const userContent = `Content to evaluate:\n\n${contentToEvaluate}`;
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Ollama chat timeout')),
-          cfg.ollamaChatTimeoutMs,
-        ),
-      );
-      const response = await Promise.race([
-        this.ollama.chat({
-          model: cfg.ollamaTextModel,
-          messages: [
-            { role: 'system', content: GRANITE_SYSTEM_PROMPT },
-            { role: 'user', content: userContent },
-          ],
-          format: schemaToFormat(GraniteTextSchema),
-          options: { temperature: 0.1 },
-        }),
-        timeoutPromise,
-      ]);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Ollama chat timeout')),
+            cfg.ollamaChatTimeoutMs,
+          ),
+        );
+        const response = await Promise.race([
+          this.ollama.chat({
+            model: cfg.ollamaTextModel,
+            messages: [
+              { role: 'system', content: GRANITE_SYSTEM_PROMPT },
+              { role: 'user', content: userContent },
+            ],
+            format: schemaToFormat(GraniteTextSchema),
+            options: { temperature: 0.1 },
+          }),
+          timeoutPromise,
+        ]);
 
-      const raw = (response.message?.content ?? '').trim();
-      const jsonRaw = raw
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```\s*$/i, '');
-      const parsed = JSON.parse(jsonRaw) as unknown;
-      const result = GraniteTextSchema.parse(parsed);
-      const confidence =
-        typeof result.confidence === 'number' ? result.confidence : 0.8;
-      // Only treat as unsafe when model says "ban" AND confidence is high enough (reduces false positives)
-      const banRequested = result.type === 'ban';
-      const safe = !banRequested || confidence < cfg.minConfidenceToBan;
-      const reasonCode = safe
-        ? undefined
-        : this.parseReasonFromGranite(
+        const raw = (response.message?.content ?? '').trim();
+        const jsonRaw = raw
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/\s*```\s*$/i, '');
+        const parsed = JSON.parse(jsonRaw) as unknown;
+        const result = GraniteTextSchema.parse(parsed);
+        const confidence =
+          typeof result.confidence === 'number' ? result.confidence : 0.8;
+        // Only treat as unsafe when model says "ban" AND confidence is high enough (reduces false positives)
+        const banRequested = result.type === 'ban';
+        const safe = !banRequested || confidence < cfg.minConfidenceToBan;
+        const reasonCode = safe
+          ? undefined
+          : this.parseReasonFromGranite(
             result.reasons?.[0] ?? result.reasons?.[1] ?? 'other',
           );
-      end();
-      if (!safe) moderationStageCounter.inc({ stage: 'ollama_block' });
-      else moderationStageCounter.inc({ stage: 'ollama_allow' });
-      return {
-        safe,
-        reason: safe
-          ? undefined
-          : result.reasons?.join(', ') || 'Policy violation',
-        confidence,
-        reasonCode,
-      };
+        end();
+        if (!safe) moderationStageCounter.inc({ stage: 'ollama_block' });
+        else moderationStageCounter.inc({ stage: 'ollama_allow' });
+        return {
+          safe,
+          reason: safe
+            ? undefined
+            : result.reasons?.join(', ') || 'Policy violation',
+          confidence,
+          reasonCode,
+        } satisfies ModerationResult;
+      });
     } catch (e) {
       end();
-      this.logger.warn('Ollama text moderation failed', (e as Error).message);
-      moderationStageCounter.inc({ stage: 'ollama_fail' });
-      // Fail open: do not soft-delete when moderation is unavailable (timeout, Ollama down, etc.)
+      const isCircuitOpen = (e as Error).name === 'CircuitOpenError';
+      this.logger.warn(
+        `Ollama text moderation failed${isCircuitOpen ? ' (circuit open)' : ''}`,
+        (e as Error).message,
+      );
+      moderationStageCounter.inc({ stage: isCircuitOpen ? 'ollama_circuit_open' : 'ollama_fail' });
+      // Fail open with degraded confidence: flag for async re-moderation
       return {
         safe: true,
-        reason: 'Text moderation unavailable; allowed.',
+        reason: 'Text moderation unavailable; allowed pending review.',
         confidence: 0,
         reasonCode: undefined,
       };
@@ -503,45 +525,46 @@ export class ContentModerationService implements OnModuleInit {
     buffer: Buffer,
   ): Promise<{ safe: boolean; reason?: string; confidence: number }> {
     const cfg = getConfig();
-    const maxAttempts = 5;
-    const retryDelayMs = 2000;
 
     // NSFW detector (Falconsai/nsfw_image_detection) when configured; no Ollama vision
     if (cfg.moderationImageServiceUrl) {
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        const end = moderationDuration.startTimer({
-          stage: 'nsfw_detector_image',
-        });
-        try {
+      const end = moderationDuration.startTimer({
+        stage: 'nsfw_detector_image',
+      });
+      try {
+        // Use circuit breaker to prevent hammering a failing NSFW detector
+        return await this.nsfwBreaker.execute(async () => {
           const result = await this.callNsfwDetector(buffer, cfg);
-          end();
           return result;
-        } catch (e) {
-          end();
+        });
+      } catch (e) {
+        end();
+        const isCircuitOpen = (e as Error).name === 'CircuitOpenError';
+        this.logger.warn(
+          `NSFW detector failed${isCircuitOpen ? ' (circuit open)' : ''}`,
+          (e as Error).message,
+        );
+        moderationStageCounter.inc({
+          stage: isCircuitOpen ? 'nsfw_circuit_open' : 'nsfw_fail',
+        });
+
+        if (cfg.moderationImageAllowOnUnavailable) {
           this.logger.warn(
-            `NSFW detector failed (attempt ${attempt}/${maxAttempts})`,
-            (e as Error).message,
+            'Image moderation unavailable; allowing upload (MODERATION_IMAGE_ALLOW_ON_UNAVAILABLE=true)',
           );
-          if (attempt < maxAttempts) {
-            await new Promise((r) => setTimeout(r, retryDelayMs));
-            continue;
-          }
-          if (cfg.moderationImageAllowOnUnavailable) {
-            this.logger.warn(
-              'Image moderation unavailable after retries; allowing upload (MODERATION_IMAGE_ALLOW_ON_UNAVAILABLE=true)',
-            );
-            return {
-              safe: true,
-              reason: 'moderation_unavailable_allowed',
-              confidence: 0,
-            };
-          }
           return {
-            safe: false,
-            reason: 'Image moderation unavailable. Please try again.',
+            safe: true,
+            reason: 'moderation_unavailable_allowed',
             confidence: 0,
           };
         }
+        return {
+          safe: false,
+          reason: 'Image moderation unavailable. Please try again.',
+          confidence: 0,
+        };
+      } finally {
+        end();
       }
     }
 

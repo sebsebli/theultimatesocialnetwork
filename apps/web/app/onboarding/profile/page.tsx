@@ -30,7 +30,7 @@ export default function OnboardingProfilePage() {
         setHandleAvailable(data.available);
       }
     } catch (error) {
-      console.error("Error checking handle", error);
+      if (process.env.NODE_ENV !== "production") console.error("Error checking handle", error);
       setHandleAvailable(null);
     } finally {
       setIsChecking(false);
@@ -49,7 +49,7 @@ export default function OnboardingProfilePage() {
     if (!displayName || !handle || handleAvailable === false) return;
 
     try {
-      const res = await fetch("/api/users/me", {
+      const res = await fetch("/api/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -69,7 +69,7 @@ export default function OnboardingProfilePage() {
         toastError("Failed to create profile");
       }
     } catch (error) {
-      console.error("Error creating profile", error);
+      if (process.env.NODE_ENV !== "production") console.error("Error creating profile", error);
       toastError("Failed to create profile");
     }
   };
@@ -85,11 +85,10 @@ export default function OnboardingProfilePage() {
       <div className="w-full max-w-md md:max-w-lg space-y-10 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="text-center md:text-left">
           <h1 className="text-4xl font-bold tracking-tight text-paper mb-3">
-            Create your profile
+            Set up your profile
           </h1>
           <p className="text-secondary text-lg font-light">
-            Set up your Citewalk identity. This is how others will recognize
-            your thoughts.
+            This is how other readers and writers will see you on Citewalk.
           </p>
         </div>
 
@@ -102,7 +101,7 @@ export default function OnboardingProfilePage() {
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Your public name"
+              placeholder="How you'd like to be known"
               className="w-full h-14 px-5 bg-white/5 border border-white/10 rounded-xl text-paper text-lg tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-inner [letter-spacing:0]"
               required
             />
@@ -141,11 +140,10 @@ export default function OnboardingProfilePage() {
                   setHandle(value);
                 }}
                 placeholder="username"
-                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner [letter-spacing:0] ${
-                  handleAvailable === false
+                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner [letter-spacing:0] ${handleAvailable === false
                     ? "border-red-500/50 focus:ring-red-500/30"
                     : "border-white/10 focus:ring-primary/50"
-                }`}
+                  }`}
                 required
                 minLength={3}
               />
@@ -164,7 +162,7 @@ export default function OnboardingProfilePage() {
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value.slice(0, 160))}
-              placeholder="Writers, thinkers, curators... what connects your thoughts?"
+              placeholder="What do you write about? What are you curious about?"
               rows={3}
               className="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-xl text-paper text-base tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none transition-all shadow-inner leading-relaxed [letter-spacing:0]"
             />
@@ -172,35 +170,33 @@ export default function OnboardingProfilePage() {
 
           <div className="space-y-4 pt-2">
             <label className="block text-sm font-bold uppercase tracking-widest text-secondary/60 ml-1">
-              Account Visibility
+              Profile visibility
             </label>
             <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
                 onClick={() => setIsProtected(false)}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
-                  !isProtected
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${!isProtected
                     ? "bg-primary/10 border-primary/40 shadow-lg"
                     : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
-                }`}
+                  }`}
               >
-                <span className="font-bold text-paper mb-1">Open</span>
+                <span className="font-bold text-paper mb-1">Public</span>
                 <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">
-                  Public access
+                  Anyone can see your posts
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setIsProtected(true)}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
-                  isProtected
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${isProtected
                     ? "bg-primary/10 border-primary/40 shadow-lg"
                     : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
-                }`}
+                  }`}
               >
                 <span className="font-bold text-paper mb-1">Protected</span>
                 <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">
-                  Follow approvals
+                  Followers need approval
                 </span>
               </button>
             </div>
@@ -217,7 +213,7 @@ export default function OnboardingProfilePage() {
               }
               className="w-full h-14 bg-[#F2F2F2] text-[#0B0B0C] font-bold text-lg rounded-full hover:bg-white transition-all shadow-xl hover:shadow-white/10 active:scale-[0.98] disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed"
             >
-              Finish Setup
+              Continue
             </button>
           </div>
         </form>

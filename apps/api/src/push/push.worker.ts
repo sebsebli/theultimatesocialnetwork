@@ -2,61 +2,39 @@ import {
   Injectable,
   Logger,
   OnApplicationBootstrap,
-  OnApplicationShutdown,
   Inject,
 } from '@nestjs/common';
-import { Worker, Job } from 'bullmq';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { PushOutbox, PushStatus } from '../entities/push-outbox.entity';
 import { PushToken, PushProvider } from '../entities/push-token.entity';
 import { ApnsSender } from './senders/apns.sender';
 import { FcmSender } from './senders/fcm.sender';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
+import Redis from 'ioredis';
 
 @Injectable()
-export class PushWorker
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+export class PushWorker implements OnApplicationBootstrap {
   private readonly logger = new Logger(PushWorker.name);
-  private worker: Worker;
 
   constructor(
     @InjectRepository(PushOutbox)
     private pushOutboxRepo: Repository<PushOutbox>,
     @InjectRepository(PushToken) private pushTokenRepo: Repository<PushToken>,
-    private configService: ConfigService,
     private apnsSender: ApnsSender,
     private fcmSender: FcmSender,
     @Inject('REDIS_CLIENT') private redis: Redis,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
-  onApplicationBootstrap() {
-    const redisUrl = this.configService.get<string>('REDIS_URL');
-
-    this.worker = new Worker(
+  async onApplicationBootstrap() {
+    await this.eventBus.subscribe<{ id: string }>(
       'push-processing',
-      async (job: Job) => {
-        const data = job.data as { id: string };
+      async (_event, data) => {
         await this.processPush(data.id);
       },
-      {
-        connection: new Redis(redisUrl || 'redis://redis:6379', {
-          maxRetriesPerRequest: null,
-        }),
-      },
+      { concurrency: 5 },
     );
-
-    this.worker.on('failed', (job, err) => {
-      this.logger.error(`Push Job ${job?.id} failed: ${err.message}`);
-    });
-  }
-
-  onApplicationShutdown() {
-    this.worker.close().catch((err: Error) => {
-      console.error('Error closing worker', err);
-    });
   }
 
   async processPush(outboxId: string) {

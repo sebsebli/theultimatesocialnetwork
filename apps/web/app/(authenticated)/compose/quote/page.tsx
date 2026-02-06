@@ -23,7 +23,9 @@ function QuoteComposeContent() {
       fetch(`/api/posts/${quotedPostId}`)
         .then((res) => res.json())
         .then((data) => setQuotedPost(data))
-        .catch((err) => console.error("Failed to fetch post", err));
+        .catch((err) => {
+          if (process.env.NODE_ENV !== "production") console.error("Failed to fetch post", err);
+        });
     }
   }, [quotedPostId]);
 
@@ -46,7 +48,7 @@ function QuoteComposeContent() {
         router.refresh();
       }
     } catch (error) {
-      console.error("Failed to publish quote", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to publish quote", error);
     } finally {
       setIsPublishing(false);
     }

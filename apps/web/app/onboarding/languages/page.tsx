@@ -51,7 +51,7 @@ export default function OnboardingLanguagesPage() {
       }
       router.push('/onboarding/profile');
     } catch (e) {
-      console.error('Failed to save languages', e);
+      if (process.env.NODE_ENV !== "production") console.error('Failed to save languages', e);
     }
   };
 
@@ -60,8 +60,8 @@ export default function OnboardingLanguagesPage() {
       <div className="w-full max-w-md md:max-w-lg space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-paper mb-2">Languages you read</h1>
-            <p className="text-secondary text-sm">This shapes Explore and recommendations.</p>
+            <h1 className="text-2xl font-semibold text-paper mb-2">What do you read?</h1>
+            <p className="text-secondary text-sm">Pick the languages you&apos;re comfortable reading in. This shapes your feed.</p>
           </div>
           <button
             onClick={() => {
@@ -82,6 +82,7 @@ export default function OnboardingLanguagesPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search languages..."
+            aria-label="Search languages"
             className="w-full h-12 px-4 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -92,8 +93,8 @@ export default function OnboardingLanguagesPage() {
               key={lang.code}
               onClick={() => toggleLanguage(lang.code)}
               className={`w-full p-3 rounded-lg border transition-colors text-left ${selectedLanguages.includes(lang.code)
-                  ? 'bg-primary/20 border-primary text-paper'
-                  : 'bg-white/5 border-white/10 text-secondary hover:bg-white/10'
+                ? 'bg-primary/20 border-primary text-paper'
+                : 'bg-white/5 border-white/10 text-secondary hover:bg-white/10'
                 }`}
             >
               <div className="flex items-center justify-between">
@@ -117,7 +118,7 @@ export default function OnboardingLanguagesPage() {
             className="w-4 h-4 text-primary"
           />
           <label htmlFor="show-only" className="text-sm text-secondary cursor-pointer">
-            Show only my languages in Explore
+            Only show posts in my languages
           </label>
         </div>
 

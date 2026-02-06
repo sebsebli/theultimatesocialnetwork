@@ -1,6 +1,10 @@
 # Persists across restarts: all services use restart: unless-stopped (containers
 # come back after host reboot when Docker daemon starts). Data lives in ./volumes/*
 # (db, neo4j, redis, meilisearch, minio, ollama, backups).
+#
+# Production hardening: log rotation, security_opt on all services.
+# No hard resource limits — containers use ALL available server CPU/RAM for maximum
+# performance. Postgres and Redis manage their own memory internally.
 services:
   # -----------------------------------------------------------------------------
   # CORE DATA
@@ -14,29 +18,62 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # Performance tuning: let Postgres use available RAM
+      # shared_buffers=25% of RAM, effective_cache_size=75% of RAM, work_mem for complex sorts
+      POSTGRES_INITDB_ARGS: "--data-checksums"
     volumes:
       - ./volumes/db:/var/lib/postgresql/data
+    command: >
+      postgres
+        -c shared_buffers=${PG_SHARED_BUFFERS:-512MB}
+        -c effective_cache_size=${PG_EFFECTIVE_CACHE:-2GB}
+        -c work_mem=${PG_WORK_MEM:-16MB}
+        -c maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-256MB}
+        -c wal_buffers=16MB
+        -c random_page_cost=1.1
+        -c effective_io_concurrency=200
+        -c max_connections=200
+        -c max_parallel_workers_per_gather=4
+        -c max_parallel_workers=8
+        -c max_worker_processes=8
+        -c checkpoint_completion_target=0.9
+        -c default_statistics_target=200
+        -c huge_pages=try
+        -c jit=on
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    shm_size: 512m
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   # PgBouncer: connection pooler in front of Postgres (API connects here).
-  # Image: https://hub.docker.com/r/edoburu/pgbouncer
   pgbouncer:
     image: edoburu/pgbouncer:latest
     container_name: citewalk-pgbouncer
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
-      # PostgreSQL 15+ uses SCRAM-SHA-256; PgBouncer must match (default md5 causes "wrong password type")
       AUTH_TYPE: scram-sha-256
-      # API (TypeORM) sends these; PgBouncer must ignore or it rejects the connection
       IGNORE_STARTUP_PARAMETERS: extra_float_digits,statement_timeout,idle_in_transaction_session_timeout
       POOL_MODE: transaction
-      MAX_CLIENT_CONN: 200
-      DEFAULT_POOL_SIZE: 25
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 40
+      MIN_POOL_SIZE: 10
+      RESERVE_POOL_SIZE: 10
+      RESERVE_POOL_TIMEOUT: 3
+      SERVER_IDLE_TIMEOUT: 600
+      SERVER_LIFETIME: 3600
+      SERVER_CONNECT_TIMEOUT: 15
+      QUERY_TIMEOUT: 30
     ports:
       - "127.0.0.1:6432:5432"
     depends_on:
@@ -48,6 +85,58 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Apache Kafka (KRaft mode — no Zookeeper required).
+  # Event streaming backbone for post/reply/follow/push/export processing.
+  # Single-node for dev/small prod; add more controller-quorum-voters for HA.
+  kafka:
+    image: apache/kafka:3.8.1
+    container_name: citewalk-kafka
+    environment:
+      # KRaft mode: combined controller + broker
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Listeners
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Performance tuning
+      KAFKA_NUM_PARTITIONS: ${KAFKA_PARTITIONS:-6}
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_LOG_RETENTION_HOURS: ${KAFKA_LOG_RETENTION_HOURS:-168}
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Cluster ID (required for KRaft — generate with: kafka-storage.sh random-uuid)
+      CLUSTER_ID: "citewalk-kafka-cluster-01"
+    volumes:
+      - ./volumes/kafka:/tmp/kraft-combined-logs
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   backup-full:
     build:
@@ -69,6 +158,7 @@ services:
       MINIO_BUCKET: citewalk-images
       BACKUP_DIR: /backups
       FULL_BACKUP_KEEP_DAYS: 7
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-21600}
     volumes:
       - ./volumes/backups:/backups
     command: >
@@ -76,8 +166,8 @@ services:
       echo 'Waiting for services...'; sleep 30;
       while true; do
         /usr/local/bin/backup-full.sh;
-        echo 'Sleeping 6 hours until next full backup...';
-        sleep 21600;
+        echo \"Sleeping $${BACKUP_INTERVAL_SECONDS:-21600}s until next full backup...\";
+        sleep $${BACKUP_INTERVAL_SECONDS:-21600};
       done
       "
     depends_on:
@@ -88,24 +178,46 @@ services:
       minio:
         condition: service_started
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Neo4j: graph database for citation graph traversal, recommendations, and discovery.
+  # Powers: post graph visualization, "For You" recommendations, deep dives, start-here,
+  # recommended people (mutual follows/co-citations), and network-proximity scoring.
+  # Workers sync all posts/replies/follows/mentions/citations here; services read graph queries.
   neo4j:
-    image: neo4j:2025.12.1-community
+    image: neo4j:5.26-community
     container_name: citewalk-neo4j
     ports:
-      - "127.0.0.1:7474:7474" # HTTP
-      - "127.0.0.1:7687:7687" # Bolt
+      - "127.0.0.1:7474:7474" # HTTP browser (dev only)
+      - "127.0.0.1:7687:7687" # Bolt protocol
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-password}
       NEO4J_apoc_export_file_enabled: "true"
       NEO4J_apoc_import_file_enabled: "true"
       NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
       NEO4J_PLUGINS: '["apoc"]'
+      # Performance tuning: use available server memory
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP_INITIAL:-512m}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_MAX:-1G}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-512m}
     volumes:
       - ./volumes/neo4j/data:/data
       - ./volumes/neo4j/logs:/logs
       - ./volumes/backups:/backups
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "${NEO4J_PASSWORD:-password}", "RETURN 1"]
       interval: 15s
@@ -120,8 +232,28 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - ./volumes/redis:/data
-    command: redis-server --maxmemory ${REDIS_MAXMEMORY:-256mb} --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+    command: >
+      redis-server
+        --maxmemory ${REDIS_MAXMEMORY:-512mb}
+        --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+        --tcp-backlog 511
+        --timeout 300
+        --hz 100
+        --dynamic-hz yes
+        --lazyfree-lazy-eviction yes
+        --lazyfree-lazy-expire yes
+        --lazyfree-lazy-server-del yes
+        --save ""
+        --io-threads ${REDIS_IO_THREADS:-2}
+        --io-threads-do-reads yes
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -142,6 +274,13 @@ services:
     volumes:
       - ./volumes/meilisearch:/meili_data
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:7700/health"]
       interval: 10s
@@ -167,6 +306,13 @@ services:
       - ./volumes/minio:/data
     command: server /data --console-address ":9001"
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 30s
@@ -183,6 +329,11 @@ services:
       - ./volumes/ollama:/root/.ollama
       - ./init-ollama.sh:/init-ollama.sh
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 10s
@@ -202,6 +353,13 @@ services:
       dockerfile: Dockerfile
     container_name: citewalk-nsfw-detector
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
       interval: 15s
@@ -263,6 +421,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
       CITE_ADMIN_SECRET: ${CITEWALK_ADMIN_SECRET:-dev-admin-change-me}
       METRICS_SECRET: ${METRICS_SECRET:-}
+      # Kafka event bus
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9092}
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -278,9 +438,18 @@ services:
         condition: service_started
       nsfw-detector:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health/live', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -317,6 +486,13 @@ services:
       api:
         condition: service_started
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
       interval: 30s
@@ -341,6 +517,13 @@ services:
       web:
         condition: service_started
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
       interval: 30s

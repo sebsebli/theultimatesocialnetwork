@@ -58,10 +58,12 @@ export default function RelevanceSettingsScreen() {
 
   useEffect(() => {
     // Fetch initial settings
-    api.get('/users/me').then((user: any) => {
-      if (user.preferences?.explore) {
-        const { showWhy: _omit, recommendationsEnabled, ...fetchedSliders } = user.preferences.explore;
-        setSliders(prev => ({ ...prev, ...fetchedSliders }));
+    api.get('/users/me').then((user: unknown) => {
+      const userObj = user as Record<string, unknown>;
+      const userPrefs = userObj.preferences as { explore?: Record<string, unknown> } | undefined;
+      if (userPrefs?.explore) {
+        const { showWhy: _omit, recommendationsEnabled, ...fetchedSliders } = userPrefs.explore;
+        setSliders(prev => ({ ...prev, ...fetchedSliders as typeof sliders }));
         setEnabled(recommendationsEnabled !== false);
       }
     });
@@ -77,7 +79,7 @@ export default function RelevanceSettingsScreen() {
       });
       router.back();
     } catch (error) {
-      console.error('Failed to save relevance settings', error);
+      if (__DEV__) console.error('Failed to save relevance settings', error);
     } finally {
       setSaving(false);
     }
@@ -175,7 +177,12 @@ export default function RelevanceSettingsScreen() {
               onValueChange={handleSliderChange}
             />
 
-            <Pressable onPress={handleReset} style={styles.resetButton}>
+            <Pressable
+              onPress={handleReset}
+              style={styles.resetButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('settings.resetDefaults')}
+            >
               <Text style={styles.resetText}>{t('settings.resetDefaults')}</Text>
             </Pressable>
           </View>

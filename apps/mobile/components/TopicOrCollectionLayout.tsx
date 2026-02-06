@@ -5,6 +5,7 @@ import {
   RefreshControl,
   Animated,
   SafeAreaView,
+  ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -29,7 +30,7 @@ import {
 } from "./HeaderIconButton";
 
 const AnimatedView = Animated.View as (
-  props: ViewProps & { style?: any },
+  props: ViewProps & { style?: ViewStyle },
 ) => React.ReactElement | null;
 
 const STICKY_HEADER_APPEAR = 120;
@@ -49,11 +50,11 @@ export interface TopicOrCollectionLayoutProps {
   heroOpacity: Animated.AnimatedInterpolation<number>;
   /** Scroll-driven opacity for sticky bar */
   stickyOpacity: Animated.AnimatedInterpolation<number>;
-  onScroll: (e: any) => void;
+  onScroll: (e: { nativeEvent: { contentOffset: { y: number } } }) => void;
   scrollY: Animated.Value;
-  data: any[];
-  keyExtractor: (item: any) => string;
-  renderItem: ({ item }: { item: any }) => React.ReactElement | null;
+  data: Record<string, unknown>[];
+  keyExtractor: (item: Record<string, unknown>) => string;
+  renderItem: ({ item }: { item: Record<string, unknown> }) => React.ReactElement | null;
   ListEmptyComponent: React.ReactNode;
   onRefresh: () => void;
   refreshing: boolean;
@@ -62,6 +63,8 @@ export interface TopicOrCollectionLayoutProps {
   loadingMore: boolean;
   /** Extra padding at bottom (e.g. safe area) */
   bottomPadding?: number;
+  /** Optional right element in sticky bar (e.g. more menu button) */
+  stickyBarRight?: React.ReactNode;
   /** Optional: action sheet, modals */
   children?: React.ReactNode;
 }
@@ -91,17 +94,20 @@ export function TopicOrCollectionLayout({
   hasMore,
   loadingMore,
   bottomPadding = 0,
+  stickyBarRight,
   children,
 }: TopicOrCollectionLayoutProps) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [stickyVisible, setStickyVisible] = React.useState(false);
+  // Slightly reduced top so overlay/sticky bar isn’t too low (min 8pt for small insets)
+  const barPaddingTop = Math.max(8, insets.top - 20);
 
   const paddingBottom =
     bottomPadding > 0 ? bottomPadding : insets.bottom + LIST_PADDING_EXTRA;
 
   const headerBar = (
-    <View style={[styles.headerBar, { paddingTop: insets.top }]}>
+    <View style={[styles.headerBar, { paddingTop: barPaddingTop }]}>
       <HeaderIconButton
         onPress={onBack}
         icon="arrow-back"
@@ -137,7 +143,7 @@ export function TopicOrCollectionLayout({
       <AnimatedView
         style={[
           styles.stickyBar,
-          { opacity: stickyOpacity, paddingTop: insets.top },
+          { opacity: stickyOpacity, paddingTop: barPaddingTop },
         ]}
         pointerEvents={stickyVisible ? "auto" : "none"}
       >
@@ -151,6 +157,7 @@ export function TopicOrCollectionLayout({
             {title}
           </Text>
           <View style={styles.stickyBarSpacer} />
+          {stickyBarRight ?? null}
         </View>
       </AnimatedView>
 
@@ -168,7 +175,7 @@ export function TopicOrCollectionLayout({
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           {
             useNativeDriver: true,
-            listener: (e: any) =>
+            listener: (e: { nativeEvent: { contentOffset: { y: number } } }) =>
               setStickyVisible(
                 e.nativeEvent.contentOffset.y > STICKY_HEADER_APPEAR,
               ),

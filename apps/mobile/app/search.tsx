@@ -10,6 +10,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
 import { api } from "../utils/api";
+import { getRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } from "../utils/recent-searches";
 import { PostItem } from "../components/PostItem";
 import { TopicCard } from "../components/ExploreCards";
 import { UserCard } from "../components/UserCard";
@@ -64,15 +65,20 @@ export default function SearchScreen() {
   const { t } = useTranslation();
 
   const [query, setQuery] = useState(initialQ || "");
-  const [posts, setPosts] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
-  const [topics, setTopics] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Record<string, unknown>[]>([]);
+  const [users, setUsers] = useState<Record<string, unknown>[]>([]);
+  const [topics, setTopics] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   useEffect(() => {
     if (initialQ) setQuery(initialQ);
   }, [initialQ]);
+
+  useEffect(() => {
+    getRecentSearches().then(setRecentSearches).catch(() => {});
+  }, []);
 
   const runSearch = useCallback(
     async (q: string) => {
@@ -84,18 +90,20 @@ export default function SearchScreen() {
         return;
       }
       setLoading(true);
+      addRecentSearch(trimmed).catch(() => {});
+      getRecentSearches().then(setRecentSearches).catch(() => {});
       try {
         const url = topicSlug
           ? `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}&topicSlug=${encodeURIComponent(topicSlug)}`
           : `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}`;
         const res = await api.get<{
-          posts: any[];
-          users: any[];
-          topics: any[];
+          posts: Record<string, unknown>[];
+          users: Record<string, unknown>[];
+          topics: Record<string, unknown>[];
         }>(url);
-        const rawPosts = (res.posts || []).filter((p: any) => !!p?.author);
+        const rawPosts = (res.posts || []).filter((p: Record<string, unknown>) => !!p?.author);
         const rawUsers = res.users || [];
-        const rawTopics = (res.topics || []).map((tpc: any) => ({
+        const rawTopics = (res.topics || []).map((tpc: Record<string, unknown>) => ({
           ...tpc,
           title: tpc.title || tpc.slug,
         }));
@@ -103,7 +111,7 @@ export default function SearchScreen() {
         setUsers(rawUsers);
         setTopics(rawTopics);
       } catch (err) {
-        console.error("Search failed", err);
+        if (__DEV__) console.error("Search failed", err);
         setPosts([]);
         setUsers([]);
         setTopics([]);
@@ -140,7 +148,7 @@ export default function SearchScreen() {
         key: "section-posts",
         title: t("search.posts", "Posts"),
       });
-      posts.forEach((p) => out.push({ type: "post", key: p.id, ...p }));
+      posts.forEach((p) => out.push({ type: "post", key: p.id as string, ...p }));
     }
     if (users.length > 0) {
       out.push({
@@ -148,7 +156,7 @@ export default function SearchScreen() {
         key: "section-people",
         title: t("search.people", "People"),
       });
-      users.forEach((u) => out.push({ type: "user", key: u.id, ...u }));
+      users.forEach((u) => out.push({ type: "user", key: u.id as string, ...u }));
     }
     if (topics.length > 0) {
       out.push({
@@ -157,7 +165,7 @@ export default function SearchScreen() {
         title: t("search.topics", "Topics"),
       });
       topics.forEach((tpc) =>
-        out.push({ type: "topic", key: tpc.id || tpc.slug, ...tpc }),
+        out.push({ type: "topic", key: (tpc.id || tpc.slug) as string, ...tpc }),
       );
     }
     return out;
@@ -206,6 +214,51 @@ export default function SearchScreen() {
         </View>
       );
     }
+    if (!query.trim() && recentSearches.length > 0) {
+      return (
+        <View style={{ paddingHorizontal: SPACING.l, paddingTop: SPACING.l }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
+            <Text style={{ fontSize: 13, fontFamily: FONTS.semiBold, color: COLORS.tertiary, textTransform: 'uppercase', letterSpacing: 1 }}>
+              {t("search.recentSearches", "Recent searches")}
+            </Text>
+            <Pressable 
+              onPress={() => {
+                clearRecentSearches();
+                setRecentSearches([]);
+              }}
+              hitSlop={12}
+              accessibilityLabel={t("search.clearRecent", "Clear recent searches")}
+            >
+              <Text style={{ fontSize: 13, fontFamily: FONTS.medium, color: COLORS.primary }}>
+                {t("common.clear", "Clear")}
+              </Text>
+            </Pressable>
+          </View>
+          {recentSearches.map((item) => (
+            <Pressable
+              key={item}
+              onPress={() => setQuery(item)}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.m, borderBottomWidth: 1, borderBottomColor: COLORS.divider }}
+              accessibilityLabel={`${t("search.searchFor", "Search for")} ${item}`}
+              accessibilityRole="button"
+            >
+              <MaterialIcons name="history" size={20} color={COLORS.tertiary} style={{ marginRight: SPACING.m }} />
+              <Text style={{ flex: 1, fontSize: 15, color: COLORS.paper, fontFamily: FONTS.regular }} numberOfLines={1}>{item}</Text>
+              <Pressable
+                onPress={async () => {
+                  const updated = await removeRecentSearch(item);
+                  setRecentSearches(updated);
+                }}
+                hitSlop={12}
+                accessibilityLabel={t("common.remove", "Remove")}
+              >
+                <MaterialIcons name="close" size={18} color={COLORS.tertiary} />
+              </Pressable>
+            </Pressable>
+          ))}
+        </View>
+      );
+    }
     return (
       <View style={emptyStateCenterWrapStyle}>
         <EmptyState
@@ -228,7 +281,7 @@ export default function SearchScreen() {
         />
       </View>
     );
-  }, [loading, query, topicSlug, t]);
+  }, [loading, query, topicSlug, t, recentSearches]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

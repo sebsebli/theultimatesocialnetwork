@@ -2,10 +2,12 @@
 
 import { useState, useEffect, memo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useToast } from "./ui/toast";
 import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
+import { sanitizeHTML } from "@/lib/sanitize-html";
 import { getImageUrl } from "@/lib/security";
 import { getPostDisplayTitle } from "@/utils/compose-helpers";
 import { Avatar } from "./avatar";
@@ -47,18 +49,31 @@ export interface PostDetailProps {
   };
   /** When true, viewer is not authenticated; hide actions and comments */
   isPublic?: boolean;
+  /** When set, scroll to and highlight this reply (e.g. from notification link) */
+  highlightReplyId?: string | null;
 }
 
-function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
+function PostDetailInner({
+  post,
+  isPublic = false,
+  highlightReplyId,
+}: PostDetailProps) {
   const t = useTranslations("post");
+  const router = useRouter();
   const { success: toastSuccess, error: toastError } = useToast();
   const { user } = useAuth();
   const [liked, setLiked] = useState(false);
+  const [likeAnimating, setLikeAnimating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [kept, setKept] = useState(false);
   const [showAddToCollection, setShowAddToCollection] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [postTab, setPostTab] = useState<"sources" | "referenced" | "graph">(
+    "sources",
+  );
   const startTimeRef = useRef<number>(Date.now());
+  const tabsSectionRef = useRef<HTMLElement | null>(null);
 
   const isAuthor = !!user && user.id === post.author.id;
 
@@ -74,13 +89,16 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
 
   useEffect(() => {
     // Track view on mount
+    let _cancelled = false;
     if (!isPublic) {
-      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => { });
+      fetch(`/api/posts/${post.id}/view`, { method: "POST" })
+        .catch(() => { /* view tracking best-effort */ });
     }
 
     // Track read time on unmount
     startTimeRef.current = Date.now();
     return () => {
+      _cancelled = true;
       const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
       if (duration > 5 && !isPublic) {
         fetch(`/api/posts/${post.id}/read-time`, {
@@ -88,7 +106,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ duration }),
           keepalive: true, // Ensure request sends even if navigating away
-        }).catch(() => { });
+        }).catch(() => { /* read-time tracking best-effort */ });
       }
     };
   }, [post.id, isPublic]);
@@ -102,6 +120,8 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
   }, []);
 
   const handleLike = async () => {
+    setLikeAnimating(true);
+    setTimeout(() => setLikeAnimating(false), 150);
     const previous = liked;
     setLiked(!previous); // Optimistic update
 
@@ -158,7 +178,36 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
     setShowShareModal(true);
   };
 
+  const handleDelete = async () => {
+    if (isPublic || !isAuthor || deleting) return;
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/posts/${post.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.error ?? "Failed to delete post");
+      }
+      router.push("/");
+    } catch {
+      toastError("Failed to delete post");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const showPrivateContent = post.viewerCanSeeContent !== false;
+
+  // Tabs: Sources (when content visible) | Quoted by | Graph
+  const postTabs = showPrivateContent
+    ? (["sources", "referenced", "graph"] as const)
+    : (["referenced", "graph"] as const);
+  const activePostTab = (postTabs as readonly string[]).includes(postTab)
+    ? postTab
+    : postTabs[0];
 
   if (post.deletedAt) {
     const deletedDate = new Date(post.deletedAt);
@@ -174,6 +223,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
             <Link
               href={isPublic ? "/" : "/home"}
               className="text-secondary hover:text-paper"
+              aria-label="Back"
             >
               <svg
                 className="w-6 h-6"
@@ -234,6 +284,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
           <Link
             href={isPublic ? "/" : "/home"}
             className="text-secondary hover:text-paper"
+            aria-label="Back"
           >
             <svg
               className="w-6 h-6"
@@ -252,8 +303,10 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
           <OverflowMenu
             postId={post.id}
             userId={post.author.id}
+            userHandle={post.author.handle}
             isAuthor={isAuthor}
             onReport={() => setShowReportModal(true)}
+            onDelete={isAuthor && !isPublic ? handleDelete : undefined}
             onCopyLink={
               !post.author?.isProtected
                 ? () => {
@@ -374,14 +427,18 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
               <div
                 className="text-[18px] leading-relaxed text-secondary font-normal prose prose-invert max-w-none"
                 dangerouslySetInnerHTML={{
-                  __html: renderMarkdown(
-                    stripLeadingH1IfMatch(
-                      post.body,
-                      (post.title ?? getPostDisplayTitle(post)) || undefined,
+                  // Safe: Content is sanitized HTML from renderMarkdown which processes user markdown
+                  // and escapes dangerous content. Additional DOMPurify sanitization ensures XSS protection.
+                  __html: sanitizeHTML(
+                    renderMarkdown(
+                      stripLeadingH1IfMatch(
+                        post.body,
+                        (post.title ?? getPostDisplayTitle(post)) || undefined,
+                      ),
+                      {
+                        referenceMetadata: post.referenceMetadata ?? undefined,
+                      },
                     ),
-                    {
-                      referenceMetadata: post.referenceMetadata ?? undefined,
-                    },
                   ),
                 }}
               />
@@ -446,10 +503,11 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
           </Link>
           <button
             onClick={handleLike}
-            className={`flex items-center gap-2 hover:text-primary transition-colors ${liked ? "text-red-500" : "text-tertiary"}`}
+            className={`flex items-center gap-2 hover:text-primary transition-colors duration-200 ${liked ? "text-red-500" : "text-tertiary"}`}
+            aria-label={liked ? "Unlike post" : "Like post"}
           >
             <svg
-              className={`w-5 h-5 ${liked ? "fill-current" : ""}`}
+              className={`w-5 h-5 transition-transform duration-150 ${likeAnimating ? "scale-125" : "scale-100"} ${liked ? "fill-current" : ""}`}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -472,6 +530,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
               }
             }}
             className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
+            aria-label="Reply to post"
           >
             <svg
               className="w-5 h-5"
@@ -494,6 +553,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
               // Link will handle nav if not public, but we need to intercept
             }}
             className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
+            aria-label="Quote post"
           >
             {isPublic ? (
               <div className="flex items-center gap-2">
@@ -537,6 +597,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
           <button
             onClick={handleKeep}
             className={`flex items-center gap-2 transition-colors ${kept ? "text-primary" : "text-tertiary hover:text-primary"}`}
+            aria-label={kept ? "Remove from saved" : "Save post"}
           >
             <svg
               className="w-5 h-5"
@@ -559,6 +620,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
               else setShowAddToCollection(true);
             }}
             className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
+            aria-label="Add to collection"
           >
             <svg
               className="w-5 h-5"
@@ -575,10 +637,41 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
             </svg>
             <span className="text-sm">Add</span>
           </button>
+          <button
+            onClick={() => {
+              setPostTab("graph");
+              requestAnimationFrame(() => {
+                tabsSectionRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              });
+            }}
+            className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
+            type="button"
+            aria-label="View citation graph"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+              />
+            </svg>
+            <span className="text-sm">Graph</span>
+          </button>
           {!post.author?.isProtected && (
             <button
               onClick={handleShare}
               className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
+              aria-label="Share post"
             >
               <svg
                 className="w-5 h-5"
@@ -599,21 +692,51 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
         </div>
       </article>
 
-      {/* Sections: Sources -> Graph -> ReferencedBy -> Replies (Mobile Order). Hide Sources when content is private. */}
+      {/* Tabs: Sources (if content visible) | Quoted by | Graph — then Replies */}
       <div className={`px-5 py-6 space-y-8 ${isPublic ? "pb-24" : ""}`}>
-        {showPrivateContent && (
-          <SourcesSection postId={post.id} postBody={post.body} />
-        )}
-
-        <GraphView postId={post.id} />
-
-        {/* Referenced by — only when post has been quoted */}
-        {(post.quoteCount ?? 0) > 0 && (
-          <ReferencedBySection
-            postId={post.id}
-            quoteCount={post.quoteCount ?? 0}
-          />
-        )}
+        <section
+          ref={tabsSectionRef}
+          className="border-t border-divider pt-6"
+        >
+          <div className="flex border-b border-divider mb-4 overflow-x-auto no-scrollbar">
+            {postTabs.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setPostTab(tab)}
+                className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activePostTab === tab
+                  ? "border-primary text-paper"
+                  : "border-transparent text-tertiary hover:text-paper"
+                  }`}
+              >
+                {tab === "sources"
+                  ? "Sources"
+                  : tab === "referenced"
+                    ? `Quoted by${(post.quoteCount ?? 0) > 0 ? ` (${post.quoteCount})` : ""}`
+                    : "Graph"}
+              </button>
+            ))}
+          </div>
+          <div className="min-h-[140px]">
+            {activePostTab === "sources" && showPrivateContent && (
+              <SourcesSection
+                postId={post.id}
+                postBody={post.body}
+                asTabContent
+              />
+            )}
+            {activePostTab === "referenced" && (
+              <ReferencedBySection
+                postId={post.id}
+                quoteCount={post.quoteCount ?? 0}
+                asTabContent
+              />
+            )}
+            {activePostTab === "graph" && (
+              <GraphView postId={post.id} asTabContent />
+            )}
+          </div>
+        </section>
 
         {/* Replies Section - id for #reply hash; scroll-into-view handled below */}
         <section id="reply" aria-label="Replies">
@@ -621,6 +744,7 @@ function PostDetailInner({ post, isPublic = false }: PostDetailProps) {
             postId={post.id}
             replyCount={post.replyCount ?? 0}
             isPublic={isPublic}
+            highlightReplyId={highlightReplyId}
           />
         </section>
       </div>

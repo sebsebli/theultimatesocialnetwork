@@ -22,6 +22,7 @@ import {
   EmptyState,
   emptyStateCenterWrapStyle,
 } from "../components/EmptyState";
+import { ErrorState } from "../components/ErrorState";
 import { MessageListSkeleton } from "../components/LoadingSkeleton";
 
 /** Notifications-only screen (bell). Messages are in the Messages tab. */
@@ -30,12 +31,69 @@ export default function NotificationsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { on, off } = useSocket();
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  interface GroupedNotification {
+    key: string;
+    type: string;
+    actors: { handle?: string; displayName?: string }[];
+    post?: { id?: string; title?: string };
+    postId?: string;
+    replyId?: string;
+    readAt?: string | null;
+    latestCreatedAt?: string;
+    count: number;
+    originalItems: Record<string, unknown>[];
+  }
+
+  const groupedNotifications = useMemo((): GroupedNotification[] => {
+    const groups: Map<string, GroupedNotification> = new Map();
+    const result: GroupedNotification[] = [];
+    
+    for (const notif of notifications) {
+      const type = notif.type as string;
+      const post = notif.post as { id?: string; title?: string } | undefined;
+      const postId = (post?.id ?? notif.postId ?? '') as string;
+      const actor = notif.actor as { handle?: string; displayName?: string } | undefined;
+      
+      // Only group LIKE and FOLLOW notifications (these are the ones that commonly batch)
+      const groupable = type === 'LIKE' || type === 'FOLLOW';
+      const groupKey = groupable ? `${type}:${postId}` : `single:${notif.id as string}`;
+      
+      const existing = groups.get(groupKey);
+      if (existing && groupable) {
+        if (actor && !existing.actors.some(a => a.handle === actor.handle)) {
+          existing.actors.push(actor);
+        }
+        existing.count++;
+        existing.originalItems.push(notif);
+        if (!existing.readAt && !notif.readAt) existing.readAt = null;
+      } else {
+        const group: GroupedNotification = {
+          key: groupKey + ':' + (notif.id as string),
+          type,
+          actors: actor ? [actor] : [],
+          post,
+          postId: postId || undefined,
+          replyId: notif.replyId as string | undefined,
+          readAt: notif.readAt as string | null | undefined,
+          latestCreatedAt: notif.createdAt as string | undefined,
+          count: 1,
+          originalItems: [notif],
+        };
+        groups.set(groupKey, group);
+        result.push(group);
+      }
+    }
+    
+    return result;
+  }, [notifications]);
 
   useEffect(() => {
     const handleNotification = () => loadContent(1, true);
@@ -55,16 +113,28 @@ export default function NotificationsScreen() {
       setLoadingMore(true);
     }
     try {
-      const data = await api.get(`/notifications?page=${pageNum}&limit=20`);
-      const items = Array.isArray(data.items || data) ? data.items || data : [];
+      const data = await api.get<{
+        items?: unknown[];
+        hasMore?: boolean;
+      } | unknown[]>(`/notifications?page=${pageNum}&limit=20`);
+      const items = Array.isArray(data)
+        ? (data as Record<string, unknown>[])
+        : Array.isArray((data as { items?: unknown[] }).items)
+          ? ((data as { items: unknown[] }).items as Record<string, unknown>[])
+          : [];
       if (reset) {
         setNotifications(items);
       } else {
         setNotifications((prev) => [...prev, ...items]);
       }
-      setHasMore(items.length === 20 && data.hasMore !== false);
+      const paginatedData = Array.isArray(data) ? null : (data as { hasMore?: boolean });
+      setHasMore(items.length === 20 && paginatedData?.hasMore !== false);
+      setError(null);
     } catch (error) {
-      console.error("Failed to load notifications", error);
+      if (__DEV__) console.error("Failed to load notifications", error);
+      if (reset) {
+        setError(t("notifications.loadError", "Failed to load notifications"));
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -86,52 +156,69 @@ export default function NotificationsScreen() {
   }, []);
 
   const renderNotification = useCallback(
-    ({ item }: { item: any }) => (
-      <Pressable
-        style={styles.notification}
-        onPress={() => {
-          if (item.type === "FOLLOW" && item.actor?.handle) {
-            router.push(`/user/${item.actor.handle}`);
-          } else if (
-            item.type === "MENTION" &&
-            item.replyId &&
-            (item.post?.id || item.postId)
-          ) {
-            const postId = item.post?.id ?? item.postId;
-            router.push({
-              pathname: `/post/${postId}/comments`,
-              params: { replyId: item.replyId },
-            });
-          } else if (item.post?.id || item.postId) {
-            router.push(`/post/${item.post?.id ?? item.postId}`);
-          }
-        }}
-        accessibilityRole="button"
-      >
-        <View style={styles.notificationContent}>
-          <Text style={styles.notificationText}>
-            {item.actor?.displayName}{" "}
-            {item.type === "FOLLOW"
-              ? t("inbox.startedFollowing")
-              : item.type === "REPLY"
-                ? t("inbox.repliedToPost")
-                : item.type === "QUOTE"
-                  ? t("inbox.quotedPost")
-                  : item.type === "LIKE"
-                    ? t("inbox.likedPost")
-                    : item.type === "MENTION"
-                      ? t("inbox.mentionedYou")
-                      : t("inbox.interactedWithYou")}
-          </Text>
-          {!item.readAt && (
-            <View
-              style={styles.unreadDot}
-              accessibilityLabel={t("inbox.unread", "Unread")}
-            />
-          )}
-        </View>
-      </Pressable>
-    ),
+    ({ item }: { item: GroupedNotification }) => {
+      const actorNames = item.actors.map(a => a.displayName || a.handle || '').filter(Boolean);
+      let displayText = '';
+      
+      if (actorNames.length === 0) {
+        displayText = t("inbox.interactedWithYou");
+      } else if (actorNames.length === 1) {
+        displayText = actorNames[0];
+      } else if (actorNames.length === 2) {
+        displayText = `${actorNames[0]} ${t("common.and", "and")} ${actorNames[1]}`;
+      } else {
+        displayText = `${actorNames[0]}, ${actorNames[1]}, ${t("notifications.andOthers", "and {{count}} others", { count: item.count - 2 })}`;
+      }
+      
+      const actionText = item.type === "FOLLOW"
+        ? t("inbox.startedFollowing")
+        : item.type === "REPLY"
+          ? t("inbox.repliedToPost")
+          : item.type === "QUOTE"
+            ? t("inbox.quotedPost")
+            : item.type === "LIKE"
+              ? t("inbox.likedPost")
+              : item.type === "MENTION"
+                ? t("inbox.mentionedYou")
+                : t("inbox.interactedWithYou");
+      
+      return (
+        <Pressable
+          style={styles.notification}
+          onPress={() => {
+            if (item.type === "FOLLOW" && item.actors[0]?.handle) {
+              router.push(`/user/${item.actors[0].handle}`);
+            } else if (
+              item.type === "MENTION" &&
+              item.replyId &&
+              (item.post?.id || item.postId)
+            ) {
+              const pId = item.post?.id ?? item.postId;
+              router.push({
+                pathname: `/post/${pId}/comments`,
+                params: { replyId: item.replyId },
+              });
+            } else if (item.post?.id || item.postId) {
+              router.push(`/post/${item.post?.id ?? item.postId}`);
+            }
+          }}
+          accessibilityLabel={`${displayText} ${actionText}`}
+          accessibilityRole="button"
+        >
+          <View style={styles.notificationContent}>
+            <Text style={styles.notificationText}>
+              {displayText} {actionText}
+            </Text>
+            {!item.readAt && (
+              <View
+                style={styles.unreadDot}
+                accessibilityLabel={t("inbox.unread", "Unread")}
+              />
+            )}
+          </View>
+        </Pressable>
+      );
+    },
     [t, router],
   );
 
@@ -148,7 +235,7 @@ export default function NotificationsScreen() {
                   await api.post("/notifications/read-all");
                   loadContent(1, true);
                 } catch (error) {
-                  console.error("Failed to mark all read", error);
+                  if (__DEV__) console.error("Failed to mark all read", error);
                 }
               }}
               icon="done-all"
@@ -162,15 +249,23 @@ export default function NotificationsScreen() {
       />
 
       <FlatList
-        data={notifications}
+        data={groupedNotifications}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={(item: GroupedNotification) => item.key}
         renderItem={renderNotification}
         ListEmptyComponent={
           <View style={emptyStateCenterWrapStyle}>
             {loading ? (
               <MessageListSkeleton count={5} />
+            ) : error ? (
+              <ErrorState
+                message={error}
+                onRetry={() => {
+                  setError(null);
+                  loadContent(1, true);
+                }}
+              />
             ) : (
               <EmptyState
                 icon="notifications-none"

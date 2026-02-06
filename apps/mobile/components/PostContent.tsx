@@ -3,7 +3,6 @@ import {
   Text,
   View,
   Pressable,
-  Linking,
   useWindowDimensions,
 } from "react-native";
 import { Image } from "expo-image";
@@ -11,7 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
-import * as WebBrowser from "expo-web-browser";
+import { useOpenExternalLink } from "../hooks/useOpenExternalLink";
 import { MarkdownText } from "./MarkdownText";
 import { Avatar } from "./Avatar";
 import {
@@ -25,6 +24,12 @@ import {
 import { getAvatarUri, getPostHeaderImageUri } from "../utils/api";
 
 import { Post } from "../types";
+
+type SourceItem =
+  | { type: "external"; url: string; title: string | null; icon: string }
+  | { type: "post"; id: string; title: string; icon: string }
+  | { type: "topic"; title: string; slug: string; alias?: string; icon: string }
+  | { type: "user"; handle: string; title: string; icon: string };
 
 interface PostContentProps {
   post: Partial<Post> & Pick<Post, "id" | "body" | "createdAt">;
@@ -55,6 +60,7 @@ function PostContentInner({
     isPrivateForViewer === true || post.viewerCanSeeContent === false;
   const router = useRouter();
   const { t } = useTranslation();
+  const { openExternalLink } = useOpenExternalLink();
   const { width: screenWidth } = useWindowDimensions();
   const headerImageHeight = Math.round(screenWidth * (1 / HEADER_IMAGE_ASPECT));
 
@@ -89,19 +95,15 @@ function PostContentInner({
     }
   };
 
-  const handleSourcePress = async (source: any) => {
+  const handleSourcePress = async (source: SourceItem) => {
     if (disableNavigation) return;
     if (source.type === "external") {
-      await WebBrowser.openBrowserAsync(source.url, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-        toolbarColor: COLORS.ink,
-        controlsColor: COLORS.primary,
-      });
+      await openExternalLink(source.url);
     } else if (source.type === "post") {
       router.push(`/post/${source.id}`);
     } else if (source.type === "topic") {
       router.push(
-        `/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? "")}`,
+        `/topic/${encodeURIComponent(source.slug ?? source.title ?? "")}`,
       );
     } else if (source.type === "user") {
       router.push(`/user/${source.handle}`);
@@ -121,9 +123,9 @@ function PostContentInner({
     !hasExplicitTitle && fullDisplayBody.trim().length > 0;
   const bodyHeadline = noTitleUseBodyHeadline
     ? (fullDisplayBody.includes("\n")
-        ? fullDisplayBody.slice(0, fullDisplayBody.indexOf("\n")).trim()
-        : fullDisplayBody.trim()
-      ).slice(0, 120)
+      ? fullDisplayBody.slice(0, fullDisplayBody.indexOf("\n")).trim()
+      : fullDisplayBody.trim()
+    ).slice(0, 120)
     : "";
   const bodyAfterHeadline =
     noTitleUseBodyHeadline && fullDisplayBody.includes("\n")
@@ -168,11 +170,11 @@ function PostContentInner({
 
   // Extract sources (deduplicated by canonical key)
   const sources = useMemo(() => {
-    const list: any[] = [];
+    const list: SourceItem[] = [];
     if (!post.body) return list;
     const seen = new Set<string>();
 
-    const add = (item: any, key: string) => {
+    const add = (item: SourceItem, key: string) => {
       if (seen.has(key)) return;
       seen.add(key);
       list.push(item);
@@ -195,7 +197,7 @@ function PostContentInner({
         url = a;
         title = b || null;
       } else continue;
-      add({ type: "external", title, url, icon: "link" }, `ext-${url}`);
+      add({ type: "external", title, url, icon: "link" } as SourceItem, `ext-${url}`);
     }
 
     // Post links [[post:id|alias]]
@@ -210,9 +212,9 @@ function PostContentInner({
         {
           type: "post",
           id,
-          title: alias || resolvedTitle || "Referenced Post",
+          title: alias || resolvedTitle || t("post.referencedPost", "Referenced Post"),
           icon: "description",
-        },
+        } as SourceItem,
         `post-${id}`,
       );
     }
@@ -230,7 +232,7 @@ function PostContentInner({
             slug,
             alias: parts[1],
             icon: "tag",
-          },
+          } as SourceItem,
           `topic-${slug}`,
         );
       }
@@ -241,7 +243,7 @@ function PostContentInner({
     while ((match = mentionRegex.exec(post.body)) !== null) {
       const handle = match[1];
       add(
-        { type: "user", handle, title: `@${handle}`, icon: "person" },
+        { type: "user", handle, title: `@${handle}`, icon: "person" } as SourceItem,
         `user-${handle}`,
       );
     }
@@ -261,6 +263,12 @@ function PostContentInner({
         ]}
         onPress={handleAuthorPress}
         disabled={disableNavigation}
+        accessibilityLabel={
+          post.author?.displayName ||
+          post.author?.handle ||
+          t("post.unknownUser", "Unknown")
+        }
+        accessibilityRole="button"
       >
         <Avatar
           name={post.author.displayName}
@@ -294,6 +302,8 @@ function PostContentInner({
               { padding: 4 },
               pressed && { opacity: 0.5 },
             ]}
+            accessibilityLabel={t("post.options", "More options")}
+            accessibilityRole="button"
           >
             <MaterialIcons
               name="more-horiz"
@@ -313,6 +323,8 @@ function PostContentInner({
             styles.content,
             pressed && !disableNavigation && { opacity: 0.95 },
           ]}
+          accessibilityLabel={t("common.viewProfile", "View post") || "View post"}
+          accessibilityRole="button"
         >
           <View style={styles.headerTappable}>
             {imageSource ? (
@@ -400,19 +412,29 @@ function PostContentInner({
           </Text>
           {sources.map((source, index) => (
             <Pressable
-              key={index}
+              key={
+                source.type === "external"
+                  ? `ext-${source.url}`
+                  : source.type === "post"
+                    ? `post-${source.id}`
+                    : source.type === "topic"
+                      ? `topic-${source.slug}`
+                      : `user-${source.handle}`
+              }
               style={({ pressed }: { pressed: boolean }) => [
                 styles.sourceItem,
                 pressed && { backgroundColor: COLORS.hover },
               ]}
               onPress={() => handleSourcePress(source)}
+              accessibilityLabel={t("post.source", "View source") || "View source"}
+              accessibilityRole="button"
             >
               <Text style={styles.sourceNumber}>{index + 1}</Text>
               <View style={styles.sourceIcon}>
                 <Text style={styles.sourceIconText}>
                   {source.type === "external" && source.url
                     ? new URL(source.url).hostname.charAt(0).toUpperCase()
-                    : (source.title || "?").charAt(0).toUpperCase()}
+                    : (source.title ?? "?").charAt(0).toUpperCase()}
                 </Text>
               </View>
               <View style={styles.sourceContent}>
@@ -420,11 +442,15 @@ function PostContentInner({
                   {source.type === "external" && source.url
                     ? new URL(source.url).hostname
                     : source.type === "user"
-                      ? "User"
-                      : "Topic/Post"}
+                      ? t("common.user", "User")
+                      : t("common.topicOrPost", "Topic/Post")}
                 </Text>
                 <Text style={styles.sourceText} numberOfLines={1}>
-                  {source.alias || source.title || source.handle}
+                  {source.type === "topic" && source.alias
+                    ? source.alias
+                    : source.type === "user"
+                      ? source.handle
+                      : source.title ?? ""}
                 </Text>
               </View>
               <MaterialIcons
@@ -453,7 +479,7 @@ const styles = createStyles({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.72)",
+    backgroundColor: COLORS.overlayHeavy,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: SIZES.borderRadius,
@@ -558,7 +584,7 @@ const styles = createStyles({
     bottom: 0,
     paddingVertical: SPACING.m,
     paddingHorizontal: SPACING.m,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: COLORS.overlay,
   },
   headerImageTitle: {
     fontSize: 26,

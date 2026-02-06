@@ -21,11 +21,12 @@ import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as WebBrowser from "expo-web-browser";
+import { useOpenExternalLink } from "../../hooks/useOpenExternalLink";
 import {
   api,
   getWebAppBaseUrl,
   getCollectionPreviewImageUri,
+  getImageUrl,
 } from "../../utils/api";
 import { useAuth } from "../../context/auth";
 import { useToast } from "../../context/ToastContext";
@@ -33,6 +34,7 @@ import { OptionsActionSheet } from "../../components/OptionsActionSheet";
 import { ConfirmModal } from "../../components/ConfirmModal";
 import { PostItem } from "../../components/PostItem";
 import { UserCard } from "../../components/UserCard";
+import { SourceOrPostCard } from "../../components/SourceOrPostCard";
 import { TopicCollectionHeader } from "../../components/TopicCollectionHeader";
 import { TopicOrCollectionLayout } from "../../components/TopicOrCollectionLayout";
 import {
@@ -52,6 +54,7 @@ import {
   SEARCH_BAR,
   TABS,
   LIST_SCROLL_DEFAULTS,
+  toDimension,
 } from "../../constants/theme";
 
 const ITEMS_PAGE_SIZE = 20;
@@ -65,6 +68,7 @@ export default function CollectionDetailScreen() {
   const { t } = useTranslation();
   const { userId } = useAuth();
   const { showToast, showSuccess, showError } = useToast();
+  const { openExternalLink } = useOpenExternalLink();
   const [collection, setCollection] = useState<Collection | null>(null);
   const isOwner =
     !!collection?.ownerId && !!userId && collection.ownerId === userId;
@@ -77,12 +81,12 @@ export default function CollectionDetailScreen() {
       | CollectionItem
       | { id: string; url: string; title: string | null }
       | {
-          id: string;
-          handle: string;
-          displayName: string;
-          postCount: number;
-          totalQuotes: number;
-        }
+        id: string;
+        handle: string;
+        displayName: string;
+        postCount: number;
+        totalQuotes: number;
+      }
     )[]
   >([]);
   const [loading, setLoading] = useState(true);
@@ -176,14 +180,14 @@ export default function CollectionDetailScreen() {
     setEditTitle(collection.title);
     setEditDescription(collection.description ?? "");
     setEditIsPublic(collection.isPublic !== false);
-    setEditShareSaves(!!(collection as any).shareSaves);
+    setEditShareSaves(!!collection.shareSaves);
     setEditModalVisible(true);
   }, [collection]);
 
   const handleSaveEdit = async () => {
     if (!editTitle.trim()) return;
     try {
-      const updated = await api.patch(`/collections/${collectionId}`, {
+      const updated = await api.patch<Collection & { shareSaves?: boolean }>(`/collections/${collectionId}`, {
         title: editTitle.trim(),
         description: editDescription.trim() || undefined,
         isPublic: editIsPublic,
@@ -192,15 +196,15 @@ export default function CollectionDetailScreen() {
       setCollection((prev) =>
         prev
           ? {
-              ...prev,
-              ...updated,
-              title: updated.title ?? prev.title,
-              description: updated.description ?? prev.description,
-              isPublic: updated.isPublic ?? prev.isPublic,
-            }
+            ...prev,
+            ...updated,
+            title: updated.title ?? prev.title,
+            description: updated.description ?? prev.description,
+            isPublic: updated.isPublic ?? prev.isPublic,
+          }
           : null,
       );
-      setShareSaves(!!(updated as any).shareSaves);
+      setShareSaves(!!updated.shareSaves);
       setEditModalVisible(false);
       showSuccess(t("common.saved", "Saved"));
     } catch (error) {
@@ -220,11 +224,11 @@ export default function CollectionDetailScreen() {
       }
       try {
         if (reset) {
-          const collectionData = await api.get(
+          const collectionData = await api.get<Collection & { items?: CollectionItem[]; hasMore?: boolean; shareSaves?: boolean }>(
             `/collections/${collectionId}?limit=${ITEMS_PAGE_SIZE}&offset=0`,
           );
           setCollection(collectionData);
-          setShareSaves(!!(collectionData as any).shareSaves);
+          setShareSaves(!!collectionData.shareSaves);
           if (tab === "newest") {
             const itemsList = Array.isArray(collectionData?.items)
               ? collectionData.items
@@ -239,7 +243,7 @@ export default function CollectionDetailScreen() {
           }
         }
         if (tab === "newest" && !reset) {
-          const itemsData = await api.get(
+          const itemsData = await api.get<{ items?: CollectionItem[]; hasMore?: boolean }>(
             `/collections/${collectionId}/items?limit=${ITEMS_PAGE_SIZE}&offset=${pageOrOffset}&sort=recent`,
           );
           const itemsList = Array.isArray(itemsData?.items)
@@ -249,7 +253,7 @@ export default function CollectionDetailScreen() {
           setHasMore(itemsData?.hasMore === true);
           setNextOffset(pageOrOffset + itemsList.length);
         } else if (tab === "ranked") {
-          const itemsData = await api.get(
+          const itemsData = await api.get<{ items?: CollectionItem[]; hasMore?: boolean }>(
             `/collections/${collectionId}/items?limit=${ITEMS_PAGE_SIZE}&offset=${reset ? 0 : pageOrOffset}&sort=ranked`,
           );
           const itemsList = Array.isArray(itemsData?.items)
@@ -260,21 +264,21 @@ export default function CollectionDetailScreen() {
           setHasMore(itemsData?.hasMore === true);
           setNextOffset((reset ? 0 : pageOrOffset) + itemsList.length);
         } else if (tab === "sources") {
-          const res = (await api.get(
+          const res = await api.get<{ items?: Record<string, unknown>[]; hasMore?: boolean }>(
             `/collections/${collectionId}/sources?page=${pageOrOffset}&limit=${ITEMS_PAGE_SIZE}`,
-          )) as { items?: any[]; hasMore?: boolean };
+          );
           const list = Array.isArray(res?.items) ? res.items : [];
-          if (reset) setItems(list);
-          else setItems((prev) => [...prev, ...list]);
+          if (reset) setItems(list as unknown as typeof items);
+          else setItems((prev) => [...prev, ...(list as unknown as typeof items)]);
           setHasMore(list.length === ITEMS_PAGE_SIZE && res?.hasMore !== false);
           setPage(pageOrOffset + 1);
         } else if (tab === "contributors") {
-          const res = (await api.get(
+          const res = await api.get<{ items?: Record<string, unknown>[]; hasMore?: boolean }>(
             `/collections/${collectionId}/contributors?page=${pageOrOffset}&limit=${ITEMS_PAGE_SIZE}`,
-          )) as { items?: any[]; hasMore?: boolean };
+          );
           const list = Array.isArray(res?.items) ? res.items : [];
-          if (reset) setItems(list);
-          else setItems((prev) => [...prev, ...list]);
+          if (reset) setItems(list as unknown as typeof items);
+          else setItems((prev) => [...prev, ...(list as unknown as typeof items)]);
           setHasMore(list.length === ITEMS_PAGE_SIZE && res?.hasMore !== false);
           setPage(pageOrOffset + 1);
         }
@@ -292,6 +296,7 @@ export default function CollectionDetailScreen() {
 
   useEffect(() => {
     if (collectionId) {
+      setLoading(true);
       setItems([]);
       setPage(1);
       setNextOffset(0);
@@ -333,18 +338,27 @@ export default function CollectionDetailScreen() {
   useEffect(() => {
     if (!userId) return;
     api
-      .get("/collections")
-      .then((list: any[]) => {
-        const arr = Array.isArray(list) ? list : [];
+      .get<Record<string, unknown>[]>("/collections")
+      .then((list) => {
+        const items = Array.isArray(list) ? list : [];
         setMoreCollections(
-          arr.filter((c: any) => c.id !== collectionId).slice(0, 8),
+          items
+            .filter((c: Record<string, unknown>) => c.id !== collectionId)
+            .slice(0, 8)
+            .map((c) => ({
+              id: c.id as string,
+              title: c.title as string,
+              description: c.description as string | undefined,
+              itemCount: c.itemCount as number | undefined,
+              previewImageKey: c.previewImageKey as string | null | undefined,
+            })),
         );
       })
-      .catch(() => {});
+      .catch(() => { /* operation failure handled silently */ });
   }, [userId, collectionId]);
 
   const renderItem = useCallback(
-    ({ item }: { item: any }) => {
+    ({ item }: { item: Record<string, unknown> }) => {
       if (activeTab === "contributors") {
         return (
           <UserCard
@@ -353,8 +367,8 @@ export default function CollectionDetailScreen() {
               handle: item.handle,
               displayName: item.displayName,
               bio: undefined,
-              avatarKey: undefined,
-              avatarUrl: undefined,
+              avatarKey: item.avatarKey ?? undefined,
+              avatarUrl: item.avatarUrl ?? undefined,
               isFollowing: undefined,
             }}
             onPress={() => router.push(`/user/${item.handle}`)}
@@ -362,35 +376,51 @@ export default function CollectionDetailScreen() {
         );
       }
       if (activeTab === "sources") {
-        return (
-          <Pressable
-            style={styles.sourceItem}
-            onPress={async () => {
-              if (item.url) await WebBrowser.openBrowserAsync(item.url);
-            }}
-          >
-            <View style={styles.sourceIcon}>
-              <Text style={styles.sourceIconText}>
-                {(item.title || "?").charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.sourceContent}>
-              <Text style={styles.sourceDomain}>
-                {item.url ? new URL(item.url).hostname : "External"}
-              </Text>
-              <Text style={styles.sourceText} numberOfLines={1}>
-                {item.title || item.url}
-              </Text>
-            </View>
-            <MaterialIcons
-              name="open-in-new"
-              size={HEADER.iconSize}
-              color={COLORS.tertiary}
+        const type = item.type ?? "external";
+        if (type === "post") {
+          return (
+            <SourceOrPostCard
+              type="post"
+              title={item.title || "Post"}
+              subtitle={item.authorHandle ?? undefined}
+              imageUri={
+                item.headerImageKey
+                  ? getImageUrl(String(item.headerImageKey))
+                  : undefined
+              }
+              onPress={() => router.push(`/post/${item.id}`)}
             />
-          </Pressable>
+          );
+        }
+        if (type === "topic") {
+          return (
+            <SourceOrPostCard
+              type="topic"
+              title={item.title ?? item.slug ?? "Topic"}
+              subtitle={item.slug ?? undefined}
+              onPress={() =>
+                router.push(
+                  `/topic/${encodeURIComponent(String(item.slug ?? item.id))}`,
+                )
+              }
+            />
+          );
+        }
+        const title =
+          item.title || (item.url ? new URL(String(item.url)).hostname : "External");
+        const subtitle = String(item.url || "");
+        return (
+          <SourceOrPostCard
+            type="external"
+            title={title}
+            subtitle={subtitle}
+            onPress={() =>
+              item.url ? openExternalLink(String(item.url)) : undefined
+            }
+          />
         );
       }
-      const colItem = item as CollectionItem;
+      const colItem = item as unknown as CollectionItem;
       if (!colItem?.post) return null;
       return (
         <View style={styles.itemContainer}>
@@ -409,7 +439,15 @@ export default function CollectionDetailScreen() {
     [t, activeTab, router],
   );
 
-  const keyExtractor = useCallback((item: any) => item.id, []);
+  const keyExtractor = useCallback(
+    (item: typeof items[number]) => {
+      const itemRecord = item as Record<string, unknown>;
+      return activeTab === "sources" && itemRecord?.type
+        ? `${itemRecord.type as string}-${itemRecord.type === "external" ? (itemRecord.url ?? itemRecord.id) as string : itemRecord.id as string}`
+        : (item as { id: string }).id;
+    },
+    [activeTab],
+  );
 
   const handleAddCitationStable = useCallback(() => {
     showToast(
@@ -468,7 +506,7 @@ export default function CollectionDetailScreen() {
                 <Text style={styles.suggestionsHeader}>
                   {t("collections.moreCollections", "More collections")}
                 </Text>
-                {moreCollections.map((c: any) => (
+                {moreCollections.map((c) => (
                   <View key={c.id} style={styles.suggestionItem}>
                     <CollectionCard
                       item={{
@@ -507,31 +545,40 @@ export default function CollectionDetailScreen() {
 
   const listDataRaw =
     activeTab === "newest" || activeTab === "ranked"
-      ? items.filter((item: any) => item?.post?.author)
+      ? items.filter((item) => {
+          const colItem = item as unknown as CollectionItem;
+          return colItem?.post?.author;
+        })
       : items;
 
   const listData = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return listDataRaw;
     if (activeTab === "sources") {
-      return listDataRaw.filter(
-        (item: any) =>
-          (item.title && item.title.toLowerCase().includes(q)) ||
-          (item.url && item.url.toLowerCase().includes(q)),
-      );
+      return listDataRaw.filter((item) => {
+        const itemRecord = item as Record<string, unknown>;
+        return (
+          (itemRecord.title && String(itemRecord.title).toLowerCase().includes(q)) ||
+          (itemRecord.url && String(itemRecord.url).toLowerCase().includes(q)) ||
+          (itemRecord.slug && String(itemRecord.slug).toLowerCase().includes(q)) ||
+          (itemRecord.authorHandle && String(itemRecord.authorHandle).toLowerCase().includes(q))
+        );
+      });
     }
     if (activeTab === "contributors") {
-      return listDataRaw.filter(
-        (item: any) =>
-          (item.displayName && item.displayName.toLowerCase().includes(q)) ||
-          (item.handle && item.handle.toLowerCase().includes(q)),
-      );
+      return listDataRaw.filter((item) => {
+        const itemRecord = item as Record<string, unknown>;
+        return (
+          (itemRecord.displayName && String(itemRecord.displayName).toLowerCase().includes(q)) ||
+          (itemRecord.handle && String(itemRecord.handle).toLowerCase().includes(q))
+        );
+      });
     }
-    return listDataRaw.filter((item: any) => {
-      const post = item?.post;
-      if (!post) return false;
-      const title = (post.title || "").toLowerCase();
-      const body = (post.body || "").toLowerCase();
+    return listDataRaw.filter((item) => {
+      const colItem = item as unknown as CollectionItem;
+      if (!colItem?.post) return false;
+      const title = (colItem.post.title || "").toLowerCase();
+      const body = (colItem.post.body || "").toLowerCase();
       return title.includes(q) || body.includes(q);
     });
   }, [listDataRaw, searchQuery, activeTab]);
@@ -544,7 +591,7 @@ export default function CollectionDetailScreen() {
           type="collection"
           title={collection.title}
           description={collection.description}
-          headerImageUri={getCollectionPreviewImageUri(collection as any)}
+          headerImageUri={getCollectionPreviewImageUri(collection as { previewImageUrl?: string | null; previewImageKey?: string | null; recentPost?: { headerImageUrl?: string | null; headerImageKey?: string | null } | null })}
           onBack={() => router.back()}
           onAction={handleShare}
           actionLabel={t("common.share")}
@@ -553,12 +600,12 @@ export default function CollectionDetailScreen() {
             isOwner ? () => setMoreOptionsVisible(true) : undefined
           }
           metrics={{
-            itemCount: (collection as any).itemCount,
-            contributorCount: (collection as any).contributorCount,
+            itemCount: collection.itemCount,
+            contributorCount: (collection as Collection & { contributorCount?: number }).contributorCount,
           }}
         >
           <View style={styles.searchRow}>
-            <View style={SEARCH_BAR.container}>
+            <View style={[SEARCH_BAR.container, styles.searchBarWrap]}>
               <MaterialIcons
                 name="search"
                 size={HEADER.iconSize}
@@ -643,7 +690,7 @@ export default function CollectionDetailScreen() {
         headerComponent={headerComponent}
         heroOpacity={heroOpacity}
         stickyOpacity={stickyOpacity}
-        onScroll={() => {}}
+        onScroll={() => { }}
         scrollY={scrollY}
         data={listData}
         keyExtractor={keyExtractor}
@@ -796,10 +843,15 @@ export default function CollectionDetailScreen() {
 
 const styles = createStyles({
   searchRow: {
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.s,
+    paddingHorizontal: toDimension(HEADER.barPaddingHorizontal),
+    paddingVertical: SPACING.m,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    backgroundColor: COLORS.ink,
+  },
+  searchBarWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   tabsContainer: {
     borderBottomWidth: 1,

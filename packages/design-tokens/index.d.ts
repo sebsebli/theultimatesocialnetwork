@@ -1,8 +1,16 @@
 export const COLORS: Record<string, string> & {
-  mention?: string;
-  topic?: string;
-  postLink?: string;
-  link?: string;
+  mention: string;
+  topic: string;
+  postLink: string;
+  link: string;
+  success: string;
+  badge: string;
+  overlayHeavy: string;
+  codeBackground: string;
+  codeText: string;
+  graphTopic: string;
+  graphUser: string;
+  graphSource: string;
 };
 export const SPACING: Record<string, number>;
 export const SIZES: Record<string, number>;

@@ -69,10 +69,11 @@ export function Toast({ message, type, onHide, duration = 3000 }: ToastProps) {
   };
 
   const colors = getColors();
-  const AnimatedView = Animated.View as any;
 
   return (
-    <AnimatedView
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore React 19 Animated.View
+    <Animated.View
       style={[
         styles.container,
         { 
@@ -83,10 +84,13 @@ export function Toast({ message, type, onHide, duration = 3000 }: ToastProps) {
           borderColor: colors.border,
         }
       ]}
+      accessibilityRole="alert"
+      accessibilityLabel={message}
+      accessibilityLiveRegion="assertive"
     >
       <MaterialIcons name={getIcon()} size={HEADER.iconSize} color={colors.icon} />
       <Text style={[styles.message, { color: colors.text }]}>{message}</Text>
-    </AnimatedView>
+    </Animated.View>
   );
 }
 
@@ -102,7 +106,7 @@ const styles = createStyles({
     alignItems: 'center',
     gap: SPACING.m,
     zIndex: 9999,
-    shadowColor: '#000',
+    shadowColor: COLORS.ink,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

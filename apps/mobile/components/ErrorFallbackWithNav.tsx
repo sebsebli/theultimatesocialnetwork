@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constants/theme';
@@ -12,6 +13,7 @@ import { COLORS, SPACING, SIZES, FONTS, HEADER, createStyles } from '../constant
  */
 export function ErrorFallbackWithNav() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const goHome = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -25,16 +27,18 @@ export function ErrorFallbackWithNav() {
           <MaterialIcons name="error-outline" size={HEADER.iconSize} color={COLORS.error} />
         </View>
       </View>
-      <Text style={styles.title}>Something went wrong</Text>
+      <Text style={styles.title}>{t("common.somethingWentWrong", "Something went wrong")}</Text>
       <Text style={styles.message}>
-        An unexpected error occurred. You can go back to Home and try again.
+        {t("common.unexpectedErrorRetry", "An unexpected error occurred. You can go back to Home and try again.")}
       </Text>
       <Pressable
         style={({ pressed }: { pressed: boolean }) => [styles.button, pressed && { opacity: 0.8 }]}
         onPress={goHome}
+        accessibilityRole="button"
+        accessibilityLabel={t("common.goToHome", "Go to Home")}
       >
         <MaterialIcons name="home" size={HEADER.iconSize} color={COLORS.ink} />
-        <Text style={styles.buttonText}>Go to Home</Text>
+        <Text style={styles.buttonText}>{t("common.goToHome", "Go to Home")}</Text>
       </Pressable>
     </View>
   );

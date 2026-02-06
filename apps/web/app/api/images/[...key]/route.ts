@@ -20,7 +20,9 @@ export async function GET(
   }
 
   const API_URL = getApiUrl().replace(/\/$/, "");
-  const url = `${API_URL}/images/${encodeURIComponent(key)}`;
+  // Nest API uses setGlobalPrefix('api'), so images are at /api/images/:key
+  const base = API_URL.endsWith("/api") ? API_URL : `${API_URL}/api`;
+  const url = `${base}/images/${encodeURIComponent(key)}`;
 
   try {
     const res = await fetch(url, { cache: "force-cache" });

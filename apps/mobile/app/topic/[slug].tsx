@@ -14,21 +14,33 @@ import {
   Animated,
   ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
-import * as WebBrowser from "expo-web-browser";
-import { api, getWebAppBaseUrl, getTopicRecentImageUri } from "../../utils/api";
+import { useOpenExternalLink } from "../../hooks/useOpenExternalLink";
+import {
+  api,
+  getWebAppBaseUrl,
+  getTopicRecentImageUri,
+  getImageUrl,
+} from "../../utils/api";
 import { useAuth } from "../../context/auth";
 import { PostItem } from "../../components/PostItem";
 import { UserCard } from "../../components/UserCard";
 import { TopicCard } from "../../components/ExploreCards";
 import { SourceOrPostCard } from "../../components/SourceOrPostCard";
+import { Topic, Post } from "../../types";
 import {
   EmptyState,
   emptyStateCenterWrapStyle,
 } from "../../components/EmptyState";
-import { FeedSkeleton } from "../../components/LoadingSkeleton";
+import { ErrorState } from "../../components/ErrorState";
+import {
+  FeedSkeleton,
+  FullScreenSkeleton,
+} from "../../components/LoadingSkeleton";
+import { HeaderIconButton } from "../../components/HeaderIconButton";
 import { TopicCollectionHeader } from "../../components/TopicCollectionHeader";
 import { TopicOrCollectionLayout } from "../../components/TopicOrCollectionLayout";
 import { OptionsActionSheet } from "../../components/OptionsActionSheet";
@@ -42,6 +54,7 @@ import {
   SEARCH_BAR,
   TABS,
   LIST_SCROLL_DEFAULTS,
+  toDimension,
 } from "../../constants/theme";
 
 const HERO_FADE_HEIGHT = 280;
@@ -60,10 +73,12 @@ export default function TopicScreen() {
   const slugStr = (Array.isArray(slug) ? slug?.[0] : slug) ?? "";
   const { t } = useTranslation();
   const { userId } = useAuth();
+  const { openExternalLink } = useOpenExternalLink();
 
-  const [topic, setTopic] = useState<any>(null);
-  const [items, setItems] = useState<any[]>([]);
+  const [topic, setTopic] = useState<Topic | null>(null);
+  const [items, setItems] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingTab, setLoadingTab] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -72,7 +87,8 @@ export default function TopicScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>("recent");
   const [searchQuery, setSearchQuery] = useState("");
   const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
-  const [moreTopics, setMoreTopics] = useState<any[]>([]);
+  const [moreTopics, setMoreTopics] = useState<Record<string, unknown>[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const onEndReachedFiredRef = useRef(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -102,9 +118,9 @@ export default function TopicScreen() {
   const loadTopicMeta = useCallback(async () => {
     if (!slugStr) return null;
     const slugEnc = encodeURIComponent(slugStr);
-    const data = await api.get(`/topics/${slugEnc}`);
+    const data = await api.get<Topic>(`/topics/${slugEnc}`);
     setTopic(data);
-    setIsFollowing(!!(data as any).isFollowing);
+    setIsFollowing(!!data.isFollowing);
     return data;
   }, [slugStr]);
 
@@ -120,21 +136,22 @@ export default function TopicScreen() {
         setItems([]);
         setHasMore(true);
         onEndReachedFiredRef.current = false;
+        setLoadingTab(true);
       }
 
       try {
         if (isPostsTab && isSearch) {
           const offset = (pageNum - 1) * PAGE_SIZE;
-          const res = await api.get<{ hits: any[] }>(
+          const res = await api.get<{ hits: Record<string, unknown>[] }>(
             `/search/posts?q=${encodeURIComponent(searchQuery.trim())}&limit=${PAGE_SIZE}&offset=${offset}&topicSlug=${slugEnc}`,
           );
           const hits = res.hits || [];
-          const list = hits.map((h: any) => ({
+          const list = hits.map((h: Record<string, unknown>) => ({
             ...h,
             author: h.author || {
               id: h.authorId,
-              handle: h.author?.handle || "",
-              displayName: h.author?.displayName || "",
+              handle: (h.author as Record<string, unknown>)?.handle || "",
+              displayName: (h.author as Record<string, unknown>)?.displayName || "",
             },
           }));
           if (reset) setItems(list);
@@ -144,7 +161,7 @@ export default function TopicScreen() {
         }
 
         if (activeTab === "recent") {
-          const res = await api.get(
+          const res = await api.get<{ items?: Record<string, unknown>[]; hasMore?: boolean }>(
             `/topics/${slugEnc}/posts?sort=recent&page=${pageNum}&limit=${PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
@@ -152,7 +169,7 @@ export default function TopicScreen() {
           else setItems((prev) => [...prev, ...list]);
           setHasMore(list.length >= PAGE_SIZE && res?.hasMore !== false);
         } else if (activeTab === "discussed") {
-          const res = await api.get(
+          const res = await api.get<{ items?: Record<string, unknown>[]; hasMore?: boolean }>(
             `/topics/${slugEnc}/posts?sort=ranked&page=${pageNum}&limit=${PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
@@ -160,7 +177,7 @@ export default function TopicScreen() {
           else setItems((prev) => [...prev, ...list]);
           setHasMore(list.length >= PAGE_SIZE && res?.hasMore !== false);
         } else if (activeTab === "people") {
-          const res = await api.get(
+          const res = await api.get<{ items?: Record<string, unknown>[]; hasMore?: boolean }>(
             `/topics/${slugEnc}/people?page=${pageNum}&limit=${PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
@@ -168,7 +185,7 @@ export default function TopicScreen() {
           else setItems((prev) => [...prev, ...list]);
           setHasMore(list.length >= PAGE_SIZE && res?.hasMore !== false);
         } else if (activeTab === "sources") {
-          const res = await api.get(
+          const res = await api.get<{ items?: Record<string, unknown>[]; hasMore?: boolean }>(
             `/topics/${slugEnc}/sources?page=${pageNum}&limit=${PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
@@ -176,11 +193,16 @@ export default function TopicScreen() {
           else setItems((prev) => [...prev, ...list]);
           setHasMore(list.length >= PAGE_SIZE && res?.hasMore !== false);
         }
-      } catch (err) {
-        console.error("Topic loadTabData error", err);
-        if (reset) setItems([]);
+      } catch (err: unknown) {
+        if (__DEV__) console.error("Topic loadTabData error", err);
+        if (reset) {
+          setItems([]);
+          setError(t("topic.loadError", "Failed to load topic content"));
+        }
         setHasMore(false);
         // Do not setTopic(null) — keep topic header so user stays on the screen and can pull-to-refresh
+      } finally {
+        if (reset) setLoadingTab(false);
       }
     },
     [slugStr, activeTab, searchQuery],
@@ -208,11 +230,15 @@ export default function TopicScreen() {
         setItems([]);
         loadTabData(1, true);
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         if (!cancelled) {
           setTopic(null);
           setItems([]);
-          if (err?.status === 404) router.back();
+          if ((err as { status?: number })?.status === 404) {
+            router.back();
+          } else {
+            setError(t("topic.loadError", "Failed to load topic"));
+          }
         }
       })
       .finally(() => {
@@ -250,11 +276,15 @@ export default function TopicScreen() {
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
+    setError(null);
     loadTopicMeta().then(() => {
       loadTabData(1, true);
       setRefreshing(false);
+    }).catch(() => {
+      setError(t("topic.loadError", "Failed to load topic"));
+      setRefreshing(false);
     });
-  }, [slugStr, loadTopicMeta, loadTabData]);
+  }, [loadTopicMeta, loadTabData, t]);
 
   const handleLoadMore = useCallback(() => {
     if (loading || refreshing || loadingMore || !hasMore) return;
@@ -268,7 +298,7 @@ export default function TopicScreen() {
   }, [loading, refreshing, loadingMore, hasMore, page, loadTabData]);
 
   const renderItem = useCallback(
-    ({ item }: { item: any }) => {
+    ({ item }: { item: Record<string, unknown> }) => {
       if (activeTab === "people") {
         return (
           <UserCard
@@ -277,8 +307,8 @@ export default function TopicScreen() {
               handle: item.handle,
               displayName: item.displayName,
               bio: undefined,
-              avatarKey: undefined,
-              avatarUrl: undefined,
+              avatarKey: item.avatarKey ?? undefined,
+              avatarUrl: item.avatarUrl ?? undefined,
               isFollowing: item.isFollowing,
             }}
             onPress={() => router.push(`/user/${item.handle}`)}
@@ -286,15 +316,45 @@ export default function TopicScreen() {
         );
       }
       if (activeTab === "sources") {
+        const type = item.type ?? "external";
+        if (type === "post") {
+          return (
+            <SourceOrPostCard
+              type="post"
+              title={item.title || "Post"}
+              subtitle={item.authorHandle ?? undefined}
+              imageUri={
+                item.headerImageKey
+                  ? getImageUrl(item.headerImageKey as string)
+                  : undefined
+              }
+              onPress={() => router.push(`/post/${item.id as string}`)}
+            />
+          );
+        }
+        if (type === "topic") {
+          return (
+            <SourceOrPostCard
+              type="topic"
+              title={(item.title ?? item.slug ?? "Topic") as string}
+              subtitle={item.slug as string | undefined}
+              onPress={() =>
+                router.push(
+                  `/topic/${encodeURIComponent((item.slug ?? item.id) as string)}`,
+                )
+              }
+            />
+          );
+        }
         const title =
-          item.title || (item.url ? new URL(item.url).hostname : "External");
-        const subtitle = item.url || "";
+          (item.title || (item.url ? new URL(item.url as string).hostname : "External")) as string;
+        const subtitle = (item.url || "") as string;
         return (
           <SourceOrPostCard
             type="external"
             title={title}
             subtitle={subtitle}
-            onPress={() => item.url && WebBrowser.openBrowserAsync(item.url)}
+            onPress={() => item.url && openExternalLink(item.url as string)}
           />
         );
       }
@@ -303,36 +363,44 @@ export default function TopicScreen() {
     [activeTab, router],
   );
 
-  const keyExtractor = useCallback((item: any) => item.id, []);
+  const keyExtractor = useCallback(
+    (item: Record<string, unknown>) =>
+      activeTab === "sources" && item?.type
+        ? `${item.type as string}-${item.type === "external" ? (item.url ?? item.id) as string : item.id as string}`
+        : item.id as string,
+    [activeTab],
+  );
 
   const listData = useMemo(() => {
     const base =
       activeTab === "recent" || activeTab === "discussed"
-        ? items.filter((p: any) => !!p?.author)
+        ? items.filter((p: Record<string, unknown>) => !!p?.author)
         : items;
     const q = searchQuery.trim().toLowerCase();
     if (!q) return base;
     if (activeTab === "people") {
       return base.filter(
-        (item: any) =>
-          (item.displayName && item.displayName.toLowerCase().includes(q)) ||
-          (item.handle && item.handle.toLowerCase().includes(q)) ||
-          (item.bio && item.bio.toLowerCase().includes(q)),
+        (item: Record<string, unknown>) =>
+          (item.displayName && (item.displayName as string).toLowerCase().includes(q)) ||
+          (item.handle && (item.handle as string).toLowerCase().includes(q)) ||
+          (item.bio && (item.bio as string).toLowerCase().includes(q)),
       );
     }
     if (activeTab === "sources") {
       return base.filter(
-        (item: any) =>
-          (item.title && item.title.toLowerCase().includes(q)) ||
-          (item.url && item.url.toLowerCase().includes(q)),
+        (item: Record<string, unknown>) =>
+          (item.title && (item.title as string).toLowerCase().includes(q)) ||
+          (item.url && (item.url as string).toLowerCase().includes(q)) ||
+          (item.slug && (item.slug as string).toLowerCase().includes(q)) ||
+          (item.authorHandle && (item.authorHandle as string).toLowerCase().includes(q)),
       );
     }
     return base;
   }, [items, activeTab, searchQuery]);
 
-  const handleFollowSuggestedTopic = useCallback(async (tpc: any) => {
+  const handleFollowSuggestedTopic = useCallback(async (tpc: Record<string, unknown>) => {
     try {
-      const slugEnc = encodeURIComponent(tpc.slug || tpc.id);
+      const slugEnc = encodeURIComponent((tpc.slug || tpc.id) as string);
       if (tpc.isFollowing) await api.delete(`/topics/${slugEnc}/follow`);
       else await api.post(`/topics/${slugEnc}/follow`);
       setMoreTopics((prev) =>
@@ -348,7 +416,7 @@ export default function TopicScreen() {
   }, []);
 
   const ListEmptyComponent = useMemo(() => {
-    if (loading)
+    if (loading || loadingTab)
       return (
         <View style={emptyStateCenterWrapStyle}>
           <FeedSkeleton count={4} />
@@ -366,13 +434,13 @@ export default function TopicScreen() {
               <Text style={styles.suggestionsHeader}>
                 {t("profile.topicsToFollow", "Topics to follow")}
               </Text>
-              {moreTopics.map((tpc: any) => (
-                <View key={tpc.id || tpc.slug} style={styles.suggestionItem}>
+              {moreTopics.map((tpc: Record<string, unknown>) => (
+                <View key={(tpc.id || tpc.slug) as string} style={styles.suggestionItem}>
                   <TopicCard
                     item={tpc}
                     onPress={() =>
                       router.push(
-                        `/topic/${encodeURIComponent(tpc.slug || tpc.id)}`,
+                        `/topic/${encodeURIComponent((tpc.slug || tpc.id) as string)}`,
                       )
                     }
                     onFollow={() => handleFollowSuggestedTopic(tpc)}
@@ -393,13 +461,13 @@ export default function TopicScreen() {
               <Text style={styles.suggestionsHeader}>
                 {t("profile.topicsToFollow", "Topics to follow")}
               </Text>
-              {moreTopics.map((tpc: any) => (
-                <View key={tpc.id || tpc.slug} style={styles.suggestionItem}>
+              {moreTopics.map((tpc: Record<string, unknown>) => (
+                <View key={(tpc.id || tpc.slug) as string} style={styles.suggestionItem}>
                   <TopicCard
                     item={tpc}
                     onPress={() =>
                       router.push(
-                        `/topic/${encodeURIComponent(tpc.slug || tpc.id)}`,
+                        `/topic/${encodeURIComponent((tpc.slug || tpc.id) as string)}`,
                       )
                     }
                     onFollow={() => handleFollowSuggestedTopic(tpc)}
@@ -420,13 +488,13 @@ export default function TopicScreen() {
               <Text style={styles.suggestionsHeader}>
                 {t("profile.topicsToFollow", "Topics to follow")}
               </Text>
-              {moreTopics.map((tpc: any) => (
-                <View key={tpc.id || tpc.slug} style={styles.suggestionItem}>
+              {moreTopics.map((tpc: Record<string, unknown>) => (
+                <View key={(tpc.id || tpc.slug) as string} style={styles.suggestionItem}>
                   <TopicCard
                     item={tpc}
                     onPress={() =>
                       router.push(
-                        `/topic/${encodeURIComponent(tpc.slug || tpc.id)}`,
+                        `/topic/${encodeURIComponent((tpc.slug || tpc.id) as string)}`,
                       )
                     }
                     onFollow={() => handleFollowSuggestedTopic(tpc)}
@@ -438,7 +506,7 @@ export default function TopicScreen() {
         </EmptyState>
       );
     return <View style={emptyStateCenterWrapStyle}>{emptyContent}</View>;
-  }, [loading, activeTab, t, moreTopics, router, handleFollowSuggestedTopic]);
+  }, [loading, loadingTab, activeTab, t, moreTopics, router, handleFollowSuggestedTopic]);
 
   const handleFollow = useCallback(async () => {
     if (!slugStr || !userId) return;
@@ -448,7 +516,7 @@ export default function TopicScreen() {
       else await api.post(`/topics/${slugEnc}/follow`);
       setIsFollowing(!isFollowing);
     } catch (error) {
-      console.error("Failed to toggle follow", error);
+      if (__DEV__) console.error("Failed to toggle follow", error);
     }
   }, [slugStr, userId, isFollowing]);
 
@@ -460,7 +528,7 @@ export default function TopicScreen() {
       message: `${t("topic.shareTopicMessage", { defaultValue: "Check out this topic", slug: slugStr })}\n${url}`,
       url,
       title: t("topic.shareTopic", "Share topic"),
-    }).catch(() => {});
+    }).catch(() => { /* operation failure handled silently */ });
   }, [slugStr, t]);
 
   const handleSearchInTopic = useCallback(() => {
@@ -470,16 +538,16 @@ export default function TopicScreen() {
 
   useEffect(() => {
     api
-      .get("/explore/topics?limit=10")
-      .then((data: any) => {
+      .get<Record<string, unknown>[] | { items?: Record<string, unknown>[] }>("/explore/topics?limit=10")
+      .then((data) => {
         const list = Array.isArray(data) ? data : (data?.items ?? []);
         setMoreTopics(
           list
-            .filter((tpc: any) => (tpc.slug || tpc.id) !== slugStr)
+            .filter((tpc: Record<string, unknown>) => (tpc.slug || tpc.id) !== slugStr)
             .slice(0, 10),
         );
       })
-      .catch(() => {});
+      .catch(() => { /* operation failure handled silently */ });
   }, [slugStr]);
 
   const headerComponent = useMemo(() => {
@@ -496,7 +564,7 @@ export default function TopicScreen() {
           type="topic"
           title={topic.title}
           description={topic.description}
-          headerImageUri={getTopicRecentImageUri(topic)}
+          headerImageUri={getTopicRecentImageUri(topic as unknown as { recentPostImageUrl?: string | null; recentPostImageKey?: string | null; recentPost?: { headerImageUrl?: string | null; headerImageKey?: string | null; } | null })}
           onBack={() => router.back()}
           onAction={userId ? handleFollow : undefined}
           actionLabel={
@@ -511,7 +579,7 @@ export default function TopicScreen() {
           onRightAction={() => setMoreOptionsVisible(true)}
         >
           <View style={styles.searchRow}>
-            <View style={SEARCH_BAR.container}>
+            <View style={[SEARCH_BAR.container, styles.searchBarWrap]}>
               <MaterialIcons
                 name="search"
                 size={HEADER.iconSize}
@@ -582,6 +650,61 @@ export default function TopicScreen() {
     userId,
   ]);
 
+  // Show a single full-screen loading state until topic is loaded. This avoids
+  // the "weird" in-between view (back bar + slug title + empty header + skeleton list)
+  // when navigating from a post (or elsewhere) to a topic. Also show when slug changed
+  // (e.g. topic A → topic B) so we never flash the previous topic's content.
+  const topicSlugMismatch =
+    topic && topic.slug !== slugStr && topic.id !== slugStr;
+  if (
+    slugStr &&
+    ((loading && !topic) || topicSlugMismatch)
+  ) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.ink }} edges={["top", "bottom"]}>
+        <View style={styles.loadingScreenBar}>
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back", "Back")}
+          />
+        </View>
+        <FullScreenSkeleton />
+      </SafeAreaView>
+    );
+  }
+
+  if (error && !loading && !topic) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.ink }} edges={["top", "bottom"]}>
+        <View style={styles.loadingScreenBar}>
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back", "Back")}
+          />
+        </View>
+        <ErrorState
+          message={error}
+          onRetry={() => {
+            setError(null);
+            loadTopicMeta()
+              .then((data) => {
+                if (data) {
+                  setPage(1);
+                  setItems([]);
+                  loadTabData(1, true);
+                }
+              })
+              .catch(() => {
+                setError(t("topic.loadError", "Failed to load topic"));
+              });
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <TopicOrCollectionLayout
       title={topic?.title ?? (slugStr || t("topic.title", "Topic"))}
@@ -592,7 +715,7 @@ export default function TopicScreen() {
       headerComponent={headerComponent}
       heroOpacity={heroOpacity}
       stickyOpacity={stickyOpacity}
-      onScroll={() => {}}
+      onScroll={() => { }}
       scrollY={scrollY}
       data={listData}
       keyExtractor={keyExtractor}
@@ -603,6 +726,13 @@ export default function TopicScreen() {
       onEndReached={handleLoadMore}
       hasMore={hasMore}
       loadingMore={loadingMore}
+      stickyBarRight={
+        <HeaderIconButton
+          onPress={() => setMoreOptionsVisible(true)}
+          icon="more-horiz"
+          accessibilityLabel={t("profile.options", "More options")}
+        />
+      }
       children={
         <OptionsActionSheet
           visible={moreOptionsVisible}
@@ -628,11 +758,25 @@ export default function TopicScreen() {
 }
 
 const styles = createStyles({
-  searchRow: {
-    paddingHorizontal: SPACING.l,
-    paddingVertical: SPACING.s,
+  loadingScreenBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: toDimension(HEADER.barPaddingHorizontal),
+    paddingVertical: SPACING.m,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+    backgroundColor: COLORS.ink,
+  },
+  searchRow: {
+    paddingHorizontal: toDimension(HEADER.barPaddingHorizontal),
+    paddingVertical: SPACING.m,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    backgroundColor: COLORS.ink,
+  },
+  searchBarWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   tabsContainer: {
     borderBottomWidth: 1,

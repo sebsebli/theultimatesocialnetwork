@@ -25,7 +25,7 @@ export function NotificationManager() {
             // const token = await getToken(getMessaging(), { vapidKey: '...' });
 
             // For now, we assume a token is available or simulate it to prove the flow.
-            console.log("Notification permission granted.");
+            if (process.env.NODE_ENV !== "production") console.log("Notification permission granted.");
 
             // Example of how we would send it to backend:
             // await fetch("/api/me/push-tokens", {
@@ -39,7 +39,7 @@ export function NotificationManager() {
             // });
           }
         } catch (e) {
-          console.error("Failed to request notification permission", e);
+          if (process.env.NODE_ENV !== "production") console.error("Failed to request notification permission", e);
         }
       }
     };

@@ -31,6 +31,10 @@ export default function InvitesPage() {
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [resendingCode, setResendingCode] = useState<string | null>(null);
+  const [revokingCode, setRevokingCode] = useState<string | null>(null);
+  const [revokeModalCode, setRevokeModalCode] = useState<string | null>(null);
+  const [referralLoading, setReferralLoading] = useState(false);
 
   const fetchInvites = async () => {
     try {
@@ -43,7 +47,7 @@ export default function InvitesPage() {
         });
       }
     } catch (err) {
-      console.error(err);
+      if (process.env.NODE_ENV !== "production") console.error(err);
     } finally {
       setLoading(false);
     }
@@ -106,6 +110,89 @@ export default function InvitesPage() {
     navigator.clipboard.writeText(url);
     setCopied(code);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handleResend = async (code: string) => {
+    setResendingCode(code);
+    setError(null);
+    try {
+      const res = await fetch(`/api/invites/${encodeURIComponent(code)}/resend`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lang: "en" }),
+      });
+      if (res.ok) {
+        fetchInvites();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setError(json?.error ?? "Could not resend. Try again later.");
+      }
+    } catch {
+      setError("Could not resend. Try again later.");
+    } finally {
+      setResendingCode(null);
+    }
+  };
+
+  const handleRevokeClick = (code: string) => {
+    setRevokeModalCode(code);
+  };
+
+  const handleShareReferralLink = async () => {
+    setReferralLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/invites/referral-link", {
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json?.error ?? "Could not get referral link");
+        return;
+      }
+      const url = json.referralLink ?? json.url ?? "";
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({
+          title: "Join me on Citewalk",
+          text: "Join me on Citewalk",
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCopied("referral");
+        setTimeout(() => setCopied(null), 2000);
+      }
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        setError("Could not share referral link");
+      }
+    } finally {
+      setReferralLoading(false);
+    }
+  };
+
+  const confirmRevoke = async () => {
+    if (!revokeModalCode) return;
+    setRevokingCode(revokeModalCode);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/invites/${encodeURIComponent(revokeModalCode)}/revoke`,
+        { method: "POST", credentials: "include" },
+      );
+      if (res.ok) {
+        setRevokeModalCode(null);
+        fetchInvites();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setError(json?.error ?? "Failed to revoke");
+      }
+    } catch {
+      setError("Failed to revoke");
+    } finally {
+      setRevokingCode(null);
+    }
   };
 
   const formatDate = (iso: string) => {
@@ -255,17 +342,40 @@ export default function InvitesPage() {
                               )}
                             </p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => copyLink(inv.code)}
-                            className={`text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-                              copied === inv.code
-                                ? "bg-green-500/20 text-green-400"
-                                : "bg-white/5 text-secondary hover:text-primary hover:bg-white/10"
-                            }`}
-                          >
-                            {copied === inv.code ? "Copied!" : "Copy link"}
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => copyLink(inv.code)}
+                              className={`text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${copied === inv.code
+                                  ? "bg-green-500/20 text-green-400"
+                                  : "bg-white/5 text-secondary hover:text-primary hover:bg-white/10"
+                                }`}
+                            >
+                              {copied === inv.code ? "Copied!" : "Copy link"}
+                            </button>
+                            {inv.status === "PENDING" && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleResend(inv.code)}
+                                  disabled={!!resendingCode}
+                                  className="text-sm font-medium px-3 py-1.5 rounded-md bg-white/5 text-secondary hover:text-primary hover:bg-white/10 disabled:opacity-50"
+                                >
+                                  {resendingCode === inv.code
+                                    ? "Sending…"
+                                    : "Resend"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRevokeClick(inv.code)}
+                                  disabled={!!revokingCode}
+                                  className="text-sm font-medium px-3 py-1.5 rounded-md text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                                >
+                                  Revoke
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -291,12 +401,43 @@ export default function InvitesPage() {
                     </svg>
                   </div>
                   <h2 className="text-2xl font-bold text-paper">
-                    Build the Network
+                    Refer Friends
                   </h2>
                   <p className="text-secondary max-w-md mx-auto">
-                    Citewalk is built on trust. Invite people whose writing and
-                    thinking you value.
+                    Share your referral link with friends. They can join Citewalk
+                    and you&apos;ll be connected.
                   </p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
+                  <button
+                    onClick={handleShareReferralLink}
+                    disabled={referralLoading}
+                    className="w-full px-6 h-12 bg-primary hover:bg-primary/90 disabled:opacity-50 text-ink font-semibold rounded-xl inline-flex items-center justify-center gap-2"
+                  >
+                    {referralLoading ? (
+                      "Loading…"
+                    ) : copied === "referral" ? (
+                      "Copied!"
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                          />
+                        </svg>
+                        Share referral link
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
@@ -332,11 +473,10 @@ export default function InvitesPage() {
                           </div>
                           <button
                             onClick={() => copyLink(inv.code)}
-                            className={`text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
-                              copied === inv.code
+                            className={`text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${copied === inv.code
                                 ? "bg-green-500/20 text-green-400"
                                 : "bg-white/5 text-secondary hover:text-primary hover:bg-white/10"
-                            }`}
+                              }`}
                           >
                             {copied === inv.code ? "Copied Link!" : "Copy Link"}
                           </button>
@@ -351,6 +491,37 @@ export default function InvitesPage() {
         </div>
       </main>
       <DesktopRightSidebar />
+
+      {/* Revoke confirmation modal */}
+      {revokeModalCode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-ink border border-divider rounded-xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-paper mb-2">
+              Revoke invitation?
+            </h3>
+            <p className="text-secondary text-sm mb-6">
+              The invitation link will stop working. This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setRevokeModalCode(null)}
+                className="flex-1 py-3 rounded-xl border border-divider text-paper font-semibold hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRevoke}
+                disabled={!!revokingCode}
+                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-semibold"
+              >
+                {revokingCode ? "Revoking…" : "Revoke"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

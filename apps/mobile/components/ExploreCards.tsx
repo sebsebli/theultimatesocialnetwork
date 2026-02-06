@@ -1,5 +1,6 @@
 import React, { memo } from "react";
-import { View, Text, Pressable, Image } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -25,26 +26,27 @@ const TopicCardInner = ({
   onPress,
   onFollow,
 }: {
-  item: any;
+  item: Record<string, unknown>;
   onPress: () => void;
   onFollow?: () => void;
 }) => {
   const { t } = useTranslation();
-  const recent = item.recentPost;
+  const typedItem = item as Record<string, unknown>;
+  const recent = typedItem.recentPost as Record<string, unknown> | undefined;
   const imageUrl =
-    getTopicRecentImageUri(item) ||
-    (item.latestPostImageKey ? getImageUrl(item.latestPostImageKey) : null) ||
-    (item.headerImageKey ? getImageUrl(item.headerImageKey) : null) ||
-    (item.imageKey ? getImageUrl(item.imageKey) : null) ||
-    (item as any).headerImageUrl;
-  const latestTitle = (recent?.title ?? "").trim() || null;
+    getTopicRecentImageUri(typedItem) ||
+    (typedItem.latestPostImageKey ? getImageUrl(typedItem.latestPostImageKey as string) : null) ||
+    (typedItem.headerImageKey ? getImageUrl(typedItem.headerImageKey as string) : null) ||
+    (typedItem.imageKey ? getImageUrl(typedItem.imageKey as string) : null) ||
+    (typedItem.headerImageUrl as string | null | undefined) || null;
+  const latestTitle = ((recent?.title as string | undefined) ?? "").trim() || null;
   const latestExcerpt =
-    (recent?.bodyExcerpt ?? item.recentPostExcerpt ?? "").trim() || null;
+    ((recent?.bodyExcerpt as string | undefined) ?? (typedItem.recentPostExcerpt as string | undefined) ?? "").trim() || null;
   const excerpt =
-    latestTitle || latestExcerpt || (item.description ?? "").trim() || null;
+    latestTitle || latestExcerpt || ((typedItem.description as string | undefined) ?? "").trim() || null;
   const postCountText =
-    item.postCount != null
-      ? `${item.postCount} ${t("profile.posts", "posts").toLowerCase()}`
+    typedItem.postCount != null
+      ? `${typedItem.postCount} ${t("profile.posts", "posts").toLowerCase()}`
       : null;
 
   return (
@@ -54,6 +56,8 @@ const TopicCardInner = ({
         styles.topicCard,
         pressed && styles.topicCardPressed,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={`View topic ${typedItem.title as string}`}
     >
       <View style={styles.topicRow}>
         <View style={styles.topicThumb}>
@@ -61,7 +65,9 @@ const TopicCardInner = ({
             <Image
               source={{ uri: imageUrl }}
               style={styles.topicThumbImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
             />
           ) : (
             <View style={styles.topicThumbPlaceholder}>
@@ -71,7 +77,7 @@ const TopicCardInner = ({
         </View>
         <View style={styles.topicInfo}>
           <Text style={styles.topicTitle} numberOfLines={1}>
-            {item.title}
+            {typedItem.title as string}
           </Text>
           {excerpt ? (
             <Text style={styles.topicExcerpt} numberOfLines={2}>
@@ -88,20 +94,22 @@ const TopicCardInner = ({
           <Pressable
             style={[
               styles.topicFollowBtn,
-              item.isFollowing && styles.followingButton,
+              typedItem.isFollowing && styles.followingButton,
             ]}
             onPress={(e: { stopPropagation?: () => void }) => {
               e?.stopPropagation?.();
               onFollow();
             }}
+            accessibilityRole="button"
+            accessibilityLabel={typedItem.isFollowing ? t("profile.following") : t("profile.follow")}
           >
             <Text
               style={[
                 styles.followButtonText,
-                item.isFollowing && styles.followingButtonText,
+                typedItem.isFollowing && styles.followingButtonText,
               ]}
             >
-              {item.isFollowing ? t("profile.following") : t("profile.follow")}
+              {typedItem.isFollowing ? t("profile.following") : t("profile.follow")}
             </Text>
           </Pressable>
         )}
@@ -110,13 +118,13 @@ const TopicCardInner = ({
   );
 };
 
-type TopicCardProps = { item: any; onPress: () => void; onFollow?: () => void };
+type TopicCardProps = { item: Record<string, unknown>; onPress: () => void; onFollow?: () => void };
 export const TopicCard = memo(
   TopicCardInner as React.FunctionComponent<TopicCardProps>,
 ) as (props: TopicCardProps) => React.ReactElement | null;
 
 export interface PersonCardProps {
-  item: any;
+  item: Record<string, unknown>;
   onPress: () => void;
   onFollow?: () => void;
   fullWidth?: boolean;
@@ -129,13 +137,17 @@ function PersonCardInner({
   fullWidth,
 }: PersonCardProps) {
   const avatarUri = getAvatarUri(item);
-  const initial = (item.displayName || item.handle || "?")
+  const displayName = item.displayName as string | undefined;
+  const handle = item.handle as string | undefined;
+  const initial = (displayName || handle || "?")
     .charAt(0)
     .toUpperCase();
   return (
     <Pressable
       onPress={onPress}
       style={[styles.personCard, fullWidth && styles.personCardFullWidth]}
+      accessibilityRole="button"
+      accessibilityLabel={`View profile ${displayName || handle || ""}`}
     >
       <View style={styles.personRow}>
         <View style={styles.avatar}>
@@ -143,7 +155,9 @@ function PersonCardInner({
             <Image
               source={{ uri: avatarUri }}
               style={styles.avatarImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
             />
           ) : (
             <Text style={styles.avatarText}>{initial}</Text>
@@ -151,12 +165,12 @@ function PersonCardInner({
         </View>
         <View style={styles.personInfo}>
           <Text style={styles.personName} numberOfLines={1}>
-            {item.displayName || item.handle}
+            {displayName || handle}
           </Text>
-          <Text style={styles.personHandle}>@{item.handle}</Text>
+          <Text style={styles.personHandle}>@{handle}</Text>
           {item.bio ? (
             <Text style={styles.personBio} numberOfLines={2}>
-              {item.bio}
+              {item.bio as string}
             </Text>
           ) : null}
         </View>
@@ -172,6 +186,8 @@ function PersonCardInner({
               e.stopPropagation();
               onFollow();
             }}
+            accessibilityRole="button"
+            accessibilityLabel={item.isFollowing ? "FOLLOWING" : "FOLLOW"}
           >
             <Text
               style={[

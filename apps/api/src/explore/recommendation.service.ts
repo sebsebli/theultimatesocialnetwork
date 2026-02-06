@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
@@ -11,6 +11,8 @@ import { Like } from '../entities/like.entity';
 import { Keep } from '../entities/keep.entity';
 import { EmbeddingService } from '../shared/embedding.service';
 import { MeilisearchService } from '../search/meilisearch.service';
+import { Neo4jQueryService } from '../database/neo4j-query.service';
+import { GraphComputeService } from '../graph/graph-compute.service';
 import { ExploreService } from './explore.service';
 
 // Define the shape of user exploration preferences
@@ -41,6 +43,8 @@ interface UserInterestProfile {
  */
 @Injectable()
 export class RecommendationService {
+  private readonly logger = new Logger(RecommendationService.name);
+
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(User) private userRepo: Repository<User>,
@@ -51,6 +55,8 @@ export class RecommendationService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private embeddingService: EmbeddingService,
     private meilisearchService: MeilisearchService,
+    private neo4jQuery: Neo4jQueryService,
+    private graphCompute: GraphComputeService,
     private exploreService: ExploreService,
   ) {}
 
@@ -248,67 +254,93 @@ export class RecommendationService {
             relations: ['author'],
           });
 
-          // Re-ranking (lightweight)
-          // Map original rank to a score
+          // Re-ranking with vector similarity + graph signals
           const rankMap = new Map<string, number>(
             postIds.map((id: string, index: number) => [id, index]),
           );
 
-          const scoredPosts = await Promise.all(
-            candidatePosts.map(async (post) => {
-              const rank = rankMap.get(post.id) ?? 999;
-              // Base score from vector rank (lower rank is better)
-              const vectorScore = 1.0 / (rank + 1);
+          // Graph signal: Neo4j network proximity (friend-of-friend boost)
+          const candidatePostIds = candidatePosts.map((p) => p.id);
+          const [networkScores, authorityScores] = await Promise.all([
+            this.neo4jQuery.getNetworkProximityScores(userId, candidatePostIds),
+            this.graphCompute.getPostAuthorityScores(candidatePostIds),
+          ]);
 
-              // Network boost
-              const followBoost =
-                post.authorId &&
-                userProfile.followedUsers.includes(post.authorId)
-                  ? 0.3 * w.network
-                  : 0;
+          // Batch-load topic associations for all candidates (avoids N+1)
+          const allPostTopics = candidatePostIds.length > 0
+            ? await this.postTopicRepo.find({
+                where: { postId: In(candidatePostIds) },
+                select: ['postId', 'topicId'],
+              })
+            : [];
+          const postToTopics = new Map<string, string[]>();
+          for (const pt of allPostTopics) {
+            const arr = postToTopics.get(pt.postId) || [];
+            arr.push(pt.topicId);
+            postToTopics.set(pt.postId, arr);
+          }
 
-              // Topic boost
-              const postTopics = await this.postTopicRepo.find({
-                where: { postId: post.id },
-              });
-              const topicBoost = postTopics.some((pt) =>
-                userProfile.topics.includes(pt.topicId),
-              )
-                ? 0.3 * w.topics
+          const scoredPosts = candidatePosts.map((post) => {
+            const rank = rankMap.get(post.id) ?? 999;
+            // Base score from vector rank (lower rank is better)
+            const vectorScore = 1.0 / (rank + 1);
+
+            // Network boost (direct follow)
+            const followBoost =
+              post.authorId &&
+              userProfile.followedUsers.includes(post.authorId)
+                ? 0.3 * w.network
                 : 0;
 
-              // Engagement boosts
-              const quoteBoost =
-                (Math.min(post.quoteCount, 10) / 10) * (0.2 * w.quotes);
-              const replyBoost =
-                (Math.min(post.replyCount, 20) / 20) * (0.1 * w.replies);
+            // Graph-based network proximity boost (friend-of-friend from Neo4j)
+            const graphProximityBoost =
+              (networkScores.get(post.id) ?? 0) * w.network;
 
-              // Depth boost (reading time)
-              // If w.depth > 0.5, we boost longer posts.
-              // We'll scale the influence by 0.3 max score.
-              const readingTime = post.readingTimeMinutes || 1;
-              const lengthScore = Math.min(readingTime, 10) / 10; // 0.1 to 1.0
-              const depthBoost = lengthScore * (0.3 * w.depth);
+            // Topic boost
+            const topicIds = postToTopics.get(post.id) || [];
+            const topicBoost = topicIds.some((tid) =>
+              userProfile.topics.includes(tid),
+            )
+              ? 0.3 * w.topics
+              : 0;
 
-              // Language soft boost
-              let langBoost = 0;
-              if (user?.languages?.includes(post.lang || '')) {
-                langBoost = 0.1 * w.lang;
-              }
+            // Engagement boosts
+            const quoteBoost =
+              (Math.min(post.quoteCount, 10) / 10) * (0.2 * w.quotes);
+            const replyBoost =
+              (Math.min(post.replyCount, 20) / 20) * (0.1 * w.replies);
 
-              return {
-                post,
-                score:
-                  vectorScore +
-                  followBoost +
-                  topicBoost +
-                  quoteBoost +
-                  replyBoost +
-                  depthBoost +
-                  langBoost,
-              };
-            }),
-          );
+            // Depth boost (reading time)
+            const readingTime = post.readingTimeMinutes || 1;
+            const lengthScore = Math.min(readingTime, 10) / 10;
+            const depthBoost = lengthScore * (0.3 * w.depth);
+
+            // Language soft boost
+            let langBoost = 0;
+            if (user?.languages?.includes(post.lang || '')) {
+              langBoost = 0.1 * w.lang;
+            }
+
+            // Pre-computed authority boost (from periodic graph PageRank)
+            const rawAuthority = authorityScores.get(post.id) ?? 0;
+            const authorityBoost = rawAuthority > 0
+              ? Math.min(rawAuthority / 20, 0.5) * w.quotes // Normalize & cap at 0.5
+              : 0;
+
+            return {
+              post,
+              score:
+                vectorScore +
+                followBoost +
+                graphProximityBoost +
+                topicBoost +
+                quoteBoost +
+                replyBoost +
+                depthBoost +
+                langBoost +
+                authorityBoost,
+            };
+          });
 
           scoredPosts.sort((a, b) => b.score - a.score);
           resultPosts = scoredPosts.slice(0, limit).map((sp) => sp.post);
@@ -334,8 +366,36 @@ export class RecommendationService {
 
   /**
    * Get trending posts (fallback for new users). Excludes posts from protected accounts.
+   * Uses pre-computed trending velocity from Neo4j graph when available.
    */
   private async getTrendingPosts(limit: number): Promise<Post[]> {
+    // Try pre-computed trending velocity first
+    const trendingIds = await this.graphCompute.getTrendingByVelocity(limit * 2);
+
+    if (trendingIds.length > 0) {
+      const posts = await this.postRepo.find({
+        where: { id: In(trendingIds) },
+        relations: ['author'],
+      });
+
+      // Maintain velocity order, exclude protected authors
+      const postMap = new Map(posts.map((p) => [p.id, p]));
+      const result = trendingIds
+        .map((id) => postMap.get(id))
+        .filter(
+          (p): p is Post =>
+            p !== undefined &&
+            !p.deletedAt &&
+            (!p.author?.isProtected),
+        )
+        .slice(0, limit);
+
+      if (result.length >= Math.min(limit, 5)) {
+        return result;
+      }
+    }
+
+    // Fallback: Postgres-based trending
     return this.postRepo
       .createQueryBuilder('post')
       .leftJoinAndSelect('post.author', 'author')
@@ -348,7 +408,8 @@ export class RecommendationService {
   }
 
   /**
-   * Get fallback recommendations (when embeddings not available)
+   * Get fallback recommendations (when embeddings not available).
+   * Uses Neo4j extended network (friends-of-friends) to find interesting posts.
    */
   private async getFallbackRecommendations(
     userId: string,
@@ -356,27 +417,46 @@ export class RecommendationService {
     limit: number,
   ): Promise<Post[]> {
     // Prioritize posts from followed users
-    if (followedUsers.length > 0) {
-      const followedPosts = await this.postRepo
+    const followedPosts = followedUsers.length > 0
+      ? await this.postRepo
         .createQueryBuilder('post')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.author_id IN (:...userIds)', { userIds: followedUsers })
         .andWhere('post.deleted_at IS NULL')
         .orderBy('post.createdAt', 'DESC')
         .take(limit)
-        .getMany();
+        .getMany()
+      : [];
 
-      if (followedPosts.length >= limit) {
-        return followedPosts;
-      }
-
-      // Fill remaining with trending
-      const remaining = limit - followedPosts.length;
-      const trending = await this.getTrendingPosts(remaining);
-      return followedPosts.concat(trending);
+    if (followedPosts.length >= limit) {
+      return followedPosts;
     }
 
-    return this.getTrendingPosts(limit);
+    // Graph signal: posts from extended network (friends of friends via Neo4j)
+    const remaining = limit - followedPosts.length;
+    const existingIds = followedPosts.map((p) => p.id);
+    const extendedNetworkIds = await this.neo4jQuery.getExtendedNetworkPostIds(
+      userId,
+      remaining,
+      existingIds,
+    );
+
+    if (extendedNetworkIds.length > 0) {
+      const extendedPosts = await this.postRepo.find({
+        where: { id: In(extendedNetworkIds) },
+        relations: ['author'],
+      });
+      followedPosts.push(...extendedPosts);
+    }
+
+    if (followedPosts.length >= limit) {
+      return followedPosts.slice(0, limit);
+    }
+
+    // Fill remaining with trending
+    const stillRemaining = limit - followedPosts.length;
+    const trending = await this.getTrendingPosts(stillRemaining);
+    return followedPosts.concat(trending);
   }
 
   /**
@@ -415,9 +495,13 @@ export class RecommendationService {
 
     const userProfile = await this.getUserInterestProfile(userId);
 
-    // Find users who post about similar topics (skip topic filter when user has no topics)
+    // ----- Graph-based recommendations (Neo4j) -----
+    // Mutual follows + co-citation patterns — much more powerful than topic overlap
+    const graphRecs = await this.neo4jQuery.getRecommendedPeopleIds(userId, limit * 2);
+
+    // ----- Postgres fallback: topic overlap -----
     let similarUsers: { authorId: string; topicOverlap: string }[] = [];
-    if (userProfile.topics.length > 0) {
+    if (graphRecs.length < limit && userProfile.topics.length > 0) {
       similarUsers = await this.postTopicRepo
         .createQueryBuilder('pt')
         .innerJoin('posts', 'p', 'p.id = pt.post_id')
@@ -432,7 +516,18 @@ export class RecommendationService {
         .getRawMany<{ authorId: string; topicOverlap: string }>();
     }
 
-    const candidateUserIds = similarUsers.map((su) => su.authorId);
+    // Merge candidates: Neo4j graph recs first, then Postgres topic overlap
+    const candidateUserIds: string[] = [];
+    const graphRecSet = new Set<string>();
+    for (const rec of graphRecs) {
+      candidateUserIds.push(rec.userId);
+      graphRecSet.add(rec.userId);
+    }
+    for (const su of similarUsers) {
+      if (!graphRecSet.has(su.authorId)) {
+        candidateUserIds.push(su.authorId);
+      }
+    }
 
     let resultUsers: User[];
 
@@ -447,8 +542,9 @@ export class RecommendationService {
         .getMany();
     } else {
       // Get full user objects
+      const uniqueIds = [...new Set(candidateUserIds)].slice(0, limit * 2);
       const users = await this.userRepo.find({
-        where: { id: In(candidateUserIds) },
+        where: { id: In(uniqueIds) },
         select: [
           'id',
           'handle',
@@ -460,10 +556,10 @@ export class RecommendationService {
         ],
       });
 
-      // Sort by topic overlap
+      // Sort by original ranking order (graph recs first, then topic overlap)
       const userMap = new Map(users.map((u) => [u.id, u]));
-      resultUsers = similarUsers
-        .map((su) => userMap.get(su.authorId))
+      resultUsers = uniqueIds
+        .map((id) => userMap.get(id))
         .filter((u): u is User => u !== undefined)
         .slice(0, limit * 2);
     }

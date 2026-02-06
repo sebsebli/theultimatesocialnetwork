@@ -46,7 +46,7 @@ export default function ChangeEmailScreen() {
       .then((user) => {
         if (user?.email) setCurrentEmail(user.email);
       })
-      .catch(() => {})
+      .catch(() => { /* network failure handled silently */ })
       .finally(() => setLoadingUser(false));
   }, []);
 
@@ -69,8 +69,8 @@ export default function ChangeEmailScreen() {
       await api.patch("/users/me", { email: trimmed });
       showSuccess(t("settings.emailUpdated"));
       router.back();
-    } catch (e: any) {
-      const msg = e?.message ?? "";
+    } catch (e: unknown) {
+      const msg = (e as { message?: string })?.message ?? "";
       showError(
         msg && msg.toLowerCase().includes("already in use")
           ? t("settings.emailInUse")
@@ -140,6 +140,8 @@ export default function ChangeEmailScreen() {
           ]}
           onPress={handleSave}
           disabled={!isValid || loading}
+          accessibilityRole="button"
+          accessibilityLabel={t("settings.saveEmail")}
         >
           {loading ? (
             <InlineSkeleton />

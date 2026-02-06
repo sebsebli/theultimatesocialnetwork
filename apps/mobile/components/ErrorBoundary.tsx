@@ -25,9 +25,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    // In production, send to crash reporting service
-    // Example: Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } });
+    if (__DEV__) console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // In production, send to crash reporting service (e.g. Sentry)
   }
 
   handleReset = () => {
@@ -54,6 +53,8 @@ export class ErrorBoundary extends Component<Props, State> {
         <Pressable
           style={({ pressed }: { pressed: boolean }) => [styles.button, pressed && { opacity: 0.8 }]}
           onPress={this.handleReset}
+          accessibilityRole="button"
+          accessibilityLabel="Reload interface"
         >
           <Text style={styles.buttonText}>Reload interface</Text>
         </Pressable>
@@ -111,7 +112,7 @@ const styles = createStyles({
     alignItems: 'center',
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     fontSize: 15,
     fontWeight: '600',

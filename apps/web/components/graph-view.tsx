@@ -30,9 +30,11 @@ interface GraphData {
 
 interface GraphViewProps {
   postId: string;
+  /** When true, render without section border and heading (used inside post tabs). */
+  asTabContent?: boolean;
 }
 
-export function GraphView({ postId }: GraphViewProps) {
+export function GraphView({ postId, asTabContent = false }: GraphViewProps) {
   const router = useRouter();
   const [data, setData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,12 +42,22 @@ export function GraphView({ postId }: GraphViewProps) {
 
   useEffect(() => {
     if (!postId) return;
-    setLoading(true);
-    fetch(`/api/posts/${postId}/graph`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((res) => setData(res ?? null))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    const run = async () => {
+      const res = await fetch(`/api/posts/${postId}/graph`);
+      const json = res.ok ? await res.json() : null;
+      if (!cancelled) {
+        setData(json ?? null);
+      }
+      if (!cancelled) setLoading(false);
+    };
+    queueMicrotask(() => {
+      if (!cancelled) setLoading(true);
+    });
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [postId]);
 
   const layout = useMemo(() => {
@@ -133,27 +145,47 @@ export function GraphView({ postId }: GraphViewProps) {
     return { nodes: Array.from(nodesMap.values()), edges: data.edges };
   }, [data, containerSize]);
 
+  const Wrapper = asTabContent ? "div" : "section";
+  const wrapperClass = asTabContent ? "pt-1" : "border-t border-divider pt-8 mt-4";
+  const heading = !asTabContent && (
+    <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-4">
+      Citewalk Graph
+    </h2>
+  );
+
   if (loading) {
     return (
-      <section className="border-t border-divider pt-8 mt-4">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-4">
-          Citewalk Graph
-        </h2>
+      <Wrapper className={wrapperClass}>
+        {heading}
         <div
           className="h-[300px] flex items-center justify-center bg-white/5 rounded-xl"
           aria-hidden
         >
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
-      </section>
+      </Wrapper>
     );
   }
 
-  if (!data || data.nodes.length <= 1) return null;
+  // Show placeholder when no graph data or only the center node (no connections)
+  if (!data || data.nodes.length <= 1) {
+    return (
+      <Wrapper className={wrapperClass}>
+        {heading}
+        <div className="rounded-xl bg-white/5 border border-divider/50 flex items-center justify-center min-h-[120px] px-4">
+          <p className="text-tertiary text-sm text-center">
+            {!data
+              ? "Could not load graph"
+              : "No connections yet — cite other posts or get cited to see the graph here."}
+          </p>
+        </div>
+      </Wrapper>
+    );
+  }
 
   return (
-    <section
-      className="border-t border-divider pt-8 mt-4"
+    <Wrapper
+      className={wrapperClass}
       ref={(el) => {
         if (!el) return;
         const ro = new ResizeObserver((entries) => {
@@ -163,9 +195,7 @@ export function GraphView({ postId }: GraphViewProps) {
         ro.observe(el);
       }}
     >
-      <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-4">
-        Citewalk Graph
-      </h2>
+      {heading}
       <div className="overflow-hidden rounded-xl bg-white/5">
         <svg
           width={containerSize.width}
@@ -256,6 +286,6 @@ export function GraphView({ postId }: GraphViewProps) {
       <p className="text-center text-tertiary text-xs mt-2">
         {data.nodes.length} connected nodes
       </p>
-    </section>
+    </Wrapper>
   );
 }

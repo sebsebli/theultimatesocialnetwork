@@ -5,7 +5,7 @@ interface QueuedAction {
   type: 'like' | 'keep' | 'follow' | 'reply' | 'quote' | 'post' | 'report';
   endpoint: string;
   method: 'POST' | 'DELETE' | 'PUT' | 'PATCH';
-  data?: any;
+  data?: Record<string, unknown>;
   timestamp: number;
 }
 

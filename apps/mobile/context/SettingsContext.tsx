@@ -1,7 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../utils/api";
 import { useAuth } from "./auth";
+
+interface MePreferences {
+  preferences?: { smartCiteEnabled?: boolean };
+}
 
 interface SettingsContextType {
   smartCiteEnabled: boolean;
@@ -21,52 +25,60 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   // Load from local storage on mount
   useEffect(() => {
-    AsyncStorage.getItem("citewalk_smart_cite").then((val) => {
-      if (val !== null) {
-        setSmartCiteEnabledState(val === "true");
-      }
-    });
+    AsyncStorage.getItem("citewalk_smart_cite")
+      .then((val) => {
+        if (val !== null) {
+          setSmartCiteEnabledState(val === "true");
+        }
+      })
+      .catch(() => {
+        // Fallback: keep default
+      });
   }, []);
 
   // Sync from server when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       api
-        .get("/users/me")
-        .then((me: any) => {
+        .get<MePreferences>("/users/me")
+        .then((me) => {
           const remoteVal = me?.preferences?.smartCiteEnabled;
           if (remoteVal !== undefined) {
             setSmartCiteEnabledState(remoteVal);
-            AsyncStorage.setItem("citewalk_smart_cite", String(remoteVal));
+            AsyncStorage.setItem("citewalk_smart_cite", String(remoteVal)).catch(() => { /* persist preference best-effort */ });
           }
         })
-        .catch((err) => {
-          // console.error('Failed to fetch user settings', err);
+        .catch(() => {
+          // Network error; keep local value
         });
     }
   }, [isAuthenticated]);
 
-  const setSmartCiteEnabled = async (enabled: boolean) => {
-    // 1. Optimistic update
-    setSmartCiteEnabledState(enabled);
+  const setSmartCiteEnabled = useCallback(
+    async (enabled: boolean) => {
+      // 1. Optimistic update
+      setSmartCiteEnabledState(enabled);
 
-    // 2. Local persistence
-    await AsyncStorage.setItem("citewalk_smart_cite", String(enabled));
+      // 2. Local persistence
+      await AsyncStorage.setItem("citewalk_smart_cite", String(enabled));
 
-    // 3. Server sync
-    if (isAuthenticated) {
-      try {
-        const me: any = await api.get("/users/me");
-        const currentPrefs = me.preferences || {};
-        await api.patch("/users/me", {
-          preferences: { ...currentPrefs, smartCiteEnabled: enabled },
-        });
-      } catch (e) {
-        console.error("Failed to sync settings", e);
+      // 3. Server sync
+      if (isAuthenticated) {
+        try {
+          const me = await api.get<MePreferences>("/users/me");
+          const currentPrefs = me?.preferences || {};
+          await api.patch("/users/me", {
+            preferences: { ...currentPrefs, smartCiteEnabled: enabled },
+          });
+        } catch {
+          if (__DEV__) console.warn("Failed to sync settings to server");
+        }
       }
-    }
-  };
+    },
+    [isAuthenticated],
+  );
 
-  const value = { smartCiteEnabled, setSmartCiteEnabled };
+  const value = useMemo(() => ({ smartCiteEnabled, setSmartCiteEnabled }), [smartCiteEnabled, setSmartCiteEnabled]);
+
   return React.createElement(SettingsContext.Provider, { value }, children);
 }

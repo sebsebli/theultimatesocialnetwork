@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useToast } from "@/components/ui/toast";
 import { useRouter } from "next/navigation";
@@ -75,31 +75,34 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     connectSocket();
   }, [toast, router]);
 
-  const on = (event: string, callback: (data: unknown) => void) => {
+  const on = useCallback((event: string, callback: (data: unknown) => void) => {
     if (socket) {
       socket.on(event, callback);
     }
-  };
+  }, [socket]);
 
-  const off = (event: string, callback: (data: unknown) => void) => {
+  const off = useCallback((event: string, callback: (data: unknown) => void) => {
     if (socket) {
       socket.off(event, callback);
     }
-  };
+  }, [socket]);
 
-  const clearUnreadNotifications = () => setUnreadNotifications(0);
+  const clearUnreadNotifications = useCallback(() => setUnreadNotifications(0), []);
+
+  const value = useMemo(
+    () => ({
+      socket,
+      isConnected,
+      unreadNotifications,
+      clearUnreadNotifications,
+      on,
+      off,
+    }),
+    [socket, isConnected, unreadNotifications, clearUnreadNotifications, on, off],
+  );
 
   return (
-    <RealtimeContext.Provider
-      value={{
-        socket,
-        isConnected,
-        unreadNotifications,
-        clearUnreadNotifications,
-        on,
-        off,
-      }}
-    >
+    <RealtimeContext.Provider value={value}>
       {children}
     </RealtimeContext.Provider>
   );

@@ -42,7 +42,7 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const { on, off } = useSocket();
   const { showError } = useToast();
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Array<{ id: string; body: string; senderId?: string; authorId?: string; createdAt?: string }>>([]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -53,9 +53,9 @@ export default function ChatScreen() {
 
   useEffect(() => {
     api
-      .get("/users/me")
+      .get<{ id: string }>("/users/me")
       .then((u) => setCurrentUserId(u.id))
-      .catch(() => {});
+      .catch(() => { /* current user lookup best-effort */ });
   }, []);
 
   useEffect(() => {
@@ -64,23 +64,37 @@ export default function ChatScreen() {
     }
   }, [initialMessage]);
 
-  const loadMessages = async () => {
+  const loadMessages = async (cancelledRef?: { current: boolean }) => {
     try {
       const data = await api.get(`/messages/threads/${threadId}/messages`);
+      if (cancelledRef?.current) return;
       setMessages(Array.isArray(data) ? data.reverse() : []); // Oldest first for chat usually? FlatList inverted
     } catch (error) {
-      console.error("Failed to load messages", error);
+      if (cancelledRef?.current) return;
+      if (__DEV__) console.error("Failed to load messages", error);
     } finally {
-      setLoading(false);
+      if (!cancelledRef?.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadMessages();
+    let cancelled = false;
+    const cancelledRef = { current: false };
+    const load = async () => {
+      await loadMessages(cancelledRef);
+    };
+    load();
+    return () => {
+      cancelled = true;
+      cancelledRef.current = true;
+    };
   }, [threadId]);
 
   useEffect(() => {
-    const handleNewMessage = (msg: any) => {
+    const handleNewMessage = (data: unknown) => {
+      const msg = data as { threadId?: string; id: string; body: string; senderId?: string; authorId?: string; createdAt?: string };
       if (msg.threadId === threadId) {
         setMessages((prev) => [msg, ...prev]);
       }
@@ -95,12 +109,12 @@ export default function ChatScreen() {
     setInputText("");
     setSending(true);
     try {
-      const msg = await api.post(`/messages/threads/${threadId}/messages`, {
+      const msg = await api.post<{ id: string; body: string; senderId?: string; authorId?: string; createdAt?: string }>(`/messages/threads/${threadId}/messages`, {
         body: text,
       });
       setMessages((prev) => [msg, ...prev]);
     } catch (error) {
-      console.error("Failed to send", error);
+      if (__DEV__) console.error("Failed to send", error);
       setInputText(text); // Revert
     } finally {
       setSending(false);
@@ -128,7 +142,7 @@ export default function ChatScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = ({ item }: { item: { id: string; body: string; senderId?: string; authorId?: string } }) => {
     const isMe = (item.senderId ?? item.authorId) === currentUserId;
     return (
       <View
@@ -214,6 +228,8 @@ export default function ChatScreen() {
             onPress={handleSend}
             disabled={!inputText.trim() || sending}
             style={styles.sendButton}
+            accessibilityLabel={t("messages.send", "Send message")}
+            accessibilityRole="button"
           >
             <MaterialIcons
               name="send"
@@ -286,7 +302,7 @@ const styles = createStyles({
     borderBottomLeftRadius: 4,
   },
   messageText: { fontSize: 16, fontFamily: FONTS.regular },
-  myMessageText: { color: "#FFF" },
+  myMessageText: { color: COLORS.paper },
   theirMessageText: { color: COLORS.paper },
   inputContainer: {
     flexDirection: "row",

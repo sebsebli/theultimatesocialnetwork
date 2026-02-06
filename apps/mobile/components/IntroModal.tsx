@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, Modal, Pressable, Animated, Dimensions, Image, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, Modal, Pressable, Animated, Dimensions, Image, ScrollView, type ViewStyle, type ImageSourcePropType } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,14 +33,14 @@ interface FadeInOutTextProps {
   delay: number;
   visibleDuration?: number;
   fadeDuration?: number;
-  style?: any;
+  style?: ViewStyle;
   isFounder?: boolean;
   isWelcome?: boolean;
   founderName?: string;
 }
 
 interface FadeInOutBackgroundProps {
-  imageSource: any;
+  imageSource: ImageSourcePropType;
   delay: number;
   visibleDuration?: number;
   fadeDuration?: number;
@@ -55,6 +55,7 @@ function FadeInOutBackground({
   isLast = false,
 }: FadeInOutBackgroundProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const nestedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -66,20 +67,27 @@ function FadeInOutBackground({
       }).start(() => {
         // Stay visible
         if (!isLast) {
-          setTimeout(() => {
+          nestedTimerRef.current = setTimeout(() => {
             // Fade out (unless it's the last item)
             Animated.timing(fadeAnim, {
               toValue: 0,
               duration: fadeDuration,
               useNativeDriver: true,
             }).start();
+            nestedTimerRef.current = null;
           }, visibleDuration);
         }
         // If last, stay visible forever
       });
     }, delay);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (nestedTimerRef.current) {
+        clearTimeout(nestedTimerRef.current);
+        nestedTimerRef.current = null;
+      }
+    };
   }, [delay, fadeDuration, visibleDuration, isLast]);
 
   return (
@@ -102,6 +110,7 @@ function FadeInOutBackground({
         source={imageSource}
         style={styles.backgroundImage}
         resizeMode="cover"
+        cachePolicy="memory-disk"
       />
       <View style={styles.backgroundOverlay} />
     </Animated.View>
@@ -120,6 +129,7 @@ function FadeInOutText({
   founderName,
 }: FadeInOutTextProps & { isLast?: boolean }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const nestedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -131,20 +141,27 @@ function FadeInOutText({
       }).start(() => {
         // Stay visible
         if (!isLast) {
-          setTimeout(() => {
+          nestedTimerRef.current = setTimeout(() => {
             // Fade out (unless it's the last item - Welcome)
             Animated.timing(fadeAnim, {
               toValue: 0,
               duration: fadeDuration,
               useNativeDriver: true,
             }).start();
+            nestedTimerRef.current = null;
           }, visibleDuration);
         }
         // If last, stay visible forever
       });
     }, delay);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (nestedTimerRef.current) {
+        clearTimeout(nestedTimerRef.current);
+        nestedTimerRef.current = null;
+      }
+    };
   }, [delay, fadeDuration, visibleDuration, isLast]);
 
   // Parse text for highlighting "Citewalk" in founder message
@@ -280,7 +297,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
     {
       useNativeDriver: false,
-      listener: (event: any) => {
+      listener: (event: { nativeEvent: { contentOffset: { x: number } } }) => {
         const offsetX = event.nativeEvent.contentOffset.x;
         const index = Math.round(offsetX / width);
         setCurrentIndex(index);
@@ -303,6 +320,8 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
           <Pressable
             style={styles.skipButton}
             onPress={handleSkip}
+            accessibilityRole="button"
+            accessibilityLabel={t('intro.skip')}
           >
             <Text style={styles.skipButtonText}>{t('intro.skip')}</Text>
           </Pressable>
@@ -383,6 +402,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
                   source={cityImages[cityIndex]}
                   style={styles.backgroundImage}
                   resizeMode="cover"
+                  cachePolicy="memory-disk"
                 />
                 <View style={styles.backgroundOverlay} />
               </Animated.View>
@@ -427,7 +447,7 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
                   ) : (
                     <View style={styles.welcomePageContent}>
                       {isWelcome && (
-                        <Image source={logoSource} style={styles.welcomeLogo} resizeMode="contain" />
+                        <Image source={logoSource} style={styles.welcomeLogo} resizeMode="contain" cachePolicy="memory" />
                       )}
                       <Text
                         style={[
@@ -452,6 +472,8 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
             <Pressable
               style={styles.beginButton}
               onPress={handleClose}
+              accessibilityRole="button"
+              accessibilityLabel={t('intro.beginJourney')}
             >
               <Text style={styles.beginButtonText}>
                 {t('intro.beginJourney')}
@@ -497,6 +519,8 @@ export function IntroModal({ visible, onClose }: IntroModalProps) {
                 onPress={onIndicatorPress}
                 style={styles.indicatorPressable}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={`${t('intro.goToPage', 'Go to page')} ${index + 1}`}
               >
                 {/* @ts-expect-error - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
                 <Animated.View

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Text,
   View,
@@ -45,6 +45,7 @@ import {
   InlineSkeleton,
 } from "../../../components/LoadingSkeleton";
 import { useComposerSearch } from "../../../hooks/useComposerSearch";
+import * as Haptics from "expo-haptics";
 
 const COMMENT_MIN_LENGTH = 2;
 const COMMENT_MAX_LENGTH = 1000;
@@ -95,10 +96,10 @@ export default function PostCommentsScreen() {
   const segs = segments as string[];
   const postIdFromSegments =
     Array.isArray(segs) &&
-    segs.length >= 3 &&
-    segs[0] === "post" &&
-    segs[1] &&
-    segs[2] === "comments"
+      segs.length >= 3 &&
+      segs[0] === "post" &&
+      segs[1] &&
+      segs[2] === "comments"
       ? String(segs[1])
       : undefined;
   const postId =
@@ -124,6 +125,16 @@ export default function PostCommentsScreen() {
   } = useComposerSearch();
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
 
+  const likedSet = useMemo(() => {
+    const liked = new Set<string>();
+    replies.forEach((r: Reply) => {
+      if (r.isLiked) {
+        liked.add(r.id);
+      }
+    });
+    return liked;
+  }, [replies]);
+
   const loadReplies = useCallback(async () => {
     if (!postId) return;
     try {
@@ -132,11 +143,15 @@ export default function PostCommentsScreen() {
       );
       const list = Array.isArray(raw) ? raw : (raw?.items ?? []);
       setReplies(list);
-      setLikedReplies(
-        new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)),
-      );
+      const likedIds = new Set<string>();
+      list.forEach((r: Reply) => {
+        if (r.isLiked) {
+          likedIds.add(r.id);
+        }
+      });
+      setLikedReplies(likedIds);
     } catch (e) {
-      console.error("Failed to load comments", e);
+      if (__DEV__) console.error("Failed to load comments", e);
       setReplies([]);
     }
   }, [postId]);
@@ -156,17 +171,17 @@ export default function PostCommentsScreen() {
       const list = Array.isArray(repliesData)
         ? repliesData
         : repliesData &&
-            typeof repliesData === "object" &&
-            "items" in repliesData &&
-            Array.isArray((repliesData as any).items)
-          ? (repliesData as any).items
+          typeof repliesData === "object" &&
+          "items" in repliesData &&
+          Array.isArray((repliesData as { items?: Reply[] }).items)
+          ? (repliesData as { items?: Reply[] }).items ?? []
           : [];
       setReplies(list);
       setLikedReplies(
         new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)),
       );
     } catch (error) {
-      console.error("Failed to load comments", error);
+      if (__DEV__) console.error("Failed to load comments", error);
       setReplies([]);
     } finally {
       setLoading(false);
@@ -223,6 +238,7 @@ export default function PostCommentsScreen() {
   );
 
   const submitComment = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const body = commentDraft.trim();
     if (!body || !isAuthenticated || !postId) return;
     if (body.length < COMMENT_MIN_LENGTH) {
@@ -270,10 +286,11 @@ export default function PostCommentsScreen() {
       }
       await loadReplies();
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (error: any) {
-      console.error("Failed to post comment", error);
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to post comment", error);
+      const apiErr = error as { data?: { message?: string }; message?: string } | undefined;
       const message =
-        error?.data?.message ?? error?.message ?? t("post.commentFailed");
+        apiErr?.data?.message ?? apiErr?.message ?? t("post.commentFailed");
       showError(
         typeof message === "string" ? message : t("post.commentFailed"),
       );
@@ -334,10 +351,11 @@ export default function PostCommentsScreen() {
       await api.delete(`/posts/${postId}/replies/${replyToDeleteId}`);
       setReplies((prev) => prev.filter((r) => r.id !== replyToDeleteId));
       showSuccess(t("post.commentDeleted", "Comment deleted"));
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const apiErr = e as { data?: { message?: string }; message?: string } | undefined;
       const msg =
-        e?.data?.message ??
-        e?.message ??
+        apiErr?.data?.message ??
+        apiErr?.message ??
         t("post.commentDeleteFailed", "Failed to delete comment");
       showError(
         typeof msg === "string"
@@ -356,7 +374,12 @@ export default function PostCommentsScreen() {
         <Text style={styles.errorText}>
           {t("post.postNotFound", "Post not found")}
         </Text>
-        <Pressable style={styles.backLink} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backLink}
+          onPress={() => router.back()}
+          onLongPress={() => router.replace("/(tabs)" as "/")}
+          delayLongPress={400}
+        >
           <Text style={styles.backLinkText}>{t("common.close")}</Text>
         </Pressable>
       </View>
@@ -419,13 +442,13 @@ export default function PostCommentsScreen() {
               subtext={
                 isAuthenticated
                   ? t(
-                      "post.noCommentsSubtext",
-                      "Add a comment below to start the discussion.",
-                    )
+                    "post.noCommentsSubtext",
+                    "Add a comment below to start the discussion.",
+                  )
                   : t(
-                      "post.signInToCommentSubtext",
-                      "Sign in to join the discussion and add a comment.",
-                    )
+                    "post.signInToCommentSubtext",
+                    "Sign in to join the discussion and add a comment.",
+                  )
               }
               actionLabel={
                 !isAuthenticated ? t("common.signIn", "Sign in") : undefined
@@ -448,13 +471,13 @@ export default function PostCommentsScreen() {
             onLayout={
               replyIdFromParams === reply.id && !hasScrolledToReply.current
                 ? (e: { nativeEvent: { layout: { y: number } } }) => {
-                    hasScrolledToReply.current = true;
-                    const y = e.nativeEvent.layout.y;
-                    scrollRef.current?.scrollTo({
-                      y: Math.max(0, y - 80),
-                      animated: true,
-                    });
-                  }
+                  hasScrolledToReply.current = true;
+                  const y = e.nativeEvent.layout.y;
+                  scrollRef.current?.scrollTo({
+                    y: Math.max(0, y - 80),
+                    animated: true,
+                  });
+                }
                 : undefined
             }
           >
@@ -528,12 +551,12 @@ export default function PostCommentsScreen() {
                       <Text style={styles.commentLikeLabel}>
                         {(reply.authorId === userId ||
                           reply.author?.id === userId) &&
-                        reply.privateLikeCount !== undefined &&
-                        reply.privateLikeCount > 0
+                          reply.privateLikeCount !== undefined &&
+                          reply.privateLikeCount > 0
                           ? t("post.privateLikedBy", {
-                              count: reply.privateLikeCount,
-                              defaultValue: `Liked by ${reply.privateLikeCount}`,
-                            })
+                            count: reply.privateLikeCount,
+                            defaultValue: `Liked by ${reply.privateLikeCount}`,
+                          })
                           : t("post.like")}
                       </Text>
                     </Pressable>
@@ -547,8 +570,8 @@ export default function PostCommentsScreen() {
                   accessibilityLabel={
                     (reply.subreplyCount ?? 0) > 0
                       ? t("post.viewReplies", "View {{count}} replies", {
-                          count: reply.subreplyCount,
-                        })
+                        count: reply.subreplyCount,
+                      })
                       : t("post.reply", "Reply")
                   }
                 >
@@ -560,8 +583,8 @@ export default function PostCommentsScreen() {
                   <Text style={styles.repliesLinkText}>
                     {(reply.subreplyCount ?? 0) > 0
                       ? t("post.replyCountLabel", "{{count}} replies", {
-                          count: reply.subreplyCount,
-                        })
+                        count: reply.subreplyCount,
+                      })
                       : t("post.reply", "Reply")}
                   </Text>
                   <MaterialIcons
@@ -606,10 +629,10 @@ export default function PostCommentsScreen() {
                   ) : (
                     mentionResults
                       .filter(
-                        (r: any) => r.type === "mention" && r.id !== userId,
+                        (r: Record<string, unknown>) => r.type === "mention" && r.id !== userId,
                       )
                       .slice(0, 8)
-                      .map((item: any) => (
+                      .map((item: Record<string, unknown>) => (
                         <Pressable
                           key={item.id}
                           style={({ pressed }: { pressed: boolean }) => [
@@ -623,7 +646,7 @@ export default function PostCommentsScreen() {
                               style={styles.mentionItemAvatarText}
                               numberOfLines={1}
                             >
-                              {(item.displayName || item.handle)?.charAt(0)}
+                              {((item.displayName || item.handle) as string | undefined)?.charAt(0)}
                             </Text>
                           </View>
                           <View style={{ flex: 1, minWidth: 0 }}>
@@ -631,13 +654,13 @@ export default function PostCommentsScreen() {
                               style={styles.mentionItemLabel}
                               numberOfLines={1}
                             >
-                              {item.displayName || item.handle}
+                              {(item.displayName || item.handle) as string | undefined}
                             </Text>
                             <Text
                               style={styles.mentionItemHandle}
                               numberOfLines={1}
                             >
-                              @{item.handle}
+                              @{item.handle as string | undefined}
                             </Text>
                           </View>
                         </Pressable>
@@ -655,7 +678,7 @@ export default function PostCommentsScreen() {
                 (commentDraft.trim().length < COMMENT_MIN_LENGTH ||
                   commentDraft.length > COMMENT_MAX_LENGTH ||
                   submittingComment) &&
-                  styles.commentPostBtnDisabled,
+                styles.commentPostBtnDisabled,
               ]}
               onPress={submitComment}
               disabled={
@@ -698,21 +721,21 @@ export default function PostCommentsScreen() {
         title={t("post.commentActions", "Comment")}
         options={[
           ...(replyMenuReplyId &&
-          userId &&
-          (replies.find((r) => r.id === replyMenuReplyId)?.authorId ===
-            userId ||
-            replies.find((r) => r.id === replyMenuReplyId)?.author?.id ===
+            userId &&
+            (replies.find((r) => r.id === replyMenuReplyId)?.authorId ===
+              userId ||
+              replies.find((r) => r.id === replyMenuReplyId)?.author?.id ===
               userId)
             ? [
-                {
-                  label: t("post.deleteComment", "Delete comment"),
-                  onPress: () => {
-                    setReplyToDeleteId(replyMenuReplyId);
-                    setReplyMenuReplyId(null);
-                  },
-                  destructive: true as const,
+              {
+                label: t("post.deleteComment", "Delete comment"),
+                onPress: () => {
+                  setReplyToDeleteId(replyMenuReplyId);
+                  setReplyMenuReplyId(null);
                 },
-              ]
+                destructive: true as const,
+              },
+            ]
             : []),
           {
             label: t("post.reportComment", "Report"),

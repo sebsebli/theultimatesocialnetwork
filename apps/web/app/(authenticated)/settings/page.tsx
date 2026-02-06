@@ -6,16 +6,26 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
+import {
+  getDownloadSavedForOffline,
+  setDownloadSavedForOffline,
+  getOfflineStorageCount,
+  clearAllOfflinePosts,
+} from "@/lib/offline-storage";
 
 export default function SettingsPage() {
   const router = useRouter();
   const t = useTranslations("settings");
   const { error: toastError, success: toastSuccess } = useToast();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const userHandle = (user as { handle?: string } | null)?.handle;
+  const userPreferences = (user as { preferences?: { smartCiteEnabled?: boolean } } | null)?.preferences;
   const [pushEnabled, setPushEnabled] = useState(true);
   const [showSaves, setShowSaves] = useState(true);
   const [enableRecommendations, setEnableRecommendations] = useState(true);
+  const [smartCiteEnabled, setSmartCiteEnabledState] = useState(true);
+  const [downloadSavedOffline, setDownloadSavedOffline] = useState(false);
+  const [offlineCount, setOfflineCount] = useState(0);
   const [emailMarketing, setEmailMarketing] = useState(false);
   const [emailProductUpdates, setEmailProductUpdates] = useState(false);
   const [emailPrefsLoading, setEmailPrefsLoading] = useState(true);
@@ -33,9 +43,46 @@ export default function SettingsPage() {
           setEmailProductUpdates(!!data.email_product_updates);
         }
       })
-      .catch(() => {})
+      .catch(() => { /* settings load best-effort */ })
       .finally(() => setEmailPrefsLoading(false));
   }, []);
+
+  useEffect(() => {
+    setSmartCiteEnabledState(userPreferences?.smartCiteEnabled ?? true);
+  }, [userPreferences?.smartCiteEnabled]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setDownloadSavedOffline(getDownloadSavedForOffline());
+      setOfflineCount(getOfflineStorageCount());
+    }
+  }, []);
+
+  const handleSmartCiteToggle = async (enabled: boolean) => {
+    setSmartCiteEnabledState(enabled);
+    try {
+      await fetch("/api/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          preferences: { ...userPreferences, smartCiteEnabled: enabled },
+        }),
+      });
+      await refreshUser();
+    } catch {
+      setSmartCiteEnabledState(!enabled);
+    }
+  };
+
+  const handleDownloadSavedOfflineToggle = (enabled: boolean) => {
+    setDownloadSavedForOffline(enabled);
+    setDownloadSavedOffline(enabled);
+    if (enabled) setOfflineCount(getOfflineStorageCount());
+    else {
+      clearAllOfflinePosts();
+      setOfflineCount(0);
+    }
+  };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reserved for export progress UI
   const [isExporting, setIsExporting] = useState(false);
@@ -231,12 +278,29 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Content — match mobile order: Relevance, Notifications, then push/email/feed/explore */}
+        {/* Content — match mobile: Smart Autocomplete, Relevance, Notifications */}
         <section>
           <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
             Content
           </h2>
           <div className="space-y-1 mb-6">
+            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+              <div>
+                <div className="text-paper font-medium">Smart Autocomplete</div>
+                <div className="text-secondary text-sm mt-0.5">
+                  Suggest posts and topics while typing
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={smartCiteEnabled}
+                  onChange={(e) => handleSmartCiteToggle(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
             <Link
               href="/settings/relevance"
               className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
@@ -463,6 +527,64 @@ export default function SettingsPage() {
                 </div>
               </Link>
             </div>
+          </div>
+        </section>
+
+        {/* Offline reading — match mobile */}
+        <section>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
+            Offline reading
+          </h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+              <div>
+                <div className="text-paper font-medium">
+                  Download saved for offline
+                </div>
+                <div className="text-secondary text-sm mt-0.5">
+                  When on, you can read bookmarked posts without internet.
+                  Manage storage below.
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={downloadSavedOffline}
+                  onChange={(e) =>
+                    handleDownloadSavedOfflineToggle(e.target.checked)
+                  }
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-white/10 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+            <Link
+              href="/settings/offline"
+              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+            >
+              <span className="font-medium">Manage offline storage</span>
+              <span className="flex items-center gap-2">
+                {offlineCount > 0 && (
+                  <span className="text-tertiary text-sm">
+                    {offlineCount}{" "}
+                    {offlineCount === 1 ? "article" : "articles"}
+                  </span>
+                )}
+                <svg
+                  className="w-5 h-5 text-tertiary shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </span>
+            </Link>
           </div>
         </section>
 

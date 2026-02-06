@@ -1,22 +1,49 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import neo4j, { Driver, Session } from 'neo4j-driver';
 
+/**
+ * Neo4jService — fully optional graph database layer.
+ *
+ * When NEO4J_URI is not set (or empty), Neo4j is completely disabled:
+ *   - No driver is created, no connection is attempted.
+ *   - All write operations (`run`) silently return `{ records: [] }`.
+ *   - `getStatus()` returns `{ healthy: false, enabled: false }`.
+ *
+ * This allows the rest of the application (workers, admin, health checks)
+ * to function without Neo4j being present at all.
+ */
 @Injectable()
 export class Neo4jService implements OnModuleInit, OnModuleDestroy {
-  private driver: Driver;
+  private readonly logger = new Logger(Neo4jService.name);
+  private driver: import('neo4j-driver').Driver | null = null;
   private isHealthy = false;
   private lastCheck = 0;
   private readonly CHECK_INTERVAL = 30000; // 30s
 
-  constructor(private configService: ConfigService) {}
+  /** True only when NEO4J_URI is configured and the driver was created. */
+  private readonly enabled: boolean;
+  private readonly uri: string;
+  private readonly user: string;
+  private readonly password: string;
+
+  constructor(private configService: ConfigService) {
+    const uri = this.configService.get<string>('NEO4J_URI');
+    this.enabled = !!uri && uri.trim().length > 0;
+    this.uri = uri || '';
+    this.user = this.configService.get<string>('NEO4J_USER') || 'neo4j';
+    this.password = this.configService.get<string>('NEO4J_PASSWORD') || 'password';
+  }
 
   async onModuleInit() {
+    if (!this.enabled) {
+      this.logger.log('Neo4j is disabled (NEO4J_URI not set). All graph operations will be skipped.');
+      return;
+    }
     await this.connect();
     await this.ensureIndexes();
   }
 
-  /** Create indexes for labels/properties used by the app (idempotent). Improves MATCH/MERGE performance. */
+  /** Create indexes for labels/properties used by the app (idempotent). */
   private async ensureIndexes(): Promise<void> {
     if (!this.isHealthy) return;
     const indexes = [
@@ -31,40 +58,39 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         if (!msg.includes('equivalent') && !msg.includes('already exists')) {
-          console.warn('Neo4j index creation (non-fatal):', msg);
+          this.logger.warn(`Neo4j index creation (non-fatal): ${msg}`);
         }
       }
     }
   }
 
   private async connect() {
-    const uri =
-      this.configService.get<string>('NEO4J_URI') || 'bolt://localhost:7687';
-    const user = this.configService.get<string>('NEO4J_USER') || 'neo4j';
-    const password =
-      this.configService.get<string>('NEO4J_PASSWORD') || 'password';
-
-    this.driver = neo4j.driver(uri, neo4j.auth.basic(user, password), {
-      maxConnectionLifetime: 3 * 60 * 60 * 1000, // 3 hours
-      maxConnectionPoolSize: 50,
-      connectionAcquisitionTimeout: 2000, // 2s
-    });
-
+    // Dynamic import so that neo4j-driver is not loaded when disabled
+    const neo4j = await import('neo4j-driver');
+    this.driver = neo4j.default.driver(
+      this.uri,
+      neo4j.default.auth.basic(this.user, this.password),
+      {
+        maxConnectionLifetime: 3 * 60 * 60 * 1000, // 3 hours
+        maxConnectionPoolSize: 50,
+        connectionAcquisitionTimeout: 2000, // 2s
+      },
+    );
     await this.verifyConnection();
   }
 
   private async verifyConnection(): Promise<boolean> {
+    if (!this.driver) return false;
     try {
       await this.driver.getServerInfo();
       this.isHealthy = true;
-      console.log('Connected to Neo4j');
+      this.logger.log('Connected to Neo4j');
       return true;
     } catch (e) {
       this.isHealthy = false;
       const message = e instanceof Error ? e.message : String(e);
-      console.error(
-        'Failed to connect to Neo4j. Graph features will be disabled until reconnection.',
-        message,
+      this.logger.warn(
+        `Failed to connect to Neo4j. Graph sync will be skipped until reconnection. ${message}`,
       );
       return false;
     }
@@ -76,15 +102,26 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  getStatus() {
-    return { healthy: this.isHealthy };
+  /** Returns health status. `enabled: false` means Neo4j is not configured. */
+  getStatus(): { healthy: boolean; enabled: boolean } {
+    return { healthy: this.isHealthy, enabled: this.enabled };
   }
 
-  getSession(): Session {
-    return this.driver.session();
+  /** Whether Neo4j is configured and connected. Use to skip optional operations. */
+  isEnabled(): boolean {
+    return this.enabled;
   }
 
-  async run(query: string, params: Record<string, any> = {}) {
+  getSession(): import('neo4j-driver').Session | null {
+    return this.driver?.session() ?? null;
+  }
+
+  async run(query: string, params: Record<string, any> = {}): Promise<{ records: any[] }> {
+    // If Neo4j is not configured at all, silently skip
+    if (!this.enabled || !this.driver) {
+      return { records: [] };
+    }
+
     // Self-healing: Try to reconnect if unhealthy and interval passed
     if (!this.isHealthy) {
       const now = Date.now();
@@ -100,6 +137,8 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
     }
 
     const session = this.getSession();
+    if (!session) return { records: [] };
+
     try {
       const result = await session.run(query, params);
       return result;
@@ -111,7 +150,7 @@ export class Neo4jService implements OnModuleInit, OnModuleDestroy {
           error.message.includes('Session'))
       ) {
         this.isHealthy = false;
-        console.warn('Neo4j connection lost during query execution');
+        this.logger.warn('Neo4j connection lost during query execution');
       }
       throw error;
     } finally {

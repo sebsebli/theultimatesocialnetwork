@@ -2,17 +2,14 @@ import {
   Injectable,
   Logger,
   OnApplicationBootstrap,
-  OnApplicationShutdown,
   Inject,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { Worker, Job } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
 import archiver from 'archiver';
-import Redis from 'ioredis';
 import { EmailService } from '../shared/email.service';
 import { UploadService } from '../upload/upload.service';
-import { defaultQueueConfig } from '../common/queue-config';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 
 interface ExportJobData {
   userId: string;
@@ -21,48 +18,30 @@ interface ExportJobData {
 }
 
 @Injectable()
-export class ExportWorker
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+export class ExportWorker implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExportWorker.name);
-  private worker: Worker;
 
   constructor(
     private usersService: UsersService,
     private configService: ConfigService,
     private emailService: EmailService,
     private uploadService: UploadService,
-    @Inject('REDIS_CLIENT') private redis: Redis,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
-  onApplicationBootstrap() {
-    const redisUrl = this.configService.get<string>('REDIS_URL');
-
-    this.worker = new Worker<ExportJobData>(
+  async onApplicationBootstrap() {
+    await this.eventBus.subscribe<ExportJobData>(
       'data-export',
-      async (job: Job<ExportJobData>) => {
-        this.logger.log(`Processing export for user ${job.data.userId}`);
+      async (_event, data) => {
+        this.logger.log(`Processing export for user ${data.userId}`);
         await this.processExport(
-          job.data.userId,
-          job.data.email,
-          job.data.lang || 'en',
+          data.userId,
+          data.email,
+          data.lang || 'en',
         );
       },
-      {
-        connection: new Redis(redisUrl || 'redis://redis:6379', {
-          maxRetriesPerRequest: null,
-        }),
-        ...defaultQueueConfig,
-      },
+      { concurrency: 2 },
     );
-
-    this.worker.on('failed', (job, err) => {
-      this.logger.error(`Job ${job?.id} failed: ${err.message}`);
-    });
-  }
-
-  onApplicationShutdown() {
-    this.worker.close().catch((err) => console.error(err));
   }
 
   async processExport(userId: string, userEmail: string, lang: string = 'en') {

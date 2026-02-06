@@ -15,9 +15,11 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const limit = searchParams.get("limit") ?? "20";
   const offset = searchParams.get("offset") ?? "0";
+  const sort = searchParams.get("sort") ?? "recent";
+  const sortParam = sort === "ranked" ? "&sort=ranked" : "";
   try {
     const res = await fetch(
-      `${API_URL}/collections/${params.id}/items?limit=${limit}&offset=${offset}`,
+      `${API_URL}/collections/${params.id}/items?limit=${limit}&offset=${offset}${sortParam}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (!res.ok) {

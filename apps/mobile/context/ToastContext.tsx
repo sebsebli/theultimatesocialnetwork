@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Toast, ToastType } from '../components/Toast';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { Toast, type ToastType } from '../components/Toast';
 
 interface ToastContextType {
   showToast: (message: string, type?: ToastType) => void;
@@ -17,7 +17,7 @@ export function useToast() {
   return context;
 }
 
-export function ToastProvider({ children }: { children: React.ReactNode }): React.ReactElement {
+export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<{ message: string; type: ToastType; id: number } | null>(null);
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
@@ -27,18 +27,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }): Reac
   const showSuccess = useCallback((message: string) => showToast(message, 'success'), [showToast]);
   const showError = useCallback((message: string) => showToast(message, 'error'), [showToast]);
 
-  const Provider = ToastContext.Provider as any;
+  const value = useMemo(() => ({ showToast, showSuccess, showError }), [showToast, showSuccess, showError]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- React 19 Provider/Component type compatibility
+  const Ctx = ToastContext.Provider as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- React 19 Component return type compatibility
+  const ToastComp = Toast as any;
   return (
-    <Provider value={{ showToast, showSuccess, showError }}>
+    <Ctx value={value}>
       {children}
       {toast && (
-        <Toast
+        <ToastComp
           key={toast.id}
           message={toast.message}
           type={toast.type}
           onHide={() => setToast(null)}
         />
       )}
-    </Provider>
+    </Ctx>
   ) as React.ReactElement;
 }

@@ -81,7 +81,7 @@ export function ReportModal({
         style={styles.overlay}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel={t("common.close", "Close")} />
         <View
           style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.xl }]}
         >
@@ -114,6 +114,8 @@ export function ReportModal({
                     isSelected && styles.reasonRowSelected,
                   ]}
                   onPress={() => setSelectedReason(key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
                 >
                   <Text
                     style={[
@@ -152,6 +154,8 @@ export function ReportModal({
               style={styles.cancelBtn}
               onPress={onClose}
               disabled={submitting}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.cancel")}
             >
               <Text style={styles.cancelText}>{t("common.cancel")}</Text>
             </Pressable>
@@ -162,6 +166,8 @@ export function ReportModal({
               ]}
               onPress={handleSubmit}
               disabled={!selectedReason || submitting}
+              accessibilityRole="button"
+              accessibilityLabel={t("post.report", "Report")}
             >
               {submitting ? (
                 <InlineSkeleton />

@@ -80,7 +80,7 @@ export default function WaitingListScreen() {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
       });
     } catch (error) {
-      console.error("Failed to open browser:", error);
+      if (__DEV__) console.error("Failed to open browser:", error);
     }
   };
 
@@ -121,15 +121,16 @@ export default function WaitingListScreen() {
         ),
       );
       router.back();
-    } catch (error: any) {
-      console.error("Failed to join waiting list", error);
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to join waiting list", error);
+      const err = error as { status?: number };
       const errorMessage =
-        error?.status === 429
+        err?.status === 429
           ? t(
               "waitingList.rateLimited",
               "Too many requests. Please try again later.",
             )
-          : error?.status === 403
+          : err?.status === 403
             ? t(
                 "waitingList.tooManyRequests",
                 "Too many requests from this IP address.",
@@ -205,6 +206,8 @@ export default function WaitingListScreen() {
                   <Pressable
                     onPress={() => setAcceptedTerms(!acceptedTerms)}
                     style={styles.checkboxPressable}
+                    accessibilityLabel={t("waitingList.acceptTerms", "Accept terms")}
+                    accessibilityRole="button"
                   >
                     <View
                       style={[

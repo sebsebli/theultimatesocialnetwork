@@ -30,7 +30,7 @@ export default function BlockedPage() {
         setBlocked(data.map((b: { blocked: BlockedUser }) => b.blocked));
       }
     } catch (error) {
-      console.error("Failed to load blocked users", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to load blocked users", error);
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export default function BlockedPage() {
         loadBlocked();
       }
     } catch (error) {
-      console.error("Failed to unblock", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to unblock", error);
     }
   };
 

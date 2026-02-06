@@ -238,6 +238,12 @@ html {
   background: #7d8b9d;
 }
 
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) var(--background);
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

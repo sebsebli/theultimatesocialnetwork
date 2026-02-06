@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useMemo,
   type ReactNode,
 } from "react";
 
@@ -42,8 +43,13 @@ export function BetaModeProvider({ children }: { children: ReactNode }) {
     fetchBetaMode();
   }, [fetchBetaMode]);
 
+  const value = useMemo(
+    () => ({ betaMode, loading }),
+    [betaMode, loading],
+  );
+
   return (
-    <BetaModeContext.Provider value={{ betaMode, loading }}>
+    <BetaModeContext.Provider value={value}>
       {children}
     </BetaModeContext.Provider>
   );

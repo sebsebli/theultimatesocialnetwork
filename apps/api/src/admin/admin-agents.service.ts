@@ -112,7 +112,12 @@ export class AdminAgentsService {
       avatarKey: user.avatarKey,
     });
 
-    await this.neo4j.run('MERGE (u:User {id: $id})', { id: user.id });
+    // Neo4j sync (optional — skipped when Neo4j is not configured)
+    try {
+      await this.neo4j.run('MERGE (u:User {id: $id})', { id: user.id });
+    } catch {
+      // Non-fatal: user is already in Postgres and Meilisearch
+    }
 
     const tokens = await this.authService.generateTokens(user);
     return {

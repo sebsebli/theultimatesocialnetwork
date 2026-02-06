@@ -1,25 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MdFormatQuote, MdImage, MdLink } from "react-icons/md";
 
 const TYPING_SEQUENCE = [
-  { text: "The ", delay: 50 },
-  { text: "internet", delay: 50 },
-  { text: " was", delay: 50 },
-  { text: " designed", delay: 50 },
-  { text: " to", delay: 50 },
-  { text: " be", delay: 50 },
+  { text: "Every", delay: 50 },
+  { text: " good", delay: 50 },
+  { text: " idea", delay: 50 },
+  { text: " deserves", delay: 50 },
   { text: " a", delay: 50 },
-  { text: " library.\n\n", delay: 300 },
-  { text: "Instead,", delay: 50 },
+  { text: " source.\n\n", delay: 300 },
+  { text: "That's", delay: 50 },
+  { text: " why", delay: 50 },
   { text: " we", delay: 50 },
-  { text: " got", delay: 50 },
+  { text: " built", delay: 50 },
   { text: " ", delay: 50 },
   { text: "[[", delay: 400, action: "open_menu" },
-  { text: "Algo", delay: 100 },
-  { text: "rithmic", delay: 100 },
-  { text: " Anxiety", delay: 100 },
+  { text: "Citation", delay: 100 },
+  { text: " Graphs", delay: 100 },
   { text: "]]", delay: 400, action: "close_menu" },
   { text: ".", delay: 800 },
 ];
@@ -28,7 +26,7 @@ export function EditorDemo() {
   const [content, setContent] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [cursorVisible, setCursorVisible] = useState(true);
-  const [stepIndex, setStepIndex] = useState(0);
+  const stepIndexRef = useRef(0);
 
   // Blink cursor
   useEffect(() => {
@@ -40,38 +38,51 @@ export function EditorDemo() {
 
   // Typing loop
   useEffect(() => {
-    if (stepIndex >= TYPING_SEQUENCE.length) {
-      // Reset after a long pause
-      const timeout = setTimeout(() => {
-        setContent("");
-        setStepIndex(0);
-        setShowMenu(false);
-      }, 5000);
-      return () => clearTimeout(timeout);
-    }
+    let timeout: ReturnType<typeof setTimeout>;
 
-    const step = TYPING_SEQUENCE[stepIndex];
-    const timeout = setTimeout(() => {
-      if (step.action === "open_menu") setShowMenu(true);
-      if (step.action === "close_menu") setShowMenu(false);
+    const type = () => {
+      const idx = stepIndexRef.current;
 
-      setContent((prev) => prev + step.text);
-      setStepIndex((prev) => prev + 1);
-    }, step.delay);
+      if (idx >= TYPING_SEQUENCE.length) {
+        // Reset after a long pause
+        timeout = setTimeout(() => {
+          setContent("");
+          stepIndexRef.current = 0;
+          setShowMenu(false);
+          type();
+        }, 5000);
+        return;
+      }
+
+      const step = TYPING_SEQUENCE[idx];
+      timeout = setTimeout(() => {
+        if (step.action === "open_menu") setShowMenu(true);
+        if (step.action === "close_menu") setShowMenu(false);
+
+        setContent((prev) => prev + step.text);
+        stepIndexRef.current = idx + 1;
+        type();
+      }, step.delay);
+    };
+
+    type();
 
     return () => clearTimeout(timeout);
-  }, [stepIndex]);
+  }, []);
+
+  // Count words (strip [[...]] markers)
+  const plainText = content.replace(/\[\[|\]\]/g, "").trim();
+  const wordCount = plainText ? plainText.split(/\s+/).length : 0;
 
   // Render stylized content
   const renderContent = () => {
-    // Basic regex to highlight [[...]]
     const parts = content.split(/(\[\[.*?\].*?\]\])/g);
     return parts.map((part, i) => {
       if (part.startsWith("[[") && part.endsWith("]]")) {
         return (
           <span
             key={i}
-            className="text-[#6E7A8A] border-b border-[#6E7A8A]/50 pb-0.5"
+            className="text-[var(--primary)] border-b border-[var(--primary)]/50 pb-0.5"
           >
             {part.slice(2, -2)}
           </span>
@@ -82,16 +93,16 @@ export function EditorDemo() {
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto bg-[#0B0B0C] border border-[#1A1A1D] rounded-xl shadow-2xl overflow-hidden font-mono text-sm md:text-base">
+    <div className="w-full max-w-lg mx-auto bg-[var(--background)] border border-[var(--divider)] rounded-xl shadow-2xl overflow-hidden font-mono text-sm md:text-base">
       {/* Toolbar */}
-      <div className="flex items-center gap-4 px-4 py-3 border-b border-[#1A1A1D] bg-[#0B0B0C]">
+      <div className="flex items-center gap-4 px-4 py-3 border-b border-[var(--divider)] bg-[var(--background)]">
         <div className="flex gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-[#1A1A1D]" />
-          <div className="w-3 h-3 rounded-full bg-[#1A1A1D]" />
-          <div className="w-3 h-3 rounded-full bg-[#1A1A1D]" />
+          <div className="w-3 h-3 rounded-full bg-[var(--divider)]" />
+          <div className="w-3 h-3 rounded-full bg-[var(--divider)]" />
+          <div className="w-3 h-3 rounded-full bg-[var(--divider)]" />
         </div>
-        <div className="h-4 w-[1px] bg-[#1A1A1D] mx-2" />
-        <div className="flex items-center gap-3 text-[#6E6E73]">
+        <div className="h-4 w-[1px] bg-[var(--divider)] mx-2" />
+        <div className="flex items-center gap-3 text-[var(--tertiary)]">
           <span className="font-serif italic font-bold">B</span>
           <span className="font-serif italic">I</span>
           <MdLink size={16} />
@@ -101,30 +112,30 @@ export function EditorDemo() {
       </div>
 
       {/* Editor Area */}
-      <div className="p-6 h-[240px] relative text-[#F2F2F2] leading-relaxed whitespace-pre-wrap font-serif">
+      <div className="p-6 h-[240px] relative text-[var(--foreground)] leading-relaxed whitespace-pre-wrap font-serif">
         {renderContent()}
         <span
-          className={`${
-            cursorVisible ? "opacity-100" : "opacity-0"
-          } inline-block w-[2px] h-[1.2em] bg-[#6E7A8A] align-middle ml-[1px]`}
+          className={`${cursorVisible ? "opacity-100" : "opacity-0"
+            } inline-block w-[2px] h-[1.2em] bg-[var(--primary)] align-middle ml-[1px]`}
         />
 
         {/* Floating Menu */}
         {showMenu && (
-          <div className="absolute top-[110px] left-[100px] w-48 bg-[#0B0B0C] border border-[#1A1A1D] rounded-lg shadow-xl z-10 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-[#6E6E73] bg-[#0F0F10] border-b border-[#1A1A1D]">
+          <div className="absolute top-[110px] left-[100px] w-48 bg-[var(--background)] border border-[var(--divider)] rounded-lg shadow-xl z-10 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal surface - keep hardcoded color for visual distinction */}
+            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-[var(--tertiary)] bg-[#0F0F10] border-b border-[var(--divider)]">
               Link to Topic
             </div>
             <div className="flex flex-col">
-              <div className="px-3 py-2 text-[#F2F2F2] hover:bg-[#1A1A1D] cursor-pointer flex justify-between items-center bg-[#1A1A1D]">
-                <span>Algorithmic Anxiety</span>
-                <span className="text-[10px] text-[#6E7A8A]">New</span>
+              <div className="px-3 py-2 text-[var(--foreground)] hover:bg-[var(--divider)] cursor-pointer flex justify-between items-center bg-[var(--divider)]">
+                <span>Citation Graphs</span>
+                <span className="text-[10px] text-[var(--primary)]">New</span>
               </div>
-              <div className="px-3 py-2 text-[#A8A8AA] hover:bg-[#1A1A1D] cursor-pointer">
-                Algorithm
+              <div className="px-3 py-2 text-[var(--secondary)] hover:bg-[var(--divider)] cursor-pointer">
+                Citation Analysis
               </div>
-              <div className="px-3 py-2 text-[#A8A8AA] hover:bg-[#1A1A1D] cursor-pointer">
-                Algorithms of Oppression
+              <div className="px-3 py-2 text-[var(--secondary)] hover:bg-[var(--divider)] cursor-pointer">
+                Knowledge Graphs
               </div>
             </div>
           </div>
@@ -132,9 +143,12 @@ export function EditorDemo() {
       </div>
 
       {/* Footer Status */}
-      <div className="px-4 py-2 bg-[#0F0F10] border-t border-[#1A1A1D] flex justify-between items-center text-[10px] text-[#6E7A8A] font-mono tracking-wider">
-        <span>MARKDOWN MODE</span>
-        <span>0 WORDS</span>
+      {/* Modal surface - keep hardcoded color for visual distinction */}
+      <div className="px-4 py-2 bg-[#0F0F10] border-t border-[var(--divider)] flex justify-between items-center text-[10px] text-[var(--primary)] font-mono tracking-wider">
+        <span>MARKDOWN</span>
+        <span>
+          {wordCount} {wordCount === 1 ? "WORD" : "WORDS"}
+        </span>
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ import {
   createStyles,
 } from "../../constants/theme";
 import QRCode from "react-native-qrcode-svg";
+import * as Haptics from "expo-haptics";
 
 type Session = {
   id: string;
@@ -41,14 +42,26 @@ export default function SecuritySettingsScreen() {
   const [loadingSessions, setLoadingSessions] = useState(true);
 
   // 2FA State
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean | null>(
+    null,
+  );
   const [is2FASetupOpen, setIs2FASetupOpen] = useState(false);
   const [qrValue, setQrValue] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [totpCode, setTotpCode] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [disableCode, setDisableCode] = useState("");
+  const [disableLoading, setDisableLoading] = useState(false);
 
   useEffect(() => {
     fetchSessions();
+  }, []);
+
+  useEffect(() => {
+    api
+      .get<{ twoFactorEnabled?: boolean }>("/users/me")
+      .then((data) => setTwoFactorEnabled(Boolean(data?.twoFactorEnabled)))
+      .catch(() => { /* auth check failure handled silently */ });
   }, []);
 
   const fetchSessions = async () => {
@@ -103,8 +116,8 @@ export default function SecuritySettingsScreen() {
       const data = await api.post<{ otpauthUrl?: string; secret?: string }>(
         "/auth/2fa/setup",
       );
-      const url = data?.otpauthUrl ?? (data as any)?.otpauth_url;
-      const sec = data?.secret ?? (data as any)?.secret;
+      const url = data?.otpauthUrl ?? (data as Record<string, unknown>)?.otpauth_url as string | undefined;
+      const sec = data?.secret ?? (data as Record<string, unknown>)?.secret as string | undefined;
       if (!url || !sec) {
         showError(
           t("security.2faSetupFailed", "Could not start 2FA setup. Try again."),
@@ -114,13 +127,14 @@ export default function SecuritySettingsScreen() {
       setQrValue(url);
       setSecret(sec);
       setIs2FASetupOpen(true);
-    } catch (e: any) {
-      const msg = e?.message ?? t("common.error", "Network error");
+    } catch (e: unknown) {
+      const msg = (e as { message?: string })?.message ?? t("common.error", "Network error");
       showError(msg);
     }
   };
 
   const confirm2FA = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!secret || !totpCode) return;
     setVerifyLoading(true);
     try {
@@ -129,16 +143,37 @@ export default function SecuritySettingsScreen() {
         secret: String(secret).trim(),
       });
       showSuccess(t("security.2faEnabled", "2FA Enabled Successfully"));
+      setTwoFactorEnabled(true);
       setIs2FASetupOpen(false);
       setQrValue(null);
       setSecret(null);
       setTotpCode("");
-    } catch (e: any) {
+    } catch (e: unknown) {
       const msg =
-        e?.message ?? t("security.invalidCode", "Invalid code. Try again.");
+        (e as { message?: string })?.message ?? t("security.invalidCode", "Invalid code. Try again.");
       showError(msg);
     } finally {
       setVerifyLoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (!disableCode || disableCode.length !== 6) return;
+    setDisableLoading(true);
+    try {
+      await api.post("/auth/2fa/disable", {
+        token: String(disableCode).trim(),
+      });
+      showSuccess(t("security.2faDisabled", "2FA disabled"));
+      setTwoFactorEnabled(false);
+      setDisableCode("");
+    } catch (e: unknown) {
+      showError(
+        (e as { message?: string })?.message ?? t("security.invalidCode", "Invalid code. Try again."),
+      );
+    } finally {
+      setDisableLoading(false);
     }
   };
 
@@ -164,13 +199,61 @@ export default function SecuritySettingsScreen() {
               )}
             </Text>
 
-            {!is2FASetupOpen ? (
-              <Pressable style={styles.button} onPress={start2FASetup}>
+            {twoFactorEnabled === true && (
+              <View style={styles.disableBlock}>
+                <Text style={styles.enabledLabel}>
+                  {t("security.2faEnabledLabel", "2FA is enabled")}
+                </Text>
+                <Text style={styles.disableHint}>
+                  {t(
+                    "security.2faDisableHint",
+                    "Enter your current code to disable.",
+                  )}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="000000"
+                  placeholderTextColor={COLORS.tertiary}
+                  value={disableCode}
+                  onChangeText={(val: string) =>
+                    setDisableCode(val.replace(/\D/g, "").slice(0, 6))
+                  }
+                  keyboardType="number-pad"
+                />
+                <Pressable
+                  style={[
+                    styles.disableButton,
+                    (disableLoading || disableCode.length !== 6) &&
+                    styles.buttonDisabled,
+                  ]}
+                  onPress={handleDisable2FA}
+                  disabled={disableLoading || disableCode.length !== 6}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("security.disable2fa", "Disable 2FA")}
+                >
+                  <Text style={styles.disableButtonText}>
+                    {disableLoading
+                      ? t("common.loading", "Loading...")
+                      : t("security.disable2fa", "Disable 2FA")}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            {twoFactorEnabled !== true && !is2FASetupOpen && (
+              <Pressable
+                style={styles.button}
+                onPress={start2FASetup}
+                accessibilityRole="button"
+                accessibilityLabel={t("security.enable2fa", "Enable 2FA")}
+              >
                 <Text style={styles.buttonText}>
                   {t("security.enable2fa", "Enable 2FA")}
                 </Text>
               </Pressable>
-            ) : (
+            )}
+
+            {is2FASetupOpen && (
               <View style={styles.setupContainer}>
                 {qrValue && (
                   <View style={styles.qrContainer}>
@@ -199,6 +282,8 @@ export default function SecuritySettingsScreen() {
                   ]}
                   onPress={confirm2FA}
                   disabled={verifyLoading || totpCode.length !== 6}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.verify", "Verify")}
                 >
                   <Text style={styles.buttonText}>
                     {verifyLoading
@@ -320,7 +405,7 @@ const styles = createStyles({
   },
   qrContainer: {
     padding: SPACING.m,
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.paper,
     borderRadius: SIZES.borderRadius,
   },
   secretText: {
@@ -382,5 +467,32 @@ const styles = createStyles({
     color: COLORS.tertiary,
     fontSize: 14,
     fontStyle: "italic",
+  },
+  disableBlock: {
+    marginBottom: SPACING.l,
+    gap: SPACING.s,
+  },
+  enabledLabel: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontFamily: FONTS.medium,
+  },
+  disableHint: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+  },
+  disableButton: {
+    paddingVertical: SPACING.m,
+    borderRadius: SIZES.borderRadius,
+    alignItems: "center",
+    backgroundColor: COLORS.error + "20",
+    borderWidth: 1,
+    borderColor: COLORS.error + "50",
+  },
+  disableButtonText: {
+    color: COLORS.error,
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
   },
 });

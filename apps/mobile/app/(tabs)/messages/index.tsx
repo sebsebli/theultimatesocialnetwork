@@ -62,7 +62,7 @@ export default function MessagesScreen() {
   const insets = useSafeAreaInsets();
   const { showError } = useToast();
   const { on, off } = useSocket();
-  const [threads, setThreads] = useState<any[]>([]);
+  const [threads, setThreads] = useState<ThreadItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -95,7 +95,7 @@ export default function MessagesScreen() {
       setThreads(Array.isArray(data) ? data : []);
       setError(false);
     } catch (error) {
-      console.error(error);
+      if (__DEV__) console.error(error);
       setError(true);
       showError(t("messages.loadError", "Failed to load messages"));
     } finally {
@@ -111,7 +111,7 @@ export default function MessagesScreen() {
   );
 
   useEffect(() => {
-    const handleNewMessage = (data: any) => {
+    const handleNewMessage = (_data: unknown) => {
       fetchThreads();
     };
 
@@ -146,10 +146,10 @@ export default function MessagesScreen() {
     };
   }, [search]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchThreads();
-  };
+  }, []);
 
   const handleMarkUnread = async (item: ThreadItem) => {
     setThreadMenuThread(null);
@@ -391,7 +391,7 @@ export default function MessagesScreen() {
             : undefined
         }
         options={[
-          ...(threadMenuThread && (threadMenuThread as any).unreadCount === 0
+          ...(threadMenuThread && (threadMenuThread as ThreadItem & { unreadCount?: number }).unreadCount === 0
             ? [
                 {
                   label: t("messages.markUnread", "Mark as unread"),

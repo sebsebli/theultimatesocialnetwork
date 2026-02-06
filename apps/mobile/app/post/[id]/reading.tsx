@@ -5,22 +5,23 @@ import {
   View,
   ScrollView,
   Pressable,
-  Linking,
   Dimensions,
   Animated,
+  type ViewStyle,
 } from "react-native";
 import type { ScrollViewProps, ViewProps } from "react-native";
 
 /** Typed Animated components for React 19 JSX compatibility */
 const AnimatedScrollView = Animated.ScrollView as (
-  props: ScrollViewProps & { style?: any },
+  props: ScrollViewProps & { style?: ViewStyle },
 ) => React.ReactElement | null;
 const AnimatedView = Animated.View as (
-  props: ViewProps & { style?: any },
+  props: ViewProps & { style?: ViewStyle },
 ) => React.ReactElement | null;
 
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { useOpenExternalLink } from "../../../hooks/useOpenExternalLink";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -51,6 +52,7 @@ import AddToCollectionSheet, {
 } from "../../../components/AddToCollectionSheet";
 import ShareSheet, { ShareSheetRef } from "../../../components/ShareSheet";
 import { SourceOrPostCard } from "../../../components/SourceOrPostCard";
+
 import { HeaderIconButton } from "../../../components/HeaderIconButton";
 import { ReportModal } from "../../../components/ReportModal";
 import { OptionsActionSheet } from "../../../components/OptionsActionSheet";
@@ -102,10 +104,11 @@ export default function ReadingModeScreen() {
   const { t } = useTranslation();
   const { isAuthenticated, userId } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { openExternalLink } = useOpenExternalLink();
   const postId = params.id as string;
   const [post, setPost] = useState<Post | null>(null);
-  const [sources, setSources] = useState<any[]>([]);
-  const [quotedBy, setQuotedBy] = useState<any[]>([]);
+  const [sources, setSources] = useState<Record<string, unknown>[]>([]);
+  const [quotedBy, setQuotedBy] = useState<Record<string, unknown>[]>([]);
   const [sourcesTab, setSourcesTab] = useState<"sources" | "quoted">("sources");
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
@@ -128,7 +131,7 @@ export default function ReadingModeScreen() {
   } | null>(null);
 
   const loadIdRef = useRef(0);
-  const loadPost = useCallback(async () => {
+  const loadPost = useCallback(async (cancelledRef?: { current: boolean }) => {
     if (!postId) return;
     setLoading(true);
     setAccessDenied(false);
@@ -136,12 +139,13 @@ export default function ReadingModeScreen() {
     const loadId = loadIdRef.current + 1;
     loadIdRef.current = loadId;
     try {
-      const postData = await api.get(`/posts/${postId}`);
-      if (loadIdRef.current !== loadId) return;
+      const postData = await api.get<Post>(`/posts/${postId}`);
+      if (cancelledRef?.current || loadIdRef.current !== loadId) return;
       setPost(postData);
-      setLiked(!!postData?.isLiked);
-      setKept(!!postData?.isKept);
-      if (!postData?.deletedAt) {
+      const pd = postData as unknown as Record<string, unknown>;
+      setLiked(!!pd?.isLiked);
+      setKept(!!pd?.isKept);
+      if (!pd?.deletedAt) {
         const [sourcesData, quotesData, downloaded, enabled] =
           await Promise.all([
             api.get(`/posts/${postId}/sources`).catch(() => []),
@@ -149,21 +153,22 @@ export default function ReadingModeScreen() {
             isPostDownloaded(postId),
             getDownloadSavedForOffline(),
           ]);
-        if (loadIdRef.current !== loadId) return;
+        if (cancelledRef?.current || loadIdRef.current !== loadId) return;
         setSources(Array.isArray(sourcesData) ? sourcesData : []);
         setQuotedBy(
-          Array.isArray(quotesData) ? quotesData : (quotesData?.items ?? []),
+          Array.isArray(quotesData) ? quotesData : ((quotesData as Record<string, unknown>)?.items as unknown[] ?? []),
         );
         setIsDownloaded(downloaded);
         setOfflineEnabled(enabled);
       }
-    } catch (error: any) {
-      if (loadIdRef.current !== loadId) return;
+    } catch (error: unknown) {
+      if (cancelledRef?.current || loadIdRef.current !== loadId) return;
       setPost(null);
-      if (error?.status === 403 && error?.data?.author) {
+      const err = error as { status?: number; data?: { author?: unknown } };
+      if (err?.status === 403 && err?.data?.author) {
         setAccessDenied(true);
         setDeniedAuthor(
-          error.data.author as {
+          err.data.author as {
             id: string;
             handle: string;
             displayName: string;
@@ -172,7 +177,7 @@ export default function ReadingModeScreen() {
         );
         return;
       }
-      if (error?.status === 404) {
+      if (err?.status === 404) {
         showError(
           t("post.notFoundMessage", "This post doesn't exist anymore."),
         );
@@ -181,12 +186,23 @@ export default function ReadingModeScreen() {
         showError(t("post.loadFailed"));
       }
     } finally {
-      if (loadIdRef.current === loadId) setLoading(false);
+      if (!cancelledRef?.current && loadIdRef.current === loadId) {
+        setLoading(false);
+      }
     }
   }, [postId, t]);
 
   useEffect(() => {
-    loadPost();
+    let cancelled = false;
+    const cancelledRef = { current: false };
+    const load = async () => {
+      await loadPost(cancelledRef);
+    };
+    load();
+    return () => {
+      cancelled = true;
+      cancelledRef.current = true;
+    };
   }, [loadPost]);
 
   useEffect(() => {
@@ -195,9 +211,9 @@ export default function ReadingModeScreen() {
 
   // Merge API sources (posts, topics, users/mentions, external) with external links from body; deduplicate
   const sourcesUnique = useMemo(() => {
-    const apiExternal = sources.filter((s: any) => s.type === "external");
-    const apiOther = sources.filter((s: any) => s.type !== "external");
-    const urlSeen = new Set(apiExternal.map((s: any) => s.url).filter(Boolean));
+    const apiExternal = sources.filter((s: Record<string, unknown>) => s.type === "external");
+    const apiOther = sources.filter((s: Record<string, unknown>) => s.type !== "external");
+    const urlSeen = new Set(apiExternal.map((s: Record<string, unknown>) => s.url).filter(Boolean));
     const fromBody: { url: string; title: string | null }[] = [];
     if (post?.body) {
       const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
@@ -224,7 +240,7 @@ export default function ReadingModeScreen() {
       ...apiOther,
     ];
     const seen = new Set<string>();
-    return combined.filter((s: any) => {
+    return combined.filter((s: Record<string, unknown>) => {
       const key =
         s.type === "external"
           ? (s.url ?? s.id)
@@ -235,13 +251,14 @@ export default function ReadingModeScreen() {
               : s.type === "topic"
                 ? (s.slug ?? s.id)
                 : `${s.type}-${s.id ?? s.url ?? s.handle ?? s.slug}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
+      const keyStr = String(key ?? "");
+      if (seen.has(keyStr)) return false;
+      seen.add(keyStr);
       return true;
     });
   }, [sources, post?.body]);
 
-  const handleLike = async () => {
+  const handleLike = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const prev = liked;
     setLiked(!prev);
@@ -251,9 +268,9 @@ export default function ReadingModeScreen() {
     } catch {
       setLiked(prev);
     }
-  };
+  }, [liked, post, postId]);
 
-  const handleKeep = async () => {
+  const handleKeep = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const prev = kept;
     setKept(!prev);
@@ -263,9 +280,9 @@ export default function ReadingModeScreen() {
     } catch {
       setKept(prev);
     }
-  };
+  }, [kept, post, postId]);
 
-  const handleDownloadOffline = async () => {
+  const handleDownloadOffline = useCallback(async () => {
     if (!post) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
@@ -293,9 +310,9 @@ export default function ReadingModeScreen() {
     } catch (e) {
       showError(t("post.downloadFailed", "Download failed"));
     }
-  };
+  }, [post, isDownloaded, showSuccess, showError, t]);
 
-  const handleReportSubmit = async (reason: string, comment?: string) => {
+  const handleReportSubmit = useCallback(async (reason: string, comment?: string) => {
     try {
       await api.post("/safety/report", {
         targetId: post!.id,
@@ -308,20 +325,20 @@ export default function ReadingModeScreen() {
       showError(t("post.reportError", "Failed to report post"));
       throw e;
     }
-  };
+  }, [post, showSuccess, showError, t]);
 
-  const handleDeletePost = async () => {
+  const handleDeletePost = useCallback(async () => {
     try {
       await api.delete(`/posts/${postId}`);
       showSuccess(t("post.deleted", "Post deleted"));
       setDeleteConfirmVisible(false);
       setMoreOptionsVisible(false);
       router.back();
-    } catch (e: any) {
-      showError(e?.message || t("post.deleteFailed", "Failed to delete post"));
+    } catch (e: unknown) {
+      showError((e as { message?: string })?.message || t("post.deleteFailed", "Failed to delete post"));
       throw e;
     }
-  };
+  }, [postId, showSuccess, showError, t, router]);
 
   const isOwnPost = !!post && !!userId && post.author?.id === userId;
 
@@ -351,7 +368,7 @@ export default function ReadingModeScreen() {
   if (!post) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.errorText}>Post not found</Text>
+        <Text style={styles.errorText}>{t("post.notFound", "Post not found")}</Text>
       </View>
     );
   }
@@ -367,7 +384,7 @@ export default function ReadingModeScreen() {
     return (
       <View style={styles.container}>
         <View
-          style={[styles.overlayHeader, { paddingTop: insets.top }]}
+          style={[styles.overlayHeader, { paddingTop: Math.max(8, insets.top - 20) }]}
           pointerEvents="box-none"
         >
           <HeaderIconButton
@@ -409,18 +426,18 @@ export default function ReadingModeScreen() {
     deniedAuthor ??
     (post?.author
       ? {
-          id: post.author.id,
-          handle: post.author.handle ?? "",
-          displayName: post.author.displayName ?? "",
-          avatarKey: post.author.avatarKey ?? null,
-        }
+        id: post.author.id,
+        handle: post.author.handle ?? "",
+        displayName: post.author.displayName ?? "",
+        avatarKey: post.author.avatarKey ?? null,
+      }
       : null);
 
   if (showPrivateOverlay) {
     return (
       <View style={styles.container}>
         <View
-          style={[styles.overlayHeader, { paddingTop: insets.top }]}
+          style={[styles.overlayHeader, { paddingTop: Math.max(8, insets.top - 20) }]}
           pointerEvents="box-none"
         >
           <HeaderIconButton
@@ -491,7 +508,7 @@ export default function ReadingModeScreen() {
     return (
       <View style={styles.container}>
         <View
-          style={[styles.overlayHeader, { paddingTop: insets.top }]}
+          style={[styles.overlayHeader, { paddingTop: Math.max(8, insets.top - 20) }]}
           pointerEvents="box-none"
         >
           <HeaderIconButton
@@ -554,7 +571,7 @@ export default function ReadingModeScreen() {
     <View style={styles.container}>
       {/* Overlay header: back + more over hero or at top (no home button) */}
       <View
-        style={[styles.overlayHeader, { paddingTop: insets.top }]}
+        style={[styles.overlayHeader, { paddingTop: Math.max(8, insets.top - 20) }]}
         pointerEvents="box-none"
       >
         <HeaderIconButton
@@ -579,7 +596,7 @@ export default function ReadingModeScreen() {
           // When no hero/title image, add top margin so back button doesn't overlay author line
           !hasHero && {
             paddingTop:
-              insets.top +
+              Math.max(8, insets.top - 20) +
               40 +
               toDimension(HEADER.barPaddingBottom) +
               toDimension(SPACING.s),
@@ -819,7 +836,7 @@ export default function ReadingModeScreen() {
                     sourcesTab === "quoted" && styles.tabBtnTextActive,
                   ]}
                 >
-                  {t("post.quotedBy", "Quoted by")} ({quoteCount})
+                  {t("post.quotedBy", "Cited by")} ({quoteCount})
                 </Text>
               </Pressable>
             )}
@@ -831,49 +848,45 @@ export default function ReadingModeScreen() {
               </Text>
             ) : (
               <View style={styles.sourcesList}>
-                {sourcesUnique.map((source: any, index: number) => {
+                {sourcesUnique.map((source: Record<string, unknown>, index: number) => {
                   const handleSourcePress = () => {
-                    if (source.type === "external" && source.url)
-                      Linking.openURL(source.url).catch(() => {});
-                    else if (source.type === "post" && source.id)
+                    if (source.type === "external" && typeof source.url === "string")
+                      openExternalLink(source.url);
+                    else if (source.type === "post" && typeof source.id === "string")
                       router.push(`/post/${source.id}`);
-                    else if (source.type === "user" && source.handle)
+                    else if (source.type === "user" && typeof source.handle === "string")
                       router.push(`/user/${source.handle}`);
                     else if (source.type === "topic")
                       router.push(
-                        `/topic/${encodeURIComponent(source.slug ?? source.title ?? source.id ?? "")}`,
+                        `/topic/${encodeURIComponent(String(source.slug ?? source.title ?? source.id ?? ""))}`,
                       );
                   };
                   const title =
-                    source.title ||
-                    source.url ||
-                    source.handle ||
-                    source.slug ||
-                    "";
+                    String(source.title ?? source.url ?? source.handle ?? source.slug ?? "");
                   const subtitle =
-                    source.type === "external" && source.url
-                      ? source.description && source.description.trim()
+                    source.type === "external" && typeof source.url === "string"
+                      ? typeof source.description === "string" && source.description.trim()
                         ? source.description.trim()
                         : (() => {
-                            try {
-                              return new URL(source.url).hostname.replace(
-                                "www.",
-                                "",
-                              );
-                            } catch {
-                              return "";
-                            }
-                          })()
-                      : source.type === "user"
+                          try {
+                            return new URL(source.url).hostname.replace(
+                              "www.",
+                              "",
+                            );
+                          } catch {
+                            return "";
+                          }
+                        })()
+                      : source.type === "user" && typeof source.handle === "string"
                         ? `@${source.handle}`
                         : source.type === "topic"
                           ? t("post.topic", "Topic")
                           : "";
                   const imageUri =
-                    source.type === "user" && source.avatarKey
+                    source.type === "user" && typeof source.avatarKey === "string"
                       ? (getAvatarUri({ avatarKey: source.avatarKey }) ??
                         undefined)
-                      : source.type === "topic" && source.imageKey
+                      : source.type === "topic" && typeof source.imageKey === "string"
                         ? getImageUrl(source.imageKey)
                         : undefined;
                   return (
@@ -909,28 +922,32 @@ export default function ReadingModeScreen() {
             </View>
           ) : (
             <View style={styles.quotedList}>
-              {quotedBy.map((p: any) => {
-                const bodyPreview = (p.body ?? "")
+              {quotedBy.map((p: Record<string, unknown>) => {
+                const bodyStr = typeof p.body === "string" ? p.body : "";
+                const bodyPreview = bodyStr
                   .replace(/\s+/g, " ")
                   .trim()
                   .slice(0, 80);
                 const title =
-                  p.title != null && p.title !== ""
+                  typeof p.title === "string" && p.title !== ""
                     ? p.title
-                    : bodyPreview || "Post";
+                    : bodyPreview || t("post.fallbackTitle", "Post");
+                const author = p.author as Record<string, unknown> | undefined;
                 const subtitle =
-                  p.author?.displayName || p.author?.handle || "";
+                  (typeof author?.displayName === "string" ? author.displayName : "") ||
+                  (typeof author?.handle === "string" ? author.handle : "");
+                const targetId = p.id;
                 return (
                   <SourceOrPostCard
-                    key={p.id}
+                    key={targetId ?? p.createdAt ?? Math.random()}
                     type="post"
                     title={title}
                     subtitle={subtitle || undefined}
-                    onPress={() =>
-                      p.title
-                        ? router.push(`/post/${p.id}/reading`)
-                        : router.push(`/post/${p.id}`)
-                    }
+                    onPress={() => {
+                      if (targetId) {
+                        router.replace(`/post/${targetId}`);
+                      }
+                    }}
                   />
                 );
               })}
@@ -947,16 +964,16 @@ export default function ReadingModeScreen() {
         options={[
           ...(isOwnPost
             ? [
-                {
-                  label: t("post.delete", "Delete Post"),
-                  onPress: () => {
-                    setMoreOptionsVisible(false);
-                    setDeleteConfirmVisible(true);
-                  },
-                  destructive: true as const,
-                  icon: "delete-outline" as const,
+              {
+                label: t("post.delete", "Delete Post"),
+                onPress: () => {
+                  setMoreOptionsVisible(false);
+                  setDeleteConfirmVisible(true);
                 },
-              ]
+                destructive: true as const,
+                icon: "delete-outline" as const,
+              },
+            ]
             : []),
           {
             label: t("post.report", "Report Post"),
@@ -1028,7 +1045,7 @@ const styles = createStyles({
     right: 0,
     bottom: 0,
     padding: SPACING.l,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: COLORS.overlay,
   },
   heroTitleText: {
     fontSize: 28,
@@ -1045,7 +1062,7 @@ const styles = createStyles({
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   privatePostBlur: {
-    backgroundColor: "rgba(0,0,0,0.75)",
+    backgroundColor: COLORS.overlayHeavy,
     borderRadius: SIZES.borderRadius,
     padding: SPACING.xxl,
     alignItems: "center",
@@ -1086,7 +1103,7 @@ const styles = createStyles({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.badge,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1130,7 +1147,7 @@ const styles = createStyles({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.badge,
     justifyContent: "center",
     alignItems: "center",
   },

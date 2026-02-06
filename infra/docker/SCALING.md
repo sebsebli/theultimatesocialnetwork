@@ -50,8 +50,8 @@ When **`MODERATION_IMAGE_ASYNC=true`**:
 
 - In `.env` or docker-compose:  
   `MODERATION_IMAGE_ASYNC=true`
-- Ensure **Redis** is running (used for the `image-moderation` BullMQ queue).
-- The **image-moderation worker** runs inside the same API process by default. For more throughput, run additional API instances (each runs its own worker) or split workers into a separate deployable (same codebase, worker-only process).
+- Ensure **Kafka** is running (used for the `image-moderation` topic).
+- The **image-moderation worker** runs inside the same API process by default. For more throughput, run additional API instances (each runs its own consumer in the same Kafka consumer group) or split workers into a separate deployable (same codebase, worker-only process).
 
 **Behaviour:**
 

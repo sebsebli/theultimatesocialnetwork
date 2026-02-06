@@ -32,7 +32,7 @@ async function writeIndex(ids: string[]): Promise<void> {
     INDEX_FILE.create({ overwrite: true });
     INDEX_FILE.write(JSON.stringify(ids));
   } catch (e) {
-    console.warn('offlineStorage writeIndex failed', e);
+    if (__DEV__) console.warn('offlineStorage writeIndex failed', e);
   }
 }
 
@@ -64,7 +64,7 @@ export async function savePostForOffline(post: OfflinePost): Promise<void> {
       await writeIndex([...ids, post.id]);
     }
   } catch (e) {
-    console.warn('offlineStorage savePostForOffline failed', e);
+    if (__DEV__) console.warn('offlineStorage savePostForOffline failed', e);
   }
 }
 
@@ -105,7 +105,7 @@ export async function removeOfflinePost(id: string): Promise<void> {
     const ids = await readIndex();
     await writeIndex(ids.filter((x) => x !== id));
   } catch (e) {
-    console.warn('offlineStorage removeOfflinePost failed', e);
+    if (__DEV__) console.warn('offlineStorage removeOfflinePost failed', e);
   }
 }
 
@@ -119,7 +119,7 @@ export async function clearAllOfflinePosts(): Promise<void> {
     }
     await writeIndex([]);
   } catch (e) {
-    console.warn('offlineStorage clearAllOfflinePosts failed', e);
+    if (__DEV__) console.warn('offlineStorage clearAllOfflinePosts failed', e);
   }
 }
 
@@ -148,7 +148,7 @@ export async function setDownloadSavedForOffline(value: boolean): Promise<void> 
     if (value) await setItemAsync(OFFLINE_SETTING_KEY, 'true');
     else await deleteItemAsync(OFFLINE_SETTING_KEY);
   } catch (e) {
-    console.warn('offlineStorage setDownloadSavedForOffline failed', e);
+    if (__DEV__) console.warn('offlineStorage setDownloadSavedForOffline failed', e);
   }
 }
 

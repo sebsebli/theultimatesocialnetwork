@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { getImageUrl } from "@/lib/security";
@@ -8,39 +8,41 @@ import { Avatar } from "./avatar";
 
 type Source =
   | {
-      type: "external";
-      id: string;
-      url: string;
-      title?: string;
-      description?: string;
-      imageUrl?: string;
-    }
+    type: "external";
+    id: string;
+    url: string;
+    title?: string;
+    description?: string;
+    imageUrl?: string;
+  }
   | {
-      type: "post";
-      id: string;
-      title?: string;
-      headerImageKey?: string | null;
-      authorAvatarKey?: string | null;
-    }
+    type: "post";
+    id: string;
+    title?: string;
+    headerImageKey?: string | null;
+    authorAvatarKey?: string | null;
+  }
   | {
-      type: "user";
-      id: string;
-      handle?: string;
-      title?: string;
-      avatarKey?: string | null;
-    }
+    type: "user";
+    id: string;
+    handle?: string;
+    title?: string;
+    avatarKey?: string | null;
+  }
   | {
-      type: "topic";
-      id: string;
-      slug?: string;
-      title?: string;
-      imageKey?: string | null;
-    };
+    type: "topic";
+    id: string;
+    slug?: string;
+    title?: string;
+    imageKey?: string | null;
+  };
 
 interface SourcesSectionProps {
   postId: string;
   /** When provided, merge external links [text](url) from body into sources (parity with mobile). */
   postBody?: string | null;
+  /** When true, render without section border and heading (used inside post tabs). */
+  asTabContent?: boolean;
 }
 
 function sourceHref(source: Source): string {
@@ -114,7 +116,11 @@ function extractExternalLinksFromBody(
   return out;
 }
 
-function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
+function SourcesSectionInner({
+  postId,
+  postBody,
+  asTabContent = false,
+}: SourcesSectionProps) {
   const [apiSources, setApiSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -166,47 +172,51 @@ function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
     return [...fromApi, ...externalFromBody];
   })();
 
-  if (loading) {
-    return (
+  const wrap = (content: ReactNode) =>
+    asTabContent ? (
+      <div className="pt-1">{content}</div>
+    ) : (
       <section className="border-t border-divider pt-6">
         <h2 className="text-lg font-semibold mb-4 text-paper">Sources</h2>
-        <p className="text-secondary text-sm">Loading...</p>
+        {content}
       </section>
     );
+
+  if (loading) {
+    return wrap(<p className="text-secondary text-sm">Loading...</p>);
   }
 
   if (sources.length === 0) {
-    return (
-      <section className="border-t border-divider pt-6">
-        <h2 className="text-lg font-semibold mb-4 text-paper">Sources</h2>
-        <div className="flex flex-col items-center justify-center py-10 px-4 bg-white/5 rounded-lg border border-dashed border-divider text-center">
-          <svg
-            className="w-12 h-12 text-tertiary mb-3"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-            />
-          </svg>
-          <p className="text-secondary text-sm">
-            This post doesn&apos;t have any sources.
-          </p>
-        </div>
-      </section>
+    return wrap(
+      <div className="flex flex-col items-center justify-center py-10 px-4 bg-white/5 rounded-lg border border-dashed border-divider text-center">
+        <svg
+          className="w-12 h-12 text-tertiary mb-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+          />
+        </svg>
+        <p className="text-secondary text-sm">
+          This post doesn&apos;t have any sources.
+        </p>
+      </div>,
     );
   }
 
-  return (
-    <section className="border-t border-divider pt-8 mt-4">
-      <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2 tracking-tight">
-        Sources
-      </h2>
+  return wrap(
+    <div className={asTabContent ? "" : "border-b border-divider pb-2 mb-6"}>
+      {!asTabContent && (
+        <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2 tracking-tight">
+          Sources
+        </h2>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {sources.map((source) => {
           const href = sourceHref(source);
@@ -229,7 +239,7 @@ function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
             >
               <div className="w-8 h-8 rounded-full bg-divider flex items-center justify-center shrink-0 overflow-hidden text-secondary group-hover:text-primary transition-colors">
                 {source.type === "user" &&
-                (source.avatarKey ?? null) != null ? (
+                  (source.avatarKey ?? null) != null ? (
                   <Avatar
                     avatarKey={source.avatarKey ?? undefined}
                     displayName={label}
@@ -368,7 +378,7 @@ function SourcesSectionInner({ postId, postBody }: SourcesSectionProps) {
           );
         })}
       </div>
-    </section>
+    </div>
   );
 }
 

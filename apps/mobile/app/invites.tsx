@@ -75,7 +75,7 @@ export default function InvitesScreen() {
       );
       setData(res);
     } catch (error) {
-      console.error(error);
+      if (__DEV__) console.error(error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -94,9 +94,9 @@ export default function InvitesScreen() {
         url: Platform.OS === "ios" ? referralLink : undefined,
         title: t("invites.referralShareTitle", "Join me on Citewalk"),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       showError(
-        error?.message ||
+        (error as { message?: string })?.message ||
           t("invites.referralFailed", "Could not get referral link"),
       );
     } finally {
@@ -116,10 +116,10 @@ export default function InvitesScreen() {
       await api.post("/invites/send", { email: trimmed });
       setEmail("");
       await fetchInvites();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg =
-        error?.message ||
-        error?.data?.message ||
+        (error as { message?: string; data?: { message?: string } })?.message ||
+        (error as { message?: string; data?: { message?: string } })?.data?.message ||
         t("invites.sendFailed", "Failed to send invitation");
       showError(msg);
     } finally {
@@ -132,10 +132,10 @@ export default function InvitesScreen() {
     try {
       await api.post(`/invites/${code}/resend`, {});
       await fetchInvites();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const msg =
-        error?.message ||
-        error?.data?.message ||
+        (error as { message?: string; data?: { message?: string } })?.message ||
+        (error as { message?: string; data?: { message?: string } })?.data?.message ||
         t("invites.resendFailed", "Could not resend. Try again later.");
       showError(msg);
     } finally {
@@ -154,9 +154,9 @@ export default function InvitesScreen() {
       await api.post(`/invites/${revokeModalCode}/revoke`, {});
       await fetchInvites();
       showSuccess(t("invites.revoked", "Invitation revoked"));
-    } catch (error: any) {
+    } catch (error: unknown) {
       showError(
-        error?.message || t("invites.revokeFailed", "Failed to revoke"),
+        (error as { message?: string })?.message || t("invites.revokeFailed", "Failed to revoke"),
       );
       throw error; // So ConfirmModal doesn't close
     } finally {
@@ -277,6 +277,8 @@ export default function InvitesScreen() {
                   !email.trim() ||
                   (data != null && data.remaining <= 0)
                 }
+                accessibilityLabel={t("invites.sendInvite", "Send invitation")}
+                accessibilityRole="button"
               >
                 {sending ? (
                   <InlineSkeleton />
@@ -316,6 +318,8 @@ export default function InvitesScreen() {
                 ]}
                 onPress={handleShareReferralLink}
                 disabled={referralLoading}
+                accessibilityLabel={t("invites.shareReferralLink", "Share referral link")}
+                accessibilityRole="button"
               >
                 {referralLoading ? (
                   <InlineSkeleton />
@@ -368,6 +372,8 @@ export default function InvitesScreen() {
                             style={styles.inviteActionLink}
                             onPress={() => handleResend(inv.code)}
                             disabled={resendingCode === inv.code}
+                            accessibilityLabel={t("invites.resend", "Resend")}
+                            accessibilityRole="button"
                           >
                             {resendingCode === inv.code ? (
                               <InlineSkeleton />
@@ -382,6 +388,8 @@ export default function InvitesScreen() {
                             style={styles.inviteActionLink}
                             onPress={() => handleRevoke(inv.code)}
                             disabled={revokingCode === inv.code}
+                            accessibilityLabel={t("invites.revoke", "Revoke")}
+                            accessibilityRole="button"
                           >
                             {revokingCode === inv.code ? (
                               <InlineSkeleton />
@@ -579,7 +587,7 @@ const styles = createStyles({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.badge,
     justifyContent: "center",
     alignItems: "center",
     marginRight: SPACING.s,

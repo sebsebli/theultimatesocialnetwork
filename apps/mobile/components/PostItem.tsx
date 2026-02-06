@@ -1,5 +1,5 @@
-import React, { useRef, memo, useState } from "react";
-import { Text, View, Pressable, Platform, Animated } from "react-native";
+import React, { useRef, memo, useState, useEffect } from "react";
+import { Text, View, Pressable, Platform, Animated, AccessibilityInfo } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -63,6 +63,13 @@ function PostItemComponent({
   const [liked, setLiked] = React.useState(post.isLiked ?? false);
   const [kept, setKept] = React.useState(post.isKept ?? false);
   const scaleValue = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useRef(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+      reduceMotion.current = v;
+    });
+  }, []);
 
   // Sync from server when post prop changes (e.g. refetched feed with updated isLiked/isKept)
   React.useEffect(() => {
@@ -93,7 +100,9 @@ function PostItemComponent({
   const handleLike = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      animateLike();
+      if (!reduceMotion.current) {
+        animateLike();
+      }
       const next = !liked;
       setLiked(next); // Optimistic update
 
@@ -109,7 +118,7 @@ function PostItemComponent({
       }
       onLike?.();
     } catch (error) {
-      console.error("Failed to like", error);
+      if (__DEV__) console.error("Failed to like", error);
       setLiked(liked); // Revert on error
     }
   };
@@ -132,7 +141,7 @@ function PostItemComponent({
       }
       onKeep?.();
     } catch (error) {
-      console.error("Failed to keep", error);
+      if (__DEV__) console.error("Failed to keep", error);
       setKept(kept); // Revert on error
     }
   };
@@ -198,7 +207,7 @@ function PostItemComponent({
       }
       showSuccess(t("post.reportSuccess", "Post reported successfully"));
     } catch (error) {
-      console.error("Failed to report", error);
+      if (__DEV__) console.error("Failed to report", error);
       showError(t("post.reportError", "Failed to report post"));
       throw error;
     }
@@ -251,8 +260,13 @@ function PostItemComponent({
 
           {/* Action Row - Matching Stitch Reference + Like */}
           <View style={styles.actions}>
-            <Pressable style={styles.actionButton} onPress={handleLike}>
-              {/* @ts-ignore - React 19 compatibility: Animated.View returns ReactNode | Promise<ReactNode> */}
+            <Pressable
+              style={styles.actionButton}
+              onPress={handleLike}
+              accessibilityLabel={liked ? t("post.unlike", "Unlike") : t("post.like", "Like")}
+              accessibilityRole="button"
+            >
+              {/* @ts-ignore React 19 Animated.View */}
               <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
                 <MaterialIcons
                   name={liked ? "favorite" : "favorite-border"}
@@ -268,6 +282,12 @@ function PostItemComponent({
                 onReply?.();
                 router.push(`/post/${post.id}/comments`);
               }}
+              accessibilityLabel={
+                post.replyCount > 0
+                  ? t("post.repliesCount", { count: post.replyCount, defaultValue: `${post.replyCount} replies` })
+                  : t("post.reply", "Reply")
+              }
+              accessibilityRole="button"
             >
               <MaterialIcons
                 name="chat-bubble-outline"
@@ -288,6 +308,8 @@ function PostItemComponent({
                 });
                 onQuote?.();
               }}
+              accessibilityLabel={t("post.quote", "Quote")}
+              accessibilityRole="button"
             >
               <MaterialIcons
                 name="format-quote"
@@ -299,7 +321,12 @@ function PostItemComponent({
               )}
             </Pressable>
 
-            <Pressable style={styles.actionButton} onPress={handleKeep}>
+            <Pressable
+              style={styles.actionButton}
+              onPress={handleKeep}
+              accessibilityLabel={kept ? t("post.removeKeep", "Remove from keeps") : t("post.keep", "Keep")}
+              accessibilityRole="button"
+            >
               <MaterialIcons
                 name={kept ? "bookmark" : "bookmark-border"}
                 size={HEADER.iconSize}

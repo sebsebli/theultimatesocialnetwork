@@ -76,6 +76,8 @@ function SourceOrPostCardInner({
         pressed && styles.cardPressed,
       ]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${type} ${title}${subtitle ? `, ${subtitle}` : ""}`}
     >
       <View style={styles.cardLeft}>
         {showAvatar || type === "topic" ? (
@@ -90,6 +92,8 @@ function SourceOrPostCardInner({
                 source={{ uri: imageUri! }}
                 style={styles.avatarImage}
                 contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
               />
             ) : showAvatar ? (
               <Text style={[styles.avatarText, { color: accentColor }]}>
@@ -97,7 +101,7 @@ function SourceOrPostCardInner({
               </Text>
             ) : (
               <MaterialIcons
-                name={iconName as any}
+                name={iconName as keyof typeof MaterialIcons.glyphMap}
                 size={HEADER.iconSize}
                 color={accentColor}
               />
@@ -108,7 +112,7 @@ function SourceOrPostCardInner({
             style={[styles.iconWrap, { backgroundColor: `${accentColor}22` }]}
           >
             <MaterialIcons
-              name={iconName as any}
+              name={iconName as keyof typeof MaterialIcons.glyphMap}
               size={HEADER.iconSize}
               color={accentColor}
             />

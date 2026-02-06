@@ -30,13 +30,10 @@ export function useOfflineSync() {
           
           // Remove from queue on success
           await removeQueuedAction(action.id);
-        } catch (error: any) {
-          // console.error(`Failed to sync action ${action.id}:`, error);
-          
-          // If the error is 400 (Bad Request) or 404 (Not Found), 
-          // it's unlikely to succeed on retry, so we remove it.
-          if (error?.status >= 400 && error?.status < 500) {
-             // console.warn(`Action ${action.id} failed with non-retryable error ${error.status}. Removing from queue.`);
+        } catch (error: unknown) {
+          // If the error is 4xx (client error), it's unlikely to succeed on retry — remove it.
+          const status = (error as { status?: number })?.status;
+          if (status && status >= 400 && status < 500) {
              await removeQueuedAction(action.id);
           }
           // Otherwise keep in queue for retry later when network is better

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   EmptyState,
   emptyStateCenterClassName,
@@ -47,7 +48,7 @@ export default function KeepsPage() {
         setLoadError(true);
       }
     } catch (error) {
-      console.error("Failed to load keeps", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to load keeps", error);
       setLoadError(true);
     } finally {
       setLoading(false);
@@ -60,9 +61,17 @@ export default function KeepsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-ink">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-6 py-4">
-        <h1 className="text-xl font-bold text-paper">Keeps Library</h1>
+      {/* Header — match mobile: back + title */}
+      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 md:px-6 py-3">
+        <div className="flex items-center justify-between">
+          <Link href="/home" className="text-secondary hover:text-paper">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <h1 className="text-xl font-bold text-paper">Keeps Library</h1>
+          <div className="w-6" />
+        </div>
       </header>
 
       {/* Search and Filters */}

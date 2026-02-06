@@ -24,7 +24,7 @@ export default function BlockedUsersScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { showError, showSuccess } = useToast();
-  const [blocked, setBlocked] = useState<any[]>([]);
+  const [blocked, setBlocked] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unblockTarget, setUnblockTarget] = useState<{
@@ -41,7 +41,7 @@ export default function BlockedUsersScreen() {
       const list = Array.isArray(data) ? data.filter((u) => u.id) : [];
       setBlocked(list);
     } catch (error) {
-      console.error("Failed to load blocked users", error);
+      if (__DEV__) console.error("Failed to load blocked users", error);
       showError(
         t(
           "safety.failedLoadBlocked",
@@ -73,35 +73,35 @@ export default function BlockedUsersScreen() {
         t("safety.unblockedMessage", "This user has been unblocked."),
       );
     } catch (error) {
-      console.error("Failed to unblock user", error);
+      if (__DEV__) console.error("Failed to unblock user", error);
       showError(t("safety.failedUnblock", "Failed to unblock user."));
     }
   };
 
   const renderItem = useCallback(
-    ({ item }: { item: any }) => (
+    ({ item }: { item: Record<string, unknown> }) => (
       <View style={styles.userItem}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {(item.displayName || item.handle || "U").charAt(0).toUpperCase()}
+            {((item.displayName || item.handle || "U") as string).charAt(0).toUpperCase()}
           </Text>
         </View>
         <View style={styles.userInfo}>
           <Text style={styles.displayName} numberOfLines={1}>
-            {item.displayName ||
+            {(item.displayName ||
               item.handle ||
-              t("safety.unknownUser", "Unknown user")}
+              t("safety.unknownUser", "Unknown user")) as string}
           </Text>
           {item.handle ? (
             <Text style={styles.handle} numberOfLines={1}>
-              @{item.handle}
+              @{item.handle as string}
             </Text>
           ) : null}
         </View>
         <Pressable
           style={styles.unblockButton}
           onPress={() =>
-            handleUnblock(item.id, item.displayName || item.handle)
+            handleUnblock(item.id as string, (item.displayName || item.handle) as string)
           }
           accessibilityLabel={t("safety.unblock", "Unblock")}
           accessibilityRole="button"
@@ -148,7 +148,7 @@ export default function BlockedUsersScreen() {
         data={blocked}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={(item: Record<string, unknown>) => item.id as string}
         renderItem={renderItem}
         refreshControl={
           <RefreshControl

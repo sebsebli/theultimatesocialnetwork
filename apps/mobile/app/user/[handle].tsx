@@ -6,13 +6,13 @@ import {
   ScrollView,
   Pressable,
   RefreshControl,
-  Linking,
   Share,
   InteractionManager,
   Platform,
   useWindowDimensions,
   StyleSheet,
   type DimensionValue,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -28,6 +28,7 @@ import {
 } from "../../utils/api";
 import { useAuth } from "../../context/auth";
 import { useToast } from "../../context/ToastContext";
+import { useOpenExternalLink } from "../../hooks/useOpenExternalLink";
 import { ConfirmModal } from "../../components/ConfirmModal";
 import { ReportModal } from "../../components/ReportModal";
 import { OptionsActionSheet } from "../../components/OptionsActionSheet";
@@ -42,6 +43,7 @@ import {
   EmptyState,
   emptyStateCenterWrapStyle,
 } from "../../components/EmptyState";
+import { ErrorState } from "../../components/ErrorState";
 import {
   COLORS,
   SPACING,
@@ -59,6 +61,23 @@ import {
 import { ListFooterLoader } from "../../components/ListFooterLoader";
 import { HeaderIconButton } from "../../components/HeaderIconButton";
 import { formatCompactNumber } from "../../utils/format";
+import type { Post, User } from "../../types";
+
+type ProfilePost = Post | { id: string; body: string; post: Post };
+type ProfileUser = User & {
+  isFollowing?: boolean;
+  hasPendingFollowRequest?: boolean;
+  isBlockedByMe?: boolean;
+  followsMe?: boolean;
+  postCount?: number;
+  replyCount?: number;
+  quoteReceivedCount?: number;
+  citedCount?: number;
+  keepsCount?: number;
+  collectionCount?: number;
+};
+type Keep = { post: Post };
+type Reply = { id: string; body: string; post: Post };
 
 export default function UserProfileScreen() {
   const router = useRouter();
@@ -68,6 +87,7 @@ export default function UserProfileScreen() {
   const { t } = useTranslation();
   const { userId: authUserId } = useAuth();
   const { showError, showSuccess } = useToast();
+  const { openExternalLink } = useOpenExternalLink();
   const [blockConfirmVisible, setBlockConfirmVisible] = useState(false);
   const [muteConfirmVisible, setMuteConfirmVisible] = useState(false);
   const [optionsModalVisible, setOptionsModalVisible] = useState(false);
@@ -76,8 +96,8 @@ export default function UserProfileScreen() {
   const [reportTargetType, setReportTargetType] = useState<
     "POST" | "REPLY" | "USER" | "DM"
   >("USER");
-  const [user, setUser] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
+  const [user, setUser] = useState<ProfileUser | null>(null);
+  const [posts, setPosts] = useState<ProfilePost[]>([]);
   const isOwnProfile = !!user && !!authUserId && user.id === authUserId;
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -99,22 +119,42 @@ export default function UserProfileScreen() {
   }, [user, isOwnProfile, activeTab]);
 
   useEffect(() => {
+    let cancelled = false;
+    const cancelledRef = { current: false };
     const h = typeof handle === "string" ? handle : handle?.[0];
-    if (h) loadProfile(1, true);
+    if (h) {
+      const load = async () => {
+        await loadProfile(1, true, cancelledRef);
+      };
+      load();
+    }
+    return () => {
+      cancelled = true;
+      cancelledRef.current = true;
+    };
   }, [handle]);
 
   // Refetch list when tab changes. Skip only the very first run when still on default tab (handle effect loads posts).
   const isFirstTabMount = React.useRef(true);
   useEffect(() => {
+    let cancelled = false;
+    const cancelledRef = { current: false };
     if (!user) return;
     if (isFirstTabMount.current) {
       isFirstTabMount.current = false;
       if (activeTab === "posts") return;
     }
-    loadProfile(1, true);
+    const load = async () => {
+      await loadProfile(1, true, cancelledRef);
+    };
+    load();
+    return () => {
+      cancelled = true;
+      cancelledRef.current = true;
+    };
   }, [activeTab]);
 
-  const loadProfile = async (pageNum: number, reset = false) => {
+  const loadProfile = async (pageNum: number, reset = false, cancelledRef?: { current: boolean }) => {
     if (reset) {
       setLoading(true);
       setPage(1);
@@ -155,40 +195,47 @@ export default function UserProfileScreen() {
           path = `/users/${userId}/collections?page=${pageNum}&limit=20`;
         else
           path = `/users/${userId}/posts?page=${pageNum}&limit=20&type=posts`;
-        return api.get(path);
+        return api.get<{ items?: ProfilePost[]; hasMore?: boolean } | ProfilePost[]>(path);
       };
 
       let userData = user;
       let contentData;
 
       if (reset) {
-        userData = await userPromise;
-        setUser(userData);
-        setFollowing(!!(userData as any).isFollowing);
-        setHasPendingFollowRequest(!!(userData as any).hasPendingFollowRequest);
+        userData = (await userPromise) as ProfileUser | null;
+        if (cancelledRef?.current) return;
+        setUser(userData as ProfileUser | null);
+        setFollowing(!!(userData as ProfileUser).isFollowing);
+        setHasPendingFollowRequest(!!(userData as ProfileUser).hasPendingFollowRequest);
         const canViewContent =
-          !(userData as any).isProtected || (userData as any).isFollowing;
+          !(userData as ProfileUser).isProtected || (userData as ProfileUser).isFollowing;
         contentData = canViewContent
-          ? await fetchContent(userData.id)
+          ? await fetchContent((userData as ProfileUser).id)
           : { items: [], hasMore: false };
+        if (cancelledRef?.current) return;
       } else {
-        const canViewContent = !user?.isProtected || following;
+        if (!user) return;
+        const canViewContent = !user.isProtected || following;
         contentData = canViewContent
           ? await fetchContent(user.id)
           : { items: [], hasMore: false };
+        if (cancelledRef?.current) return;
       }
 
       // API may return { items, hasMore } or plain array for replies/quotes
-      let rawItems = Array.isArray(contentData)
-        ? contentData
-        : Array.isArray(contentData?.items)
-          ? contentData.items
-          : (contentData?.items ?? []);
+      const contentDataTyped = contentData as { items?: ProfilePost[]; hasMore?: boolean } | ProfilePost[] | undefined;
+      let rawItems = Array.isArray(contentDataTyped)
+        ? contentDataTyped
+        : Array.isArray(contentDataTyped?.items)
+          ? contentDataTyped.items
+          : (contentDataTyped?.items ?? []);
       // Saved tab: items are keeps with .post; normalize to posts for list
-      const items =
+      const items: ProfilePost[] =
         activeTab === "saved"
-          ? (rawItems as any[]).map((k: any) => k.post).filter(Boolean)
-          : rawItems;
+          ? (rawItems as unknown as Keep[]).map((k: Keep) => k.post).filter(Boolean) as ProfilePost[]
+          : rawItems as ProfilePost[];
+
+      if (cancelledRef?.current) return;
 
       if (reset) {
         setPosts(items);
@@ -196,25 +243,28 @@ export default function UserProfileScreen() {
         setPosts((prev) => [...prev, ...items]);
       }
 
-      const hasMoreData = items.length >= 20 && contentData?.hasMore !== false;
+      const hasMoreData = items.length >= 20 && (contentDataTyped && !Array.isArray(contentDataTyped) ? contentDataTyped.hasMore !== false : true);
       // Saved tab: use raw keeps length for hasMore
       const hasMoreSaved =
-        activeTab === "saved" ? contentData?.hasMore === true : hasMoreData;
+        activeTab === "saved" ? (contentDataTyped && !Array.isArray(contentDataTyped) ? contentDataTyped.hasMore === true : false) : hasMoreData;
       setHasMore(activeTab === "saved" ? hasMoreSaved : hasMoreData);
       if (!reset) setPage(pageNum);
-    } catch (error: any) {
-      console.error("Failed to load profile", error);
+    } catch (error: unknown) {
+      if (cancelledRef?.current) return;
+      if (__DEV__) console.error("Failed to load profile", error);
       if (reset && activeTab === "posts") setUser(null);
       if (reset) setPosts([]);
       setHasMore(false);
       // User no longer exists (404) → go back instead of showing empty page
-      if (reset && error?.status === 404) {
+      if (reset && (error as { status?: number })?.status === 404) {
         router.back();
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
+      if (!cancelledRef?.current) {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
     }
   };
 
@@ -224,23 +274,65 @@ export default function UserProfileScreen() {
       router.replace("/welcome");
       return;
     }
+    if (!user) return;
     const prevFollowing = following;
     const prevPending = hasPendingFollowRequest;
     const prevCount = user.followerCount;
 
+    // Show confirmation for protected accounts when not already following
+    if (user.isProtected && !prevFollowing && !prevPending) {
+      Alert.alert(
+        t("profile.followRequest", "Follow Request"),
+        t("profile.followRequestMessage", "This account is private. A follow request will be sent."),
+        [
+          { text: t("common.cancel", "Cancel"), style: "cancel" },
+          {
+            text: t("profile.sendRequest", "Send Request"),
+            onPress: async () => {
+              setFollowing(true); // optimistic; may be overwritten if pending
+              setUser((prev) => prev ? ({
+                ...prev,
+                followerCount: (prev.followerCount ?? 0) + 1,
+              }) : null);
+
+              try {
+                const res = await api.post<{ pending?: boolean }>(
+                  `/users/${user.id}/follow`,
+                );
+                if (res?.pending) {
+                  setFollowing(false);
+                  setHasPendingFollowRequest(true);
+                  setUser((prev) => prev ? ({
+                    ...prev,
+                    followerCount: (prev.followerCount ?? 0) - 1,
+                  }) : null);
+                }
+              } catch (error) {
+                if (__DEV__) console.error("Failed to toggle follow", error);
+                setFollowing(false);
+                setHasPendingFollowRequest(false);
+                setUser((prev) => prev ? ({ ...prev, followerCount: prevCount ?? 0 }) : null);
+              }
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     if (prevFollowing || prevPending) {
       setFollowing(false);
       setHasPendingFollowRequest(false);
-      setUser((prev: any) => ({
+      setUser((prev) => prev ? ({
         ...prev,
-        followerCount: prev.followerCount - 1,
-      }));
+        followerCount: (prev.followerCount ?? 0) - 1,
+      }) : null);
     } else {
       setFollowing(true); // optimistic; may be overwritten if pending
-      setUser((prev: any) => ({
+      setUser((prev) => prev ? ({
         ...prev,
-        followerCount: prev.followerCount + 1,
-      }));
+        followerCount: (prev.followerCount ?? 0) + 1,
+      }) : null);
     }
 
     try {
@@ -253,17 +345,17 @@ export default function UserProfileScreen() {
         if (res?.pending) {
           setFollowing(false);
           setHasPendingFollowRequest(true);
-          setUser((prev: any) => ({
+          setUser((prev) => prev ? ({
             ...prev,
-            followerCount: prev.followerCount - 1,
-          }));
+            followerCount: (prev.followerCount ?? 0) - 1,
+          }) : null);
         }
       }
     } catch (error) {
-      console.error("Failed to toggle follow", error);
+      if (__DEV__) console.error("Failed to toggle follow", error);
       setFollowing(prevFollowing);
       setHasPendingFollowRequest(prevPending);
-      setUser((prev: any) => ({ ...prev, followerCount: prevCount }));
+      setUser((prev) => prev ? ({ ...prev, followerCount: prevCount ?? 0 }) : null);
     }
   };
 
@@ -272,14 +364,15 @@ export default function UserProfileScreen() {
       router.replace("/welcome");
       return;
     }
+    if (!user) return;
     try {
-      const thread = await api.post("/messages/threads", { userId: user.id });
+      const thread = await api.post<{ id?: string }>("/messages/threads", { userId: user.id });
       if (thread && thread.id) {
         router.push(`/(tabs)/messages/${thread.id}`);
       }
-    } catch (error: any) {
-      console.error("Failed to create thread", error);
-      if (error?.status === 403) {
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to create thread", error);
+      if ((error as { status?: number })?.status === 403) {
         showError(
           t(
             "messages.mustFollowOrPrior",
@@ -300,12 +393,13 @@ export default function UserProfileScreen() {
   const handleBlock = () => setBlockConfirmVisible(true);
 
   const confirmBlock = async () => {
+    if (!user) return;
     try {
       await api.post(`/safety/block/${user.id}`);
       showSuccess(t("safety.blockedMessage", "This user has been blocked."));
       router.back();
     } catch (error) {
-      console.error("Failed to block user", error);
+      if (__DEV__) console.error("Failed to block user", error);
       showError(t("safety.failedBlock", "Failed to block user."));
       throw error;
     }
@@ -314,11 +408,12 @@ export default function UserProfileScreen() {
   const handleMute = () => setMuteConfirmVisible(true);
 
   const confirmMute = async () => {
+    if (!user) return;
     try {
       await api.post(`/safety/mute/${user.id}`);
       showSuccess(t("safety.mutedMessage", "This user has been muted."));
     } catch (error) {
-      console.error("Failed to mute user", error);
+      if (__DEV__) console.error("Failed to mute user", error);
       showError(t("safety.failedMute", "Failed to mute user."));
       throw error;
     }
@@ -331,7 +426,7 @@ export default function UserProfileScreen() {
   const handleOpenRssFeed = useCallback(() => {
     if (!user?.handle) return;
     setOptionsModalVisible(false);
-    Linking.openURL(rssFeedUrl);
+    openExternalLink(rssFeedUrl, { skipDialog: true });
   }, [user?.handle, rssFeedUrl]);
 
   const handleShareProfile = useCallback(() => {
@@ -354,7 +449,7 @@ export default function UserProfileScreen() {
         Platform.OS === "android"
           ? { message: `${message}\n${profileUrl}`, title }
           : { message: `${message}\n${profileUrl}`, url: profileUrl, title };
-      setTimeout(() => Share.share(sharePayload).catch(() => {}), 350);
+      setTimeout(() => Share.share(sharePayload).catch(() => { /* dismiss error handled silently */ }), 350);
     });
   }, [user?.handle, user?.displayName, t]);
 
@@ -399,6 +494,13 @@ export default function UserProfileScreen() {
 
   const bottomPadding = TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA;
 
+  const filteredPosts = useMemo(() => {
+    if (activeTab === "replies") {
+      return posts.filter((r): r is Reply => 'post' in r && 'body' in r && !!r.post);
+    }
+    return posts.filter((p): p is Post => 'author' in p && !!p.author);
+  }, [posts, activeTab]);
+
   if (loading && !user) {
     return (
       <View
@@ -418,7 +520,10 @@ export default function UserProfileScreen() {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>{t("profile.userNotFound")}</Text>
+        <ErrorState
+          message={t("profile.userNotFound")}
+          onRetry={() => loadProfile(1, true)}
+        />
       </View>
     );
   }
@@ -458,10 +563,10 @@ export default function UserProfileScreen() {
                   t("safety.unblockedMessage", "This user has been unblocked."),
                 );
                 loadProfile(1, true);
-              } catch (e: any) {
+              } catch (e: unknown) {
                 showError(
-                  e?.message ??
-                    t("safety.failedUnblock", "Failed to unblock user."),
+                  (e as { message?: string })?.message ??
+                  t("safety.failedUnblock", "Failed to unblock user."),
                 );
               }
             }}
@@ -541,7 +646,7 @@ export default function UserProfileScreen() {
                     style={[
                       styles.actionButtonOutline,
                       (following || hasPendingFollowRequest) &&
-                        styles.actionButtonActive,
+                      styles.actionButtonActive,
                     ]}
                     onPress={handleFollow}
                     accessibilityLabel={
@@ -557,7 +662,7 @@ export default function UserProfileScreen() {
                       style={[
                         styles.actionButtonText,
                         (following || hasPendingFollowRequest) &&
-                          styles.actionButtonTextActive,
+                        styles.actionButtonTextActive,
                       ]}
                     >
                       {hasPendingFollowRequest
@@ -694,63 +799,69 @@ export default function UserProfileScreen() {
         contentContainerStyle={[
           { paddingBottom: bottomPadding },
           (activeTab === "replies"
-            ? (posts as any[]).filter((r: any) => r?.post)
-            : (posts as any[]).filter((p: any) => !!p?.author)
+            ? posts.filter((r): r is Reply => 'post' in r && 'body' in r && !!r.post)
+            : posts.filter((p): p is Post => 'author' in p && !!p.author)
           ).length === 0 && { flexGrow: 1 },
         ]}
         {...LIST_SCROLL_DEFAULTS}
         data={
           activeTab === "replies"
-            ? (posts as any[]).filter((r: any) => r?.post)
-            : (posts as any[]).filter((p: any) => !!p?.author)
+            ? posts.filter((r): r is Reply => 'post' in r && 'body' in r && !!r.post)
+            : posts.filter((p): p is Post => 'author' in p && !!p.author)
         }
-        keyExtractor={(item: any) => item.id}
-        renderItem={({ item }: { item: any }) =>
-          activeTab === "replies" ? (
-            <Pressable
-              style={({ pressed }: { pressed: boolean }) => [
-                styles.replyRow,
-                pressed && styles.replyRowPressed,
-              ]}
-              onPress={() =>
-                item.post?.id && router.push(`/post/${item.post.id}/comments`)
-              }
-            >
-              <View style={styles.replyBodyWrap}>
-                <MarkdownText>{item.body}</MarkdownText>
-              </View>
-              {item.post && (
-                <View style={styles.replyToWrap}>
-                  <Text style={styles.replyToLabel} numberOfLines={1}>
-                    {item.post.title
-                      ? `In reply to: ${item.post.title}`
-                      : t("profile.inReplyToPost", "Reply to post")}
-                  </Text>
+        keyExtractor={(item: ProfilePost) => item.id}
+        renderItem={({ item }: { item: ProfilePost }) => {
+          if (activeTab === "replies" && 'post' in item && 'body' in item) {
+            const reply = item as Reply;
+            return (
+              <Pressable
+                style={({ pressed }: { pressed: boolean }) => [
+                  styles.replyRow,
+                  pressed && styles.replyRowPressed,
+                ]}
+                onPress={() =>
+                  reply.post?.id && router.push(`/post/${reply.post.id}/comments`)
+                }
+              >
+                <View style={styles.replyBodyWrap}>
+                  <MarkdownText>{reply.body}</MarkdownText>
                 </View>
-              )}
-            </Pressable>
-          ) : (
-            <PostItem
-              post={activeTab === "saved" ? { ...item, isKept: true } : item}
-              onKeep={
-                activeTab === "saved" && isOwnProfile
-                  ? () =>
+                {reply.post && (
+                  <View style={styles.replyToWrap}>
+                    <Text style={styles.replyToLabel} numberOfLines={1}>
+                      {reply.post.title
+                        ? `In reply to: ${reply.post.title}`
+                        : t("profile.inReplyToPost", "Reply to post")}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          } else {
+            const post = item as Post;
+            return (
+              <PostItem
+                post={activeTab === "saved" ? { ...post, isKept: true } : post}
+                onKeep={
+                  activeTab === "saved" && isOwnProfile
+                    ? () =>
                       setPosts((prev) =>
-                        prev.filter((p: any) => p.id !== item.id),
+                        prev.filter((p) => p.id !== post.id),
                       )
-                  : undefined
-              }
-            />
-          )
-        }
+                    : undefined
+                }
+              />
+            );
+          }
+        }}
         ListHeaderComponent={
           <View style={styles.profileListHeader}>
             <View
               style={[
                 styles.profileHeaderContainer,
                 user.isProtected &&
-                  !following &&
-                  styles.profileHeaderContainerBorder,
+                !following &&
+                styles.profileHeaderContainerBorder,
                 { paddingTop: Platform.OS === "ios" ? 0 : insets.top },
               ]}
             >
@@ -798,7 +909,7 @@ export default function UserProfileScreen() {
                     style={[
                       styles.actionButtonOutline,
                       (following || hasPendingFollowRequest) &&
-                        styles.actionButtonActive,
+                      styles.actionButtonActive,
                     ]}
                     onPress={handleFollow}
                     accessibilityLabel={
@@ -814,7 +925,7 @@ export default function UserProfileScreen() {
                       style={[
                         styles.actionButtonText,
                         (following || hasPendingFollowRequest) &&
-                          styles.actionButtonTextActive,
+                        styles.actionButtonTextActive,
                       ]}
                     >
                       {hasPendingFollowRequest
@@ -855,7 +966,7 @@ export default function UserProfileScreen() {
                       }
                     >
                       <Text style={styles.followersFollowingText}>
-                        {formatCompactNumber(user.followerCount)}{" "}
+                        {formatCompactNumber(user.followerCount ?? 0)}{" "}
                         {t("profile.followers").toLowerCase()}
                       </Text>
                     </Pressable>
@@ -872,7 +983,7 @@ export default function UserProfileScreen() {
                       }
                     >
                       <Text style={styles.followersFollowingText}>
-                        {formatCompactNumber(user.followingCount)}{" "}
+                        {formatCompactNumber(user.followingCount ?? 0)}{" "}
                         {t("profile.following").toLowerCase()}
                       </Text>
                     </Pressable>
@@ -917,13 +1028,13 @@ export default function UserProfileScreen() {
                 >
                   {(isOwnProfile
                     ? ([
-                        "posts",
-                        "replies",
-                        "quotes",
-                        "cited",
-                        "saved",
-                        "collections",
-                      ] as const)
+                      "posts",
+                      "replies",
+                      "quotes",
+                      "cited",
+                      "saved",
+                      "collections",
+                    ] as const)
                     : (["posts", "quotes", "cited", "collections"] as const)
                   ).map((tab) => {
                     const count =
@@ -948,7 +1059,7 @@ export default function UserProfileScreen() {
                         ]}
                         onPress={() => handleTabChange(tab)}
                         accessibilityLabel={
-                          count != null && count > 0
+                          typeof count === "number"
                             ? `${t(`profile.${tab}`)} ${count}`
                             : t(`profile.${tab}`)
                         }
@@ -964,7 +1075,7 @@ export default function UserProfileScreen() {
                           numberOfLines={1}
                         >
                           {t(`profile.${tab}`)}
-                          {count != null && count > 0
+                          {typeof count === "number"
                             ? ` (${formatCompactNumber(count)})`
                             : ""}
                         </Text>
@@ -1011,27 +1122,27 @@ export default function UserProfileScreen() {
                 subtext={
                   activeTab === "saved"
                     ? t(
-                        "profile.noSavedHint",
-                        "Bookmark posts from the reading view to see them here.",
-                      )
+                      "profile.noSavedHint",
+                      "Bookmark posts from the reading view to see them here.",
+                    )
                     : activeTab === "collections"
                       ? t(
-                          "profile.noCollectionsHint",
-                          "Public collections will appear here.",
-                        )
+                        "profile.noCollectionsHint",
+                        "Public collections will appear here.",
+                      )
                       : activeTab === "replies"
                         ? t("profile.noRepliesHint", "Replies will show here.")
                         : activeTab === "quotes"
                           ? t("profile.noQuotesHint", "Quotes will show here.")
                           : activeTab === "cited"
                             ? t(
-                                "profile.noCitedHint",
-                                "Posts this user has cited appear here.",
-                              )
+                              "profile.noCitedHint",
+                              "Posts this user has cited appear here.",
+                            )
                             : t(
-                                "profile.noPostsHintView",
-                                "Posts will appear here.",
-                              )
+                              "profile.noPostsHintView",
+                              "Posts will appear here.",
+                            )
                 }
               />
             )}
@@ -1401,7 +1512,7 @@ const styles = createStyles({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: COLORS.pressed,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: SPACING.m,

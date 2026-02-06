@@ -7,10 +7,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { httpErrorTotal } from '../metrics';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
+  private readonly isProduction = process.env.NODE_ENV === 'production';
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -27,9 +29,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getResponse()
         : 'Internal server error';
 
+    // Track error metrics
+    const route = request.route?.path ?? request.path ?? 'unknown';
+    httpErrorTotal.inc({
+      method: request.method,
+      route,
+      status_code: String(status),
+    });
+
+    // Include request ID for tracing
+    const requestId = request.headers['x-request-id'] as string | undefined;
+
     if (status === Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
       this.logger.error(
-        `HTTP 500 Error: ${request.method} ${request.url}`,
+        `HTTP 500 Error: ${request.method} ${request.url} [reqId=${requestId ?? 'none'}]`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     }
@@ -44,12 +57,25 @@ export class AllExceptionsFilter implements ExceptionFilter {
       errorMsg = (message as any).message as string;
     }
 
-    // Normalized error response
-    response.status(status).json({
+    // In production: never leak internal details for 5xx errors
+    const safeMessage =
+      this.isProduction && status >= 500
+        ? 'Internal server error'
+        : errorMsg;
+
+    // Normalized error response — do NOT expose `path` in production (information leakage)
+    const body: Record<string, unknown> = {
       statusCode: status,
       timestamp: new Date().toISOString(),
-      path: request.url,
-      message: errorMsg,
-    });
+      message: safeMessage,
+    };
+    if (!this.isProduction) {
+      body.path = request.url;
+    }
+    if (requestId) {
+      body.requestId = requestId;
+    }
+
+    response.status(status).json(body);
   }
 }

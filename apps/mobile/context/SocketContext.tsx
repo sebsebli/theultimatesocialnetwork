@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { useAuth } from './auth'; // Adjust import based on where AuthContext is
-import { getAuthToken } from '../utils/api';
-import { useToast } from './ToastContext';
+import { useAuth } from './auth';
+import { getAuthToken, getApiBaseUrl } from '../utils/api';
+
+type SocketEventCallback = (data: unknown) => void;
 
 interface SocketContextType {
   socket: Socket | null;
@@ -11,8 +12,8 @@ interface SocketContextType {
   unreadMessages: number;
   clearUnreadNotifications: () => void;
   clearUnreadMessages: () => void;
-  on: (event: string, callback: (data: any) => void) => void;
-  off: (event: string, callback: (data: any) => void) => void;
+  on: (event: string, callback: SocketEventCallback) => void;
+  off: (event: string, callback: SocketEventCallback) => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -31,52 +32,65 @@ export function SocketProvider({ children }: { children: React.ReactNode }): Rea
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const { isAuthenticated } = useAuth();
-  const { showSuccess } = useToast();
+  // Use ref to track socket for cleanup without stale closure issues
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      if (socket) {
-        socket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
         setSocket(null);
+        setIsConnected(false);
       }
       return;
     }
 
+    let cancelled = false;
+
     const connect = async () => {
-      const token = await getAuthToken();
-      if (!token) return;
+      try {
+        const token = await getAuthToken();
+        if (!token || cancelled) return;
 
-      const socketInstance = io(process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000', {
-        auth: { token: `Bearer ${token}` },
-        transports: ['websocket'],
-      });
+        const baseUrl = getApiBaseUrl().replace(/\/api$/, '');
+        const socketInstance = io(baseUrl, {
+          auth: { token: `Bearer ${token}` },
+          transports: ['websocket'],
+          reconnectionAttempts: 5,
+          reconnectionDelay: 2000,
+        });
 
-      socketInstance.on('connect', () => {
-        setIsConnected(true);
-      });
+        socketInstance.on('connect', () => {
+          if (!cancelled) setIsConnected(true);
+        });
 
-      socketInstance.on('disconnect', () => {
-        setIsConnected(false);
-      });
+        socketInstance.on('disconnect', () => {
+          if (!cancelled) setIsConnected(false);
+        });
 
-      socketInstance.on('notification', (data) => {
-        setUnreadNotifications(prev => prev + 1);
-      });
+        socketInstance.on('notification', () => {
+          if (!cancelled) setUnreadNotifications((prev) => prev + 1);
+        });
 
-      socketInstance.on('message', (data) => {
-        // Increment if not current thread? Hard to know here.
-        // For now, simple increment.
-        setUnreadMessages(prev => prev + 1);
-      });
+        socketInstance.on('message', () => {
+          if (!cancelled) setUnreadMessages((prev) => prev + 1);
+        });
 
-      setSocket(socketInstance);
+        socketRef.current = socketInstance;
+        if (!cancelled) setSocket(socketInstance);
+      } catch {
+        if (__DEV__) console.warn('Socket connection failed');
+      }
     };
 
     connect();
 
     return () => {
-      if (socket) {
-        socket.disconnect();
+      cancelled = true;
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
   }, [isAuthenticated]);
@@ -84,22 +98,28 @@ export function SocketProvider({ children }: { children: React.ReactNode }): Rea
   const clearUnreadNotifications = useCallback(() => setUnreadNotifications(0), []);
   const clearUnreadMessages = useCallback(() => setUnreadMessages(0), []);
 
-  const on = useCallback((event: string, callback: (data: any) => void) => {
-    if (socket) {
-      socket.on(event, callback);
-    }
-  }, [socket]);
+  const on = useCallback((event: string, callback: SocketEventCallback) => {
+    socketRef.current?.on(event, callback);
+  }, []);
 
-  const off = useCallback((event: string, callback: (data: any) => void) => {
-    if (socket) {
-      socket.off(event, callback);
-    }
-  }, [socket]);
+  const off = useCallback((event: string, callback: SocketEventCallback) => {
+    socketRef.current?.off(event, callback);
+  }, []);
 
-  const Provider = SocketContext.Provider as any;
-  return (
-    <Provider value={{ socket, isConnected, unreadNotifications, unreadMessages, clearUnreadNotifications, clearUnreadMessages, on, off }}>
-      {children}
-    </Provider>
-  ) as React.ReactElement;
+  const value = useMemo<SocketContextType>(
+    () => ({
+      socket,
+      isConnected,
+      unreadNotifications,
+      unreadMessages,
+      clearUnreadNotifications,
+      clearUnreadMessages,
+      on,
+      off,
+    }),
+    [socket, isConnected, unreadNotifications, unreadMessages, clearUnreadNotifications, clearUnreadMessages, on, off],
+  );
+
+  // @ts-expect-error React 19 JSX return type compatibility
+  return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 }

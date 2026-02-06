@@ -1,34 +1,17 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { getApiUrl, createSecureErrorResponse } from '@/lib/security';
-
-const API_URL = getApiUrl();
+import { createSecureErrorResponse } from '@/lib/security';
+import { serverFetch } from '@/lib/server-fetch';
 
 export async function GET() {
-  const token = (await cookies()).get('token')?.value;
-  if (!token || typeof token !== 'string') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
-    const res = await fetch(`${API_URL}/users/me`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const result = await serverFetch('/users/me');
 
-    if (!res.ok) {
-      if (res.status === 401) {
-        // Clear invalid token
-        (await cookies()).delete('token');
-      }
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!result.ok) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: result.status });
     }
 
-    const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json(result.data);
   } catch (error) {
-    // Don't log sensitive errors in production
     if (process.env.NODE_ENV !== 'production') {
       console.error('Error fetching user', error);
     }
@@ -38,28 +21,28 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const token = (await cookies()).get('token')?.value;
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const body = await request.json();
 
-  const body = await request.json();
+    const result = await serverFetch('/users/me', {
+      method: 'PATCH',
+      body,
+    });
 
-  const res = await fetch(`${API_URL}/users/me`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  });
+    if (!result.ok) {
+      const errData = result.data as Record<string, unknown> | null;
+      return NextResponse.json(
+        { error: errData?.message ?? errData?.error ?? 'Failed' },
+        { status: result.status },
+      );
+    }
 
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({}));
-    return NextResponse.json(
-      { error: errBody.message ?? errBody.error ?? 'Failed' },
-      { status: res.status },
-    );
+    return NextResponse.json(result.data);
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error updating user', error);
+    }
+    const errorResponse = createSecureErrorResponse('Internal Error', 500);
+    return NextResponse.json({ error: errorResponse.error }, { status: errorResponse.status });
   }
-
-  const data = await res.json();
-  return NextResponse.json(data);
 }

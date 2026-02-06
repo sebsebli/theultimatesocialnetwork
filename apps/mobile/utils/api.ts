@@ -114,9 +114,9 @@ export function getAvatarUri(
 export function getPostHeaderImageUri(
   post:
     | {
-        headerImageUrl?: string | null;
-        headerImageKey?: string | null;
-      }
+      headerImageUrl?: string | null;
+      headerImageKey?: string | null;
+    }
     | null
     | undefined,
 ): string | null {
@@ -142,13 +142,13 @@ export function getPostHeaderImageUri(
 export function getTopicRecentImageUri(
   item:
     | {
-        recentPostImageUrl?: string | null;
-        recentPostImageKey?: string | null;
-        recentPost?: {
-          headerImageUrl?: string | null;
-          headerImageKey?: string | null;
-        } | null;
-      }
+      recentPostImageUrl?: string | null;
+      recentPostImageKey?: string | null;
+      recentPost?: {
+        headerImageUrl?: string | null;
+        headerImageKey?: string | null;
+      } | null;
+    }
     | null
     | undefined,
 ): string | null {
@@ -188,13 +188,13 @@ export function getTopicRecentImageUri(
 export function getCollectionPreviewImageUri(
   collection:
     | {
-        previewImageUrl?: string | null;
-        previewImageKey?: string | null;
-        recentPost?: {
-          headerImageUrl?: string | null;
-          headerImageKey?: string | null;
-        } | null;
-      }
+      previewImageUrl?: string | null;
+      previewImageKey?: string | null;
+      recentPost?: {
+        headerImageUrl?: string | null;
+        headerImageKey?: string | null;
+      } | null;
+    }
     | null
     | undefined,
 ): string | null {
@@ -256,6 +256,7 @@ export function getProfileHeaderUri(
 }
 
 const TOKEN_KEY = "jwt";
+const REFRESH_TOKEN_KEY = "jwt_refresh";
 const ONBOARDING_KEY = "onboarding_complete";
 const ONBOARDING_STAGE_KEY = "onboarding_stage";
 
@@ -271,6 +272,18 @@ export const getAuthToken = async () => {
 
 export const clearAuthToken = async () => {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
+};
+
+export const setRefreshToken = async (token: string) => {
+  await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+};
+
+export const getRefreshToken = async () => {
+  return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+};
+
+export const clearRefreshToken = async () => {
+  await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
 };
 
 export const getOnboardingComplete = async (): Promise<boolean> => {
@@ -346,7 +359,7 @@ function triggerUnauthorized() {
     try {
       const result = onUnauthorized();
       if (result && typeof (result as Promise<void>).catch === "function") {
-        (result as Promise<void>).catch(() => {});
+        (result as Promise<void>).catch(() => { /* fire-and-forget queue flush */ });
       }
     } catch {
       // ignore
@@ -362,6 +375,17 @@ export const setAuthErrorHandler = (_handler: () => void) => {
 const RETRY_MAX = 2;
 const RETRY_INITIAL_MS = 500;
 const RETRY_MAX_MS = 4000;
+/** Default request timeout in milliseconds. */
+const REQUEST_TIMEOUT_MS = 30_000;
+/** Maximum file size for uploads (10 MB). */
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
+/** Allowed image MIME types for uploads. */
+const ALLOWED_UPLOAD_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -372,21 +396,71 @@ function isRetryableStatus(status: number): boolean {
 }
 
 class ApiClient {
+  /** Prevents multiple concurrent refresh attempts. */
+  private refreshPromise: Promise<boolean> | null = null;
+
   private async requestOnce(
     endpoint: string,
     options: RequestInit,
     headers: Record<string, string>,
   ): Promise<Response> {
-    return fetch(`${getApiUrlCached()}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      return await fetch(`${getApiUrlCached()}${endpoint}`, {
+        ...options,
+        headers,
+        signal: options.signal ?? controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
-  async request(endpoint: string, options: RequestInit = {}): Promise<any> {
+  /**
+   * Attempt to refresh the access token using the stored refresh token.
+   * Returns true if successful (new tokens stored), false otherwise.
+   * De-duplicates concurrent refresh calls.
+   */
+  private async refreshAccessToken(): Promise<boolean> {
+    if (this.refreshPromise) return this.refreshPromise;
+
+    this.refreshPromise = (async () => {
+      try {
+        const currentRefreshToken = await getRefreshToken();
+        if (!currentRefreshToken) return false;
+
+        const response = await fetch(`${getApiUrlCached()}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: currentRefreshToken }),
+        });
+
+        if (!response.ok) return false;
+
+        const data = await response.json();
+        const { accessToken, refreshToken: newRefreshToken } = data;
+        if (!accessToken || typeof accessToken !== "string") return false;
+
+        await setAuthToken(accessToken);
+        if (newRefreshToken && typeof newRefreshToken === "string") {
+          await setRefreshToken(newRefreshToken);
+        }
+        return true;
+      } catch {
+        return false;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
+  }
+
+  async request<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const method = (options.method || "GET").toUpperCase();
     const isGet = method === "GET";
-    let lastError: any;
+    let lastError: unknown;
     let lastResponse: Response | undefined;
 
     for (let attempt = 0; attempt <= (isGet ? RETRY_MAX : 0); attempt++) {
@@ -409,7 +483,71 @@ class ApiClient {
         const response = await this.requestOnce(endpoint, options, headers);
 
         if (response.status === 401) {
-          showApiErrorToast("Session issue. Please try again.");
+          // Attempt silent token refresh before signing out
+          const refreshed = await this.refreshAccessToken();
+          if (refreshed) {
+            // Retry the original request with the new token
+            const newToken = await getAuthToken();
+            const retryHeaders = { ...headers };
+            if (newToken) {
+              retryHeaders["Authorization"] = `Bearer ${newToken}`;
+            }
+            const retryResponse = await this.requestOnce(
+              endpoint,
+              options,
+              retryHeaders,
+            );
+
+            if (retryResponse.status === 401) {
+              // Refresh succeeded but request still 401 — sign out
+              showApiErrorToast("Session expired. Please sign in again.");
+              triggerUnauthorized();
+              throw new ApiError("Unauthorized", 401);
+            }
+
+            // Process the retry response normally
+            if (!retryResponse.ok) {
+              const errorText = await retryResponse.text();
+              let errorMessage = `API Error: ${retryResponse.status}`;
+              let errorData: Record<string, unknown> | undefined;
+              try {
+                const errorJson = JSON.parse(errorText) as Record<
+                  string,
+                  unknown
+                >;
+                const m = (
+                  (errorJson.error as Record<string, unknown> | undefined)
+                    ?.message ?? errorJson["message"]
+                ) as string | undefined;
+                if (typeof m === "string") errorMessage = m;
+                errorData = errorJson;
+              } catch {
+                // keep default
+              }
+              if (retryResponse.status !== 403)
+                showApiErrorToast(errorMessage);
+              throw new ApiError(
+                errorMessage,
+                retryResponse.status,
+                errorData,
+              );
+            }
+
+            if (retryResponse.status === 204) return null as T;
+            const text = await retryResponse.text();
+            if (!text || text.trim() === "") return null as T;
+            try {
+              return JSON.parse(text);
+            } catch {
+              throw new ApiError(
+                "Invalid JSON response from server",
+                retryResponse.status,
+              );
+            }
+          }
+
+          // Refresh failed — sign out
+          showApiErrorToast("Session expired. Please sign in again.");
           triggerUnauthorized();
           throw new ApiError("Unauthorized", 401);
         }
@@ -443,8 +581,8 @@ class ApiClient {
                 : Array.isArray(m)
                   ? m[0]
                   : m != null &&
-                      typeof (m as object) === "object" &&
-                      "message" in (m as object)
+                    typeof (m as object) === "object" &&
+                    "message" in (m as object)
                     ? (m as { message?: unknown }).message
                     : undefined;
             errorMessage =
@@ -457,10 +595,10 @@ class ApiClient {
           throw new ApiError(errorMessage, response.status, errorData);
         }
 
-        if (response.status === 204) return null;
+        if (response.status === 204) return null as T;
 
         const text = await response.text();
-        if (!text || text.trim() === "") return null;
+        if (!text || text.trim() === "") return null as T;
         try {
           return JSON.parse(text);
         } catch {
@@ -469,16 +607,23 @@ class ApiClient {
             response.status,
           );
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
         lastResponse = undefined;
         if (error instanceof ApiError) throw error;
 
+        const errMsg =
+          error instanceof Error ? error.message : String(error ?? "");
+        const errName = error instanceof Error ? error.name : "";
+
+        // Detect abort / timeout
+        const isAbort = errName === "AbortError" || errMsg.includes("aborted");
         const isNetwork =
-          error?.message === "Network request failed" ||
-          error?.message?.includes("Network") ||
-          error?.name === "TypeError";
-        if (isGet && isNetwork && attempt < RETRY_MAX) {
+          errMsg === "Network request failed" ||
+          errMsg.includes("Network") ||
+          errName === "TypeError";
+
+        if (isGet && (isNetwork || isAbort) && attempt < RETRY_MAX) {
           const backoff = Math.min(
             RETRY_INITIAL_MS * Math.pow(2, attempt),
             RETRY_MAX_MS,
@@ -487,9 +632,9 @@ class ApiClient {
           continue;
         }
 
-        console.error(`API Request Failed: ${endpoint}`, error);
+        if (__DEV__) console.error(`API Request Failed: ${endpoint}`, error);
 
-        if (error.message === "Auth check timeout") {
+        if (errMsg === "Auth check timeout" || isAbort) {
           const msg =
             "Connection timed out. Please check your internet connection.";
           showApiErrorToast(msg);
@@ -505,49 +650,71 @@ class ApiClient {
           throw new ApiError(msg, 0);
         }
 
-        const msg = error?.message ?? "Something went wrong.";
+        const msg = errMsg || "Something went wrong.";
         showApiErrorToast(msg);
-        throw error;
+        throw error instanceof Error ? error : new ApiError(msg, 0);
       }
     }
 
     throw lastError ?? new ApiError("Request failed", 0);
   }
 
-  async get<T = any>(endpoint: string): Promise<T> {
-    return this.request(endpoint, { method: "GET" });
+  async get<T = unknown>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: "GET" });
   }
 
-  async post<T = any>(endpoint: string, data?: any): Promise<T> {
-    return this.request(endpoint, {
+  async post<T = unknown>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async put<T = any>(endpoint: string, data?: any): Promise<T> {
-    return this.request(endpoint, {
+  async put<T = unknown>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
       method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
-  async patch<T = any>(endpoint: string, data?: any): Promise<T> {
-    return this.request(endpoint, {
+  async patch<T = unknown>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
   }
 
-  async delete<T = any>(endpoint: string): Promise<T> {
-    return this.request(endpoint, { method: "DELETE" });
+  async delete<T = unknown>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, { method: "DELETE" });
   }
 
-  async upload<T = any>(endpoint: string, file: any): Promise<T> {
+  async upload<T = unknown>(
+    endpoint: string,
+    file: {
+      uri: string;
+      fileName?: string;
+      mimeType?: string;
+      type?: string;
+      fileSize?: number;
+    },
+  ): Promise<T> {
     let uri = file.uri;
     if (!uri || typeof uri !== "string") {
       throw new Error("Upload file must have a uri");
     }
+
+    // Validate file size before uploading
+    if (
+      typeof file.fileSize === "number" &&
+      file.fileSize > MAX_UPLOAD_SIZE_BYTES
+    ) {
+      const maxMB = Math.round(MAX_UPLOAD_SIZE_BYTES / (1024 * 1024));
+      throw new ApiError(
+        `File is too large. Maximum size is ${maxMB} MB.`,
+        413,
+      );
+    }
+
     // On iOS, photo library assets (ph://) are not readable by fetch; copy to cache first.
     const isFileUri = uri.startsWith("file://");
     const cacheDir = FileSystemLegacy.cacheDirectory;
@@ -566,7 +733,7 @@ class ApiClient {
         await FileSystemLegacy.copyAsync({ from: uri, to: destUri });
         uri = destUri;
       } catch (e) {
-        console.warn("Copy asset to cache failed, trying original uri", e);
+        if (__DEV__) console.warn("Copy asset to cache failed, trying original uri", e);
       }
     }
     // React Native iOS: some versions need uri without file:// for FormData to attach the body correctly.
@@ -592,13 +759,21 @@ class ApiClient {
       `image/${safeExt}`;
     if (!mime || !mime.includes("/")) mime = `image/${safeExt}`;
 
+    // Validate MIME type
+    if (!ALLOWED_UPLOAD_TYPES.has(mime)) {
+      throw new ApiError(
+        "Unsupported file type. Please upload a JPEG, PNG, GIF, or WebP image.",
+        415,
+      );
+    }
+
     formData.append("image", {
       uri: uploadUri,
       name: fileName,
       type: mime,
-    } as any);
+    } as unknown as Blob);
 
-    return this.request(endpoint, {
+    return this.request<T>(endpoint, {
       method: "POST",
       body: formData,
     });

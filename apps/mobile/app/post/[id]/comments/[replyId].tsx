@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Text,
   View,
@@ -37,6 +37,7 @@ import {
   CommentSkeleton,
   InlineSkeleton,
 } from "../../../../components/LoadingSkeleton";
+import * as Haptics from "expo-haptics";
 
 const COMMENT_MIN_LENGTH = 2;
 const COMMENT_MAX_LENGTH = 1000;
@@ -80,6 +81,16 @@ export default function SubcommentsScreen() {
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
   const scrollRef = useRef<ScrollView>(null);
 
+  const likedSet = useMemo(() => {
+    const liked = new Set<string>();
+    replies.forEach((r: Reply) => {
+      if (r.isLiked) {
+        liked.add(r.id);
+      }
+    });
+    return liked;
+  }, [replies]);
+
   const loadParentAndReplies = useCallback(async () => {
     if (!postId || !parentReplyId) {
       setLoading(false);
@@ -97,17 +108,21 @@ export default function SubcommentsScreen() {
       const list = Array.isArray(repliesData)
         ? repliesData
         : repliesData &&
-            typeof repliesData === "object" &&
-            "items" in repliesData &&
-            Array.isArray((repliesData as any).items)
-          ? (repliesData as any).items
+          typeof repliesData === "object" &&
+          "items" in repliesData &&
+          Array.isArray((repliesData as { items?: Reply[] }).items)
+          ? ((repliesData as { items?: Reply[] }).items ?? [])
           : [];
       setReplies(list);
-      setLikedReplies(
-        new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)),
-      );
+      const likedIds = new Set<string>();
+      list.forEach((r: Reply) => {
+        if (r.isLiked) {
+          likedIds.add(r.id);
+        }
+      });
+      setLikedReplies(likedIds);
     } catch (e) {
-      console.error("Failed to load replies", e);
+      if (__DEV__) console.error("Failed to load replies", e);
       setParentReply(null);
       setReplies([]);
     } finally {
@@ -127,15 +142,20 @@ export default function SubcommentsScreen() {
       );
       const list = Array.isArray(raw) ? raw : (raw?.items ?? []);
       setReplies(list);
-      setLikedReplies(
-        new Set(list.filter((r: Reply) => r.isLiked).map((r: Reply) => r.id)),
-      );
+      const likedIds = new Set<string>();
+      list.forEach((r: Reply) => {
+        if (r.isLiked) {
+          likedIds.add(r.id);
+        }
+      });
+      setLikedReplies(likedIds);
     } catch (e) {
-      console.error("Failed to load replies", e);
+      if (__DEV__) console.error("Failed to load replies", e);
     }
   }, [postId, parentReplyId]);
 
   const submitComment = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const body = commentDraft.trim();
     if (!body || !isAuthenticated) return;
     if (body.length < COMMENT_MIN_LENGTH) {
@@ -165,10 +185,11 @@ export default function SubcommentsScreen() {
       showSuccess(t("post.commentPosted", "Comment posted"));
       await loadReplies();
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-    } catch (error: any) {
-      console.error("Failed to post reply", error);
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to post reply", error);
+      const apiErr = error as { data?: { message?: string }; message?: string } | undefined;
       const message =
-        error?.data?.message ?? error?.message ?? t("post.commentFailed");
+        apiErr?.data?.message ?? apiErr?.message ?? t("post.commentFailed");
       showError(
         typeof message === "string" ? message : t("post.commentFailed"),
       );
@@ -179,6 +200,7 @@ export default function SubcommentsScreen() {
   };
 
   const handleLikeReply = async (replyId: string, currentlyLiked: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!isAuthenticated) return;
     setLikedReplies((prev) => {
       const next = new Set(prev);
@@ -229,10 +251,11 @@ export default function SubcommentsScreen() {
       await api.delete(`/posts/${postId}/replies/${replyToDeleteId}`);
       setReplies((prev) => prev.filter((r) => r.id !== replyToDeleteId));
       showSuccess(t("post.commentDeleted", "Comment deleted"));
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const apiErr = e as { data?: { message?: string }; message?: string } | undefined;
       const msg =
-        e?.data?.message ??
-        e?.message ??
+        apiErr?.data?.message ??
+        apiErr?.message ??
         t("post.commentDeleteFailed", "Failed to delete comment");
       showError(
         typeof msg === "string"
@@ -254,7 +277,14 @@ export default function SubcommentsScreen() {
         <Text style={styles.errorText}>
           {t("post.replyNotFound", "Comment not found")}
         </Text>
-        <Pressable style={styles.backLink} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backLink}
+          onPress={() => router.back()}
+          onLongPress={() => router.replace("/(tabs)" as any)}
+          delayLongPress={400}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.back", "Go back")}
+        >
           <Text style={styles.backLinkText}>{t("common.close")}</Text>
         </Pressable>
       </View>
@@ -283,7 +313,14 @@ export default function SubcommentsScreen() {
         <Text style={styles.errorText}>
           {t("post.replyNotFound", "Comment not found")}
         </Text>
-        <Pressable style={styles.backLink} onPress={() => router.back()}>
+        <Pressable
+          style={styles.backLink}
+          onPress={() => router.back()}
+          onLongPress={() => router.replace("/(tabs)" as any)}
+          delayLongPress={400}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.back", "Go back")}
+        >
           <Text style={styles.backLinkText}>{t("common.close")}</Text>
         </Pressable>
       </View>
@@ -326,6 +363,13 @@ export default function SubcommentsScreen() {
                     router.push(`/user/${parentReply.author.handle}`)
                   }
                   style={styles.commentAuthorLeft}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    parentReply.author?.displayName
+                      ? t("common.viewProfile", "View profile") +
+                        ` ${parentReply.author.displayName}`
+                      : t("common.viewProfile", "View author")
+                  }
                 >
                   <View style={styles.commentAvatar}>
                     <Text style={styles.avatarTextSmall}>
@@ -365,8 +409,8 @@ export default function SubcommentsScreen() {
           {replies.length === 0
             ? t("post.replies", "Replies")
             : t("post.replyCountLabel", "{{count}} replies", {
-                count: replies.length,
-              })}
+              count: replies.length,
+            })}
         </Text>
 
         {replies.length === 0 ? (
@@ -395,6 +439,13 @@ export default function SubcommentsScreen() {
                   router.push(`/user/${reply.author.handle}`)
                 }
                 style={styles.commentAuthorLeft}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  reply.author?.displayName
+                    ? t("common.viewProfile", "View profile") +
+                      ` ${reply.author.displayName}`
+                    : t("common.viewProfile", "View author")
+                }
               >
                 <View style={styles.commentAvatar}>
                   <Text style={styles.avatarTextSmall}>
@@ -413,6 +464,8 @@ export default function SubcommentsScreen() {
                 onPress={() => setReplyMenuReplyId(reply.id)}
                 hitSlop={12}
                 style={styles.menuButton}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.options", "More options")}
               >
                 <MaterialIcons
                   name="more-horiz"
@@ -440,6 +493,12 @@ export default function SubcommentsScreen() {
                     onPress={() =>
                       handleLikeReply(reply.id, likedReplies.has(reply.id))
                     }
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      likedReplies.has(reply.id)
+                        ? t("post.unlike", "Unlike reply")
+                        : t("post.like", "Like reply")
+                    }
                   >
                     <MaterialIcons
                       name={
@@ -457,12 +516,12 @@ export default function SubcommentsScreen() {
                     <Text style={styles.commentLikeLabel}>
                       {(reply.authorId === userId ||
                         reply.author?.id === userId) &&
-                      reply.privateLikeCount !== undefined &&
-                      reply.privateLikeCount > 0
+                        reply.privateLikeCount !== undefined &&
+                        reply.privateLikeCount > 0
                         ? t("post.privateLikedBy", {
-                            count: reply.privateLikeCount,
-                            defaultValue: `Liked by ${reply.privateLikeCount}`,
-                          })
+                          count: reply.privateLikeCount,
+                          defaultValue: `Liked by ${reply.privateLikeCount}`,
+                        })
                         : t("post.like")}
                     </Text>
                   </Pressable>
@@ -502,7 +561,7 @@ export default function SubcommentsScreen() {
                 (commentDraft.trim().length < COMMENT_MIN_LENGTH ||
                   commentDraft.length > COMMENT_MAX_LENGTH ||
                   submittingComment) &&
-                  styles.commentPostBtnDisabled,
+                styles.commentPostBtnDisabled,
               ]}
               onPress={submitComment}
               disabled={
@@ -510,6 +569,8 @@ export default function SubcommentsScreen() {
                 commentDraft.length > COMMENT_MAX_LENGTH ||
                 submittingComment
               }
+              accessibilityRole="button"
+              accessibilityLabel={t("post.postComment", "Post reply")}
             >
               {submittingComment ? (
                 <InlineSkeleton />
@@ -524,6 +585,8 @@ export default function SubcommentsScreen() {
           <Pressable
             style={styles.commentInputPlaceholder}
             onPress={() => router.push("/(tabs)/profile")}
+            accessibilityRole="button"
+            accessibilityLabel={t("post.signInToComment", "Sign in to reply")}
           >
             <MaterialIcons
               name="chat-bubble-outline"
@@ -543,21 +606,21 @@ export default function SubcommentsScreen() {
         title={t("post.commentActions", "Comment")}
         options={[
           ...(replyMenuReplyId &&
-          userId &&
-          (replies.find((r) => r.id === replyMenuReplyId)?.authorId ===
-            userId ||
-            replies.find((r) => r.id === replyMenuReplyId)?.author?.id ===
+            userId &&
+            (replies.find((r) => r.id === replyMenuReplyId)?.authorId ===
+              userId ||
+              replies.find((r) => r.id === replyMenuReplyId)?.author?.id ===
               userId)
             ? [
-                {
-                  label: t("post.deleteComment", "Delete comment"),
-                  onPress: () => {
-                    setReplyToDeleteId(replyMenuReplyId);
-                    setReplyMenuReplyId(null);
-                  },
-                  destructive: true as const,
+              {
+                label: t("post.deleteComment", "Delete comment"),
+                onPress: () => {
+                  setReplyToDeleteId(replyMenuReplyId);
+                  setReplyMenuReplyId(null);
                 },
-              ]
+                destructive: true as const,
+              },
+            ]
             : []),
           {
             label: t("post.reportComment", "Report"),

@@ -30,7 +30,7 @@ export default function MutedPage() {
         setMuted(data.map((m: { muted: MutedUser }) => m.muted));
       }
     } catch (error) {
-      console.error("Failed to load muted users", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to load muted users", error);
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export default function MutedPage() {
         loadMuted();
       }
     } catch (error) {
-      console.error("Failed to unmute", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to unmute", error);
     }
   };
 

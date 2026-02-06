@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getApiUrl, validateOrigin, createSecureErrorResponse } from '@/lib/security';
+import { getApiUrl, createSecureErrorResponse } from '@/lib/security';
 
 // ... (validation functions same as verify/route.ts) ...
 function validateEmail(email: string): boolean {
@@ -25,18 +25,18 @@ export async function POST(request: Request) {
   // but we can check if the request looks legitimate or skip Origin check for mobile if needed.
   // For now, let's assume validateOrigin handles null/missing origin gracefully or we skip it.
   // const origin = request.headers.get('origin');
-  
+
   try {
     const body = await request.json();
-    
+
     // Input validation
     const email = sanitizeString(body.email);
     const token = sanitizeString(body.token);
-    
+
     if (!validateEmail(email)) {
       return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
     }
-    
+
     if (!validateToken(token)) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
     }
@@ -52,15 +52,15 @@ export async function POST(request: Request) {
     }
 
     const data = await res.json();
-    const { accessToken, user } = data;
+    const { accessToken, refreshToken, user } = data;
 
     if (!accessToken || typeof accessToken !== 'string') {
       return NextResponse.json({ error: 'Invalid response' }, { status: 500 });
     }
 
-    // Return token in body for mobile app to store in SecureStore
-    return NextResponse.json({ success: true, accessToken, user });
-  } catch (error) {
+    // Return both tokens in body for mobile app to store in SecureStore
+    return NextResponse.json({ success: true, accessToken, refreshToken, user });
+  } catch (_error) {
     const errorResponse = createSecureErrorResponse('Internal Error', 500);
     return NextResponse.json({ error: errorResponse.error }, { status: errorResponse.status });
   }

@@ -86,6 +86,7 @@ export function ProfileOptionsMenu({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 text-tertiary hover:text-paper hover:bg-white/5 rounded-full transition-colors"
+        aria-label="Profile options menu"
       >
         <svg
           className="w-6 h-6"

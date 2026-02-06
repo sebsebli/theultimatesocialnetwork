@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { ExploreSkeleton } from "@/components/skeletons";
 
@@ -23,6 +23,7 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
 function ExplorePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
   const activeTab = searchParams.get("tab") || "trending";
   const currentSort = searchParams.get("sort") || "recommended";
 
@@ -34,6 +35,16 @@ function ExplorePageContent() {
     if (sort !== "recommended") params.set("sort", sort);
     else params.delete("sort");
     router.replace(`/explore?${params.toString()}`);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (q) {
+      router.push(`/search?q=${encodeURIComponent(q)}`);
+    } else {
+      router.push("/search");
+    }
   };
 
   const tabs: { id: string; label: string }[] = [
@@ -48,14 +59,10 @@ function ExplorePageContent() {
 
   return (
     <>
-      {/* Header / Search — tappable bar goes to /search like mobile; scrolls with page */}
+      {/* Header / Inline search — submit goes to /search?q= with filter tabs (all, people, topics, posts) */}
       <div className="px-4 md:px-6 py-3 bg-ink border-b border-divider">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/search"
-            className="flex-1 relative flex items-center min-h-[3rem] py-3 pl-12 pr-4 bg-white/5 border border-white/10 rounded-xl text-left text-tertiary hover:bg-white/10 hover:border-white/20 transition-colors leading-normal"
-            aria-label="Search people, topics, or citations"
-          >
+        <form onSubmit={handleSearchSubmit} className="flex items-center gap-3">
+          <div className="flex-1 relative flex items-center">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-tertiary pointer-events-none">
               <svg
                 className="w-6 h-6"
@@ -71,11 +78,23 @@ function ExplorePageContent() {
                 />
               </svg>
             </div>
-            <span className="text-base leading-normal">
-              Search people, topics, or citations...
-            </span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={(e) => e.target.select?.()}
+              placeholder="Search people, topics, or citations..."
+              className="w-full min-h-[3rem] py-3 pl-12 pr-4 bg-white/5 border border-white/10 rounded-xl text-left text-paper placeholder:text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-white/20 hover:border-white/20 transition-colors leading-normal"
+              aria-label="Search people, topics, or citations"
+            />
+          </div>
+          <Link
+            href="/search"
+            className="shrink-0 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-secondary hover:text-paper hover:bg-white/10 transition-colors text-sm font-medium"
+          >
+            All search
           </Link>
-        </div>
+        </form>
       </div>
 
       {/* Tabs */}
@@ -101,11 +120,10 @@ function ExplorePageContent() {
           <button
             key={opt.value}
             onClick={() => setSort(opt.value)}
-            className={`px-4 py-1.5 rounded-lg border text-sm font-semibold transition-colors whitespace-nowrap ${
-              currentSort === opt.value
+            className={`px-4 py-1.5 rounded-lg border text-sm font-semibold transition-colors whitespace-nowrap ${currentSort === opt.value
                 ? "bg-white/5 border-primary text-primary"
                 : "bg-white/5 border-divider text-tertiary hover:text-paper"
-            }`}
+              }`}
           >
             {opt.label}
           </button>

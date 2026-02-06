@@ -14,9 +14,16 @@ export default function OnboardingIndexPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const stage = (typeof sessionStorage !== "undefined"
-      ? sessionStorage.getItem(STAGE_KEY)
-      : null) as Stage | null;
+    if (typeof sessionStorage === "undefined") {
+      router.replace("/onboarding/languages");
+      return;
+    }
+    const complete = sessionStorage.getItem("onboarding_complete");
+    if (complete === "true") {
+      router.replace("/home");
+      return;
+    }
+    const stage = sessionStorage.getItem(STAGE_KEY) as Stage | null;
 
     const route =
       stage === "profile"

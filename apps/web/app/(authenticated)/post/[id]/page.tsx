@@ -31,8 +31,14 @@ async function getPost(id: string) {
 
 export default async function PostPage(props: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await props.params;
+  const searchParams = await props.searchParams;
+  const highlightReplyId =
+    typeof searchParams?.highlightReply === "string"
+      ? searchParams.highlightReply
+      : undefined;
   const result = await getPost(params.id);
 
   if (result.status === "not-found" || !result.data) {
@@ -57,5 +63,11 @@ export default async function PostPage(props: {
     "isPublic" in result &&
     Boolean((result as { isPublic?: boolean }).isPublic);
 
-  return <PostDetailDynamic post={post} isPublic={isPublic} />;
+  return (
+    <PostDetailDynamic
+      post={post}
+      isPublic={isPublic}
+      highlightReplyId={highlightReplyId}
+    />
+  );
 }

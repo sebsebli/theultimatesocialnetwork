@@ -13,22 +13,30 @@ export class ApiError extends Error {
   }
 }
 
-export const handleApiError = (error: any, customMessage?: string): string => {
+interface ErrorLike {
+  error?: { message?: string };
+  message?: string;
+  status?: number;
+}
+
+export const handleApiError = (error: unknown, customMessage?: string): string => {
+  const err = error as ErrorLike | null | undefined;
+
   // Check for standardized API error format
-  if (error?.error?.message) {
-    return error.error.message;
+  if (err?.error?.message) {
+    return err.error.message;
   }
 
   // Network errors
-  if (error?.message?.includes('Network') || error?.message?.includes('network')) {
+  if (err?.message?.includes('Network') || err?.message?.includes('network')) {
     return 'Network error. Please check your internet connection.';
   }
 
   // HTTP status codes fallback
-  if (error?.status) {
-    switch (error.status) {
+  if (err?.status) {
+    switch (err.status) {
       case 400:
-        return customMessage || error?.message || 'Invalid request. Please check your input.';
+        return customMessage || err?.message || 'Invalid request. Please check your input.';
       case 401:
         return 'Your session has expired. Please sign in again.';
       case 403:
@@ -36,7 +44,7 @@ export const handleApiError = (error: any, customMessage?: string): string => {
       case 404:
         return 'The requested resource was not found.';
       case 409:
-        return customMessage || error?.message || 'This action conflicts with existing data.';
+        return customMessage || err?.message || 'This action conflicts with existing data.';
       case 413:
         return 'The request is too large. Please try again with smaller data.';
       case 429:
@@ -47,15 +55,15 @@ export const handleApiError = (error: any, customMessage?: string): string => {
       case 504:
         return 'Server error. Please try again later.';
       default:
-        return customMessage || error?.message || 'An error occurred. Please try again.';
+        return customMessage || err?.message || 'An error occurred. Please try again.';
     }
   }
 
   // Generic error
-  return customMessage || error?.message || 'An unexpected error occurred.';
+  return customMessage || err?.message || 'An unexpected error occurred.';
 };
 
-export const showErrorAlert = (error: any, customMessage?: string) => {
+export const showErrorAlert = (error: unknown, customMessage?: string) => {
   const message = handleApiError(error, customMessage);
   Alert.alert('Error', message);
 };

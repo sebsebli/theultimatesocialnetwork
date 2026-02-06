@@ -6,6 +6,7 @@ import { useRealtime } from "@/context/realtime-provider";
 import { useAuth } from "@/components/auth-provider";
 import { useUnreadMessages } from "@/context/unread-messages-context";
 import { Avatar } from "./avatar";
+import { useToast } from "./ui/toast";
 
 interface Thread {
   id: string;
@@ -66,6 +67,7 @@ export function MessagesTab({
 }: MessagesTabProps = {}) {
   const { user } = useAuth();
   const { refresh: refreshUnread } = useUnreadMessages();
+  const { success, error: toastError } = useToast();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedThread, setSelectedThread] = useState<string | null>(
@@ -87,16 +89,56 @@ export function MessagesTab({
     UserOption[]
   >([]);
   const [newMessageLoading, setNewMessageLoading] = useState(false);
+  const [threadMenuOpen, setThreadMenuOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [refreshingThreads, setRefreshingThreads] = useState(false);
   const chatSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
   const newMessageSearchTimeoutRef = useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const loadThreadsCancelledRef = useRef(false);
+  const loadMessagesCancelledRef = useRef(false);
   const { on, off } = useRealtime();
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setThreadMenuOpen(false);
+      }
+    };
+    if (threadMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [threadMenuOpen]);
+
   const loadThreads = useCallback(async () => {
+    if (loadThreadsCancelledRef.current) return;
     setLoading(true);
+    try {
+      const res = await fetch("/api/messages/threads");
+      if (loadThreadsCancelledRef.current) return;
+      if (res.ok) {
+        const data = await res.json();
+        if (!loadThreadsCancelledRef.current) {
+          setThreads(data);
+        }
+      }
+      if (!loadThreadsCancelledRef.current) {
+        refreshUnread();
+      }
+    } catch {
+      // ignore
+    } finally {
+      if (!loadThreadsCancelledRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [refreshUnread]);
+
+  const handleRefreshThreads = useCallback(async () => {
+    setRefreshingThreads(true);
     try {
       const res = await fetch("/api/messages/threads");
       if (res.ok) {
@@ -107,16 +149,20 @@ export function MessagesTab({
     } catch {
       // ignore
     } finally {
-      setLoading(false);
+      setRefreshingThreads(false);
     }
   }, [refreshUnread]);
 
   const loadMessages = useCallback(async (threadId: string) => {
+    if (loadMessagesCancelledRef.current) return;
     try {
       const res = await fetch(`/api/messages/threads/${threadId}/messages`);
+      if (loadMessagesCancelledRef.current) return;
       if (res.ok) {
         const data = await res.json();
-        setMessages(data);
+        if (!loadMessagesCancelledRef.current) {
+          setMessages(data);
+        }
       }
     } catch {
       // ignore
@@ -124,7 +170,13 @@ export function MessagesTab({
   }, []);
 
   useEffect(() => {
-    loadThreads();
+    loadThreadsCancelledRef.current = false;
+    loadThreads().catch(() => {
+      // ignore errors
+    });
+    return () => {
+      loadThreadsCancelledRef.current = true;
+    };
   }, [loadThreads]);
 
   useEffect(() => {
@@ -158,7 +210,13 @@ export function MessagesTab({
 
   useEffect(() => {
     if (selectedThread) {
-      loadMessages(selectedThread);
+      loadMessagesCancelledRef.current = false;
+      loadMessages(selectedThread).catch(() => {
+        // ignore errors
+      });
+      return () => {
+        loadMessagesCancelledRef.current = true;
+      };
     }
   }, [selectedThread, loadMessages]);
 
@@ -196,18 +254,28 @@ export function MessagesTab({
   // New message: load suggested on open
   useEffect(() => {
     if (!showNewMessage) return;
+    let cancelled = false;
     setNewMessageLoading(true);
     fetch("/api/users/suggested?limit=10")
       .then((res) => (res.ok ? res.json() : []))
-      .then((list: UserOption[]) =>
-        setNewMessageSuggestions(
-          (Array.isArray(list) ? list : []).filter(
-            (u) => !u.handle?.startsWith?.("__pending_"),
-          ),
-        ),
-      )
-      .catch(() => setNewMessageSuggestions([]))
-      .finally(() => setNewMessageLoading(false));
+      .then((list: UserOption[]) => {
+        if (!cancelled) {
+          setNewMessageSuggestions(
+            (Array.isArray(list) ? list : []).filter(
+              (u) => !u.handle?.startsWith?.("__pending_"),
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setNewMessageSuggestions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setNewMessageLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [showNewMessage]);
 
   // New message: search users
@@ -261,7 +329,7 @@ export function MessagesTab({
         const err = await res.json().catch(() => ({}));
         alert(
           err.error ||
-            "Could not start conversation. You may need to follow each other.",
+          "Could not start conversation. You may need to follow each other.",
         );
       }
     } catch {
@@ -327,6 +395,54 @@ export function MessagesTab({
     return d.toLocaleDateString();
   };
 
+  const handleMarkUnread = async () => {
+    if (!selectedThread) return;
+    setThreadMenuOpen(false);
+    try {
+      const res = await fetch(
+        `/api/messages/threads/${selectedThread}/read`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ read: false }),
+        },
+      );
+      if (res.ok) {
+        setSelectedThread(null);
+        await loadThreads();
+        refreshUnread();
+        success("Marked as unread");
+      } else {
+        toastError("Failed to update");
+      }
+    } catch {
+      toastError("Failed to update");
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!selectedThread) return;
+    setThreadMenuOpen(false);
+    setDeleteConfirmOpen(false);
+    try {
+      const res = await fetch(
+        `/api/messages/threads/${selectedThread}`,
+        { method: "DELETE" },
+      );
+      if (res.ok) {
+        setSelectedThread(null);
+        setMessages([]);
+        await loadThreads();
+        refreshUnread();
+        success("Conversation deleted");
+      } else {
+        toastError("Failed to delete conversation");
+      }
+    } catch {
+      toastError("Failed to delete conversation");
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -361,6 +477,7 @@ export function MessagesTab({
           <button
             onClick={() => setSelectedThread(null)}
             className="text-tertiary hover:text-paper"
+            aria-label="Back to messages"
           >
             <svg
               className="w-6 h-6"
@@ -385,17 +502,85 @@ export function MessagesTab({
               size="md"
             />
           </Link>
-          <div>
+          <div className="flex-1 min-w-0">
             <Link href={`/user/${thread.otherUser.handle}`}>
-              <div className="font-semibold text-paper">
+              <div className="font-semibold text-paper truncate">
                 {thread.otherUser.displayName}
               </div>
             </Link>
-            <div className="text-xs text-tertiary">
+            <div className="text-xs text-tertiary truncate">
               @{thread.otherUser.handle}
             </div>
           </div>
+          <div className="relative shrink-0" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setThreadMenuOpen((o) => !o)}
+              className="p-2 text-tertiary hover:text-paper rounded-lg"
+              aria-label="Thread options"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+              </svg>
+            </button>
+            {threadMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-52 bg-ink border border-divider rounded-lg shadow-xl z-50 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={handleMarkUnread}
+                  className="w-full px-4 py-3 text-left text-sm text-paper hover:bg-white/10"
+                >
+                  Mark as unread
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThreadMenuOpen(false);
+                    setDeleteConfirmOpen(true);
+                  }}
+                  className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-white/10"
+                >
+                  Delete conversation
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Delete confirm modal */}
+        {deleteConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+            <div className="bg-ink border border-divider rounded-xl p-6 max-w-sm w-full shadow-xl">
+              <h3 className="text-lg font-semibold text-paper mb-2">
+                Delete conversation?
+              </h3>
+              <p className="text-secondary text-sm mb-6">
+                This will permanently delete the conversation for both
+                participants.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmOpen(false)}
+                  className="px-4 py-2 text-paper hover:bg-white/10 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteConversation}
+                  className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
@@ -405,19 +590,17 @@ export function MessagesTab({
               className={`flex ${msg.senderId === thread.otherUser.id ? "justify-start" : "justify-end"}`}
             >
               <div
-                className={`max-w-[70%] px-4 py-2 rounded-lg ${
-                  msg.senderId === thread.otherUser.id
+                className={`max-w-[70%] px-4 py-2 rounded-lg ${msg.senderId === thread.otherUser.id
                     ? "bg-white/5 text-paper"
                     : "bg-primary text-white"
-                }`}
+                  }`}
               >
                 <p className="text-sm">{msg.body}</p>
                 <p
-                  className={`text-xs mt-1 ${
-                    msg.senderId === thread.otherUser.id
+                  className={`text-xs mt-1 ${msg.senderId === thread.otherUser.id
                       ? "text-tertiary"
                       : "text-primary/70"
-                  }`}
+                    }`}
                 >
                   {formatTime(msg.createdAt)}
                 </p>
@@ -468,6 +651,7 @@ export function MessagesTab({
                   setNewMessageSearchResults([]);
                 }}
                 className="text-tertiary hover:text-paper"
+                aria-label="Close new message"
               >
                 <svg
                   className="w-6 h-6"
@@ -578,7 +762,7 @@ export function MessagesTab({
         </div>
       )}
 
-      {/* Chat search + New message button */}
+      {/* Chat search + Refresh + New message button */}
       <div className="flex gap-2">
         <input
           type="text"
@@ -587,6 +771,28 @@ export function MessagesTab({
           placeholder="Search in chats..."
           className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         />
+        <button
+          type="button"
+          onClick={handleRefreshThreads}
+          disabled={refreshingThreads}
+          className="p-2 text-tertiary hover:text-paper rounded-lg disabled:opacity-50"
+          aria-label="Refresh"
+          title="Refresh"
+        >
+          <svg
+            className={`w-5 h-5 ${refreshingThreads ? "animate-spin" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+        </button>
         <button
           type="button"
           onClick={() => setShowNewMessage(true)}

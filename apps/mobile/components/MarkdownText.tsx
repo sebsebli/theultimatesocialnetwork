@@ -1,8 +1,8 @@
 import React, { useState, useMemo, memo, isValidElement } from "react";
-import { Text, View, Modal, Pressable, Platform } from "react-native";
+import { Text, View, Modal, Pressable, Platform, TextStyle } from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import * as WebBrowser from "expo-web-browser";
+import { useOpenExternalLink } from "../hooks/useOpenExternalLink";
 import {
   COLORS,
   SPACING,
@@ -34,6 +34,7 @@ function MarkdownTextInner({
 }: MarkdownTextProps) {
   const router = useRouter();
   const { t } = useTranslation();
+  const { openExternalLink } = useOpenExternalLink();
   const [modalVisible, setModalVisible] = useState(false);
   const [targets, setTargets] = useState<string[]>([]);
   const [alias, setAlias] = useState("");
@@ -43,11 +44,7 @@ function MarkdownTextInner({
     const trimmed = url.trim();
     if (!trimmed) return;
     if (trimmed.startsWith("http")) {
-      await WebBrowser.openBrowserAsync(trimmed, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-        toolbarColor: COLORS.ink,
-        controlsColor: COLORS.primary,
-      });
+      await openExternalLink(trimmed);
     } else if (trimmed.startsWith("post:")) {
       const id = trimmed.split(":")[1];
       if (id) router.push(`/post/${id}`);
@@ -69,7 +66,7 @@ function MarkdownTextInner({
       .filter(Boolean);
     if (items.length > 1) {
       setTargets(items);
-      setAlias(displayAlias || "Linked Items");
+      setAlias(displayAlias || t("post.linkedItems", "Linked Items"));
       setModalVisible(true);
     } else if (items[0]) {
       handleLinkPress(items[0]);
@@ -100,9 +97,10 @@ function MarkdownTextInner({
 
     const parseLineContent = (
       content: string,
-      lineStyle: any,
+      lineStyle: TextStyle | TextStyle[],
       lineKey: string,
-    ): any[] => {
+    ): React.ReactNode[] => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parts: any[] = [];
       let lastIndex = 0;
       // Only composer-supported inline: Bold (**), Italic (_), Inline code (`), Link [...](...), Wikilink ([[...]]), Mention (@...)
@@ -120,22 +118,26 @@ function MarkdownTextInner({
         }
         if (match[1]) {
           // Recursively parse bold content so inline code (and other markdown) inside renders correctly
-          parts.push(
-            ...parseLineContent(
-              match[2],
-              [lineStyle, styles.bold],
-              `${lineKey}-${match.index}-b`,
-            ),
+          const boldStyle: TextStyle[] = Array.isArray(lineStyle) 
+            ? [...lineStyle, styles.bold as TextStyle] 
+            : [lineStyle, styles.bold as TextStyle];
+          const boldParts = parseLineContent(
+            match[2],
+            boldStyle,
+            `${lineKey}-${match.index}-b`,
           );
+          parts.push(...boldParts);
         } else if (match[3]) {
           // Recursively parse italic content so inline code (and other markdown) inside renders correctly
-          parts.push(
-            ...parseLineContent(
-              match[4],
-              [lineStyle, styles.italic],
-              `${lineKey}-${match.index}-i`,
-            ),
+          const italicStyle: TextStyle[] = Array.isArray(lineStyle) 
+            ? [...lineStyle, styles.italic as TextStyle] 
+            : [lineStyle, styles.italic as TextStyle];
+          const italicParts = parseLineContent(
+            match[4],
+            italicStyle,
+            `${lineKey}-${match.index}-i`,
           );
+          parts.push(...italicParts);
         } else if (match[5]) {
           const codeContent = match[6];
           const isMultiLine = codeContent.includes("\n");
@@ -342,7 +344,7 @@ function MarkdownTextInner({
       }
     }
 
-    const nodes: any[] = [];
+    const nodes: React.ReactNode[] = [];
     let nodeKey = 0;
 
     segments.forEach((seg) => {
@@ -359,7 +361,7 @@ function MarkdownTextInner({
                 {codeLine || " "}
               </Text>
             ))}
-          </View>,
+          </View> as React.ReactNode,
         );
         return;
       }
@@ -400,11 +402,11 @@ function MarkdownTextInner({
         }
         const lineKey = `l-${nodeKey}-${lineIndex}`;
         if (content.trim() === "") {
-          nodes.push(<View key={lineKey} style={{ height: SPACING.m }} />);
+          nodes.push(<View key={lineKey} style={{ height: SPACING.m }} /> as React.ReactNode);
         } else {
           const parts = parseLineContent(content, lineStyle, lineKey);
           const hasBlockInLine = parts.some(
-            (p: any) =>
+            (p) =>
               isValidElement(p) && (p as { type?: unknown }).type === View,
           );
           const isHeading =
@@ -423,7 +425,7 @@ function MarkdownTextInner({
               <View key={lineKey} style={lineRowStyle}>
                 {prefix}
                 <Text style={lineStyle}>{parts}</Text>
-              </View>,
+              </View> as React.ReactNode,
             );
           } else {
             nodes.push(
@@ -434,7 +436,7 @@ function MarkdownTextInner({
                 ) : (
                   <Text style={lineStyle}>{content}</Text>
                 )}
-              </View>,
+              </View> as React.ReactNode,
             );
           }
         }
@@ -460,12 +462,14 @@ function MarkdownTextInner({
             <Text style={styles.modalTitle}>{alias}</Text>
             {targets.map((target, index) => (
               <Pressable
-                key={index}
+                key={`target-${target}-${index}`}
                 style={styles.targetItem}
                 onPress={() => {
                   setModalVisible(false);
                   handleLinkPress(target);
                 }}
+                accessibilityRole="button"
+                accessibilityLabel={t("post.linkedItems", "Linked Items") + `: ${target}`}
               >
                 <Text style={styles.targetText}>{target}</Text>
               </Pressable>
@@ -473,8 +477,10 @@ function MarkdownTextInner({
             <Pressable
               style={styles.closeButton}
               onPress={() => setModalVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.close", "Close")}
             >
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Text style={styles.closeButtonText}>{t("common.close", "Close")}</Text>
             </Pressable>
           </View>
         </View>
@@ -589,7 +595,7 @@ const styles = createStyles({
   inlineCode: {
     fontFamily: CODE_FONT,
     fontSize: 15,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: COLORS.pressed,
     color: COLORS.paper,
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -598,32 +604,32 @@ const styles = createStyles({
   },
   /* Multi-line inline code (backticks with newlines) */
   inlineCodeBlockWrap: {
-    backgroundColor: "#1E1E1E",
+    backgroundColor: COLORS.codeBackground,
     borderRadius: 8,
     padding: SPACING.m,
     marginVertical: SPACING.m,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: COLORS.pressed,
   },
   inlineCodeBlockLine: {
     fontFamily: CODE_FONT,
     fontSize: 14,
-    color: "#D4D4D4",
+    color: COLORS.codeText,
     lineHeight: 22,
   },
   /* Fenced code block ```...``` */
   codeBlockContainer: {
-    backgroundColor: "#1E1E1E",
+    backgroundColor: COLORS.codeBackground,
     borderRadius: 8,
     padding: SPACING.m,
     marginVertical: SPACING.m,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: COLORS.pressed,
   },
   codeBlockLine: {
     fontFamily: CODE_FONT,
     fontSize: 14,
-    color: "#D4D4D4",
+    color: COLORS.codeText,
     lineHeight: 22,
   },
   lineRow: {
@@ -661,7 +667,7 @@ const styles = createStyles({
   /* External URL links – design-tokens COLORS.link; open in-app browser */
   urlLinkText: {
     fontWeight: "600",
-    color: COLORS.link ?? "#D97A3C",
+    color: COLORS.link,
     fontFamily: FONTS.serifSemiBold,
     textDecorationLine: "none",
   },

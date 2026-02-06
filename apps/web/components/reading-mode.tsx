@@ -11,6 +11,7 @@ import { useToast } from "./ui/toast";
 import { SourcesSection } from "./sources-section";
 import { ReferencedBySection } from "./referenced-by-section";
 import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
+import { sanitizeHTML } from "@/lib/sanitize-html";
 import { getPostDisplayTitle } from "@/utils/compose-helpers";
 
 function renderMarkdownForReading(
@@ -79,6 +80,8 @@ export interface ReadingModeProps {
     referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
     quoteCount: number;
     isKept?: boolean;
+    /** Estimated read time in minutes (parity with mobile). */
+    readingTimeMinutes?: number;
     /** When false, content is redacted; show private message */
     viewerCanSeeContent?: boolean;
     /** When set, post was soft-deleted; show "deleted on ..." placeholder */
@@ -95,6 +98,18 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
   useEffect(() => {
     setKept(post.isKept ?? false);
   }, [post.id, post.isKept]);
+
+  // Track view when opening reading mode (parity with post detail)
+  useEffect(() => {
+    if (post.id && post.id !== "preview") {
+      let _cancelled = false;
+      fetch(`/api/posts/${post.id}/view`, { method: "POST" })
+        .catch(() => { /* view tracking best-effort */ });
+      return () => {
+        _cancelled = true;
+      };
+    }
+  }, [post.id]);
 
   if (post.deletedAt) {
     const deletedDate = new Date(post.deletedAt);
@@ -171,6 +186,7 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
           <Link
             href={`/post/${post.id}`}
             className="text-secondary hover:text-paper flex items-center gap-2"
+            aria-label="Back to post"
           >
             <svg
               className="w-5 h-5"
@@ -302,8 +318,11 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
                     {post.author.displayName}
                   </div>
                 </Link>
-                <div className="text-tertiary text-sm">
+                <div className="text-tertiary text-sm flex items-center gap-2">
                   {formatDate(post.createdAt)}
+                  {post.readingTimeMinutes != null && post.readingTimeMinutes > 0 && (
+                    <span>· {post.readingTimeMinutes} min read</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -315,16 +334,19 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
                 fontFamily: "var(--font-serif), Georgia, serif",
               }}
               dangerouslySetInnerHTML={{
-                __html: (() => {
-                  const displayTitle = getPostDisplayTitle(post);
-                  const body =
-                    post.title != null && post.title !== ""
-                      ? stripLeadingH1IfMatch(
+                // Safe: Content is sanitized HTML from renderMarkdownForReading which processes user markdown
+                // and escapes dangerous content. Additional DOMPurify sanitization ensures XSS protection.
+                __html: sanitizeHTML(
+                  (() => {
+                    const displayTitle = getPostDisplayTitle(post);
+                    const body =
+                      post.title != null && post.title !== ""
+                        ? stripLeadingH1IfMatch(
                           post.body,
                           post.title ?? undefined,
                         )
-                      : displayTitle
-                        ? (() => {
+                        : displayTitle
+                          ? (() => {
                             const first =
                               post.body.split("\n")[0]?.trim() ?? "";
                             if (
@@ -337,17 +359,18 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
                               );
                             return post.body.includes("\n")
                               ? post.body
-                                  .slice(post.body.indexOf("\n") + 1)
-                                  .trimStart()
+                                .slice(post.body.indexOf("\n") + 1)
+                                .trimStart()
                               : "";
                           })()
-                        : post.body;
-                  return renderMarkdownForReading(
-                    body,
-                    null,
-                    post.referenceMetadata,
-                  );
-                })(),
+                          : post.body;
+                    return renderMarkdownForReading(
+                      body,
+                      null,
+                      post.referenceMetadata,
+                    );
+                  })(),
+                ),
               }}
             />
 

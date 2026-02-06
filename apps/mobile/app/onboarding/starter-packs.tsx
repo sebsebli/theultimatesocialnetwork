@@ -47,11 +47,15 @@ export default function OnboardingStarterPacksScreen() {
   const loadRecommendations = async () => {
     try {
       // Fetch suggested users using the recommendation engine
-      const data = await api.get("/explore/people?limit=10");
-      const items = Array.isArray(data.items || data) ? data.items || data : [];
+      const data = await api.get<User[] | { items?: User[] }>("/explore/people?limit=10");
+      const items = Array.isArray(data)
+        ? data
+        : Array.isArray((data as { items?: User[] }).items)
+          ? (data as { items: User[] }).items
+          : [];
       setUsers(items);
     } catch (error) {
-      console.error("Failed to load starter packs", error);
+      if (__DEV__) console.error("Failed to load starter packs", error);
     } finally {
       setLoading(false);
     }
@@ -77,7 +81,7 @@ export default function OnboardingStarterPacksScreen() {
           u.id === user.id ? { ...u, isFollowing: !isFollowing } : u,
         ),
       );
-      console.error("Follow toggle failed", error);
+      if (__DEV__) console.error("Follow toggle failed", error);
     }
   };
 
@@ -139,6 +143,10 @@ export default function OnboardingStarterPacksScreen() {
                     user.isFollowing && styles.followingButton,
                   ]}
                   onPress={() => toggleFollow(user)}
+                  accessibilityRole="button"
+                  accessibilityLabel={user.isFollowing
+                    ? t("profile.following")
+                    : t("profile.follow")}
                 >
                   <Text
                     style={[
@@ -164,13 +172,15 @@ export default function OnboardingStarterPacksScreen() {
           style={[styles.button, finishing && styles.buttonDisabled]}
           onPress={handleFinish}
           disabled={finishing}
+          accessibilityRole="button"
+          accessibilityLabel={t("onboarding.finish")}
         >
           {finishing ? (
             <InlineSkeleton />
           ) : (
             <Text style={styles.buttonText}>{t("onboarding.finish")}</Text>
           )}
-          <MaterialIcons name="check" size={HEADER.iconSize} color="#FFF" />
+          <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.paper} />
         </Pressable>
       </View>
     </View>
@@ -275,7 +285,7 @@ const styles = createStyles({
     fontFamily: FONTS.semiBold,
   },
   followingText: {
-    color: "#FFF",
+    color: COLORS.paper,
   },
   footer: {
     position: "absolute",
@@ -303,7 +313,7 @@ const styles = createStyles({
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFF",
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
 });

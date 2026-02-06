@@ -10,6 +10,7 @@ import { Post } from '../entities/post.entity';
 import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
+import { PostEdge } from '../entities/post-edge.entity';
 import { ExploreModule } from '../explore/explore.module';
 import { SearchModule } from '../search/search.module';
 import { UploadModule } from '../upload/upload.module';
@@ -22,6 +23,7 @@ import { UploadModule } from '../upload/upload.module';
       TopicFollow,
       PostTopic,
       Post,
+      PostEdge,
       User,
       Follow,
       ExternalSource,

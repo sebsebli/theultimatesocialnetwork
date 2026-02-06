@@ -23,11 +23,14 @@ interface ReferencedPost {
 export interface ReferencedBySectionProps {
   postId: string;
   quoteCount: number;
+  /** When true, render without section border and heading (used inside post tabs). */
+  asTabContent?: boolean;
 }
 
 function ReferencedBySectionInner({
   postId,
   quoteCount,
+  asTabContent = false,
 }: ReferencedBySectionProps) {
   const [referencedPosts, setReferencedPosts] = useState<ReferencedPost[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,22 +75,30 @@ function ReferencedBySectionInner({
     }
   };
 
+  const Section = asTabContent ? "div" : "section";
+  const sectionClass = asTabContent
+    ? "pt-1"
+    : "border-t border-divider pt-8 mt-4";
+  const heading = !asTabContent && (
+    <h2 className="text-xl font-bold mb-6 text-paper">Referenced by</h2>
+  );
+
   if (loading && referencedPosts.length === 0) {
     return (
-      <section className="border-t border-divider pt-8 mt-4">
-        <h2 className="text-xl font-bold mb-6 text-paper">Referenced by</h2>
+      <Section className={sectionClass}>
+        {heading}
         <div className="animate-pulse space-y-4">
           <div className="h-24 bg-white/5 rounded-xl"></div>
           <div className="h-24 bg-white/5 rounded-xl"></div>
         </div>
-      </section>
+      </Section>
     );
   }
 
   if (quoteCount === 0 && referencedPosts.length === 0) {
     return (
-      <section className="border-t border-divider pt-8 mt-4">
-        <h2 className="text-xl font-bold mb-6 text-paper">Referenced by</h2>
+      <Section className={sectionClass}>
+        {heading}
         <div className="flex flex-col items-center justify-center py-12 px-4 bg-white/5 rounded-xl border border-dashed border-divider text-center">
           <svg
             className="w-12 h-12 text-tertiary mb-3 opacity-50"
@@ -105,28 +116,30 @@ function ReferencedBySectionInner({
           </svg>
           <p className="text-secondary font-medium">No posts cite this yet.</p>
         </div>
-      </section>
+      </Section>
     );
   }
 
   return (
-    <section className="border-t border-divider pt-8 mt-4">
-      <div className="flex items-center justify-between gap-4 mb-6 border-b border-divider pb-2">
-        <h2 className="text-xl font-bold text-paper">
-          Referenced by{" "}
-          <span className="text-tertiary font-normal text-lg ml-2">
-            {quoteCount}
-          </span>
-        </h2>
-        {quoteCount > 0 && (
-          <Link
-            href={`/post/${postId}/quotes`}
-            className="text-sm font-medium text-primary hover:underline shrink-0"
-          >
-            View all
-          </Link>
-        )}
-      </div>
+    <Section className={sectionClass}>
+      {!asTabContent && (
+        <div className="flex items-center justify-between gap-4 mb-6 border-b border-divider pb-2">
+          <h2 className="text-xl font-bold text-paper">
+            Referenced by{" "}
+            <span className="text-tertiary font-normal text-lg ml-2">
+              {quoteCount}
+            </span>
+          </h2>
+          {quoteCount > 0 && (
+            <Link
+              href={`/post/${postId}/quotes`}
+              className="text-sm font-medium text-primary hover:underline shrink-0"
+            >
+              View all
+            </Link>
+          )}
+        </div>
+      )}
       {referencedPosts.length > 0 ? (
         <div className="space-y-2">
           {referencedPosts.map((post) => {
@@ -215,7 +228,7 @@ function ReferencedBySectionInner({
             : "Not referenced yet."}
         </p>
       )}
-    </section>
+    </Section>
   );
 }
 

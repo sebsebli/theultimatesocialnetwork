@@ -7,9 +7,13 @@ export interface OverflowMenuProps {
   onMute?: () => void;
   onBlock?: () => void;
   onCopyLink?: () => void;
+  onDelete?: () => void;
   postId?: string;
   replyId?: string;
+  /** User UUID for block/mute API calls. Required for mute/block to work. */
   userId?: string;
+  /** Handle for display in "Mute @handle" / "Block @handle". Falls back to userId if omitted. */
+  userHandle?: string;
   isAuthor?: boolean;
 }
 
@@ -18,11 +22,14 @@ function OverflowMenuInner({
   onMute,
   onBlock,
   onCopyLink,
+  onDelete,
   postId,
   replyId,
   userId,
+  userHandle,
   isAuthor = false,
 }: OverflowMenuProps) {
+  const displayHandle = userHandle ?? userId;
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -131,19 +138,30 @@ function OverflowMenuInner({
               Copy link
             </button>
           )}
+          {isAuthor && (onDelete != null) && (postId || replyId) && (
+            <button
+              onClick={() => {
+                onDelete();
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-3 text-left text-red-500 hover:bg-white/10 transition-colors text-sm"
+            >
+              {replyId ? "Delete comment" : "Delete post"}
+            </button>
+          )}
           {!isAuthor && userId && (
             <>
               <button
                 onClick={handleMute}
                 className="w-full px-4 py-3 text-left text-paper hover:bg-white/10 transition-colors text-sm"
               >
-                Mute @{userId}
+                Mute @{displayHandle}
               </button>
               <button
                 onClick={handleBlock}
                 className="w-full px-4 py-3 text-left text-red-500 hover:bg-white/10 transition-colors text-sm"
               >
-                Block @{userId}
+                Block @{displayHandle}
               </button>
             </>
           )}

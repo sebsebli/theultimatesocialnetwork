@@ -17,9 +17,11 @@ export interface UserCardProps {
     avatarUrl?: string | null;
   };
   onFollow?: () => void;
+  /** When provided (e.g. own followers list), show "Remove" to remove this follower */
+  onRemove?: () => void;
 }
 
-function UserCardInner({ person, onFollow }: UserCardProps) {
+function UserCardInner({ person, onFollow, onRemove }: UserCardProps) {
   return (
     <Link href={`/user/${person.handle}`}>
       <div className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group active:scale-[0.99] flex items-center justify-between">
@@ -48,18 +50,29 @@ function UserCardInner({ person, onFollow }: UserCardProps) {
             <WhyLabel reasons={person.reasons} />
           </div>
         )}
-        {onFollow && (
+        {onRemove && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="ml-3 px-4 py-1.5 rounded-full text-xs font-semibold border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            Remove
+          </button>
+        )}
+        {onFollow && !onRemove && (
           <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               onFollow();
             }}
-            className={`ml-3 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-              person.isFollowing
+            className={`ml-3 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${person.isFollowing
                 ? "bg-primary border-primary text-white"
                 : "border-primary text-primary hover:bg-primary/10"
-            }`}
+              }`}
           >
             {person.isFollowing ? "Following" : "Follow"}
           </button>

@@ -29,6 +29,8 @@ function ErrorStateInner({ message = 'Something went wrong', onRetry, onDismiss 
               pressed && styles.buttonPressed
             ]}
             onPress={onRetry}
+            accessibilityLabel={t('common.tryAgain')}
+            accessibilityRole="button"
           >
             <Text style={styles.buttonText}>{t('common.tryAgain')}</Text>
           </Pressable>
@@ -41,6 +43,8 @@ function ErrorStateInner({ message = 'Something went wrong', onRetry, onDismiss 
               pressed && styles.buttonPressed
             ]}
             onPress={onDismiss}
+            accessibilityLabel={t('common.dismiss', 'Dismiss')}
+            accessibilityRole="button"
           >
             <Text style={styles.buttonTextSecondary}>{t('common.dismiss', 'Dismiss')}</Text>
           </Pressable>
@@ -105,7 +109,7 @@ const styles = createStyles({
     transform: [{ scale: 0.98 }],
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
     fontSize: 15,
     fontWeight: '600',

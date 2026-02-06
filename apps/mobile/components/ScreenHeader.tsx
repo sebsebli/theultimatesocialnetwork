@@ -58,7 +58,7 @@ function ScreenHeaderInner({
       </View>
       <View style={styles.titleRow}>
         {titleIcon ? (
-          <MaterialIcons name={titleIcon as any} size={HEADER_ICON_SIZE} color={HEADER.iconColor} style={styles.titleIcon} />
+          <MaterialIcons name={titleIcon as keyof typeof MaterialIcons.glyphMap} size={HEADER_ICON_SIZE} color={HEADER.iconColor} style={styles.titleIcon} />
         ) : null}
         <Text style={styles.title} numberOfLines={1}>
           {title}

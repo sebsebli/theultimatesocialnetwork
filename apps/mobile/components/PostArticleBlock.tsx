@@ -84,9 +84,11 @@ function PostArticleBlockInner({
         style={styles.authorLine}
         onPress={onAuthorPress}
         disabled={!onAuthorPress}
+        accessibilityLabel={authorName}
+        accessibilityRole="button"
       >
         {getAvatarUri(post.author) ? (
-          <Image source={{ uri: getAvatarUri(post.author)! }} style={styles.authorAvatarImage} />
+          <Image source={{ uri: getAvatarUri(post.author)! }} style={styles.authorAvatarImage} cachePolicy="memory-disk" transition={200} />
         ) : (
           <View style={styles.authorAvatar}>
             <Text style={styles.avatarText}>{authorInitial}</Text>
@@ -114,7 +116,13 @@ function PostArticleBlockInner({
         {renderLikeButton ? (
           renderLikeButton({ liked, onPress: onLike ?? (() => { }), actionBtnStyle: styles.actionBtn })
         ) : (
-          <Pressable style={styles.actionBtn} onPress={onLike} disabled={!onLike}>
+          <Pressable
+            style={styles.actionBtn}
+            onPress={onLike}
+            disabled={!onLike}
+            accessibilityLabel={liked ? t('post.unlike', 'Unlike') : t('post.like', 'Like')}
+            accessibilityRole="button"
+          >
             <MaterialIcons
               name={liked ? 'favorite' : 'favorite-border'}
               size={ACTION_ICON_SIZE}
@@ -123,12 +131,24 @@ function PostArticleBlockInner({
           </Pressable>
         )}
 
-        <Pressable style={styles.actionBtn} onPress={onComment} disabled={!onComment}>
+        <Pressable
+          style={styles.actionBtn}
+          onPress={onComment}
+          disabled={!onComment}
+          accessibilityLabel={t('post.reply', 'Reply')}
+          accessibilityRole="button"
+        >
           <MaterialIcons name="chat-bubble-outline" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
           {replyCount > 0 ? <Text style={styles.actionCount}>{replyCount}</Text> : null}
         </Pressable>
 
-        <Pressable style={styles.actionBtn} onPress={onQuote} disabled={!onQuote}>
+        <Pressable
+          style={styles.actionBtn}
+          onPress={onQuote}
+          disabled={!onQuote}
+          accessibilityLabel={t('post.quote', 'Quote')}
+          accessibilityRole="button"
+        >
           <MaterialIcons name="format-quote" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
         </Pressable>
 
@@ -144,7 +164,13 @@ function PostArticleBlockInner({
           <MaterialIcons name="add-circle-outline" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
         </Pressable>
 
-        <Pressable style={styles.actionBtn} onPress={onShare} disabled={!onShare}>
+        <Pressable
+          style={styles.actionBtn}
+          onPress={onShare}
+          disabled={!onShare}
+          accessibilityLabel={t('post.share', 'Share')}
+          accessibilityRole="button"
+        >
           <MaterialIcons name="ios-share" size={ACTION_ICON_SIZE} color={COLORS.tertiary} />
         </Pressable>
 
@@ -182,7 +208,7 @@ const styles = createStyles({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(110, 122, 138, 0.2)',
+    backgroundColor: COLORS.badge,
     justifyContent: 'center',
     alignItems: 'center',
   },

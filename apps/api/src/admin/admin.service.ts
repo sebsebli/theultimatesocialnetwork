@@ -4,8 +4,10 @@ import { Repository } from 'typeorm';
 import { Report, ReportStatus } from '../entities/report.entity';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
+import { AuditLog } from './audit-log.entity';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { Neo4jService } from '../database/neo4j.service';
+import { GraphComputeService } from '../graph/graph-compute.service';
 import { EdgeType } from '../entities/post-edge.entity';
 
 @Injectable()
@@ -16,9 +18,45 @@ export class AdminService {
     @InjectRepository(Report) private reportRepo: Repository<Report>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
+    @InjectRepository(AuditLog) private auditLogRepo: Repository<AuditLog>,
     private meilisearch: MeilisearchService,
     private neo4j: Neo4jService,
-  ) {}
+    private graphCompute: GraphComputeService,
+  ) { }
+
+  /** Log an admin/moderator action for security auditing. */
+  async logAction(
+    actorId: string,
+    action: string,
+    resourceType: string,
+    resourceId?: string | null,
+    details?: Record<string, unknown> | null,
+    ipAddress?: string | null,
+  ): Promise<void> {
+    try {
+      await this.auditLogRepo.save({
+        actorId,
+        action,
+        resourceType,
+        resourceId: resourceId ?? null,
+        details: details ?? null,
+        ipAddress: ipAddress ?? null,
+      });
+    } catch (err) {
+      this.logger.error('Failed to write audit log', err);
+    }
+  }
+
+  /** Get audit logs (admin only). */
+  async getAuditLogs(limit = 50, offset = 0) {
+    const [items, total] = await this.auditLogRepo.findAndCount({
+      order: { createdAt: 'DESC' },
+      take: limit,
+      skip: offset,
+      relations: ['actor'],
+    });
+    return { items, total };
+  }
 
   async getReports(status?: ReportStatus, limit = 20, offset = 0) {
     const qb = this.reportRepo.createQueryBuilder('report');
@@ -40,22 +78,30 @@ export class AdminService {
     return this.reportRepo.save(report);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reason reserved for moderation log
-  async banUser(userId: string, reason: string) {
+  async banUser(userId: string, reason: string, actorId?: string, ipAddress?: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
     user.bannedAt = new Date();
-    // Ideally log the reason in a moderation log table, but for now just ban.
-    return this.userRepo.save(user);
+    const result = await this.userRepo.save(user);
+
+    if (actorId) {
+      await this.logAction(actorId, 'ban_user', 'user', userId, { reason }, ipAddress);
+    }
+    return result;
   }
 
-  async unbanUser(userId: string) {
+  async unbanUser(userId: string, actorId?: string, ipAddress?: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
     user.bannedAt = null;
-    return this.userRepo.save(user);
+    const result = await this.userRepo.save(user);
+
+    if (actorId) {
+      await this.logAction(actorId, 'unban_user', 'user', userId, null, ipAddress);
+    }
+    return result;
   }
 
   /**
@@ -65,7 +111,7 @@ export class AdminService {
   triggerSearchReindex(): { message: string } {
     void this.meilisearch
       .reindexFromPostgres()
-      .then(() => {})
+      .then(() => { })
       .catch((err) => console.error('Admin reindex failed', err));
     return {
       message:
@@ -74,10 +120,14 @@ export class AdminService {
   }
 
   /**
-   * Rebuild Neo4j graph from PostgreSQL: sync all non-deleted posts (User, Post, AUTHORED, IN_TOPIC, LINKS_TO, QUOTES, MENTIONS).
-   * Use after restoring soft-deleted posts or if the graph is out of sync. Runs in background.
+   * Rebuild Neo4j graph from PostgreSQL. Only available when Neo4j is enabled.
    */
   triggerGraphRebuild(): { message: string } {
+    if (!this.neo4j.isEnabled()) {
+      return {
+        message: 'Neo4j is not configured. Graph rebuild skipped.',
+      };
+    }
     void this.rebuildNeo4jGraph().catch((err) =>
       this.logger.error('Graph rebuild failed', err),
     );
@@ -87,12 +137,25 @@ export class AdminService {
     };
   }
 
+  /**
+   * Trigger on-demand recomputation of derived graph features (authority, influence, trending, clusters).
+   */
+  triggerGraphCompute(): { message: string } {
+    if (!this.neo4j.isEnabled()) {
+      return { message: 'Neo4j is not configured. Graph compute skipped.' };
+    }
+    void this.graphCompute.computeAll().catch((err) =>
+      this.logger.error('On-demand graph compute failed', err),
+    );
+    return { message: 'Graph feature computation started in background.' };
+  }
+
   private async rebuildNeo4jGraph(): Promise<void> {
     const BATCH = 50;
     let offset = 0;
     let total = 0;
     this.logger.log('Neo4j graph rebuild from PostgreSQL started.');
-    for (;;) {
+    for (; ;) {
       const posts = await this.postRepo.find({
         where: {},
         relations: [

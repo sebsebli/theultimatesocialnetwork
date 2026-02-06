@@ -127,6 +127,7 @@ export default function OfflineSettingsPage() {
                   onClick={() => handleRemove(post.id)}
                   className="p-2 text-tertiary hover:text-error hover:bg-white/5 rounded-full transition-colors"
                   title="Remove"
+                  aria-label="Remove article from offline storage"
                 >
                   <svg
                     className="w-5 h-5"

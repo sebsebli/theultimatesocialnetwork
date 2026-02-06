@@ -83,7 +83,7 @@ export function FeedList({ initialPosts }: FeedListProps) {
         setHasMore(false);
       }
     } catch (e) {
-      console.error(e);
+      if (process.env.NODE_ENV !== "production") console.error(e);
       showError("Couldn’t load more.");
     } finally {
       setLoading(false);

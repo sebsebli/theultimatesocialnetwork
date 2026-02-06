@@ -4,11 +4,37 @@ import { Repository, In } from 'typeorm';
 import { Topic } from '../entities/topic.entity';
 import { Post } from '../entities/post.entity';
 import { PostTopic } from '../entities/post-topic.entity';
+import { PostEdge, EdgeType } from '../entities/post-edge.entity';
 import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { ExploreService } from '../explore/explore.service';
+import { GraphComputeService } from '../graph/graph-compute.service';
 import { UploadService } from '../upload/upload.service';
+
+export type TopicSourceItem =
+  | {
+    type: 'external';
+    id: string;
+    url: string;
+    title: string | null;
+    createdAt: Date;
+  }
+  | {
+    type: 'post';
+    id: string;
+    title: string | null;
+    createdAt: Date;
+    headerImageKey: string | null;
+    authorHandle: string | null;
+  }
+  | {
+    type: 'topic';
+    id: string;
+    slug: string;
+    title: string;
+    createdAt: Date;
+  };
 
 @Injectable()
 export class TopicsService {
@@ -18,13 +44,15 @@ export class TopicsService {
     @InjectRepository(Topic) private topicRepo: Repository<Topic>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
     @InjectRepository(PostTopic) private postTopicRepo: Repository<PostTopic>,
+    @InjectRepository(PostEdge) private postEdgeRepo: Repository<PostEdge>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Follow) private followRepo: Repository<Follow>,
     @InjectRepository(ExternalSource)
     private externalSourceRepo: Repository<ExternalSource>,
     private exploreService: ExploreService,
+    private graphCompute: GraphComputeService,
     private uploadService: UploadService,
-  ) {}
+  ) { }
 
   async findOne(slugOrId: string, viewerId?: string) {
     let topic: Topic | null = null;
@@ -52,21 +80,19 @@ export class TopicsService {
     } | null = null;
     let postCount = 0;
     let contributorCount = 0;
+    let relatedTopics: Array<{ topic: string; strength: number }> = [];
 
     try {
-      startHere = await this.exploreService.getTopicStartHere(
-        topic.id,
-        10,
-        viewerId,
-      );
-      recentPostData = await this.getRecentPostForTopic(topic.id, viewerId);
-      // Total counts for header (all posts and distinct authors in topic, no visibility filter)
-      const [postCountRow, contributorRow] = await Promise.all([
+      // Run all enrichment queries in parallel for speed
+      const [startHereResult, recentResult, postCountRow, contributorRow, relatedResult] = await Promise.all([
+        this.exploreService.getTopicStartHere(topic.id, 10, viewerId),
+        this.getRecentPostForTopic(topic.id, viewerId),
         this.postTopicRepo
           .createQueryBuilder('pt')
           .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
           .where('pt.topic_id = :topicId', { topicId: topic.id })
           .select('COUNT(DISTINCT pt.post_id)', 'cnt')
+          .cache(60000) // Cache count for 1 min
           .getRawOne<{ cnt: string }>(),
         this.postRepo.manager
           .createQueryBuilder()
@@ -74,28 +100,33 @@ export class TopicsService {
           .from(PostTopic, 'pt')
           .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
           .where('pt.topic_id = :topicId', { topicId: topic.id })
+          .cache(60000) // Cache count for 1 min
           .getRawOne<{ cnt: string }>(),
+        this.graphCompute.getRelatedTopics(topic.slug),
       ]);
+      startHere = startHereResult;
+      recentPostData = recentResult;
       postCount = postCountRow ? parseInt(postCountRow.cnt, 10) : 0;
       contributorCount = contributorRow ? parseInt(contributorRow.cnt, 10) : 0;
+      relatedTopics = relatedResult;
     } catch (err) {
       this.logger.warn(`Topic findOne enrichment failed for ${topic.id}`, err);
     }
 
     const recentPostImageUrl =
       recentPostData?.headerImageKey != null &&
-      recentPostData.headerImageKey !== ''
+        recentPostData.headerImageKey !== ''
         ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
         : null;
     const recentPost = recentPostData
       ? {
-          ...recentPostData,
-          headerImageUrl:
-            recentPostData.headerImageKey != null &&
+        ...recentPostData,
+        headerImageUrl:
+          recentPostData.headerImageKey != null &&
             recentPostData.headerImageKey !== ''
-              ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
-              : null,
-        }
+            ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
+            : null,
+      }
       : null;
 
     return {
@@ -106,6 +137,7 @@ export class TopicsService {
       recentPost,
       postCount,
       contributorCount,
+      relatedTopics,
     };
   }
 
@@ -122,30 +154,37 @@ export class TopicsService {
     bodyExcerpt: string;
     headerImageKey: string | null;
   } | null> {
-    const posts = await this.postRepo
+    const qb = this.postRepo
       .createQueryBuilder('post')
       .innerJoin('post_topics', 'pt', 'pt.post_id = post.id')
+      .innerJoin('post.author', 'author')
       .where('pt.topic_id = :topicId', { topicId })
-      .andWhere('post.deleted_at IS NULL')
-      .orderBy('post.createdAt', 'DESC')
-      .limit(20)
-      .getMany();
-    const visible = await this.exploreService.filterPostsVisibleToViewer(
-      posts,
-      viewerId,
-    );
-    const p = visible[0] ?? null;
+      .andWhere('post.deleted_at IS NULL');
+
+    // SQL-level visibility filter
+    if (viewerId) {
+      qb.andWhere(
+        `(author.is_protected = false OR author.id = :viewerId OR EXISTS (
+          SELECT 1 FROM follows f WHERE f.follower_id = :viewerId AND f.followee_id = author.id
+        ))`,
+        { viewerId },
+      );
+    } else {
+      qb.andWhere('author.is_protected = false');
+    }
+
+    const p = await qb.orderBy('post.createdAt', 'DESC').limit(1).getOne();
     if (!p) return null;
     const body = p.body;
     const bodyExcerpt =
       body && typeof body === 'string'
         ? body
-            .replace(/#{1,6}\s*/g, '')
-            .replace(/\*\*([^*]+)\*\*/g, '$1')
-            .replace(/_([^_]+)_/g, '$1')
-            .replace(/\n+/g, ' ')
-            .trim()
-            .slice(0, 120) + (body.length > 120 ? '…' : '')
+          .replace(/#{1,6}\s*/g, '')
+          .replace(/\*\*([^*]+)\*\*/g, '$1')
+          .replace(/_([^_]+)_/g, '$1')
+          .replace(/\n+/g, ' ')
+          .trim()
+          .slice(0, 120) + (body.length > 120 ? '…' : '')
         : '';
     return {
       id: p.id,
@@ -204,14 +243,21 @@ export class TopicsService {
         query.orderBy('post.createdAt', 'DESC');
       }
 
-      const takeCount = viewerId ? (limit + 1) * 3 : limit + 1;
-      const posts = await query.skip(offset).take(takeCount).getMany();
-      const visible = await this.exploreService.filterPostsVisibleToViewer(
-        posts,
-        viewerId,
-      );
-      const hasMore = visible.length > limit;
-      const items = visible.slice(0, limit);
+      // Apply visibility filter at SQL level to avoid over-fetching
+      if (viewerId) {
+        query.andWhere(
+          `(author.is_protected = false OR author.id = :viewerId OR EXISTS (
+            SELECT 1 FROM follows f WHERE f.follower_id = :viewerId AND f.followee_id = author.id
+          ))`,
+          { viewerId },
+        );
+      } else {
+        query.andWhere('author.is_protected = false');
+      }
+
+      const posts = await query.skip(offset).take(limit + 1).getMany();
+      const hasMore = posts.length > limit;
+      const items = posts.slice(0, limit);
       return { items, hasMore };
     } catch (err) {
       this.logger.warn('getTopicPosts failed', topicIdOrSlug, sort, err);
@@ -233,6 +279,7 @@ export class TopicsService {
       .select('author.id', 'id')
       .addSelect('author.handle', 'handle')
       .addSelect('author.display_name', 'displayName')
+      .addSelect('author.avatar_key', 'avatarKey')
       .addSelect('COUNT(post.id)', 'postCount')
       .addSelect('SUM(post.quote_count)', 'totalQuotes')
       .from(Post, 'post')
@@ -244,6 +291,7 @@ export class TopicsService {
       .groupBy('author.id')
       .addGroupBy('author.handle')
       .addGroupBy('author.display_name')
+      .addGroupBy('author.avatar_key')
       .orderBy('SUM(post.quoteCount)', 'DESC')
       .addOrderBy('COUNT(post.id)', 'DESC')
       .limit(fetchLimit)
@@ -253,6 +301,7 @@ export class TopicsService {
       id: string;
       handle: string;
       displayName: string;
+      avatarKey: string | null;
       postCount: string;
       totalQuotes: string;
     }>();
@@ -285,6 +334,7 @@ export class TopicsService {
       id: r.id,
       handle: r.handle,
       displayName: r.displayName,
+      avatarKey: r.avatarKey ?? null,
       postCount: parseInt(r.postCount, 10),
       totalQuotes: parseInt(r.totalQuotes, 10),
     }));
@@ -295,9 +345,7 @@ export class TopicsService {
     limit = 20,
     offset = 0,
     viewerId?: string,
-  ): Promise<
-    { id: string; url: string; title: string | null; createdAt: Date }[]
-  > {
+  ): Promise<TopicSourceItem[]> {
     let topicId = topicIdOrSlug;
     const isUUID =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -311,35 +359,51 @@ export class TopicsService {
       topicId = topic.id;
     }
 
-    const toSource = (r: {
-      id: string;
-      url: string;
-      title: string | null;
-      createdAt: Date;
-      postId?: string;
-    }) => ({
-      id: r.id,
-      url: r.url,
-      title: r.title,
-      createdAt: r.createdAt,
-    });
+    // 1) Visible post IDs in this topic (for viewer filtering)
+    const topicPostIds = await this.postTopicRepo
+      .find({ where: { topicId }, select: ['postId'] })
+      .then((rows) => rows.map((r) => r.postId));
+    if (topicPostIds.length === 0) return [];
 
-    // One row per distinct URL (most recent occurrence), from all posts in the topic
+    let visiblePostIds: Set<string>;
+    if (viewerId) {
+      const posts = await this.postRepo.find({
+        where: { id: In(topicPostIds) },
+        relations: ['author'],
+        select: ['id', 'authorId'],
+      });
+      const visible = await this.exploreService.filterPostsVisibleToViewer(
+        posts,
+        viewerId,
+      );
+      visiblePostIds = new Set(visible.map((p) => p.id));
+    } else {
+      const publicIds = (await this.postRepo.query(
+        `
+        SELECT p.id FROM posts p
+        INNER JOIN users u ON u.id = p.author_id AND u.is_protected = false
+        WHERE p.id = ANY($1::uuid[]) AND p.deleted_at IS NULL
+        `,
+        [topicPostIds],
+      )) as { id: string }[];
+      visiblePostIds = new Set(publicIds.map((r) => r.id));
+    }
+
     const publicClause = viewerId
       ? ''
       : `INNER JOIN users postAuthor ON postAuthor.id = p.author_id AND postAuthor.is_protected = false`;
-    const fetchLimit = viewerId ? offset + limit * 5 : limit;
-    const fetchOffset = viewerId ? 0 : offset;
 
-    type SourceRow = {
+    // 2) External sources (distinct by url) from visible topic posts
+    type ExtRow = {
       id: string;
       url: string;
       title: string | null;
       createdAt: Date;
       postId: string;
     };
-    const rows = (await this.externalSourceRepo.query(
-      `
+    const extQuery =
+      viewerId === undefined
+        ? `
       WITH distinct_sources AS (
         SELECT DISTINCT ON (es.url) es.id, es.url, es.title, es.created_at, es.post_id AS "postId"
         FROM external_sources es
@@ -349,27 +413,123 @@ export class TopicsService {
         WHERE pt.topic_id = $1
         ORDER BY es.url, es.created_at DESC
       )
-      SELECT id, url, title, created_at AS "createdAt", "postId"
-      FROM distinct_sources
-      ORDER BY "createdAt" DESC
-      LIMIT $2 OFFSET $3
-      `,
-      [topicId, fetchLimit, fetchOffset],
-    )) as unknown as SourceRow[];
+      SELECT id, url, title, created_at AS "createdAt", "postId" FROM distinct_sources ORDER BY "createdAt" DESC
+      `
+        : `
+      WITH distinct_sources AS (
+        SELECT DISTINCT ON (es.url) es.id, es.url, es.title, es.created_at, es.post_id AS "postId"
+        FROM external_sources es
+        INNER JOIN post_topics pt ON pt.post_id = es.post_id
+        INNER JOIN posts p ON p.id = es.post_id AND p.deleted_at IS NULL
+        WHERE pt.topic_id = $1 AND es.post_id = ANY($2::uuid[])
+        ORDER BY es.url, es.created_at DESC
+      )
+      SELECT id, url, title, created_at AS "createdAt", "postId" FROM distinct_sources ORDER BY "createdAt" DESC
+      `;
+    const extParams =
+      viewerId === undefined ? [topicId] : [topicId, [...visiblePostIds]];
+    const extRows = (await this.externalSourceRepo.query(
+      extQuery,
+      extParams,
+    )) as ExtRow[];
+    const externalItems: TopicSourceItem[] = extRows.map(
+      (r) =>
+        ({
+          type: 'external',
+          id: r.id,
+          url: r.url,
+          title: r.title,
+          createdAt: r.createdAt,
+        }) as TopicSourceItem,
+    );
 
-    if (rows.length === 0) return [];
-    if (!viewerId) return rows.map(toSource);
-
-    const postIds = [...new Set(rows.map((r) => r.postId))];
-    const posts = await this.postRepo.find({
-      where: { id: In(postIds) },
-      relations: ['author'],
-      select: ['id', 'authorId'],
+    // 3) Linked posts (LINK edges from visible topic posts); dedupe by to_post_id
+    const edges = await this.postEdgeRepo.find({
+      where: {
+        fromPostId: In([...visiblePostIds]),
+        edgeType: EdgeType.LINK,
+      },
+      relations: ['toPost', 'toPost.author'],
+      order: { createdAt: 'DESC' },
     });
-    const visible: Post[] =
-      await this.exploreService.filterPostsVisibleToViewer(posts, viewerId);
-    const visiblePostIds = new Set(visible.map((p) => p.id));
-    const filtered = rows.filter((r) => visiblePostIds.has(r.postId));
-    return filtered.slice(offset, offset + limit).map(toSource);
+    const toPostIds = [...new Set(edges.map((e) => e.toPostId))];
+    const toPosts = await this.postRepo.find({
+      where: { id: In(toPostIds) },
+      relations: ['author'],
+      select: ['id', 'title', 'createdAt', 'headerImageKey', 'authorId'],
+    });
+    const visibleToPosts = await this.exploreService.filterPostsVisibleToViewer(
+      toPosts,
+      viewerId,
+    );
+    const visibleToPostIds = new Set(visibleToPosts.map((p) => p.id));
+    const authorHandles = new Map<string, string>();
+    for (const p of visibleToPosts) {
+      if (p.author?.handle) authorHandles.set(p.id, p.author.handle);
+    }
+    const postItems: TopicSourceItem[] = [];
+    const seenPostIds = new Set<string>();
+    for (const e of edges) {
+      if (!visibleToPostIds.has(e.toPostId) || seenPostIds.has(e.toPostId))
+        continue;
+      seenPostIds.add(e.toPostId);
+      const post = e.toPost;
+      if (!post) continue;
+      postItems.push({
+        type: 'post',
+        id: post.id,
+        title: post.title ?? null,
+        createdAt: e.createdAt,
+        headerImageKey: post.headerImageKey ?? null,
+        authorHandle: authorHandles.get(post.id) ?? null,
+      });
+    }
+
+    // 4) Other topics tagged on visible topic posts (post_topic where topic_id != this topic)
+    const otherTopicLinks = await this.postTopicRepo
+      .createQueryBuilder('pt')
+      .select('pt.topic_id', 'topicId')
+      .where('pt.post_id IN (:...postIds)', {
+        postIds: [...visiblePostIds],
+      })
+      .andWhere('pt.topic_id != :topicId', { topicId })
+      .groupBy('pt.topic_id')
+      .getRawMany<{ topicId: string }>();
+    const otherTopicIds = otherTopicLinks.map((r) => r.topicId);
+    const topics =
+      otherTopicIds.length === 0
+        ? []
+        : await this.topicRepo.find({
+          where: { id: In(otherTopicIds) },
+          select: ['id', 'slug', 'title', 'createdAt'],
+        });
+    const topicItems: TopicSourceItem[] = topics.map((t) => ({
+      type: 'topic',
+      id: t.id,
+      slug: t.slug,
+      title: t.title,
+      createdAt: t.createdAt,
+    }));
+
+    // 5) Merge, sort by createdAt desc, dedupe by (type, id), paginate
+    const merged: TopicSourceItem[] = [
+      ...externalItems,
+      ...postItems,
+      ...topicItems,
+    ].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    const seen = new Set<string>();
+    const deduped = merged.filter((item) => {
+      const key =
+        item.type === 'external'
+          ? `ext:${item.url}`
+          : `${item.type}:${item.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return deduped.slice(offset, offset + limit);
   }
 }

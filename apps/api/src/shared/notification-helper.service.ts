@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
-import { Queue } from 'bullmq';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 import {
   Notification,
   NotificationType,
@@ -19,8 +19,8 @@ export class NotificationHelperService {
     @InjectRepository(PushOutbox)
     private pushOutboxRepo: Repository<PushOutbox>,
     // private realtimeGateway: RealtimeGateway,
-    @Inject('PUSH_QUEUE') private pushQueue: Queue,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
   async createNotification(data: {
     userId: string;
@@ -84,7 +84,7 @@ export class NotificationHelperService {
         });
         const savedOutbox = await this.pushOutboxRepo.save(outbox);
 
-        await this.pushQueue.add('send', { id: savedOutbox.id });
+        await this.eventBus.publish('push-processing', 'send', { id: savedOutbox.id });
       }
     } catch (e) {
       console.error('Failed to queue push notification', e);

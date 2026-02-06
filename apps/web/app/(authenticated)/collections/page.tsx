@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { CreateCollectionModal } from "@/components/create-collection-modal";
 import { getImageUrl } from "@/lib/security";
@@ -24,11 +24,27 @@ interface Collection {
   } | null;
 }
 
+type FilterKey = "all" | "public" | "private";
+
 export default function CollectionsPage() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("all");
+
+  const filteredCollections = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return collections.filter((c) => {
+      if (filter === "public" && !c.isPublic) return false;
+      if (filter === "private" && c.isPublic) return false;
+      if (!q) return true;
+      const title = (c.title ?? "").toLowerCase();
+      const desc = (c.description ?? "").toLowerCase();
+      return title.includes(q) || desc.includes(q);
+    });
+  }, [collections, search, filter]);
 
   useEffect(() => {
     loadCollections();
@@ -46,7 +62,7 @@ export default function CollectionsPage() {
         setLoadError(true);
       }
     } catch (error) {
-      console.error("Failed to load collections", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to load collections", error);
       setLoadError(true);
     } finally {
       setLoading(false);
@@ -58,7 +74,7 @@ export default function CollectionsPage() {
       {/* Header */}
       <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 md:px-6 py-3">
         <div className="flex items-center justify-between">
-          <Link href="/" className="text-secondary hover:text-paper">
+          <Link href="/home" className="text-secondary hover:text-paper">
             <svg
               className="w-6 h-6"
               fill="none"
@@ -83,6 +99,60 @@ export default function CollectionsPage() {
         </div>
       </header>
 
+      {/* Search + filter — match mobile */}
+      <div className="px-4 md:px-6 py-3 border-b border-divider space-y-3">
+        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+          <svg
+            className="w-5 h-5 text-tertiary shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <input
+            type="search"
+            placeholder="Search collections..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 bg-transparent text-paper placeholder-tertiary text-sm outline-none min-w-0"
+          />
+          {search.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="p-1 text-tertiary hover:text-paper"
+              aria-label="Clear search"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {(["all", "public", "private"] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setFilter(key)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors capitalize ${
+                filter === key
+                  ? "bg-primary text-ink"
+                  : "bg-white/5 text-tertiary hover:bg-white/10 hover:text-paper border border-white/10"
+              }`}
+            >
+              {key === "all" ? "All" : key}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Collections List */}
       <div className="px-6 py-6 space-y-4 flex-1 flex flex-col min-h-[200px]">
         {loading && !loadError ? (
@@ -102,17 +172,18 @@ export default function CollectionsPage() {
               Retry
             </button>
           </div>
-        ) : collections.length === 0 ? (
+        ) : filteredCollections.length === 0 ? (
           <div className={emptyStateCenterClassName}>
             <EmptyState
               icon="folder_open"
-              headline="No collections yet"
+              headline={collections.length === 0 ? "No collections yet" : "No matching collections"}
+              subtext={collections.length === 0 ? "Create a collection to organize your saved posts." : undefined}
               actionLabel="Create collection"
               onAction={() => setShowCreateModal(true)}
             />
           </div>
         ) : (
-          collections.map((collection) => (
+          filteredCollections.map((collection) => (
             <Link
               key={collection.id}
               href={`/collections/${collection.id}`}

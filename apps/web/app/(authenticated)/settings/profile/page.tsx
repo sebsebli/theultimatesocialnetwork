@@ -21,6 +21,12 @@ export default function SettingsProfilePage() {
   const [handle, setHandle] = useState("");
   const [bio, setBio] = useState("");
   const [isProtected, setIsProtected] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarKey, setAvatarKey] = useState<string | null>(null);
+  const [profileHeaderUrl, setProfileHeaderUrl] = useState<string | null>(null);
+  const [profileHeaderKey, setProfileHeaderKey] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [headerUploading, setHeaderUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initialHandle, setInitialHandle] = useState("");
   const [initialDisplayName, setInitialDisplayName] = useState("");
@@ -29,6 +35,8 @@ export default function SettingsProfilePage() {
   >("idle");
   const [confirmUpdateVisible, setConfirmUpdateVisible] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const headerInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/me")
@@ -40,6 +48,10 @@ export default function SettingsProfilePage() {
             handle?: string;
             bio?: string;
             isProtected?: boolean;
+            avatarUrl?: string | null;
+            avatarKey?: string | null;
+            profileHeaderUrl?: string | null;
+            profileHeaderKey?: string | null;
           } | null,
         ) => {
           if (user) {
@@ -49,6 +61,10 @@ export default function SettingsProfilePage() {
             setInitialDisplayName(user.displayName ?? "");
             setBio(user.bio ?? "");
             setIsProtected(user.isProtected ?? false);
+            setAvatarUrl(user.avatarUrl ?? null);
+            setAvatarKey(user.avatarKey ?? null);
+            setProfileHeaderUrl(user.profileHeaderUrl ?? null);
+            setProfileHeaderKey(user.profileHeaderKey ?? null);
             if (user.handle) setHandleStatus("available");
           }
         },
@@ -124,6 +140,103 @@ export default function SettingsProfilePage() {
     checkAvailability,
     isHandleChanged,
   ]);
+
+  const updateMe = async (payload: {
+    avatarKey?: string | null;
+    profileHeaderKey?: string | null;
+  }) => {
+    const res = await fetch("/api/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("Failed to update");
+    return res.json();
+  };
+
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !file.type.startsWith("image/")) return;
+    setAvatarUploading(true);
+    try {
+      const form = new FormData();
+      form.append("image", file);
+      const res = await fetch("/api/upload/profile-picture", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      const data = res.ok ? await res.json() : null;
+      const key = data?.key;
+      if (!key) throw new Error("No key returned");
+      const user = await updateMe({ avatarKey: key });
+      setAvatarUrl(user?.avatarUrl ?? data?.url ?? null);
+      setAvatarKey(key);
+      toastSuccess(t("photoUpdated") || "Profile photo updated.");
+    } catch {
+      toastError(tCommon("error"));
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!avatarKey && !avatarUrl) return;
+    setAvatarUploading(true);
+    try {
+      await updateMe({ avatarKey: null });
+      setAvatarUrl(null);
+      setAvatarKey(null);
+      toastSuccess(t("photoRemoved") || "Photo removed.");
+    } catch {
+      toastError(tCommon("error"));
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleHeaderFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !file.type.startsWith("image/")) return;
+    setHeaderUploading(true);
+    try {
+      const form = new FormData();
+      form.append("image", file);
+      const res = await fetch("/api/upload/profile-header", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      const data = res.ok ? await res.json() : null;
+      const key = data?.key;
+      if (!key) throw new Error("No key returned");
+      const user = await updateMe({ profileHeaderKey: key });
+      setProfileHeaderUrl(user?.profileHeaderUrl ?? data?.url ?? null);
+      setProfileHeaderKey(key);
+      toastSuccess(t("headerUpdated") || "Header image updated.");
+    } catch {
+      toastError(tCommon("error"));
+    } finally {
+      setHeaderUploading(false);
+    }
+  };
+
+  const handleRemoveHeader = async () => {
+    if (!profileHeaderKey && !profileHeaderUrl) return;
+    setHeaderUploading(true);
+    try {
+      await updateMe({ profileHeaderKey: null });
+      setProfileHeaderUrl(null);
+      setProfileHeaderKey(null);
+      toastSuccess(t("headerRemoved") || "Header image removed.");
+    } catch {
+      toastError(tCommon("error"));
+    } finally {
+      setHeaderUploading(false);
+    }
+  };
 
   const confirmUpdate = async () => {
     setConfirmUpdateVisible(false);
@@ -205,6 +318,110 @@ export default function SettingsProfilePage() {
       </header>
 
       <div className="px-4 py-4 space-y-6">
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleAvatarFile}
+        />
+        <input
+          ref={headerInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleHeaderFile}
+        />
+
+        {/* Profile header (banner) */}
+        <div className="relative -mx-4 mt-0">
+          <div
+            className="h-32 bg-white/5 border-y border-divider flex items-center justify-center overflow-hidden"
+            onClick={() => headerUploading || headerInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) =>
+              (e.key === "Enter" || e.key === " ") &&
+              !headerUploading &&
+              headerInputRef.current?.click()
+            }
+            aria-label="Change header image"
+          >
+            {headerUploading ? (
+              <span className="text-tertiary text-sm">Uploading...</span>
+            ) : profileHeaderUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={profileHeaderUrl}
+                alt="Profile header"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-tertiary text-sm">
+                Tap to add header image
+              </span>
+            )}
+          </div>
+          {(profileHeaderUrl || profileHeaderKey) && !headerUploading && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemoveHeader();
+              }}
+              className="absolute top-2 right-2 px-2 py-1 rounded bg-ink/90 text-secondary text-xs hover:text-paper"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+
+        {/* Avatar */}
+        <div className="flex flex-col items-center gap-2">
+          <button
+            type="button"
+            disabled={avatarUploading}
+            onClick={() => avatarInputRef.current?.click()}
+            className="relative w-28 h-28 rounded-full border-2 border-divider bg-white/5 flex items-center justify-center overflow-hidden hover:border-primary/50 transition-colors disabled:opacity-60"
+            aria-label="Change profile photo"
+          >
+            {avatarUploading ? (
+              <span className="text-tertiary text-xs">Uploading...</span>
+            ) : avatarUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={avatarUrl}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-3xl font-bold text-tertiary">
+                {(displayName || handle || "?").charAt(0).toUpperCase()}
+              </span>
+            )}
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
+              className="text-sm text-primary hover:underline disabled:opacity-50"
+            >
+              {avatarUrl || avatarKey ? "Change photo" : "Add photo"}
+            </button>
+            {(avatarUrl || avatarKey) && (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                disabled={avatarUploading}
+                className="text-sm text-tertiary hover:text-paper disabled:opacity-50"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="p-4 bg-white/5 border border-divider rounded-xl flex gap-2">
           <span className="text-tertiary mt-0.5">ℹ</span>
           <p className="text-secondary text-sm">
@@ -243,13 +460,12 @@ export default function SettingsProfilePage() {
               }
               placeholder="janedoe"
               maxLength={HANDLE_MAX}
-              className={`w-full h-12 pl-8 pr-4 bg-white/5 border rounded-xl text-paper placeholder-tertiary ${
-                isHandleChanged && handleStatus === "taken"
+              className={`w-full h-12 pl-8 pr-4 bg-white/5 border rounded-xl text-paper placeholder-tertiary ${isHandleChanged && handleStatus === "taken"
                   ? "border-red-500/50"
                   : handleStatus === "available"
                     ? "border-green-500/50"
                     : "border-divider"
-              }`}
+                }`}
             />
           </div>
           <div className="flex justify-between mt-1 text-xs text-tertiary">

@@ -25,7 +25,7 @@ export default function OnboardingStarterPacksPage() {
           setAccounts(Array.isArray(data) ? (data as SuggestedAccount[]) : []);
         }
       } catch (error) {
-        console.error("Failed to load suggested accounts", error);
+        if (process.env.NODE_ENV !== "production") console.error("Failed to load suggested accounts", error);
       } finally {
         setLoading(false);
       }
@@ -49,7 +49,7 @@ export default function OnboardingStarterPacksPage() {
       const method = isFollowing ? "DELETE" : "POST";
       await fetch(`/api/users/${id}/follow`, { method });
     } catch (e) {
-      console.error("Failed to toggle follow", e);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to toggle follow", e);
       // Revert on failure
       setFollowing(following);
     }
@@ -58,6 +58,7 @@ export default function OnboardingStarterPacksPage() {
   const handleFinish = () => {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.removeItem("onboarding_stage");
+      sessionStorage.setItem("onboarding_complete", "true");
     }
     router.push("/home");
   };
@@ -68,10 +69,10 @@ export default function OnboardingStarterPacksPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-paper mb-2">
-              Follow a few voices
+              Find your first reads
             </h1>
             <p className="text-secondary text-sm">
-              Discover interesting perspectives
+              Follow a few writers to fill your timeline
             </p>
           </div>
           <button
@@ -85,11 +86,11 @@ export default function OnboardingStarterPacksPage() {
         <div className="space-y-3">
           {loading ? (
             <p className="text-secondary text-sm text-center py-8">
-              Loading suggestions...
+              Finding writers for you...
             </p>
           ) : accounts.length === 0 ? (
             <p className="text-secondary text-sm text-center py-8">
-              No suggestions found.
+              No suggestions right now. You can always find people later.
             </p>
           ) : (
             accounts.map((account) => (
@@ -113,11 +114,10 @@ export default function OnboardingStarterPacksPage() {
                 </div>
                 <button
                   onClick={() => toggleFollow(account.id)}
-                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${
-                    following.has(account.id)
+                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${following.has(account.id)
                       ? "bg-primary border-primary text-white"
                       : "border-primary text-primary hover:bg-primary/10"
-                  }`}
+                    }`}
                 >
                   {following.has(account.id) ? "Following" : "Follow"}
                 </button>
@@ -130,7 +130,7 @@ export default function OnboardingStarterPacksPage() {
           onClick={handleFinish}
           className="w-full h-14 bg-primary hover:bg-[#7d8b9d] transition-colors text-white font-semibold rounded-lg"
         >
-          Finish
+          Let&apos;s go
         </button>
       </div>
     </div>

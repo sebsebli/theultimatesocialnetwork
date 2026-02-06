@@ -7,9 +7,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
+import { Repository, DataSource, In, IsNull } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Queue } from 'bullmq';
 import { Post, PostVisibility } from '../entities/post.entity';
 import { CreatePostDto } from './dto/create-post.dto';
 import { PostEdge, EdgeType } from '../entities/post-edge.entity';
@@ -19,11 +18,13 @@ import { ExternalSource } from '../entities/external-source.entity';
 import { User } from '../entities/user.entity';
 import { Mention } from '../entities/mention.entity';
 import { Neo4jService } from '../database/neo4j.service';
+import { Neo4jQueryService } from '../database/neo4j-query.service';
 import { LanguageDetectionService } from '../shared/language-detection.service';
 import { MeilisearchService } from '../search/meilisearch.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
 import { SafetyService } from '../safety/safety.service';
 import { EmbeddingService } from '../shared/embedding.service';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 
 import { UpdatePostDto } from './dto/update-post.dto';
 import { EntityManager } from 'typeorm';
@@ -40,14 +41,15 @@ export class PostsService {
     @InjectRepository(User) private userRepo: Repository<User>,
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
+    private neo4jQuery: Neo4jQueryService,
     private languageDetection: LanguageDetectionService,
     private meilisearch: MeilisearchService,
     private notificationHelper: NotificationHelperService,
     private safetyService: SafetyService,
     private embeddingService: EmbeddingService,
     private configService: ConfigService,
-    @Inject('POST_QUEUE') private postQueue: Queue,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
   async create(
     userId: string,
@@ -166,7 +168,7 @@ export class PostsService {
     }
 
     if (savedPost.status === 'PUBLISHED' && !skipQueue) {
-      await this.postQueue.add('process', { postId: savedPost.id, userId });
+      await this.eventBus.publish('post-processing', 'process', { postId: savedPost.id, userId });
       // Index immediately so the post is searchable before the worker runs (worker will overwrite with embedding/topicIds).
       this.postRepo
         .findOne({
@@ -201,9 +203,9 @@ export class PostsService {
             authorId: post.authorId || '',
             author: post.author
               ? {
-                  displayName: post.author.displayName ?? post.author.handle,
-                  handle: post.author.handle,
-                }
+                displayName: post.author.displayName ?? post.author.handle,
+                handle: post.author.handle,
+              }
               : undefined,
             authorProtected: post.author?.isProtected,
             lang: post.lang,
@@ -272,7 +274,7 @@ export class PostsService {
       await queryRunner.commitTransaction();
 
       if (isPublishing) {
-        await this.postQueue.add('process', { postId: savedPost.id, userId });
+        await this.eventBus.publish('post-processing', 'process', { postId: savedPost.id, userId });
         // Index immediately so the post is searchable before the worker runs.
         this.postRepo
           .findOne({
@@ -307,9 +309,9 @@ export class PostsService {
               authorId: post.authorId || '',
               author: post.author
                 ? {
-                    displayName: post.author.displayName ?? post.author.handle,
-                    handle: post.author.handle,
-                  }
+                  displayName: post.author.displayName ?? post.author.handle,
+                  handle: post.author.handle,
+                }
                 : undefined,
               authorProtected: post.author?.isProtected,
               lang: post.lang,
@@ -349,101 +351,46 @@ export class PostsService {
     manager: EntityManager,
     userId: string,
   ) {
-    // 4. Extract & Process Wikilinks [[target|alias]]
+    // ── Phase 1: Parse body and collect all targets (no DB calls yet) ──
     const wikilinkRegex = /\[\[(.*?)\]\]/g;
     let match;
+    const postUuids: { uuid: string; alias: string | null }[] = [];
+    const externalUrls: { url: string; title: string | null }[] = [];
+    const topicSlugs: { slug: string; alias: string | null }[] = [];
+
     while ((match = wikilinkRegex.exec(post.body)) !== null) {
       const content = match[1];
+      if (content.includes('](')) continue;
       const parts = content.split('|');
       const targetsRaw = parts[0];
       const alias = parts[1]?.trim() || null;
-
       const targetItems = targetsRaw.split(',').map((s) => s.trim());
 
       for (const target of targetItems) {
+        if (target.includes(']')) continue;
         if (target.toLowerCase().startsWith('post:')) {
-          const targetUuid = target.split(':')[1];
-          if (this.isValidUUID(targetUuid)) {
-            const targetPost = await manager.findOne(Post, {
-              where: { id: targetUuid },
-            });
-            if (targetPost) {
-              await manager.save(PostEdge, {
-                fromPostId: post.id,
-                toPostId: targetUuid,
-                edgeType: EdgeType.LINK,
-                anchorText: alias,
-              });
-            }
-          }
+          const uuid = target.split(':')[1];
+          if (this.isValidUUID(uuid)) postUuids.push({ uuid, alias });
         } else if (target.startsWith('http')) {
-          await manager.save(ExternalSource, {
-            postId: post.id,
-            url: target,
-            title: alias,
-          });
-          fetch(`https://web.archive.org/save/${target}`).catch(() => {});
+          externalUrls.push({ url: target, title: alias });
         } else {
-          // Topic Link
-          const slug = target.trim();
-          let topic = await manager.findOne(Topic, {
-            where: { slug },
-          });
-          if (!topic) {
-            topic = manager.create(Topic, {
-              slug,
-              title: slug,
-              createdBy: userId,
-            });
-            topic = await manager.save(Topic, topic);
-            // Index topic (async, lightweight)
-            this.meilisearch
-              .indexTopic(topic)
-              .catch((err) => this.logger.error('Failed to index topic', err));
-          }
-          await manager.save(PostTopic, {
-            postId: post.id,
-            topicId: topic.id,
-          });
+          topicSlugs.push({ slug: target.trim(), alias });
         }
       }
     }
 
-    // 4b. Extract markdown links: support both [text](url) and [url](text) (Cite format)
-    const existingExternal = await manager.find(ExternalSource, {
-      where: { postId: post.id },
-      select: ['url'],
-    });
-    const existingUrls = new Set(existingExternal.map((e) => e.url));
+    // Parse markdown links
     const markdownLinkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
     let mdMatch;
     while ((mdMatch = markdownLinkRegex.exec(post.body)) !== null) {
       const a = (mdMatch[1] ?? '').trim();
       const b = (mdMatch[2] ?? '').trim();
       const urlStartsHttp = (s: string) => /^https?:\/\//i.test(s);
-      let url: string;
-      let linkText: string | null;
-      if (urlStartsHttp(b)) {
-        url = b;
-        linkText = a || null;
-      } else if (urlStartsHttp(a)) {
-        url = a;
-        linkText = b || null;
-      } else {
-        continue;
-      }
-      if (!existingUrls.has(url)) {
-        await manager.save(ExternalSource, {
-          postId: post.id,
-          url,
-          title: linkText,
-        });
-        existingUrls.add(url);
-        fetch(`https://web.archive.org/save/${url}`).catch(() => {});
-      }
+      if (urlStartsHttp(b)) externalUrls.push({ url: b, title: a || null });
+      else if (urlStartsHttp(a)) externalUrls.push({ url: a, title: b || null });
     }
 
-    // 5. Extract & Process Mentions @handle
+    // Parse mentions
     const mentionRegex = /@(\w+)/g;
     let mentionMatch;
     const mentionedHandles = new Set<string>();
@@ -451,17 +398,148 @@ export class PostsService {
       mentionedHandles.add(mentionMatch[1]);
     }
 
-    for (const handle of mentionedHandles) {
-      const mentionedUser = await manager.findOne(User, {
-        where: { handle },
-      });
-      if (mentionedUser && mentionedUser.id !== userId) {
-        await manager.save(Mention, {
-          postId: post.id,
-          mentionedUserId: mentionedUser.id,
+    // ── Phase 2: Batch-load all referenced entities in parallel ──
+    const uniquePostUuids = [...new Set(postUuids.map((p) => p.uuid))];
+    const uniqueTopicSlugs = [...new Set(topicSlugs.map((t) => t.slug))];
+    const uniqueHandles = [...mentionedHandles];
+
+    const [existingPosts, existingTopics, mentionedUsers] = await Promise.all([
+      uniquePostUuids.length > 0
+        ? manager.find(Post, { where: uniquePostUuids.map((id) => ({ id })), select: ['id'] })
+        : Promise.resolve([]),
+      uniqueTopicSlugs.length > 0
+        ? manager.find(Topic, { where: uniqueTopicSlugs.map((slug) => ({ slug })) })
+        : Promise.resolve([]),
+      uniqueHandles.length > 0
+        ? manager.find(User, { where: uniqueHandles.map((handle) => ({ handle })), select: ['id', 'handle'] })
+        : Promise.resolve([]),
+    ]);
+
+    const validPostIds = new Set(existingPosts.map((p) => p.id));
+    const topicBySlug = new Map(existingTopics.map((t) => [t.slug, t]));
+    const userByHandle = new Map(mentionedUsers.map((u) => [u.handle, u]));
+
+    // ── Phase 3: Batch-save all edges, sources, topics, mentions ──
+    const linkedPostIds = new Set<string>();
+    const postEdgesToSave: Partial<PostEdge>[] = [];
+    for (const { uuid, alias } of postUuids) {
+      if (validPostIds.has(uuid) && !linkedPostIds.has(uuid)) {
+        linkedPostIds.add(uuid);
+        postEdgesToSave.push({
+          fromPostId: post.id,
+          toPostId: uuid,
+          edgeType: EdgeType.LINK,
+          anchorText: alias,
         });
       }
     }
+
+    // Deduplicate external URLs
+    const seenUrls = new Set<string>();
+    const externalSourcesToSave: Partial<ExternalSource>[] = [];
+    const archiveUrls: string[] = [];
+    for (const { url, title } of externalUrls) {
+      if (!seenUrls.has(url)) {
+        seenUrls.add(url);
+        externalSourcesToSave.push({ postId: post.id, url, title });
+        archiveUrls.push(url);
+      }
+    }
+
+    // Topics: create missing ones, then save PostTopic entries
+    const addedTopicIds = new Set<string>();
+    const postTopicsToSave: Partial<PostTopic>[] = [];
+    const newTopicsToIndex: Topic[] = [];
+    for (const { slug } of topicSlugs) {
+      let topic = topicBySlug.get(slug);
+      if (!topic) {
+        // Create missing topic
+        topic = manager.create(Topic, { slug, title: slug, createdBy: userId });
+        topic = await manager.save(Topic, topic);
+        topicBySlug.set(slug, topic);
+        newTopicsToIndex.push(topic);
+      }
+      if (!addedTopicIds.has(topic.id)) {
+        addedTopicIds.add(topic.id);
+        postTopicsToSave.push({ postId: post.id, topicId: topic.id });
+      }
+    }
+
+    // Mentions
+    const mentionsToSave: Partial<Mention>[] = [];
+    for (const handle of mentionedHandles) {
+      const user = userByHandle.get(handle);
+      if (user && user.id !== userId) {
+        mentionsToSave.push({ postId: post.id, mentionedUserId: user.id });
+      }
+    }
+
+    // ── Phase 4: Batch-insert all in parallel (much faster than sequential saves) ──
+    await Promise.all([
+      postEdgesToSave.length > 0
+        ? manager.save(PostEdge, postEdgesToSave)
+        : Promise.resolve(),
+      externalSourcesToSave.length > 0
+        ? manager.save(ExternalSource, externalSourcesToSave)
+        : Promise.resolve(),
+      postTopicsToSave.length > 0
+        ? manager.save(PostTopic, postTopicsToSave)
+        : Promise.resolve(),
+      mentionsToSave.length > 0
+        ? manager.save(Mention, mentionsToSave)
+        : Promise.resolve(),
+    ]);
+
+    // Fire-and-forget: index new topics + archive.org saves
+    for (const topic of newTopicsToIndex) {
+      this.meilisearch.indexTopic(topic).catch((err) => this.logger.error('Failed to index topic', err));
+    }
+    for (const url of archiveUrls) {
+      fetch(`https://web.archive.org/save/${url}`).catch(() => { });
+    }
+  }
+
+  /**
+   * Re-run source extraction (wikilinks, markdown links, mentions) for one post.
+   * Clears existing PostEdge, ExternalSource, PostTopic, Mention for this post then runs processPublishedPost.
+   */
+  async reExtractSourcesForPost(postId: string): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const post = await manager.findOne(Post, {
+        where: { id: postId },
+        select: ['id', 'body', 'authorId', 'deletedAt'],
+      });
+      if (!post || (post as Post).deletedAt != null) return;
+      const userId = post.authorId ?? post.id;
+      await manager.delete(PostEdge, { fromPostId: postId });
+      await manager.delete(ExternalSource, { postId });
+      await manager.delete(PostTopic, { postId });
+      await manager.delete(Mention, { postId });
+      await this.processPublishedPost(post as Post, manager, userId);
+    });
+  }
+
+  /**
+   * Re-extract sources for all non-deleted posts. Use after fixing markdown/wikilink parsing.
+   */
+  async reExtractAllPostsSources(): Promise<{ processed: number; errors: number }> {
+    const posts = await this.postRepo.find({
+      where: { deletedAt: IsNull() },
+      select: ['id'],
+    });
+    let processed = 0;
+    let errors = 0;
+    for (const p of posts) {
+      try {
+        await this.reExtractSourcesForPost(p.id);
+        processed++;
+        if (processed % 100 === 0) this.logger.log(`Re-extracted ${processed}/${posts.length} posts`);
+      } catch (err) {
+        errors++;
+        this.logger.warn(`Re-extract failed for post ${p.id}: ${(err as Error).message}`);
+      }
+    }
+    return { processed, errors };
   }
 
   // ... helpers
@@ -628,9 +706,9 @@ export class PostsService {
     const posts =
       uniquePostIds.length > 0
         ? await this.postRepo.find({
-            where: { id: In(uniquePostIds) },
-            select: ['id', 'title', 'headerImageKey', 'authorId'],
-          })
+          where: { id: In(uniquePostIds) },
+          select: ['id', 'title', 'headerImageKey', 'authorId'],
+        })
         : [];
     const authorIds = [
       ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
@@ -638,9 +716,9 @@ export class PostsService {
     const authors =
       authorIds.length > 0
         ? await this.userRepo.find({
-            where: { id: In(authorIds) },
-            select: ['id', 'avatarKey'],
-          })
+          where: { id: In(authorIds) },
+          select: ['id', 'avatarKey'],
+        })
         : [];
     const authorMap = new Map(authors.map((a) => [a.id, a.avatarKey ?? null]));
     const postList = posts.map((p) => ({
@@ -663,17 +741,17 @@ export class PostsService {
     const latestRows: LatestRow[] =
       foundTopicIds.length > 0
         ? await this.dataSource
-            .createQueryBuilder()
-            .select('pt.topic_id', 'topicId')
-            .addSelect('p.id', 'postId')
-            .from(PostTopic, 'pt')
-            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-            .where('pt.topic_id IN (:...topicIds)', { topicIds: foundTopicIds })
-            .distinctOn(['pt.topic_id'])
-            .orderBy('pt.topic_id')
-            .addOrderBy('p.created_at', 'DESC')
-            .getRawMany<LatestRow>()
-            .catch(() => [])
+          .createQueryBuilder()
+          .select('pt.topic_id', 'topicId')
+          .addSelect('p.id', 'postId')
+          .from(PostTopic, 'pt')
+          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+          .where('pt.topic_id IN (:...topicIds)', { topicIds: foundTopicIds })
+          .distinctOn(['pt.topic_id'])
+          .orderBy('pt.topic_id')
+          .addOrderBy('p.created_at', 'DESC')
+          .getRawMany<LatestRow>()
+          .catch(() => [])
         : [];
     const latestPostIds = [...new Set(latestRows.map((r) => r.postId))];
     const topicToImageKey = new Map<string, string | null>();
@@ -748,6 +826,13 @@ export class PostsService {
       });
 
       await this.postRepo.increment({ id: quotedPostId }, 'quoteCount', 1);
+      if (quotedPost.authorId) {
+        await this.userRepo.increment(
+          { id: quotedPost.authorId },
+          'quoteReceivedCount',
+          1,
+        );
+      }
       // Re-index quoted post so search has fresh quoteCount
       const quotedUpdated = await this.postRepo.findOne({
         where: { id: quotedPostId },
@@ -764,11 +849,11 @@ export class PostsService {
             authorId: quotedUpdated.authorId || '',
             author: quotedUpdated.author
               ? {
-                  displayName:
-                    quotedUpdated.author.displayName ||
-                    quotedUpdated.author.handle,
-                  handle: quotedUpdated.author.handle,
-                }
+                displayName:
+                  quotedUpdated.author.displayName ||
+                  quotedUpdated.author.handle,
+                handle: quotedUpdated.author.handle,
+              }
               : undefined,
             authorProtected: quotedUpdated.author?.isProtected,
             lang: quotedUpdated.lang,
@@ -784,7 +869,7 @@ export class PostsService {
     }
 
     // Now queue it with consistent state
-    await this.postQueue.add('process', { postId: quotePost.id, userId });
+    await this.eventBus.publish('post-processing', 'process', { postId: quotePost.id, userId });
 
     return quotePost;
   }
@@ -815,17 +900,17 @@ export class PostsService {
     const latestRows: LatestRow[] =
       topicIds.length > 0
         ? await this.dataSource
-            .createQueryBuilder()
-            .select('pt.topic_id', 'topicId')
-            .addSelect('p.id', 'postId')
-            .from(PostTopic, 'pt')
-            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-            .where('pt.topic_id IN (:...topicIds)', { topicIds })
-            .distinctOn(['pt.topic_id'])
-            .orderBy('pt.topic_id')
-            .addOrderBy('p.created_at', 'DESC')
-            .getRawMany<LatestRow>()
-            .catch(() => [])
+          .createQueryBuilder()
+          .select('pt.topic_id', 'topicId')
+          .addSelect('p.id', 'postId')
+          .from(PostTopic, 'pt')
+          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+          .where('pt.topic_id IN (:...topicIds)', { topicIds })
+          .distinctOn(['pt.topic_id'])
+          .orderBy('pt.topic_id')
+          .addOrderBy('p.created_at', 'DESC')
+          .getRawMany<LatestRow>()
+          .catch(() => [])
         : [];
     const latestPostIds = [...new Set(latestRows.map((r) => r.postId))];
     const topicToImageKey = new Map<string, string | null>();
@@ -936,6 +1021,13 @@ export class PostsService {
   }
 
   async getGraph(postId: string) {
+    // Try Neo4j first for efficient multi-hop graph traversal
+    const neo4jGraph = await this.neo4jQuery.getPostGraph(postId);
+    if (neo4jGraph && neo4jGraph.nodes.length > 1) {
+      return { centerId: postId, ...neo4jGraph };
+    }
+
+    // Fallback: Postgres-based graph (multiple queries)
     // 1. Center Node
     const centerPost = await this.postRepo.findOne({
       where: { id: postId },

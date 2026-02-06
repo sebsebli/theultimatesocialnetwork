@@ -48,6 +48,7 @@ export function MultiTargetSheet({ targets, onClose }: MultiTargetSheetProps) {
           <button
             onClick={onClose}
             className="p-2 -mr-2 text-tertiary hover:text-paper hover:bg-white/5 rounded-full transition-all"
+            aria-label="Close sheet"
           >
             <svg
               className="w-5 h-5"
@@ -68,7 +69,7 @@ export function MultiTargetSheet({ targets, onClose }: MultiTargetSheetProps) {
         <div className="px-4 py-6 space-y-3 overflow-y-auto custom-scrollbar">
           {targets.map((target, index) => (
             <button
-              key={index}
+              key={target.id ?? target.slug ?? target.url ?? `target-${index}`}
               onClick={() => handleTargetClick(target)}
               className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all duration-200 group active:scale-[0.98]"
             >

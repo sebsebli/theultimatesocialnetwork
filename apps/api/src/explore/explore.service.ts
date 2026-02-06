@@ -9,6 +9,7 @@ import { PostEdge, EdgeType } from '../entities/post-edge.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
 import { Neo4jService } from '../database/neo4j.service';
+import { Neo4jQueryService } from '../database/neo4j-query.service';
 import { TopicFollow } from '../entities/topic-follow.entity';
 import { PostTopic } from '../entities/post-topic.entity';
 import { UploadService } from '../upload/upload.service';
@@ -38,9 +39,10 @@ export class ExploreService {
     private postTopicRepo: Repository<PostTopic>,
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
+    private neo4jQuery: Neo4jQueryService,
     @Inject('REDIS_CLIENT') private redis: Redis,
     private uploadService: UploadService,
-  ) {}
+  ) { }
 
   /** Helper for caching simple paginated results (1-5 min TTL). */
   private async cached<T>(
@@ -61,6 +63,36 @@ export class ExploreService {
       this.logger.warn(`Cache write failed for ${key}`, e);
     }
     return result;
+  }
+
+  /** Invalidate explore caches by prefix pattern. Uses SCAN (non-blocking) instead of KEYS. */
+  async invalidateExploreCache(patterns?: string[]): Promise<void> {
+    const prefixes = patterns ?? [
+      'explore:quoted-now:*',
+      'explore:deep-dives:*',
+      'explore:newsroom:*',
+      'explore:topics:*',
+    ];
+    try {
+      for (const pattern of prefixes) {
+        let cursor = '0';
+        do {
+          const [nextCursor, keys] = await this.redis.scan(
+            cursor,
+            'MATCH',
+            pattern,
+            'COUNT',
+            100,
+          );
+          cursor = nextCursor;
+          if (keys.length > 0) {
+            await this.redis.del(...keys);
+          }
+        } while (cursor !== '0');
+      }
+    } catch (e) {
+      this.logger.warn('Cache invalidation failed', e);
+    }
   }
 
   /** Resolve effective language filter: profile languages when lang is "my" or omitted and user is logged in. */
@@ -203,18 +235,18 @@ export class ExploreService {
       reasons:
         s.score > 0
           ? [
-              ...(prefs.languages.length &&
+            ...(prefs.languages.length &&
               s.post.lang != null &&
               prefs.languages.includes(s.post.lang)
-                ? ['Your language']
-                : []),
-              ...(postToTopics
-                .get(s.post.id)
-                ?.some((tid) => prefs.followedTopicIds.has(tid))
-                ? ['Topic you follow']
-                : []),
-              ...(s.post.reasons || []),
-            ].slice(0, 2)
+              ? ['Your language']
+              : []),
+            ...(postToTopics
+              .get(s.post.id)
+              ?.some((tid) => prefs.followedTopicIds.has(tid))
+              ? ['Topic you follow']
+              : []),
+            ...(s.post.reasons || []),
+          ].slice(0, 2)
           : s.post.reasons,
     }));
   }
@@ -232,7 +264,7 @@ export class ExploreService {
     const skip = (pageNum - 1) * limitNum;
 
     const cacheKey = `explore:topics:generic:${skip}:${limitNum}`;
-    let mapped = await this.cached(cacheKey, 300, async () => {
+    let mapped = await this.cached(cacheKey, 600, async () => {
       const { entities, raw } = await this.topicRepo
         .createQueryBuilder('topic')
         .addSelect(
@@ -307,17 +339,17 @@ export class ExploreService {
     const latestRows: LatestRow[] =
       topicIds.length > 0
         ? await this.dataSource
-            .createQueryBuilder()
-            .select('pt.topic_id', 'topicId')
-            .addSelect('p.id', 'postId')
-            .from(PostTopic, 'pt')
-            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-            .where('pt.topic_id IN (:...topicIds)', { topicIds })
-            .orderBy('pt.topic_id')
-            .addOrderBy('p.created_at', 'DESC')
-            .distinctOn(['pt.topic_id'])
-            .getRawMany<LatestRow>()
-            .catch(() => [])
+          .createQueryBuilder()
+          .select('pt.topic_id', 'topicId')
+          .addSelect('p.id', 'postId')
+          .from(PostTopic, 'pt')
+          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+          .where('pt.topic_id IN (:...topicIds)', { topicIds })
+          .orderBy('pt.topic_id')
+          .addOrderBy('p.created_at', 'DESC')
+          .distinctOn(['pt.topic_id'])
+          .getRawMany<LatestRow>()
+          .catch(() => [])
         : [];
 
     const postIds = [...new Set(latestRows.map((r) => r.postId))];
@@ -326,17 +358,17 @@ export class ExploreService {
     const posts =
       postIds.length > 0
         ? await this.postRepo.find({
-            where: { id: In(postIds) },
-            relations: ['author'],
-            select: [
-              'id',
-              'authorId',
-              'title',
-              'body',
-              'headerImageKey',
-              'createdAt',
-            ],
-          })
+          where: { id: In(postIds) },
+          relations: ['author'],
+          select: [
+            'id',
+            'authorId',
+            'title',
+            'body',
+            'headerImageKey',
+            'createdAt',
+          ],
+        })
         : [];
     const visiblePosts = await this.filterPostsVisibleToViewer(posts, userId);
     const visiblePostIds = new Set(visiblePosts.map((p) => p.id));
@@ -364,22 +396,22 @@ export class ExploreService {
       const headerImageKey = post?.headerImageKey ?? null;
       const recentPost = post
         ? {
-            id: post.id,
-            title: post.title ?? null,
-            bodyExcerpt: bodyExcerpt(post.body),
-            headerImageKey,
-            headerImageUrl:
-              headerImageKey != null && headerImageKey !== ''
-                ? getImageUrl(headerImageKey)
-                : null,
-            author: post.author
-              ? {
-                  handle: post.author.handle,
-                  displayName: post.author.displayName ?? post.author.handle,
-                }
+          id: post.id,
+          title: post.title ?? null,
+          bodyExcerpt: bodyExcerpt(post.body),
+          headerImageKey,
+          headerImageUrl:
+            headerImageKey != null && headerImageKey !== ''
+              ? getImageUrl(headerImageKey)
               : null,
-            createdAt: post.createdAt?.toISOString?.() ?? null,
-          }
+          author: post.author
+            ? {
+              handle: post.author.handle,
+              displayName: post.author.displayName ?? post.author.handle,
+            }
+            : null,
+          createdAt: post.createdAt?.toISOString?.() ?? null,
+        }
         : null;
       return {
         id: t.id,
@@ -450,7 +482,9 @@ export class ExploreService {
         followingSet = new Set(followees.map((f) => f.followeeId));
       }
       filtered = users.filter(
-        (u) => !u.isProtected || u.id === userId || followingSet.has(u.id),
+        (u) =>
+          u.id !== userId &&
+          (!u.isProtected || followingSet.has(u.id)),
       );
     } else {
       filtered = users.filter((u) => !u.isProtected);
@@ -536,8 +570,9 @@ export class ExploreService {
     // Calculate scores in DB using CASE statements
     const scoreExpr = `SUM(CASE WHEN edge.created_at >= :sixHoursAgo THEN 1.0 ELSE 0.3 END)`;
 
-    // Cache the aggregation result (heavy query)
-    const cacheKey = `explore:quoted-now:ids:${skip}:${limitNum}`;
+    // Cache the aggregation result (heavy query); include lang filter in key
+    const langKey = langFilter?.length ? langFilter.sort().join(',') : 'all';
+    const cacheKey = `explore:quoted-now:ids:${skip}:${limitNum}:${langKey}`;
     const scoredIds = await this.cached(cacheKey, 300, () =>
       this.postEdgeRepo
         .createQueryBuilder('edge')
@@ -590,6 +625,18 @@ export class ExploreService {
       }));
     result = await this.filterPostsVisibleToViewer(result, userId);
     if (userId) {
+      // Neo4j network proximity boost: re-rank by how close the post authors are in your social graph
+      const postIdsForProximity = result.map((p) => p.id);
+      const proximityScores = await this.neo4jQuery.getNetworkProximityScores(userId, postIdsForProximity);
+      if (proximityScores.size > 0) {
+        // Add reason "In your network" for posts from connected users
+        result = result.map((p) => ({
+          ...p,
+          reasons: proximityScores.has(p.id)
+            ? ['In your network', ...(p.reasons || [])].slice(0, 2)
+            : p.reasons,
+        }));
+      }
       result = await this.applyPostPreferences(result, userId);
     }
     return { items: result, hasMore: hasMoreAlgo };
@@ -616,8 +663,9 @@ export class ExploreService {
   }
 
   /**
-   * Get topic "Start here" posts - most cited posts in topic
-   * Score = quote_count * 1.0 + backlinks * 0.2 + replies * 0.1
+   * Get topic "Start here" posts - most important posts in topic.
+   * Uses Neo4j graph centrality (direct + 2nd-degree citations + topic-internal links)
+   * with Postgres fallback (quote_count + backlinks + replies).
    * @param viewerId Optional; when provided, FOLLOWERS-only posts are included only if viewer follows the author.
    */
   async getTopicStartHere(
@@ -625,7 +673,29 @@ export class ExploreService {
     limit = 10,
     viewerId?: string,
   ): Promise<Post[]> {
-    // Get posts in topic (exclude pending authors)
+    // Try Neo4j graph centrality first
+    // We need the topic slug for the Cypher query
+    const topic = await this.topicRepo.findOne({ where: { id: topicId }, select: ['slug'] });
+    if (topic?.slug) {
+      const centralPosts = await this.neo4jQuery.getTopicCentralPostIds(topic.slug, limit * 2);
+      if (centralPosts.length > 0) {
+        const centralPostIds = centralPosts.map((c) => c.postId);
+        const posts = await this.postRepo.find({
+          where: { id: In(centralPostIds) },
+          relations: ['author'],
+        });
+        const visible = await this.filterPostsVisibleToViewer(posts, viewerId);
+
+        // Re-sort by Neo4j centrality score
+        const centralityMap = new Map(centralPosts.map((c) => [c.postId, c.centrality]));
+        visible.sort((a, b) => (centralityMap.get(b.id) ?? 0) - (centralityMap.get(a.id) ?? 0));
+        if (visible.length > 0) {
+          return visible.slice(0, limit);
+        }
+      }
+    }
+
+    // Postgres fallback: quote_count + backlinks + replies
     const posts = await this.postRepo
       .createQueryBuilder('post')
       .leftJoin('post_topics', 'pt', 'pt.post_id = post.id')
@@ -637,7 +707,6 @@ export class ExploreService {
 
     const visible = await this.filterPostsVisibleToViewer(posts, viewerId);
 
-    // Get backlink counts from Neo4j or Postgres
     const postIds = visible.map((p) => p.id);
     if (postIds.length === 0) return [];
     const backlinks = await this.postEdgeRepo
@@ -653,7 +722,6 @@ export class ExploreService {
       backlinks.map((b) => [b.postId, parseInt(b.count)]),
     );
 
-    // Calculate scores
     const scored = visible.map((post) => ({
       post,
       score:
@@ -662,7 +730,6 @@ export class ExploreService {
         (post.replyCount || 0) * 0.1,
     }));
 
-    // Sort by score
     scored.sort((a, b) => b.score - a.score);
 
     return scored.slice(0, limit).map((s) => s.post);
@@ -727,20 +794,28 @@ export class ExploreService {
       return { items, hasMore };
     }
 
-    // Default Algo: Get top posts by backlink count directly from DB
-    const cacheKey = `explore:deep-dives:ids:${skip}:${limitNum}`;
-    const rankedIds = await this.cached(cacheKey, 300, () =>
-      this.postEdgeRepo
-        .createQueryBuilder('edge')
-        .select('edge.to_post_id', 'postId')
-        .addSelect('COUNT(*)', 'count')
-        .where('edge.edge_type = :type', { type: EdgeType.LINK })
-        .groupBy('edge.to_post_id')
-        .orderBy('COUNT(*)', 'DESC')
-        .offset(skip)
-        .limit(limitNum + 1)
-        .getRawMany<{ postId: string; count: string }>(),
-    );
+    // Default Algo: Try Neo4j graph traversal for real citation chain depth
+    const langKeyDD = langFilter?.length ? langFilter.sort().join(',') : 'all';
+    const cacheKey = `explore:deep-dives:ids:${skip}:${limitNum}:${langKeyDD}`;
+
+    // Neo4j: real citation chain depth (variable-length path traversal)
+    const neo4jDeepDives = await this.neo4jQuery.getDeepDivePostIds(limitNum + 1, skip);
+
+    const rankedIds = neo4jDeepDives.length > 0
+      ? neo4jDeepDives.map((dd) => ({ postId: dd.postId, count: String(dd.citedByCount) }))
+      : await this.cached(cacheKey, 600, () =>
+          // Postgres fallback: simple backlink count
+          this.postEdgeRepo
+            .createQueryBuilder('edge')
+            .select('edge.to_post_id', 'postId')
+            .addSelect('COUNT(*)', 'count')
+            .where('edge.edge_type = :type', { type: EdgeType.LINK })
+            .groupBy('edge.to_post_id')
+            .orderBy('COUNT(*)', 'DESC')
+            .offset(skip)
+            .limit(limitNum + 1)
+            .getRawMany<{ postId: string; count: string }>(),
+        );
 
     if (rankedIds.length === 0) {
       return { items: [], hasMore: false };

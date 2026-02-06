@@ -15,6 +15,7 @@ import {
   emptyStateCenterClassName,
 } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
+import { PostSkeleton, Skeleton } from "./skeletons";
 
 interface Reply {
   id: string;
@@ -73,6 +74,32 @@ interface ProfilePageProps {
   isSelf?: boolean;
   /** When true, viewer is not authenticated; hide Follow/Message and link to sign-in for connections */
   isPublic?: boolean;
+}
+
+function ReplySkeleton() {
+  return (
+    <div className="p-4 border-b border-divider animate-pulse">
+      <div className="space-y-2">
+        <Skeleton className="w-full h-4" />
+        <Skeleton className="w-3/4 h-4" />
+        <Skeleton className="w-24 h-3 mt-2" />
+      </div>
+    </div>
+  );
+}
+
+function CollectionSkeleton() {
+  return (
+    <div className="flex flex-col rounded-lg overflow-hidden border border-white/10 bg-white/5 animate-pulse">
+      <Skeleton className="w-full aspect-video" />
+      <div className="p-4 space-y-2">
+        <Skeleton className="w-3/4 h-5" />
+        <Skeleton className="w-full h-4" />
+        <Skeleton className="w-1/2 h-4" />
+        <Skeleton className="w-20 h-3 mt-1" />
+      </div>
+    </div>
+  );
 }
 
 export function ProfilePage({
@@ -229,7 +256,7 @@ export function ProfilePage({
     try {
       const body =
         type === "avatar" ? { avatarKey: key } : { profileHeaderKey: key };
-      const res = await fetch("/api/users/me", {
+      const res = await fetch("/api/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -243,7 +270,7 @@ export function ProfilePage({
         }));
       }
     } catch (e) {
-      console.error("Failed to update profile image", e);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to update profile image", e);
     }
   };
 
@@ -348,6 +375,7 @@ export function ProfilePage({
             <Link
               href={isPublic ? "/" : "/home"}
               className="p-2 bg-black/20 backdrop-blur-sm rounded-full text-white hover:bg-black/40 transition-colors"
+              aria-label="Back"
             >
               <svg
                 className="w-5 h-5"
@@ -373,6 +401,7 @@ export function ProfilePage({
                     }
                     className="p-2 bg-black/20 backdrop-blur-sm rounded-full text-white hover:bg-black/40 transition-colors"
                     title="Edit Header"
+                    aria-label="Edit header image"
                   >
                     <svg
                       className="w-5 h-5"
@@ -393,6 +422,7 @@ export function ProfilePage({
                       onClick={() => updateProfileImage(null, "header")}
                       className="p-2 bg-black/20 backdrop-blur-sm rounded-full text-white hover:bg-red-500/80 transition-colors"
                       title="Remove Header"
+                      aria-label="Remove header image"
                     >
                       <svg
                         className="w-5 h-5"
@@ -455,6 +485,7 @@ export function ProfilePage({
                     document.getElementById("avatar-upload")?.click()
                   }
                   className="absolute bottom-2 right-2 bg-primary text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Edit avatar"
                 >
                   <svg
                     className="w-4 h-4"
@@ -511,11 +542,10 @@ export function ProfilePage({
                 <button
                   onClick={handleFollow}
                   disabled={loading}
-                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${
-                    following || hasPendingFollowRequest
+                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${following || hasPendingFollowRequest
                       ? "bg-primary border-primary text-white"
                       : "border-primary text-primary hover:bg-primary/10"
-                  }`}
+                    }`}
                 >
                   {loading
                     ? "..."
@@ -631,7 +661,7 @@ export function ProfilePage({
                           ? ((user as { keepsCount?: number }).keepsCount ?? 0)
                           : tab === "collections"
                             ? ((user as { collectionCount?: number })
-                                .collectionCount ?? 0)
+                              .collectionCount ?? 0)
                             : tab === "cited"
                               ? undefined
                               : 0;
@@ -656,11 +686,10 @@ export function ProfilePage({
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     type="button"
-                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap tabular-nums ${
-                      activeTab === tab
+                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap tabular-nums ${activeTab === tab
                         ? "border-primary text-paper"
                         : "border-transparent text-tertiary hover:text-paper"
-                    }`}
+                      }`}
                   >
                     {label} {showCount ? `(${formatCompactNumber(count)})` : ""}
                   </button>
@@ -798,9 +827,11 @@ export function ProfilePage({
                     </Link>
                   ))
                 ) : tabData.replies === null ? (
-                  <p className="text-secondary text-sm text-center py-8">
-                    Loading...
-                  </p>
+                  <div className="space-y-0">
+                    <ReplySkeleton />
+                    <ReplySkeleton />
+                    <ReplySkeleton />
+                  </div>
                 ) : (
                   <div className={emptyStateCenterClassName}>
                     <EmptyState
@@ -824,9 +855,11 @@ export function ProfilePage({
                     />
                   ))
                 ) : tabData.quotesReceived === null ? (
-                  <p className="text-secondary text-sm text-center py-8">
-                    Loading...
-                  </p>
+                  <div className="space-y-0">
+                    <PostSkeleton />
+                    <PostSkeleton />
+                    <PostSkeleton />
+                  </div>
                 ) : (
                   <div className={emptyStateCenterClassName}>
                     <EmptyState
@@ -847,9 +880,11 @@ export function ProfilePage({
                     <PostItem key={post.id} post={post} isPublic={isPublic} />
                   ))
                 ) : tabData.cited === null ? (
-                  <p className="text-secondary text-sm text-center py-8">
-                    Loading...
-                  </p>
+                  <div className="space-y-0">
+                    <PostSkeleton />
+                    <PostSkeleton />
+                    <PostSkeleton />
+                  </div>
                 ) : (
                   <div className={emptyStateCenterClassName}>
                     <EmptyState
@@ -870,8 +905,8 @@ export function ProfilePage({
                     const imageUrl =
                       (collection.recentPost?.headerImageKey
                         ? getImageUrlFromKey(
-                            collection.recentPost.headerImageKey,
-                          )
+                          collection.recentPost.headerImageKey,
+                        )
                         : null) ||
                       (collection.previewImageKey
                         ? getImageUrlFromKey(collection.previewImageKey)
@@ -931,9 +966,11 @@ export function ProfilePage({
                     );
                   })
                 ) : tabData.collections === null ? (
-                  <p className="text-secondary text-sm text-center py-8">
-                    Loading...
-                  </p>
+                  <div className="space-y-4">
+                    <CollectionSkeleton />
+                    <CollectionSkeleton />
+                    <CollectionSkeleton />
+                  </div>
                 ) : (
                   <div className={emptyStateCenterClassName}>
                     <EmptyState
@@ -966,9 +1003,11 @@ export function ProfilePage({
                     </div>
                   ))
                 ) : tabData.saved === null ? (
-                  <p className="text-secondary text-sm text-center py-8">
-                    Loading...
-                  </p>
+                  <div className="space-y-0">
+                    <PostSkeleton />
+                    <PostSkeleton />
+                    <PostSkeleton />
+                  </div>
                 ) : (
                   <div className={emptyStateCenterClassName}>
                     <EmptyState

@@ -68,15 +68,15 @@ export default function EditProfileScreen() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const user = await api.get<any>("/users/me");
+        const user = await api.get<Record<string, unknown>>("/users/me");
         if (user) {
-          setDisplayName(user.displayName || "");
-          setHandle(user.handle || "");
-          setInitialHandle(user.handle || "");
-          setBio(user.bio || "");
-          setIsProtected(user.isProtected || false);
-          setAvatarUrl(user.avatarUrl || null);
-          setAvatarKey(user.avatarKey || null);
+          setDisplayName((user.displayName || "") as string);
+          setHandle((user.handle || "") as string);
+          setInitialHandle((user.handle || "") as string);
+          setBio((user.bio || "") as string);
+          setIsProtected((user.isProtected || false) as boolean);
+          setAvatarUrl((user.avatarUrl || null) as string | null);
+          setAvatarKey((user.avatarKey || null) as string | null);
         }
       } catch (e) {
         showError(t("common.error"));
@@ -177,9 +177,9 @@ export default function EditProfileScreen() {
       });
       showSuccess(t("settings.profileUpdated"));
       router.back();
-    } catch (error: any) {
-      console.error("Failed to update profile", error);
-      showError(error?.message || t("onboarding.profile.updateFailed"));
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to update profile", error);
+      showError((error as { message?: string })?.message || t("onboarding.profile.updateFailed"));
     } finally {
       setLoading(false);
     }
@@ -210,8 +210,8 @@ export default function EditProfileScreen() {
       setAvatarUrl(null);
       setAvatarLocalUri(null);
       showSuccess(t("settings.photoRemoved", "Profile photo removed."));
-    } catch (err: any) {
-      showError(err?.message || t("common.error"));
+    } catch (err: unknown) {
+      showError((err as { message?: string })?.message || t("common.error"));
     } finally {
       setAvatarUploading(false);
     }
@@ -271,9 +271,17 @@ export default function EditProfileScreen() {
       setAvatarUploading(true);
       const uploadRes = await api.upload<{ key?: string; url?: string }>(
         "/upload/profile-picture",
-        asset,
+        {
+          uri: asset.uri,
+          fileName: asset.fileName ?? undefined,
+          mimeType: asset.mimeType ?? undefined,
+          type: asset.type ?? undefined,
+          fileSize: asset.fileSize,
+        },
       );
-      const key = uploadRes?.key ?? (uploadRes as any)?.data?.key;
+      const uploadData = uploadRes as Record<string, unknown> | undefined;
+      const dataObj = uploadData?.data as Record<string, unknown> | undefined;
+      const key = (uploadRes?.key ?? dataObj?.key) as string | undefined;
       if (!key || typeof key !== "string") {
         setAvatarLocalUri(null);
         showError(t("profile.photoUpdateFailed", "Failed to update photo."));
@@ -281,14 +289,14 @@ export default function EditProfileScreen() {
       }
       await api.patch("/users/me", { avatarKey: key });
       setAvatarUrl(
-        (uploadRes?.url ?? (uploadRes as any)?.url) || getImageUrl(key),
+        ((uploadRes?.url ?? (uploadRes as Record<string, unknown>)?.url) || getImageUrl(key)) as string | null,
       );
       setAvatarKey(key);
       setAvatarLocalUri(asset.uri);
       showSuccess(t("settings.photoUpdated", "Profile photo updated."));
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAvatarLocalUri(null);
-      showError(err?.message || t("common.error"));
+      showError((err as { message?: string })?.message || t("common.error"));
     } finally {
       setAvatarUploading(false);
     }
@@ -317,6 +325,8 @@ export default function EditProfileScreen() {
               style={styles.avatarSection}
               onPress={avatarUploading ? undefined : showAvatarActions}
               disabled={avatarUploading}
+              accessibilityRole="button"
+              accessibilityLabel={t("settings.tapToChangePhoto", "Tap to change photo")}
             >
               <View style={styles.avatarRing}>
                 {avatarUrl || avatarLocalUri ? (
@@ -430,6 +440,12 @@ export default function EditProfileScreen() {
             <Pressable
               style={styles.privacyToggle}
               onPress={() => setIsProtected(!isProtected)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isProtected
+                  ? t("common.private", "Private")
+                  : t("common.public", "Public")
+              }
             >
               <View style={styles.privacyTextContainer}>
                 <View style={styles.privacyHeader}>
@@ -467,6 +483,8 @@ export default function EditProfileScreen() {
             ]}
             onPress={handleSubmit}
             disabled={!canSubmit || loading}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.save", "Save")}
           >
             {loading ? (
               <InlineSkeleton />

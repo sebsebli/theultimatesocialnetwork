@@ -170,9 +170,10 @@ export default function EditProfileScreen() {
       });
       showSuccess(t("settings.profileUpdated", "Profile updated successfully"));
       router.back();
-    } catch (error: any) {
-      console.error("Failed to update profile", error);
-      showError(error?.message || t("onboarding.profile.updateFailed"));
+    } catch (error: unknown) {
+      if (__DEV__) console.error("Failed to update profile", error);
+      const errorMessage = (error as { message?: string })?.message;
+      showError(errorMessage || t("onboarding.profile.updateFailed"));
       throw error;
     } finally {
       setLoading(false);
@@ -203,6 +204,8 @@ export default function EditProfileScreen() {
               { padding: SPACING.s, margin: -SPACING.s },
               (pressed || !canSubmit || loading) && { opacity: 0.5 },
             ]}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.save", "Save")}
           >
             <Text style={headerRightSaveStyle}>{t("common.save", "Save")}</Text>
           </Pressable>
@@ -296,7 +299,7 @@ export default function EditProfileScreen() {
                       <MaterialIcons
                         name="check-circle"
                         size={HEADER.iconSize}
-                        color="#22c55e"
+                        color={COLORS.success}
                         style={styles.availabilityIcon}
                       />
                       <Text style={styles.availabilityAvailable}>
@@ -339,6 +342,12 @@ export default function EditProfileScreen() {
           <Pressable
             style={styles.privacyToggle}
             onPress={() => setIsProtected(!isProtected)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isProtected
+                ? t("common.private", "Private")
+                : t("common.public", "Public")
+            }
           >
             <View style={styles.privacyTextContainer}>
               <View style={styles.privacyHeader}>
@@ -449,7 +458,7 @@ const styles = createStyles({
     borderColor: COLORS.error,
   },
   inputSuccess: {
-    borderColor: "#22c55e",
+    borderColor: COLORS.success,
   },
   handleMeta: {
     flexDirection: "row",
@@ -483,7 +492,7 @@ const styles = createStyles({
   },
   availabilityAvailable: {
     fontSize: 13,
-    color: "#22c55e",
+    color: COLORS.success,
     fontFamily: FONTS.medium,
   },
   availabilityTaken: {
@@ -547,7 +556,7 @@ const styles = createStyles({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#FFF",
+    backgroundColor: COLORS.paper,
   },
   thumbActive: {
     alignSelf: "flex-end",

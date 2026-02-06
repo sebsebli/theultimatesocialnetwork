@@ -22,14 +22,32 @@ export default function SecuritySettings() {
   const [loadingSessions, setLoadingSessions] = useState(true);
 
   // 2FA State
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState<boolean | null>(null);
   const [is2FASetupOpen, setIs2FASetupOpen] = useState(false);
   const [qrValue, setQrValue] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [totpCode, setTotpCode] = useState("");
   const [verifyLoading, setVerifyLoading] = useState(false);
+  const [disableCode, setDisableCode] = useState("");
+  const [disableLoading, setDisableLoading] = useState(false);
 
   useEffect(() => {
     fetchSessions();
+  }, []);
+
+  useEffect(() => {
+    const loadMe = async () => {
+      try {
+        const res = await fetchWithRetry("/api/me");
+        if (res.ok) {
+          const data = await res.json();
+          setTwoFactorEnabled(Boolean(data?.twoFactorEnabled));
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadMe();
   }, []);
 
   const fetchSessions = async () => {
@@ -97,6 +115,7 @@ export default function SecuritySettings() {
       });
       if (res.ok) {
         success("2FA Enabled Successfully");
+        setTwoFactorEnabled(true);
         setIs2FASetupOpen(false);
         setQrValue(null);
         setSecret(null);
@@ -108,6 +127,30 @@ export default function SecuritySettings() {
       error("Failed to verify code");
     } finally {
       setVerifyLoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!disableCode || disableCode.length !== 6) return;
+    setDisableLoading(true);
+    try {
+      const res = await fetchWithRetry("/api/auth/2fa/disable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: disableCode }),
+      });
+      if (res.ok) {
+        success("2FA disabled");
+        setTwoFactorEnabled(false);
+        setDisableCode("");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        error(data?.error ?? "Invalid code. Try again.");
+      }
+    } catch {
+      error("Failed to disable 2FA");
+    } finally {
+      setDisableLoading(false);
     }
   };
 
@@ -145,12 +188,48 @@ export default function SecuritySettings() {
               Secure your account with an authenticator app (Google
               Authenticator, Authy, etc.).
             </p>
-            <button
-              onClick={start2FASetup}
-              className="px-4 py-2 bg-primary text-ink font-semibold rounded-lg hover:opacity-90 transition-opacity"
-            >
-              Enable 2FA
-            </button>
+
+            {twoFactorEnabled === true && (
+              <div className="mb-6">
+                <p className="text-primary font-medium text-sm mb-2">
+                  2FA is enabled
+                </p>
+                <p className="text-tertiary text-xs mb-4">
+                  Enter your current code to disable two-factor authentication.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="000000"
+                    value={disableCode}
+                    onChange={(e) =>
+                      setDisableCode(
+                        e.target.value.replace(/\D/g, "").slice(0, 6),
+                      )
+                    }
+                    className="flex-1 px-3 py-2 bg-ink border border-white/10 rounded-lg text-paper placeholder:text-tertiary"
+                  />
+                  <button
+                    onClick={handleDisable2FA}
+                    disabled={disableLoading || disableCode.length !== 6}
+                    className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 font-medium rounded-lg hover:bg-red-500/30 disabled:opacity-50 transition-colors"
+                  >
+                    {disableLoading ? "Disabling..." : "Disable 2FA"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {twoFactorEnabled !== true && !is2FASetupOpen && (
+              <button
+                onClick={start2FASetup}
+                className="px-4 py-2 bg-primary text-ink font-semibold rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Enable 2FA
+              </button>
+            )}
 
             {is2FASetupOpen && qrValue && (
               <div className="mt-6 p-4 bg-white rounded-lg">
@@ -223,6 +302,7 @@ export default function SecuritySettings() {
                     onClick={() => handleRevoke(session.id)}
                     className="text-secondary hover:text-red-400 p-2"
                     title="Revoke Session"
+                    aria-label="Revoke session"
                   >
                     <svg
                       className="w-5 h-5"

@@ -4,28 +4,28 @@ export function ComparisonTable() {
   const rows = [
     {
       feature: "Algorithm",
-      feed: "Aggressive / Dopamine-looped",
-      citewalk: "None / Chronological",
+      feed: "Engagement-optimized",
+      citewalk: "Chronological + relevance",
     },
     {
       feature: "Links",
-      feed: "Buried / Link rot",
-      citewalk: "Permanent / Snapshotted",
+      feed: "Link rot / suppressed",
+      citewalk: "Archived & permanent",
     },
     {
-      feature: "Metrics",
-      feed: "Public Likes (Vanity)",
-      citewalk: "Citations (Authority)",
+      feature: "Reputation",
+      feed: "Likes & follower count",
+      citewalk: "Citations from peers",
     },
     {
-      feature: "Data Model",
-      feed: "Ephemeral Feed",
-      citewalk: "Persistent Graph",
+      feature: "Content",
+      feed: "Ephemeral feed",
+      citewalk: "Knowledge graph",
     },
     {
-      feature: "Ownership",
-      feed: "Locked Garden",
-      citewalk: "Exportable JSON / RSS",
+      feature: "Your data",
+      feed: "Platform-locked",
+      citewalk: "JSON export + RSS",
     },
   ];
 
@@ -36,7 +36,7 @@ export function ComparisonTable() {
           Benchmark
         </h2>
         <h3 className="text-3xl font-serif text-[#F2F2F2]">
-          System Comparison
+          How Citewalk is different
         </h3>
       </div>
 

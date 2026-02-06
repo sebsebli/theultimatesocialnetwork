@@ -23,7 +23,7 @@ export default function MutedUsersScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { showError, showSuccess } = useToast();
-  const [muted, setMuted] = useState<any[]>([]);
+  const [muted, setMuted] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unmuteTarget, setUnmuteTarget] = useState<{
@@ -36,7 +36,7 @@ export default function MutedUsersScreen() {
       const data = await api.get("/safety/muted");
       setMuted(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Failed to load muted users", error);
+      if (__DEV__) console.error("Failed to load muted users", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -57,31 +57,31 @@ export default function MutedUsersScreen() {
       setMuted((prev) => prev.filter((u) => u.id !== unmuteTarget.id));
       showSuccess(t("safety.unmutedMessage", "This user has been unmuted."));
     } catch (error) {
-      console.error("Failed to unmute user", error);
+      if (__DEV__) console.error("Failed to unmute user", error);
       showError(t("safety.failedUnmute", "Failed to unmute user."));
       throw error;
     }
   };
 
   const renderItem = useCallback(
-    ({ item }: { item: any }) => (
+    ({ item }: { item: Record<string, unknown> }) => (
       <View style={styles.userItem}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {item.displayName?.charAt(0) ||
-              item.handle?.charAt(0).toUpperCase() ||
+            {(item.displayName as string | undefined)?.charAt(0) ||
+              (item.handle as string | undefined)?.charAt(0).toUpperCase() ||
               "U"}
           </Text>
         </View>
         <View style={styles.userInfo}>
           <Text style={styles.displayName}>
-            {item.displayName || item.handle}
+            {(item.displayName || item.handle) as string}
           </Text>
-          <Text style={styles.handle}>@{item.handle}</Text>
+          <Text style={styles.handle}>@{item.handle as string}</Text>
         </View>
         <Pressable
           style={styles.unmuteButton}
-          onPress={() => handleUnmute(item.id, item.displayName || item.handle)}
+          onPress={() => handleUnmute(item.id as string, (item.displayName || item.handle) as string)}
           accessibilityLabel={t("safety.unmute", "Unmute")}
           accessibilityRole="button"
         >
@@ -127,7 +127,7 @@ export default function MutedUsersScreen() {
         data={muted}
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={(item: Record<string, unknown>) => item.id as string}
         renderItem={renderItem}
         refreshControl={
           <RefreshControl

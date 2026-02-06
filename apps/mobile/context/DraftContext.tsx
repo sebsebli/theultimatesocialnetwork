@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 interface DraftContextType {
   getDraft: (key: string) => string;
@@ -11,21 +11,22 @@ const DraftContext = createContext<DraftContextType | undefined>(undefined);
 export function DraftProvider({ children }: { children: ReactNode }) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
-  const getDraft = (key: string) => drafts[key] || '';
+  const getDraft = useCallback((key: string) => drafts[key] || '', [drafts]);
 
-  const setDraft = (key: string, body: string) => {
+  const setDraft = useCallback((key: string, body: string) => {
     setDrafts((prev) => ({ ...prev, [key]: body }));
-  };
+  }, []);
 
-  const clearDraft = (key: string) => {
+  const clearDraft = useCallback((key: string) => {
     setDrafts((prev) => {
       const next = { ...prev };
       delete next[key];
       return next;
     });
-  };
+  }, []);
 
-  const value = { getDraft, setDraft, clearDraft };
+  const value = useMemo(() => ({ getDraft, setDraft, clearDraft }), [getDraft, setDraft, clearDraft]);
+
   return React.createElement(DraftContext.Provider, { value }, children);
 }
 

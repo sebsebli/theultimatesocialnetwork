@@ -29,6 +29,7 @@ import { EmptyState, emptyStateCenterWrapStyle } from "./EmptyState";
 import { SettingsRowSkeleton } from "./LoadingSkeleton";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { Collection } from "../types";
+import * as Haptics from "expo-haptics";
 
 export interface AddToCollectionSheetRef {
   open: (postId: string) => void;
@@ -63,7 +64,7 @@ const AddToCollectionSheetBase = forwardRef<
   const loadCollections = async (id: string) => {
     setLoading(true);
     try {
-      const data = await api.get(`/collections?postId=${id}`);
+      const data = await api.get<Collection[]>(`/collections?postId=${id}`);
       setCollections(data);
     } catch (error) {
       showError(t("collections.loadFailed"));
@@ -76,7 +77,7 @@ const AddToCollectionSheetBase = forwardRef<
     if (!newTitle.trim()) return;
 
     try {
-      const newCollection = await api.post("/collections", {
+      const newCollection = await api.post<Collection>("/collections", {
         title: newTitle,
         isPublic: true,
       });
@@ -98,6 +99,7 @@ const AddToCollectionSheetBase = forwardRef<
     collectionId: string,
     currentHasPost: boolean,
   ) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Optimistic update
     setCollections((prev) =>
       prev.map((c) =>
@@ -134,7 +136,12 @@ const AddToCollectionSheetBase = forwardRef<
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
       >
-        <Pressable style={styles.backdrop} onPress={() => setVisible(false)} />
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => setVisible(false)}
+          accessibilityLabel={t("common.close", "Close")}
+          accessibilityRole="button"
+        />
         <View
           style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.l }]}
           onStartShouldSetResponder={() => true}
@@ -176,6 +183,8 @@ const AddToCollectionSheetBase = forwardRef<
                     pressed && styles.itemPressed,
                   ]}
                   onPress={() => handleToggle(item.id, !!item.hasPost)}
+                  accessibilityLabel={item.hasPost ? `${t("collections.removeFromCollection", "Remove from")} ${item.title}` : `${t("collections.addToCollection", "Add to")} ${item.title}`}
+                  accessibilityRole="button"
                 >
                   <View style={styles.itemIconWrap}>
                     <MaterialIcons
@@ -244,6 +253,8 @@ const AddToCollectionSheetBase = forwardRef<
                   <Pressable
                     onPress={() => setCreating(false)}
                     style={styles.cancelBtn}
+                    accessibilityLabel={t("common.cancel")}
+                    accessibilityRole="button"
                   >
                     <Text style={styles.cancelBtnText}>
                       {t("common.cancel")}
@@ -256,6 +267,8 @@ const AddToCollectionSheetBase = forwardRef<
                       styles.createBtn,
                       !newTitle.trim() && styles.createBtnDisabled,
                     ]}
+                    accessibilityLabel={t("common.create")}
+                    accessibilityRole="button"
                   >
                     <Text style={styles.createBtnText}>
                       {t("common.create")}
@@ -289,6 +302,7 @@ const AddToCollectionSheetBase = forwardRef<
   ) as React.ReactElement;
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- React 19 forwardRef compatibility
 const AddToCollectionSheet = AddToCollectionSheetBase as any;
 
 const styles = createStyles({
@@ -354,7 +368,7 @@ const styles = createStyles({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.badge,
     alignItems: "center",
     justifyContent: "center",
     marginRight: SPACING.m,
@@ -444,7 +458,7 @@ const styles = createStyles({
     alignItems: "center",
   },
   privacyOptionActive: {
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.badge,
     borderColor: COLORS.primary,
   },
   privacyOptionText: {

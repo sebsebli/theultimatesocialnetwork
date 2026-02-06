@@ -4,6 +4,7 @@ import { useState, useEffect, use, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PostItem, Post } from "@/components/post-item";
+import { UserCard } from "@/components/user-card";
 import { EditCollectionModal } from "@/components/edit-collection-modal";
 import { getImageUrl } from "@/lib/security";
 
@@ -11,10 +12,29 @@ const HERO_FADE_HEIGHT = 200;
 const STICKY_HEADER_APPEAR = 100;
 const ITEMS_PAGE_SIZE = 20;
 
+type CollectionTabKey = "newest" | "ranked" | "sources" | "contributors";
+
 interface CollectionItemType {
   id: string;
   post: Post;
   curatorNote?: string;
+}
+
+interface CollectionSource {
+  id?: string;
+  url: string;
+  title?: string | null;
+}
+
+interface CollectionContributor {
+  id: string;
+  handle: string;
+  displayName?: string;
+  postCount?: number;
+  totalQuotes?: number;
+  isFollowing?: boolean;
+  avatarKey?: string | null;
+  avatarUrl?: string | null;
 }
 
 interface Collection {
@@ -42,25 +62,49 @@ export default function CollectionDetailPage(props: {
   const router = useRouter();
   const params = use(props.params);
   const [collection, setCollection] = useState<Collection | null>(null);
+  const [activeTab, setActiveTab] = useState<CollectionTabKey>("newest");
   const [items, setItems] = useState<CollectionItemType[]>([]);
+  const [sources, setSources] = useState<CollectionSource[]>([]);
+  const [contributors, setContributors] = useState<CollectionContributor[]>([]);
   const [hasMore, setHasMore] = useState(true);
+  const [hasMoreSources, setHasMoreSources] = useState(true);
+  const [hasMoreContributors, setHasMoreContributors] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [loadingContributors, setLoadingContributors] = useState(false);
   const [shareSaves, setShareSaves] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [scrollY, setScrollY] = useState(0);
   const [otherCollections, setOtherCollections] = useState<CollectionSummary[]>(
     [],
   );
+  const [tabLoaded, setTabLoaded] = useState<Record<CollectionTabKey, boolean>>({
+    newest: true,
+    ranked: false,
+    sources: false,
+    contributors: false,
+  });
   const loadMoreSentinel = useRef<HTMLDivElement>(null);
   const nextOffsetRef = useRef(0);
+  const sourcesPageRef = useRef(1);
+  const contributorsPageRef = useRef(1);
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/me")
       .then((r) => (r.ok ? r.json() : null))
-      .then((me) => setCurrentUserId(me?.id ?? null))
-      .catch(() => setCurrentUserId(null));
+      .then((me) => {
+        if (!cancelled) setCurrentUserId(me?.id ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentUserId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -97,7 +141,7 @@ export default function CollectionDetailPage(props: {
         setShareSaves(data.shareSaves || false);
       }
     } catch (error) {
-      console.error("Failed to load collection", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to load collection", error);
     } finally {
       setLoading(false);
     }
@@ -107,26 +151,107 @@ export default function CollectionDetailPage(props: {
     loadCollection();
   }, [loadCollection]);
 
+  const loadItems = useCallback(
+    async (offset: number, sort: "recent" | "ranked", append: boolean) => {
+      if (append) setLoadingMore(true);
+      try {
+        const res = await fetch(
+          `/api/collections/${params.id}/items?limit=${ITEMS_PAGE_SIZE}&offset=${offset}&sort=${sort}`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const newItems = (data.items ?? []) as CollectionItemType[];
+        if (append) {
+          setItems((prev) => [...prev, ...newItems]);
+        } else {
+          setItems(newItems);
+        }
+        nextOffsetRef.current = offset + newItems.length;
+        setHasMore(newItems.length >= ITEMS_PAGE_SIZE && data.hasMore !== false);
+      } catch {
+        setHasMore(false);
+      } finally {
+        if (append) setLoadingMore(false);
+      }
+    },
+    [params.id],
+  );
+
   const loadMoreItems = useCallback(async () => {
     if (!hasMore || loadingMore) return;
     const offset = nextOffsetRef.current;
-    setLoadingMore(true);
-    try {
-      const res = await fetch(
-        `/api/collections/${params.id}/items?limit=${ITEMS_PAGE_SIZE}&offset=${offset}`,
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      const newItems = data.items ?? [];
-      nextOffsetRef.current = offset + newItems.length;
-      setItems((prev) => [...prev, ...newItems]);
-      setHasMore(data.hasMore === true);
-    } catch {
-      setHasMore(false);
-    } finally {
-      setLoadingMore(false);
+    const sort = activeTab === "ranked" ? "ranked" : "recent";
+    await loadItems(offset, sort, true);
+  }, [hasMore, loadingMore, activeTab, loadItems]);
+
+  const loadSources = useCallback(
+    async (page: number, append: boolean) => {
+      if (append) setLoadingSources(true);
+      try {
+        const res = await fetch(
+          `/api/collections/${params.id}/sources?page=${page}&limit=${ITEMS_PAGE_SIZE}`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = (data.items ?? []) as CollectionSource[];
+        if (append) {
+          setSources((prev) => [...prev, ...list]);
+        } else {
+          setSources(list);
+        }
+        setHasMoreSources(list.length >= ITEMS_PAGE_SIZE && data.hasMore !== false);
+        sourcesPageRef.current = page;
+      } catch {
+        setHasMoreSources(false);
+      } finally {
+        setLoadingSources(false);
+      }
+    },
+    [params.id],
+  );
+
+  const loadContributors = useCallback(
+    async (page: number, append: boolean) => {
+      if (append) setLoadingContributors(true);
+      try {
+        const res = await fetch(
+          `/api/collections/${params.id}/contributors?page=${page}&limit=${ITEMS_PAGE_SIZE}`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = (data.items ?? []) as CollectionContributor[];
+        if (append) {
+          setContributors((prev) => [...prev, ...list]);
+        } else {
+          setContributors(list);
+        }
+        setHasMoreContributors(list.length >= ITEMS_PAGE_SIZE && data.hasMore !== false);
+        contributorsPageRef.current = page;
+      } catch {
+        setHasMoreContributors(false);
+      } finally {
+        setLoadingContributors(false);
+      }
+    },
+    [params.id],
+  );
+
+  useEffect(() => {
+    if (activeTab === "ranked" && !tabLoaded.ranked) {
+      setTabLoaded((p) => ({ ...p, ranked: true }));
+      nextOffsetRef.current = 0;
+      loadItems(0, "ranked", false);
+    } else if (activeTab === "newest" && tabLoaded.ranked) {
+      nextOffsetRef.current = 0;
+      loadItems(0, "recent", false);
+    } else if (activeTab === "sources" && !tabLoaded.sources) {
+      setTabLoaded((p) => ({ ...p, sources: true }));
+      loadSources(1, false);
+    } else if (activeTab === "contributors" && !tabLoaded.contributors) {
+      setTabLoaded((p) => ({ ...p, contributors: true }));
+      loadContributors(1, false);
     }
-  }, [params.id, hasMore, loadingMore]);
+  }, [activeTab, tabLoaded, loadItems, loadSources, loadContributors]);
 
   useEffect(() => {
     if (!hasMore || loadingMore) return;
@@ -134,25 +259,49 @@ export default function CollectionDetailPage(props: {
     if (!el) return;
     const obs = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) loadMoreItems();
+        if (!entries[0]?.isIntersecting) return;
+        if (activeTab === "newest" || activeTab === "ranked") {
+          loadMoreItems();
+        } else if (activeTab === "sources" && hasMoreSources && !loadingSources) {
+          loadSources(sourcesPageRef.current + 1, true);
+        } else if (activeTab === "contributors" && hasMoreContributors && !loadingContributors) {
+          loadContributors(contributorsPageRef.current + 1, true);
+        }
       },
       { rootMargin: "200px", threshold: 0 },
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMore, loadingMore, loadMoreItems]);
+  }, [
+    hasMore,
+    loadingMore,
+    loadMoreItems,
+    activeTab,
+    hasMoreSources,
+    loadingSources,
+    hasMoreContributors,
+    loadingContributors,
+    loadContributors,
+    loadSources,
+  ]);
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/collections")
       .then((r) => (r.ok ? r.json() : []))
       .then((list: CollectionSummary[]) => {
-        setOtherCollections(
-          Array.isArray(list)
-            ? list.filter((c) => c.id !== params.id).slice(0, 10)
-            : [],
-        );
+        if (!cancelled) {
+          setOtherCollections(
+            Array.isArray(list)
+              ? list.filter((c) => c.id !== params.id).slice(0, 10)
+              : [],
+          );
+        }
       })
-      .catch(() => {});
+      .catch(() => { /* collections load best-effort */ });
+    return () => {
+      cancelled = true;
+    };
   }, [params.id]);
 
   const handleShareSavesToggle = async () => {
@@ -164,7 +313,7 @@ export default function CollectionDetailPage(props: {
       });
       if (res.ok) setShareSaves(!shareSaves);
     } catch (error) {
-      console.error("Failed to update shareSaves", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to update shareSaves", error);
     }
   };
 
@@ -181,7 +330,7 @@ export default function CollectionDetailPage(props: {
       });
       if (res.ok) router.push("/collections");
     } catch (error) {
-      console.error("Failed to delete collection", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to delete collection", error);
     }
   };
 
@@ -307,11 +456,10 @@ export default function CollectionDetailPage(props: {
             <div className="flex justify-end">
               <button
                 onClick={handleShareSavesToggle}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  shareSaves
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${shareSaves
                     ? "bg-primary text-white"
                     : "bg-white/5 text-secondary hover:bg-white/10"
-                }`}
+                  }`}
               >
                 {shareSaves ? "Sharing saves" : "Share saves"}
               </button>
@@ -322,6 +470,53 @@ export default function CollectionDetailPage(props: {
 
       {/* Full-page scrollable content */}
       <div className="max-w-[680px] mx-auto w-full">
+        {/* Tabs – match mobile: Newest, Ranked, Sources, Contributors */}
+        <div className="sticky top-0 z-40 bg-ink border-b border-divider">
+          <div className="flex overflow-x-auto no-scrollbar">
+            {(
+              [
+                ["newest", "Newest"],
+                ["ranked", "Most cited"],
+                ["sources", "Sources"],
+                ["contributors", "Contributors"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setActiveTab(key)}
+                className={`shrink-0 px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === key
+                    ? "border-primary text-paper"
+                    : "border-transparent text-tertiary hover:text-paper"
+                  }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {(activeTab === "sources" || activeTab === "contributors") && (
+            <div className="px-4 pb-3">
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                <svg className="w-5 h-5 text-tertiary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="search"
+                  placeholder={activeTab === "sources" ? "Search sources..." : "Search contributors..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 bg-transparent text-paper placeholder-tertiary text-sm outline-none min-w-0"
+                />
+                {searchQuery.length > 0 && (
+                  <button type="button" onClick={() => setSearchQuery("")} className="p-1 text-tertiary hover:text-paper" aria-label="Clear">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Horizontal scroll – more collections */}
         {otherCollections.length > 0 && (
           <section className="px-4 py-6 border-b border-divider">
@@ -337,6 +532,7 @@ export default function CollectionDetailPage(props: {
                 >
                   {c.previewImageKey ? (
                     <div className="relative w-full aspect-video bg-divider">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={getImageUrl(c.previewImageKey)}
                         alt=""
@@ -374,36 +570,129 @@ export default function CollectionDetailPage(props: {
           </section>
         )}
 
-        {/* Items – lazy loaded */}
+        {/* Tab content */}
         <div className="px-6 py-6 space-y-4">
-          {items.length > 0 ? (
+          {(activeTab === "newest" || activeTab === "ranked") && (
             <>
-              {items.map((item) => (
-                <div key={item.id} className="border-b border-divider pb-4">
-                  <PostItem post={item.post} />
-                  {item.curatorNote && (
-                    <div className="mt-3 pl-4 border-l-2 border-primary">
-                      <p className="text-sm text-secondary italic">
-                        {item.curatorNote}
-                      </p>
+              {items.length > 0 ? (
+                <>
+                  {items.map((item) => (
+                    <div key={item.id} className="border-b border-divider pb-4">
+                      <PostItem post={item.post} />
+                      {item.curatorNote && (
+                        <div className="mt-3 pl-4 border-l-2 border-primary">
+                          <p className="text-sm text-secondary italic">
+                            {item.curatorNote}
+                          </p>
+                        </div>
+                      )}
                     </div>
+                  ))}
+                  <div ref={loadMoreSentinel} className="h-4" />
+                  {loadingMore && (
+                    <p className="text-secondary text-sm py-4 text-center">
+                      Loading…
+                    </p>
                   )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-secondary text-sm">
+                    No items in this collection yet.
+                  </p>
                 </div>
-              ))}
-              <div ref={loadMoreSentinel} className="h-4" />
-              {loadingMore && (
-                <p className="text-secondary text-sm py-4 text-center">
-                  Loading…
-                </p>
               )}
             </>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-secondary text-sm">
-                No items in this collection yet.
-              </p>
-            </div>
           )}
+
+          {activeTab === "sources" && (() => {
+            const q = searchQuery.trim().toLowerCase();
+            const filtered = q
+              ? sources.filter(
+                (s) =>
+                  (s.title ?? "").toLowerCase().includes(q) ||
+                  (s.url ?? "").toLowerCase().includes(q),
+              )
+              : sources;
+            return filtered.length > 0 ? (
+              <>
+                {filtered.map((s, i) => (
+                  <a
+                    key={s.url ?? s.id ?? i}
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                  >
+                    <p className="font-medium text-paper truncate">
+                      {s.title || (s.url ? new URL(s.url).hostname : "Link")}
+                    </p>
+                    <p className="text-xs text-tertiary truncate mt-0.5">
+                      {s.url}
+                    </p>
+                  </a>
+                ))}
+                <div ref={loadMoreSentinel} className="h-4" />
+                {loadingSources && (
+                  <p className="text-secondary text-sm py-4 text-center">
+                    Loading…
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-secondary text-sm">
+                  {sources.length === 0
+                    ? "No sources in this collection yet."
+                    : "No matching sources."}
+                </p>
+              </div>
+            );
+          })()}
+
+          {activeTab === "contributors" && (() => {
+            const q = searchQuery.trim().toLowerCase();
+            const filtered = q
+              ? contributors.filter(
+                (c) =>
+                  (c.displayName ?? "").toLowerCase().includes(q) ||
+                  (c.handle ?? "").toLowerCase().includes(q),
+              )
+              : contributors;
+            return filtered.length > 0 ? (
+              <>
+                <div className="space-y-2">
+                  {filtered.map((person) => (
+                    <UserCard
+                      key={person.id}
+                      person={{
+                        id: person.id,
+                        handle: person.handle,
+                        displayName: person.displayName,
+                        isFollowing: person.isFollowing,
+                        avatarKey: person.avatarKey,
+                        avatarUrl: person.avatarUrl,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div ref={loadMoreSentinel} className="h-4" />
+                {loadingContributors && (
+                  <p className="text-secondary text-sm py-4 text-center">
+                    Loading…
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-secondary text-sm">
+                  {contributors.length === 0
+                    ? "No contributors yet."
+                    : "No matching contributors."}
+                </p>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

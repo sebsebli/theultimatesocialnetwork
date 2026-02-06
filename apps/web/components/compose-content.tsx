@@ -31,6 +31,9 @@ function ComposeContentInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const smartCiteEnabled =
+    (user?.preferences as { smartCiteEnabled?: boolean } | undefined)
+      ?.smartCiteEnabled ?? true;
   const t = useTranslations("compose");
   const { error: toastError } = useToast();
   const quotePostId = searchParams.get("quote");
@@ -90,7 +93,15 @@ function ComposeContentInner() {
   // Effect to resolve post titles for preview
   useEffect(() => {
     if (viewMode === "preview") {
-      resolvePostTitles(body).then(setPreviewBody);
+      let cancelled = false;
+      resolvePostTitles(body).then((resolved) => {
+        if (!cancelled) {
+          setPreviewBody(resolved);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
     }
   }, [viewMode, body]);
 
@@ -116,7 +127,7 @@ function ComposeContentInner() {
               const post = await res.json();
               return { id, title: post.title || "Untitled Post" };
             }
-          } catch {}
+          } catch { }
           return { id, title: "Linked Post" };
         }),
       );
@@ -126,7 +137,7 @@ function ComposeContentInner() {
         resolvedText = resolvedText.replace(regex, `[[post:${id}|${title}]]`);
       });
     } catch (e) {
-      console.error("Failed to resolve titles", e);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to resolve titles", e);
     }
     return resolvedText;
   };
@@ -216,7 +227,7 @@ function ComposeContentInner() {
         }
       }
     } catch (error) {
-      console.error("Failed to publish", error);
+      if (process.env.NODE_ENV !== "production") console.error("Failed to publish", error);
       toastError(t("error"));
     } finally {
       setIsPublishing(false);
@@ -237,7 +248,7 @@ function ComposeContentInner() {
       const ranges = getProtectedRanges(body);
       const sel = { start, end };
       if (selectionOverlapsProtected(sel, ranges)) {
-        alert(
+        toastError(
           "Articles, topic tags and links cannot use headings, bold or italic.",
         );
         return;
@@ -299,7 +310,10 @@ function ComposeContentInner() {
 
     const wikilinkMatch = textBeforeCursor.match(/\[\[([^\]]*)$/);
     if (wikilinkMatch) {
-      setPosition(wikilinkMatch[1], "all");
+      setPosition(
+        wikilinkMatch[1],
+        smartCiteEnabled ? "all" : "topic",
+      );
       return;
     }
 
@@ -401,11 +415,10 @@ function ComposeContentInner() {
           <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10">
             <button
               onClick={() => setViewMode("edit")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                viewMode === "edit"
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === "edit"
                   ? "bg-primary text-white shadow-sm"
                   : "text-secondary hover:text-paper"
-              }`}
+                }`}
             >
               Write
             </button>
@@ -414,11 +427,10 @@ function ComposeContentInner() {
                 if (body.trim().length < BODY_MIN_LENGTH) return;
                 setViewMode("preview");
               }}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                viewMode === "preview"
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === "preview"
                   ? "bg-primary text-white shadow-sm"
                   : "text-secondary hover:text-paper"
-              }`}
+                }`}
             >
               Preview
             </button>
@@ -463,6 +475,7 @@ function ComposeContentInner() {
                       setHeaderImageBlurhash(null);
                     }}
                     className="absolute top-2 right-2 bg-black/60 p-2 rounded-full text-white hover:bg-black/80 transition-colors"
+                    aria-label="Remove header image"
                   >
                     <svg
                       className="w-4 h-4"
@@ -523,6 +536,7 @@ function ComposeContentInner() {
                 onClick={() => insertText("# ")}
                 className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
                 title="Heading 1"
+                aria-label="Insert heading 1"
               >
                 <span className="font-serif font-bold text-lg">H1</span>
               </button>
@@ -530,6 +544,7 @@ function ComposeContentInner() {
                 onClick={() => insertText("## ")}
                 className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
                 title="Heading 2"
+                aria-label="Insert heading 2"
               >
                 <span className="font-serif font-bold text-lg">H2</span>
               </button>
@@ -537,6 +552,7 @@ function ComposeContentInner() {
                 onClick={() => insertText("**", "**")}
                 className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
                 title="Bold"
+                aria-label="Bold text"
               >
                 <svg
                   className="w-5 h-5"
@@ -562,6 +578,7 @@ function ComposeContentInner() {
                 onClick={() => insertText("_", "_")}
                 className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
                 title="Italic"
+                aria-label="Italic text"
               >
                 <svg
                   className="w-5 h-5"
@@ -581,6 +598,7 @@ function ComposeContentInner() {
                 onClick={() => insertText("> ")}
                 className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
                 title="Quote"
+                aria-label="Insert quote"
               >
                 <svg
                   className="w-5 h-5"
@@ -605,6 +623,7 @@ function ComposeContentInner() {
                 onClick={addLink}
                 className="size-10 flex items-center justify-center rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
                 title="Add Link"
+                aria-label="Add link"
               >
                 <svg
                   className="w-5 h-5"
@@ -651,6 +670,7 @@ function ComposeContentInner() {
                 }
                 className={`size-10 flex items-center justify-center rounded-lg transition-colors ${headerImageKey ? "text-primary bg-primary/10" : "text-tertiary hover:text-paper hover:bg-white/5"}`}
                 title="Header Image"
+                aria-label="Add header image"
               >
                 <svg
                   className="w-5 h-5"

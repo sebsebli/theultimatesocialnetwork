@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { Queue } from 'bullmq';
 import { Follow } from '../entities/follow.entity';
 import {
   FollowRequest,
@@ -16,6 +15,7 @@ import { User } from '../entities/user.entity';
 import { NotificationType } from '../entities/notification.entity';
 import { Neo4jService } from '../database/neo4j.service';
 import { NotificationHelperService } from '../shared/notification-helper.service';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 
 @Injectable()
 export class FollowsService {
@@ -27,8 +27,8 @@ export class FollowsService {
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
     private notificationHelper: NotificationHelperService,
-    @Inject('FOLLOW_QUEUE') private followQueue: Queue,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
   async follow(followerId: string, followeeId: string) {
     if (followerId === followeeId) {
@@ -93,7 +93,7 @@ export class FollowsService {
       await queryRunner.commitTransaction();
 
       // Queue background processing (Counts, Neo4j, Notifications)
-      await this.followQueue.add('process', {
+      await this.eventBus.publish('follow-processing', 'process', {
         type: 'follow',
         followerId,
         followeeId,
@@ -127,7 +127,7 @@ export class FollowsService {
       await queryRunner.commitTransaction();
 
       // Queue background processing (Counts, Neo4j)
-      await this.followQueue.add('process', {
+      await this.eventBus.publish('follow-processing', 'process', {
         type: 'unfollow',
         followerId,
         followeeId,

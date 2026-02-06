@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { LandingPage } from "@/components/landing-page";
 
 /**
  * Root route:
  * - If authenticated, redirect to /home.
- * - If unauthenticated, redirect to /sign-in.
- * - The landing page/about page is at /about.
+ * - If unauthenticated, show the landing page.
  */
 export default async function Home() {
   const token = (await cookies()).get("token")?.value;
@@ -13,7 +13,7 @@ export default async function Home() {
 
   if (isAuthenticated) {
     redirect("/home");
-  } else {
-    redirect("/sign-in");
   }
+
+  return <LandingPage isAuthenticated={false} />;
 }

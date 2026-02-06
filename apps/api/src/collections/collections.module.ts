@@ -5,6 +5,9 @@ import { CollectionsService } from './collections.service';
 import { Collection } from '../entities/collection.entity';
 import { CollectionItem } from '../entities/collection-item.entity';
 import { Post } from '../entities/post.entity';
+import { PostEdge } from '../entities/post-edge.entity';
+import { PostTopic } from '../entities/post-topic.entity';
+import { Topic } from '../entities/topic.entity';
 import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
 import { ExternalSource } from '../entities/external-source.entity';
@@ -18,6 +21,9 @@ import { UploadModule } from '../upload/upload.module';
       Collection,
       CollectionItem,
       Post,
+      PostEdge,
+      PostTopic,
+      Topic,
       User,
       Follow,
       ExternalSource,

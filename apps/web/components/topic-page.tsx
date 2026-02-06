@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, memo } from "react";
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { getImageUrl } from "@/lib/security";
 import { PostItem, Post } from "./post-item";
 import { TopicCard } from "./topic-card";
+import { UserCard } from "./user-card";
 import {
   EmptyState,
   emptyStateCenterClassName,
@@ -14,6 +15,25 @@ import {
 const HERO_FADE_HEIGHT = 280;
 const STICKY_HEADER_APPEAR = 120;
 const POSTS_PAGE_SIZE = 15;
+
+type TabKey = "recent" | "discussed" | "sources" | "people";
+
+interface TopicSource {
+  id?: string;
+  url: string;
+  title?: string | null;
+}
+
+interface TopicPerson {
+  id: string;
+  handle: string;
+  displayName?: string;
+  postCount?: number;
+  totalQuotes?: number;
+  isFollowing?: boolean;
+  avatarKey?: string | null;
+  avatarUrl?: string | null;
+}
 
 export interface TopicPageProps {
   topic: {
@@ -51,25 +71,41 @@ function TopicPageInner({ topic }: TopicPageProps) {
   const router = useRouter();
   const [isFollowing, setIsFollowing] = useState(topic.isFollowing ?? false);
   const [scrollY, setScrollY] = useState(0);
+  const [activeTab, setActiveTab] = useState<TabKey>("recent");
   const [posts, setPosts] = useState<Post[]>(topic.posts ?? []);
   const [_postsPage, setPostsPage] = useState(1);
   void _postsPage;
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  const [sources, setSources] = useState<TopicSource[]>([]);
+  const [people, setPeople] = useState<TopicPerson[]>([]);
+  const [sourcesPage, setSourcesPage] = useState(1);
+  const [peoplePage, setPeoplePage] = useState(1);
+  const [hasMoreSources, setHasMoreSources] = useState(true);
+  const [hasMorePeople, setHasMorePeople] = useState(true);
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [loadingPeople, setLoadingPeople] = useState(false);
+  const [tabDataLoaded, setTabDataLoaded] = useState<Record<TabKey, boolean>>({
+    recent: true,
+    discussed: false,
+    sources: false,
+    people: false,
+  });
   const [moreTopics, setMoreTopics] = useState<TopicSummary[]>([]);
   const loadMoreSentinel = useRef<HTMLDivElement>(null);
   const nextPageRef = useRef(1);
 
   // Hero: use the most recent article in the topic that has a header image (same as topic cards)
-  const postsWithImage = (topic.posts ?? posts).filter(
-    (p) => p?.headerImageKey,
-  );
-  const headerImagePost =
-    postsWithImage.sort(
+  const headerImagePost = useMemo(() => {
+    const postsWithImage = (topic.posts ?? posts).filter(
+      (p) => p?.headerImageKey,
+    );
+    return postsWithImage.sort(
       (a, b) =>
         new Date(b.createdAt ?? 0).getTime() -
         new Date(a.createdAt ?? 0).getTime(),
     )[0] ?? null;
+  }, [topic.posts, posts]);
   const headerImageUrl = headerImagePost?.headerImageKey
     ? getImageUrl(headerImagePost.headerImageKey)
     : null;
@@ -122,11 +158,11 @@ function TopicPageInner({ topic }: TopicPageProps) {
   );
 
   const loadPosts = useCallback(
-    async (page: number, append: boolean) => {
+    async (page: number, append: boolean, sort: "recent" | "ranked" = "recent") => {
       if (append) setLoadingMorePosts(true);
       try {
         const res = await fetch(
-          `/api/topics/${encodeURIComponent(topic.slug)}/posts?page=${page}&limit=${POSTS_PAGE_SIZE}&sort=recent`,
+          `/api/topics/${encodeURIComponent(topic.slug)}/posts?page=${page}&limit=${POSTS_PAGE_SIZE}&sort=${sort}`,
         );
         if (!res.ok) return;
         const data = await res.json();
@@ -148,45 +184,145 @@ function TopicPageInner({ topic }: TopicPageProps) {
     [topic.slug],
   );
 
+  const loadSources = useCallback(
+    async (page: number, append: boolean) => {
+      if (append) setLoadingSources(true);
+      try {
+        const res = await fetch(
+          `/api/topics/${encodeURIComponent(topic.slug)}/sources?page=${page}&limit=${POSTS_PAGE_SIZE}`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = (data.items ?? []) as TopicSource[];
+        setHasMoreSources(items.length >= POSTS_PAGE_SIZE && data.hasMore !== false);
+        if (append) {
+          setSources((prev) => [...prev, ...items]);
+        } else {
+          setSources(items);
+        }
+      } catch {
+        setHasMoreSources(false);
+      } finally {
+        if (append) setLoadingSources(false);
+      }
+    },
+    [topic.slug],
+  );
+
+  const loadPeople = useCallback(
+    async (page: number, append: boolean) => {
+      if (append) setLoadingPeople(true);
+      try {
+        const res = await fetch(
+          `/api/topics/${encodeURIComponent(topic.slug)}/people?page=${page}&limit=${POSTS_PAGE_SIZE}`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const items = (data.items ?? []) as TopicPerson[];
+        setHasMorePeople(items.length >= POSTS_PAGE_SIZE && data.hasMore !== false);
+        if (append) {
+          setPeople((prev) => [...prev, ...items]);
+        } else {
+          setPeople(items);
+        }
+      } catch {
+        setHasMorePeople(false);
+      } finally {
+        if (append) setLoadingPeople(false);
+      }
+    },
+    [topic.slug],
+  );
+
   useEffect(() => {
-    if (topic.posts?.length) {
+    if (topic.posts?.length && activeTab === "recent") {
       setPosts(topic.posts);
       nextPageRef.current = 2;
       setHasMorePosts((topic.posts?.length ?? 0) >= POSTS_PAGE_SIZE);
-    } else {
-      loadPosts(1, false);
     }
-  }, [topic.slug, topic.posts, loadPosts]);
+  }, [topic.slug, topic.posts, activeTab]);
+
+  // Load tab data when switching tabs
+  useEffect(() => {
+    if (activeTab === "discussed" && !tabDataLoaded.discussed) {
+      setTabDataLoaded((prev) => ({ ...prev, discussed: true }));
+      loadPosts(1, false, "ranked");
+    } else if (activeTab === "recent" && tabDataLoaded.discussed) {
+      // Switching back from discussed: reload recent
+      loadPosts(1, false, "recent");
+    } else if (activeTab === "sources" && !tabDataLoaded.sources) {
+      setTabDataLoaded((prev) => ({ ...prev, sources: true }));
+      loadSources(1, false);
+    } else if (activeTab === "people" && !tabDataLoaded.people) {
+      setTabDataLoaded((prev) => ({ ...prev, people: true }));
+      loadPeople(1, false);
+    }
+  }, [activeTab, tabDataLoaded, loadPosts, loadSources, loadPeople]);
 
   useEffect(() => {
+    if (activeTab === "recent" && !topic.posts?.length) {
+      loadPosts(1, false, "recent");
+    }
+  }, [topic.slug, activeTab, topic.posts?.length, loadPosts]);
+
+  useEffect(() => {
+    let cancelled = false;
     fetch("/api/explore/topics")
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
-        const list = Array.isArray(data) ? data : (data?.items ?? []);
-        setMoreTopics(
-          list.filter((t: TopicSummary) => t.slug !== topic.slug).slice(0, 10),
-        );
+        if (!cancelled) {
+          const list = Array.isArray(data) ? data : (data?.items ?? []);
+          setMoreTopics(
+            list.filter((t: TopicSummary) => t.slug !== topic.slug).slice(0, 10),
+          );
+        }
       })
-      .catch(() => {});
+      .catch(() => { /* topics load best-effort */ });
+    return () => {
+      cancelled = true;
+    };
   }, [topic.slug]);
 
   useEffect(() => {
-    if (!hasMorePosts || loadingMorePosts) return;
     const el = loadMoreSentinel.current;
     if (!el) return;
     const obs = new IntersectionObserver(
       (entries) => {
         if (!entries[0]?.isIntersecting) return;
-        const page = nextPageRef.current;
-        nextPageRef.current = page + 1;
-        setPostsPage((p) => p + 1);
-        loadPosts(page, true);
+        if (activeTab === "recent" || activeTab === "discussed") {
+          if (!hasMorePosts || loadingMorePosts) return;
+          const page = nextPageRef.current;
+          nextPageRef.current = page + 1;
+          setPostsPage((p) => p + 1);
+          loadPosts(page, true, activeTab === "discussed" ? "ranked" : "recent");
+        } else if (activeTab === "sources" && hasMoreSources && !loadingSources) {
+          const next = sourcesPage + 1;
+          setSourcesPage(next);
+          loadSources(next, true);
+        } else if (activeTab === "people" && hasMorePeople && !loadingPeople) {
+          const next = peoplePage + 1;
+          setPeoplePage(next);
+          loadPeople(next, true);
+        }
       },
       { rootMargin: "200px", threshold: 0 },
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMorePosts, loadingMorePosts, loadPosts]);
+  }, [
+    activeTab,
+    hasMorePosts,
+    loadingMorePosts,
+    hasMoreSources,
+    loadingSources,
+    hasMorePeople,
+    loadingPeople,
+    sourcesPage,
+    peoplePage,
+    loadPosts,
+    loadSources,
+    loadPeople,
+  ]);
 
   return (
     <div className="min-h-screen bg-ink">
@@ -210,6 +346,7 @@ function TopicPageInner({ topic }: TopicPageProps) {
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -279,6 +416,33 @@ function TopicPageInner({ topic }: TopicPageProps) {
 
       {/* Full-page scrollable content */}
       <div className="max-w-[680px] mx-auto w-full">
+        {/* Tabs – parity with mobile: Recent, Discussed, Sources, People */}
+        <div className="sticky top-0 z-40 bg-ink border-b border-divider">
+          <div className="flex overflow-x-auto no-scrollbar">
+            {(
+              [
+                ["recent", "Most recent"],
+                ["discussed", "Most discussed"],
+                ["sources", "Sources"],
+                ["people", "People"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setActiveTab(key)}
+                className={`shrink-0 px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === key
+                    ? "border-primary text-paper"
+                    : "border-transparent text-tertiary hover:text-paper"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Horizontal scroll – more topics */}
         {moreTopics.length > 0 && (
           <section className="px-4 py-6 border-b border-divider">
@@ -300,62 +464,138 @@ function TopicPageInner({ topic }: TopicPageProps) {
           </section>
         )}
 
-        {/* Start here */}
-        {topic.startHere && topic.startHere.length > 0 && (
-          <section className="px-6 py-8 border-b border-divider">
-            <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">
-              Start here
-            </h2>
-            <div className="space-y-0">
-              {topic.startHere.map((post) => (
-                <PostItem key={post.id} post={post} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Latest Discussion – lazy loaded */}
-        <section className="px-6 py-8 border-b border-divider">
-          <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">
-            Latest Discussion
-          </h2>
-          <div className="space-y-0">
-            {posts.length > 0 ? (
-              <>
-                {posts.map((post) => (
+        {/* Start here – only on Recent tab */}
+        {activeTab === "recent" &&
+          topic.startHere &&
+          topic.startHere.length > 0 && (
+            <section className="px-6 py-8 border-b border-divider">
+              <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">
+                Start here
+              </h2>
+              <div className="space-y-0">
+                {topic.startHere.map((post) => (
                   <PostItem key={post.id} post={post} />
                 ))}
-                <div ref={loadMoreSentinel} className="h-4" />
-                {loadingMorePosts && (
-                  <p className="text-secondary text-sm py-4 text-center">
-                    Loading…
-                  </p>
-                )}
-              </>
-            ) : (
-              <div className={emptyStateCenterClassName}>
-                <EmptyState
-                  headline="No discussions in this topic yet"
-                  subtext="Be the first to share a post here."
-                  compact
-                />
               </div>
-            )}
-          </div>
-        </section>
+            </section>
+          )}
 
-        {/* People & Sources */}
-        <section className="px-6 py-8 space-y-8">
-          <div>
-            <h2 className="text-lg font-semibold mb-4 text-paper">People</h2>
-            <p className="text-secondary text-sm">
-              Top authors in this topic coming soon…
-            </p>
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold mb-4 text-paper">Sources</h2>
-            <p className="text-secondary text-sm">Frequent URLs coming soon…</p>
-          </div>
+        {/* Tab content: Recent / Discussed = posts; Sources = links; People = user cards */}
+        <section className="px-6 py-8 border-b border-divider">
+          {(activeTab === "recent" || activeTab === "discussed") && (
+            <>
+              <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">
+                {activeTab === "recent"
+                  ? "Latest Discussion"
+                  : "Most Discussed"}
+              </h2>
+              <div className="space-y-0">
+                {posts.length > 0 ? (
+                  <>
+                    {posts.map((post) => (
+                      <PostItem key={post.id} post={post} />
+                    ))}
+                    <div ref={loadMoreSentinel} className="h-4" />
+                    {loadingMorePosts && (
+                      <p className="text-secondary text-sm py-4 text-center">
+                        Loading…
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className={emptyStateCenterClassName}>
+                    <EmptyState
+                      headline="No discussions in this topic yet"
+                      subtext="Be the first to share a post here."
+                      compact
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {activeTab === "sources" && (
+            <>
+              <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">
+                Sources
+              </h2>
+              {sources.length > 0 ? (
+                <div className="space-y-2">
+                  {sources.map((s, i) => (
+                    <a
+                      key={s.id ?? s.url ?? String(i)}
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
+                    >
+                      <p className="font-medium text-paper truncate">
+                        {s.title ||
+                          (s.url ? new URL(s.url).hostname : "Link")}
+                      </p>
+                      <p className="text-xs text-tertiary truncate mt-0.5">
+                        {s.url}
+                      </p>
+                    </a>
+                  ))}
+                  <div ref={loadMoreSentinel} className="h-4" />
+                  {loadingSources && (
+                    <p className="text-secondary text-sm py-4 text-center">
+                      Loading…
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className={emptyStateCenterClassName}>
+                  <EmptyState
+                    headline="No sources yet"
+                    subtext="Linked sources in this topic will appear here."
+                    compact
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === "people" && (
+            <>
+              <h2 className="text-xl font-bold mb-6 text-paper border-b border-divider pb-2">
+                People
+              </h2>
+              {people.length > 0 ? (
+                <div className="space-y-2">
+                  {people.map((person) => (
+                    <UserCard
+                      key={person.id}
+                      person={{
+                        id: person.id,
+                        handle: person.handle,
+                        displayName: person.displayName,
+                        isFollowing: person.isFollowing,
+                        avatarKey: person.avatarKey,
+                        avatarUrl: person.avatarUrl,
+                      }}
+                    />
+                  ))}
+                  <div ref={loadMoreSentinel} className="h-4" />
+                  {loadingPeople && (
+                    <p className="text-secondary text-sm py-4 text-center">
+                      Loading…
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className={emptyStateCenterClassName}>
+                  <EmptyState
+                    headline="No contributors yet"
+                    subtext="People who post in this topic will appear here."
+                    compact
+                  />
+                </div>
+              )}
+            </>
+          )}
         </section>
       </div>
     </div>

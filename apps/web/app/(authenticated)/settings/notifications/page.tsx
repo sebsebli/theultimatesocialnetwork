@@ -56,7 +56,7 @@ export default function SettingsNotificationsPage() {
           }));
         }
       })
-      .catch(() => {})
+      .catch(() => { /* prefs load best-effort */ })
       .finally(() => setLoading(false));
   }, []);
 

@@ -61,9 +61,10 @@ export default function DangerZoneScreen() {
           "Check your email and click the link within 24 hours to delete your account.",
         ),
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMessage = (e as { message?: string })?.message;
       showError(
-        e?.message ||
+        errorMessage ||
           t("settings.deleteAccountFailed", "Failed to delete account"),
       );
     } finally {
@@ -99,6 +100,8 @@ export default function DangerZoneScreen() {
             ]}
             onPress={handleDeleteAccount}
             disabled={deletingAccount}
+            accessibilityLabel={t("settings.deleteAccount", "Delete account")}
+            accessibilityRole="button"
           >
             {deletingAccount ? (
               <InlineSkeleton />
@@ -189,6 +192,8 @@ export default function DangerZoneScreen() {
                   setDeleteReason("");
                 }}
                 disabled={deletingAccount}
+                accessibilityLabel={t("common.cancel", "Cancel")}
+                accessibilityRole="button"
               >
                 <Text style={styles.deleteModalCancelText}>
                   {t("common.cancel")}
@@ -203,6 +208,8 @@ export default function DangerZoneScreen() {
                 ]}
                 onPress={confirmDeleteAccount}
                 disabled={deletingAccount}
+                accessibilityLabel={t("settings.sendDeletionLink", "Send confirmation email")}
+                accessibilityRole="button"
               >
                 {deletingAccount ? (
                   <InlineSkeleton />

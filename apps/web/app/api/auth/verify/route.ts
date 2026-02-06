@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const { accessToken, user } = data;
+    const { accessToken, refreshToken, user } = data;
 
     if (!accessToken || typeof accessToken !== "string") {
       return NextResponse.json({ error: "Invalid response" }, { status: 500 });
@@ -78,17 +78,31 @@ export async function POST(request: Request) {
     const needsOnboarding =
       typeof user?.handle === "string" && user.handle.startsWith("__pending_");
 
-    // Set secure cookie
-    (await cookies()).set("token", accessToken, {
+    const cookieStore = await cookies();
+    const isProduction = process.env.NODE_ENV === "production";
+
+    // Set short-lived access token cookie (15 minutes)
+    cookieStore.set("token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isProduction,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 15, // 15 minutes — matches JWT expiry
       path: "/",
     });
 
+    // Set long-lived refresh token cookie (7 days)
+    if (refreshToken && typeof refreshToken === "string") {
+      cookieStore.set("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: "/",
+      });
+    }
+
     return NextResponse.json({ success: true, user, needsOnboarding });
-  } catch (error) {
+  } catch (_error) {
     const errorResponse = createSecureErrorResponse("Internal Error", 500);
     return NextResponse.json(
       { error: errorResponse.error },

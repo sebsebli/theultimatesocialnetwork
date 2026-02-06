@@ -29,6 +29,8 @@ import { AdminModule } from './admin/admin.module';
 import { KeepsModule } from './keeps/keeps.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { AgentApiModule } from './agent-api/agent-api.module';
+import { EventBusModule } from './common/event-bus';
+import { GraphModule } from './graph/graph.module';
 import { CleanupService } from './cleanup/cleanup.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Post } from './entities/post.entity';
@@ -47,19 +49,21 @@ import * as Joi from 'joi';
     }),
     LoggerModule.forRoot({
       pinoHttp: {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- pino requires (req, res) signature
-        customProps: (req, res) => ({
+        customProps: (req) => ({
           context: 'HTTP',
+          requestId: (req as { headers?: Record<string, string> })?.headers?.['x-request-id'] ?? undefined,
         }),
+        // Redact sensitive headers from logs
+        redact: ['req.headers.authorization', 'req.headers.cookie', 'req.headers["x-metrics-secret"]', 'req.headers["x-health-secret"]'],
         transport:
           process.env.NODE_ENV !== 'production' &&
-          process.env.NODE_ENV !== 'test'
+            process.env.NODE_ENV !== 'test'
             ? {
-                target: 'pino-pretty',
-                options: {
-                  singleLine: true,
-                },
-              }
+              target: 'pino-pretty',
+              options: {
+                singleLine: true,
+              },
+            }
             : undefined,
       },
     }),
@@ -130,8 +134,8 @@ import * as Joi from 'joi';
     KeepsModule,
     RealtimeModule,
     AgentApiModule,
-    // RssModule,
-    // MetadataModule,
+    EventBusModule,
+    GraphModule,
   ],
   controllers: [AppController, HealthController],
   providers: [
@@ -143,4 +147,4 @@ import * as Joi from 'joi';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

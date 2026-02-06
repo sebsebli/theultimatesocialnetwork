@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, memo } from "react";
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Avatar } from "./avatar";
@@ -22,6 +22,10 @@ interface Reply {
   parentReplyId?: string | null;
   parentReply?: Reply;
   subreplyCount?: number;
+  isLiked?: boolean;
+  likeCount?: number;
+  /** Shown only to reply author */
+  privateLikeCount?: number;
 }
 
 export interface ReplySectionProps {
@@ -29,12 +33,14 @@ export interface ReplySectionProps {
   replyCount: number;
   /** When true, viewer is not authenticated; show "Sign in to comment" and hide reply form */
   isPublic?: boolean;
+  /** When set, scroll to and highlight this reply (e.g. /post/:id?highlightReply=replyId) */
+  highlightReplyId?: string | null;
 }
 
 function ReplySectionInner({
   postId,
-  replyCount: _replyCount,
   isPublic = false,
+  highlightReplyId,
 }: ReplySectionProps) {
   const t = useTranslations("post");
   const { user } = useAuth();
@@ -53,6 +59,11 @@ function ReplySectionInner({
   const [replyingToReplyId, setReplyingToReplyId] = useState<string | null>(
     null,
   );
+  const [likedReplyIds, setLikedReplyIds] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    return initial;
+  });
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
 
   const loadReplies = useCallback(
     async (parentReplyId?: string | null) => {
@@ -78,6 +89,37 @@ function ReplySectionInner({
       .finally(() => setLoading(false));
   }, [postId, loadReplies]);
 
+  // Scroll to and highlight reply when highlightReplyId is set (e.g. from notification link)
+  useEffect(() => {
+    if (!highlightReplyId || loading) return;
+    const el = document.getElementById(`reply-${highlightReplyId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-primary", "ring-offset-2", "ring-offset-ink");
+      const t = setTimeout(() => {
+        el.classList.remove("ring-2", "ring-primary", "ring-offset-2", "ring-offset-ink");
+      }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [highlightReplyId, loading]);
+
+  // Sync like state from loaded replies
+  useEffect(() => {
+    const liked = new Set<string>();
+    const counts: Record<string, number> = {};
+    const sync = (list: Reply[]) => {
+      list.forEach((r) => {
+        if (r.isLiked) liked.add(r.id);
+        const c = r.privateLikeCount ?? r.likeCount ?? 0;
+        if (c > 0) counts[r.id] = c;
+      });
+    };
+    sync(replies);
+    Object.values(childrenByParent).flat().forEach((r) => sync([r]));
+    setLikedReplyIds(liked);
+    setLikeCounts(counts);
+  }, [replies, childrenByParent]);
+
   // When logged in and no replies yet, show the reply box once so the input form is visible without clicking
   const didAutoShowReplyRef = useRef(false);
   useEffect(() => {
@@ -91,6 +133,66 @@ function ReplySectionInner({
       setShowReplyBox(true);
     }
   }, [canReply, replies.length, loading]);
+
+  const handleLikeReply = useCallback(
+    async (replyId: string, currentlyLiked: boolean) => {
+      if (!user || !postId) return;
+      setLikedReplyIds((prev) => {
+        const next = new Set(prev);
+        if (currentlyLiked) next.delete(replyId);
+        else next.add(replyId);
+        return next;
+      });
+      setLikeCounts((prev) => ({
+        ...prev,
+        [replyId]: Math.max(0, (prev[replyId] ?? 0) + (currentlyLiked ? -1 : 1)),
+      }));
+      try {
+        const res = await fetch(
+          `/api/posts/${postId}/replies/${replyId}/like`,
+          { method: currentlyLiked ? "DELETE" : "POST", credentials: "include" },
+        );
+        if (!res.ok) throw new Error("Failed");
+      } catch {
+        setLikedReplyIds((prev) => {
+          const next = new Set(prev);
+          if (currentlyLiked) next.add(replyId);
+          else next.delete(replyId);
+          return next;
+        });
+        setLikeCounts((prev) => ({
+          ...prev,
+          [replyId]: Math.max(0, (prev[replyId] ?? 0) + (currentlyLiked ? 1 : -1)),
+        }));
+        toastError("Failed to update like");
+      }
+    },
+    [postId, user, toastError],
+  );
+
+  const handleDeleteReply = useCallback(
+    async (replyId: string, parentReplyId: string | null) => {
+      if (!postId) return;
+      try {
+        const res = await fetch(
+          `/api/posts/${postId}/replies/${replyId}`,
+          { method: "DELETE", credentials: "include" },
+        );
+        if (!res.ok) throw new Error("Failed");
+        if (parentReplyId) {
+          setChildrenByParent((prev) => ({
+            ...prev,
+            [parentReplyId]: (prev[parentReplyId] || []).filter((r) => r.id !== replyId),
+          }));
+        } else {
+          setReplies((prev) => prev.filter((r) => r.id !== replyId));
+        }
+      } catch {
+        toastError("Failed to delete comment");
+      }
+    },
+    [postId, toastError],
+  );
 
   const loadChildren = useCallback(
     async (parentId: string) => {
@@ -153,12 +255,12 @@ function ReplySectionInner({
             saved.author ??
             (user
               ? {
-                  id: user.id,
-                  handle: user.handle ?? "",
-                  displayName: user.displayName ?? "",
-                  avatarKey: user.avatarKey ?? null,
-                  avatarUrl: user.avatarUrl ?? null,
-                }
+                id: user.id,
+                handle: user.handle ?? "",
+                displayName: user.displayName ?? "",
+                avatarKey: user.avatarKey ?? null,
+                avatarUrl: user.avatarUrl ?? null,
+              }
               : saved.author),
         };
         if (parentReplyId) {
@@ -212,6 +314,11 @@ function ReplySectionInner({
     if (hours < 24) return `${hours}h`;
     return d.toLocaleDateString();
   };
+
+  const rootReplies = useMemo(
+    () => replies.filter((r) => !r.parentReplyId || r.parentReplyId === null),
+    [replies],
+  );
 
   return (
     <section
@@ -282,10 +389,12 @@ function ReplySectionInner({
         </div>
       ) : (
         <div className="space-y-4">
-          {replies
-            .filter((r) => !r.parentReplyId || r.parentReplyId === null)
-            .map((reply) => (
-              <div key={reply.id} className="pl-4 border-l-2 border-divider">
+          {rootReplies.map((reply) => (
+              <div
+                key={reply.id}
+                id={`reply-${reply.id}`}
+                className="pl-4 border-l-2 border-divider rounded-r transition-[box-shadow]"
+              >
                 <div className="flex items-center gap-3 mb-2">
                   <Link href={`/user/${reply.author.handle}`}>
                     <Avatar
@@ -312,13 +421,21 @@ function ReplySectionInner({
                               setShowReplyBox(true);
                             }}
                             className="text-primary text-xs font-medium hover:underline"
+                            aria-label={`Reply to ${reply.author.displayName}`}
                           >
                             {t("comment")}
                           </button>
                         )}
                         <OverflowMenu
                           replyId={reply.id}
-                          userId={reply.author.handle}
+                          userId={reply.author.id}
+                          userHandle={reply.author.handle}
+                          isAuthor={user?.id === reply.author.id}
+                          onDelete={
+                            user?.id === reply.author.id
+                              ? () => handleDeleteReply(reply.id, null)
+                              : undefined
+                          }
                         />
                       </div>
                     </div>
@@ -330,6 +447,49 @@ function ReplySectionInner({
                 <p className="text-sm text-secondary leading-relaxed">
                   {reply.body}
                 </p>
+                <div className="flex items-center gap-3 mt-1">
+                  {user && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleLikeReply(
+                          reply.id,
+                          likedReplyIds.has(reply.id) ?? reply.isLiked ?? false,
+                        )
+                      }
+                      className="flex items-center gap-1 text-tertiary hover:text-paper text-xs"
+                      aria-label={
+                        likedReplyIds.has(reply.id) || reply.isLiked
+                          ? "Unlike reply"
+                          : "Like reply"
+                      }
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill={
+                          likedReplyIds.has(reply.id) || reply.isLiked
+                            ? "currentColor"
+                            : "none"
+                        }
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        />
+                      </svg>
+                      <span>
+                        {likeCounts[reply.id] ??
+                          reply.privateLikeCount ??
+                          reply.likeCount ??
+                          0}
+                      </span>
+                    </button>
+                  )}
+                </div>
                 {(reply.subreplyCount ?? 0) > 0 && (
                   <div className="mt-2">
                     {!expandedParents.has(reply.id) ? (
@@ -343,7 +503,7 @@ function ReplySectionInner({
                     ) : (
                       <div className="mt-3 space-y-3 pl-4 border-l-2 border-divider/70">
                         {(childrenByParent[reply.id] || []).map((child) => (
-                          <div key={child.id}>
+                          <div key={child.id} id={`reply-${child.id}`} className="rounded transition-[box-shadow]">
                             <div className="flex items-center gap-3 mb-1">
                               <Link href={`/user/${child.author.handle}`}>
                                 <Avatar
@@ -370,13 +530,25 @@ function ReplySectionInner({
                                           setShowReplyBox(true);
                                         }}
                                         className="text-primary text-xs font-medium hover:underline"
+                                        aria-label={`Reply to ${child.author.displayName}`}
                                       >
                                         {t("comment")}
                                       </button>
                                     )}
                                     <OverflowMenu
                                       replyId={child.id}
-                                      userId={child.author.handle}
+                                      userId={child.author.id}
+                                      userHandle={child.author.handle}
+                                      isAuthor={user?.id === child.author.id}
+                                      onDelete={
+                                        user?.id === child.author.id
+                                          ? () =>
+                                            handleDeleteReply(
+                                              child.id,
+                                              reply.id,
+                                            )
+                                          : undefined
+                                      }
                                     />
                                   </div>
                                 </div>
@@ -389,6 +561,49 @@ function ReplySectionInner({
                             <p className="text-sm text-secondary leading-relaxed">
                               {child.body}
                             </p>
+                            {user && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleLikeReply(
+                                    child.id,
+                                    likedReplyIds.has(child.id) ??
+                                    child.isLiked ??
+                                    false,
+                                  )
+                                }
+                                className="flex items-center gap-1 text-tertiary hover:text-paper text-xs mt-1"
+                                aria-label={
+                                  likedReplyIds.has(child.id) || child.isLiked
+                                    ? "Unlike reply"
+                                    : "Like reply"
+                                }
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill={
+                                    likedReplyIds.has(child.id) || child.isLiked
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                                  />
+                                </svg>
+                                <span>
+                                  {likeCounts[child.id] ??
+                                    child.privateLikeCount ??
+                                    child.likeCount ??
+                                    0}
+                                </span>
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

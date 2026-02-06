@@ -107,7 +107,7 @@ export class UsersService {
     private configService: ConfigService,
     private uploadService: UploadService,
     private interactionsService: InteractionsService,
-  ) {}
+  ) { }
 
   /**
    * Minimum quote_received_count to be in the top 10% most-quoted users.
@@ -167,73 +167,58 @@ export class UsersService {
     // Never show pending (pre-onboarding) profiles to others
     if (isPendingUser(user) && user.id !== viewerId) return null;
 
-    let posts = await this.postRepo.find({
-      where: { authorId: user.id, deletedAt: IsNull() },
-      relations: ['author'],
-      order: { createdAt: 'DESC' },
-      take: 20,
-    });
+    // Batch all independent queries in parallel to eliminate N+1
+    const [followInfo, counts] = await Promise.all([
+      // Batch follow checks into a single parallel block
+      viewerId && viewerId !== user.id
+        ? Promise.all([
+          this.followRepo.findOne({
+            where: { followerId: user.id, followeeId: viewerId },
+            select: ['followerId'],
+          }),
+          this.followRepo.findOne({
+            where: { followerId: viewerId, followeeId: user.id },
+            select: ['followerId'],
+          }),
+        ]).then(([followsMeResult, isFollowingResult]) => ({
+          followsMe: !!followsMeResult,
+          isFollowing: !!isFollowingResult,
+        }))
+        : Promise.resolve({ followsMe: false, isFollowing: false }),
+      this.getProfileCounts(user.id),
+    ]);
 
-    let followsMe = false;
-    let isFollowing = false;
     let hasPendingFollowRequest = false;
+    let posts: Post[] = [];
 
-    if (viewerId && viewerId !== user.id) {
-      const follow = await this.followRepo.findOne({
-        where: { followerId: user.id, followeeId: viewerId },
+    if (viewerId && viewerId !== user.id && user.isProtected && !followInfo.isFollowing) {
+      // Protected profile, not following: check pending request, hide posts
+      const pendingRequest = await this.followRequestRepo.findOne({
+        where: {
+          requesterId: viewerId,
+          targetId: user.id,
+          status: FollowRequestStatus.PENDING,
+        },
+        select: ['id'],
       });
-      followsMe = !!follow;
-
-      const viewerFollows = await this.followRepo.findOne({
-        where: { followerId: viewerId, followeeId: user.id },
+      hasPendingFollowRequest = !!pendingRequest;
+    } else {
+      // Fetch posts only when visible
+      posts = await this.postRepo.find({
+        where: { authorId: user.id, deletedAt: IsNull() },
+        relations: ['author'],
+        order: { createdAt: 'DESC' },
+        take: 20,
       });
-      isFollowing = !!viewerFollows;
-
-      if (user.isProtected && !isFollowing) {
-        const pendingRequest = await this.followRequestRepo.findOne({
-          where: {
-            requesterId: viewerId,
-            targetId: user.id,
-            status: FollowRequestStatus.PENDING,
-          },
-        });
-        hasPendingFollowRequest = !!pendingRequest;
-        // Hide posts when profile is protected and viewer does not follow
-        posts = [];
-      }
     }
-
-    const [postCount, replyCount, collectionCount, keepsCount, citedCount] =
-      await Promise.all([
-        this.postRepo.count({
-          where: { authorId: user.id, deletedAt: IsNull() },
-        }),
-        this.replyRepo.count({ where: { authorId: user.id } }),
-        this.collectionRepo.count({ where: { ownerId: user.id } }),
-        this.keepRepo.count({ where: { userId: user.id } }),
-        this.postEdgeRepo
-          .createQueryBuilder('edge')
-          .innerJoin(
-            'posts',
-            'p',
-            'p.id = edge.from_post_id AND p.author_id = :userId AND p.deleted_at IS NULL',
-          )
-          .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
-          .setParameter('userId', user.id)
-          .getCount(),
-      ]);
 
     return {
       ...user,
       posts,
-      followsMe,
-      isFollowing,
+      followsMe: followInfo.followsMe,
+      isFollowing: followInfo.isFollowing,
       hasPendingFollowRequest,
-      postCount,
-      replyCount,
-      collectionCount,
-      keepsCount,
-      citedCount,
+      ...counts,
     };
   }
 
@@ -244,32 +229,51 @@ export class UsersService {
     collectionCount: number;
     keepsCount: number;
     citedCount: number;
+    quoteReceivedCount: number;
   }> {
-    const [postCount, replyCount, collectionCount, keepsCount, citedCount] =
-      await Promise.all([
-        this.postRepo.count({
-          where: { authorId: userId, deletedAt: IsNull() },
-        }),
-        this.replyRepo.count({ where: { authorId: userId } }),
-        this.collectionRepo.count({ where: { ownerId: userId } }),
-        this.keepRepo.count({ where: { userId } }),
-        this.postEdgeRepo
-          .createQueryBuilder('edge')
-          .innerJoin(
-            'posts',
-            'p',
-            'p.id = edge.from_post_id AND p.author_id = :userId AND p.deleted_at IS NULL',
-          )
-          .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
-          .setParameter('userId', userId)
-          .getCount(),
-      ]);
+    const [
+      postCount,
+      replyCount,
+      collectionCount,
+      keepsCount,
+      citedCount,
+      quoteReceivedCount,
+    ] = await Promise.all([
+      this.postRepo.count({
+        where: { authorId: userId, deletedAt: IsNull() },
+      }),
+      this.replyRepo.count({ where: { authorId: userId } }),
+      this.collectionRepo.count({ where: { ownerId: userId } }),
+      this.keepRepo.count({ where: { userId } }),
+      this.postEdgeRepo
+        .createQueryBuilder('edge')
+        .innerJoin(
+          'posts',
+          'p',
+          'p.id = edge.from_post_id AND p.author_id = :userId AND p.deleted_at IS NULL',
+        )
+        .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
+        .setParameter('userId', userId)
+        .getCount(),
+      // Times this user's posts were quoted by others (incoming citations)
+      this.postEdgeRepo
+        .createQueryBuilder('edge')
+        .innerJoin(
+          'posts',
+          'p',
+          'p.id = edge.to_post_id AND p.author_id = :userId AND p.deleted_at IS NULL',
+        )
+        .where('edge.edge_type = :type', { type: EdgeType.QUOTE })
+        .setParameter('userId', userId)
+        .getCount(),
+    ]);
     return {
       postCount,
       replyCount,
       collectionCount,
       keepsCount,
       citedCount,
+      quoteReceivedCount,
     };
   }
 
@@ -663,9 +667,9 @@ export class UsersService {
               : undefined;
           const viewerState = viewerId
             ? {
-                isLiked: likedIds.has(p.id),
-                isKept: keptIds.has(p.id),
-              }
+              isLiked: likedIds.has(p.id),
+              isKept: keptIds.has(p.id),
+            }
             : undefined;
           return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
         }),
@@ -730,9 +734,9 @@ export class UsersService {
         const postIds = slice.map((p) => p.id).filter(Boolean);
         const { likedIds, keptIds } = viewerId
           ? await this.interactionsService.getLikeKeepForViewer(
-              viewerId,
-              postIds,
-            )
+            viewerId,
+            postIds,
+          )
           : { likedIds: new Set<string>(), keptIds: new Set<string>() };
         const getImageUrl = (key: string) =>
           this.uploadService.getImageUrl(key);
@@ -745,9 +749,9 @@ export class UsersService {
                 : undefined;
             const viewerState = viewerId
               ? {
-                  isLiked: likedIds.has(p.id),
-                  isKept: keptIds.has(p.id),
-                }
+                isLiked: likedIds.has(p.id),
+                isKept: keptIds.has(p.id),
+              }
               : undefined;
             return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
           }),
@@ -788,9 +792,9 @@ export class UsersService {
         const postIds = slice.map((p) => p.id).filter(Boolean);
         const { likedIds, keptIds } = viewerId
           ? await this.interactionsService.getLikeKeepForViewer(
-              viewerId,
-              postIds,
-            )
+            viewerId,
+            postIds,
+          )
           : { likedIds: new Set<string>(), keptIds: new Set<string>() };
         const getImageUrl = (key: string) =>
           this.uploadService.getImageUrl(key);
@@ -803,9 +807,9 @@ export class UsersService {
                 : undefined;
             const viewerState = viewerId
               ? {
-                  isLiked: likedIds.has(p.id),
-                  isKept: keptIds.has(p.id),
-                }
+                isLiked: likedIds.has(p.id),
+                isKept: keptIds.has(p.id),
+              }
               : undefined;
             return postToPlain(p, getImageUrl, referenceMetadata, viewerState);
           }),
@@ -819,21 +823,24 @@ export class UsersService {
     return { items: [], hasMore: false };
   }
 
-  async getReplies(userId: string) {
-    return this.replyRepo.find({
+  async getReplies(userId: string, limit = 20, offset = 0) {
+    const items = await this.replyRepo.find({
       where: { authorId: userId },
       relations: ['post', 'post.author'],
       order: { createdAt: 'DESC' },
-      take: 20,
+      take: limit + 1,
+      skip: offset,
     });
+    const hasMore = items.length > limit;
+    return { items: items.slice(0, limit), hasMore };
   }
 
-  async getQuotes(userId: string) {
+  async getQuotes(userId: string, limit = 20, offset = 0) {
     // Find posts that QUOTE posts authored by userId.
     // We join Post (quoter) -> PostEdge (QUOTE) -> Post (quoted)
     // Where quoted.authorId = userId
 
-    return this.postRepo
+    const items = await this.postRepo
       .createQueryBuilder('quoter')
       .innerJoin(PostEdge, 'edge', 'edge.from_post_id = quoter.id')
       .innerJoin('posts', 'quoted', 'quoted.id = edge.to_post_id')
@@ -841,8 +848,11 @@ export class UsersService {
       .andWhere('quoted.author_id = :userId', { userId })
       .leftJoinAndSelect('quoter.author', 'author')
       .orderBy('quoter.createdAt', 'DESC')
-      .take(20)
+      .take(limit + 1)
+      .skip(offset)
       .getMany();
+    const hasMore = items.length > limit;
+    return { items: items.slice(0, limit), hasMore };
   }
 
   /**
@@ -1015,62 +1025,69 @@ export class UsersService {
     await this.dataExportRepo.delete({ id });
   }
 
-  /** Gather all user data for export (GDPR data portability). */
+  /** Gather all user data for export (GDPR data portability). Uses parallel queries and batched loading. */
   async exportUserData(userId: string) {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) return null;
-    const posts = await this.postRepo.find({
-      where: { authorId: userId },
-      relations: ['author'],
-      order: { createdAt: 'DESC' },
-    });
-    const replies = await this.replyRepo.find({
-      where: { authorId: userId },
-      relations: ['author', 'post'],
-      order: { createdAt: 'DESC' },
-    });
-    const likes = await this.likeRepo.find({
-      where: { userId },
-      relations: ['post'],
-    });
-    const keeps = await this.keepRepo.find({
-      where: { userId },
-      relations: ['post'],
-    });
-    const following = await this.followRepo.find({
-      where: { followerId: userId },
-      relations: ['followee'],
-    });
-    const followers = await this.followRepo.find({
-      where: { followeeId: userId },
-      relations: ['follower'],
-    });
-    const reads = await this.readRepo.find({
-      where: { userId },
-      relations: ['post'],
-    });
-    const notifications = await this.notifRepo.find({ where: { userId } });
-    const collections = await this.collectionRepo.find({
-      where: { ownerId: userId },
-      order: { createdAt: 'DESC' },
-      relations: ['collectionItems', 'collectionItems.post'],
-    });
-    const notificationPrefs = await this.notifPrefRepo.findOne({
-      where: { userId },
-    });
 
-    const blocks = await this.blockRepo.find({
-      where: { blockerId: userId },
-      relations: ['blocked'],
-    });
-    const mutes = await this.muteRepo.find({
-      where: { muterId: userId },
-      relations: ['muted'],
-    });
+    // Run all independent queries in parallel for performance
+    const [
+      posts,
+      replies,
+      likes,
+      keeps,
+      following,
+      followers,
+      reads,
+      notifications,
+      collections,
+      notificationPrefs,
+      blocks,
+      mutes,
+      threads,
+    ] = await Promise.all([
+      this.postRepo.find({
+        where: { authorId: userId },
+        relations: ['author'],
+        order: { createdAt: 'DESC' },
+      }),
+      this.replyRepo.find({
+        where: { authorId: userId },
+        relations: ['author', 'post'],
+        order: { createdAt: 'DESC' },
+      }),
+      this.likeRepo.find({ where: { userId }, relations: ['post'] }),
+      this.keepRepo.find({ where: { userId }, relations: ['post'] }),
+      this.followRepo.find({
+        where: { followerId: userId },
+        relations: ['followee'],
+      }),
+      this.followRepo.find({
+        where: { followeeId: userId },
+        relations: ['follower'],
+      }),
+      this.readRepo.find({ where: { userId }, relations: ['post'] }),
+      this.notifRepo.find({ where: { userId } }),
+      this.collectionRepo.find({
+        where: { ownerId: userId },
+        order: { createdAt: 'DESC' },
+        relations: ['items', 'items.post'],
+      }),
+      this.notifPrefRepo.findOne({ where: { userId } }),
+      this.blockRepo.find({
+        where: { blockerId: userId },
+        relations: ['blocked'],
+      }),
+      this.muteRepo.find({
+        where: { muterId: userId },
+        relations: ['muted'],
+      }),
+      this.dmThreadRepo.find({
+        where: [{ userA: userId }, { userB: userId }],
+      }),
+    ]);
 
-    const threads = await this.dmThreadRepo.find({
-      where: [{ userA: userId }, { userB: userId }],
-    });
+    // DM messages loaded separately (depends on thread IDs)
     const threadIds = threads.map((t) => t.id);
     let messages: DmMessage[] = [];
     if (threadIds.length > 0) {
@@ -1087,10 +1104,13 @@ export class UsersService {
     });
     messages.forEach((m) => dmUserIds.add(m.senderId));
 
-    const dmUsers = await this.userRepo.find({
-      where: { id: In([...dmUserIds]) },
-      select: ['id', 'handle', 'displayName'],
-    });
+    const dmUsers =
+      dmUserIds.size > 0
+        ? await this.userRepo.find({
+          where: { id: In([...dmUserIds]) },
+          select: ['id', 'handle', 'displayName'],
+        })
+        : [];
     const userMap = new Map(
       dmUsers.map((u) => [
         u.id,
@@ -1130,15 +1150,15 @@ export class UsersService {
 
     const profile = raw.user
       ? {
-          handle: raw.user.handle,
-          displayName: raw.user.displayName,
-          bio: raw.user.bio ?? null,
-          email: raw.user.email ?? null,
-          languages: raw.user.languages ?? [],
-          isProtected: raw.user.isProtected ?? false,
-          createdAt: raw.user.createdAt,
-          updatedAt: raw.user.updatedAt,
-        }
+        handle: raw.user.handle,
+        displayName: raw.user.displayName,
+        bio: raw.user.bio ?? null,
+        email: raw.user.email ?? null,
+        languages: raw.user.languages ?? [],
+        isProtected: raw.user.isProtected ?? false,
+        createdAt: raw.user.createdAt,
+        updatedAt: raw.user.updatedAt,
+      }
       : null;
 
     const posts = (raw.posts ?? []).map((p: Post & { author?: User }) => ({
@@ -1204,14 +1224,14 @@ export class UsersService {
     );
 
     const collections = (raw.collections ?? []).map(
-      (c: Collection & { collectionItems?: CollectionItem[] }) => ({
+      (c: Collection & { items?: CollectionItem[] }) => ({
         title: c.title,
         description: c.description ?? null,
         isPublic: c.isPublic ?? false,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
         items:
-          c.collectionItems?.map((item: CollectionItem) => ({
+          c.items?.map((item: CollectionItem) => ({
             postTitle: item.post?.title ?? null,
             addedAt: item.addedAt,
           })) ?? [],
@@ -1252,18 +1272,18 @@ export class UsersService {
 
     const notificationPrefs = raw.notificationPrefs
       ? {
-          pushEnabled: raw.notificationPrefs.pushEnabled,
-          replies: raw.notificationPrefs.replies,
-          quotes: raw.notificationPrefs.quotes,
-          mentions: raw.notificationPrefs.mentions,
-          dms: raw.notificationPrefs.dms,
-          follows: raw.notificationPrefs.follows,
-          saves: raw.notificationPrefs.saves,
-          quietHoursStart: raw.notificationPrefs.quietHoursStart ?? null,
-          quietHoursEnd: raw.notificationPrefs.quietHoursEnd ?? null,
-          emailMarketing: raw.notificationPrefs.emailMarketing,
-          emailProductUpdates: raw.notificationPrefs.emailProductUpdates,
-        }
+        pushEnabled: raw.notificationPrefs.pushEnabled,
+        replies: raw.notificationPrefs.replies,
+        quotes: raw.notificationPrefs.quotes,
+        mentions: raw.notificationPrefs.mentions,
+        dms: raw.notificationPrefs.dms,
+        follows: raw.notificationPrefs.follows,
+        saves: raw.notificationPrefs.saves,
+        quietHoursStart: raw.notificationPrefs.quietHoursStart ?? null,
+        quietHoursEnd: raw.notificationPrefs.quietHoursEnd ?? null,
+        emailMarketing: raw.notificationPrefs.emailMarketing,
+        emailProductUpdates: raw.notificationPrefs.emailProductUpdates,
+      }
       : null;
 
     return {
@@ -1397,33 +1417,47 @@ export class UsersService {
         previewImageKey: latest?.headerImageKey ?? null,
         recentPost: latest
           ? {
-              id: latest.postId,
-              title: latest.title ?? null,
-              bodyExcerpt: latest.bodyExcerpt ?? null,
-              headerImageKey: latest.headerImageKey ?? null,
-            }
+            id: latest.postId,
+            title: latest.title ?? null,
+            bodyExcerpt: latest.bodyExcerpt ?? null,
+            headerImageKey: latest.headerImageKey ?? null,
+          }
           : null,
       };
     });
     return { items, hasMore: collections.length > limit };
   }
 
-  async getFollowing(userId: string) {
+  async getFollowing(userId: string, limit = 50, offset = 0): Promise<{ items: User[]; hasMore: boolean }> {
     const follows = await this.followRepo.find({
       where: { followerId: userId },
       relations: ['followee'],
       order: { createdAt: 'DESC' },
+      take: limit + 1,
+      skip: offset,
     });
-    return follows.map((f) => f.followee).filter((u) => !isPendingUser(u));
+    const hasMore = follows.length > limit;
+    const items = follows
+      .slice(0, limit)
+      .map((f) => f.followee)
+      .filter((u): u is User => u != null && !isPendingUser(u));
+    return { items, hasMore };
   }
 
-  async getFollowers(userId: string) {
+  async getFollowers(userId: string, limit = 50, offset = 0): Promise<{ items: User[]; hasMore: boolean }> {
     const follows = await this.followRepo.find({
       where: { followeeId: userId },
       relations: ['follower'],
       order: { createdAt: 'DESC' },
+      take: limit + 1,
+      skip: offset,
     });
-    return follows.map((f) => f.follower).filter((u) => !isPendingUser(u));
+    const hasMore = follows.length > limit;
+    const items = follows
+      .slice(0, limit)
+      .map((f) => f.follower)
+      .filter((u): u is User => u != null && !isPendingUser(u));
+    return { items, hasMore };
   }
 
   async removeFollower(userId: string, followerId: string) {

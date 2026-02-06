@@ -39,7 +39,7 @@ export class FeedService {
     private uploadService: UploadService,
     private interactionsService: InteractionsService,
     private exploreService: ExploreService,
-  ) {}
+  ) { }
 
   async getHomeFeed(
     userId: string,
@@ -76,40 +76,58 @@ export class FeedService {
     includeSavedBy = false,
     cursor?: string,
   ): Promise<{ items: FeedItem[]; nextCursor?: string }> {
-    // Get blocked and muted users to exclude
-    const [blocks, mutes] = await Promise.all([
-      this.blockRepo.find({
-        where: [{ blockerId: userId }, { blockedId: userId }],
-      }),
-      this.muteRepo.find({ where: { muterId: userId } }),
-    ]);
+    // Get blocked/muted users — cache for 5 min to avoid hammering DB on every page
+    const blockMuteCacheKey = `feed:blockmute:${userId}`;
+    let excludedUserIds: Set<string>;
+    try {
+      const cached = await this.redis.get(blockMuteCacheKey);
+      if (cached) {
+        excludedUserIds = new Set(JSON.parse(cached) as string[]);
+      } else {
+        throw new Error('miss');
+      }
+    } catch {
+      const [blocks, mutes] = await Promise.all([
+        this.blockRepo.find({
+          where: [{ blockerId: userId }, { blockedId: userId }],
+          select: ['blockerId', 'blockedId'],
+        }),
+        this.muteRepo.find({ where: { muterId: userId }, select: ['mutedId'] }),
+      ]);
+      excludedUserIds = new Set<string>();
+      blocks.forEach((b) => {
+        excludedUserIds.add(b.blockerId === userId ? b.blockedId : b.blockerId);
+      });
+      mutes.forEach((m) => excludedUserIds.add(m.mutedId));
+      excludedUserIds.add('00000000-0000-0000-0000-000000000000');
+      this.redis.setex(blockMuteCacheKey, 300, JSON.stringify([...excludedUserIds])).catch(() => { });
+    }
 
-    const excludedUserIds = new Set<string>();
-    blocks.forEach((b) => {
-      excludedUserIds.add(b.blockerId === userId ? b.blockedId : b.blockerId);
-    });
-    mutes.forEach((m) => excludedUserIds.add(m.mutedId));
-    // Always exclude deleted/placeholder users from feed
-    excludedUserIds.add('00000000-0000-0000-0000-000000000000');
-
-    // Basic chronological feed: Posts from people I follow
-    const follows = await this.followRepo.find({
-      where: { followerId: userId },
-      select: ['followeeId'],
-    });
-    const followingIds = follows
-      .map((f) => f.followeeId)
-      .filter((id) => !excludedUserIds.has(id));
-
-    // Also get followed topics
-    const topicFollows = await this.topicFollowRepo.find({
-      where: { userId },
-      select: ['topicId'],
-    });
-    const followedTopicIds = topicFollows.map((f) => f.topicId);
+    // Cache following IDs for 2 min (changes rarely, read every page load)
+    const followCacheKey = `feed:following:${userId}`;
+    let followingIds: string[];
+    let followedTopicIds: string[];
+    try {
+      const cached = await this.redis.get(followCacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached) as { users: string[]; topics: string[] };
+        followingIds = parsed.users.filter((id) => !excludedUserIds.has(id));
+        followedTopicIds = parsed.topics;
+      } else {
+        throw new Error('miss');
+      }
+    } catch {
+      const [follows, topicFollows] = await Promise.all([
+        this.followRepo.find({ where: { followerId: userId }, select: ['followeeId'] }),
+        this.topicFollowRepo.find({ where: { userId }, select: ['topicId'] }),
+      ]);
+      followingIds = follows.map((f) => f.followeeId).filter((id) => !excludedUserIds.has(id));
+      followedTopicIds = topicFollows.map((f) => f.topicId);
+      this.redis.setex(followCacheKey, 120, JSON.stringify({ users: followingIds, topics: followedTopicIds })).catch(() => { });
+    }
 
     // Always include self
-    followingIds.push(userId);
+    if (!followingIds.includes(userId)) followingIds.push(userId);
 
     if (followingIds.length === 0 && followedTopicIds.length === 0)
       return { items: [] };

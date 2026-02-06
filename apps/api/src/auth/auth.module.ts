@@ -19,7 +19,7 @@ import Redis from 'ioredis';
   imports: [
     PassportModule,
     ConfigModule,
-    TypeOrmModule.forFeature([User, Session, NotificationPref]),
+    TypeOrmModule.forFeature([User, Session, NotificationPref]),  // User needed by JwtStrategy for banned check
     InvitesModule,
     SharedModule,
     SearchModule,
@@ -46,9 +46,9 @@ import Redis from 'ioredis';
           console.warn(
             '[AuthModule] JWT_SECRET not set; using default. Set in .env or Docker env for production.',
           );
-          return { secret: fallback, signOptions: { expiresIn: '7d' } };
+          return { secret: fallback, signOptions: { expiresIn: '15m' } };
         }
-        return { secret, signOptions: { expiresIn: '7d' } };
+        return { secret, signOptions: { expiresIn: '15m' } };
       },
     }),
   ],
@@ -70,4 +70,4 @@ import Redis from 'ioredis';
   ],
   exports: [AuthService, PassportModule],
 })
-export class AuthModule {}
+export class AuthModule { }

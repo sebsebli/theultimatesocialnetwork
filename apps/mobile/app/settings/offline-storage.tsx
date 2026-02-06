@@ -230,7 +230,7 @@ const styles = createStyles({
     justifyContent: "space-between",
     paddingHorizontal: SPACING.l,
     paddingVertical: SPACING.m,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: COLORS.hover,
   },
   summaryText: {
     fontSize: 14,

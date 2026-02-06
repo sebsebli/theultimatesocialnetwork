@@ -2,19 +2,15 @@ import {
   Injectable,
   Logger,
   OnApplicationBootstrap,
-  OnApplicationShutdown,
   Inject,
 } from '@nestjs/common';
-import { Worker, Job } from 'bullmq';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { Post } from '../entities/post.entity';
 import { UploadService } from './upload.service';
 import { SafetyService } from '../safety/safety.service';
-import { defaultQueueConfig } from '../common/queue-config';
+import { IEventBus, EVENT_BUS } from '../common/event-bus/event-bus.interface';
 
 export type ImageUploadType =
   | 'profile_picture'
@@ -34,46 +30,30 @@ export interface ImageModerationJobData {
  * Scales with multiple worker replicas for thousands of concurrent uploads.
  */
 @Injectable()
-export class ImageModerationWorker
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+export class ImageModerationWorker implements OnApplicationBootstrap {
   private readonly logger = new Logger(ImageModerationWorker.name);
-  private worker: Worker<ImageModerationJobData>;
 
   constructor(
-    @Inject('REDIS_CLIENT') private redis: Redis,
-    private configService: ConfigService,
+    @Inject('REDIS_CLIENT') private redis: import('ioredis').default,
     private uploadService: UploadService,
     private safetyService: SafetyService,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Post) private postRepo: Repository<Post>,
-  ) {}
+    @Inject(EVENT_BUS) private eventBus: IEventBus,
+  ) { }
 
-  onApplicationBootstrap() {
-    const redisUrl = this.configService.get<string>('REDIS_URL');
-    this.worker = new Worker<ImageModerationJobData>(
+  async onApplicationBootstrap() {
+    await this.eventBus.subscribe<ImageModerationJobData>(
       'image-moderation',
-      async (job: Job<ImageModerationJobData>) => this.runJob(job),
-      {
-        connection: new Redis(redisUrl || 'redis://redis:6379', {
-          maxRetriesPerRequest: null,
-        }),
-        ...defaultQueueConfig,
+      async (_event, data) => {
+        await this.runJob(data);
       },
+      { concurrency: 3 },
     );
-    this.worker.on('failed', (job, err) => {
-      this.logger.error(
-        `Image moderation job ${job?.id} failed: ${err?.message}`,
-      );
-    });
   }
 
-  async onApplicationShutdown() {
-    await this.worker?.close().catch(() => {});
-  }
-
-  private async runJob(job: Job<ImageModerationJobData>): Promise<void> {
-    const { key, uploadType, userId } = job.data;
+  private async runJob(data: ImageModerationJobData): Promise<void> {
+    const { key, uploadType, userId } = data;
     const buffer = await this.uploadService.getImageBuffer(key);
     if (!buffer) {
       this.logger.warn(`Image ${key} not found in storage; skipping`);

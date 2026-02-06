@@ -1,5 +1,6 @@
 import React, { memo, useCallback } from "react";
-import { Text, View, Pressable, Image } from "react-native";
+import { Text, View, Pressable } from "react-native";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -76,13 +77,17 @@ function PostPreviewRowInner({
         pressed && styles.rowPressed,
       ]}
       onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`${t("post.viewPost", "View post")}: ${displayTitle}`}
     >
       <View style={styles.thumbWrap}>
         {imageUri ? (
           <Image
             source={{ uri: imageUri }}
             style={[styles.thumb, { width: THUMB_WIDTH, height: thumbHeight }]}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={200}
           />
         ) : (
           <View
@@ -172,7 +177,7 @@ const styles = createStyles({
     position: "absolute",
     top: 0,
     left: 0,
-    backgroundColor: "rgba(0,0,0,0.72)",
+    backgroundColor: COLORS.overlayHeavy,
     borderRadius: SIZES.borderRadius,
     justifyContent: "center",
     alignItems: "center",
@@ -186,7 +191,7 @@ const styles = createStyles({
   },
   thumbPlaceholder: {
     borderRadius: SIZES.borderRadius,
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.badge,
     justifyContent: "center",
     alignItems: "center",
   },

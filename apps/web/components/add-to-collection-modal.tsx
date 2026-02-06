@@ -138,6 +138,7 @@ export function AddToCollectionModal({
           <button
             onClick={onClose}
             className="p-1 text-secondary hover:text-paper rounded-full hover:bg-white/5 transition-colors"
+            aria-label="Close modal"
           >
             <svg
               className="w-5 h-5"

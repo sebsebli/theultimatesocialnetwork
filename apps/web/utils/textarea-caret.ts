@@ -36,8 +36,6 @@ const properties = [
   'MozTabSize',
 ] as const;
 
-type ComputedStyleProperty = typeof properties[number];
-
 export interface Coordinates {
   top: number;
   left: number;
@@ -51,7 +49,7 @@ export interface Coordinates {
  * @param position The index of the character to get the coordinates for
  */
 export function getCaretCoordinates(element: HTMLTextAreaElement | HTMLInputElement, position: number): Coordinates {
-  const isFirefox = typeof window !== 'undefined' && (window as any).mozInnerScreenX != null;
+  const isFirefox = typeof window !== 'undefined' && (window as Window & { mozInnerScreenX?: number }).mozInnerScreenX != null;
 
   // The mirror div will replicate the textarea's style
   const div = document.createElement('div');
@@ -69,12 +67,16 @@ export function getCaretCoordinates(element: HTMLTextAreaElement | HTMLInputElem
 
   // Transfer the element's properties to the div
   properties.forEach((prop) => {
-    (style as any)[prop] = (computed as any)[prop];
+    // Type assertion needed because CSSStyleDeclaration doesn't have index signature
+    const styleRecord = style as CSSStyleDeclaration & Record<string, string>;
+    const computedRecord = computed as CSSStyleDeclaration & Record<string, string>;
+    styleRecord[prop] = computedRecord[prop];
   });
 
   if (isFirefox) {
     // Firefox lies about the overflow property for textareas: https://bugzilla.mozilla.org/show_bug.cgi?id=984275
-    if (element.scrollHeight > parseInt(computed.height))
+    const computedHeight = computed.height;
+    if (element.scrollHeight > parseInt(computedHeight))
       style.overflowY = 'scroll';
   } else {
     style.overflow = 'hidden';  // for Chrome to not render a scrollbar; IE keeps overflowY = 'scroll'
@@ -97,9 +99,9 @@ export function getCaretCoordinates(element: HTMLTextAreaElement | HTMLInputElem
   div.appendChild(span);
 
   const coordinates = {
-    top: span.offsetTop + parseInt(computed['borderTopWidth']),
-    left: span.offsetLeft + parseInt(computed['borderLeftWidth']),
-    height: parseInt(computed['lineHeight'])
+    top: span.offsetTop + parseInt(computed.borderTopWidth),
+    left: span.offsetLeft + parseInt(computed.borderLeftWidth),
+    height: parseInt(computed.lineHeight)
   };
 
   document.body.removeChild(div);

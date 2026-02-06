@@ -68,9 +68,9 @@ export function SearchModal({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState(initialQuery);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
-  const [topics, setTopics] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Record<string, unknown>[]>([]);
+  const [users, setUsers] = useState<Record<string, unknown>[]>([]);
+  const [topics, setTopics] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
@@ -95,12 +95,16 @@ export function SearchModal({
     }
     setLoading(true);
     try {
-      const res = await api.get<{ posts: any[]; users: any[]; topics: any[] }>(
+      const res = await api.get<{
+        posts: Record<string, unknown>[];
+        users: Record<string, unknown>[];
+        topics: Record<string, unknown>[];
+      }>(
         `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}`,
       );
-      const rawPosts = (res.posts || []).filter((p: any) => !!p?.author);
+      const rawPosts = (res.posts || []).filter((p) => !!p?.author);
       const rawUsers = res.users || [];
-      const rawTopics = (res.topics || []).map((tpc: any) => ({
+      const rawTopics = (res.topics || []).map((tpc) => ({
         ...tpc,
         title: tpc.title || tpc.slug,
       }));
@@ -108,7 +112,7 @@ export function SearchModal({
       setUsers(rawUsers);
       setTopics(rawTopics);
     } catch (err) {
-      console.error("Search failed", err);
+      if (__DEV__) console.error("Search failed", err);
       setPosts([]);
       setUsers([]);
       setTopics([]);
@@ -143,7 +147,7 @@ export function SearchModal({
         key: "section-posts",
         title: t("search.posts", "Posts"),
       });
-      posts.forEach((p) => out.push({ type: "post", key: p.id, ...p }));
+      posts.forEach((p) => out.push({ type: "post", key: String(p.id), ...p }));
     }
     if (users.length > 0) {
       out.push({
@@ -151,7 +155,7 @@ export function SearchModal({
         key: "section-people",
         title: t("search.people", "People"),
       });
-      users.forEach((u) => out.push({ type: "user", key: u.id, ...u }));
+      users.forEach((u) => out.push({ type: "user", key: String(u.id), ...u }));
     }
     if (topics.length > 0) {
       out.push({
@@ -160,7 +164,7 @@ export function SearchModal({
         title: t("search.topics", "Topics"),
       });
       topics.forEach((tpc) =>
-        out.push({ type: "topic", key: tpc.id || tpc.slug, ...tpc }),
+        out.push({ type: "topic", key: String(tpc.id || tpc.slug), ...tpc }),
       );
     }
     return out;

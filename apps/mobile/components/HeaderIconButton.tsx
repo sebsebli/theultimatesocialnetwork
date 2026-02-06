@@ -1,7 +1,11 @@
 import React from "react";
 import { Pressable, StyleSheet, ViewStyle } from "react-native";
+import { useRouter } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { HEADER, createStyles } from "../constants/theme";
+
+const ROOT_ROUTE = "/(tabs)";
 
 export interface HeaderIconButtonProps {
   onPress: () => void;
@@ -49,9 +53,18 @@ export function HeaderIconButton({
   style,
   iconColor = HEADER.iconColor,
 }: HeaderIconButtonProps) {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const isBackButton = icon === "arrow-back";
+  const handleLongPress = isBackButton
+    ? () => router.replace(ROOT_ROUTE as "/")
+    : undefined;
+
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={handleLongPress}
+      delayLongPress={400}
       style={({ pressed }: { pressed: boolean }) => [
         styles.circle,
         pressed && styles.circlePressed,
@@ -59,6 +72,11 @@ export function HeaderIconButton({
       ]}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole={accessibilityRole}
+      accessibilityHint={
+        isBackButton
+          ? t("common.longPressToHome", "Long press to go to home")
+          : undefined
+      }
     >
       <MaterialIcons
         name={icon}
