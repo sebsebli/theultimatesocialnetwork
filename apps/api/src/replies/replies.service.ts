@@ -44,7 +44,7 @@ export class RepliesService {
     private meilisearch: MeilisearchService,
     private configService: ConfigService,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) {}
+  ) { }
 
   async create(
     userId: string,
@@ -192,11 +192,11 @@ export class RepliesService {
           authorId: postWithAuthor.authorId || '',
           author: postWithAuthor.author
             ? {
-                displayName:
-                  postWithAuthor.author.displayName ||
-                  postWithAuthor.author.handle,
-                handle: postWithAuthor.author.handle,
-              }
+              displayName:
+                postWithAuthor.author.displayName ||
+                postWithAuthor.author.handle,
+              handle: postWithAuthor.author.handle,
+            }
             : undefined,
           authorProtected: postWithAuthor.author?.isProtected,
           lang: postWithAuthor.lang,
@@ -223,6 +223,7 @@ export class RepliesService {
     offset = 0,
     currentUserId?: string,
     parentReplyId?: string,
+    sort?: 'recent' | 'discussed',
   ) {
     const where: FindOptionsWhere<Reply> = { postId };
     if (parentReplyId != null && parentReplyId !== '') {
@@ -231,10 +232,17 @@ export class RepliesService {
       where.parentReplyId = IsNull();
     }
 
+    const orderBy: Record<string, 'ASC' | 'DESC'> =
+      sort === 'discussed'
+        ? { likeCount: 'DESC', createdAt: 'DESC' }
+        : sort === 'recent'
+          ? { createdAt: 'DESC' }
+          : { createdAt: 'ASC' };
+
     const replies = await this.replyRepo.find({
       where,
       relations: ['author', 'parentReply', 'parentReply.author'],
-      order: { createdAt: 'ASC' },
+      order: orderBy,
       take: limit,
       skip: offset,
     });

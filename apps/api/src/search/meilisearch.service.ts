@@ -165,9 +165,13 @@ export class MeilisearchService implements OnModuleInit {
             ? 'MEILISEARCH_REINDEX_ON_STARTUP=true: reindexing from PostgreSQL in background.'
             : 'Meilisearch posts index is empty: reindexing from PostgreSQL in background.',
         );
-        void this.reindexFromPostgres().catch((err) =>
-          this.logger.warn('Reindex from PostgreSQL failed:', err),
-        );
+        void this.reindexFromPostgres().catch((err) => {
+          const msg =
+            err instanceof Error
+              ? `${err.message}\n${err.stack ?? ''}`
+              : String(err);
+          this.logger.warn(`Reindex from PostgreSQL failed: ${msg}`);
+        });
       }
     } catch {
       // Ignore; index may not exist yet
@@ -292,11 +296,11 @@ export class MeilisearchService implements OnModuleInit {
               authorId: post.authorId,
               author: author
                 ? {
-                    displayName: author.displayName ?? author.handle,
-                    handle: author.handle,
-                    avatarKey:
-                      (author as { avatarKey?: string | null }).avatarKey ?? '',
-                  }
+                  displayName: author.displayName ?? author.handle,
+                  handle: author.handle,
+                  avatarKey:
+                    (author as { avatarKey?: string | null }).avatarKey ?? '',
+                }
                 : { displayName: 'Unknown', handle: 'unknown', avatarKey: '' },
               lang: post.lang ?? 'en',
               createdAt: post.createdAt.toISOString(),
@@ -356,7 +360,11 @@ export class MeilisearchService implements OnModuleInit {
         `Reindex: ${totalUsers} users, ${totalTopics} topics, ${totalPosts} posts, ${totalMessages} messages. Reindex from PostgreSQL finished.`,
       );
     } catch (error) {
-      this.logger.error('Reindex from PostgreSQL failed', error);
+      const msg =
+        error instanceof Error
+          ? `${error.message}\n${error.stack ?? ''}`
+          : String(error);
+      this.logger.error(`Reindex from PostgreSQL failed: ${msg}`);
       throw error;
     }
   }
@@ -444,12 +452,12 @@ export class MeilisearchService implements OnModuleInit {
           authorId: post.authorId || '',
           author: post.author
             ? {
-                displayName: post.author.displayName || post.author.handle,
-                handle: post.author.handle,
-                avatarKey:
-                  (post.author as { avatarKey?: string | null }).avatarKey ??
-                  '',
-              }
+              displayName: post.author.displayName || post.author.handle,
+              handle: post.author.handle,
+              avatarKey:
+                (post.author as { avatarKey?: string | null }).avatarKey ??
+                '',
+            }
             : { displayName: 'Unknown', handle: 'unknown', avatarKey: '' },
           lang: post.lang || 'en',
           createdAt: post.createdAt.toISOString(),
@@ -563,12 +571,12 @@ export class MeilisearchService implements OnModuleInit {
     });
   }
 
-  async searchAll(query: string, limitPerType = 15, topicId?: string) {
+  async searchAll(query: string, limitPerType = 15, topicId?: string, offset = 0) {
     // When scoped to a topic, only search posts in that topic (no global users/topics).
     if (topicId) {
       const postsRes = await this.searchPosts(query, {
         limit: limitPerType,
-        offset: 0,
+        offset,
         topicId,
       }).catch(() => ({ hits: [] }));
       return {
@@ -580,13 +588,13 @@ export class MeilisearchService implements OnModuleInit {
     const [postsRes, usersRes, topicsRes] = await Promise.all([
       this.searchPosts(query, {
         limit: limitPerType,
-        offset: 0,
+        offset,
         topicId,
       }).catch(() => ({ hits: [] })),
-      this.searchUsers(query, limitPerType).then((r) => ({
+      this.searchUsers(query, limitPerType, offset).then((r) => ({
         hits: r.hits || [],
       })),
-      this.searchTopics(query, limitPerType).then((r) => ({
+      this.searchTopics(query, limitPerType, offset).then((r) => ({
         hits: r.hits || [],
       })),
     ]);

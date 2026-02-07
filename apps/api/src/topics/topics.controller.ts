@@ -15,13 +15,29 @@ import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { TopicsService } from './topics.service';
 import { TopicFollowsService } from './topic-follows.service';
 import { CurrentUser } from '../shared/current-user.decorator';
+import { postToPlain } from '../shared/post-serializer';
+import { UploadService } from '../upload/upload.service';
+import { Post as PostEntity } from '../entities/post.entity';
 
 @Controller('topics')
 export class TopicsController {
   constructor(
     private readonly topicsService: TopicsService,
     private readonly topicFollowsService: TopicFollowsService,
-  ) {}
+    private readonly uploadService: UploadService,
+  ) { }
+
+  /** Serialize post list to plain objects (avoid leaking raw entities). */
+  private serializePosts(result: {
+    items: PostEntity[];
+    hasMore: boolean;
+  }): { items: Record<string, unknown>[]; hasMore: boolean } {
+    const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
+    const items = result.items
+      .map((p) => postToPlain(p, getImageUrl))
+      .filter(Boolean) as Record<string, unknown>[];
+    return { items, hasMore: result.hasMore };
+  }
 
   @Get('me/following')
   @UseGuards(AuthGuard('jwt'))
@@ -81,13 +97,14 @@ export class TopicsController {
       const topic = await this.topicsService.findOne(slug, user?.id);
       if (!topic) return { items: [], hasMore: false };
       const offset = (page - 1) * limit;
-      return this.topicsService.getTopicPosts(
+      const result = await this.topicsService.getTopicPosts(
         topic.id,
         sort,
         limit,
         offset,
         user?.id,
       );
+      return this.serializePosts(result);
     } catch (err) {
       console.error('topics getPosts error', slug, err);
       return { items: [], hasMore: false };

@@ -346,7 +346,7 @@ function SearchContent() {
                   ? "Search within this topic..."
                   : "Search people, topics, or posts..."
               }
-              className="w-full min-h-[3rem] pl-12 pr-4 py-3 leading-normal text-paper placeholder-tertiary bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full min-h-[3rem] pl-12 pr-4 py-3 leading-normal text-paper placeholder-tertiary bg-white/5 border border-divider rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
               autoFocus
             />
           </div>
@@ -361,11 +361,10 @@ function SearchContent() {
               <button
                 key={tab}
                 onClick={() => onTabChange(tab)}
-                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize ${
-                  activeTab === tab
+                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors capitalize ${activeTab === tab
                     ? "border-primary text-paper"
                     : "border-transparent text-tertiary hover:text-paper"
-                }`}
+                  }`}
               >
                 {tab}
               </button>

@@ -17,14 +17,18 @@ const COLORS = {
   error: '#B85C5C',
   like: '#EF4444',
   overlay: 'rgba(0, 0, 0, 0.5)',
-  /** External URL links – warm orange, no underline */
-  link: '#D97A3C',
-  /** @mention (profile/person) – distinct blue, matches sources */
-  mention: '#5B9BD5',
-  /** [[Topic]] tags – distinct teal/green, matches sources */
-  topic: '#6BB39B',
-  /** [[post:id]] in-body links – same as primary for consistency */
-  postLink: '#6E7A8A',
+  /** External URL links – muted sage green */
+  link: '#9BB8A8',
+  /** @mention (profile/person) – soft blue */
+  mention: '#8BB4D9',
+  /** @mention dot/avatar background */
+  mentionDot: '#5A8AB5',
+  /** [[Topic]] tags – warm gold */
+  topic: '#C4A265',
+  /** [[post:id]] in-body links – warm peach */
+  postLink: '#D4956A',
+  /** Inline count numbers (posts, cites) */
+  inlineCount: 'rgba(255,255,255,0.45)',
   /** Success indicators, toggles */
   success: '#22C55E',
   /** Badge / chip background – primary at 20% opacity */
@@ -126,8 +130,10 @@ function toTailwind() {
       like: COLORS.like,
       link: COLORS.link,
       mention: COLORS.mention,
+      mentionDot: COLORS.mentionDot,
       topic: COLORS.topic,
       postLink: COLORS.postLink,
+      inlineCount: COLORS.inlineCount,
     },
     spacing: {
       container: '680px',
@@ -168,8 +174,10 @@ function toCssVars() {
   --pressed: ${COLORS.pressed};
   --link: ${COLORS.link};
   --mention: ${COLORS.mention};
+  --mention-dot: ${COLORS.mentionDot};
   --topic: ${COLORS.topic};
   --post-link: ${COLORS.postLink};
+  --inline-count: ${COLORS.inlineCount};
 `.trim();
 }
 

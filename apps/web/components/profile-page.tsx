@@ -526,7 +526,7 @@ export function ProfilePage({
           </div>
 
           <div className="text-center mt-3 mb-6">
-            <h1 className="text-2xl font-bold text-paper mb-1">
+            <h1 className="text-[24px] font-bold tracking-[-0.5px] text-paper mb-1">
               {user.displayName}
             </h1>
             <p className="text-tertiary text-sm font-medium">@{user.handle}</p>
@@ -542,9 +542,9 @@ export function ProfilePage({
                 <button
                   onClick={handleFollow}
                   disabled={loading}
-                  className={`px-6 py-2 rounded-full border transition-colors disabled:opacity-50 font-medium text-sm ${following || hasPendingFollowRequest
-                      ? "bg-primary border-primary text-white"
-                      : "border-primary text-primary hover:bg-primary/10"
+                  className={`min-w-[120px] h-[38px] px-6 rounded-full border transition-colors disabled:opacity-50 font-semibold text-[14px] ${following || hasPendingFollowRequest
+                    ? "bg-tertiary border-tertiary text-ink"
+                    : "border-tertiary text-paper hover:bg-white/5"
                     }`}
                 >
                   {loading
@@ -686,9 +686,9 @@ export function ProfilePage({
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     type="button"
-                    className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap tabular-nums ${activeTab === tab
-                        ? "border-primary text-paper"
-                        : "border-transparent text-tertiary hover:text-paper"
+                    className={`shrink-0 px-2 py-3 text-[14px] font-medium border-b-2 transition-colors whitespace-nowrap tabular-nums ${activeTab === tab
+                      ? "border-primary text-paper"
+                      : "border-transparent text-tertiary hover:text-paper"
                       }`}
                   >
                     {label} {showCount ? `(${formatCompactNumber(count)})` : ""}

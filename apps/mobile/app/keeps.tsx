@@ -87,9 +87,9 @@ export default function KeepsScreen() {
 
       const data = await api.get<
         | {
-            items?: unknown[];
-            hasMore?: boolean;
-          }
+          items?: unknown[];
+          hasMore?: boolean;
+        }
         | unknown[]
       >(`/keeps?${params.toString()}`);
       const items = Array.isArray(data)
@@ -141,41 +141,17 @@ export default function KeepsScreen() {
       const post = item.post as Record<string, unknown> | undefined;
       const postId = post?.id as string | undefined;
       return (
-        <View style={styles.keepContainer}>
-          <PostItem
-            post={{ ...post, isKept: true } as Record<string, unknown>}
-            onKeep={() =>
-              setKeeps((prev) =>
-                prev.filter((k: Record<string, unknown>) => {
-                  const kPost = k.post as Record<string, unknown> | undefined;
-                  return kPost?.id !== postId;
-                }),
-              )
-            }
-          />
-          <View style={styles.keepActions}>
-            <Pressable
-              style={styles.addButton}
-              onPress={() => {
-                if (postId) {
-                  setSelectedPostId(postId);
-                  setShowPicker(true);
-                }
-              }}
-              accessibilityLabel={t("keeps.addToCollection")}
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name="playlist-add"
-                size={HEADER.iconSize}
-                color={COLORS.primary}
-              />
-              <Text style={styles.addButtonText}>
-                {t("keeps.addToCollection")}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
+        <PostItem
+          post={{ ...post, isKept: true } as Record<string, unknown>}
+          onKeep={() =>
+            setKeeps((prev) =>
+              prev.filter((k: Record<string, unknown>) => {
+                const kPost = k.post as Record<string, unknown> | undefined;
+                return kPost?.id !== postId;
+              }),
+            )
+          }
+        />
       );
     },
     [t],
@@ -419,32 +395,6 @@ const styles = createStyles({
   },
   filterPillTextActive: {
     color: COLORS.paper,
-  },
-  keepContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  keepActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: SPACING.l,
-    paddingBottom: SPACING.m,
-    marginTop: -SPACING.s, // Pull up slightly to feel connected
-  },
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: COLORS.badge,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: "600",
-    fontFamily: FONTS.semiBold,
   },
   footerLoader: {
     paddingVertical: SPACING.l,

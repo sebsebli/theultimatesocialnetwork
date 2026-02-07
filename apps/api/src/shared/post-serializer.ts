@@ -22,13 +22,13 @@ export function extractLinkedPostIds(
 export function authorPlain(
   a:
     | {
-        id?: string;
-        handle?: string;
-        displayName?: string;
-        avatarKey?: string | null;
-        isProtected?: boolean;
-        bio?: string | null;
-      }
+      id?: string;
+      handle?: string;
+      displayName?: string;
+      avatarKey?: string | null;
+      isProtected?: boolean;
+      bio?: string | null;
+    }
     | null
     | undefined,
   getImageUrl?: (key: string) => string,
@@ -56,15 +56,67 @@ export type ReferenceMetadata = Record<
   { title?: string; deletedAt?: string }
 >;
 
+/** Fresh inline enrichment data for mentions, topics, and post references. */
+export interface InlineEnrichment {
+  /** handle -> avatarUrl (null if user has no avatar). */
+  mentionAvatars?: Record<string, string | null>;
+  /** topic slug -> number of posts in that topic. */
+  topicPostCounts?: Record<string, number>;
+  /** post id (lowercase) -> number of posts that cite it (citedBy). */
+  postCiteCounts?: Record<string, number>;
+}
+
+/** Extract @mention handles from post body. */
+export function extractMentionHandles(
+  body: string | null | undefined,
+): string[] {
+  if (!body || typeof body !== 'string') return [];
+  const re = /(?<![a-zA-Z0-9_])@([a-zA-Z0-9_.]{1,30})(?![a-zA-Z0-9_])/g;
+  const handles: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    const handle = m[1];
+    if (handle && !handles.includes(handle)) handles.push(handle);
+  }
+  return handles;
+}
+
+/** Extract topic slugs from wikilinks [[topic]] (excluding post: and http). */
+export function extractTopicSlugs(
+  body: string | null | undefined,
+): string[] {
+  if (!body || typeof body !== 'string') return [];
+  const re = /\[\[([^\]]+)\]\]/g;
+  const slugs: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    const content = m[1];
+    if (content.includes('](')) continue; // markdown link inside wikilink
+    const parts = content.split('|');
+    const targetsRaw = parts[0];
+    const targetItems = targetsRaw.split(',').map((s) => s.trim());
+    for (const target of targetItems) {
+      if (target.includes(']')) continue;
+      if (target.toLowerCase().startsWith('post:')) continue;
+      if (target.startsWith('http')) continue;
+      if (target.trim() && !slugs.includes(target.trim())) {
+        slugs.push(target.trim());
+      }
+    }
+  }
+  return slugs;
+}
+
 export type PostViewerState = { isLiked?: boolean; isKept?: boolean };
 
-/** Post as plain object so response is always JSON-serializable. getImageUrl for author.avatarUrl and post.headerImageUrl. referenceMetadata for linked post titles ([[post:id]] display text). viewerState adds isLiked/isKept for the current user when present. When viewerCanSeeContent is false or post is deleted, body/title/header are redacted. deletedAt included when set so client can show "deleted on ..." placeholder. */
+/** Post as plain object so response is always JSON-serializable. getImageUrl for author.avatarUrl and post.headerImageUrl. referenceMetadata for linked post titles ([[post:id]] display text). viewerState adds isLiked/isKept for the current user when present. inlineEnrichment adds fresh mention avatars, topic post counts, and post cite counts. When viewerCanSeeContent is false or post is deleted, body/title/header are redacted. deletedAt included when set so client can show "deleted on ..." placeholder. */
 export function postToPlain(
   p: Post | null | undefined,
   getImageUrl?: (key: string) => string,
   referenceMetadata?: ReferenceMetadata | null,
   viewerState?: PostViewerState | null,
   viewerCanSeeContent = true,
+  inlineEnrichment?: InlineEnrichment | null,
 ): Record<string, unknown> | null {
   if (!p || typeof p !== 'object') return null;
   const deletedAt = (p as { deletedAt?: Date | null }).deletedAt;
@@ -99,6 +151,7 @@ export function postToPlain(
     viewCount: p.viewCount ?? 0,
     readingTimeMinutes: p.readingTimeMinutes ?? 0,
     viewerCanSeeContent: canShowContent,
+    contentWarning: canShowContent ? ((p as any).contentWarning ?? null) : null,
     ...(isDeleted && { deletedAt: new Date(deletedAt).toISOString() }),
     ...(isPrivateStub && { isPrivateStub: true }),
   };
@@ -112,6 +165,9 @@ export function postToPlain(
   if (viewerState != null) {
     if (viewerState.isLiked !== undefined) out.isLiked = viewerState.isLiked;
     if (viewerState.isKept !== undefined) out.isKept = viewerState.isKept;
+  }
+  if (inlineEnrichment != null && canShowContent) {
+    out.inlineEnrichment = inlineEnrichment;
   }
   return out;
 }

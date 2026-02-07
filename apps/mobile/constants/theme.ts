@@ -70,6 +70,7 @@ export const FLATLIST_DEFAULTS = {
   windowSize: 10,
   removeClippedSubviews: true,
   updateCellsBatchingPeriod: 50,
+  onEndReachedThreshold: 0.5,
 } as const;
 
 /** Scroll behavior shared by all list screens (home, explore, profile, user, topic, collection). */

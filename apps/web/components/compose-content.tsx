@@ -127,7 +127,7 @@ function ComposeContentInner() {
               const post = await res.json();
               return { id, title: post.title || "Untitled Post" };
             }
-          } catch {}
+          } catch { }
           return { id, title: "Linked Post" };
         }),
       );
@@ -155,7 +155,18 @@ function ComposeContentInner() {
       alert("Post is too long. Please shorten it.");
       return;
     }
+    // Validate minimum topic name length (3 chars)
+    const MIN_TOPIC_LENGTH = 3;
     const topicRefMatches = body.match(/\[\[[^\]]*\]\]/g) || [];
+    for (const ref of topicRefMatches) {
+      const inner = ref.slice(2, -2).trim();
+      if (inner.startsWith("post:")) continue; // post refs are ok
+      const topicName = inner.split("|")[0].trim();
+      if (topicName.length > 0 && topicName.length < MIN_TOPIC_LENGTH) {
+        alert(`Topic "${topicName}" is too short. Topics must be at least ${MIN_TOPIC_LENGTH} characters.`);
+        return;
+      }
+    }
     if (topicRefMatches.length > MAX_TOPIC_REFS) {
       alert(`Too many topic/post references. Maximum ${MAX_TOPIC_REFS}.`);
       return;
@@ -411,14 +422,13 @@ function ComposeContentInner() {
             Cancel
           </button>
 
-          <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10">
+          <div className="flex items-center rounded-lg p-0.5 border border-divider">
             <button
               onClick={() => setViewMode("edit")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                viewMode === "edit"
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-secondary hover:text-paper"
-              }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === "edit"
+                ? "bg-primary text-white shadow-sm"
+                : "text-secondary hover:text-paper"
+                }`}
             >
               Write
             </button>
@@ -427,11 +437,10 @@ function ComposeContentInner() {
                 if (body.trim().length < BODY_MIN_LENGTH) return;
                 setViewMode("preview");
               }}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                viewMode === "preview"
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-secondary hover:text-paper"
-              }`}
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === "preview"
+                ? "bg-primary text-white shadow-sm"
+                : "text-secondary hover:text-paper"
+                }`}
             >
               Preview
             </button>
@@ -531,7 +540,7 @@ function ComposeContentInner() {
 
       {viewMode === "edit" && (
         <div className="fixed bottom-0 left-0 right-0 w-full lg:pl-64 xl:pr-80 z-50">
-          <div className="bg-[#1e1f21] border-t border-white/10 px-4 py-3 flex items-center justify-between shadow-[0_-5px_20px_rgba(0,0,0,0.3)] backdrop-blur-xl bg-opacity-95">
+          <div className="bg-ink border-t border-divider px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-1">
               <button
                 onClick={() => insertText("# ")}
@@ -648,19 +657,7 @@ function ComposeContentInner() {
                 className="h-10 px-3 flex items-center gap-2 rounded-lg text-tertiary hover:text-paper hover:bg-white/5 transition-colors"
                 title="Link Topic"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
-                  />
-                </svg>
+                <span className="w-5 h-5 inline-flex items-center justify-center font-mono font-bold text-xs leading-none">[[]]</span>
                 <span className="text-sm font-medium hidden sm:block">
                   Topic
                 </span>

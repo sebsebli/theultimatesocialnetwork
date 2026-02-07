@@ -58,7 +58,7 @@ export class RecommendationService {
     private neo4jQuery: Neo4jQueryService,
     private graphCompute: GraphComputeService,
     private exploreService: ExploreService,
-  ) {}
+  ) { }
 
   /**
    * Get user's interest profile based on their activity
@@ -104,9 +104,9 @@ export class RecommendationService {
     const likedPosts =
       likedPostIds.length > 0
         ? await this.postRepo.find({
-            where: { id: In(likedPostIds) },
-            relations: ['author'],
-          })
+          where: { id: In(likedPostIds) },
+          relations: ['author'],
+        })
         : [];
 
     // Get posts user has kept
@@ -118,9 +118,9 @@ export class RecommendationService {
     const keptPosts =
       keptPostIds.length > 0
         ? await this.postRepo.find({
-            where: { id: In(keptPostIds) },
-            relations: ['author'],
-          })
+          where: { id: In(keptPostIds) },
+          relations: ['author'],
+        })
         : [];
 
     // Get followed users
@@ -149,20 +149,33 @@ export class RecommendationService {
   /**
    * Get personalized post recommendations for user
    */
-  async getRecommendedPosts(userId: string, limit = 20): Promise<Post[]> {
+  async getRecommendedPosts(
+    userId: string,
+    limit = 20,
+    skip = 0,
+  ): Promise<Post[]> {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      select: ['id', 'preferences'],
+      select: ['id', 'preferences', 'privacySettings'],
     });
     const explore = user?.preferences?.explore as
       | Record<string, unknown>
       | undefined;
-    if (explore?.recommendationsEnabled === false) {
-      return this.getTrendingPosts(limit);
+    const privacy = user?.privacySettings as
+      | { disableRecommendations?: boolean }
+      | undefined;
+    // Respect both the explore toggle AND the GDPR privacy opt-out
+    if (
+      explore?.recommendationsEnabled === false ||
+      privacy?.disableRecommendations === true
+    ) {
+      return this.getTrendingPosts(limit + skip).then((posts) =>
+        posts.slice(skip, skip + limit),
+      );
     }
 
-    // Check cache for recommendations
-    const cacheKey = `recs:posts:${userId}:${limit}`;
+    // Check cache for recommendations (include skip in key for pagination)
+    const cacheKey = `recs:posts:${userId}:${skip}:${limit}`;
     let cachedRecs: Post[] | undefined;
     try {
       cachedRecs = await this.cacheManager.get<Post[]>(cacheKey);
@@ -235,7 +248,7 @@ export class RecommendationService {
 
         const hits = await this.meilisearchService.searchSimilar(
           userVector,
-          limit * 2, // Fetch candidates
+          (limit + skip) * 2, // Fetch enough candidates to cover offset + limit
           langFilter,
         );
 
@@ -270,9 +283,9 @@ export class RecommendationService {
           const allPostTopics =
             candidatePostIds.length > 0
               ? await this.postTopicRepo.find({
-                  where: { postId: In(candidatePostIds) },
-                  select: ['postId', 'topicId'],
-                })
+                where: { postId: In(candidatePostIds) },
+                select: ['postId', 'topicId'],
+              })
               : [];
           const postToTopics = new Map<string, string[]>();
           for (const pt of allPostTopics) {
@@ -344,7 +357,9 @@ export class RecommendationService {
           });
 
           scoredPosts.sort((a, b) => b.score - a.score);
-          resultPosts = scoredPosts.slice(0, limit).map((sp) => sp.post);
+          resultPosts = scoredPosts
+            .slice(skip, skip + limit)
+            .map((sp) => sp.post);
         }
       }
     }
@@ -421,15 +436,15 @@ export class RecommendationService {
     const followedPosts =
       followedUsers.length > 0
         ? await this.postRepo
-            .createQueryBuilder('post')
-            .leftJoinAndSelect('post.author', 'author')
-            .where('post.author_id IN (:...userIds)', {
-              userIds: followedUsers,
-            })
-            .andWhere('post.deleted_at IS NULL')
-            .orderBy('post.createdAt', 'DESC')
-            .take(limit)
-            .getMany()
+          .createQueryBuilder('post')
+          .leftJoinAndSelect('post.author', 'author')
+          .where('post.author_id IN (:...userIds)', {
+            userIds: followedUsers,
+          })
+          .andWhere('post.deleted_at IS NULL')
+          .orderBy('post.createdAt', 'DESC')
+          .take(limit)
+          .getMany()
         : [];
 
     if (followedPosts.length >= limit) {
@@ -469,12 +484,19 @@ export class RecommendationService {
   async getRecommendedPeople(userId: string, limit = 20): Promise<User[]> {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      select: ['id', 'preferences'],
+      select: ['id', 'preferences', 'privacySettings'],
     });
     const explore = user?.preferences?.explore as
       | Record<string, unknown>
       | undefined;
-    if (explore?.recommendationsEnabled === false) {
+    const privacy = user?.privacySettings as
+      | { disableRecommendations?: boolean }
+      | undefined;
+    // Respect both the explore toggle AND the GDPR privacy opt-out
+    if (
+      explore?.recommendationsEnabled === false ||
+      privacy?.disableRecommendations === true
+    ) {
       const users = await this.userRepo
         .createQueryBuilder('user')
         .where('user.id != :userId', { userId })

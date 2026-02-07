@@ -30,19 +30,7 @@ function TabLayoutInner() {
   const { clearTrail } = useExplorationTrail();
   const currentTab = useMemo(() => getCurrentTab(pathname ?? ""), [pathname]);
 
-  if (isLoading) {
-    return <FullScreenSkeleton />;
-  }
-
-  if (!isAuthenticated) {
-    return <Redirect href="/welcome" />;
-  }
-
-  if (onboardingComplete !== true) {
-    return <Redirect href="/onboarding" />;
-  }
-
-  const emitTabPress = tabPress?.emitTabPress ?? (() => {});
+  const emitTabPress = tabPress?.emitTabPress ?? (() => { });
   const onTabPress = useCallback(
     (tab: TabKey) => {
       // Clear exploration trail when any tab is pressed
@@ -68,6 +56,18 @@ function TabLayoutInner() {
     }),
     [insets.bottom],
   );
+
+  if (isLoading) {
+    return <FullScreenSkeleton />;
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect href="/welcome" />;
+  }
+
+  if (onboardingComplete !== true) {
+    return <Redirect href="/onboarding" />;
+  }
 
   return (
     <Tabs

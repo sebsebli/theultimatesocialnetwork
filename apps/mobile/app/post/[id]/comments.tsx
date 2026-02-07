@@ -7,6 +7,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
   type NativeSyntheticEvent,
   type TextInputSelectionChangeEventData,
 } from "react-native";
@@ -19,6 +20,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
 import { api } from "../../../utils/api";
+import { ActionButton } from "../../../components/ActionButton";
 import {
   COLORS,
   SPACING,
@@ -116,14 +118,17 @@ export default function PostCommentsScreen() {
   const [replyMenuReplyId, setReplyMenuReplyId] = useState<string | null>(null);
   const [replyToDeleteId, setReplyToDeleteId] = useState<string | null>(null);
   const [likedReplies, setLikedReplies] = useState<Set<string>>(new Set());
+  const [sortOrder, setSortOrder] = useState<"default" | "recent" | "discussed">("default");
   const scrollRef = useRef<ScrollView>(null);
   const hasScrolledToReply = useRef(false);
   const {
     results: mentionResults,
     search: searchMentions,
     isSearching: mentionSearching,
+    clearSearch: clearMentionResults,
   } = useComposerSearch();
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [suggestionType, setSuggestionType] = useState<"mention" | "wikilink" | "none">("none");
 
   const likedSet = useMemo(() => {
     const liked = new Set<string>();
@@ -138,8 +143,9 @@ export default function PostCommentsScreen() {
   const loadReplies = useCallback(async () => {
     if (!postId) return;
     try {
+      const sortParam = sortOrder !== "default" ? `?sort=${sortOrder}` : "";
       const raw = await api.get<Reply[] | { items?: Reply[] }>(
-        `/posts/${postId}/replies`,
+        `/posts/${postId}/replies${sortParam}`,
       );
       const list = Array.isArray(raw) ? raw : (raw?.items ?? []);
       setReplies(list);
@@ -154,7 +160,7 @@ export default function PostCommentsScreen() {
       if (__DEV__) console.error("Failed to load comments", e);
       setReplies([]);
     }
-  }, [postId]);
+  }, [postId, sortOrder]);
 
   const loadPost = useCallback(async () => {
     if (!postId) {
@@ -163,9 +169,10 @@ export default function PostCommentsScreen() {
     }
     setLoading(true);
     try {
+      const sortParam = sortOrder !== "default" ? `?sort=${sortOrder}` : "";
       const [postData, repliesData] = await Promise.all([
         api.get<{ title?: string }>(`/posts/${postId}`),
-        api.get<Reply[] | { items?: Reply[] }>(`/posts/${postId}/replies`),
+        api.get<Reply[] | { items?: Reply[] }>(`/posts/${postId}/replies${sortParam}`),
       ]);
       setPostTitle(postData?.title ?? null);
       const list = Array.isArray(repliesData)
@@ -186,15 +193,35 @@ export default function PostCommentsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [postId]);
+  }, [postId, sortOrder]);
 
   useEffect(() => {
     loadPost();
   }, [loadPost]);
 
-  // Parse @ mention: when user types @ or @query before cursor, show mention dropdown
+  // Parse triggers: @ for mentions, [[ for topics/posts
   useEffect(() => {
     const beforeCursor = commentDraft.slice(0, selection.start);
+    // Check [[ wikilink trigger first
+    const lastBracket = beforeCursor.lastIndexOf("[[");
+    if (lastBracket !== -1) {
+      const afterBracket = beforeCursor.slice(lastBracket + 2);
+      // No ]] yet and no newline
+      if (!afterBracket.includes("]]") && !afterBracket.includes("\n") && afterBracket.length < 50) {
+        const query = afterBracket;
+        if (query.length > 0) {
+          setSuggestionType("wikilink");
+          setMentionQuery(query);
+          searchMentions(query, "topic");
+          return;
+        } else {
+          setSuggestionType("wikilink");
+          setMentionQuery("");
+          return;
+        }
+      }
+    }
+    // Check @ mention trigger
     const lastAt = beforeCursor.lastIndexOf("@");
     if (
       lastAt !== -1 &&
@@ -202,13 +229,18 @@ export default function PostCommentsScreen() {
     ) {
       const afterAt = beforeCursor.slice(lastAt + 1);
       const segment = (afterAt.split(/[\s\n]/)[0] ?? "").slice(0, 50);
-      if (!segment.includes(" ")) {
+      if (!segment.includes(" ") && segment.length > 0) {
+        setSuggestionType("mention");
         setMentionQuery(segment);
         searchMentions(segment, "mention");
         return;
       }
     }
-    setMentionQuery(null);
+    if (suggestionType !== "none") {
+      setSuggestionType("none");
+      setMentionQuery(null);
+      clearMentionResults();
+    }
   }, [commentDraft, selection.start]);
 
   const handleMentionSelect = useCallback(
@@ -220,8 +252,6 @@ export default function PostCommentsScreen() {
         setMentionQuery(null);
         return;
       }
-      const afterAt = beforeCursor.slice(lastAt + 1);
-      const segment = afterAt.split(/[\s\n]/)[0] ?? "";
       const insertion = `@${item.handle} `;
       const newDraft =
         commentDraft.slice(0, lastAt) +
@@ -229,12 +259,44 @@ export default function PostCommentsScreen() {
         commentDraft.slice(selection.start);
       setCommentDraft(newDraft);
       setMentionQuery(null);
+      setSuggestionType("none");
       setSelection({
         start: lastAt + insertion.length,
         end: lastAt + insertion.length,
       });
     },
     [commentDraft, selection.start],
+  );
+
+  const handleWikilinkSelect = useCallback(
+    (item: Record<string, unknown>) => {
+      const beforeCursor = commentDraft.slice(0, selection.start);
+      const lastBracket = beforeCursor.lastIndexOf("[[");
+      if (lastBracket === -1) return;
+      // Build wikilink text: [[slug]] or [[post:id|title]]
+      const type = item.type as string | undefined;
+      let insertion: string;
+      if (type === "post") {
+        const title = (item.title as string) || (item.label as string) || "Post";
+        insertion = `[[post:${item.id}|${title}]] `;
+      } else {
+        const slug = (item.slug as string) || (item.title as string) || "";
+        insertion = `[[${slug}]] `;
+      }
+      const newDraft =
+        commentDraft.slice(0, lastBracket) +
+        insertion +
+        commentDraft.slice(selection.start);
+      setCommentDraft(newDraft);
+      setMentionQuery(null);
+      setSuggestionType("none");
+      clearMentionResults();
+      setSelection({
+        start: lastBracket + insertion.length,
+        end: lastBracket + insertion.length,
+      });
+    },
+    [commentDraft, selection.start, clearMentionResults],
   );
 
   const submitComment = async () => {
@@ -430,6 +492,29 @@ export default function PostCommentsScreen() {
           </Text>
         ) : null}
 
+        {/* Sort order tabs */}
+        {replies.length > 0 && (
+          <View style={styles.sortRow}>
+            {(["default", "recent", "discussed"] as const).map((s) => (
+              <Pressable
+                key={s}
+                style={[styles.sortTab, sortOrder === s && styles.sortTabActive]}
+                onPress={() => {
+                  if (sortOrder !== s) setSortOrder(s);
+                }}
+              >
+                <Text style={[styles.sortTabText, sortOrder === s && styles.sortTabTextActive]}>
+                  {s === "default"
+                    ? t("post.sortOldest", "Oldest")
+                    : s === "recent"
+                      ? t("post.sortRecent", "Recent")
+                      : t("post.sortDiscussed", "Most discussed")}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
         {replies.length === 0 ? (
           <View style={emptyStateCenterWrapStyle}>
             <EmptyState
@@ -528,71 +613,45 @@ export default function PostCommentsScreen() {
               <MarkdownText>{reply.body}</MarkdownText>
               <View style={styles.commentActionsRow}>
                 {userId && (
-                  <View style={styles.commentLikeRow}>
-                    <Pressable
-                      style={styles.commentLikeBtn}
-                      onPress={() =>
-                        handleLikeReply(reply.id, likedReplies.has(reply.id))
-                      }
-                    >
-                      <MaterialIcons
-                        name={
-                          likedReplies.has(reply.id)
-                            ? "favorite"
-                            : "favorite-border"
-                        }
-                        size={HEADER.iconSize}
-                        color={
-                          likedReplies.has(reply.id)
-                            ? COLORS.like
-                            : COLORS.tertiary
-                        }
-                      />
-                      <Text style={styles.commentLikeLabel}>
-                        {(reply.authorId === userId ||
-                          reply.author?.id === userId) &&
-                          reply.privateLikeCount !== undefined &&
-                          reply.privateLikeCount > 0
-                          ? t("post.privateLikedBy", {
-                            count: reply.privateLikeCount,
-                            defaultValue: `Liked by ${reply.privateLikeCount}`,
-                          })
-                          : t("post.like")}
-                      </Text>
-                    </Pressable>
-                  </View>
+                  <ActionButton
+                    icon="favorite-border"
+                    activeIcon="favorite"
+                    active={likedReplies.has(reply.id)}
+                    activeColor={COLORS.like}
+                    onPress={() =>
+                      handleLikeReply(reply.id, likedReplies.has(reply.id))
+                    }
+                    label={
+                      likedReplies.has(reply.id)
+                        ? t("post.unlike", "Unlike")
+                        : t("post.like", "Like")
+                    }
+                    count={
+                      (reply.authorId === userId ||
+                        reply.author?.id === userId) &&
+                        reply.privateLikeCount !== undefined &&
+                        reply.privateLikeCount > 0
+                        ? reply.privateLikeCount
+                        : undefined
+                    }
+                    size="sm"
+                  />
                 )}
-                <Pressable
-                  style={styles.repliesLink}
+                <ActionButton
+                  icon="chat-bubble-outline"
                   onPress={() =>
                     router.push(`/post/${postId}/comments/${reply.id}`)
                   }
-                  accessibilityLabel={
+                  label={
                     (reply.subreplyCount ?? 0) > 0
                       ? t("post.viewReplies", "View {{count}} replies", {
                         count: reply.subreplyCount,
                       })
                       : t("post.reply", "Reply")
                   }
-                >
-                  <MaterialIcons
-                    name="chat-bubble-outline"
-                    size={HEADER.iconSize}
-                    color={COLORS.primary}
-                  />
-                  <Text style={styles.repliesLinkText}>
-                    {(reply.subreplyCount ?? 0) > 0
-                      ? t("post.replyCountLabel", "{{count}} replies", {
-                        count: reply.subreplyCount,
-                      })
-                      : t("post.reply", "Reply")}
-                  </Text>
-                  <MaterialIcons
-                    name="chevron-right"
-                    size={HEADER.iconSize}
-                    color={COLORS.tertiary}
-                  />
-                </Pressable>
+                  count={reply.subreplyCount ?? 0}
+                  size="sm"
+                />
               </View>
             </View>
           </View>
@@ -622,19 +681,21 @@ export default function PostCommentsScreen() {
                 maxLength={COMMENT_MAX_LENGTH}
                 editable={!submittingComment}
               />
-              {mentionQuery !== null && (
+              {suggestionType !== "none" && mentionQuery !== null && (
                 <View style={styles.mentionDropdown}>
                   {mentionSearching ? (
-                    <InlineSkeleton />
-                  ) : (
+                    <View style={{ padding: SPACING.m }}>
+                      <InlineSkeleton />
+                    </View>
+                  ) : suggestionType === "mention" ? (
                     mentionResults
                       .filter(
                         (r: Record<string, unknown>) => r.type === "mention" && r.id !== userId,
                       )
-                      .slice(0, 8)
+                      .slice(0, 6)
                       .map((item: Record<string, unknown>) => (
                         <Pressable
-                          key={item.id}
+                          key={String(item.id)}
                           style={({ pressed }: { pressed: boolean }) => [
                             styles.mentionItem,
                             pressed && styles.mentionItemPressed,
@@ -665,6 +726,45 @@ export default function PostCommentsScreen() {
                           </View>
                         </Pressable>
                       ))
+                  ) : (
+                    mentionResults
+                      .slice(0, 6)
+                      .map((item: Record<string, unknown>) => {
+                        const isTopic = item.type === "topic";
+                        const label = (item.title || item.slug || item.label || "") as string;
+                        return (
+                          <Pressable
+                            key={String(item.id)}
+                            style={({ pressed }: { pressed: boolean }) => [
+                              styles.mentionItem,
+                              pressed && styles.mentionItemPressed,
+                            ]}
+                            onPress={() => handleWikilinkSelect(item)}
+                          >
+                            <View style={[styles.mentionItemAvatar, { backgroundColor: isTopic ? COLORS.primary + "22" : COLORS.divider }]}>
+                              <MaterialIcons
+                                name={isTopic ? "tag" : "article"}
+                                size={14}
+                                color={isTopic ? COLORS.primary : COLORS.secondary}
+                              />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                              <Text
+                                style={styles.mentionItemLabel}
+                                numberOfLines={1}
+                              >
+                                {label}
+                              </Text>
+                              <Text
+                                style={styles.mentionItemHandle}
+                                numberOfLines={1}
+                              >
+                                {isTopic ? "Topic" : "Post"}
+                              </Text>
+                            </View>
+                          </Pressable>
+                        );
+                      })
                   )}
                 </View>
               )}
@@ -737,14 +837,24 @@ export default function PostCommentsScreen() {
               },
             ]
             : []),
-          {
-            label: t("post.reportComment", "Report"),
-            onPress: () => {
-              if (replyMenuReplyId) setReportReplyId(replyMenuReplyId);
-              setReplyMenuReplyId(null);
-            },
-            icon: "flag" as const,
-          },
+          // Only show report for other users' comments, not own
+          ...(replyMenuReplyId &&
+            userId &&
+            replies.find((r) => r.id === replyMenuReplyId)?.authorId !== userId &&
+            replies.find((r) => r.id === replyMenuReplyId)?.author?.id !== userId
+            ? [
+              {
+                label: t("post.reportComment", "Report"),
+                onPress: () => {
+                  const id = replyMenuReplyId;
+                  setReplyMenuReplyId(null);
+                  // Delay so options sheet dismisses before report modal opens
+                  setTimeout(() => { if (id) setReportReplyId(id); }, 600);
+                },
+                icon: "flag" as const,
+              },
+            ]
+            : []),
         ]}
         cancelLabel={t("common.cancel")}
         onCancel={() => setReplyMenuReplyId(null)}
@@ -807,6 +917,32 @@ const styles = createStyles({
     color: COLORS.tertiary,
     marginBottom: SPACING.m,
     fontFamily: FONTS.regular,
+  },
+  sortRow: {
+    flexDirection: "row",
+    gap: SPACING.s,
+    marginBottom: SPACING.m,
+    paddingBottom: SPACING.s,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.divider,
+  },
+  sortTab: {
+    paddingHorizontal: SPACING.m,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "transparent",
+  },
+  sortTabActive: {
+    backgroundColor: COLORS.hover,
+  },
+  sortTabText: {
+    fontSize: 13,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.medium,
+  },
+  sortTabTextActive: {
+    color: COLORS.paper,
+    fontWeight: "600",
   },
   commentRow: {
     paddingVertical: SPACING.m,
@@ -925,9 +1061,8 @@ const styles = createStyles({
   commentActionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
-    gap: SPACING.m,
-    marginTop: SPACING.s,
+    gap: SPACING.l,
+    marginTop: SPACING.xs,
   },
   repliesLink: {
     flexDirection: "row",
@@ -944,11 +1079,11 @@ const styles = createStyles({
   commentInputBar: {
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: SPACING.m,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    paddingTop: SPACING.m,
+    gap: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    paddingTop: SPACING.s,
     backgroundColor: COLORS.ink,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.divider,
   },
   commentInputWrap: {
@@ -956,18 +1091,18 @@ const styles = createStyles({
     position: "relative",
   },
   commentInput: {
-    minHeight: 44,
+    minHeight: 40,
     maxHeight: 120,
     backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 20,
     paddingHorizontal: SPACING.m,
-    paddingVertical: SPACING.m,
-    paddingBottom: 28,
+    paddingTop: 10,
+    paddingBottom: 24,
     fontSize: 15,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   commentCharCount: {
     position: "absolute",
@@ -981,12 +1116,12 @@ const styles = createStyles({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 44,
+    minHeight: 40,
     backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 20,
     paddingHorizontal: SPACING.m,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   commentPlaceholderIcon: { marginRight: SPACING.s },
   commentInputPlaceholderText: {
@@ -996,15 +1131,17 @@ const styles = createStyles({
   },
   commentPostBtn: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    paddingVertical: SPACING.m,
-    borderRadius: SIZES.borderRadius,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.s,
+    borderRadius: 20,
     justifyContent: "center",
-    minHeight: 44,
+    alignItems: "center",
+    minHeight: 40,
+    marginBottom: 2,
   },
-  commentPostBtnDisabled: { opacity: 0.5 },
+  commentPostBtnDisabled: { opacity: 0.4 },
   commentPostBtnText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: COLORS.ink,
     fontFamily: FONTS.semiBold,

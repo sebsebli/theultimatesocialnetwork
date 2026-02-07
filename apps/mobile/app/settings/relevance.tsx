@@ -135,43 +135,43 @@ export default function RelevanceSettingsScreen() {
         {enabled && (
           <View style={styles.controls}>
             <RelevanceSlider
-              label="Topics you follow"
+              label={t("settings.relevanceTopics", "Topics you follow")}
               valueKey="topicsYouFollow"
               value={sliders.topicsYouFollow}
               onValueChange={handleSliderChange}
             />
             <RelevanceSlider
-              label="Language match"
+              label={t("settings.relevanceLanguage", "Language match")}
               valueKey="languageMatch"
               value={sliders.languageMatch}
               onValueChange={handleSliderChange}
             />
             <RelevanceSlider
-              label="Citations / Quotes"
+              label={t("settings.relevanceCitations", "Citations / Quotes")}
               valueKey="citations"
               value={sliders.citations}
               onValueChange={handleSliderChange}
             />
             <RelevanceSlider
-              label="Replies / Discussion"
+              label={t("settings.relevanceReplies", "Replies / Discussion")}
               valueKey="replies"
               value={sliders.replies}
               onValueChange={handleSliderChange}
             />
             <RelevanceSlider
-              label="Likes (Private Signal)"
+              label={t("settings.relevanceLikes", "Likes (Private Signal)")}
               valueKey="likes"
               value={sliders.likes}
               onValueChange={handleSliderChange}
             />
             <RelevanceSlider
-              label="Network Proximity"
+              label={t("settings.relevanceNetwork", "Network Proximity")}
               valueKey="networkProximity"
               value={sliders.networkProximity}
               onValueChange={handleSliderChange}
             />
             <RelevanceSlider
-              label="Depth / Length"
+              label={t("settings.relevanceDepth", "Depth / Length")}
               valueKey="depth"
               value={sliders.depth}
               onValueChange={handleSliderChange}

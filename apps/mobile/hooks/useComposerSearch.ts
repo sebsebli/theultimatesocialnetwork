@@ -66,7 +66,7 @@ export function useComposerSearch() {
           if (includePosts) {
             promises.push(api.get(`/search/posts?q=${encodedQ}`));
           }
-          
+
           const results = await Promise.all(promises);
           const topicRes = results[0];
           const postRes = includePosts ? results[1] : { hits: [] };
@@ -134,7 +134,7 @@ export function useComposerSearch() {
           setIsSearching(false);
         }
       }
-    }, 150); // 150ms debounce
+    }, 100); // 100ms debounce
   }, []);
 
   const clearSearch = useCallback(() => {

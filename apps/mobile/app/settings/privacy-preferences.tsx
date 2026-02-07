@@ -119,7 +119,7 @@ export default function PrivacyPreferencesScreen() {
           )}
           description={t(
             "settings.privacyRecommendationsDesc",
-            "AI-based content suggestions in Explore feed",
+            "Graph-based content suggestions in Explore feed (based on topics you follow and your reading activity)",
           )}
           legalBasis="Art. 6(1)(f) GDPR — Legitimate interest"
           settingKey="disableRecommendations"

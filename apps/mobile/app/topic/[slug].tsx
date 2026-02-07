@@ -29,6 +29,7 @@ import { useAuth } from "../../context/auth";
 import { PostItem } from "../../components/PostItem";
 import { UserCard } from "../../components/UserCard";
 import { TopicCard } from "../../components/ExploreCards";
+import { TopicPill } from "../../components/TopicPill";
 import { SourceOrPostCard } from "../../components/SourceOrPostCard";
 import { Topic, Post } from "../../types";
 import {
@@ -59,7 +60,7 @@ import {
   toDimension,
 } from "../../constants/theme";
 
-const HERO_FADE_HEIGHT = 280;
+const HERO_FADE_HEIGHT = 200;
 const STICKY_HEADER_APPEAR = 120;
 const STICKY_FADE_RANGE = 80;
 const PAGE_SIZE = 20;
@@ -370,7 +371,7 @@ export default function TopicScreen() {
                   ? getImageUrl(item.headerImageKey as string)
                   : undefined
               }
-              onPress={() => router.push(`/post/${item.id as string}/reading`)}
+              onPress={() => router.push(`/post/${item.id as string}`)}
             />
           );
         }
@@ -380,6 +381,11 @@ export default function TopicScreen() {
               type="topic"
               title={(item.title ?? item.slug ?? "Topic") as string}
               subtitle={item.slug as string | undefined}
+              imageUri={
+                item.imageKey
+                  ? getImageUrl(item.imageKey as string)
+                  : undefined
+              }
               onPress={() =>
                 router.push(
                   `/topic/${encodeURIComponent((item.slug ?? item.id) as string)}`,
@@ -656,6 +662,40 @@ export default function TopicScreen() {
 
   const headerComponent = useMemo(() => {
     if (!topic) return null;
+    return (
+      <TopicCollectionHeader
+        type="topic"
+        title={topic.title}
+        description={topic.description}
+        headerImageUri={getTopicRecentImageUri(
+          topic as unknown as {
+            recentPostImageUrl?: string | null;
+            recentPostImageKey?: string | null;
+            recentPost?: {
+              headerImageUrl?: string | null;
+              headerImageKey?: string | null;
+            } | null;
+          },
+        )}
+        onBack={() => router.back()}
+        onAction={userId ? handleFollow : undefined}
+        actionLabel={
+          isFollowing ? t("profile.following") : t("profile.follow")
+        }
+        isActionActive={isFollowing}
+        metrics={{
+          postCount: topic.postCount,
+          contributorCount: topic.contributorCount,
+        }}
+        rightAction="more"
+        onRightAction={() => setMoreOptionsVisible(true)}
+      />
+    );
+  }, [topic, isFollowing, t, handleFollow, router, userId]);
+
+  /** Non-fading header: search bar, topic map, connected topics, tab bar */
+  const stickyHeaderComponent = useMemo(() => {
+    if (!topic) return null;
     const tabs: { key: TabKey; label: string }[] = [
       { key: "recent", label: t("topic.recent", "Most recent") },
       { key: "discussed", label: t("topic.discussed", "Most discussed") },
@@ -664,169 +704,127 @@ export default function TopicScreen() {
     ];
     return (
       <>
-        <TopicCollectionHeader
-          type="topic"
-          title={topic.title}
-          description={topic.description}
-          headerImageUri={getTopicRecentImageUri(
-            topic as unknown as {
-              recentPostImageUrl?: string | null;
-              recentPostImageKey?: string | null;
-              recentPost?: {
-                headerImageUrl?: string | null;
-                headerImageKey?: string | null;
-              } | null;
-            },
-          )}
-          onBack={() => router.back()}
-          onAction={userId ? handleFollow : undefined}
-          actionLabel={
-            isFollowing ? t("profile.following") : t("profile.follow")
-          }
-          isActionActive={isFollowing}
-          metrics={{
-            postCount: topic.postCount,
-            contributorCount: topic.contributorCount,
-          }}
-          rightAction="more"
-          onRightAction={() => setMoreOptionsVisible(true)}
-        >
-          <View style={styles.searchRow}>
-            <View style={[SEARCH_BAR.container, styles.searchBarWrap]}>
-              <MaterialIcons
-                name="search"
-                size={HEADER.iconSize}
-                color={COLORS.tertiary}
-              />
-              <TextInput
-                style={SEARCH_BAR.input}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder={t("topic.searchInTopic", "Search in topic")}
-                placeholderTextColor={COLORS.tertiary}
-                returnKeyType="search"
-              />
-              {searchQuery.length > 0 ? (
-                <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
-                  <MaterialIcons
-                    name="close"
-                    size={20}
-                    color={COLORS.tertiary}
-                  />
-                </Pressable>
-              ) : null}
-            </View>
+        <View style={styles.searchRow}>
+          <View style={[SEARCH_BAR.container, styles.searchBarWrap]}>
+            <MaterialIcons
+              name="search"
+              size={HEADER.iconSize}
+              color={COLORS.tertiary}
+            />
+            <TextInput
+              style={SEARCH_BAR.input}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t("topic.searchInTopic", "Search in topic")}
+              placeholderTextColor={COLORS.tertiary}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 ? (
+              <Pressable onPress={() => setSearchQuery("")} hitSlop={8}>
+                <MaterialIcons
+                  name="close"
+                  size={20}
+                  color={COLORS.tertiary}
+                />
+              </Pressable>
+            ) : null}
           </View>
-          {/* Topic Map Section */}
-          {topicMap && topicMap.centralPosts.length > 0 && (
-            <View style={styles.topicMapSection}>
-              <Text style={styles.sectionTitle}>
-                {t("topic.topicMap", "TOPIC MAP")}
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.topicMapScrollContent}
-              >
-                {topicMap.centralPosts.map((post) => (
-                  <Pressable
-                    key={post.id}
-                    onPress={() => router.push(`/post/${post.id}/reading`)}
-                    style={styles.topicMapCard}
-                  >
-                    <Text style={styles.topicMapCardTitle} numberOfLines={2}>
-                      {post.title || t("post.fallbackTitle", "Post")}
-                    </Text>
-                    <Text style={styles.topicMapCardAuthor} numberOfLines={1}>
-                      {post.authorDisplayName || post.authorHandle}
-                    </Text>
-                    {post.connections > 0 && (
-                      <Text style={styles.topicMapCardConnections}>
-                        {post.connections}{" "}
-                        {t("topic.connections", "connections")}
-                      </Text>
-                    )}
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Connected Topics Section */}
-          {topicMap && topicMap.connectedTopics.length > 0 && (
-            <View style={styles.connectedTopicsSection}>
-              <Text style={styles.sectionTitle}>
-                {t("topic.connectedTopics", "CONNECTED TOPICS")}
-              </Text>
-              <View style={styles.connectedTopicsContainer}>
-                {topicMap.connectedTopics.map((connectedTopic) => (
-                  <Pressable
-                    key={connectedTopic.id}
-                    onPress={() =>
-                      router.push(
-                        `/topic/${encodeURIComponent(connectedTopic.slug)}`,
-                      )
-                    }
-                    style={styles.connectedTopicPill}
-                  >
-                    <Text style={styles.connectedTopicPillText}>
-                      {connectedTopic.title}
-                    </Text>
-                    {connectedTopic.sharedPosts > 0 && (
-                      <Text style={styles.connectedTopicPillCount}>
-                        {connectedTopic.sharedPosts}
-                      </Text>
-                    )}
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          )}
-
-          <View style={[styles.tabsContainer, TABS.container]}>
+        </View>
+        {/* Topic Map Section */}
+        {topicMap && topicMap.centralPosts.length > 0 && (
+          <View style={styles.topicMapSection}>
+            <Text style={styles.sectionTitle}>
+              {t("topic.topicMap", "TOPIC MAP")}
+            </Text>
             <ScrollView
               horizontal
-              {...LIST_SCROLL_DEFAULTS}
-              contentContainerStyle={[styles.tabsContent, TABS.content]}
-              style={[styles.tabsScrollView, TABS.scrollView]}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.topicMapScrollContent}
             >
-              {tabs.map((tab) => (
+              {topicMap.centralPosts.map((post) => (
                 <Pressable
-                  key={tab.key}
-                  style={[
-                    styles.tab,
-                    TABS.tab,
-                    activeTab === tab.key && TABS.tabActive,
-                  ]}
-                  onPress={() => setActiveTab(tab.key)}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: activeTab === tab.key }}
+                  key={post.id}
+                  onPress={() => router.push(`/post/${post.id}`)}
+                  style={styles.topicMapCard}
                 >
-                  <Text
-                    style={[
-                      styles.tabText,
-                      TABS.tabText,
-                      activeTab === tab.key && TABS.tabTextActive,
-                    ]}
-                  >
-                    {tab.label}
+                  <Text style={styles.topicMapCardTitle} numberOfLines={2}>
+                    {post.title || t("post.fallbackTitle", "Post")}
                   </Text>
+                  <Text style={styles.topicMapCardAuthor} numberOfLines={1}>
+                    {post.authorDisplayName || post.authorHandle}
+                  </Text>
+                  {post.connections > 0 && (
+                    <Text style={styles.topicMapCardConnections}>
+                      {post.connections}{" "}
+                      {t("topic.connections", "connections")}
+                    </Text>
+                  )}
                 </Pressable>
               ))}
             </ScrollView>
           </View>
-        </TopicCollectionHeader>
+        )}
+
+        {/* Connected Topics Section */}
+        {topicMap && topicMap.connectedTopics.length > 0 && (
+          <View style={styles.connectedTopicsSection}>
+            <Text style={styles.sectionTitle}>
+              {t("topic.connectedTopics", "CONNECTED TOPICS")}
+            </Text>
+            <View style={styles.connectedTopicsContainer}>
+              {topicMap.connectedTopics.map((ct) => (
+                <TopicPill
+                  key={ct.id}
+                  title={ct.title}
+                  slug={ct.slug}
+                  sharedPosts={ct.sharedPosts}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        <View style={[styles.tabsContainer, TABS.container]}>
+          <ScrollView
+            horizontal
+            {...LIST_SCROLL_DEFAULTS}
+            contentContainerStyle={[styles.tabsContent, TABS.content]}
+            style={[styles.tabsScrollView, TABS.scrollView]}
+          >
+            {tabs.map((tab) => (
+              <Pressable
+                key={tab.key}
+                style={[
+                  styles.tab,
+                  TABS.tab,
+                  activeTab === tab.key && TABS.tabActive,
+                ]}
+                onPress={() => setActiveTab(tab.key)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activeTab === tab.key }}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    TABS.tabText,
+                    activeTab === tab.key && TABS.tabTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
       </>
     );
   }, [
     topic,
-    isFollowing,
     activeTab,
     searchQuery,
+    topicMap,
     t,
-    handleFollow,
     router,
-    userId,
   ]);
 
   // Show a single full-screen loading state until topic is loaded. This avoids
@@ -889,7 +887,6 @@ export default function TopicScreen() {
 
   return (
     <>
-      {React.createElement(ExplorationTrail as React.ComponentType)}
       <TopicOrCollectionLayout
         title={topic?.title ?? (slugStr || t("topic.title", "Topic"))}
         loading={loading}
@@ -897,9 +894,10 @@ export default function TopicScreen() {
         notFoundMessage={t("topic.notFound", "Topic not found")}
         onBack={() => router.back()}
         headerComponent={headerComponent}
+        stickyHeaderComponent={stickyHeaderComponent}
         heroOpacity={heroOpacity}
         stickyOpacity={stickyOpacity}
-        onScroll={() => {}}
+        onScroll={() => { }}
         scrollY={scrollY}
         data={listData}
         keyExtractor={keyExtractor}
@@ -915,25 +913,13 @@ export default function TopicScreen() {
                 {t("topic.continueExploringSubtext", "Explore related topics")}
               </Text>
               <View style={styles.connectedTopicsContainer}>
-                {topicMap.connectedTopics.slice(0, 6).map((connectedTopic) => (
-                  <Pressable
-                    key={connectedTopic.id}
-                    onPress={() =>
-                      router.push(
-                        `/topic/${encodeURIComponent(connectedTopic.slug)}`,
-                      )
-                    }
-                    style={styles.connectedTopicPill}
-                  >
-                    <Text style={styles.connectedTopicPillText}>
-                      {connectedTopic.title}
-                    </Text>
-                    {connectedTopic.sharedPosts > 0 && (
-                      <Text style={styles.connectedTopicPillCount}>
-                        {connectedTopic.sharedPosts}
-                      </Text>
-                    )}
-                  </Pressable>
+                {topicMap.connectedTopics.slice(0, 6).map((ct) => (
+                  <TopicPill
+                    key={ct.id}
+                    title={ct.title}
+                    slug={ct.slug}
+                    sharedPosts={ct.sharedPosts}
+                  />
                 ))}
               </View>
             </View>
@@ -972,6 +958,7 @@ export default function TopicScreen() {
           />
         }
       />
+      {React.createElement(ExplorationTrail as React.ComponentType)}
     </>
   );
 }
@@ -1103,27 +1090,7 @@ const styles = createStyles({
     flexWrap: "wrap",
     gap: SPACING.s,
   },
-  connectedTopicPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadiusPill,
-    paddingHorizontal: SPACING.m,
-    paddingVertical: SPACING.xs,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-    gap: SPACING.xs,
-  },
-  connectedTopicPillText: {
-    fontSize: 13,
-    color: COLORS.paper,
-    fontFamily: FONTS.medium,
-  },
-  connectedTopicPillCount: {
-    fontSize: 11,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
+  /* connectedTopicPill styles moved to shared TopicPill component */
   continueExploringSection: {
     paddingHorizontal: SPACING.l,
     paddingVertical: SPACING.xl,

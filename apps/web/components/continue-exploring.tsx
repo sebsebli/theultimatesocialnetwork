@@ -2,6 +2,7 @@
 
 import { useState, useEffect, memo } from "react";
 import Link from "next/link";
+import { Pill } from "./ui/pill";
 
 interface ContinueExploringProps {
   currentTopicSlug?: string;
@@ -28,7 +29,7 @@ function ContinueExploringInner({
           setSuggestions(data.connectedTopics.slice(0, 5));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       cancelled = true;
     };
@@ -63,40 +64,15 @@ function ContinueExploringInner({
             )}
           </div>
         </div>
-        <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
           {suggestions.map((topic) => (
-            <Link
+            <Pill
               key={topic.slug}
-              href={`/topic/${encodeURIComponent(topic.slug)}`}
-              className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-primary font-mono text-xs">#</span>
-                <div>
-                  <span className="text-sm font-semibold text-paper group-hover:text-primary transition-colors">
-                    {topic.title}
-                  </span>
-                  {topic.sharedPosts > 0 && (
-                    <span className="text-xs text-tertiary ml-2">
-                      {topic.sharedPosts} shared posts
-                    </span>
-                  )}
-                </div>
-              </div>
-              <svg
-                className="w-4 h-4 text-tertiary group-hover:text-primary transition-colors"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </Link>
+              variant="topic"
+              title={topic.title}
+              slug={topic.slug}
+              count={topic.sharedPosts > 0 ? topic.sharedPosts : undefined}
+            />
           ))}
         </div>
       </div>

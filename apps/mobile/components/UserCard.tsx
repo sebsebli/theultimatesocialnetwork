@@ -39,7 +39,7 @@ interface UserCardProps {
 
 function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
   const { t } = useTranslation();
-  const displayName = item.displayName || item.handle;
+  const displayName = item.displayName || item.handle || "Unknown";
   // Compute avatar URI once (was called twice before — condition check + source prop)
   const avatarUri = useMemo(
     () => getAvatarUri(item),
@@ -100,13 +100,13 @@ function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
             accessibilityLabel={
               item.isFollowing
                 ? t("common.unfollow", {
-                    name: displayName,
-                    defaultValue: `Unfollow ${displayName}`,
-                  })
+                  name: displayName,
+                  defaultValue: `Unfollow ${displayName}`,
+                })
                 : t("common.follow", {
-                    name: displayName,
-                    defaultValue: `Follow ${displayName}`,
-                  })
+                  name: displayName,
+                  defaultValue: `Follow ${displayName}`,
+                })
             }
             accessibilityRole="button"
           >
@@ -189,22 +189,25 @@ const styles = createStyles({
   followBtn: {
     marginLeft: SPACING.m,
     paddingHorizontal: SPACING.l,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: COLORS.primary,
+    minWidth: 90,
+    alignItems: "center",
   },
   followBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: "transparent",
+    borderColor: COLORS.divider,
   },
   followBtnText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
   followBtnTextActive: {
-    color: COLORS.ink,
+    color: COLORS.tertiary,
+    fontWeight: "500",
   },
 });

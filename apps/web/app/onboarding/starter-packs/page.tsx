@@ -83,8 +83,8 @@ export default function OnboardingStarterPacksPage() {
             Follow some writers
           </h1>
           <p className="text-secondary text-sm">
-            Optionally follow some writers. You already have topics in your
-            feed!
+            Follow writers whose ideas you find worth reading — not who the
+            algorithm tells you to follow. You already have topics in your feed.
           </p>
         </div>
         <div className="flex items-center justify-between">
@@ -100,13 +100,17 @@ export default function OnboardingStarterPacksPage() {
 
         <div className="space-y-3">
           {loading ? (
-            <p className="text-secondary text-sm text-center py-8">
-              Finding writers for you...
-            </p>
+            <div className="flex flex-col items-center gap-3 py-12">
+              <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <p className="text-secondary text-sm">Finding writers for you...</p>
+            </div>
           ) : accounts.length === 0 ? (
-            <p className="text-secondary text-sm text-center py-8">
-              No suggestions right now. You can always find people later.
-            </p>
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <svg className="w-10 h-10 text-tertiary mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <p className="text-secondary text-sm">No suggestions right now. You can always find people later.</p>
+            </div>
           ) : (
             accounts.map((account) => (
               <div
@@ -129,11 +133,10 @@ export default function OnboardingStarterPacksPage() {
                 </div>
                 <button
                   onClick={() => toggleFollow(account.id)}
-                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${
-                    following.has(account.id)
-                      ? "bg-primary border-primary text-white"
-                      : "border-primary text-primary hover:bg-primary/10"
-                  }`}
+                  className={`px-4 py-2 rounded-full border transition-colors shrink-0 ${following.has(account.id)
+                    ? "bg-primary border-primary text-white"
+                    : "border-primary text-primary hover:bg-primary/10"
+                    }`}
                 >
                   {following.has(account.id) ? "Following" : "Follow"}
                 </button>

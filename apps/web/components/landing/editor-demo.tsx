@@ -83,22 +83,55 @@ export function EditorDemo() {
   const plainText = content.replace(/\[\[|\]\]/g, "").trim();
   const wordCount = plainText ? plainText.split(/\s+/).length : 0;
 
-  // Render stylized content
+  // Render stylized content — topic pills match the Pill component style
   const renderContent = () => {
     const parts = content.split(/(\[\[.*?\]\])/g);
     return parts.map((part, i) => {
       if (part.startsWith("[[") && part.endsWith("]]")) {
         const linkContent = part.slice(2, -2);
-        // Extract display text (after pipe) or use full content
+        const isPost = linkContent.includes("post:");
         const displayText = linkContent.includes("|")
           ? linkContent.split("|")[1]
           : linkContent;
+
+        if (isPost) {
+          // Post reference — matches inline post link style
+          return (
+            <span
+              key={i}
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[var(--primary)] font-sans text-xs font-semibold"
+            >
+              <svg
+                className="w-3 h-3 opacity-50"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              {displayText}
+            </span>
+          );
+        }
+
+        // Topic reference — uses [[ ]] bracket syntax (Citewalk's identity)
         return (
           <span
             key={i}
-            className="text-[var(--primary)] border-b border-[var(--primary)]/50 pb-0.5"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[var(--foreground)] font-sans text-xs font-semibold"
           >
+            <span className="text-[var(--primary)] font-mono text-[10px]">
+              [[
+            </span>
             {displayText}
+            <span className="text-[var(--primary)] font-mono text-[10px]">
+              ]]
+            </span>
           </span>
         );
       }
@@ -107,7 +140,7 @@ export function EditorDemo() {
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto bg-[var(--background)] border border-[var(--divider)] rounded-xl shadow-2xl overflow-hidden font-mono text-sm md:text-base">
+    <div className="w-full max-w-lg mx-auto bg-[var(--background)] border border-[var(--divider)] rounded-xl shadow-2xl overflow-hidden text-sm md:text-base">
       {/* Toolbar */}
       <div className="flex items-center gap-4 px-4 py-3 border-b border-[var(--divider)] bg-[var(--background)]">
         <div className="flex gap-1.5">
@@ -126,30 +159,38 @@ export function EditorDemo() {
       </div>
 
       {/* Editor Area */}
-      <div className="p-6 h-[240px] relative text-[var(--foreground)] leading-relaxed whitespace-pre-wrap font-serif">
+      <div className="p-6 h-[240px] relative text-[var(--secondary)] text-[17px] leading-relaxed whitespace-pre-wrap font-serif">
         {renderContent()}
         <span
-          className={`${
-            cursorVisible ? "opacity-100" : "opacity-0"
-          } inline-block w-[2px] h-[1.2em] bg-[var(--primary)] align-middle ml-[1px]`}
+          className={`${cursorVisible ? "opacity-100" : "opacity-0"
+            } inline-block w-[2px] h-[1.2em] bg-[var(--primary)] align-middle ml-[1px]`}
         />
 
         {/* Floating Menu */}
         {showMenu && (
-          <div className="absolute top-[110px] left-[100px] w-48 bg-[var(--background)] border border-[var(--divider)] rounded-lg shadow-xl z-10 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal surface - keep hardcoded color for visual distinction */}
-            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-[var(--tertiary)] bg-[#0F0F10] border-b border-[var(--divider)]">
+          <div className="absolute top-[110px] left-[100px] w-52 bg-[var(--background)] border border-[var(--divider)] rounded-xl shadow-xl z-10 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-[var(--tertiary)] bg-white/5 border-b border-[var(--divider)]">
               Link to Post or Topic
             </div>
             <div className="flex flex-col">
-              <div className="px-3 py-2 text-[var(--foreground)] hover:bg-[var(--divider)] cursor-pointer flex justify-between items-center bg-[var(--divider)]">
-                <span>Maria&apos;s sourdough recipe</span>
-                <span className="text-[10px] text-[var(--primary)]">Post</span>
+              <div className="px-3 py-2.5 text-[var(--foreground)] flex justify-between items-center bg-white/10 text-sm">
+                <span className="font-medium">
+                  Maria&apos;s sourdough recipe
+                </span>
+                <span className="text-[10px] text-[var(--primary)] font-mono">
+                  Post
+                </span>
               </div>
-              <div className="px-3 py-2 text-[var(--secondary)] hover:bg-[var(--divider)] cursor-pointer">
+              <div className="px-3 py-2.5 text-[var(--secondary)] hover:bg-white/5 cursor-pointer text-sm flex items-center gap-2">
+                <span className="text-[var(--primary)] font-mono text-[10px]">
+                  [[]]
+                </span>
                 Fermentation
               </div>
-              <div className="px-3 py-2 text-[var(--secondary)] hover:bg-[var(--divider)] cursor-pointer">
+              <div className="px-3 py-2.5 text-[var(--secondary)] hover:bg-white/5 cursor-pointer text-sm flex items-center gap-2">
+                <span className="text-[var(--primary)] font-mono text-[10px]">
+                  [[]]
+                </span>
                 Bread
               </div>
             </div>
@@ -158,8 +199,7 @@ export function EditorDemo() {
       </div>
 
       {/* Footer Status */}
-      {/* Modal surface - keep hardcoded color for visual distinction */}
-      <div className="px-4 py-2 bg-[#0F0F10] border-t border-[var(--divider)] flex justify-between items-center text-[10px] text-[var(--primary)] font-mono tracking-wider">
+      <div className="px-4 py-2 bg-white/5 border-t border-[var(--divider)] flex justify-between items-center text-[10px] text-[var(--primary)] font-mono tracking-wider">
         <span>MARKDOWN</span>
         <span>
           {wordCount} {wordCount === 1 ? "WORD" : "WORDS"}

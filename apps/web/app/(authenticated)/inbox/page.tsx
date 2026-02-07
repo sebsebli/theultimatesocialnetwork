@@ -114,12 +114,12 @@ export default function InboxPage() {
   const groupedNotifications = useMemo((): GroupedNotification[] => {
     const groups = new Map<string, GroupedNotification>();
     const result: GroupedNotification[] = [];
-    
+
     for (const notif of notifications) {
       const postId = notif.post?.id ?? '';
       const groupable = notif.type === 'LIKE' || notif.type === 'FOLLOW';
       const groupKey = groupable ? `${notif.type}:${postId}` : `single:${notif.id}`;
-      
+
       const existing = groups.get(groupKey);
       if (existing && groupable && notif.actor) {
         if (!existing.actors.some(a => a.handle === notif.actor!.handle)) {
@@ -145,7 +145,7 @@ export default function InboxPage() {
         result.push(group);
       }
     }
-    
+
     return result;
   }, [notifications]);
 
@@ -180,7 +180,7 @@ export default function InboxPage() {
     else if (names.length === 1) actorText = names[0];
     else if (names.length === 2) actorText = `${names[0]} and ${names[1]}`;
     else actorText = `${names[0]}, ${names[1]}, and ${notif.count - 2} others`;
-    
+
     switch (notif.type) {
       case "FOLLOW": return `${actorText} followed you`;
       case "REPLY": return `${actorText} replied to your post`;
@@ -221,8 +221,8 @@ export default function InboxPage() {
         <button
           onClick={() => setActiveTab("notifications")}
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === "notifications"
-              ? "border-primary text-paper"
-              : "border-transparent text-tertiary hover:text-paper"
+            ? "border-primary text-paper"
+            : "border-transparent text-tertiary hover:text-paper"
             }`}
         >
           Notifications
@@ -230,8 +230,8 @@ export default function InboxPage() {
         <button
           onClick={() => setActiveTab("messages")}
           className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${activeTab === "messages"
-              ? "border-primary text-paper"
-              : "border-transparent text-tertiary hover:text-paper"
+            ? "border-primary text-paper"
+            : "border-transparent text-tertiary hover:text-paper"
             }`}
         >
           Messages
@@ -276,7 +276,7 @@ export default function InboxPage() {
                   <Link
                     key={notif.key}
                     href={getNotificationLink(notif)}
-                    className="block p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+                    className="block p-4 border-b border-divider hover:bg-white/10 transition-colors"
                   >
                     <div className="flex items-start gap-3">
                       <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm shrink-0">

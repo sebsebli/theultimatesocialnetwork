@@ -52,7 +52,7 @@ export class PostsService {
     private embeddingService: EmbeddingService,
     private configService: ConfigService,
     @Inject(EVENT_BUS) private eventBus: IEventBus,
-  ) {}
+  ) { }
 
   async create(
     userId: string,
@@ -210,9 +210,9 @@ export class PostsService {
             authorId: post.authorId || '',
             author: post.author
               ? {
-                  displayName: post.author.displayName ?? post.author.handle,
-                  handle: post.author.handle,
-                }
+                displayName: post.author.displayName ?? post.author.handle,
+                handle: post.author.handle,
+              }
               : undefined,
             authorProtected: post.author?.isProtected,
             lang: post.lang,
@@ -319,9 +319,9 @@ export class PostsService {
               authorId: post.authorId || '',
               author: post.author
                 ? {
-                    displayName: post.author.displayName ?? post.author.handle,
-                    handle: post.author.handle,
-                  }
+                  displayName: post.author.displayName ?? post.author.handle,
+                  handle: post.author.handle,
+                }
                 : undefined,
               authorProtected: post.author?.isProtected,
               lang: post.lang,
@@ -417,20 +417,20 @@ export class PostsService {
     const [existingPosts, existingTopics, mentionedUsers] = await Promise.all([
       uniquePostUuids.length > 0
         ? manager.find(Post, {
-            where: uniquePostUuids.map((id) => ({ id })),
-            select: ['id'],
-          })
+          where: uniquePostUuids.map((id) => ({ id })),
+          select: ['id'],
+        })
         : Promise.resolve([]),
       uniqueTopicSlugs.length > 0
         ? manager.find(Topic, {
-            where: uniqueTopicSlugs.map((slug) => ({ slug })),
-          })
+          where: uniqueTopicSlugs.map((slug) => ({ slug })),
+        })
         : Promise.resolve([]),
       uniqueHandles.length > 0
         ? manager.find(User, {
-            where: uniqueHandles.map((handle) => ({ handle })),
-            select: ['id', 'handle'],
-          })
+          where: uniqueHandles.map((handle) => ({ handle })),
+          select: ['id', 'handle'],
+        })
         : Promise.resolve([]),
     ]);
 
@@ -466,10 +466,16 @@ export class PostsService {
     }
 
     // Topics: create missing ones, then save PostTopic entries
+    const MIN_TOPIC_SLUG_LENGTH = 3;
     const addedTopicIds = new Set<string>();
     const postTopicsToSave: Partial<PostTopic>[] = [];
     const newTopicsToIndex: Topic[] = [];
     for (const { slug } of topicSlugs) {
+      // Enforce minimum topic name length
+      if (slug.trim().length < MIN_TOPIC_SLUG_LENGTH) {
+        this.logger.warn(`Skipping short topic slug: "${slug}"`);
+        continue;
+      }
       let topic = topicBySlug.get(slug);
       if (!topic) {
         // Create missing topic
@@ -516,7 +522,7 @@ export class PostsService {
         .catch((err) => this.logger.error('Failed to index topic', err));
     }
     for (const url of archiveUrls) {
-      fetch(`https://web.archive.org/save/${url}`).catch(() => {});
+      fetch(`https://web.archive.org/save/${url}`).catch(() => { });
     }
   }
 
@@ -654,20 +660,20 @@ export class PostsService {
     return post;
   }
 
-  /** Return id -> { title?, deletedAt? } for linked post display (e.g. [[post:id]]). Includes soft-deleted posts so clients can show "(deleted content)" when no alias. Keys normalized to lowercase. */
+  /** Return id -> { title?, bodyExcerpt?, deletedAt? } for linked post display (e.g. [[post:id]]). Includes soft-deleted posts so clients can show "(deleted content)" when no alias. bodyExcerpt is first ~120 chars of body for long-press preview. Keys normalized to lowercase. */
   async getTitlesForPostIds(
     ids: string[],
   ): Promise<
     Record<
       string,
-      { title?: string; deletedAt?: string; isProtected?: boolean }
+      { title?: string; bodyExcerpt?: string; deletedAt?: string; isProtected?: boolean }
     >
   > {
     if (ids.length === 0) return {};
     const unique = Array.from(new Set(ids));
     const posts = await this.postRepo.find({
       where: unique.map((id) => ({ id })),
-      select: ['id', 'title', 'deletedAt', 'authorId'],
+      select: ['id', 'title', 'body', 'deletedAt', 'authorId'],
       withDeleted: true,
     });
     const authorIds = [
@@ -692,7 +698,7 @@ export class PostsService {
     }
     const out: Record<
       string,
-      { title?: string; deletedAt?: string; isProtected?: boolean }
+      { title?: string; bodyExcerpt?: string; deletedAt?: string; isProtected?: boolean }
     > = {};
     for (const p of posts) {
       const key = (p.id ?? '').toLowerCase();
@@ -700,8 +706,35 @@ export class PostsService {
         const prot = p.authorId
           ? authorProtected.get(p.authorId) === true
           : false;
+        // Build a plain-text excerpt (strip markdown, max 120 chars)
+        let excerpt: string | undefined;
+        if (p.body && !p.deletedAt) {
+          let text = p.body;
+          // Strip leading H1 if it matches title
+          if (p.title && text.trim().startsWith('# ' + p.title)) {
+            text = text.slice(text.indexOf('\n') + 1).trimStart();
+          }
+          // Strip markdown formatting
+          text = text
+            .replace(/\[\[([^\]]+)\]\]/g, (_, c: string) => {
+              const pipe = c.indexOf('|');
+              return pipe !== -1 ? c.slice(pipe + 1).trim() : c.trim();
+            })
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/_([^_]+)_/g, '$1')
+            .replace(/`([^`]+)`/g, '$1')
+            .replace(/^#{1,6}\s+/gm, '')
+            .replace(/^>\s*/gm, '')
+            .replace(/^[-*]\s+/gm, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+          if (text.length > 120) text = text.slice(0, 117) + '...';
+          if (text) excerpt = text;
+        }
         out[key] = {
           title: p.title ?? undefined,
+          bodyExcerpt: excerpt,
           deletedAt:
             p.deletedAt != null
               ? new Date(p.deletedAt).toISOString()
@@ -711,6 +744,114 @@ export class PostsService {
       }
     }
     return out;
+  }
+
+  /**
+   * Build fresh inline enrichment data for a post body:
+   * - mentionAvatars: handle -> avatarUrl
+   * - topicPostCounts: slug -> number of posts
+   * - postCiteCounts: postId -> citedBy count
+   */
+  async getInlineEnrichment(
+    body: string | null | undefined,
+    linkedPostIds: string[],
+    getImageUrl?: (key: string) => string,
+  ): Promise<{
+    mentionAvatars?: Record<string, string | null>;
+    topicPostCounts?: Record<string, number>;
+    postCiteCounts?: Record<string, number>;
+  }> {
+    const { extractMentionHandles, extractTopicSlugs } = await import(
+      '../shared/post-serializer.js'
+    );
+    const handles = extractMentionHandles(body);
+    const topicSlugs = extractTopicSlugs(body);
+
+    const [mentionAvatars, topicPostCounts, postCiteCounts] = await Promise.all(
+      [
+        // 1. Mention avatars
+        handles.length > 0
+          ? (async () => {
+            const users = await this.userRepo.find({
+              where: handles.map((h: string) => ({ handle: h })),
+              select: ['handle', 'avatarKey'],
+            });
+            const result: Record<string, string | null> = {};
+            const userMap = new Map(users.map((u) => [u.handle, u]));
+            for (const h of handles) {
+              const u = userMap.get(h);
+              result[h] =
+                u?.avatarKey && getImageUrl
+                  ? getImageUrl(u.avatarKey)
+                  : null;
+            }
+            return result;
+          })()
+          : Promise.resolve(undefined),
+
+        // 2. Topic post counts
+        topicSlugs.length > 0
+          ? (async () => {
+            const topics = await this.topicRepo.find({
+              where: topicSlugs.map((s: string) => ({ slug: s })),
+              select: ['id', 'slug'],
+            });
+            if (topics.length === 0) return undefined;
+            const topicIds = topics.map((t) => t.id);
+            const counts = await this.postTopicRepo
+              .createQueryBuilder('pt')
+              .innerJoin(
+                Post,
+                'p',
+                'p.id = pt.post_id AND p.deleted_at IS NULL',
+              )
+              .where('pt.topic_id IN (:...topicIds)', { topicIds })
+              .select('pt.topic_id', 'topicId')
+              .addSelect('COUNT(DISTINCT pt.post_id)', 'cnt')
+              .groupBy('pt.topic_id')
+              .getRawMany<{ topicId: string; cnt: string }>();
+            const countMap = new Map(
+              counts.map((c) => [c.topicId, parseInt(c.cnt, 10)]),
+            );
+            const result: Record<string, number> = {};
+            for (const t of topics) {
+              result[t.slug] = countMap.get(t.id) ?? 0;
+            }
+            return result;
+          })()
+          : Promise.resolve(undefined),
+
+        // 3. Post cite counts (citedBy = incoming edges)
+        linkedPostIds.length > 0
+          ? (async () => {
+            const counts = await this.postEdgeRepo
+              .createQueryBuilder('pe')
+              .where('pe.to_post_id IN (:...ids)', { ids: linkedPostIds })
+              .select('pe.to_post_id', 'postId')
+              .addSelect('COUNT(*)', 'cnt')
+              .groupBy('pe.to_post_id')
+              .getRawMany<{ postId: string; cnt: string }>();
+            const result: Record<string, number> = {};
+            for (const c of counts) {
+              result[c.postId.toLowerCase()] = parseInt(c.cnt, 10);
+            }
+            return result;
+          })()
+          : Promise.resolve(undefined),
+      ],
+    );
+
+    const enrichment: Record<string, unknown> = {};
+    if (mentionAvatars) enrichment.mentionAvatars = mentionAvatars;
+    if (topicPostCounts) enrichment.topicPostCounts = topicPostCounts;
+    if (postCiteCounts) enrichment.postCiteCounts = postCiteCounts;
+    return Object.keys(enrichment).length > 0
+      ? (enrichment as {
+        mentionAvatars?: Record<string, string | null>;
+        topicPostCounts?: Record<string, number>;
+        postCiteCounts?: Record<string, number>;
+      })
+      : {};
   }
 
   /** Preview metadata for composer: post ids and topic slugs -> header/avatar/image keys for source circles. */
@@ -733,9 +874,9 @@ export class PostsService {
     const posts =
       uniquePostIds.length > 0
         ? await this.postRepo.find({
-            where: { id: In(uniquePostIds) },
-            select: ['id', 'title', 'headerImageKey', 'authorId'],
-          })
+          where: { id: In(uniquePostIds) },
+          select: ['id', 'title', 'headerImageKey', 'authorId'],
+        })
         : [];
     const authorIds = [
       ...new Set(posts.map((p) => p.authorId).filter(Boolean)),
@@ -743,9 +884,9 @@ export class PostsService {
     const authors =
       authorIds.length > 0
         ? await this.userRepo.find({
-            where: { id: In(authorIds) },
-            select: ['id', 'avatarKey'],
-          })
+          where: { id: In(authorIds) },
+          select: ['id', 'avatarKey'],
+        })
         : [];
     const authorMap = new Map(authors.map((a) => [a.id, a.avatarKey ?? null]));
     const postList = posts.map((p) => ({
@@ -768,17 +909,17 @@ export class PostsService {
     const latestRows: LatestRow[] =
       foundTopicIds.length > 0
         ? await this.dataSource
-            .createQueryBuilder()
-            .select('pt.topic_id', 'topicId')
-            .addSelect('p.id', 'postId')
-            .from(PostTopic, 'pt')
-            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-            .where('pt.topic_id IN (:...topicIds)', { topicIds: foundTopicIds })
-            .distinctOn(['pt.topic_id'])
-            .orderBy('pt.topic_id')
-            .addOrderBy('p.created_at', 'DESC')
-            .getRawMany<LatestRow>()
-            .catch(() => [])
+          .createQueryBuilder()
+          .select('pt.topic_id', 'topicId')
+          .addSelect('p.id', 'postId')
+          .from(PostTopic, 'pt')
+          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+          .where('pt.topic_id IN (:...topicIds)', { topicIds: foundTopicIds })
+          .distinctOn(['pt.topic_id'])
+          .orderBy('pt.topic_id')
+          .addOrderBy('p.created_at', 'DESC')
+          .getRawMany<LatestRow>()
+          .catch(() => [])
         : [];
     const latestPostIds = [...new Set(latestRows.map((r) => r.postId))];
     const topicToImageKey = new Map<string, string | null>();
@@ -876,11 +1017,11 @@ export class PostsService {
             authorId: quotedUpdated.authorId || '',
             author: quotedUpdated.author
               ? {
-                  displayName:
-                    quotedUpdated.author.displayName ||
-                    quotedUpdated.author.handle,
-                  handle: quotedUpdated.author.handle,
-                }
+                displayName:
+                  quotedUpdated.author.displayName ||
+                  quotedUpdated.author.handle,
+                handle: quotedUpdated.author.handle,
+              }
               : undefined,
             authorProtected: quotedUpdated.author?.isProtected,
             lang: quotedUpdated.lang,
@@ -930,17 +1071,17 @@ export class PostsService {
     const latestRows: LatestRow[] =
       topicIds.length > 0
         ? await this.dataSource
-            .createQueryBuilder()
-            .select('pt.topic_id', 'topicId')
-            .addSelect('p.id', 'postId')
-            .from(PostTopic, 'pt')
-            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-            .where('pt.topic_id IN (:...topicIds)', { topicIds })
-            .distinctOn(['pt.topic_id'])
-            .orderBy('pt.topic_id')
-            .addOrderBy('p.created_at', 'DESC')
-            .getRawMany<LatestRow>()
-            .catch(() => [])
+          .createQueryBuilder()
+          .select('pt.topic_id', 'topicId')
+          .addSelect('p.id', 'postId')
+          .from(PostTopic, 'pt')
+          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+          .where('pt.topic_id IN (:...topicIds)', { topicIds })
+          .distinctOn(['pt.topic_id'])
+          .orderBy('pt.topic_id')
+          .addOrderBy('p.created_at', 'DESC')
+          .getRawMany<LatestRow>()
+          .catch(() => [])
         : [];
     const latestPostIds = [...new Set(latestRows.map((r) => r.postId))];
     const topicToImageKey = new Map<string, string | null>();
@@ -1251,6 +1392,7 @@ export class PostsService {
       domain?: string;
       description?: string;
       imageUrl?: string;
+      imageKey?: string;
       slug?: string;
       postCount?: number;
       handle?: string;
@@ -1267,6 +1409,12 @@ export class PostsService {
       replyCount: number;
     }>;
     topics: Array<{
+      id: string;
+      slug: string;
+      title: string;
+      postCount: number;
+    }>;
+    relatedTopics: Array<{
       id: string;
       slug: string;
       title: string;
@@ -1294,7 +1442,7 @@ export class PostsService {
       const posts = await this.postRepo.find({
         where: { id: In(postIds) },
         relations: ['author'],
-        select: ['id', 'quoteCount', 'replyCount', 'authorId', 'author'],
+        select: ['id', 'quoteCount', 'replyCount', 'authorId', 'author', 'headerImageKey'],
       });
       for (const post of posts) {
         postsMap.set(post.id, post);
@@ -1346,6 +1494,7 @@ export class PostsService {
             };
           };
           authorAvatarKey?: string | null;
+          headerImageKey?: string | null;
         };
         const author = post?.author || postSource.toPost?.author;
         return {
@@ -1354,6 +1503,7 @@ export class PostsService {
           authorDisplayName: author?.displayName || author?.handle,
           authorAvatarKey:
             author?.avatarKey ?? postSource.authorAvatarKey ?? undefined,
+          imageKey: postSource.headerImageKey ?? post?.headerImageKey ?? undefined,
           quoteCount: post?.quoteCount ?? 0,
           replyCount: post?.replyCount ?? 0,
         };
@@ -1384,11 +1534,12 @@ export class PostsService {
       }
 
       if (source.type === 'topic') {
-        const topicSource = source as { slug?: string };
+        const topicSource = source as { slug?: string; imageKey?: string | null };
         return {
           ...base,
           slug: topicSource.slug,
           postCount: topicPostCounts.get(source.id) ?? 0,
+          imageKey: topicSource.imageKey ?? undefined,
         };
       }
 
@@ -1434,13 +1585,13 @@ export class PostsService {
         const bodyExcerpt =
           fullPost.body && typeof fullPost.body === 'string'
             ? fullPost.body
-                .replace(/#{1,6}\s*/g, '')
-                .replace(/\*\*([^*]+)\*\*/g, '$1')
-                .replace(/_([^_]+)_/g, '$1')
-                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-                .replace(/\n+/g, ' ')
-                .trim()
-                .slice(0, 120) + (fullPost.body.length > 120 ? '…' : '')
+              .replace(/#{1,6}\s*/g, '')
+              .replace(/\*\*([^*]+)\*\*/g, '$1')
+              .replace(/_([^_]+)_/g, '$1')
+              .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+              .replace(/\n+/g, ' ')
+              .trim()
+              .slice(0, 120) + (fullPost.body.length > 120 ? '…' : '')
             : '';
 
         return {
@@ -1486,6 +1637,55 @@ export class PostsService {
       }),
     );
 
+    // Get related topics for exploration — topics that co-occur with this post's topics
+    // but are NOT the post's own topics
+    const ownTopicIds = topics
+      .filter((t): t is NonNullable<typeof t> => t !== null)
+      .map((t) => t.id);
+
+    let relatedTopics: Array<{
+      id: string;
+      slug: string;
+      title: string;
+      postCount: number;
+    }> = [];
+
+    if (ownTopicIds.length > 0) {
+      try {
+        // Find topics that share posts with this post's topics (graph neighbors)
+        const related = await this.postTopicRepo
+          .createQueryBuilder('pt2')
+          .innerJoin('post_topics', 'pt1', 'pt1.post_id = pt2.post_id')
+          .innerJoin('topics', 't', 't.id = pt2.topic_id')
+          .where('pt1.topic_id IN (:...ownIds)', { ownIds: ownTopicIds })
+          .andWhere('pt2.topic_id NOT IN (:...ownIds)', { ownIds: ownTopicIds })
+          .select('t.id', 'id')
+          .addSelect('t.slug', 'slug')
+          .addSelect('t.title', 'title')
+          .addSelect('COUNT(DISTINCT pt2.post_id)', 'postCount')
+          .groupBy('t.id')
+          .addGroupBy('t.slug')
+          .addGroupBy('t.title')
+          .orderBy('COUNT(DISTINCT pt2.post_id)', 'DESC')
+          .limit(8)
+          .getRawMany<{
+            id: string;
+            slug: string;
+            title: string;
+            postCount: string;
+          }>();
+
+        relatedTopics = related.map((r) => ({
+          id: r.id,
+          slug: r.slug,
+          title: r.title,
+          postCount: parseInt(r.postCount, 10),
+        }));
+      } catch (err) {
+        this.logger.warn('Failed to fetch related topics', err);
+      }
+    }
+
     return {
       buildsOn: buildsOn.filter((item) => item !== null),
       builtUponBy: builtUponBy.filter(
@@ -1494,6 +1694,7 @@ export class PostsService {
       topics: topics.filter(
         (item): item is NonNullable<typeof item> => item !== null,
       ),
+      relatedTopics,
     };
   }
 }

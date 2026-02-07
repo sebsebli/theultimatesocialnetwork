@@ -105,7 +105,7 @@ export default function SettingsNotificationsPage() {
 
       <div className="px-4 py-6">
         {loading ? (
-          <p className="text-secondary">Loading...</p>
+          <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>
         ) : (
           <>
             <section className="mb-8">

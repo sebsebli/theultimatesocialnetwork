@@ -1,46 +1,40 @@
-import React, {
-  useCallback,
-  useEffect,
-  useState,
-  useRef,
-  useMemo,
-} from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
+  StyleSheet,
   Text,
   View,
   ScrollView,
   Pressable,
-  RefreshControl,
-  Platform,
-  Share,
+  Dimensions,
   Animated,
-  type ViewProps,
-  type ScrollViewProps,
   type ViewStyle,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import type { ScrollViewProps, ViewProps } from "react-native";
+
+/** Typed Animated components for React 19 JSX compatibility */
+const AnimatedScrollView = Animated.ScrollView as (
+  props: ScrollViewProps & { style?: ViewStyle },
+) => React.ReactElement | null;
+const AnimatedView = Animated.View as (
+  props: ViewProps & { style?: ViewStyle },
+) => React.ReactElement | null;
+
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
+import { useOpenExternalLink } from "../../hooks/useOpenExternalLink";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api, getWebAppBaseUrl, getAvatarUri } from "../../utils/api";
-import { useAuth } from "../../context/auth";
-import { useToast } from "../../context/ToastContext";
-import { useOpenExternalLink } from "../../hooks/useOpenExternalLink";
-import { ConfirmModal } from "../../components/ConfirmModal";
-import { OptionsActionSheet } from "../../components/OptionsActionSheet";
-import { SourceOrPostCard } from "../../components/SourceOrPostCard";
-import { PostItem } from "../../components/PostItem";
-import { PostContent } from "../../components/PostContent";
-import { ConnectionCard } from "../../components/ConnectionCard";
+import * as Haptics from "expo-haptics";
+import {
+  api,
+  getAvatarUri,
+  getImageUrl,
+  getPostHeaderImageUri,
+} from "../../utils/api";
 import { MarkdownText } from "../../components/MarkdownText";
-import { ScreenHeader } from "../../components/ScreenHeader";
-import { HeaderIconButton } from "../../components/HeaderIconButton";
-import { ExplorationTrail } from "../../components/ExplorationTrail";
-import { useExplorationTrail } from "../../context/ExplorationTrailContext";
-
-import { FullScreenSkeleton } from "../../components/LoadingSkeleton";
-import { Post } from "../../types";
+import { PostAuthorHeader } from "../../components/PostAuthorHeader";
+import { TopicPill } from "../../components/TopicPill";
+import { TopicCard } from "../../components/ExploreCards";
 import {
   COLORS,
   SPACING,
@@ -49,56 +43,103 @@ import {
   HEADER,
   LAYOUT,
   createStyles,
+  toDimension,
   toDimensionValue,
 } from "../../constants/theme";
+import { FullScreenSkeleton } from "../../components/LoadingSkeleton";
+import { ActionButton } from "../../components/ActionButton";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../context/auth";
+import AddToCollectionSheet, {
+  AddToCollectionSheetRef,
+} from "../../components/AddToCollectionSheet";
+import ShareSheet, { ShareSheetRef } from "../../components/ShareSheet";
+import { SourceOrPostCard } from "../../components/SourceOrPostCard";
 
-const AnimatedScrollView = Animated.ScrollView as (
-  props: ScrollViewProps & { style?: ViewStyle },
-) => React.ReactElement | null;
-const AnimatedView = Animated.View as (
-  props: ViewProps & { style?: ViewStyle },
-) => React.ReactElement | null;
+import { HeaderIconButton } from "../../components/HeaderIconButton";
+import { ReportModal } from "../../components/ReportModal";
+import { OptionsActionSheet } from "../../components/OptionsActionSheet";
+import { ConfirmModal } from "../../components/ConfirmModal";
+import { ExplorationTrail } from "../../components/ExplorationTrail";
+import { useExplorationTrail } from "../../context/ExplorationTrailContext";
 
-export default function PostDetailScreen() {
-  const { id, highlightReplyId } = useLocalSearchParams<{
-    id: string;
-    highlightReplyId?: string;
-  }>();
+import { useToast } from "../../context/ToastContext";
+import {
+  savePostForOffline,
+  removeOfflinePost,
+  isPostDownloaded,
+  getDownloadSavedForOffline,
+  type OfflinePost,
+} from "../../utils/offlineStorage";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+interface Post {
+  id: string;
+  title?: string;
+  body: string;
+  createdAt: string;
+  headerImageKey?: string | null;
+  replyCount?: number;
+  quoteCount?: number;
+  readingTimeMinutes?: number;
+  author?: {
+    id?: string;
+    displayName?: string;
+    handle?: string;
+    avatarUrl?: string | null;
+    avatarKey?: string | null;
+    isProtected?: boolean;
+    bio?: string;
+  };
+  isLiked?: boolean;
+  isKept?: boolean;
+  privateLikeCount?: number;
+  lang?: string | null;
+  referenceMetadata?: Record<string, { title?: string }>;
+  inlineEnrichment?: {
+    mentionAvatars?: Record<string, string | null>;
+    topicPostCounts?: Record<string, number>;
+    postCiteCounts?: Record<string, number>;
+  } | null;
+  deletedAt?: string;
+  contentWarning?: string | null;
+  /** When false, viewer cannot see post body (e.g. FOLLOWERS-only and viewer doesn't follow). */
+  viewerCanSeeContent?: boolean;
+}
+
+export default function ReadingModeScreen() {
   const router = useRouter();
-
-  // Redirect to reading mode – reading.tsx is now the primary post view
-  useEffect(() => {
-    if (id) {
-      router.replace(`/post/${id}/reading`);
-    }
-  }, [id, router]);
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams();
   const { t } = useTranslation();
-  const { userId } = useAuth();
+  const { isAuthenticated, userId } = useAuth();
   const { showSuccess, showError } = useToast();
   const { openExternalLink } = useOpenExternalLink();
-  const { pushStep } = useExplorationTrail();
+  const postId = params.id as string;
   const [post, setPost] = useState<Post | null>(null);
-  const [replies, setReplies] = useState<Post[]>([]);
-  const [referencedBy, setReferencedBy] = useState<Post[]>([]);
   const [sources, setSources] = useState<Record<string, unknown>[]>([]);
+  const [quotedBy, setQuotedBy] = useState<Record<string, unknown>[]>([]);
+  const [connections, setConnections] = useState<{
+    buildsOn: Record<string, unknown>[];
+    builtUponBy: Record<string, unknown>[];
+    topics: Record<string, unknown>[];
+    relatedTopics: Record<string, unknown>[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Interaction state
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
-  const [reportTarget, setReportTarget] = useState<{
-    targetId: string;
-    type: "POST" | "REPLY";
-  } | null>(null);
-  const [postOptionsVisible, setPostOptionsVisible] = useState(false);
-  const [replyOptionsVisible, setReplyOptionsVisible] = useState(false);
-  const [replyOptionsReplyId, setReplyOptionsReplyId] = useState<string | null>(
-    null,
-  );
+  const scaleValue = useRef(new Animated.Value(1)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const collectionSheetRef = useRef<AddToCollectionSheetRef>(null);
+  const shareSheetRef = useRef<ShareSheetRef>(null);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [moreOptionsVisible, setMoreOptionsVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  const [offlineEnabled, setOfflineEnabled] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
+  const { pushStep } = useExplorationTrail();
   const [deniedAuthor, setDeniedAuthor] = useState<{
     id: string;
     handle: string;
@@ -106,8 +147,120 @@ export default function PostDetailScreen() {
     avatarKey?: string | null;
   } | null>(null);
 
+  const loadIdRef = useRef(0);
+  const loadPost = useCallback(
+    async (cancelledRef?: { current: boolean }) => {
+      if (!postId) return;
+      setLoading(true);
+      setAccessDenied(false);
+      setDeniedAuthor(null);
+      const loadId = loadIdRef.current + 1;
+      loadIdRef.current = loadId;
+      try {
+        const postData = await api.get<Post>(`/posts/${postId}`);
+        if (cancelledRef?.current || loadIdRef.current !== loadId) return;
+        setPost(postData);
+        // Register in exploration trail breadcrumbs
+        pushStep({
+          type: "post",
+          id: postId,
+          label: postData.title || "Post",
+          href: `/post/${postId}`,
+        });
+        const pd = postData as unknown as Record<string, unknown>;
+        setLiked(!!pd?.isLiked);
+        setKept(!!pd?.isKept);
+        if (!pd?.deletedAt) {
+          const [
+            sourcesData,
+            quotesData,
+            connectionsData,
+            downloaded,
+            enabled,
+          ] = await Promise.all([
+            api.get(`/posts/${postId}/sources`).catch(() => []),
+            api.get(`/posts/${postId}/quotes`).catch(() => []),
+            api
+              .get<Record<string, unknown>>(`/posts/${postId}/connections`)
+              .catch(() => null),
+            isPostDownloaded(postId),
+            getDownloadSavedForOffline(),
+          ]);
+          if (cancelledRef?.current || loadIdRef.current !== loadId) return;
+          setSources(Array.isArray(sourcesData) ? sourcesData : []);
+          setQuotedBy(
+            Array.isArray(quotesData)
+              ? quotesData
+              : (((quotesData as Record<string, unknown>)
+                ?.items as unknown[]) ?? []),
+          );
+          if (connectionsData) {
+            setConnections({
+              buildsOn: Array.isArray(connectionsData.buildsOn)
+                ? (connectionsData.buildsOn as Record<string, unknown>[])
+                : [],
+              builtUponBy: Array.isArray(connectionsData.builtUponBy)
+                ? (connectionsData.builtUponBy as Record<string, unknown>[])
+                : [],
+              topics: Array.isArray(connectionsData.topics)
+                ? (connectionsData.topics as Record<string, unknown>[])
+                : [],
+              relatedTopics: Array.isArray(connectionsData.relatedTopics)
+                ? (connectionsData.relatedTopics as Record<string, unknown>[])
+                : [],
+            });
+          }
+          setIsDownloaded(downloaded);
+          setOfflineEnabled(enabled);
+        }
+      } catch (error: unknown) {
+        if (cancelledRef?.current || loadIdRef.current !== loadId) return;
+        setPost(null);
+        const err = error as { status?: number; data?: { author?: unknown } };
+        if (err?.status === 403 && err?.data?.author) {
+          setAccessDenied(true);
+          setDeniedAuthor(
+            err.data.author as {
+              id: string;
+              handle: string;
+              displayName: string;
+              avatarKey?: string | null;
+            },
+          );
+          return;
+        }
+        if (err?.status === 404) {
+          showError(
+            t("post.notFoundMessage", "This post doesn't exist anymore."),
+          );
+          router.back();
+        } else {
+          showError(t("post.loadFailed"));
+        }
+      } finally {
+        if (!cancelledRef?.current && loadIdRef.current === loadId) {
+          setLoading(false);
+        }
+      }
+    },
+    [postId, t],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const cancelledRef = { current: false };
+    const load = async () => {
+      await loadPost(cancelledRef);
+    };
+    load();
+    return () => {
+      cancelled = true;
+      cancelledRef.current = true;
+    };
+  }, [loadPost]);
+
   // Merge API sources (posts, topics, users/mentions, external) with external links from body; deduplicate
-  const mergedSources = useMemo(() => {
+  const sourcesUnique = useMemo(() => {
     const apiExternal = sources.filter(
       (s: Record<string, unknown>) => s.type === "external",
     );
@@ -142,7 +295,6 @@ export default function PostDetailScreen() {
       })),
       ...apiOther,
     ];
-    // Deduplicate by canonical key (API already dedupes; body links can duplicate API external)
     const seen = new Set<string>();
     return combined.filter((s: Record<string, unknown>) => {
       const key =
@@ -162,339 +314,136 @@ export default function PostDetailScreen() {
     });
   }, [sources, post?.body]);
 
-  // Extract topics from sources
-  const topics = useMemo(() => {
-    return mergedSources.filter(
-      (s: Record<string, unknown>) => s.type === "topic",
-    ) as Array<{
-      id: string;
-      slug?: string;
-      title?: string;
-    }>;
-  }, [mergedSources]);
-
-  // Helper to map source to ConnectionCard props
-  const mapSourceToCardProps = useCallback(
-    (source: Record<string, unknown>) => {
-      const type = source.type as "post" | "topic" | "external" | "user";
-      const id = String(
-        source.id ?? source.url ?? source.handle ?? source.slug ?? "",
-      );
-      const label = String(
-        source.alias ??
-          source.title ??
-          source.handle ??
-          source.url ??
-          source.slug ??
-          "",
-      );
-
-      if (type === "external") {
-        let domain: string | undefined;
-        if (typeof source.url === "string") {
-          try {
-            domain = new URL(source.url).hostname.replace("www.", "");
-          } catch {
-            domain = undefined;
-          }
-        }
-        return {
-          type: "external" as const,
-          id,
-          label,
-          url: typeof source.url === "string" ? source.url : undefined,
-          domain,
-        };
-      }
-
-      if (type === "topic") {
-        return {
-          type: "topic" as const,
-          id,
-          label,
-          slug: typeof source.slug === "string" ? source.slug : undefined,
-          postCount:
-            typeof source.postCount === "number" ? source.postCount : undefined,
-        };
-      }
-
-      if (type === "user") {
-        return {
-          type: "user" as const,
-          id,
-          label,
-          authorHandle:
-            typeof source.handle === "string" ? source.handle : undefined,
-        };
-      }
-
-      // Post
-      const author = source.author as Record<string, unknown> | undefined;
-      const body = typeof source.body === "string" ? source.body : "";
-      const bodyExcerpt = body.replace(/\s+/g, " ").trim().slice(0, 60);
-      return {
-        type: "post" as const,
-        id,
-        label,
-        bodyExcerpt: bodyExcerpt || undefined,
-        authorHandle:
-          typeof author?.handle === "string" ? author.handle : undefined,
-        authorDisplayName:
-          typeof author?.displayName === "string"
-            ? author.displayName
-            : undefined,
-        authorAvatarKey:
-          typeof author?.avatarKey === "string" ? author.avatarKey : undefined,
-        quoteCount:
-          typeof source.quoteCount === "number" ? source.quoteCount : undefined,
-        replyCount:
-          typeof source.replyCount === "number" ? source.replyCount : undefined,
-      };
-    },
-    [],
-  );
-
-  const scrollViewRef = useRef<ScrollView>(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  const STICKY_HEADER_APPEAR = 120;
-  const STICKY_FADE_RANGE = 80;
-  const overlayBarOpacity = useMemo(
-    () =>
-      scrollY.interpolate({
-        inputRange: [0, STICKY_HEADER_APPEAR],
-        outputRange: [1, 0],
-        extrapolate: "clamp",
-      }),
-    [scrollY],
-  );
-  const stickyBarOpacity = useMemo(
-    () =>
-      scrollY.interpolate({
-        inputRange: [
-          STICKY_HEADER_APPEAR,
-          STICKY_HEADER_APPEAR + STICKY_FADE_RANGE,
-        ],
-        outputRange: [0, 1],
-        extrapolate: "clamp",
-      }),
-    [scrollY],
-  );
-
-  const [highlightY, setHighlightY] = useState<number | null>(null);
-  const repliesSectionY = useRef(0);
-
-  useEffect(() => {
-    if (highlightY !== null && scrollViewRef.current) {
-      const timer = setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: highlightY, animated: true });
-      }, 500); // Slight delay for layout to settle
-      return () => clearTimeout(timer);
-    }
-  }, [highlightY]);
-
-  useEffect(() => {
-    if (!id) return;
-
-    // Track view
-    api.post(`/posts/${id}/view`).catch(() => {
-      /* view tracking best-effort */
-    });
-
-    // Track read time on unmount
-    const startTime = Date.now();
-    return () => {
-      const duration = Math.floor((Date.now() - startTime) / 1000);
-      if (duration > 5) {
-        api.post(`/posts/${id}/read-time`, { duration }).catch(() => {
-          /* read-time tracking best-effort */
-        });
-      }
-    };
-  }, [id]);
-
-  // Track trail step when post loads
-  useEffect(() => {
-    if (post && id) {
-      const title = post.title || post.body?.slice(0, 40) || "Post";
-      pushStep({ type: "post", id, label: title, href: `/post/${id}` });
-    }
-  }, [post, id, pushStep]);
-
-  const loadIdRef = useRef(0);
-  const loadPost = useCallback(async () => {
-    setAccessDenied(false);
-    setDeniedAuthor(null);
-    const loadId = loadIdRef.current + 1;
-    loadIdRef.current = loadId;
-    try {
-      // Step 1: Load main post content first for instant display
-      const postRes = await api.get<Post>(`/posts/${id}`);
-      if (loadIdRef.current !== loadId) return;
-      setPost(postRes);
-      const pr = postRes as unknown as Record<string, unknown>;
-      setLiked(!!pr?.isLiked);
-      setKept(!!pr?.isKept);
-      setLoading(false);
-
-      // Step 2: Load supplementary data in background (skip for deleted posts)
-      if (!pr?.deletedAt) {
-        Promise.all([
-          api.get(`/posts/${id}/replies`),
-          api.get(`/posts/${id}/referenced-by`),
-          api.get(`/posts/${id}/sources`),
-        ]).then(([repliesRes, referencedRes, sourcesRes]) => {
-          if (loadIdRef.current !== loadId) return;
-          setReplies(Array.isArray(repliesRes) ? repliesRes : []);
-          setReferencedBy(Array.isArray(referencedRes) ? referencedRes : []);
-          setSources(Array.isArray(sourcesRes) ? sourcesRes : []);
-        });
-      }
-    } catch (error: unknown) {
-      if (loadIdRef.current !== loadId) return;
-      setLoading(false);
-      setPost(null);
-      const err = error as { status?: number; data?: { author?: unknown } };
-      if (err?.status === 403 && err?.data?.author) {
-        setAccessDenied(true);
-        setDeniedAuthor(
-          err.data.author as {
-            id: string;
-            handle: string;
-            displayName: string;
-            avatarKey?: string | null;
-          },
-        );
-        return;
-      }
-      if (err?.status === 404) {
-        showError(
-          t("post.notFoundMessage", "This post doesn't exist anymore."),
-        );
-        router.back();
-        return;
-      }
-    }
-  }, [id, t]);
-
-  // Load post when screen mounts or id changes (e.g. navigating from Cited by to another post)
-  useEffect(() => {
-    if (id) loadPost();
-  }, [id, loadPost]);
+  const [likeCountDelta, setLikeCountDelta] = useState(0);
 
   const handleLike = useCallback(async () => {
-    if (!userId) {
-      router.replace("/welcome");
-      return;
-    }
-    const previous = liked;
-    setLiked(!previous);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const prev = liked;
+    setLiked(!prev);
+    // Optimistic count update for own posts
+    setLikeCountDelta((d) => (prev ? d - 1 : d + 1));
     try {
-      if (previous) {
-        await api.delete(`/posts/${id}/like`);
-      } else {
-        await api.post(`/posts/${id}/like`);
-      }
-    } catch (error) {
-      setLiked(previous);
-      // console.error('Failed to toggle like', error);
+      if (prev) await api.delete(`/posts/${postId}/like`);
+      else await api.post(`/posts/${postId}/like`);
+    } catch {
+      setLiked(prev);
+      setLikeCountDelta((d) => (prev ? d + 1 : d - 1));
     }
-  }, [liked, post, id, userId, router]);
+  }, [liked, post, postId]);
 
   const handleKeep = useCallback(async () => {
-    if (!userId) {
-      router.replace("/welcome");
-      return;
-    }
-    const previous = kept;
-    setKept(!previous);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const prev = kept;
+    setKept(!prev);
     try {
-      if (previous) {
-        await api.delete(`/posts/${id}/keep`);
-      } else {
-        await api.post(`/posts/${id}/keep`);
-      }
-    } catch (error) {
-      setKept(previous);
-      // console.error('Failed to toggle keep', error);
+      if (prev) await api.delete(`/posts/${postId}/keep`);
+      else await api.post(`/posts/${postId}/keep`);
+    } catch {
+      setKept(prev);
     }
-  }, [kept, post, id, userId, router]);
+  }, [kept, post, postId]);
 
-  const handleReport = (targetId: string, type: "POST" | "REPLY") =>
-    setReportTarget({ targetId, type });
-
-  const confirmReport = async () => {
-    if (!reportTarget) return;
-    try {
-      await api.post("/safety/report", {
-        targetId: reportTarget.targetId,
-        targetType: reportTarget.type,
-        reason: "Reported via mobile app detail view",
-      });
-      showSuccess(t("post.reportSuccess", "Content reported successfully"));
-    } catch (error) {
-      showError(t("post.reportError", "Failed to report content"));
-      throw error;
-    }
-  };
-
-  const handleShare = useCallback(async () => {
+  const handleDownloadOffline = useCallback(async () => {
     if (!post) return;
-    const url = `${getWebAppBaseUrl()}/post/${post.id}`;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      await Share.share({
-        message: `Check out this post by @${post.author.handle}: ${url}`,
-        url, // iOS
-      });
-    } catch (error) {
-      // console.error(error);
+      if (isDownloaded) {
+        await removeOfflinePost(post.id);
+        setIsDownloaded(false);
+        showSuccess(t("post.removedFromDevice", "Removed from device"));
+      } else {
+        const payload: OfflinePost = {
+          id: post.id,
+          title: post.title ?? null,
+          body: post.body,
+          createdAt: post.createdAt,
+          headerImageKey: post.headerImageKey ?? null,
+          author: post.author,
+          lang: post.lang ?? null,
+          savedAt: Date.now(),
+        };
+        await savePostForOffline(payload);
+        setIsDownloaded(true);
+        showSuccess(
+          t("post.downloadedForOffline", "Saved for offline reading"),
+        );
+      }
+    } catch (e) {
+      showError(t("post.downloadFailed", "Download failed"));
     }
-  }, [post]);
+  }, [post, isDownloaded, showSuccess, showError, t]);
 
-  const handlePostMenu = useCallback(() => setPostOptionsVisible(true), []);
+  const handleReportSubmit = useCallback(
+    async (reason: string, comment?: string) => {
+      try {
+        await api.post("/safety/report", {
+          targetId: post!.id,
+          targetType: "POST",
+          reason,
+          comment,
+        });
+        showSuccess(t("post.reportSuccess", "Post reported successfully"));
+      } catch (e) {
+        showError(t("post.reportError", "Failed to report post"));
+        throw e;
+      }
+    },
+    [post, showSuccess, showError, t],
+  );
 
-  const handleDeletePost = async () => {
+  const handleDeletePost = useCallback(async () => {
     try {
-      await api.delete(`/posts/${id}`);
+      await api.delete(`/posts/${postId}`);
       showSuccess(t("post.deleted", "Post deleted"));
       setDeleteConfirmVisible(false);
-      setPostOptionsVisible(false);
+      setMoreOptionsVisible(false);
       router.back();
-    } catch (error: unknown) {
+    } catch (e: unknown) {
       showError(
-        (error as { message?: string })?.message ||
-          t("post.deleteFailed", "Failed to delete post"),
+        (e as { message?: string })?.message ||
+        t("post.deleteFailed", "Failed to delete post"),
       );
-      throw error;
+      throw e;
     }
-  };
+  }, [postId, showSuccess, showError, t, router]);
 
   const isOwnPost = !!post && !!userId && post.author?.id === userId;
 
-  const handleReplyMenu = useCallback((replyId: string) => {
-    setReplyOptionsReplyId(replyId);
-    setReplyOptionsVisible(true);
-  }, []);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadPost();
-    setRefreshing(false);
-  }, [id, loadPost]);
+  const animateLike = () => {
+    Animated.sequence([
+      Animated.timing(scaleValue, {
+        toValue: 1.2,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleValue, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ScreenHeader title={t("post.thread")} paddingTop={insets.top} />
-        <View style={styles.center}>
-          <FullScreenSkeleton />
-        </View>
+      <View style={[styles.container, styles.center]}>
+        <FullScreenSkeleton />
+      </View>
+    );
+  }
+
+  if (!post) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={styles.errorText}>
+          {t("post.notFound", "Post not found")}
+        </Text>
       </View>
     );
   }
 
   // Deleted: show placeholder before private (API returns viewerCanSeeContent false for both)
-  if (post?.deletedAt) {
+  if (post.deletedAt) {
     const deletedDate = new Date(post.deletedAt);
     const formattedDate = deletedDate.toLocaleDateString(undefined, {
       year: "numeric",
@@ -503,26 +452,41 @@ export default function PostDetailScreen() {
     });
     return (
       <View style={styles.container}>
-        <ScreenHeader title={t("post.thread")} paddingTop={insets.top} />
-        <View style={styles.deletedPlaceholder}>
-          <MaterialIcons
-            name="delete-outline"
-            size={48}
-            color={COLORS.tertiary}
-            style={styles.deletedPlaceholderIcon}
+        <View
+          style={[
+            styles.overlayHeader,
+            { paddingTop: Math.max(8, insets.top - 20) },
+          ]}
+          pointerEvents="box-none"
+        >
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back")}
           />
-          <Text style={styles.deletedPlaceholderText}>
-            {t("post.deletedOn", {
-              date: formattedDate,
-              defaultValue: `This post has been deleted on ${formattedDate}.`,
-            })}
-          </Text>
+          <View style={{ flex: 1 }} />
+        </View>
+        <View style={[styles.center, styles.deletedPlaceholderWrap]}>
+          <View style={styles.deletedPlaceholder}>
+            <MaterialIcons
+              name="delete-outline"
+              size={48}
+              color={COLORS.tertiary}
+              style={styles.deletedPlaceholderIcon}
+            />
+            <Text style={styles.deletedPlaceholderText}>
+              {t("post.deletedOn", {
+                date: formattedDate,
+                defaultValue: `This post has been deleted on ${formattedDate}.`,
+              })}
+            </Text>
+          </View>
         </View>
       </View>
     );
   }
 
-  // Private post: 403 with author, or 200 with viewerCanSeeContent false AND we have author (so it's clearly a private post, not e.g. cached/stale)
+  // Private post: 403 with author, or 200 with viewerCanSeeContent false AND we have author
   const showPrivateOverlay =
     (accessDenied && deniedAuthor) ||
     (post != null &&
@@ -534,17 +498,30 @@ export default function PostDetailScreen() {
     deniedAuthor ??
     (post?.author
       ? {
-          id: post.author.id,
-          handle: post.author.handle ?? "",
-          displayName: post.author.displayName ?? "",
-          avatarKey: post.author.avatarKey ?? null,
-        }
+        id: post.author.id,
+        handle: post.author.handle ?? "",
+        displayName: post.author.displayName ?? "",
+        avatarKey: post.author.avatarKey ?? null,
+      }
       : null);
 
   if (showPrivateOverlay) {
     return (
       <View style={styles.container}>
-        <ScreenHeader title={t("post.thread")} paddingTop={insets.top} />
+        <View
+          style={[
+            styles.overlayHeader,
+            { paddingTop: Math.max(8, insets.top - 20) },
+          ]}
+          pointerEvents="box-none"
+        >
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back")}
+          />
+          <View style={{ flex: 1 }} />
+        </View>
         <View style={styles.privatePostOverlay}>
           <View style={styles.privatePostBlur}>
             <MaterialIcons name="lock" size={48} color={COLORS.tertiary} />
@@ -601,22 +578,24 @@ export default function PostDetailScreen() {
     );
   }
 
-  if (!post) {
-    return (
-      <View style={styles.container}>
-        <ScreenHeader title={t("post.thread")} paddingTop={insets.top} />
-        <View style={styles.center}>
-          <Text style={styles.errorText}>{t("post.noPost")}</Text>
-        </View>
-      </View>
-    );
-  }
-
-  // Content hidden but no author (e.g. cached/stale response or token not sent): offer retry instead of "private post"
+  // Content hidden but no author (e.g. cached/stale or token not sent): offer retry
   if (post.viewerCanSeeContent === false && !showPrivateOverlay) {
     return (
       <View style={styles.container}>
-        <ScreenHeader title={t("post.thread")} paddingTop={insets.top} />
+        <View
+          style={[
+            styles.overlayHeader,
+            { paddingTop: Math.max(8, insets.top - 20) },
+          ]}
+          pointerEvents="box-none"
+        >
+          <HeaderIconButton
+            onPress={() => router.back()}
+            icon="arrow-back"
+            accessibilityLabel={t("common.back")}
+          />
+          <View style={{ flex: 1 }} />
+        </View>
         <View
           style={[
             styles.center,
@@ -656,503 +635,619 @@ export default function PostDetailScreen() {
     );
   }
 
+  const replyCount = post.replyCount ?? 0;
+  const quoteCount = post.quoteCount ?? 0;
+  const likeCount = isOwnPost ? Math.max(0, (post.privateLikeCount ?? 0) + likeCountDelta) : 0;
+
+  const postHeaderUri = getPostHeaderImageUri(
+    post as { headerImageUrl?: string | null; headerImageKey?: string | null },
+  );
+  const hasHero =
+    (postHeaderUri != null && postHeaderUri !== "") ||
+    (post.headerImageKey != null && post.headerImageKey !== "");
+
+  // --- Fading header logic ---
+  // Floating buttons fade out after 80px of scroll; solid bar fades in
+  const HEADER_FADE_START = 60;
+  const HEADER_FADE_END = 140;
+  const floatingHeaderOpacity = scrollY.interpolate({
+    inputRange: [HEADER_FADE_START, HEADER_FADE_END],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+  const solidBarOpacity = scrollY.interpolate({
+    inputRange: [HEADER_FADE_START, HEADER_FADE_END],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+
   return (
-    <>
-      <View style={styles.container}>
-        {/* Exploration Trail */}
-        {React.createElement(ExplorationTrail as React.ComponentType)}
+    <View style={styles.container}>
+      {/* Floating header: transparent, fades out on scroll */}
+      <AnimatedView
+        style={[
+          styles.overlayHeader,
+          {
+            paddingTop: insets.top,
+            opacity: floatingHeaderOpacity,
+          },
+        ]}
+        pointerEvents="box-none"
+      >
+        <HeaderIconButton
+          onPress={() => router.back()}
+          icon="arrow-back"
+          accessibilityLabel={t("common.back")}
+        />
+        <View style={{ flex: 1 }} />
+        <HeaderIconButton
+          onPress={() => {
+            Haptics.selectionAsync();
+            setMoreOptionsVisible(true);
+          }}
+          icon="more-horiz"
+          accessibilityLabel={t("profile.options", "Options")}
+        />
+      </AnimatedView>
 
-        {/* Overlay bar: fades out on scroll (like topic) */}
-        <AnimatedView
-          style={[
-            styles.overlayBar,
-            {
-              paddingTop: Math.max(8, insets.top - 20),
-              opacity: overlayBarOpacity,
-            },
-          ]}
-          pointerEvents="box-none"
+      {/* Solid header bar: fades in on scroll */}
+      <AnimatedView
+        style={[
+          styles.solidBar,
+          { paddingTop: insets.top, opacity: solidBarOpacity },
+        ]}
+        pointerEvents="box-none"
+      >
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={styles.solidBarBtn}
         >
-          <HeaderIconButton
-            onPress={() => router.back()}
-            icon="arrow-back"
-            accessibilityLabel={t("common.back", "Back")}
-          />
-          <View style={styles.overlayBarSpacer} />
-          <HeaderIconButton
-            onPress={handlePostMenu}
-            icon="more-horiz"
-            accessibilityLabel={t("profile.options", "Options")}
-          />
-        </AnimatedView>
-
-        {/* Sticky bar: fades in on scroll (reveal like topic) */}
-        <AnimatedView
-          style={[
-            styles.stickyBar,
-            {
-              paddingTop: Math.max(8, insets.top - 20),
-              opacity: stickyBarOpacity,
-            },
-          ]}
-          pointerEvents="box-none"
+          <MaterialIcons name="arrow-back" size={22} color={COLORS.paper} />
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setMoreOptionsVisible(true);
+          }}
+          hitSlop={10}
+          style={styles.solidBarBtn}
         >
-          <HeaderIconButton
-            onPress={() => router.back()}
-            icon="arrow-back"
-            accessibilityLabel={t("common.back", "Back")}
-          />
-          <View style={styles.overlayBarSpacer} />
-          <HeaderIconButton
-            onPress={handlePostMenu}
-            icon="more-horiz"
-            accessibilityLabel={t("profile.options", "Options")}
-          />
-        </AnimatedView>
+          <MaterialIcons name="more-horiz" size={22} color={COLORS.paper} />
+        </Pressable>
+      </AnimatedView>
 
-        <AnimatedScrollView
-          ref={scrollViewRef}
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
-          style={styles.container}
-          contentContainerStyle={[
-            styles.postScrollContent,
-            {
-              paddingTop: Math.max(8, insets.top - 20) + 56,
-            },
-          ]}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true },
-          )}
-          scrollEventThrottle={16}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={COLORS.primary}
-            />
-          }
-        >
-          <View style={styles.postContent}>
-            <PostContent
-              post={post}
-              disableNavigation
-              referenceMetadata={post.referenceMetadata}
-            />
-
-            <View style={styles.stats}>
-              <Text style={styles.stat}>
-                {post.replyCount} {t("post.replies")}
-              </Text>
-              <Text style={styles.stat}>
-                {post.quoteCount} {t("post.quotes")}
-              </Text>
-              {post.readingTimeMinutes ? (
-                <Text style={styles.stat}>
-                  {post.readingTimeMinutes} {t("post.minRead", "min read")}
-                </Text>
-              ) : null}
-            </View>
-
-            <View style={styles.actions}>
-              <Pressable
-                style={styles.actionButton}
-                onPress={() => router.push(`/post/${post.id}/reading`)}
-                accessibilityLabel={t("post.readArticle", "Read article")}
-                accessibilityRole="button"
+      <AnimatedScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          // When no hero image, generous top padding to clear header + breathing room
+          !hasHero && {
+            paddingTop: insets.top + 56,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false },
+        )}
+        scrollEventThrottle={16}
+      >
+        {/* Cover: full width, edge-to-edge (overlay header sits on top); fades out on scroll */}
+        {hasHero &&
+          (() => {
+            const heroFadeDistance = SCREEN_WIDTH * 0.6;
+            const heroOpacity = scrollY.interpolate({
+              inputRange: [0, heroFadeDistance],
+              outputRange: [1, 0],
+              extrapolate: "clamp",
+            });
+            return (
+              <AnimatedView
+                style={[
+                  styles.heroImageWrap,
+                  { height: SCREEN_WIDTH * (3 / 4), opacity: heroOpacity },
+                ]}
               >
-                <MaterialIcons
-                  name="menu-book"
-                  size={HEADER.iconSize}
-                  color={COLORS.primary}
+                <Image
+                  source={{ uri: postHeaderUri ?? "" }}
+                  style={[
+                    styles.heroImage,
+                    { width: SCREEN_WIDTH, height: SCREEN_WIDTH * (3 / 4) },
+                  ]}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                 />
-                <Text style={styles.actionButtonText}>
-                  {t("post.readArticle", "Read")}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={styles.actionButton}
-                onPress={() => {
-                  if (!userId) {
-                    router.replace("/welcome");
-                    return;
-                  }
-                  router.push({
-                    pathname: "/post/compose",
-                    params: { replyTo: post.id },
-                  });
-                }}
-                accessibilityLabel={t("post.reply")}
-                accessibilityRole="button"
-              >
-                <Text style={styles.actionButtonText}>{t("post.reply")}</Text>
-              </Pressable>
-              <Pressable
-                style={styles.actionButton}
-                onPress={() => {
-                  if (!userId) {
-                    router.replace("/welcome");
-                    return;
-                  }
-                  router.push({
-                    pathname: "/post/compose",
-                    params: { quote: post.id },
-                  });
-                }}
-                accessibilityLabel={t("post.quote")}
-                accessibilityRole="button"
-              >
-                <Text style={styles.actionButtonText}>{t("post.quote")}</Text>
-              </Pressable>
-            </View>
+                {post.title ? (
+                  <View style={styles.heroTitleOverlay}>
+                    <Text style={styles.heroTitleText} numberOfLines={2}>
+                      {post.title}
+                    </Text>
+                  </View>
+                ) : null}
+              </AnimatedView>
+            );
+          })()}
+
+        <View style={styles.article}>
+          {/* Author — shared component */}
+          <View style={{ marginBottom: SPACING.l }}>
+            <PostAuthorHeader
+              variant="full"
+              author={
+                post.author as {
+                  id?: string;
+                  handle?: string;
+                  displayName?: string;
+                  avatarKey?: string | null;
+                  avatarUrl?: string | null;
+                  bio?: string | null;
+                }
+              }
+              createdAt={post.createdAt}
+              readingTimeMinutes={post.readingTimeMinutes}
+            />
           </View>
 
-          {/* Connections Section */}
-          {post.viewerCanSeeContent && (
-            <View style={styles.connectionsSection}>
-              {/* This builds on */}
-              {mergedSources.length > 0 && (
-                <View style={styles.connectionGroup}>
-                  <Text style={styles.sectionTitle}>
-                    {t("post.thisBuildsOn", "THIS BUILDS ON")}
-                  </Text>
+          {/* Content warning banner */}
+          {post.contentWarning ? (
+            <View style={styles.contentWarningBanner}>
+              <MaterialIcons
+                name="warning-amber"
+                size={16}
+                color={COLORS.warning ?? "#F5A623"}
+              />
+              <Text style={styles.contentWarningText}>
+                {post.contentWarning}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Title only when no hero overlay (hero already shows title) */}
+          {!hasHero && post.title != null && post.title !== "" ? (
+            <Text style={styles.title}>{post.title}</Text>
+          ) : null}
+
+          <MarkdownText
+            stripLeadingH1IfMatch={post.title ?? undefined}
+            referenceMetadata={post.referenceMetadata}
+            inlineEnrichment={post.inlineEnrichment}
+          >
+            {post.body}
+          </MarkdownText>
+
+          {/* Action row: subtle meta bar with smaller icons so it doesn't compete with the article */}
+          <View style={styles.actionsRow}>
+            <ActionButton
+              icon="favorite-border"
+              activeIcon="favorite"
+              active={liked}
+              activeColor={COLORS.like}
+              onPress={() => {
+                animateLike();
+                handleLike();
+              }}
+              label={liked ? t("post.unlike", "Unlike") : t("post.like", "Like")}
+              scaleValue={scaleValue}
+              count={likeCount > 0 ? likeCount : undefined}
+            />
+
+            <ActionButton
+              icon="chat-bubble-outline"
+              onPress={() => router.push(`/post/${postId}/comments`)}
+              label={t("post.reply", "Reply")}
+              count={replyCount}
+            />
+
+            <ActionButton
+              icon="format-quote"
+              onPress={() =>
+                router.push({
+                  pathname: "/post/compose",
+                  params: { quote: postId },
+                })
+              }
+              label={t("post.quote", "Quote")}
+            />
+
+            <ActionButton
+              icon="bookmark-border"
+              activeIcon="bookmark"
+              active={kept}
+              onPress={handleKeep}
+              label={t("post.save", "Save")}
+            />
+
+            <ActionButton
+              icon="add-circle-outline"
+              onPress={() => collectionSheetRef.current?.open(postId)}
+              label={t("post.addToCollection", "Add to collection")}
+            />
+
+            <ActionButton
+              icon="ios-share"
+              onPress={() =>
+                shareSheetRef.current?.open(postId, {
+                  authorIsProtected: post?.author?.isProtected === true,
+                })
+              }
+              label={t("post.share", "Share")}
+            />
+
+            {offlineEnabled && (
+              <ActionButton
+                icon="offline-pin"
+                active={isDownloaded}
+                onPress={handleDownloadOffline}
+                label={
+                  isDownloaded
+                    ? t("post.removeFromDevice", "Remove from device")
+                    : t("post.downloadForOffline", "Download for offline")
+                }
+              />
+            )}
+          </View>
+        </View>
+
+        {/* ─── Connections: This builds on / Built upon by / In topics ─── */}
+        {connections &&
+          (connections.buildsOn.length > 0 ||
+            connections.builtUponBy.length > 0 ||
+            connections.topics.length > 0 ||
+            (connections.relatedTopics?.length ?? 0) > 0) && (
+            <View style={styles.section}>
+              {/* This Builds On */}
+              {connections.buildsOn.length > 0 && (
+                <View style={styles.connectionSection}>
+                  <Text style={styles.connectionHeader}>{t("post.buildsOn", "This builds on")}</Text>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.horizontalScrollContent}
+                    style={styles.connectionScroll}
+                    contentContainerStyle={styles.connectionScrollContent}
                   >
-                    {mergedSources.map(
-                      (source: Record<string, unknown>, index: number) => (
-                        <ConnectionCard
-                          key={
-                            source.type === "external" &&
-                            typeof source.url === "string"
-                              ? `ext-${source.url}`
-                              : typeof source.id === "string"
-                                ? source.id
-                                : `i-${index}`
-                          }
-                          {...mapSourceToCardProps(source)}
-                        />
-                      ),
+                    {connections.buildsOn.map(
+                      (item: Record<string, unknown>, idx: number) => {
+                        const itemType = String(item.type ?? "post");
+                        const label = String(item.label ?? item.title ?? "");
+                        const itemId = String(item.id ?? idx);
+                        const bodyExcerpt =
+                          typeof item.bodyExcerpt === "string"
+                            ? item.bodyExcerpt
+                            : typeof item.description === "string"
+                              ? item.description
+                              : "";
+                        const authorHandle =
+                          typeof item.authorHandle === "string"
+                            ? item.authorHandle
+                            : "";
+                        const authorDisplayName =
+                          typeof item.authorDisplayName === "string"
+                            ? item.authorDisplayName
+                            : "";
+                        const authorAvatarKey =
+                          typeof item.authorAvatarKey === "string"
+                            ? item.authorAvatarKey
+                            : null;
+                        const postCount =
+                          typeof item.postCount === "number"
+                            ? item.postCount
+                            : 0;
+                        const slug =
+                          typeof item.slug === "string" ? item.slug : label;
+                        const domain =
+                          typeof item.domain === "string" ? item.domain : "";
+                        const imageUrl =
+                          typeof item.imageUrl === "string"
+                            ? item.imageUrl
+                            : "";
+
+                        // Determine thumbnail URI for the card
+                        const imageKeyStr =
+                          typeof item.imageKey === "string" ? item.imageKey : "";
+                        const thumbUri =
+                          itemType === "topic" && imageKeyStr
+                            ? getImageUrl(imageKeyStr)
+                            : itemType === "post" && imageKeyStr
+                              ? getImageUrl(imageKeyStr)
+                              : itemType === "external" && imageUrl
+                                ? imageUrl
+                                : null;
+
+                        return (
+                          <Pressable
+                            key={`bo-${itemType}-${itemId}`}
+                            style={({ pressed }: { pressed: boolean }) => [
+                              styles.connectionCard,
+                              pressed && {
+                                opacity: 0.8,
+                                transform: [{ scale: 0.98 }],
+                              },
+                            ]}
+                            onPress={() => {
+                              if (itemType === "post")
+                                router.push(`/post/${itemId}`);
+                              else if (itemType === "topic")
+                                router.push(
+                                  `/topic/${encodeURIComponent(slug)}`,
+                                );
+                              else if (itemType === "user")
+                                router.push(`/user/${authorHandle || itemId}`);
+                              else if (
+                                itemType === "external" &&
+                                typeof item.url === "string"
+                              )
+                                openExternalLink(item.url);
+                            }}
+                          >
+                            <View style={styles.cardRow}>
+                              {/* Thumbnail */}
+                              <View style={styles.cardThumb}>
+                                {thumbUri ? (
+                                  <Image
+                                    source={{ uri: thumbUri }}
+                                    style={styles.cardThumbImage}
+                                    contentFit="cover"
+                                    cachePolicy="memory-disk"
+                                  />
+                                ) : itemType === "post" ? (
+                                  authorAvatarKey ? (
+                                    <Image
+                                      source={{
+                                        uri:
+                                          getAvatarUri({
+                                            avatarKey: authorAvatarKey,
+                                          }) ?? "",
+                                      }}
+                                      style={styles.cardThumbImage}
+                                      contentFit="cover"
+                                      cachePolicy="memory-disk"
+                                    />
+                                  ) : (
+                                    <View style={styles.cardThumbPlaceholder}>
+                                      <Text style={styles.cardAvatarLetter}>
+                                        {(
+                                          authorDisplayName ||
+                                          authorHandle ||
+                                          "?"
+                                        )
+                                          .charAt(0)
+                                          .toUpperCase()}
+                                      </Text>
+                                    </View>
+                                  )
+                                ) : itemType === "topic" ? (
+                                  <View style={styles.cardThumbPlaceholder}>
+                                    <MaterialIcons
+                                      name="tag"
+                                      size={20}
+                                      color={COLORS.tertiary}
+                                    />
+                                  </View>
+                                ) : itemType === "external" ? (
+                                  <View style={styles.cardThumbPlaceholder}>
+                                    <MaterialIcons
+                                      name="open-in-new"
+                                      size={18}
+                                      color={COLORS.tertiary}
+                                    />
+                                  </View>
+                                ) : (
+                                  <View style={styles.cardThumbPlaceholder}>
+                                    <MaterialIcons
+                                      name="person"
+                                      size={18}
+                                      color={COLORS.tertiary}
+                                    />
+                                  </View>
+                                )}
+                              </View>
+
+                              {/* Text content */}
+                              <View style={styles.cardTextContent}>
+                                <Text style={styles.cardTitle} numberOfLines={2}>
+                                  {label}
+                                </Text>
+                                {bodyExcerpt ? (
+                                  <Text
+                                    style={styles.cardExcerpt}
+                                    numberOfLines={2}
+                                  >
+                                    {bodyExcerpt.slice(0, 100)}
+                                  </Text>
+                                ) : null}
+                                <Text
+                                  style={styles.cardSubtitle}
+                                  numberOfLines={1}
+                                >
+                                  {itemType === "post"
+                                    ? authorDisplayName || `@${authorHandle}`
+                                    : itemType === "topic"
+                                      ? postCount > 0
+                                        ? `${postCount} post${postCount !== 1 ? "s" : ""}`
+                                        : "Topic"
+                                      : itemType === "external"
+                                        ? domain || "External link"
+                                        : ""}
+                                </Text>
+                              </View>
+                            </View>
+                          </Pressable>
+                        );
+                      },
                     )}
                   </ScrollView>
                 </View>
               )}
 
-              {/* Built upon by */}
-              {referencedBy.length > 0 && (
-                <View style={styles.connectionGroup}>
-                  <Text style={styles.sectionTitle}>
-                    {t("post.builtUponBy", "BUILT UPON BY")}{" "}
-                    {referencedBy.length}
+              {/* Built Upon By (Quoted by) */}
+              {connections.builtUponBy.length > 0 && (
+                <View style={styles.connectionSection}>
+                  <Text style={styles.connectionHeader}>
+                    {t("post.builtUponBy", "Cited by")}
+                    {` (${connections.builtUponBy.length})`}
                   </Text>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.horizontalScrollContent}
+                    style={styles.connectionScroll}
+                    contentContainerStyle={styles.connectionScrollContent}
                   >
-                    {referencedBy.map((refPost) => {
-                      const bodyPreview = (refPost.body ?? "")
-                        .replace(/\s+/g, " ")
-                        .trim()
-                        .slice(0, 60);
-                      const label =
-                        refPost.title ??
-                        bodyPreview ??
-                        t("post.fallbackTitle", "Post");
-                      const bodyExcerpt = refPost.title
-                        ? (refPost.body ?? "")
-                            .replace(/\s+/g, " ")
-                            .trim()
-                            .slice(0, 60)
-                        : undefined;
-                      return (
-                        <ConnectionCard
-                          key={refPost.id ?? refPost.createdAt ?? Math.random()}
-                          type="post"
-                          id={refPost.id}
-                          label={label}
-                          bodyExcerpt={bodyExcerpt}
-                          authorHandle={refPost.author?.handle}
-                          quoteCount={refPost.quoteCount}
-                          replyCount={refPost.replyCount}
-                        />
-                      );
-                    })}
+                    {connections.builtUponBy
+                      .filter((item: Record<string, unknown>, idx: number, arr: Record<string, unknown>[]) =>
+                        arr.findIndex((a) => String(a.id) === String(item.id)) === idx,
+                      )
+                      .map((item: Record<string, unknown>, bubIdx: number) => {
+                        const itemId = String(item.id ?? "");
+                        const title = String(
+                          item.title || item.bodyExcerpt || "Post",
+                        );
+                        const bodyExcerpt =
+                          typeof item.bodyExcerpt === "string"
+                            ? item.bodyExcerpt
+                            : "";
+                        const authorHandle =
+                          typeof item.authorHandle === "string"
+                            ? item.authorHandle
+                            : "";
+                        const authorDisplayName =
+                          typeof item.authorDisplayName === "string"
+                            ? item.authorDisplayName
+                            : "";
+                        const authorAvatarKey =
+                          typeof item.authorAvatarKey === "string"
+                            ? item.authorAvatarKey
+                            : null;
+                        const avatarUri = authorAvatarKey
+                          ? getAvatarUri({ avatarKey: authorAvatarKey })
+                          : null;
+
+                        return (
+                          <Pressable
+                            key={`bub-${itemId}-${bubIdx}`}
+                            style={({ pressed }: { pressed: boolean }) => [
+                              styles.connectionCard,
+                              pressed && {
+                                opacity: 0.8,
+                                transform: [{ scale: 0.98 }],
+                              },
+                            ]}
+                            onPress={() =>
+                              router.push(`/post/${itemId}`)
+                            }
+                          >
+                            <View style={styles.cardRow}>
+                              {/* Author avatar as thumbnail */}
+                              <View style={styles.cardThumb}>
+                                {avatarUri ? (
+                                  <Image
+                                    source={{ uri: avatarUri }}
+                                    style={styles.cardThumbImage}
+                                    contentFit="cover"
+                                    cachePolicy="memory-disk"
+                                  />
+                                ) : (
+                                  <View style={styles.cardThumbPlaceholder}>
+                                    <Text style={styles.cardAvatarLetter}>
+                                      {(authorDisplayName || authorHandle || "?")
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+                              <View style={styles.cardTextContent}>
+                                <Text style={styles.cardTitle} numberOfLines={2}>
+                                  {title}
+                                </Text>
+                                {bodyExcerpt && title !== bodyExcerpt ? (
+                                  <Text
+                                    style={styles.cardExcerpt}
+                                    numberOfLines={2}
+                                  >
+                                    {bodyExcerpt.slice(0, 100)}
+                                  </Text>
+                                ) : null}
+                                <Text
+                                  style={styles.cardSubtitle}
+                                  numberOfLines={1}
+                                >
+                                  {authorDisplayName || `@${authorHandle}`}
+                                </Text>
+                              </View>
+                            </View>
+                          </Pressable>
+                        );
+                      },
+                      )}
                   </ScrollView>
                 </View>
               )}
 
-              {/* Topics */}
-              {topics.length > 0 && (
-                <View style={styles.connectionGroup}>
-                  <Text style={styles.sectionTitle}>
-                    {t("post.inTopics", "IN TOPICS")}
-                  </Text>
-                  <View style={styles.topicsContainer}>
-                    {topics.map((topic) => (
-                      <Pressable
-                        key={topic.id}
-                        onPress={() =>
-                          router.push(
-                            `/topic/${encodeURIComponent(topic.slug ?? topic.title ?? topic.id)}`,
-                          )
-                        }
-                        style={styles.topicPill}
-                      >
-                        <Text style={styles.topicPillText}>
-                          {topic.title ?? topic.slug ?? topic.id}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+              {/* Connected Topics — graph-based related topics for exploration */}
+              {(connections.relatedTopics?.length ?? 0) > 0 && (
+                <View style={styles.connectionSection}>
+                  <Text style={styles.connectionHeader}>{t("post.connectedTopics", "Connected topics")}</Text>
+                  {connections.relatedTopics.map((topic: Record<string, unknown>) => (
+                    <TopicCard
+                      key={`related-${String(topic.slug ?? topic.id ?? "")}`}
+                      item={topic}
+                      onPress={() =>
+                        router.push(
+                          `/topic/${encodeURIComponent(String(topic.slug ?? topic.id ?? ""))}`,
+                        )
+                      }
+                    />
+                  ))}
                 </View>
               )}
             </View>
           )}
+      </AnimatedScrollView>
 
-          <View
-            style={styles.section}
-            onLayout={(event: { nativeEvent: { layout: { y: number } } }) => {
-              repliesSectionY.current = event.nativeEvent.layout.y;
-            }}
-          >
-            <Pressable
-              onPress={() => router.push(`/post/${id}/comments`)}
-              style={styles.sectionHeader}
-              accessibilityLabel={t("post.comments", "Comments")}
-              accessibilityRole="button"
-            >
-              <Text style={styles.sectionTitle}>
-                {t("post.comments", "Comments")}
-              </Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: SPACING.s,
-                }}
-              >
-                <Text style={styles.sectionCount}>
-                  {replies.length}{" "}
-                  {replies.length === 1
-                    ? t("post.replies_one", "reply")
-                    : t("post.replies", "replies")}
-                </Text>
-                <MaterialIcons
-                  name="chevron-right"
-                  size={HEADER.iconSize}
-                  color={COLORS.tertiary}
-                />
-              </View>
-            </Pressable>
-            {replies.map((reply) => (
-              <View
-                key={reply.id}
-                onLayout={(event: {
-                  nativeEvent: { layout: { y: number } };
-                }) => {
-                  if (highlightReplyId === reply.id) {
-                    const itemY = event.nativeEvent.layout.y;
-                    const totalY = repliesSectionY.current + itemY;
-                    setHighlightY(totalY);
-                  }
-                }}
-                style={[
-                  styles.replyItem,
-                  highlightReplyId === reply.id && {
-                    backgroundColor: COLORS.hover,
-                    borderColor: COLORS.primary,
-                    borderWidth: 1,
-                  },
-                ]}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <View style={styles.authorRow}>
-                    <View style={styles.avatarSmall}>
-                      <Text style={styles.avatarTextSmall}>
-                        {reply.author.displayName.charAt(0)}
-                      </Text>
-                    </View>
-                    <Text style={styles.displayNameSmall}>
-                      {reply.author.displayName}
-                    </Text>
-                    <Text style={styles.handleSmall}>
-                      @{reply.author.handle}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => handleReplyMenu(reply.id)}
-                    hitSlop={10}
-                    accessibilityLabel={t("post.options", "Reply options")}
-                    accessibilityRole="button"
-                  >
-                    <MaterialIcons
-                      name="more-horiz"
-                      size={HEADER.iconSize}
-                      color={COLORS.tertiary}
-                    />
-                  </Pressable>
-                </View>
-                <View style={{ marginTop: 4 }}>
-                  <MarkdownText>{reply.body}</MarkdownText>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.bottomActions}>
-            <Pressable
-              style={styles.bottomActionButton}
-              onPress={() => {
-                if (!userId) {
-                  router.replace("/welcome");
-                  return;
-                }
-                router.push({
-                  pathname: "/post/compose",
-                  params: { replyTo: post.id },
-                });
-              }}
-              accessibilityLabel={t("post.reply")}
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name="chat-bubble-outline"
-                size={HEADER.iconSize}
-                color={COLORS.tertiary}
-              />
-              <Text style={styles.bottomActionText}>{t("post.reply")}</Text>
-            </Pressable>
-            <Pressable
-              style={styles.bottomActionButton}
-              onPress={() => {
-                if (!userId) {
-                  router.replace("/welcome");
-                  return;
-                }
-                router.push({
-                  pathname: "/post/compose",
-                  params: { quote: post.id },
-                });
-              }}
-              accessibilityLabel={t("post.quote")}
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name="format-quote"
-                size={HEADER.iconSize}
-                color={COLORS.tertiary}
-              />
-              <Text style={styles.bottomActionText}>{t("post.quote")}</Text>
-            </Pressable>
-            <Pressable
-              style={styles.bottomActionButton}
-              onPress={handleLike}
-              accessibilityLabel={liked ? t("post.liked") : t("post.like")}
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name={liked ? "favorite" : "favorite-border"}
-                size={HEADER.iconSize}
-                color={liked ? COLORS.like || COLORS.primary : COLORS.tertiary}
-              />
-              <Text
-                style={[
-                  styles.bottomActionText,
-                  liked && { color: COLORS.like || COLORS.primary },
-                ]}
-              >
-                {liked ? t("post.liked") : t("post.like")}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={styles.bottomActionButton}
-              onPress={handleKeep}
-              accessibilityLabel={kept ? t("post.kept") : t("post.keep")}
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name={kept ? "bookmark" : "bookmark-border"}
-                size={HEADER.iconSize}
-                color={kept ? COLORS.primary : COLORS.tertiary}
-              />
-              <Text
-                style={[
-                  styles.bottomActionText,
-                  kept && { color: COLORS.primary },
-                ]}
-              >
-                {kept ? t("post.kept") : t("post.keep")}
-              </Text>
-            </Pressable>
-            {!post?.author?.isProtected && (
-              <Pressable
-                style={styles.bottomActionButton}
-                onPress={handleShare}
-                accessibilityLabel={t("post.share")}
-                accessibilityRole="button"
-              >
-                <MaterialIcons
-                  name="ios-share"
-                  size={HEADER.iconSize}
-                  color={COLORS.tertiary}
-                />
-                <Text style={styles.bottomActionText}>{t("post.share")}</Text>
-              </Pressable>
-            )}
-          </View>
-        </AnimatedScrollView>
-      </View>
-
-      <ConfirmModal
-        visible={!!reportTarget}
-        title={t("post.reportTitle", "Report Content")}
-        message={t(
-          "post.reportMessage",
-          "Are you sure you want to report this content?",
-        )}
-        confirmLabel={t("post.report", "Report")}
-        cancelLabel={t("common.cancel")}
-        destructive
-        onConfirm={confirmReport}
-        onCancel={() => setReportTarget(null)}
-      />
+      <AddToCollectionSheet ref={collectionSheetRef} />
+      <ShareSheet ref={shareSheetRef} />
       <OptionsActionSheet
-        visible={postOptionsVisible}
+        visible={moreOptionsVisible}
         title={t("post.options", "Post Options")}
         options={[
           ...(isOwnPost
             ? [
-                {
-                  label: t("post.delete", "Delete Post"),
-                  onPress: () => {
-                    setPostOptionsVisible(false);
-                    setDeleteConfirmVisible(true);
-                  },
-                  destructive: true as const,
+              {
+                label: t("post.delete", "Delete Post"),
+                onPress: () => {
+                  setMoreOptionsVisible(false);
+                  setDeleteConfirmVisible(true);
                 },
-              ]
+                destructive: true as const,
+                icon: "delete-outline" as const,
+              },
+            ]
             : []),
-          {
-            label: t("post.report", "Report Post"),
-            onPress: () => {
-              setPostOptionsVisible(false);
-              handleReport(id as string, "POST");
-            },
-            destructive: true,
-          },
+          ...(!isOwnPost
+            ? [
+              {
+                label: t("post.report", "Report Post"),
+                onPress: () => {
+                  setMoreOptionsVisible(false);
+                  // Longer delay to ensure OptionsActionSheet modal fully dismisses before opening ReportModal
+                  setTimeout(() => setReportVisible(true), 600);
+                },
+                destructive: true,
+                icon: "flag",
+              },
+            ]
+            : []),
         ]}
         cancelLabel={t("common.cancel")}
-        onCancel={() => setPostOptionsVisible(false)}
+        onCancel={() => setMoreOptionsVisible(false)}
+      />
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        onReport={handleReportSubmit}
+        targetType="POST"
       />
       <ConfirmModal
         visible={deleteConfirmVisible}
@@ -1164,71 +1259,94 @@ export default function PostDetailScreen() {
         confirmLabel={t("post.delete", "Delete Post")}
         cancelLabel={t("common.cancel")}
         destructive
+        icon="warning"
         onConfirm={handleDeletePost}
         onCancel={() => setDeleteConfirmVisible(false)}
       />
-      <OptionsActionSheet
-        visible={replyOptionsVisible}
-        title={t("post.options", "Reply Options")}
-        options={
-          replyOptionsReplyId
-            ? [
-                {
-                  label: t("post.report", "Report Reply"),
-                  onPress: () => {
-                    setReplyOptionsVisible(false);
-                    setReplyOptionsReplyId(null);
-                    handleReport(replyOptionsReplyId, "REPLY");
-                  },
-                  destructive: true,
-                },
-              ]
-            : []
-        }
-        cancelLabel={t("common.cancel")}
-        onCancel={() => {
-          setReplyOptionsVisible(false);
-          setReplyOptionsReplyId(null);
-        }}
-      />
-    </>
+      {/* Exploration trail breadcrumbs at the bottom */}
+      {React.createElement(ExplorationTrail as React.ComponentType)}
+    </View>
   );
 }
 
 const styles = createStyles({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.ink,
+  container: { flex: 1, backgroundColor: COLORS.ink },
+  center: { justifyContent: "center", alignItems: "center" },
+  scrollContent: { paddingBottom: 80 },
+  contentWarningBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.s,
+    marginBottom: SPACING.m,
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    backgroundColor: "rgba(245,166,35,0.1)",
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: "rgba(245,166,35,0.25)",
   },
-  overlayBar: {
+  contentWarningText: {
+    flex: 1,
+    fontSize: 13,
+    color: "rgba(245,166,35,0.9)",
+    fontFamily: FONTS.medium,
+  },
+  overlayHeader: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
-    paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
+    paddingHorizontal: 12,
+    paddingBottom: 8,
     zIndex: 10,
   },
-  overlayBarSpacer: {
-    flex: 1,
-  },
-  stickyBar: {
+  solidBar: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
-    paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
+    paddingHorizontal: 12,
+    paddingBottom: 8,
     backgroundColor: COLORS.ink,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.divider,
     zIndex: 11,
   },
-  postScrollContent: {},
+  solidBarBtn: {
+    padding: 8,
+  },
+  /* Full-width hero: 4:3 aspect, title overlay */
+  heroImageWrap: {
+    width: SCREEN_WIDTH,
+    alignSelf: "center",
+    marginBottom: SPACING.l,
+    position: "relative",
+    overflow: "hidden",
+  },
+  heroImage: {
+    width: "100%",
+    backgroundColor: COLORS.divider,
+  },
+  heroTitleOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: SPACING.l,
+    backgroundColor: COLORS.overlay,
+  },
+  heroTitleText: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 34,
+  },
+
   privatePostOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -1306,281 +1424,170 @@ const styles = createStyles({
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
-  placeholder: {
-    width: SIZES.iconLarge,
-  },
-  postContent: {
-    padding: SPACING.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  authorRow: {
-    flexDirection: "row",
-    alignItems: "center",
+
+  article: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     marginBottom: SPACING.l,
   },
-  avatar: {
-    width: 48, // h-12 w-12
-    height: 48,
-    borderRadius: 24, // rounded-full
-    backgroundColor: COLORS.hover, // bg-primary/20
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: SPACING.m,
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: COLORS.primary, // text-primary
-    fontFamily: FONTS.semiBold,
-  },
-  displayName: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  handle: {
-    fontSize: 15,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-  },
+  /* author styles moved to shared PostAuthorHeader */
   title: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: "700",
     color: COLORS.paper,
-    marginBottom: SPACING.m,
-    fontFamily: FONTS.serifSemiBold, // IBM Plex Serif for content
+    fontFamily: FONTS.semiBold,
+    lineHeight: 34,
+    marginTop: SPACING.m,
+    marginBottom: SPACING.xl,
   },
-  stats: {
+  actionsRow: {
     flexDirection: "row",
-    gap: SPACING.l,
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: SPACING.s,
+    paddingRight: SPACING.l,
+    paddingBottom: SPACING.s,
+    marginTop: SPACING.xl,
+  },
+  section: {
     marginTop: SPACING.l,
-    marginBottom: SPACING.l,
-  },
-  stat: {
-    fontSize: 14,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
-  actions: {
-    flexDirection: "row",
-    gap: SPACING.m,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     borderTopWidth: 1,
     borderTopColor: COLORS.divider,
     paddingTop: SPACING.l,
   },
-  actionButton: {
-    flex: 1,
-    height: 40,
-    backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadiusPill,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  actionButtonText: {
-    fontSize: 15,
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: "600",
     color: COLORS.paper,
+    marginBottom: SPACING.m,
     fontFamily: FONTS.semiBold,
   },
-  connectionsSection: {
-    paddingVertical: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  connectionGroup: {
+  connectionSection: {
     marginBottom: SPACING.xl,
   },
-  horizontalScrollContent: {
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    gap: SPACING.m,
+  connectionHeader: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.secondary,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    fontFamily: FONTS.semiBold,
+    marginBottom: SPACING.m,
   },
-  topicsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: SPACING.s,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+  connectionScroll: {
+    marginHorizontal: -(LAYOUT.contentPaddingHorizontal as number),
   },
-  topicPill: {
-    paddingHorizontal: SPACING.m,
-    paddingVertical: SPACING.s,
+  connectionScrollContent: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal as number,
+    gap: 10,
+  },
+  /* ── Redesigned connection cards ── */
+  connectionCard: {
+    width: 220,
+    height: 100,
     backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadiusPill,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: COLORS.divider,
+    overflow: "hidden",
   },
-  topicPillText: {
-    fontSize: 14,
-    color: COLORS.paper,
-    fontFamily: FONTS.medium,
+  cardRow: {
+    flexDirection: "row",
+    flex: 1,
   },
-  section: {
-    paddingVertical: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+  cardThumb: {
+    width: 72,
+    backgroundColor: COLORS.badge,
   },
-  sectionHeader: {
+  cardThumbImage: {
+    width: 72,
+    height: 100,
+  },
+  cardThumbPlaceholder: {
+    width: 72,
+    height: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.badge,
+  },
+  cardTextContent: {
+    flex: 1,
+    padding: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    gap: 2,
+    justifyContent: "center",
+  },
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: SPACING.m,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    gap: SPACING.s,
   },
-  sectionTitle: {
+  cardAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: COLORS.divider,
+  },
+  cardAvatarPlaceholder: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: COLORS.badge,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardAvatarLetter: {
     fontSize: 13,
     fontWeight: "700",
-    color: COLORS.tertiary,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
-  sectionCount: {
-    fontSize: 13,
-    color: COLORS.tertiary,
+  cardIconBg: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: COLORS.secondary,
     fontFamily: FONTS.regular,
   },
-  sourcesList: {
-    gap: SPACING.s,
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 19,
   },
-  sourceItem: {
+  cardExcerpt: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    lineHeight: 16,
+    backgroundColor: COLORS.divider,
+  },
+  /* ── Topic pills ── */
+  topicPills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  topicPill: {
     flexDirection: "row",
     alignItems: "center",
-    padding: SPACING.m,
-    marginHorizontal: SPACING.l,
-    marginBottom: SPACING.s,
     backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    gap: SPACING.m,
+    gap: 5,
   },
-  sourceNumber: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-    minWidth: 20,
-  },
-  sourceIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: COLORS.divider,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sourceIconText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  sourceContent: {
-    flex: 1,
-    gap: 2,
-  },
-  sourceDomain: {
-    fontSize: 12,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-  },
-  sourceTitle: {
-    fontSize: 14,
-    color: COLORS.paper,
-    fontFamily: FONTS.regular,
-  },
-  sourceDescription: {
-    fontSize: 12,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-    marginTop: 2,
-  },
-  viewAllButton: {
-    padding: SPACING.m,
-    alignItems: "center",
-  },
-  viewAllText: {
-    fontSize: 14,
-    color: COLORS.secondary,
-    fontFamily: FONTS.medium,
-  },
-  bottomActions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: SPACING.m,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    backgroundColor: COLORS.ink,
-  },
-  bottomActionButton: {
-    alignItems: "center",
-    gap: 4,
-  },
-  bottomActionText: {
-    fontSize: 12,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
-  replyItem: {
-    padding: SPACING.l,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  avatarSmall: {
-    width: 32, // h-8 w-8
-    height: 32,
-    borderRadius: 16, // rounded-full
-    backgroundColor: COLORS.hover, // bg-primary/20
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: SPACING.s,
-  },
-  avatarTextSmall: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.primary, // text-primary
-    fontFamily: FONTS.semiBold,
-  },
-  displayNameSmall: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: COLORS.paper,
-    marginRight: 4,
-    fontFamily: FONTS.semiBold,
-  },
-  handleSmall: {
-    fontSize: 14,
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-  },
-  replyBody: {
-    fontSize: 16,
-    color: COLORS.secondary,
-    lineHeight: 24,
-    marginTop: 4,
-    fontFamily: FONTS.serifRegular, // IBM Plex Serif for content
-  },
-  loadingText: {
-    color: COLORS.tertiary,
-    textAlign: "center",
-    marginTop: SPACING.xl,
-    fontFamily: FONTS.regular,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-  },
-  errorText: {
-    color: COLORS.error,
-    textAlign: "center",
-    marginTop: SPACING.xl,
-    fontFamily: FONTS.regular,
-  },
+  /* topic pill styles moved to shared TopicPill component */
+  errorText: { color: COLORS.error, fontSize: 16, fontFamily: FONTS.medium },
   deletedPlaceholder: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
@@ -1592,6 +1599,8 @@ const styles = createStyles({
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
     textAlign: "center",
-    marginBottom: SPACING.xl,
+  },
+  deletedPlaceholderWrap: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
 });

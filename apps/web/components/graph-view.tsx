@@ -255,9 +255,13 @@ export function GraphView({ postId, asTabContent = false }: GraphViewProps) {
                   stroke={
                     n.isCenter
                       ? "var(--color-primary)"
-                      : n.isL2
-                        ? "var(--color-tertiary)"
-                        : "var(--color-secondary)"
+                      : n.type === "topic"
+                        ? "var(--color-topic, var(--color-primary))"
+                        : n.type === "user"
+                          ? "#7CB3F0"
+                          : n.type === "external"
+                            ? "var(--color-tertiary)"
+                            : "var(--color-secondary)"
                   }
                   strokeWidth={n.isCenter ? 3 : 2}
                 />
@@ -283,7 +287,26 @@ export function GraphView({ postId, asTabContent = false }: GraphViewProps) {
           })}
         </svg>
       </div>
-      <p className="text-center text-tertiary text-xs mt-2">
+      {/* Legend — matches mobile GraphView */}
+      <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full border-2" style={{ borderColor: "var(--color-primary)" }} />
+          <span className="text-[10px] text-tertiary uppercase tracking-wider font-medium">Post</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full border-2" style={{ borderColor: "var(--color-topic, var(--color-primary))" }} />
+          <span className="text-[10px] text-tertiary uppercase tracking-wider font-medium">Topic</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full border-2" style={{ borderColor: "#7CB3F0" }} />
+          <span className="text-[10px] text-tertiary uppercase tracking-wider font-medium">User</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full border-2" style={{ borderColor: "var(--color-tertiary)" }} />
+          <span className="text-[10px] text-tertiary uppercase tracking-wider font-medium">External</span>
+        </div>
+      </div>
+      <p className="text-center text-tertiary text-xs mt-1.5">
         {data.nodes.length} connected nodes
       </p>
     </Wrapper>

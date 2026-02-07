@@ -477,11 +477,10 @@ export default function CollectionDetailPage(props: {
             <div className="flex justify-end">
               <button
                 onClick={handleShareSavesToggle}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  shareSaves
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${shareSaves
                     ? "bg-primary text-white"
                     : "bg-white/5 text-secondary hover:bg-white/10"
-                }`}
+                  }`}
               >
                 {shareSaves ? "Sharing saves" : "Share saves"}
               </button>
@@ -507,11 +506,10 @@ export default function CollectionDetailPage(props: {
                 key={key}
                 type="button"
                 onClick={() => setActiveTab(key)}
-                className={`shrink-0 px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === key
+                className={`shrink-0 px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === key
                     ? "border-primary text-paper"
                     : "border-transparent text-tertiary hover:text-paper"
-                }`}
+                  }`}
               >
                 {label}
               </button>
@@ -519,7 +517,7 @@ export default function CollectionDetailPage(props: {
           </div>
           {(activeTab === "sources" || activeTab === "contributors") && (
             <div className="px-4 pb-3">
-              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 border-b border-divider px-3 py-2">
                 <svg
                   className="w-5 h-5 text-tertiary shrink-0"
                   fill="none"
@@ -664,10 +662,10 @@ export default function CollectionDetailPage(props: {
               const q = searchQuery.trim().toLowerCase();
               const filtered = q
                 ? sources.filter(
-                    (s) =>
-                      (s.title ?? "").toLowerCase().includes(q) ||
-                      (s.url ?? "").toLowerCase().includes(q),
-                  )
+                  (s) =>
+                    (s.title ?? "").toLowerCase().includes(q) ||
+                    (s.url ?? "").toLowerCase().includes(q),
+                )
                 : sources;
               return filtered.length > 0 ? (
                 <>
@@ -710,10 +708,10 @@ export default function CollectionDetailPage(props: {
               const q = searchQuery.trim().toLowerCase();
               const filtered = q
                 ? contributors.filter(
-                    (c) =>
-                      (c.displayName ?? "").toLowerCase().includes(q) ||
-                      (c.handle ?? "").toLowerCase().includes(q),
-                  )
+                  (c) =>
+                    (c.displayName ?? "").toLowerCase().includes(q) ||
+                    (c.handle ?? "").toLowerCase().includes(q),
+                )
                 : contributors;
               return filtered.length > 0 ? (
                 <>

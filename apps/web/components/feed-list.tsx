@@ -18,17 +18,26 @@ const { VariableSizeList: List } = require("react-window");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AutoSizer = require("react-virtualized-auto-sizer").default;
 
+interface FeedReason {
+  type: "followed_author" | "followed_topic" | "own_post";
+  authorHandle?: string;
+  authorDisplayName?: string;
+  topicTitle?: string;
+  topicSlug?: string;
+}
+
 interface FeedItemShape {
   type: string;
+  reason?: FeedReason;
   data?:
-    | Post
-    | {
-        post: Post;
-        userId: string;
-        userName: string;
-        collectionId: string;
-        collectionName: string;
-      };
+  | Post
+  | {
+    post: Post;
+    userId: string;
+    userName: string;
+    collectionId: string;
+    collectionName: string;
+  };
 }
 
 export interface FeedListProps {
@@ -156,14 +165,47 @@ export function FeedList({ initialPosts }: FeedListProps) {
     } else {
       const postItem = withType.type === "post" ? withType.data : item;
       const post = postItem as Post;
+      const reason = withType.reason;
+      const showReason = reason && reason.type !== "own_post";
       content = (
-        <PostItem
-          post={{
-            ...post,
-            isLiked: post.isLiked,
-            isKept: post.isKept,
-          }}
-        />
+        <>
+          {showReason && (
+            <a
+              href={
+                reason.type === "followed_topic" && reason.topicSlug
+                  ? `/topic/${encodeURIComponent(reason.topicSlug)}`
+                  : reason.type === "followed_author" && reason.authorHandle
+                    ? `/user/${reason.authorHandle}`
+                    : undefined
+              }
+              className="flex items-center gap-1.5 px-5 md:px-6 pt-4 pb-0 text-tertiary text-xs hover:text-secondary transition-colors"
+            >
+              {reason.type === "followed_topic" ? (
+                <span className="w-3.5 h-3.5 inline-flex items-center justify-center font-mono font-bold text-[9px] leading-none">[[]]</span>
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              )}
+              <span>
+                {reason.type === "followed_topic"
+                  ? reason.topicTitle
+                    ? `From a topic you follow: ${reason.topicTitle}`
+                    : "From a topic you follow"
+                  : reason.authorDisplayName
+                    ? `Because you follow ${reason.authorDisplayName}`
+                    : "From someone you follow"}
+              </span>
+            </a>
+          )}
+          <PostItem
+            post={{
+              ...post,
+              isLiked: post.isLiked,
+              isKept: post.isKept,
+            }}
+          />
+        </>
       );
     }
 

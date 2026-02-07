@@ -33,10 +33,10 @@ function DesktopSidebarInner() {
         {/* Logo */}
         <Link
           href="/home"
-          className="flex items-center gap-3 mb-6 px-3 py-2"
+          className="flex items-center gap-3 mb-4 px-3 py-1"
           aria-label="Citewalk Home"
         >
-          <div className="relative w-10 h-10 flex-shrink-0">
+          <div className="relative w-8 h-8 flex-shrink-0">
             <Image
               src="/logo_transparent.png"
               alt=""
@@ -45,7 +45,7 @@ function DesktopSidebarInner() {
               priority
             />
           </div>
-          <span className="text-xl font-bold text-paper">Citewalk</span>
+          <span className="text-lg font-bold text-paper">Citewalk</span>
         </Link>
 
         {/* Navigation Items */}
@@ -53,11 +53,10 @@ function DesktopSidebarInner() {
           <Link
             href="/home"
             onClick={() => clearTrail()}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              isActive("/home") || pathname === "/home"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive("/home") || pathname === "/home"
                 ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
-            }`}
+              }`}
           >
             <svg
               className="w-6 h-6"
@@ -79,11 +78,10 @@ function DesktopSidebarInner() {
           <Link
             href="/explore"
             onClick={() => clearTrail()}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              isActive("/explore")
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive("/explore")
                 ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
-            }`}
+              }`}
           >
             <svg
               className="w-6 h-6"
@@ -127,11 +125,10 @@ function DesktopSidebarInner() {
           <Link
             href="/inbox"
             onClick={() => clearTrail()}
-            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              isActive("/inbox")
+            className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive("/inbox")
                 ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
-            }`}
+              }`}
           >
             <svg
               className="w-6 h-6"
@@ -157,11 +154,10 @@ function DesktopSidebarInner() {
           <Link
             href={`/user/${handle}`}
             onClick={() => clearTrail()}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              isActive(`/user/${handle}`)
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive(`/user/${handle}`)
                 ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
-            }`}
+              }`}
           >
             <svg
               className="w-6 h-6"
@@ -182,11 +178,10 @@ function DesktopSidebarInner() {
           {role === "admin" && (
             <Link
               href="/admin"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                isActive("/admin")
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive("/admin")
                   ? "bg-red-500/20 text-red-400"
                   : "text-red-400/70 hover:bg-white/5 hover:text-red-400"
-              }`}
+                }`}
             >
               <svg
                 className="w-6 h-6"
@@ -213,11 +208,10 @@ function DesktopSidebarInner() {
         <div className="flex flex-col gap-1">
           <Link
             href="/collections"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              isActive("/collections")
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive("/collections")
                 ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
-            }`}
+              }`}
           >
             <svg
               className="w-5 h-5"
@@ -237,11 +231,10 @@ function DesktopSidebarInner() {
 
           <Link
             href="/keeps"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              isActive("/keeps")
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive("/keeps")
                 ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
-            }`}
+              }`}
           >
             <svg
               className="w-5 h-5"
@@ -261,11 +254,10 @@ function DesktopSidebarInner() {
 
           <Link
             href="/settings"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-              isActive("/settings")
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive("/settings")
                 ? "bg-white/5 text-paper font-bold"
                 : "text-tertiary hover:bg-white/5 hover:text-paper"
-            }`}
+              }`}
           >
             <svg
               className="w-5 h-5"

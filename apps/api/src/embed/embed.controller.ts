@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Res, NotFoundException } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -44,10 +44,10 @@ export class EmbedController {
     const postUrl = `https://${this.domain}/p/${post.id}`;
     const date = post.createdAt
       ? new Date(post.createdAt).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        })
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
       : '';
 
     const html = `<!DOCTYPE html>

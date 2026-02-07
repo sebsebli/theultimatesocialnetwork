@@ -81,36 +81,33 @@ export default function KeepsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search keeps..."
-          className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full px-4 py-2 border-b border-divider text-paper placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
         />
         <div className="flex gap-2">
           <button
             onClick={() => setFilter("all")}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              filter === "all"
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filter === "all"
                 ? "bg-primary text-white"
                 : "bg-white/5 text-secondary hover:bg-white/10"
-            }`}
+              }`}
           >
             All
           </button>
           <button
             onClick={() => setFilter("unsorted")}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              filter === "unsorted"
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filter === "unsorted"
                 ? "bg-primary text-white"
                 : "bg-white/5 text-secondary hover:bg-white/10"
-            }`}
+              }`}
           >
             Unsorted
           </button>
           <button
             onClick={() => setFilter("in-collections")}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              filter === "in-collections"
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filter === "in-collections"
                 ? "bg-primary text-white"
                 : "bg-white/5 text-secondary hover:bg-white/10"
-            }`}
+              }`}
           >
             In Collections
           </button>

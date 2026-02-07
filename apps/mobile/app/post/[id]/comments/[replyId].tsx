@@ -7,11 +7,13 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
 import { api } from "../../../../utils/api";
+import { ActionButton } from "../../../../components/ActionButton";
 import {
   COLORS,
   SPACING,
@@ -59,6 +61,7 @@ interface Reply {
   parentReplyId?: string | null;
   privateLikeCount?: number;
   isLiked?: boolean;
+  subreplyCount?: number;
 }
 
 export default function SubcommentsScreen() {
@@ -367,7 +370,7 @@ export default function SubcommentsScreen() {
                   accessibilityLabel={
                     parentReply.author?.displayName
                       ? t("common.viewProfile", "View profile") +
-                        ` ${parentReply.author.displayName}`
+                      ` ${parentReply.author.displayName}`
                       : t("common.viewProfile", "View author")
                   }
                 >
@@ -443,7 +446,7 @@ export default function SubcommentsScreen() {
                 accessibilityLabel={
                   reply.author?.displayName
                     ? t("common.viewProfile", "View profile") +
-                      ` ${reply.author.displayName}`
+                    ` ${reply.author.displayName}`
                     : t("common.viewProfile", "View author")
                 }
               >
@@ -486,47 +489,33 @@ export default function SubcommentsScreen() {
             </View>
             <View style={styles.commentBodyWrap}>
               <MarkdownText>{reply.body}</MarkdownText>
-              {userId && (
-                <View style={styles.commentLikeRow}>
-                  <Pressable
-                    style={styles.commentLikeBtn}
+              <View style={styles.commentActionsRow}>
+                {userId && (
+                  <ActionButton
+                    icon="favorite-border"
+                    activeIcon="favorite"
+                    active={likedReplies.has(reply.id)}
+                    activeColor={COLORS.like}
                     onPress={() =>
                       handleLikeReply(reply.id, likedReplies.has(reply.id))
                     }
-                    accessibilityRole="button"
-                    accessibilityLabel={
+                    label={
                       likedReplies.has(reply.id)
-                        ? t("post.unlike", "Unlike reply")
-                        : t("post.like", "Like reply")
+                        ? t("post.unlike", "Unlike")
+                        : t("post.like", "Like")
                     }
-                  >
-                    <MaterialIcons
-                      name={
-                        likedReplies.has(reply.id)
-                          ? "favorite"
-                          : "favorite-border"
-                      }
-                      size={HEADER.iconSize}
-                      color={
-                        likedReplies.has(reply.id)
-                          ? COLORS.like
-                          : COLORS.tertiary
-                      }
-                    />
-                    <Text style={styles.commentLikeLabel}>
-                      {(reply.authorId === userId ||
+                    count={
+                      (reply.authorId === userId ||
                         reply.author?.id === userId) &&
                         reply.privateLikeCount !== undefined &&
                         reply.privateLikeCount > 0
-                        ? t("post.privateLikedBy", {
-                          count: reply.privateLikeCount,
-                          defaultValue: `Liked by ${reply.privateLikeCount}`,
-                        })
-                        : t("post.like")}
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
+                        ? reply.privateLikeCount
+                        : undefined
+                    }
+                    size="sm"
+                  />
+                )}
+              </View>
             </View>
           </View>
         ))}
@@ -622,14 +611,24 @@ export default function SubcommentsScreen() {
               },
             ]
             : []),
-          {
-            label: t("post.reportComment", "Report"),
-            onPress: () => {
-              if (replyMenuReplyId) setReportReplyId(replyMenuReplyId);
-              setReplyMenuReplyId(null);
-            },
-            icon: "flag" as const,
-          },
+          // Only show report for other users' comments, not own
+          ...(replyMenuReplyId &&
+            userId &&
+            replies.find((r) => r.id === replyMenuReplyId)?.authorId !== userId &&
+            replies.find((r) => r.id === replyMenuReplyId)?.author?.id !== userId
+            ? [
+              {
+                label: t("post.reportComment", "Report"),
+                onPress: () => {
+                  const id = replyMenuReplyId;
+                  setReplyMenuReplyId(null);
+                  // Delay so options sheet dismisses before report modal opens
+                  setTimeout(() => { if (id) setReportReplyId(id); }, 600);
+                },
+                icon: "flag" as const,
+              },
+            ]
+            : []),
         ]}
         cancelLabel={t("common.cancel")}
         onCancel={() => setReplyMenuReplyId(null)}
@@ -734,47 +733,36 @@ const styles = createStyles({
     marginLeft: 36,
   },
   commentBodyWrap: { marginLeft: 36 },
-  commentLikeRow: {
-    marginTop: SPACING.s,
+  commentActionsRow: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  commentLikeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 2,
-    paddingRight: SPACING.s,
-  },
-  commentLikeLabel: {
-    fontSize: 12,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
+    gap: SPACING.l,
+    marginTop: SPACING.xs,
   },
   commentInputBar: {
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: SPACING.m,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    paddingTop: SPACING.m,
+    gap: SPACING.s,
+    paddingHorizontal: SPACING.m,
+    paddingTop: SPACING.s,
     backgroundColor: COLORS.ink,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.divider,
   },
   commentInputWrap: { flex: 1, position: "relative" },
   commentInput: {
-    minHeight: 44,
+    minHeight: 40,
     maxHeight: 120,
     backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 20,
     paddingHorizontal: SPACING.m,
-    paddingVertical: SPACING.m,
-    paddingBottom: 28,
+    paddingTop: 10,
+    paddingBottom: 24,
     fontSize: 15,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   commentCharCount: {
     position: "absolute",
@@ -788,12 +776,12 @@ const styles = createStyles({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 44,
+    minHeight: 40,
     backgroundColor: COLORS.hover,
-    borderRadius: SIZES.borderRadius,
+    borderRadius: 20,
     paddingHorizontal: SPACING.m,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   commentPlaceholderIcon: { marginRight: SPACING.s },
   commentInputPlaceholderText: {
@@ -803,15 +791,17 @@ const styles = createStyles({
   },
   commentPostBtn: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    paddingVertical: SPACING.m,
-    borderRadius: SIZES.borderRadius,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.s,
+    borderRadius: 20,
     justifyContent: "center",
-    minHeight: 44,
+    alignItems: "center",
+    minHeight: 40,
+    marginBottom: 2,
   },
-  commentPostBtnDisabled: { opacity: 0.5 },
+  commentPostBtnDisabled: { opacity: 0.4 },
   commentPostBtnText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: COLORS.ink,
     fontFamily: FONTS.semiBold,

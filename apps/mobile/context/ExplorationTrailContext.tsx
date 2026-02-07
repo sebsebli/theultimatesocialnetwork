@@ -59,7 +59,7 @@ export function ExplorationTrailProvider({
     pushStep,
     jumpTo,
     clearTrail,
-    isActive: trail.length > 1,
+    isActive: trail.length > 0,
   };
   return React.createElement(
     ExplorationTrailContext.Provider,
@@ -72,10 +72,10 @@ export function useExplorationTrail() {
   const ctx = useContext(ExplorationTrailContext);
   if (!ctx)
     return {
-      pushStep: () => {},
+      pushStep: () => { },
       trail: [] as TrailStep[],
-      jumpTo: () => {},
-      clearTrail: () => {},
+      jumpTo: () => { },
+      clearTrail: () => { },
       isActive: false,
     };
   return ctx;

@@ -21,6 +21,25 @@ import {
 const CODE_FONT =
   Platform.select({ ios: "Menlo", android: "monospace" }) ?? "monospace";
 
+/** Format large numbers compactly: 1234 → "1.2K", 1500000 → "1.5M" */
+function formatCount(n: number): string {
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + "M";
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + "K";
+  }
+  return String(n);
+}
+
+interface InlineEnrichment {
+  mentionAvatars?: Record<string, string | null>;
+  topicPostCounts?: Record<string, number>;
+  postCiteCounts?: Record<string, number>;
+}
+
 interface MarkdownTextProps {
   children: string;
   referenceMetadata?: Record<
@@ -32,6 +51,8 @@ interface MarkdownTextProps {
       isProtected?: boolean;
     }
   >;
+  /** Fresh inline enrichment: mention avatars, topic post counts, cite counts. */
+  inlineEnrichment?: InlineEnrichment | null;
   /** When set, only @handle that are in this set render as mention chips; others render as plain text (no @). Omit for published content to render all @ as mentions. */
   validMentionHandles?: Set<string> | null;
   /** When set (e.g. post.title in full view), the first line "# &lt;title&gt;" is not rendered so the title is not shown twice. */
@@ -41,6 +62,7 @@ interface MarkdownTextProps {
 function MarkdownTextInner({
   children,
   referenceMetadata = {},
+  inlineEnrichment,
   validMentionHandles,
   stripLeadingH1IfMatch: titleToStrip,
 }: MarkdownTextProps) {
@@ -50,6 +72,11 @@ function MarkdownTextInner({
   const [modalVisible, setModalVisible] = useState(false);
   const [targets, setTargets] = useState<string[]>([]);
   const [alias, setAlias] = useState("");
+  const [previewPostId, setPreviewPostId] = useState<string | null>(null);
+  const previewMeta = previewPostId
+    ? (referenceMetadata as Record<string, { title?: string; bodyExcerpt?: string; deletedAt?: string }>)?.[previewPostId] ??
+    (referenceMetadata as Record<string, { title?: string; bodyExcerpt?: string; deletedAt?: string }>)?.[previewPostId?.toLowerCase?.() ?? ""]
+    : null;
 
   const handleLinkPress = async (url: string | null | undefined) => {
     if (url == null || typeof url !== "string") return;
@@ -85,13 +112,11 @@ function MarkdownTextInner({
 
   /*
    * DESIGN PRINCIPLE: All inline elements (topics, mentions, post refs, links)
-   * render as pure <Text> nested inside the parent <Text>. No <View> wrappers.
+   * render as pure <Text> nested inside the parent <Text>. <Image> is allowed
+   * inside <Text> (RN treats it as an inline character glyph).
    * This preserves natural text flow — nothing forces a new line or breaks
    * the reading rhythm. Visual distinction is achieved through color, weight,
-   * and subtle styling only.
-   *
-   * Rich detail (avatars, post counts, excerpts) lives in the connections
-   * section at the bottom of the post, not inline.
+   * subtle styling, and tiny inline avatars / counts.
    */
   const parseText = useMemo(() => {
     const getLinkDisplayText = (
@@ -228,8 +253,10 @@ function MarkdownTextInner({
           const aliasVal = match[12] != null ? String(match[12]) : undefined;
           const meta = referenceMetadata ?? {};
           let linkDisplay = aliasVal ?? linkContentVal;
+          let postId: string | undefined;
           if (!aliasVal && linkContentVal.startsWith("post:")) {
             const id = linkContentVal.split(":")[1] ?? "";
+            postId = id;
             const refMeta =
               (
                 meta as Record<
@@ -266,28 +293,61 @@ function MarkdownTextInner({
             : isUrlLink
               ? styles.urlLinkText
               : styles.topicTagText;
+
+          // Topic post count (for topic wikilinks)
+          const isTopicLink = !isPostLink && !isUrlLink;
+          const topicSlug = isTopicLink ? linkContentVal.split(",")[0].trim() : undefined;
+          const topicCount = topicSlug
+            ? inlineEnrichment?.topicPostCounts?.[topicSlug]
+            : undefined;
+
+          // Post cite count (for post wikilinks)
+          const citeCount =
+            isPostLink && postId
+              ? inlineEnrichment?.postCiteCounts?.[postId.toLowerCase()]
+              : undefined;
+
           parts.push(
             <Text
               key={`${lineKey}-${match.index}`}
               style={[lineStyle, wikilinkStyle]}
               onPress={() => handleWikiLinkPress(linkContentVal, aliasVal)}
+              onLongPress={
+                isPostLink && postId
+                  ? () => setPreviewPostId(postId)
+                  : undefined
+              }
             >
               {linkDisplay}
+              {topicCount != null && topicCount > 0 ? (
+                <Text style={styles.inlineCountWrap}>
+                  {" "}
+                  <Text style={styles.inlineCountNum}>{formatCount(topicCount)} posts</Text>
+                </Text>
+              ) : null}
+              {citeCount != null && citeCount > 0 ? (
+                <Text style={styles.inlineCountWrap}>
+                  {" "}
+                  <Text style={styles.inlineCountNum}>{formatCount(citeCount)} cites</Text>
+                </Text>
+              ) : null}
             </Text>,
           );
         } else if (match[13]) {
-          // @mention — pure inline text, no avatar, no chip
+          // @mention — inline text with small avatar dot or image
           const handle = match[13].substring(1);
           const isValidMention =
             validMentionHandles == null || validMentionHandles.has(handle);
           if (isValidMention) {
+            const initial = handle.charAt(0).toUpperCase();
             parts.push(
               <Text
                 key={`${lineKey}-${match.index}`}
                 style={[lineStyle, styles.mentionText]}
                 onPress={() => router.push(`/user/${handle}`)}
               >
-                @{handle}
+                <Text style={styles.mentionDot}>{initial}</Text>
+                {" @"}{handle}
               </Text>,
             );
           } else {
@@ -470,7 +530,7 @@ function MarkdownTextInner({
     });
 
     return nodes;
-  }, [children, titleToStrip, referenceMetadata, validMentionHandles]);
+  }, [children, titleToStrip, referenceMetadata, validMentionHandles, inlineEnrichment]);
 
   return (
     <>
@@ -513,6 +573,48 @@ function MarkdownTextInner({
             </Pressable>
           </View>
         </View>
+      </Modal>
+
+      {/* Long-press post preview popover */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={previewPostId != null}
+        onRequestClose={() => setPreviewPostId(null)}
+      >
+        <Pressable
+          style={styles.previewOverlay}
+          onPress={() => setPreviewPostId(null)}
+        >
+          <View style={styles.previewContent}>
+            <Text style={styles.previewTitle} numberOfLines={2}>
+              {previewMeta?.title ?? t("post.untitled", "Untitled")}
+            </Text>
+            {previewMeta?.bodyExcerpt ? (
+              <Text style={styles.previewExcerpt} numberOfLines={3}>
+                {previewMeta.bodyExcerpt}
+              </Text>
+            ) : null}
+            {previewMeta?.deletedAt ? (
+              <Text style={styles.previewDeleted}>
+                {t("post.deletedContent", "(deleted content)")}
+              </Text>
+            ) : null}
+            <Pressable
+              style={styles.previewOpenButton}
+              onPress={() => {
+                setPreviewPostId(null);
+                if (previewPostId) router.push(`/post/${previewPostId}`);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t("post.openPost", "Open post")}
+            >
+              <Text style={styles.previewOpenText}>
+                {t("post.openPost", "Open post")} →
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
       </Modal>
     </>
   );
@@ -677,17 +779,30 @@ const styles = createStyles({
   postLinkText: {
     fontWeight: "600",
     fontStyle: "italic",
-    color: COLORS.postLink ?? COLORS.primary,
+    color: COLORS.postLink,
     fontFamily: FONTS.serifSemiBold,
   },
   mentionText: {
     fontWeight: "600",
-    color: COLORS.mention ?? COLORS.primary,
+    color: COLORS.mention,
     fontFamily: FONTS.serifSemiBold,
+  },
+  /** Small colored circle with initial letter before @handle */
+  mentionDot: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#fff",
+    backgroundColor: COLORS.mentionDot ?? COLORS.mention,
+    borderRadius: 8,
+    overflow: "hidden",
+    paddingHorizontal: 4.5,
+    paddingVertical: 1.5,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 15,
   },
   topicTagText: {
     fontWeight: "600",
-    color: COLORS.topic ?? COLORS.primary,
+    color: COLORS.topic,
     fontFamily: FONTS.serifSemiBold,
   },
   urlLinkText: {
@@ -695,6 +810,19 @@ const styles = createStyles({
     color: COLORS.link,
     fontFamily: FONTS.serifSemiBold,
     textDecorationLine: "none",
+  },
+  /** Wrapper for inline count — resets parent bold/color inheritance */
+  inlineCountWrap: {
+    fontWeight: "400",
+    fontFamily: FONTS.regular,
+  },
+  /** Subscript-style number shown after topic/post names */
+  inlineCountNum: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: COLORS.inlineCount ?? "rgba(255,255,255,0.45)",
+    fontFamily: FONTS.regular,
+    letterSpacing: 0.3,
   },
   inlineLinkPressed: {
     opacity: 0.8,
@@ -740,6 +868,57 @@ const styles = createStyles({
   closeButtonText: {
     color: COLORS.paper,
     fontSize: 16,
+    fontFamily: FONTS.medium,
+  },
+  // Long-press post preview
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.overlay,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: SPACING.xl,
+  },
+  previewContent: {
+    backgroundColor: COLORS.ink,
+    borderRadius: SIZES.borderRadius,
+    padding: SPACING.xl,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    maxWidth: 340,
+    width: "100%",
+  },
+  previewTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    marginBottom: SPACING.s,
+  },
+  previewExcerpt: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.secondary,
+    fontFamily: FONTS.serifRegular,
+    marginBottom: SPACING.m,
+  },
+  previewDeleted: {
+    fontSize: 14,
+    color: COLORS.tertiary,
+    fontStyle: "italic",
+    fontFamily: FONTS.serifRegular,
+    marginBottom: SPACING.m,
+  },
+  previewOpenButton: {
+    paddingVertical: SPACING.s,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: COLORS.divider,
+    marginTop: SPACING.s,
+  },
+  previewOpenText: {
+    color: COLORS.primary,
+    fontSize: 15,
+    fontWeight: "600",
     fontFamily: FONTS.medium,
   },
 });

@@ -15,7 +15,7 @@ export class ExploreController {
     private readonly exploreService: ExploreService,
     private readonly recommendationService: RecommendationService,
     private readonly uploadService: UploadService,
-  ) {}
+  ) { }
 
   /** Serialize post list to plain objects (avoids 500 from raw TypeORM entities; consistent image URLs). */
   private withPostPlains(result: {
@@ -215,20 +215,29 @@ export class ExploreController {
   async getForYou(
     @CurrentUser() user: { id: string },
     @Query('limit') limit?: string,
+    @Query('page') page?: string,
   ) {
     try {
+      const limitNum = limit
+        ? Math.min(50, Math.max(1, parseInt(limit, 10) || 20))
+        : 20;
+      const pageNum = Math.max(1, parseInt(page || '1', 10) || 1);
+      const skip = (pageNum - 1) * limitNum;
+      // Fetch one extra to determine hasMore
       const posts = await this.recommendationService.getRecommendedPosts(
         user.id,
-        limit ? parseInt(limit, 10) : 20,
+        limitNum + 1,
+        skip,
       );
+      const hasMore = posts.length > limitNum;
       const result = this.withPostPlains({
-        items: posts,
-        hasMore: false,
+        items: posts.slice(0, limitNum),
+        hasMore,
       });
-      return { items: result.items };
+      return { items: result.items, hasMore: result.hasMore };
     } catch (err) {
       console.error('explore/for-you error', err);
-      return { items: [] };
+      return { items: [], hasMore: false };
     }
   }
 

@@ -44,8 +44,10 @@ export interface TopicOrCollectionLayoutProps {
   notFoundMessage: string;
   /** Back button press */
   onBack: () => void;
-  /** Hero header (TopicCollectionHeader + tabs / more section) */
+  /** Hero header — fades out on scroll (image, title, follow, description) */
   headerComponent: React.ReactNode;
+  /** Non-fading header content — stays visible below the fading hero (search bar, tab bar) */
+  stickyHeaderComponent?: React.ReactNode;
   /** Scroll-driven opacity for hero */
   heroOpacity: Animated.AnimatedInterpolation<number>;
   /** Scroll-driven opacity for sticky bar */
@@ -56,6 +58,8 @@ export interface TopicOrCollectionLayoutProps {
   keyExtractor: (item: Record<string, unknown>) => string;
   renderItem: ({ item }: { item: Record<string, unknown> }) => React.ReactElement | null;
   ListEmptyComponent: React.ReactNode;
+  /** Optional custom list footer component */
+  ListFooterComponent?: React.ReactNode;
   onRefresh: () => void;
   refreshing: boolean;
   onEndReached: () => void;
@@ -80,6 +84,7 @@ export function TopicOrCollectionLayout({
   notFoundMessage,
   onBack,
   headerComponent,
+  stickyHeaderComponent,
   heroOpacity,
   stickyOpacity,
   onScroll,
@@ -88,6 +93,7 @@ export function TopicOrCollectionLayout({
   keyExtractor,
   renderItem,
   ListEmptyComponent,
+  ListFooterComponent,
   onRefresh,
   refreshing,
   onEndReached,
@@ -101,7 +107,7 @@ export function TopicOrCollectionLayout({
   const { t } = useTranslation();
   const [stickyVisible, setStickyVisible] = React.useState(false);
   // Slightly reduced top so overlay/sticky bar isn’t too low (min 8pt for small insets)
-  const barPaddingTop = Math.max(8, insets.top - 20);
+  const barPaddingTop = Math.max(8, insets.top);
 
   const paddingBottom =
     bottomPadding > 0 ? bottomPadding : insets.bottom + LIST_PADDING_EXTRA;
@@ -167,9 +173,12 @@ export function TopicOrCollectionLayout({
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={
-          <AnimatedView style={{ opacity: heroOpacity }}>
-            {headerComponent ?? headerBar}
-          </AnimatedView>
+          <>
+            <AnimatedView style={{ opacity: heroOpacity }}>
+              {headerComponent ?? headerBar}
+            </AnimatedView>
+            {stickyHeaderComponent ?? null}
+          </>
         }
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -185,7 +194,10 @@ export function TopicOrCollectionLayout({
         ListEmptyComponent={ListEmptyComponent}
         ListFooterComponent={
           loading ? null : (
-            <ListFooterLoader visible={!!(hasMore && loadingMore)} />
+            <>
+              {ListFooterComponent ?? null}
+              <ListFooterLoader visible={!!(hasMore && loadingMore)} />
+            </>
           )
         }
         refreshControl={

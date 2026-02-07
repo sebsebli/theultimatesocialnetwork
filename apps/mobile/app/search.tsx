@@ -47,9 +47,9 @@ const SEARCH_LIMIT = 20;
 
 type ListItem =
   | { type: "section"; key: string; title: string }
-  | { type: "post"; key: string; [k: string]: unknown }
-  | { type: "user"; key: string; [k: string]: unknown }
-  | { type: "topic"; key: string; [k: string]: unknown };
+  | { type: "post"; key: string;[k: string]: unknown }
+  | { type: "user"; key: string;[k: string]: unknown }
+  | { type: "topic"; key: string;[k: string]: unknown };
 
 /**
  * Full-screen search: one query, one request to /search/all, results shown in sections (Posts, People, Topics).
@@ -74,6 +74,10 @@ export default function SearchScreen() {
   const [users, setUsers] = useState<Record<string, unknown>[]>([]);
   const [topics, setTopics] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const offsetRef = useRef(0);
+  const lastQueryRef = useRef("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
@@ -84,32 +88,40 @@ export default function SearchScreen() {
   useEffect(() => {
     getRecentSearches()
       .then(setRecentSearches)
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const runSearch = useCallback(
-    async (q: string) => {
+    async (q: string, offset = 0) => {
       const trimmed = q.trim();
       if (!trimmed) {
         setPosts([]);
         setUsers([]);
         setTopics([]);
+        setHasMore(false);
         return;
       }
-      setLoading(true);
-      addRecentSearch(trimmed).catch(() => {});
-      getRecentSearches()
-        .then(setRecentSearches)
-        .catch(() => {});
+      if (offset === 0) {
+        setLoading(true);
+        addRecentSearch(trimmed).catch(() => { });
+        getRecentSearches()
+          .then(setRecentSearches)
+          .catch(() => { });
+      } else {
+        setLoadingMore(true);
+      }
       try {
-        const url = topicSlug
-          ? `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}&topicSlug=${encodeURIComponent(topicSlug)}`
-          : `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}`;
+        const params = new URLSearchParams({
+          q: trimmed,
+          limit: String(SEARCH_LIMIT),
+          offset: String(offset),
+        });
+        if (topicSlug) params.set("topicSlug", topicSlug);
         const res = await api.get<{
           posts: Record<string, unknown>[];
           users: Record<string, unknown>[];
           topics: Record<string, unknown>[];
-        }>(url);
+        }>(`/search/all?${params.toString()}`);
         const rawPosts = (res.posts || []).filter(
           (p: Record<string, unknown>) => !!p?.author,
         );
@@ -118,22 +130,55 @@ export default function SearchScreen() {
           (tpc: Record<string, unknown>) => ({
             ...tpc,
             title: tpc.title || tpc.slug,
-          }),
+          } as Record<string, unknown>),
         );
-        setPosts(rawPosts);
-        setUsers(rawUsers);
-        setTopics(rawTopics);
+        if (offset === 0) {
+          setPosts(rawPosts);
+          setUsers(rawUsers);
+          setTopics(rawTopics);
+        } else {
+          // Append new results (dedup by id)
+          setPosts((prev) => {
+            const ids = new Set(prev.map((p) => p.id));
+            return [...prev, ...rawPosts.filter((p) => !ids.has(p.id))];
+          });
+          setUsers((prev) => {
+            const ids = new Set(prev.map((u) => u.id));
+            return [...prev, ...rawUsers.filter((u) => !ids.has(u.id))];
+          });
+          setTopics((prev) => {
+            const ids = new Set(prev.map((tp) => tp.id));
+            return [...prev, ...rawTopics.filter((tp) => !ids.has(tp.id))];
+          });
+        }
+        // Has more if any category returned full page
+        const anyFull =
+          rawPosts.length >= SEARCH_LIMIT ||
+          rawUsers.length >= SEARCH_LIMIT ||
+          rawTopics.length >= SEARCH_LIMIT;
+        setHasMore(anyFull);
+        offsetRef.current = offset + SEARCH_LIMIT;
+        lastQueryRef.current = trimmed;
       } catch (err) {
         if (__DEV__) console.error("Search failed", err);
-        setPosts([]);
-        setUsers([]);
-        setTopics([]);
+        if (offset === 0) {
+          setPosts([]);
+          setUsers([]);
+          setTopics([]);
+        }
+        setHasMore(false);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     },
     [topicSlug],
   );
+
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore || !hasMore || !lastQueryRef.current) return;
+    runSearch(lastQueryRef.current, offsetRef.current);
+  }, [loadingMore, hasMore, runSearch]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -142,10 +187,13 @@ export default function SearchScreen() {
       setUsers([]);
       setTopics([]);
       setLoading(false);
+      setHasMore(false);
+      offsetRef.current = 0;
       return;
     }
+    offsetRef.current = 0;
     debounceRef.current = setTimeout(() => {
-      runSearch(query);
+      runSearch(query, 0);
       debounceRef.current = null;
     }, DEBOUNCE_MS);
     return () => {
@@ -334,9 +382,9 @@ export default function SearchScreen() {
               ? t("search.noResults", "No results")
               : topicSlug
                 ? t(
-                    "search.typeToSearchInTopic",
-                    "Type to search in this topic",
-                  )
+                  "search.typeToSearchInTopic",
+                  "Type to search in this topic",
+                )
                 : t("search.startTyping", "Search posts, people, topics")
           }
           subtext={
@@ -408,6 +456,8 @@ export default function SearchScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
       />
     </View>
   );

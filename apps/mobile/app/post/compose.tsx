@@ -39,7 +39,10 @@ import { useSettings } from "../../context/SettingsContext";
 import { useComposerSearch } from "../../hooks/useComposerSearch";
 import { MarkdownText } from "../../components/MarkdownText";
 import { PostAuthorHeader } from "../../components/PostAuthorHeader";
+import { TopicPill } from "../../components/TopicPill";
+import { TopicCard } from "../../components/ExploreCards";
 import { PostItem } from "../../components/PostItem";
+import { ActionButton } from "../../components/ActionButton";
 import { Avatar } from "../../components/Avatar";
 import { ImageVerifyingOverlay } from "../../components/ImageVerifyingOverlay";
 import {
@@ -367,7 +370,7 @@ export default function ComposeScreen() {
                 res) as Record<string, unknown>;
               newPosts[id] = data as unknown as Post;
               newMeta[id] = { title: (data.title as string) || "Post" };
-            } catch {} // Ignore errors for individual fetches
+            } catch { } // Ignore errors for individual fetches
           }),
           ...missingTopics.map(async (slug) => {
             try {
@@ -375,7 +378,7 @@ export default function ComposeScreen() {
               const data = ((res as Record<string, unknown>)?.data ??
                 res) as Record<string, unknown>;
               newTopics[slug] = data;
-            } catch {} // Ignore errors for individual fetches
+            } catch { } // Ignore errors for individual fetches
           }),
         ]);
 
@@ -440,7 +443,7 @@ export default function ComposeScreen() {
           if (uploadId !== headerUploadIdRef.current) return;
           setHeaderUploadError(
             (err as { message?: string })?.message ??
-              t("compose.imageUploadFailed", "Image failed to upload"),
+            t("compose.imageUploadFailed", "Image failed to upload"),
           );
         })
         .finally(() => {
@@ -748,20 +751,17 @@ export default function ComposeScreen() {
 
     if (lastAt !== -1 && isAtValid) {
       const query = beforeCursor.slice(lastAt + 1);
-      // Allow spaces in mentions, but stop at newline or reasonable length
-      if (!query.includes("\n") && query.length < 50) {
-        if (!query.includes("[[")) {
-          // Trailing space = mention complete (e.g. after selecting a user), close and don't re-open
-          if (query.endsWith(" ")) {
-            if (suggestionType !== "none") {
-              setSuggestionType("none");
-              clearSearch();
-            }
-            return;
-          }
-          if (suggestionType !== "mention") setSuggestionType("mention");
-          search(query, "mention");
-          return;
+      // Stop searching if query contains whitespace, newline, or [[ — mention is done
+      if (!query.includes("\n") && !query.includes(" ") && !query.includes("[[") && query.length < 50 && query.length > 0) {
+        if (suggestionType !== "mention") setSuggestionType("mention");
+        search(query, "mention");
+        return;
+      }
+      // If the query contains a space or is empty, close suggestions
+      if (query.includes(" ") || query.length === 0) {
+        if (suggestionType === "mention") {
+          setSuggestionType("none");
+          clearSearch();
         }
       }
     }
@@ -779,7 +779,7 @@ export default function ComposeScreen() {
         return;
       }
       if (suggestionType !== "topic") setSuggestionType("topic");
-      search(query, "topic", smartCiteEnabled);
+      search(query, "topic", true);
       return;
     }
 
@@ -850,12 +850,12 @@ export default function ComposeScreen() {
     let list: Record<string, unknown>[] =
       suggestionType === "mention"
         ? suggestions.filter(
-            (item: Record<string, unknown>) =>
-              item.id !== userId &&
-              (item.handle as string | undefined)?.startsWith?.(
-                "__pending_",
-              ) !== true,
-          )
+          (item: Record<string, unknown>) =>
+            item.id !== userId &&
+            (item.handle as string | undefined)?.startsWith?.(
+              "__pending_",
+            ) !== true,
+        )
         : suggestions;
     if (suggestionType === "topic") {
       const seen = new Set<string>();
@@ -905,16 +905,16 @@ export default function ComposeScreen() {
         (post.authorHandle ? `@${post.authorHandle}` : null);
       const dateStr = post.createdAt
         ? new Date(post.createdAt).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
         : null;
       const quotesLabel =
         (post.quoteCount ?? 0) > 0
           ? t("compose.quotesCount", "{{count}} quotes", {
-              count: post.quoteCount,
-            })
+            count: post.quoteCount,
+          })
           : null;
       return (
         [author, dateStr, quotesLabel].filter(Boolean).join(" · ") ||
@@ -1265,6 +1265,18 @@ export default function ComposeScreen() {
     return seenPost.size + seenTopic.size;
   }, [body]);
 
+  /** Check if any topic reference is shorter than MIN_TOPIC_LENGTH characters */
+  const shortTopicName = useMemo(() => {
+    const MIN_TOPIC_LENGTH = 3;
+    for (const m of body.matchAll(
+      /\[\[(?!post:)([^\|\]]+)(?:\|[^\|\]]*)?\]\]/g,
+    )) {
+      const name = m[1].trim();
+      if (name.length > 0 && name.length < MIN_TOPIC_LENGTH) return name;
+    }
+    return null;
+  }, [body]);
+
   /** Longest heading (H1/H2/H3) content length and longest link/tag alias length; max of both for "titles" limit. */
   const { maxTitleLength } = useMemo(() => {
     let maxHeading = 0;
@@ -1296,19 +1308,19 @@ export default function ComposeScreen() {
     const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
     const author = meUser
       ? {
-          id: meUser.id,
-          handle: meUser.handle,
-          displayName: meUser.displayName,
-          avatarKey: meUser.avatarKey ?? undefined,
-          avatarUrl: meUser.avatarUrl ?? undefined,
-        }
+        id: meUser.id,
+        handle: meUser.handle,
+        displayName: meUser.displayName,
+        avatarKey: meUser.avatarKey ?? undefined,
+        avatarUrl: meUser.avatarUrl ?? undefined,
+      }
       : {
-          id: userId ?? "preview",
-          handle: "me",
-          displayName: t("compose.previewAuthor", "Me"),
-          avatarKey: undefined,
-          avatarUrl: undefined,
-        };
+        id: userId ?? "preview",
+        handle: "me",
+        displayName: t("compose.previewAuthor", "Me"),
+        avatarKey: undefined,
+        avatarUrl: undefined,
+      };
     const p: Post = {
       id: "preview",
       body,
@@ -1324,6 +1336,22 @@ export default function ComposeScreen() {
       referenceMetadata;
     return p;
   }, [body, sanitizedTitle, referenceMetadata, userId, meUser, t]);
+
+  /** Inline enrichment data for the preview MarkdownText */
+  const previewEnrichment = useMemo(() => {
+    const topicPostCounts: Record<string, number> = {};
+    const postCiteCounts: Record<string, number> = {};
+    const mentionAvatars: Record<string, string | null> = {};
+    for (const [slug, topic] of Object.entries(sourcePreviews.topicBySlug)) {
+      const tp = topic as Record<string, unknown>;
+      if (tp.postCount != null) topicPostCounts[slug] = Number(tp.postCount);
+    }
+    for (const [id, postObj] of Object.entries(sourcePreviews.postById)) {
+      const p = postObj as unknown as Record<string, unknown>;
+      if (p.quoteCount != null) postCiteCounts[id.toLowerCase()] = Number(p.quoteCount);
+    }
+    return { topicPostCounts, postCiteCounts, mentionAvatars };
+  }, [sourcePreviews]);
 
   /** Sources derived from body for preview: [[post:id]], [[topic]], @handle, [text](url). One entry per unique source (same as sourceCount). */
   const previewSources = useMemo(() => {
@@ -1431,7 +1459,7 @@ export default function ComposeScreen() {
               style={[
                 styles.previewBtn,
                 (!body.trim() || body.trim().length < BODY_MIN_LENGTH) &&
-                  styles.previewBtnDisabled,
+                styles.previewBtnDisabled,
               ]}
               disabled={!body.trim() || body.trim().length < BODY_MIN_LENGTH}
               accessibilityLabel={t("compose.preview")}
@@ -1441,7 +1469,7 @@ export default function ComposeScreen() {
                 style={[
                   headerRightCancelStyle,
                   (!body.trim() || body.trim().length < BODY_MIN_LENGTH) &&
-                    styles.previewBtnTextDisabled,
+                  styles.previewBtnTextDisabled,
                 ]}
               >
                 {t("compose.preview", "Preview")}
@@ -1476,6 +1504,16 @@ export default function ComposeScreen() {
                       "compose.headlineTooLong",
                       "Headline is too long. Please keep it under {{max}} characters.",
                       { max: TITLE_MAX_LENGTH },
+                    ),
+                  );
+                  return;
+                }
+                if (shortTopicName) {
+                  showError(
+                    t(
+                      "compose.topicTooShort",
+                      'Topic "{{name}}" is too short. Topics must be at least 3 characters.',
+                      { name: shortTopicName },
                     ),
                   );
                   return;
@@ -1533,7 +1571,7 @@ export default function ComposeScreen() {
                 (!body.trim() ||
                   body.trim().length < BODY_MIN_LENGTH ||
                   isPublishing) &&
-                  styles.publishBtnDisabled,
+                styles.publishBtnDisabled,
               ]}
             >
               <Text style={styles.publishText}>
@@ -1727,11 +1765,7 @@ export default function ComposeScreen() {
                 styles.previewScrollContent,
                 { paddingBottom: 80, flexGrow: 1 },
                 !headerImage && {
-                  paddingTop:
-                    insets.top +
-                    40 +
-                    toDimension(HEADER.barPaddingBottom) +
-                    toDimension(SPACING.s),
+                  paddingTop: insets.top + toDimension(SPACING.m),
                 },
               ]}
               showsVerticalScrollIndicator={true}
@@ -1798,54 +1832,19 @@ export default function ComposeScreen() {
                 <MarkdownText
                   stripLeadingH1IfMatch={sanitizedTitle ?? undefined}
                   referenceMetadata={referenceMetadata}
+                  inlineEnrichment={previewEnrichment}
                 >
                   {body}
                 </MarkdownText>
 
-                {/* Action row: same icons as reading (non-interactive in preview) */}
+                {/* Action row: same ActionButton as reading screen (non-interactive in preview) */}
                 <View style={styles.previewActionsRow}>
-                  <View style={styles.previewActionBtn}>
-                    <MaterialIcons
-                      name="favorite-border"
-                      size={HEADER.iconSize}
-                      color={COLORS.tertiary}
-                    />
-                  </View>
-                  <View style={styles.previewActionBtn}>
-                    <MaterialIcons
-                      name="chat-bubble-outline"
-                      size={HEADER.iconSize}
-                      color={COLORS.tertiary}
-                    />
-                  </View>
-                  <View style={styles.previewActionBtn}>
-                    <MaterialIcons
-                      name="format-quote"
-                      size={HEADER.iconSize}
-                      color={COLORS.tertiary}
-                    />
-                  </View>
-                  <View style={styles.previewActionBtn}>
-                    <MaterialIcons
-                      name="bookmark-border"
-                      size={HEADER.iconSize}
-                      color={COLORS.tertiary}
-                    />
-                  </View>
-                  <View style={styles.previewActionBtn}>
-                    <MaterialIcons
-                      name="add-circle-outline"
-                      size={HEADER.iconSize}
-                      color={COLORS.tertiary}
-                    />
-                  </View>
-                  <View style={styles.previewActionBtn}>
-                    <MaterialIcons
-                      name="ios-share"
-                      size={HEADER.iconSize}
-                      color={COLORS.tertiary}
-                    />
-                  </View>
+                  <ActionButton icon="favorite-border" onPress={() => { }} label="Like" />
+                  <ActionButton icon="chat-bubble-outline" onPress={() => { }} label="Reply" />
+                  <ActionButton icon="format-quote" onPress={() => { }} label="Quote" />
+                  <ActionButton icon="bookmark-border" onPress={() => { }} label="Save" />
+                  <ActionButton icon="add-circle-outline" onPress={() => { }} label="Collection" />
+                  <ActionButton icon="ios-share" onPress={() => { }} label="Share" />
                 </View>
               </View>
 
@@ -1856,36 +1855,36 @@ export default function ComposeScreen() {
                   {previewSources.filter(
                     (s: Record<string, unknown>) => s.type !== "topic",
                   ).length > 0 && (
-                    <>
-                      <Text style={styles.previewConnectionHeader}>
-                        This builds on
-                      </Text>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{
-                          gap: 10,
-                          paddingBottom: SPACING.m,
-                        }}
-                      >
-                        {previewSources
-                          .filter(
-                            (s: Record<string, unknown>) => s.type !== "topic",
-                          )
-                          .map(
-                            (
-                              source: Record<string, unknown>,
-                              index: number,
-                            ) => {
-                              const title = String(
-                                source.title ||
+                      <>
+                        <Text style={styles.previewConnectionHeader}>
+                          {t("post.buildsOn", "This builds on")}
+                        </Text>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={{
+                            gap: 10,
+                            paddingBottom: SPACING.m,
+                          }}
+                        >
+                          {previewSources
+                            .filter(
+                              (s: Record<string, unknown>) => s.type !== "topic",
+                            )
+                            .map(
+                              (
+                                source: Record<string, unknown>,
+                                index: number,
+                              ) => {
+                                const title = String(
+                                  source.title ||
                                   source.url ||
                                   source.handle ||
                                   "",
-                              );
-                              const subtitle =
-                                source.type === "external" && source.url
-                                  ? (() => {
+                                );
+                                const subtitle =
+                                  source.type === "external" && source.url
+                                    ? (() => {
                                       try {
                                         return new URL(
                                           source.url as string,
@@ -1894,95 +1893,84 @@ export default function ComposeScreen() {
                                         return "";
                                       }
                                     })()
-                                  : source.type === "user" && source.handle
-                                    ? `@${source.handle}`
-                                    : source.type === "post"
-                                      ? t("post.post", "Post")
-                                      : "";
-                              const iconName =
-                                source.type === "post"
-                                  ? "description"
-                                  : source.type === "user"
-                                    ? "person"
-                                    : "open-in-new";
-                              return (
-                                <View
-                                  key={
-                                    source.type === "external" && source.url
-                                      ? `ext-${source.url}`
-                                      : (source.id ??
-                                        source.handle ??
-                                        `i-${index}`)
-                                  }
-                                  style={styles.previewConnectionCard}
-                                >
+                                    : source.type === "user" && source.handle
+                                      ? `@${source.handle}`
+                                      : source.type === "post"
+                                        ? t("post.post", "Post")
+                                        : "";
+                                const iconName =
+                                  source.type === "post"
+                                    ? "description"
+                                    : source.type === "user"
+                                      ? "person"
+                                      : "open-in-new";
+                                return (
                                   <View
-                                    style={styles.previewConnectionCardIcon}
+                                    key={
+                                      source.type === "external" && source.url
+                                        ? `ext-${source.url}`
+                                        : (source.id ??
+                                          source.handle ??
+                                          `i-${index}`)
+                                    }
+                                    style={styles.previewConnectionCard}
                                   >
-                                    <MaterialIcons
-                                      name={
-                                        iconName as keyof typeof MaterialIcons.glyphMap
-                                      }
-                                      size={14}
-                                      color={COLORS.tertiary}
-                                    />
-                                  </View>
-                                  {subtitle ? (
-                                    <Text
-                                      style={styles.previewConnectionCardSub}
-                                      numberOfLines={1}
+                                    <View
+                                      style={styles.previewConnectionCardIcon}
                                     >
-                                      {subtitle}
+                                      <MaterialIcons
+                                        name={
+                                          iconName as keyof typeof MaterialIcons.glyphMap
+                                        }
+                                        size={14}
+                                        color={COLORS.tertiary}
+                                      />
+                                    </View>
+                                    {subtitle ? (
+                                      <Text
+                                        style={styles.previewConnectionCardSub}
+                                        numberOfLines={1}
+                                      >
+                                        {subtitle}
+                                      </Text>
+                                    ) : null}
+                                    <Text
+                                      style={styles.previewConnectionCardTitle}
+                                      numberOfLines={2}
+                                    >
+                                      {title}
                                     </Text>
-                                  ) : null}
-                                  <Text
-                                    style={styles.previewConnectionCardTitle}
-                                    numberOfLines={2}
-                                  >
-                                    {title}
-                                  </Text>
-                                </View>
-                              );
-                            },
-                          )}
-                      </ScrollView>
-                    </>
-                  )}
+                                  </View>
+                                );
+                              },
+                            )}
+                        </ScrollView>
+                      </>
+                    )}
 
-                  {/* In topics */}
-                  {previewSources.filter(
-                    (s: Record<string, unknown>) => s.type === "topic",
-                  ).length > 0 && (
+                  {/* Connected topics */}
+                  {previewSources.filter((s: Record<string, unknown>) => s.type === "topic").length > 0 && (
                     <>
-                      <Text style={styles.previewConnectionHeader}>
-                        In topics
-                      </Text>
-                      <View style={styles.previewTopicPills}>
-                        {previewSources
-                          .filter(
-                            (s: Record<string, unknown>) => s.type === "topic",
-                          )
-                          .map((source: Record<string, unknown>) => {
-                            const topicTitle = String(
-                              source.title || source.slug || "",
-                            );
-                            return (
-                              <View
-                                key={`topic-${source.slug ?? source.title}`}
-                                style={styles.previewTopicPill}
-                              >
-                                <MaterialIcons
-                                  name="tag"
-                                  size={14}
-                                  color={COLORS.primary}
-                                />
-                                <Text style={styles.previewTopicPillText}>
-                                  {topicTitle}
-                                </Text>
-                              </View>
-                            );
-                          })}
-                      </View>
+                      <Text style={styles.previewConnectionHeader}>{t("post.connectedTopics", "Connected topics")}</Text>
+                      {previewSources
+                        .filter((s: Record<string, unknown>) => s.type === "topic")
+                        .map((source: Record<string, unknown>) => {
+                          const slug = String(source.slug || source.title || "");
+                          const topicData = sourcePreviews.topicBySlug[slug] as Record<string, unknown> | undefined;
+                          return (
+                            <TopicCard
+                              key={`topic-${slug}`}
+                              item={{
+                                title: String(source.title || source.slug || ""),
+                                slug,
+                                postCount: topicData?.postCount,
+                                imageKey: topicData?.imageKey,
+                                description: topicData?.description,
+                              }}
+                              onPress={() => { }}
+                            />
+                          );
+                        })}
                     </>
                   )}
                 </View>
@@ -2013,18 +2001,18 @@ export default function ComposeScreen() {
             >
               {body.trim().length < BODY_MIN_LENGTH
                 ? t(
-                    "compose.charCountMinMax",
-                    "{{current}} / {{min}}–{{max}}",
-                    {
-                      current: body.trim().length,
-                      min: BODY_MIN_LENGTH,
-                      max: BODY_MAX_LENGTH.toLocaleString(),
-                    },
-                  )
-                : t("compose.charCount", "{{current}} / {{max}}", {
+                  "compose.charCountMinMax",
+                  "{{current}} / {{min}}–{{max}}",
+                  {
                     current: body.trim().length,
+                    min: BODY_MIN_LENGTH,
                     max: BODY_MAX_LENGTH.toLocaleString(),
-                  })}
+                  },
+                )
+                : t("compose.charCount", "{{current}} / {{max}}", {
+                  current: body.trim().length,
+                  max: BODY_MAX_LENGTH.toLocaleString(),
+                })}
               {topicRefCount > 0
                 ? ` · ${t("compose.refs", "Refs")} ${topicRefCount}/${MAX_TOPIC_REFS}`
                 : ""}
@@ -2198,39 +2186,41 @@ const styles = createStyles({
   },
   suggestionsScroll: { maxHeight: 280 },
   suggestionSectionHeader: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: COLORS.tertiary,
-    marginTop: SPACING.m,
-    marginBottom: SPACING.xs,
-    marginHorizontal: SPACING.l,
+    marginTop: SPACING.s,
+    marginBottom: 2,
+    marginHorizontal: SPACING.m,
     textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   suggestionItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: SPACING.l,
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.m,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.hover,
-    gap: 16,
+    gap: 10,
   },
   suggestionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.hover,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
-  suggestionPostImage: { width: 40, height: 40, borderRadius: 8 },
+  suggestionPostImage: { width: 32, height: 32, borderRadius: 6 },
   suggestionAvatarText: {
-    fontSize: 18,
+    fontSize: 14,
     color: COLORS.primary,
     fontWeight: "700",
   },
-  suggestionText: { color: COLORS.paper, fontSize: 16, fontWeight: "600" },
-  suggestionSubText: { color: COLORS.secondary, fontSize: 13 },
+  suggestionText: { color: COLORS.paper, fontSize: 14, fontWeight: "600" },
+  suggestionSubText: { color: COLORS.secondary, fontSize: 12 },
 
   linkInputWrap: { backgroundColor: COLORS.ink, paddingBottom: SPACING.m },
   linkInputContainer: { padding: SPACING.m, paddingBottom: SPACING.xl },
@@ -2452,22 +2442,7 @@ const styles = createStyles({
     flexWrap: "wrap",
     gap: SPACING.s,
   },
-  previewTopicPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.hover,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: COLORS.divider,
-    gap: 4,
-  },
-  previewTopicPillText: {
-    fontSize: 14,
-    color: COLORS.paper,
-    fontFamily: FONTS.medium,
-  },
+  /* previewTopicPill styles moved to shared TopicPill component */
   previewSourcesList: {
     gap: SPACING.s,
   },

@@ -41,6 +41,7 @@ export interface PostDetailProps {
     privateLikeCount?: number;
     headerImageKey?: string | null;
     readingTimeMinutes?: number;
+    contentWarning?: string | null;
     referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
     /** When set, post was soft-deleted; show "deleted on ..." placeholder */
     deletedAt?: string;
@@ -184,11 +185,14 @@ function PostDetailInner({
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
     if (minutes < 1) return "now";
     if (minutes < 60) return `${minutes}m`;
     if (hours < 24) return `${hours}h`;
-    if (days < 7) return `${days}d`;
-    return d.toLocaleDateString();
+    if (days < 30) return `${days}d`;
+    if (months < 12) return `${months}mo`;
+    return `${years}y`;
   };
 
   const handleShare = async () => {
@@ -319,10 +323,10 @@ function PostDetailInner({
             onCopyLink={
               !post.author?.isProtected
                 ? () => {
-                    const url = `${window.location.origin}/post/${post.id}`;
-                    navigator.clipboard.writeText(url);
-                    toastSuccess("Link copied to clipboard");
-                  }
+                  const url = `${window.location.origin}/post/${post.id}`;
+                  navigator.clipboard.writeText(url);
+                  toastSuccess("Link copied to clipboard");
+                }
                 : undefined
             }
           />
@@ -356,8 +360,9 @@ function PostDetailInner({
               {post.readingTimeMinutes ? (
                 <>
                   <span className="text-tertiary text-xs">•</span>
-                  <span className="text-tertiary text-xs">
-                    {post.readingTimeMinutes} min read
+                  <span className="text-tertiary text-xs inline-flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block opacity-60"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                    {post.readingTimeMinutes} min
                   </span>
                 </>
               ) : null}
@@ -368,7 +373,7 @@ function PostDetailInner({
         {/* Body */}
         <div className="mb-6">
           {!showPrivateContent ? (
-            <div className="min-h-[200px] rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center py-12 px-4">
+            <div className="min-h-[200px] border border-divider flex flex-col items-center justify-center py-12 px-4">
               <div className="flex flex-col items-center gap-3 text-tertiary">
                 <svg
                   className="w-12 h-12"
@@ -393,7 +398,7 @@ function PostDetailInner({
               </div>
               <Link
                 href={`/user/${post.author.handle}`}
-                className="mt-6 flex items-center gap-3 w-full max-w-md p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                className="mt-6 flex items-center gap-3 w-full max-w-md p-3 border-b border-divider hover:bg-white/5 transition-colors"
               >
                 <Avatar
                   avatarKey={post.author.avatarKey}
@@ -417,6 +422,12 @@ function PostDetailInner({
             </div>
           ) : (
             <>
+              {post.contentWarning && (
+                <div className="flex items-center gap-2 px-4 py-2.5 mb-4 rounded-lg border text-sm" style={{ backgroundColor: "rgba(245,166,35,0.08)", borderColor: "rgba(245,166,35,0.25)", color: "rgba(245,166,35,0.9)" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" /></svg>
+                  {post.contentWarning}
+                </div>
+              )}
               {(() => {
                 const displayTitle = getPostDisplayTitle(post);
                 return displayTitle ? (

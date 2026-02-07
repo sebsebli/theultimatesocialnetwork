@@ -150,6 +150,8 @@ const styles = createStyles({
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
     padding: SPACING.m,
+    marginHorizontal: SPACING.m,
+    marginBottom: SPACING.s,
     borderWidth: 1,
     borderColor: COLORS.divider,
   },

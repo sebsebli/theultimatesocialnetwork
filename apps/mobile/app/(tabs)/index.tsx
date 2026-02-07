@@ -192,10 +192,10 @@ export default function HomeScreen() {
       const q = `limit=${limit}&offset=${offset}${useCursor ? `&cursor=${encodeURIComponent(cursor!)}` : ""}`;
       const data = await api.get<
         | {
-            items?: Array<Record<string, unknown>>;
-            nextCursor?: string;
-            hasMore?: boolean;
-          }
+          items?: Array<Record<string, unknown>>;
+          nextCursor?: string;
+          hasMore?: boolean;
+        }
         | Array<Record<string, unknown>>
       >(`/feed?${q}`);
 
@@ -242,6 +242,7 @@ export default function HomeScreen() {
           },
           isLiked: post.isLiked,
           isKept: post.isKept,
+          _feedReason: typedItem.reason as { type: string; topicTitle?: string; topicSlug?: string; authorHandle?: string; authorDisplayName?: string } | undefined,
         };
       });
 
@@ -370,6 +371,45 @@ export default function HomeScreen() {
                 size={HEADER.iconSize}
                 color={COLORS.tertiary}
               />
+            </Pressable>
+            <PostItem post={item} />
+          </View>
+        );
+      }
+      const reason = (item as Post & { _feedReason?: { type: string; topicTitle?: string; topicSlug?: string; authorHandle?: string; authorDisplayName?: string } })._feedReason;
+      if (reason && reason.type !== "own_post") {
+        return (
+          <View>
+            <Pressable
+              style={styles.feedReasonRow}
+              onPress={() => {
+                if (reason.type === "followed_topic" && reason.topicSlug) {
+                  router.push(`/topic/${encodeURIComponent(reason.topicSlug)}`);
+                } else if (reason.type === "followed_author" && reason.authorHandle) {
+                  router.push(`/user/${reason.authorHandle}`);
+                }
+              }}
+            >
+              <MaterialIcons
+                name={reason.type === "followed_topic" ? "tag" : "person"}
+                size={14}
+                color={COLORS.tertiary}
+              />
+              <Text style={styles.feedReasonText}>
+                {reason.type === "followed_topic"
+                  ? reason.topicTitle
+                    ? t("feed.fromFollowedTopic", {
+                      topic: reason.topicTitle,
+                      defaultValue: `From a topic you follow: ${reason.topicTitle}`,
+                    })
+                    : t("feed.fromFollowedTopicGeneric", "From a topic you follow")
+                  : reason.authorDisplayName
+                    ? t("feed.fromFollowedAuthor", {
+                      author: reason.authorDisplayName,
+                      defaultValue: `Because you follow ${reason.authorDisplayName}`,
+                    })
+                    : t("feed.fromFollowedAuthorGeneric", "From someone you follow")}
+              </Text>
             </Pressable>
             <PostItem post={item} />
           </View>
@@ -517,6 +557,19 @@ const styles = createStyles({
   savedByItem: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
+  },
+  feedReasonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
+    paddingTop: SPACING.m,
+    paddingBottom: 0,
+  },
+  feedReasonText: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
   },
   savedByHeader: {
     flexDirection: "row",

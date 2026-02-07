@@ -8,17 +8,42 @@ import { useToast } from "@/components/ui/toast";
 const REPORT_REASON_KEYS = [
   "spam",
   "harassment",
-  "misinformation",
-  "violence",
   "hate_speech",
+  "violence",
+  "misinformation",
+  "illegal_content",
+  "csam",
+  "terrorism",
+  "self_harm",
+  "impersonation",
+  "copyright",
+  "privacy_violation",
+  "nudity",
   "other",
 ] as const;
+
+const REPORT_REASON_LABELS: Record<(typeof REPORT_REASON_KEYS)[number], string> = {
+  spam: "Spam",
+  harassment: "Harassment or bullying",
+  hate_speech: "Hate speech",
+  violence: "Violence or threats",
+  misinformation: "Misinformation",
+  illegal_content: "Illegal content",
+  csam: "Child sexual abuse material",
+  terrorism: "Terrorism or extremism",
+  self_harm: "Self-harm or suicide",
+  impersonation: "Impersonation",
+  copyright: "Copyright or IP violation",
+  privacy_violation: "Privacy violation",
+  nudity: "Non-consensual nudity",
+  other: "Other",
+};
 
 interface ReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   targetId: string;
-  targetType: "POST" | "REPLY" | "USER" | "DM";
+  targetType: "POST" | "REPLY" | "USER" | "DM" | "TOPIC" | "COLLECTION";
 }
 
 export function ReportModal({
@@ -111,13 +136,12 @@ export function ReportModal({
             <button
               key={reason}
               onClick={() => setSelectedReason(reason)}
-              className={`w-full text-left px-4 py-3 rounded-xl border transition-colors flex items-center justify-between ${
-                selectedReason === reason
+              className={`w-full text-left px-4 py-3 rounded-xl border transition-colors flex items-center justify-between ${selectedReason === reason
                   ? "bg-primary/10 border-primary text-primary"
                   : "bg-black/20 border-white/5 text-paper hover:bg-white/5"
-              }`}
+                }`}
             >
-              <span className="capitalize">{reason.replace("_", " ")}</span>
+              <span>{REPORT_REASON_LABELS[reason]}</span>
               {selectedReason === reason && (
                 <svg
                   className="w-5 h-5"

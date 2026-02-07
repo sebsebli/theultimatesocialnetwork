@@ -21,6 +21,17 @@ interface TopicRawRow {
   followerCount: string;
 }
 
+/** Shape of user explore slider preferences (each 0-100). */
+interface ExploreSliders {
+  topicsYouFollow: number;
+  languageMatch: number;
+  citations: number;
+  replies: number;
+  likes: number;
+  networkProximity: number;
+  depth: number;
+}
+
 @Injectable()
 export class ExploreService {
   private readonly logger = new Logger(ExploreService.name);
@@ -42,7 +53,7 @@ export class ExploreService {
     private neo4jQuery: Neo4jQueryService,
     @Inject('REDIS_CLIENT') private redis: Redis,
     private uploadService: UploadService,
-  ) {}
+  ) { }
 
   /** Helper for caching simple paginated results (1-5 min TTL). */
   private async cached<T>(
@@ -111,35 +122,54 @@ export class ExploreService {
     return languages;
   }
 
-  /** Whether the user has recommendations enabled (default true). When false, explore shows non-personalized/trending content. */
-  private async recommendationsEnabled(userId: string): Promise<boolean> {
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
-      select: ['preferences'],
-    });
-    const prefs = user?.preferences as Record<string, unknown> | undefined;
-    const explore = prefs?.explore as Record<string, unknown> | undefined;
-    return explore?.recommendationsEnabled !== false;
-  }
-
-  /** Load user's explore preferences (languages, followed topic IDs) for personalization. */
-  private async getExplorePrefs(userId: string): Promise<{
+  /**
+   * Load all explore-related user data in a single query batch.
+   * Checks both preferences.explore.recommendationsEnabled AND
+   * privacySettings.disableRecommendations (GDPR Art. 21 opt-out).
+   */
+  private async getUserExploreContext(userId: string): Promise<{
+    recommendationsEnabled: boolean;
     languages: string[];
     followedTopicIds: Set<string>;
+    sliders: ExploreSliders;
   }> {
     const [user, topicFollows] = await Promise.all([
       this.userRepo.findOne({
         where: { id: userId },
-        select: ['languages'],
+        select: ['languages', 'preferences', 'privacySettings'],
       }),
       this.topicFollowRepo.find({
         where: { userId },
         select: ['topicId'],
       }),
     ]);
+
+    const prefs = user?.preferences as Record<string, unknown> | undefined;
+    const explore = prefs?.explore as Record<string, unknown> | undefined;
+    const privacy = user?.privacySettings as
+      | { disableRecommendations?: boolean }
+      | undefined;
+
+    // Recommendations are disabled if EITHER the user toggled them off in
+    // explore preferences OR opted out via GDPR privacy settings.
+    const recommendationsEnabled =
+      explore?.recommendationsEnabled !== false &&
+      privacy?.disableRecommendations !== true;
+
     const languages = user?.languages?.length ? user.languages : [];
     const followedTopicIds = new Set(topicFollows.map((f) => f.topicId));
-    return { languages, followedTopicIds };
+
+    const sliders: ExploreSliders = {
+      topicsYouFollow: typeof explore?.topicsYouFollow === 'number' ? (explore.topicsYouFollow as number) : 80,
+      languageMatch: typeof explore?.languageMatch === 'number' ? (explore.languageMatch as number) : 70,
+      citations: typeof explore?.citations === 'number' ? (explore.citations as number) : 90,
+      replies: typeof explore?.replies === 'number' ? (explore.replies as number) : 50,
+      likes: typeof explore?.likes === 'number' ? (explore.likes as number) : 30,
+      networkProximity: typeof explore?.networkProximity === 'number' ? (explore.networkProximity as number) : 40,
+      depth: typeof explore?.depth === 'number' ? (explore.depth as number) : 50,
+    };
+
+    return { recommendationsEnabled, languages, followedTopicIds, sliders };
   }
 
   /**
@@ -198,15 +228,40 @@ export class ExploreService {
     });
   }
 
-  /** Re-rank posts by user preferences: language match and followed topics. Skipped when user has recommendations disabled. */
+  /**
+   * Re-rank posts by the user's explore slider preferences.
+   * Applies weighted scoring using all 7 sliders (topicsYouFollow, languageMatch,
+   * citations, replies, likes (not used here — affects embedding in RecommendationService),
+   * networkProximity, depth) so that explore sections honour the same knobs
+   * as the "For You" feed.
+   *
+   * Accepts an optional pre-loaded context to avoid redundant DB queries when
+   * the caller has already loaded it.
+   */
   private async applyPostPreferences(
     posts: (Post & { reasons?: string[] })[],
     userId: string,
+    preloadedCtx?: Awaited<ReturnType<ExploreService['getUserExploreContext']>>,
+    preloadedNetworkScores?: Map<string, number>,
   ): Promise<(Post & { reasons?: string[] })[]> {
     if (posts.length === 0) return posts;
-    if (!(await this.recommendationsEnabled(userId))) return posts;
-    const prefs = await this.getExplorePrefs(userId);
+
+    const ctx = preloadedCtx ?? await this.getUserExploreContext(userId);
+    if (!ctx.recommendationsEnabled) return posts;
+
+    // Normalize weights (0-100 -> 0-1)
+    const w = {
+      topics: ctx.sliders.topicsYouFollow / 100,
+      lang: ctx.sliders.languageMatch / 100,
+      citations: ctx.sliders.citations / 100,
+      replies: ctx.sliders.replies / 100,
+      network: ctx.sliders.networkProximity / 100,
+      depth: ctx.sliders.depth / 100,
+    };
+
     const postIds = posts.map((p) => p.id);
+
+    // Batch-load topic associations
     const postTopics = await this.postTopicRepo.find({
       where: { postId: In(postIds) },
       select: ['postId', 'topicId'],
@@ -217,37 +272,70 @@ export class ExploreService {
       arr.push(pt.topicId);
       postToTopics.set(pt.postId, arr);
     }
+
+    // Network proximity scores (use pre-loaded if caller already fetched them)
+    const networkScores = preloadedNetworkScores ??
+      await this.neo4jQuery.getNetworkProximityScores(userId, postIds);
+
     const scored = posts.map((p) => {
+      const reasons: string[] = [];
+      let score = 0;
+
+      // Language match
       const langMatch =
-        prefs.languages.length &&
+        ctx.languages.length > 0 &&
         p.lang != null &&
-        prefs.languages.includes(p.lang);
+        ctx.languages.includes(p.lang);
+      if (langMatch) {
+        score += 0.2 * w.lang;
+        reasons.push('Your language');
+      }
+
+      // Topic follow match
       const topicIds = postToTopics.get(p.id) || [];
       const topicMatch = topicIds.some((tid) =>
-        prefs.followedTopicIds.has(tid),
+        ctx.followedTopicIds.has(tid),
       );
-      const score = (langMatch ? 2 : 0) + (topicMatch ? 1 : 0);
-      return { post: p, score };
+      if (topicMatch) {
+        score += 0.3 * w.topics;
+        reasons.push('Topic you follow');
+      }
+
+      // Citations / quotes
+      if (p.quoteCount > 0) {
+        score += (Math.min(p.quoteCount, 10) / 10) * (0.2 * w.citations);
+      }
+
+      // Replies / discussion
+      if (p.replyCount > 0) {
+        score += (Math.min(p.replyCount, 20) / 20) * (0.1 * w.replies);
+      }
+
+      // Network proximity
+      const proximity = networkScores.get(p.id) ?? 0;
+      if (proximity > 0) {
+        score += proximity * w.network;
+        reasons.push('In your network');
+      }
+
+      // Depth / length
+      const readingTime = (p as Post & { readingTimeMinutes?: number }).readingTimeMinutes || 1;
+      const lengthScore = Math.min(readingTime, 10) / 10;
+      score += lengthScore * (0.15 * w.depth);
+
+      return {
+        post: p,
+        score,
+        reasons: reasons.length > 0
+          ? [...reasons, ...(p.reasons || [])].slice(0, 2)
+          : p.reasons,
+      };
     });
+
     scored.sort((a, b) => b.score - a.score);
     return scored.map((s) => ({
       ...s.post,
-      reasons:
-        s.score > 0
-          ? [
-              ...(prefs.languages.length &&
-              s.post.lang != null &&
-              prefs.languages.includes(s.post.lang)
-                ? ['Your language']
-                : []),
-              ...(postToTopics
-                .get(s.post.id)
-                ?.some((tid) => prefs.followedTopicIds.has(tid))
-                ? ['Topic you follow']
-                : []),
-              ...(s.post.reasons || []),
-            ].slice(0, 2)
-          : s.post.reasons,
+      reasons: s.reasons,
     }));
   }
 
@@ -299,12 +387,11 @@ export class ExploreService {
     });
 
     let followedTopicIds = new Set<string>();
+    let recsEnabled = false;
     if (userId) {
-      const follows = await this.topicFollowRepo.find({
-        where: { userId },
-        select: ['topicId'],
-      });
-      followedTopicIds = new Set(follows.map((f) => f.topicId));
+      const ctx = await this.getUserExploreContext(userId);
+      followedTopicIds = ctx.followedTopicIds;
+      recsEnabled = ctx.recommendationsEnabled;
     }
 
     if (sortBy === 'cited') {
@@ -321,7 +408,7 @@ export class ExploreService {
       sortBy === 'recommended' &&
       userId &&
       followedTopicIds.size > 0 &&
-      (await this.recommendationsEnabled(userId))
+      recsEnabled
     ) {
       // Preference-aware: followed topics first, then by engagement (only when recommendations enabled)
       mapped = mapped.sort((a, b) => {
@@ -339,17 +426,17 @@ export class ExploreService {
     const latestRows: LatestRow[] =
       topicIds.length > 0
         ? await this.dataSource
-            .createQueryBuilder()
-            .select('pt.topic_id', 'topicId')
-            .addSelect('p.id', 'postId')
-            .from(PostTopic, 'pt')
-            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
-            .where('pt.topic_id IN (:...topicIds)', { topicIds })
-            .orderBy('pt.topic_id')
-            .addOrderBy('p.created_at', 'DESC')
-            .distinctOn(['pt.topic_id'])
-            .getRawMany<LatestRow>()
-            .catch(() => [])
+          .createQueryBuilder()
+          .select('pt.topic_id', 'topicId')
+          .addSelect('p.id', 'postId')
+          .from(PostTopic, 'pt')
+          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+          .where('pt.topic_id IN (:...topicIds)', { topicIds })
+          .orderBy('pt.topic_id')
+          .addOrderBy('p.created_at', 'DESC')
+          .distinctOn(['pt.topic_id'])
+          .getRawMany<LatestRow>()
+          .catch(() => [])
         : [];
 
     const postIds = [...new Set(latestRows.map((r) => r.postId))];
@@ -358,17 +445,17 @@ export class ExploreService {
     const posts =
       postIds.length > 0
         ? await this.postRepo.find({
-            where: { id: In(postIds) },
-            relations: ['author'],
-            select: [
-              'id',
-              'authorId',
-              'title',
-              'body',
-              'headerImageKey',
-              'createdAt',
-            ],
-          })
+          where: { id: In(postIds) },
+          relations: ['author'],
+          select: [
+            'id',
+            'authorId',
+            'title',
+            'body',
+            'headerImageKey',
+            'createdAt',
+          ],
+        })
         : [];
     const visiblePosts = await this.filterPostsVisibleToViewer(posts, userId);
     const visiblePostIds = new Set(visiblePosts.map((p) => p.id));
@@ -396,22 +483,22 @@ export class ExploreService {
       const headerImageKey = post?.headerImageKey ?? null;
       const recentPost = post
         ? {
-            id: post.id,
-            title: post.title ?? null,
-            bodyExcerpt: bodyExcerpt(post.body),
-            headerImageKey,
-            headerImageUrl:
-              headerImageKey != null && headerImageKey !== ''
-                ? getImageUrl(headerImageKey)
-                : null,
-            author: post.author
-              ? {
-                  handle: post.author.handle,
-                  displayName: post.author.displayName ?? post.author.handle,
-                }
+          id: post.id,
+          title: post.title ?? null,
+          bodyExcerpt: bodyExcerpt(post.body),
+          headerImageKey,
+          headerImageUrl:
+            headerImageKey != null && headerImageKey !== ''
+              ? getImageUrl(headerImageKey)
               : null,
-            createdAt: post.createdAt?.toISOString?.() ?? null,
-          }
+          author: post.author
+            ? {
+              handle: post.author.handle,
+              displayName: post.author.displayName ?? post.author.handle,
+            }
+            : null,
+          createdAt: post.createdAt?.toISOString?.() ?? null,
+        }
         : null;
       return {
         id: t.id,
@@ -429,8 +516,10 @@ export class ExploreService {
         recentPost,
         isFollowing: followedTopicIds.has(t.id),
         reasons: followedTopicIds.has(t.id)
-          ? ['Followed by you', 'Cited today']
-          : ['Topic overlap', 'Cited today'],
+          ? ['Followed by you']
+          : (t as { postCount?: number }).postCount
+            ? ['Active topic']
+            : ['Discover'],
       };
     });
   }
@@ -496,7 +585,9 @@ export class ExploreService {
           ? ['Newest']
           : sortBy === 'cited'
             ? ['Most followed']
-            : ['Topic overlap', 'Frequently quoted'],
+            : u.followerCount > 0
+              ? ['Popular author']
+              : ['Discover'],
     }));
     return { items, hasMore };
   }
@@ -623,22 +714,15 @@ export class ExploreService {
       }));
     result = await this.filterPostsVisibleToViewer(result, userId);
     if (userId) {
-      // Neo4j network proximity boost: re-rank by how close the post authors are in your social graph
+      // Load context once, fetch network scores, and pass both into
+      // applyPostPreferences so the network proximity slider is respected.
+      const ctx = await this.getUserExploreContext(userId);
       const postIdsForProximity = result.map((p) => p.id);
       const proximityScores = await this.neo4jQuery.getNetworkProximityScores(
         userId,
         postIdsForProximity,
       );
-      if (proximityScores.size > 0) {
-        // Add reason "In your network" for posts from connected users
-        result = result.map((p) => ({
-          ...p,
-          reasons: proximityScores.has(p.id)
-            ? ['In your network', ...(p.reasons || [])].slice(0, 2)
-            : p.reasons,
-        }));
-      }
-      result = await this.applyPostPreferences(result, userId);
+      result = await this.applyPostPreferences(result, userId, ctx, proximityScores);
     }
     return { items: result, hasMore: hasMoreAlgo };
   }
@@ -819,22 +903,22 @@ export class ExploreService {
     const rankedIds =
       neo4jDeepDives.length > 0
         ? neo4jDeepDives.map((dd) => ({
-            postId: dd.postId,
-            count: String(dd.citedByCount),
-          }))
+          postId: dd.postId,
+          count: String(dd.citedByCount),
+        }))
         : await this.cached(cacheKey, 600, () =>
-            // Postgres fallback: simple backlink count
-            this.postEdgeRepo
-              .createQueryBuilder('edge')
-              .select('edge.to_post_id', 'postId')
-              .addSelect('COUNT(*)', 'count')
-              .where('edge.edge_type = :type', { type: EdgeType.LINK })
-              .groupBy('edge.to_post_id')
-              .orderBy('COUNT(*)', 'DESC')
-              .offset(skip)
-              .limit(limitNum + 1)
-              .getRawMany<{ postId: string; count: string }>(),
-          );
+          // Postgres fallback: simple backlink count
+          this.postEdgeRepo
+            .createQueryBuilder('edge')
+            .select('edge.to_post_id', 'postId')
+            .addSelect('COUNT(*)', 'count')
+            .where('edge.edge_type = :type', { type: EdgeType.LINK })
+            .groupBy('edge.to_post_id')
+            .orderBy('COUNT(*)', 'DESC')
+            .offset(skip)
+            .limit(limitNum + 1)
+            .getRawMany<{ postId: string; count: string }>(),
+        );
 
     if (rankedIds.length === 0) {
       return { items: [], hasMore: false };
@@ -958,8 +1042,7 @@ export class ExploreService {
       return { items, hasMore };
     }
 
-    // Default: recent posts with sources (recommended order)
-    const orderBy = 'post.createdAt';
+    // Default: recent posts with sources, newest first
     const idQuery = this.postRepo
       .createQueryBuilder('post')
       .innerJoin('external_sources', 'source', 'source.post_id = post.id')
@@ -974,11 +1057,13 @@ export class ExploreService {
     const cacheKey = `explore:newsroom:ids:${skip}:${limitNum}:${langFilterNewsroom?.join(',') || 'all'}`;
     const ids = await this.cached(cacheKey, 300, () =>
       idQuery
-        .select('DISTINCT post.id', 'id')
-        .orderBy(orderBy, 'DESC')
+        .select('post.id', 'id')
+        .addSelect('post.created_at', 'createdAt')
+        .distinct(true)
+        .orderBy('post.created_at', 'DESC')
         .offset(skip)
         .limit(limitNum + 1)
-        .getRawMany<{ id: string }>(),
+        .getRawMany<{ id: string; createdAt: string }>(),
     );
 
     if (ids.length === 0) return { items: [], hasMore: false };
@@ -993,19 +1078,17 @@ export class ExploreService {
       .andWhere(
         "(author.handle IS NULL OR author.handle NOT LIKE '__pending_%')",
       )
-      .orderBy(orderBy, 'DESC')
+      .orderBy('post.createdAt', 'DESC')
       .getMany();
 
     let result: (Post & { reasons?: string[] })[] = finalPosts
       .filter((p) => !isPendingUser(p.author))
       .map((p) => ({
         ...p,
-        reasons: ['Recent sources', 'External links'],
+        reasons: ['Has sources'],
       }));
     result = await this.filterPostsVisibleToViewer(result, userId);
-    if (userId) {
-      result = await this.applyPostPreferences(result, userId);
-    }
+    // Note: we skip applyPostPreferences for newsroom — always show newest first
     return { items: result, hasMore: hasMoreDefault };
   }
 

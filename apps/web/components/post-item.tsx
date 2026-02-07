@@ -14,6 +14,15 @@ import { AddToCollectionModal } from "./add-to-collection-modal";
 import { ReportModal } from "./report-modal";
 import { ShareModal } from "./share-modal";
 import { useToast } from "./ui/toast";
+import {
+  ActionButton,
+  HeartIcon,
+  CommentIcon,
+  QuoteIcon,
+  BookmarkIcon,
+  AddCircleIcon,
+  ShareIcon,
+} from "./ui/action-button";
 
 export interface Post {
   id: string;
@@ -36,9 +45,16 @@ export interface Post {
   headerImageKey?: string | null;
   headerImageBlurhash?: string | null;
   referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
+  inlineEnrichment?: {
+    mentionAvatars?: Record<string, string | null>;
+    topicPostCounts?: Record<string, number>;
+    postCiteCounts?: Record<string, number>;
+  } | null;
+  readingTimeMinutes?: number;
   /** When false, content is redacted (e.g. FOLLOWERS-only and viewer doesn't follow); show private overlay */
   viewerCanSeeContent?: boolean;
   media?: { type: string; url: string };
+  contentWarning?: string | null;
 }
 
 export interface PostItemProps {
@@ -64,7 +80,6 @@ function PostItemInner({
   const router = useRouter();
   const showPrivateOverlay = post.viewerCanSeeContent === false;
   const [liked, setLiked] = useState(post.isLiked ?? false);
-  const [likeAnimating, setLikeAnimating] = useState(false);
   const [kept, setKept] = useState(post.isKept ?? false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -83,8 +98,6 @@ function PostItemInner({
       router.push("/sign-in");
       return;
     }
-    setLikeAnimating(true);
-    setTimeout(() => setLikeAnimating(false), 150);
     const previous = liked;
     setLiked(!previous);
 
@@ -211,7 +224,7 @@ function PostItemInner({
   }, [post.body]);
 
   return (
-    <article className="flex flex-col gap-3 px-5 md:px-6 py-6 border-b border-divider bg-ink">
+    <article className="flex flex-col gap-3 px-4 py-4 border-b border-divider bg-ink">
       {/* Author Meta */}
       <Link
         href={`/user/${post.author.handle}`}
@@ -224,14 +237,26 @@ function PostItemInner({
           handle={post.author.handle}
           size="md"
         />
-        <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-sm text-paper">
+        <div className="flex items-center gap-1.5 flex-nowrap">
+          <span className="font-semibold text-sm text-paper shrink-0">
             {post.author.displayName}
           </span>
-          <span className="text-tertiary text-xs">•</span>
-          <span className="text-tertiary text-xs font-mono">
+          <span className="text-tertiary text-xs mx-0.5">·</span>
+          <span className="text-secondary text-xs">
             {formatTime(post.createdAt)}
           </span>
+          {post.readingTimeMinutes != null && post.readingTimeMinutes > 0 && (
+            <>
+              <span className="text-tertiary text-xs mx-0.5">·</span>
+              <span className="text-secondary text-xs whitespace-nowrap">
+                {post.readingTimeMinutes < 1
+                  ? "< 1 min"
+                  : post.readingTimeMinutes >= 10
+                    ? "10+ min read"
+                    : `${post.readingTimeMinutes} min read`}
+              </span>
+            </>
+          )}
         </div>
       </Link>
 
@@ -243,7 +268,7 @@ function PostItemInner({
         <div className="relative">
           {showPrivateOverlay ? (
             <>
-              <div className="min-h-[120px] rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+              <div className="min-h-[120px] border border-divider flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 text-tertiary">
                   <svg
                     className="w-10 h-10"
@@ -267,23 +292,31 @@ function PostItemInner({
             </>
           ) : (
             <>
+              {/* Content warning banner */}
+              {post.contentWarning && (
+                <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg border text-xs" style={{ backgroundColor: "rgba(245,166,35,0.08)", borderColor: "rgba(245,166,35,0.25)", color: "rgba(245,166,35,0.9)" }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" /></svg>
+                  {post.contentWarning}
+                </div>
+              )}
               {(() => {
                 const displayTitle = getPostDisplayTitle(post);
                 return displayTitle ? (
-                  <h2 className="text-xl font-bold leading-tight tracking-tight text-paper group-hover:text-primary transition-colors duration-200 mb-1">
+                  <h2 className="text-[28px] font-bold leading-[36px] tracking-[-0.5px] text-paper group-hover:text-primary transition-colors duration-200 mb-1">
                     {displayTitle}
                   </h2>
                 ) : null;
               })()}
               <div className="relative max-h-[20rem] overflow-hidden mt-1">
                 <div
-                  className="prose prose-invert max-w-none text-[17px] leading-relaxed text-secondary font-normal transition-colors duration-200 group-hover:text-gray-300"
+                  className="prose prose-invert max-w-none text-[17px] leading-relaxed text-secondary font-serif transition-colors duration-200 group-hover:text-gray-300"
                   dangerouslySetInnerHTML={{
                     // Safe: Content is sanitized HTML from renderMarkdown which processes user markdown
                     // and escapes dangerous content. Additional DOMPurify sanitization ensures XSS protection.
                     __html: sanitizeHTML(
                       renderMarkdown(post.body, {
                         referenceMetadata: post.referenceMetadata,
+                        inlineEnrichment: post.inlineEnrichment,
                       }),
                     ),
                   }}
@@ -405,19 +438,9 @@ function PostItemInner({
                     </svg>
                   )}
                   {source.type === "topic" && (
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
-                      />
-                    </svg>
+                    <span className="w-3.5 h-3.5 inline-flex items-center justify-center font-mono font-bold text-[9px] leading-none">
+                      [[]]
+                    </span>
                   )}
                 </div>
                 <div className="flex flex-col min-w-0">
@@ -455,29 +478,16 @@ function PostItemInner({
       )}
 
       {/* Action Row */}
-      <div className="flex items-center justify-between pt-2 pr-4 text-tertiary">
-        <button
-          type="button"
+      <div className="flex items-center justify-between pt-2 pr-4">
+        <ActionButton
           onClick={handleLike}
           aria-label={liked ? t("liked") : t("like")}
-          className={`flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${liked ? "text-like" : ""}`}
-        >
-          <svg
-            className={`w-5 h-5 transition-transform duration-150 ${likeAnimating ? "scale-125" : "scale-100"} ${liked ? "fill-current" : ""}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
+          active={liked}
+          activeColor="text-like"
+          icon={<HeartIcon />}
+          activeIcon={<HeartIcon filled />}
+        />
+        <ActionButton
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -492,27 +502,10 @@ function PostItemInner({
               ? `${post.replyCount} ${t("replies")}`
               : t("reply")
           }
-          className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
-          {post.replyCount > 0 && (
-            <span className="text-xs">{post.replyCount}</span>
-          )}
-        </button>
-        <button
-          type="button"
+          icon={<CommentIcon />}
+          count={post.replyCount}
+        />
+        <ActionButton
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -527,37 +520,17 @@ function PostItemInner({
               ? `${post.quoteCount} ${t("quotes")}`
               : t("quote")
           }
-          className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z" />
-          </svg>
-          {post.quoteCount > 0 && (
-            <span className="text-xs">{post.quoteCount}</span>
-          )}
-        </button>
-        <button
-          type="button"
+          icon={<QuoteIcon />}
+          count={post.quoteCount}
+        />
+        <ActionButton
           onClick={handleKeep}
           aria-label={kept ? t("kept") : t("keep")}
-          className={`flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${kept ? "text-primary" : ""}`}
-        >
-          <svg
-            className="w-5 h-5"
-            fill={kept ? "currentColor" : "none"}
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
+          active={kept}
+          icon={<BookmarkIcon />}
+          activeIcon={<BookmarkIcon filled />}
+        />
+        <ActionButton
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -568,46 +541,17 @@ function PostItemInner({
             setShowCollectionModal(true);
           }}
           aria-label="Add to collection"
-          className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        </button>
+          icon={<AddCircleIcon />}
+        />
         {!post.author?.isProtected && (
-          <button
-            type="button"
+          <ActionButton
             onClick={(e) => {
               e.preventDefault();
               setShowShareModal(true);
             }}
             aria-label="Share post"
-            className="flex items-center gap-1 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-              />
-            </svg>
-          </button>
+            icon={<ShareIcon />}
+          />
         )}
         <OverflowMenu
           postId={post.id}
@@ -619,9 +563,9 @@ function PostItemInner({
           onCopyLink={
             !post.author?.isProtected
               ? () => {
-                  const url = `${window.location.origin}/post/${post.id}`;
-                  navigator.clipboard.writeText(url);
-                }
+                const url = `${window.location.origin}/post/${post.id}`;
+                navigator.clipboard.writeText(url);
+              }
               : undefined
           }
         />

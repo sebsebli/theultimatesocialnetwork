@@ -14,6 +14,15 @@ import { OverflowMenu } from "./overflow-menu";
 import { AddToCollectionModal } from "./add-to-collection-modal";
 import { ReportModal } from "./report-modal";
 import { ShareModal } from "./share-modal";
+import {
+  ActionButton,
+  HeartIcon,
+  CommentIcon,
+  QuoteIcon,
+  BookmarkIcon,
+  AddCircleIcon,
+  ShareIcon,
+} from "./ui/action-button";
 import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
 import { sanitizeHTML } from "@/lib/sanitize-html";
 import { getPostDisplayTitle } from "@/utils/compose-helpers";
@@ -25,9 +34,17 @@ function renderMarkdownForReading(
   text: string,
   titleToStrip?: string | null,
   referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>,
+  inlineEnrichment?: {
+    mentionAvatars?: Record<string, string | null>;
+    topicPostCounts?: Record<string, number>;
+    postCiteCounts?: Record<string, number>;
+  } | null,
 ): string {
   const processed = stripLeadingH1IfMatch(text, titleToStrip ?? undefined);
-  let html = renderMarkdown(processed, { referenceMetadata });
+  let html = renderMarkdown(processed, {
+    referenceMetadata,
+    inlineEnrichment,
+  });
   html = html.replace(
     /class="prose-heading prose-h3 text-base font-semibold/g,
     'class="prose-heading prose-h3 text-xl font-semibold font-sans tracking-tight',
@@ -83,10 +100,16 @@ export interface ReadingModeProps {
       avatarKey?: string | null;
       avatarUrl?: string | null;
       isProtected?: boolean;
+      bio?: string | null;
     };
     headerImageKey?: string | null;
     headerImageBlurhash?: string | null;
     referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
+    inlineEnrichment?: {
+      mentionAvatars?: Record<string, string | null>;
+      topicPostCounts?: Record<string, number>;
+      postCiteCounts?: Record<string, number>;
+    } | null;
     quoteCount: number;
     replyCount?: number;
     privateLikeCount?: number;
@@ -95,6 +118,7 @@ export interface ReadingModeProps {
     readingTimeMinutes?: number;
     viewerCanSeeContent?: boolean;
     deletedAt?: string;
+    contentWarning?: string | null;
   };
   /** Called when user unkeeps the post (e.g. to refresh Keeps list). */
   onKeep?: () => void;
@@ -134,7 +158,7 @@ function ReadingModeInner({
   useEffect(() => {
     if (isPreview || isPublic) return;
     if (post.id && post.id !== "preview") {
-      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => {});
+      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => { });
     }
     // Track read time on unmount
     startTimeRef.current = Date.now();
@@ -146,7 +170,7 @@ function ReadingModeInner({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ duration }),
           keepalive: true,
-        }).catch(() => {});
+        }).catch(() => { });
       }
     };
   }, [post.id, isPublic, isPreview]);
@@ -231,11 +255,19 @@ function ReadingModeInner({
 
   const formatDate = (date: string) => {
     const d = new Date(date);
-    return d.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+    if (minutes < 1) return "now";
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+    if (days < 30) return `${days}d`;
+    if (months < 12) return `${months}mo`;
+    return `${years}y`;
   };
 
   if (post.deletedAt) {
@@ -285,7 +317,7 @@ function ReadingModeInner({
     <div className="min-h-screen bg-ink">
       {/* Sticky header */}
       <header className="sticky top-0 z-10 bg-ink/95 backdrop-blur-md border-b border-divider">
-        <div className="max-w-[680px] mx-auto px-6 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-[680px] mx-auto px-4 py-2 flex items-center justify-between gap-3">
           <Link
             href={isPublic ? "/" : "/home"}
             className="text-secondary hover:text-paper flex items-center gap-2"
@@ -344,10 +376,10 @@ function ReadingModeInner({
                   onCopyLink={
                     !post.author?.isProtected
                       ? () => {
-                          const url = `${window.location.origin}/post/${post.id}`;
-                          navigator.clipboard.writeText(url);
-                          toastSuccess("Link copied to clipboard");
-                        }
+                        const url = `${window.location.origin}/post/${post.id}`;
+                        navigator.clipboard.writeText(url);
+                        toastSuccess("Link copied to clipboard");
+                      }
                       : undefined
                   }
                 />
@@ -358,9 +390,9 @@ function ReadingModeInner({
       </header>
 
       {/* Article Content */}
-      <article className="max-w-[680px] mx-auto px-6 py-10">
+      <article className="max-w-[680px] mx-auto px-4 py-6">
         {post.viewerCanSeeContent === false ? (
-          <div className="min-h-[300px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center py-16">
+          <div className="min-h-[300px] border border-divider flex items-center justify-center py-16">
             <div className="flex flex-col items-center gap-3 text-tertiary text-center px-4">
               <svg
                 className="w-14 h-14"
@@ -419,43 +451,63 @@ function ReadingModeInner({
             {(() => {
               const displayTitle = getPostDisplayTitle(post);
               return displayTitle ? (
-                <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6 text-paper">
+                <h1 className="text-[28px] font-bold leading-[36px] tracking-[-0.5px] mb-6 text-paper">
                   {displayTitle}
                 </h1>
               ) : null;
             })()}
 
-            {/* Author & Date */}
-            <div className="flex items-center gap-3 mb-8 pb-6 border-b border-divider">
-              <Link href={`/user/${post.author.handle}`}>
-                <Avatar
-                  avatarKey={post.author.avatarKey}
-                  avatarUrl={post.author.avatarUrl}
-                  displayName={post.author.displayName}
-                  handle={post.author.handle}
-                  size="md"
-                />
-              </Link>
-              <div>
-                <Link href={`/user/${post.author.handle}`}>
-                  <div className="font-semibold text-paper hover:text-primary transition-colors">
+            {/* Author & Date — matches mobile PostAuthorHeader "full" variant */}
+            <Link
+              href={`/user/${post.author.handle}`}
+              className="flex items-center gap-3 mb-8 pb-6 border-b border-divider group"
+            >
+              <Avatar
+                avatarKey={post.author.avatarKey}
+                avatarUrl={post.author.avatarUrl}
+                displayName={post.author.displayName}
+                handle={post.author.handle}
+                size="md"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-[15px] text-paper group-hover:text-primary transition-colors">
                     {post.author.displayName}
-                  </div>
-                </Link>
-                <div className="text-tertiary text-sm flex items-center gap-2">
-                  {formatDate(post.createdAt)}
+                  </span>
                   {post.readingTimeMinutes != null &&
                     post.readingTimeMinutes > 0 && (
-                      <span>· {post.readingTimeMinutes} min read</span>
+                      <>
+                        <span className="text-tertiary text-xs">·</span>
+                        <span className="text-secondary text-xs inline-flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block opacity-60"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                          {post.readingTimeMinutes} min
+                        </span>
+                      </>
                     )}
                 </div>
+                <div className="text-tertiary text-[13px] mt-0.5">
+                  {formatDate(post.createdAt)}
+                </div>
+                {post.author.bio && (
+                  <div className="text-secondary text-xs mt-0.5 line-clamp-2 leading-4">
+                    {post.author.bio}
+                  </div>
+                )}
               </div>
-            </div>
+            </Link>
+
+            {/* Content warning banner */}
+            {post.contentWarning && (
+              <div className="flex items-center gap-2 px-4 py-2.5 mb-4 rounded-lg border text-sm" style={{ backgroundColor: "rgba(245,166,35,0.08)", borderColor: "rgba(245,166,35,0.25)", color: "rgba(245,166,35,0.9)" }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" /></svg>
+                {post.contentWarning}
+              </div>
+            )}
 
             {/* Body with enhanced typography */}
             <div
               ref={bodyRef}
-              className="prose prose-invert max-w-none text-[20px] md:text-[22px] leading-[1.7] text-secondary/90 tracking-normal font-serif"
+              className="prose prose-invert max-w-none text-[17px] leading-relaxed text-secondary/90 tracking-normal font-serif"
               style={{
                 fontFamily: "var(--font-serif), Georgia, serif",
               }}
@@ -466,68 +518,59 @@ function ReadingModeInner({
                     const body =
                       post.title != null && post.title !== ""
                         ? stripLeadingH1IfMatch(
-                            post.body,
-                            post.title ?? undefined,
-                          )
+                          post.body,
+                          post.title ?? undefined,
+                        )
                         : displayTitle
                           ? (() => {
-                              const first =
-                                post.body.split("\n")[0]?.trim() ?? "";
-                              if (
-                                first === "# " + displayTitle ||
-                                first === "#" + displayTitle
-                              )
-                                return stripLeadingH1IfMatch(
-                                  post.body,
-                                  displayTitle,
-                                );
-                              return post.body.includes("\n")
-                                ? post.body
-                                    .slice(post.body.indexOf("\n") + 1)
-                                    .trimStart()
-                                : "";
-                            })()
+                            const first =
+                              post.body.split("\n")[0]?.trim() ?? "";
+                            if (
+                              first === "# " + displayTitle ||
+                              first === "#" + displayTitle
+                            )
+                              return stripLeadingH1IfMatch(
+                                post.body,
+                                displayTitle,
+                              );
+                            return post.body.includes("\n")
+                              ? post.body
+                                .slice(post.body.indexOf("\n") + 1)
+                                .trimStart()
+                              : "";
+                          })()
                           : post.body;
                     return renderMarkdownForReading(
                       body,
                       null,
                       post.referenceMetadata,
+                      post.inlineEnrichment,
                     );
                   })(),
                 ),
               }}
             />
 
-            {/* Action bar */}
+            {/* Action bar — matches mobile exactly: like, reply, quote, save, collection, share */}
             {!isPreview && (
-              <div className="flex items-center justify-between gap-3 py-6 mt-8 border-t border-b border-divider flex-wrap">
-                {/* Like */}
+              <div className="flex items-center justify-between pt-2 pr-4 mt-8 border-t border-divider">
                 {!isPublic && (
-                  <button
-                    onClick={handleLike}
-                    className={`flex items-center gap-1.5 transition-colors ${liked ? "text-red-500" : "text-tertiary hover:text-primary"}`}
+                  <ActionButton
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleLike();
+                    }}
                     aria-label={liked ? "Unlike post" : "Like post"}
-                  >
-                    <svg
-                      className={`w-5 h-5 transition-transform duration-150 ${likeAnimating ? "scale-125" : "scale-100"} ${liked ? "fill-current" : ""}`}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                      />
-                    </svg>
-                    <span className="text-sm">Like</span>
-                  </button>
+                    active={liked}
+                    activeColor="text-like"
+                    icon={<HeartIcon />}
+                    activeIcon={<HeartIcon filled />}
+                  />
                 )}
 
-                {/* Reply */}
-                <button
-                  onClick={() => {
+                <ActionButton
+                  onClick={(e) => {
+                    e.preventDefault();
                     if (isPublic) {
                       window.location.href = "/sign-in";
                     } else {
@@ -535,91 +578,71 @@ function ReadingModeInner({
                       if (el) el.scrollIntoView({ behavior: "smooth" });
                     }
                   }}
-                  className="flex items-center gap-1.5 text-tertiary hover:text-primary transition-colors"
                   aria-label="Reply to post"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                    />
-                  </svg>
-                  <span className="text-sm">
-                    {post.replyCount ?? 0}{" "}
-                    {(post.replyCount ?? 0) === 1 ? "reply" : "replies"}
-                  </span>
-                </button>
+                  icon={<CommentIcon />}
+                  count={post.replyCount ?? 0}
+                />
 
-                {/* Quote */}
                 {!isPublic ? (
-                  <Link
-                    href={`/compose?quote=${post.id}`}
-                    className="flex items-center gap-1.5 text-tertiary hover:text-primary transition-colors"
+                  <ActionButton
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = `/compose?quote=${post.id}`;
+                    }}
                     aria-label="Quote post"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                      />
-                    </svg>
-                    <span className="text-sm">
-                      {(post.quoteCount ?? 0) > 0
-                        ? `${post.quoteCount} cites`
-                        : "Quote"}
-                    </span>
-                  </Link>
+                    icon={<QuoteIcon />}
+                    count={post.quoteCount ?? 0}
+                  />
                 ) : (
-                  <span className="flex items-center gap-1.5 text-tertiary text-sm">
-                    {(post.quoteCount ?? 0) > 0
-                      ? `${post.quoteCount} cites`
-                      : ""}
-                  </span>
+                  <ActionButton
+                    onClick={() => { }}
+                    aria-label="Quote post"
+                    icon={<QuoteIcon />}
+                    count={post.quoteCount ?? 0}
+                    disabled
+                  />
                 )}
 
-                {/* Share */}
+                {!isPublic && (
+                  <ActionButton
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleKeep();
+                    }}
+                    aria-label={kept ? "Saved" : "Save"}
+                    active={kept}
+                    icon={<BookmarkIcon />}
+                    activeIcon={<BookmarkIcon filled />}
+                  />
+                )}
+
+                {!isPublic && (
+                  <ActionButton
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowAddToCollection(true);
+                    }}
+                    aria-label="Add to collection"
+                    icon={<AddCircleIcon />}
+                  />
+                )}
+
                 {!post.author?.isProtected && (
-                  <button
-                    onClick={() => setShowShareModal(true)}
-                    className="flex items-center gap-1.5 text-tertiary hover:text-primary transition-colors"
+                  <ActionButton
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowShareModal(true);
+                    }}
                     aria-label="Share post"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-                      />
-                    </svg>
-                    <span className="text-sm">Share</span>
-                  </button>
+                    icon={<ShareIcon />}
+                  />
                 )}
               </div>
             )}
 
             {/* Connections: builds on, built upon by, topics */}
             {!isPreview &&
-              post.viewerCanSeeContent !== false &&
+              (post.viewerCanSeeContent as boolean | undefined) !== false &&
               post.id &&
               post.id !== "preview" && (
                 <div className="mt-2">

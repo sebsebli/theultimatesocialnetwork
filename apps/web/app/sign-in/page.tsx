@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useBetaMode } from "@/context/beta-mode-provider";
 
-const TAGLINE = "History is written by those who write.";
+const TAGLINE = "Where ideas connect and grow.";
 const ERROR_COLOR = "#B85C5C";
 
 function getDeviceInfo(): string {
@@ -557,14 +557,8 @@ function SignInPageContent() {
             account.
           </p>
           <div className="mt-12 flex flex-wrap gap-6 text-sm font-medium text-secondary justify-center">
-            <Link href="/about" className="hover:text-paper transition-colors">
+            <Link href="/manifesto" className="hover:text-paper transition-colors">
               About
-            </Link>
-            <Link
-              href="/manifesto"
-              className="hover:text-paper transition-colors"
-            >
-              Manifesto
             </Link>
             <Link
               href="/roadmap"
@@ -610,14 +604,8 @@ function SignInPageContent() {
         </div>
 
         <footer className="flex-shrink-0 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-8 pb-2 text-xs font-medium text-tertiary md:justify-start md:max-w-md md:mx-auto">
-          <Link href="/about" className="hover:text-paper transition-colors">
+          <Link href="/manifesto" className="hover:text-paper transition-colors">
             About
-          </Link>
-          <Link
-            href="/manifesto"
-            className="hover:text-paper transition-colors"
-          >
-            Manifesto
           </Link>
           <Link href="/roadmap" className="hover:text-paper transition-colors">
             Roadmap
@@ -635,7 +623,7 @@ function SignInPageContent() {
             href="/ai-transparency"
             className="hover:text-paper transition-colors"
           >
-            AI Safety
+            AI Transparency
           </Link>
         </footer>
       </div>

@@ -55,24 +55,18 @@ export function PostAuthorHeader({
 
   const displayName = author.displayName || author.handle || "Unknown";
 
-  // Reading time display
+  // Reading time display — compact clock-style (no "read" word)
   const readingTimeText =
     readingTimeMinutes != null && readingTimeMinutes > 0
       ? readingTimeMinutes < 1
         ? "< 1 min"
         : readingTimeMinutes >= 10
-          ? "10+ min read"
-          : `${readingTimeMinutes} min read`
+          ? "10+ min"
+          : `${readingTimeMinutes} min`
       : null;
 
-  // Date display
-  const dateText = isFull
-    ? new Date(createdAt).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : formatRelativeTime(createdAt);
+  // Date display — always relative (7h, 2d, 1y …)
+  const dateText = formatRelativeTime(createdAt);
 
   const bio =
     typeof author.bio === "string" && author.bio.trim() !== ""
@@ -104,31 +98,23 @@ export function PostAuthorHeader({
             {displayName}
           </Text>
 
-          {isFull ? (
-            /* Full variant: reading time next to name */
-            readingTimeText != null ? (
-              <>
-                <Text style={styles.dot}>·</Text>
-                <Text style={styles.meta}>{readingTimeText}</Text>
-              </>
-            ) : null
-          ) : (
-            /* Compact variant: date · reading time */
+          {/* Date + reading time always on one line for both variants */}
+          <Text style={styles.dot}>·</Text>
+          <Text style={styles.meta}>{dateText}</Text>
+          {readingTimeText != null && (
             <>
               <Text style={styles.dot}>·</Text>
-              <Text style={styles.meta}>{dateText}</Text>
-              {readingTimeText != null && (
-                <>
-                  <Text style={styles.dot}>·</Text>
-                  <Text style={styles.meta}>{readingTimeText}</Text>
-                </>
-              )}
+              <View style={styles.readingTimeWrap}>
+                <MaterialIcons
+                  name="schedule"
+                  size={11}
+                  color={COLORS.secondary}
+                />
+                <Text style={styles.meta}>{readingTimeText}</Text>
+              </View>
             </>
           )}
         </View>
-
-        {/* Full variant: date on second line */}
-        {isFull && <Text style={styles.dateFull}>{dateText}</Text>}
 
         {/* Bio */}
         {bio != null && (
@@ -199,11 +185,10 @@ const styles = createStyles({
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
   },
-  dateFull: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-    marginTop: 1,
+  readingTimeWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
   },
   bio: {
     fontSize: 12,

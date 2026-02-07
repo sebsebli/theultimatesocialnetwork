@@ -1,18 +1,29 @@
 import React, { useRef, useEffect } from "react";
 import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useExplorationTrail } from "../context/ExplorationTrailContext";
 import {
   COLORS,
   SPACING,
   FONTS,
   SIZES,
+  HEADER,
   createStyles,
 } from "../constants/theme";
+
+const STEP_ICONS: Record<string, string> = {
+  topic: "tag",
+  user: "person",
+  post: "article",
+  explore: "explore",
+};
 
 const ExplorationTrailInner = () => {
   const { trail, jumpTo, clearTrail, isActive } = useExplorationTrail();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
 
   // Auto-scroll to end when trail updates
@@ -31,31 +42,62 @@ const ExplorationTrailInner = () => {
     router.push(step.href as any);
   };
 
+  const handleHomePress = () => {
+    clearTrail();
+    router.push("/(tabs)");
+  };
+
   if (!isActive) {
     return null;
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, SPACING.xs) }]}>
+      {/* Home button — always first */}
+      <Pressable
+        onPress={handleHomePress}
+        style={({ pressed }: { pressed: boolean }) => [
+          styles.homeButton,
+          pressed && { opacity: 0.7 },
+        ]}
+        accessibilityLabel="Home"
+        accessibilityRole="button"
+      >
+        <MaterialIcons name="home" size={20} color={COLORS.secondary} />
+      </Pressable>
+
       <ScrollView
         ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Compass icon */}
-        <Text style={styles.compassIcon}>🧭</Text>
-
         {trail.map((step, i) => (
           <View key={`${step.type}-${step.id}-${i}`} style={styles.stepWrapper}>
-            {i > 0 && <Text style={styles.separator}>›</Text>}
+            <MaterialIcons
+              name="chevron-right"
+              size={16}
+              color={COLORS.tertiary}
+              style={styles.separator}
+            />
             <Pressable
               onPress={() => handleStepPress(i)}
-              style={[
+              style={({ pressed }: { pressed: boolean }) => [
                 styles.stepButton,
                 i === trail.length - 1 && styles.activeStep,
+                pressed && { opacity: 0.7 },
               ]}
+              accessibilityLabel={step.label}
+              accessibilityRole="button"
             >
+              <MaterialIcons
+                name={(STEP_ICONS[step.type] ?? "circle") as any}
+                size={14}
+                color={
+                  i === trail.length - 1 ? COLORS.paper : COLORS.secondary
+                }
+                style={styles.stepIcon}
+              />
               <Text
                 style={[
                   styles.stepText,
@@ -63,11 +105,6 @@ const ExplorationTrailInner = () => {
                 ]}
                 numberOfLines={1}
               >
-                {step.type === "topic"
-                  ? "# "
-                  : step.type === "user"
-                    ? "@ "
-                    : ""}
                 {step.label}
               </Text>
             </Pressable>
@@ -76,8 +113,16 @@ const ExplorationTrailInner = () => {
       </ScrollView>
 
       {/* Clear button */}
-      <Pressable onPress={clearTrail} style={styles.clearButton}>
-        <Text style={styles.clearIcon}>✕</Text>
+      <Pressable
+        onPress={clearTrail}
+        style={({ pressed }: { pressed: boolean }) => [
+          styles.clearButton,
+          pressed && { opacity: 0.7 },
+        ]}
+        accessibilityLabel="Clear trail"
+        accessibilityRole="button"
+      >
+        <MaterialIcons name="close" size={18} color={COLORS.tertiary} />
       </Pressable>
     </View>
   );
@@ -88,57 +133,57 @@ const styles = createStyles({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.ink,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.divider,
-    paddingVertical: SPACING.s,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.divider,
+    paddingVertical: SPACING.s + 2,
+  },
+  homeButton: {
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.xs,
   },
   scrollContent: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: SPACING.m,
-    gap: 2,
+    paddingRight: SPACING.s,
+    gap: 0,
     flexGrow: 1,
-  },
-  compassIcon: {
-    fontSize: 14,
-    marginRight: SPACING.xs,
   },
   stepWrapper: {
     flexDirection: "row",
     alignItems: "center",
   },
   separator: {
-    color: COLORS.tertiary,
-    fontSize: 14,
-    marginHorizontal: SPACING.xs,
+    marginHorizontal: 2,
   },
   stepButton: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: SPACING.s,
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.xs + 1,
     borderRadius: SIZES.borderRadius,
+    gap: 5,
   },
   activeStep: {
     backgroundColor: COLORS.hover,
   },
+  stepIcon: {
+    marginRight: 0,
+  },
   stepText: {
-    color: COLORS.tertiary,
-    fontSize: 12,
+    color: COLORS.secondary,
+    fontSize: 13,
     fontWeight: "500",
-    maxWidth: 120,
+    maxWidth: 150,
     fontFamily: FONTS.medium,
   },
   activeStepText: {
     color: COLORS.paper,
+    fontWeight: "600",
     fontFamily: FONTS.semiBold,
   },
   clearButton: {
     paddingHorizontal: SPACING.m,
     paddingVertical: SPACING.xs,
-  },
-  clearIcon: {
-    color: COLORS.tertiary,
-    fontSize: 12,
-    fontFamily: FONTS.medium,
   },
 });
 

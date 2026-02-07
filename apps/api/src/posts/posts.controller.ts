@@ -31,7 +31,7 @@ export class PostsController {
     private readonly uploadService: UploadService,
     private readonly interactionsService: InteractionsService,
     private readonly exploreService: ExploreService,
-  ) {}
+  ) { }
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
@@ -90,19 +90,25 @@ export class PostsController {
     const post = await this.postsService.findOne(id, user?.id);
     const getImageUrl = (key: string) => this.uploadService.getImageUrl(key);
     const linkedIds = extractLinkedPostIds(post?.body);
-    const referenceMetadata =
-      linkedIds.length > 0
-        ? await this.postsService.getTitlesForPostIds(linkedIds)
-        : undefined;
-    let viewerState: { isLiked?: boolean; isKept?: boolean } | undefined;
-    if (user?.id && post?.id) {
-      const { likedIds, keptIds } =
-        await this.interactionsService.getLikeKeepForViewer(user.id, [post.id]);
-      viewerState = {
-        isLiked: likedIds.has(post.id),
-        isKept: keptIds.has(post.id),
-      };
-    }
+    const [referenceMetadata, inlineEnrichment, viewerState] =
+      await Promise.all([
+        linkedIds.length > 0
+          ? this.postsService.getTitlesForPostIds(linkedIds)
+          : Promise.resolve(undefined),
+        this.postsService.getInlineEnrichment(
+          post?.body,
+          linkedIds,
+          getImageUrl,
+        ),
+        user?.id && post?.id
+          ? this.interactionsService
+            .getLikeKeepForViewer(user.id, [post.id])
+            .then(({ likedIds, keptIds }) => ({
+              isLiked: likedIds.has(post!.id),
+              isKept: keptIds.has(post!.id),
+            }))
+          : Promise.resolve(undefined),
+      ]);
     const viewerCanSeeContent =
       (post as { viewerCanSeeContent?: boolean }).viewerCanSeeContent !== false;
     const plain = postToPlain(
@@ -111,6 +117,7 @@ export class PostsController {
       referenceMetadata,
       viewerState,
       viewerCanSeeContent,
+      inlineEnrichment,
     );
     return plain ?? {};
   }

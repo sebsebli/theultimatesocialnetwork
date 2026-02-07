@@ -63,10 +63,10 @@ function DesktopRightSidebarInner() {
       <div className="flex flex-col gap-6 pt-6">
         {/* Trending Topics */}
         {loading ? (
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4 h-48 animate-pulse" />
+          <div className="border border-divider rounded-lg p-4 h-48 animate-pulse" />
         ) : (
           topics.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="border border-divider rounded-lg p-4">
               <h3 className="text-sm font-bold text-paper mb-3 uppercase tracking-wider">
                 Trending Topics
               </h3>
@@ -96,10 +96,10 @@ function DesktopRightSidebarInner() {
 
         {/* Recommended People */}
         {loading ? (
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4 h-40 animate-pulse" />
+          <div className="border border-divider rounded-lg p-4 h-40 animate-pulse" />
         ) : (
           users.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="border border-divider rounded-lg p-4">
               <h3 className="text-sm font-bold text-paper mb-3 uppercase tracking-wider">
                 Who to Follow
               </h3>

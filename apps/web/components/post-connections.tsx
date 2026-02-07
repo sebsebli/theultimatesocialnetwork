@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getImageUrl } from "@/lib/security";
 import { Avatar } from "./avatar";
+import { Pill } from "./ui/pill";
 
 // Helper function to strip markdown from text
 function stripMarkdown(text: string): string {
@@ -47,39 +48,39 @@ function getFaviconUrl(domain: string): string {
 // Types matching the enriched connections endpoint
 type BuildsOnItem =
   | {
-      type: "post";
-      id: string;
-      label: string;
-      authorHandle?: string;
-      authorDisplayName?: string;
-      authorAvatarKey?: string;
-      quoteCount?: number;
-      replyCount?: number;
-      bodyExcerpt?: string;
-    }
+    type: "post";
+    id: string;
+    label: string;
+    authorHandle?: string;
+    authorDisplayName?: string;
+    authorAvatarKey?: string;
+    quoteCount?: number;
+    replyCount?: number;
+    bodyExcerpt?: string;
+  }
   | {
-      type: "topic";
-      id: string;
-      label: string;
-      slug?: string;
-      postCount?: number;
-    }
+    type: "topic";
+    id: string;
+    label: string;
+    slug?: string;
+    postCount?: number;
+  }
   | {
-      type: "external";
-      id: string;
-      label: string;
-      url?: string;
-      domain?: string;
-      description?: string;
-      imageUrl?: string;
-    }
+    type: "external";
+    id: string;
+    label: string;
+    url?: string;
+    domain?: string;
+    description?: string;
+    imageUrl?: string;
+  }
   | {
-      type: "user";
-      id: string;
-      label: string;
-      handle?: string;
-      avatarKey?: string;
-    };
+    type: "user";
+    id: string;
+    label: string;
+    handle?: string;
+    avatarKey?: string;
+  };
 
 type BuiltUponByItem = {
   id: string;
@@ -108,34 +109,34 @@ interface ConnectionsResponse {
 // Legacy types for fallback
 type LegacySource =
   | {
-      type: "external";
-      id: string;
-      url: string;
-      title?: string;
-      description?: string;
-      imageUrl?: string;
-    }
+    type: "external";
+    id: string;
+    url: string;
+    title?: string;
+    description?: string;
+    imageUrl?: string;
+  }
   | {
-      type: "post";
-      id: string;
-      title?: string;
-      headerImageKey?: string | null;
-      authorAvatarKey?: string | null;
-    }
+    type: "post";
+    id: string;
+    title?: string;
+    headerImageKey?: string | null;
+    authorAvatarKey?: string | null;
+  }
   | {
-      type: "user";
-      id: string;
-      handle?: string;
-      title?: string;
-      avatarKey?: string | null;
-    }
+    type: "user";
+    id: string;
+    handle?: string;
+    title?: string;
+    avatarKey?: string | null;
+  }
   | {
-      type: "topic";
-      id: string;
-      slug?: string;
-      title?: string;
-      imageKey?: string | null;
-    };
+    type: "topic";
+    id: string;
+    slug?: string;
+    title?: string;
+    imageKey?: string | null;
+  };
 
 interface LegacyReferencedPost {
   id: string;
@@ -365,7 +366,7 @@ function PostConnectionsInner({
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="shrink-0 w-[220px] h-[120px] bg-white/5 border border-white/10 rounded-xl animate-pulse"
+                className="shrink-0 w-[220px] h-[120px] bg-hover border border-divider rounded-[14px] animate-pulse"
               />
             ))}
           </div>
@@ -377,7 +378,7 @@ function PostConnectionsInner({
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="shrink-0 w-[240px] h-[130px] bg-white/5 border border-white/10 rounded-xl animate-pulse"
+                className="shrink-0 w-[220px] h-[120px] bg-hover border border-divider rounded-[14px] animate-pulse"
               />
             ))}
           </div>
@@ -412,7 +413,7 @@ function PostConnectionsInner({
                     href={href}
                     target={isExternal ? "_blank" : undefined}
                     rel={isExternal ? "noopener noreferrer" : undefined}
-                    className="shrink-0 w-[220px] h-[120px] bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/15 transition-all p-3 flex flex-col gap-2"
+                    className="shrink-0 w-[220px] bg-hover border border-divider rounded-[14px] hover:bg-white/10 transition-all p-3 flex flex-col gap-2"
                   >
                     {/* Top row: Avatar/Icon + Author/Topic info */}
                     <div className="flex items-center gap-2">
@@ -459,8 +460,8 @@ function PostConnectionsInner({
                       {item.type === "topic" && (
                         <>
                           <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30">
-                            <span className="text-primary text-xs font-bold">
-                              #
+                            <span className="text-primary text-[8px] font-mono font-bold">
+                              [[]]
                             </span>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -642,7 +643,7 @@ function PostConnectionsInner({
                   <Link
                     key={post.id}
                     href={`/post/${post.id}`}
-                    className="shrink-0 w-[240px] h-[130px] bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/15 transition-all p-3 flex flex-col gap-2"
+                    className="shrink-0 w-[220px] bg-hover border border-divider rounded-[14px] hover:bg-white/10 transition-all p-3 flex flex-col gap-2"
                   >
                     {/* Author info */}
                     <div className="flex items-center gap-2">
@@ -700,22 +701,13 @@ function PostConnectionsInner({
           </h3>
           <div className="flex flex-wrap gap-2">
             {connections.topics.map((topic) => (
-              <Link
+              <Pill
                 key={`topic-${topic.id}`}
-                href={`/topic/${encodeURIComponent(topic.slug)}`}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-primary/20 hover:bg-white/10 hover:border-primary/40 transition-all text-sm group"
-              >
-                <span className="text-primary font-medium">#</span>
-                <span className="text-paper font-medium">{topic.title}</span>
-                {topic.postCount > 0 && (
-                  <>
-                    <span className="text-tertiary">·</span>
-                    <span className="text-tertiary text-xs">
-                      {topic.postCount} post{topic.postCount !== 1 ? "s" : ""}
-                    </span>
-                  </>
-                )}
-              </Link>
+                variant="topic"
+                title={topic.title}
+                slug={topic.slug}
+                count={topic.postCount > 0 ? topic.postCount : undefined}
+              />
             ))}
           </div>
         </section>

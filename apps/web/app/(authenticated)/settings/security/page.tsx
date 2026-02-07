@@ -232,11 +232,11 @@ export default function SecuritySettings() {
             )}
 
             {is2FASetupOpen && qrValue && (
-              <div className="mt-6 p-4 bg-white rounded-lg">
-                <div className="flex justify-center mb-4">
+              <div className="mt-6 p-5 border-b border-divider/50 rounded-xl">
+                <div className="flex justify-center mb-4 p-4 bg-white rounded-lg w-fit mx-auto">
                   <QRCode value={qrValue} size={192} />
                 </div>
-                <p className="text-black text-center text-sm mb-4 font-mono break-all">
+                <p className="text-secondary text-center text-sm mb-4 font-mono break-all">
                   Secret: {secret}
                 </p>
                 <div className="flex gap-2">
@@ -247,12 +247,12 @@ export default function SecuritySettings() {
                     onChange={(e) =>
                       setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                     }
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-black"
+                    className="flex-1 px-3 py-2 border border-white/10 rounded-lg bg-white/5 text-paper placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <button
                     onClick={confirm2FA}
                     disabled={verifyLoading || totpCode.length !== 6}
-                    className="px-4 py-2 bg-black text-white rounded disabled:opacity-50"
+                    className="px-4 py-2 bg-primary text-ink font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                   >
                     {verifyLoading ? "Verifying..." : "Verify"}
                   </button>

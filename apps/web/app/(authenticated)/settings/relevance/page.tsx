@@ -66,7 +66,7 @@ export default function RelevanceSettingsPage() {
 
   return (
     <div className="max-w-[680px] mx-auto min-h-screen border-x border-divider bg-ink">
-      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-6 py-4">
+      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 py-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link href="/settings" className="text-secondary hover:text-paper">
@@ -98,7 +98,7 @@ export default function RelevanceSettingsPage() {
 
       <div className="px-6 py-6 space-y-8">
         {loading ? (
-          <p className="text-secondary">Loading...</p>
+          <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>
         ) : (
           <>
             {/* Enable Recommendations */}
@@ -108,7 +108,7 @@ export default function RelevanceSettingsPage() {
                   Enable recommendations
                 </h3>
                 <p className="text-sm text-secondary">
-                  Show personalized content in Explore
+                  Show graph-based content suggestions in Explore based on topics you follow, citations, and reading activity
                 </p>
               </div>
               <button

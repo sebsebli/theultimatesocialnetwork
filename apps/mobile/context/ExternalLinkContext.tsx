@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useRef, useState } from "react";
+import { Linking, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
 import * as WebBrowser from "expo-web-browser";
 import { ExternalLinkModal } from "../components/ExternalLinkModal";
@@ -21,17 +22,23 @@ const Provider = ExternalLinkContext.Provider as (props: ProviderProps) => React
 export function ExternalLinkProvider({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
-  const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+  const pendingUrlRef = useRef<string | null>(null);
 
   const openInAppBrowser = useCallback(async (url: string) => {
     try {
       await WebBrowser.openBrowserAsync(url, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-        toolbarColor: COLORS.ink,
-        controlsColor: COLORS.primary,
+        // Use default presentation (OVER_FULL_SCREEN) on iOS — FULL_SCREEN can cause immediate dismiss
+        ...(Platform.OS === "android" ? {} : {}),
+        toolbarColor: "#0a0a0a",
+        controlsColor: "#5B8DEF",
       });
-    } catch {
-      if (__DEV__) console.warn("Failed to open URL in app browser");
+    } catch (err) {
+      if (__DEV__) console.warn("WebBrowser failed, falling back to Linking:", err);
+      try {
+        await Linking.openURL(url);
+      } catch {
+        if (__DEV__) console.warn("Linking.openURL also failed");
+      }
     }
   }, []);
 
@@ -45,22 +52,26 @@ export function ExternalLinkProvider({ children }: { children: React.ReactNode }
         return;
       }
 
-      setPendingUrl(trimmed);
+      pendingUrlRef.current = trimmed;
       setVisible(true);
     },
     [openInAppBrowser],
   );
 
   const handleOpen = useCallback(() => {
-    if (pendingUrl) {
-      openInAppBrowser(pendingUrl);
-      setPendingUrl(null);
+    const url = pendingUrlRef.current;
+    if (url) {
+      pendingUrlRef.current = null;
       setVisible(false);
+      // Delay to let the modal fully dismiss before opening browser
+      setTimeout(() => {
+        openInAppBrowser(url);
+      }, 500);
     }
-  }, [pendingUrl, openInAppBrowser]);
+  }, [openInAppBrowser]);
 
   const handleCancel = useCallback(() => {
-    setPendingUrl(null);
+    pendingUrlRef.current = null;
     setVisible(false);
   }, []);
 

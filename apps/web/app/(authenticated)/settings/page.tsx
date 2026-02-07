@@ -98,7 +98,7 @@ export default function SettingsPage() {
       if (res.ok) {
         toastSuccess(
           data.message ??
-            "Check your email for a download link. The link expires in 7 days and can only be used once.",
+          "Check your email for a download link. The link expires in 7 days and can only be used once.",
         );
       } else {
         toastError(data.error ?? "Failed to request your data");
@@ -123,7 +123,7 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-ink">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 md:px-6 py-3">
+      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 md:px-6 py-2">
         <div className="flex items-center justify-between">
           <Link
             href="/home"
@@ -149,7 +149,7 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <div className="px-6 py-6 space-y-8">
+      <div className="px-4 py-4 space-y-6">
         {/* Account — match mobile: Edit profile, Invite Friends, Languages */}
         <section>
           <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
@@ -158,7 +158,7 @@ export default function SettingsPage() {
           <div className="space-y-1">
             <Link
               href="/settings/profile"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Edit profile</span>
               <svg
@@ -177,7 +177,7 @@ export default function SettingsPage() {
             </Link>
             <Link
               href="/invites"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Invite Friends</span>
               <svg
@@ -196,7 +196,7 @@ export default function SettingsPage() {
             </Link>
             <Link
               href="/settings/email"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">{t("changeEmail")}</span>
               <svg
@@ -215,7 +215,7 @@ export default function SettingsPage() {
             </Link>
             <Link
               href="/settings/languages"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Languages</span>
               <svg
@@ -234,7 +234,7 @@ export default function SettingsPage() {
             </Link>
             <Link
               href="/settings/security"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Security (2FA & Sessions)</span>
               <svg
@@ -284,11 +284,11 @@ export default function SettingsPage() {
             Content
           </h2>
           <div className="space-y-1 mb-6">
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+            <div className="flex items-center justify-between py-3 px-4 border-b border-divider/50">
               <div>
                 <div className="text-paper font-medium">Smart Autocomplete</div>
                 <div className="text-secondary text-sm mt-0.5">
-                  Suggest posts and topics while typing
+                  When typing [[ in the composer, suggest both posts and topics (off = topics only)
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -303,7 +303,7 @@ export default function SettingsPage() {
             </div>
             <Link
               href="/settings/relevance"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Relevance</span>
               <svg
@@ -322,7 +322,7 @@ export default function SettingsPage() {
             </Link>
             <Link
               href="/settings/notifications"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Notifications</span>
               <svg
@@ -341,7 +341,7 @@ export default function SettingsPage() {
             </Link>
           </div>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+            <div className="flex items-center justify-between py-3 px-4 border-b border-divider/50">
               <div>
                 <div className="text-paper font-medium">Push notifications</div>
                 <div className="text-secondary text-sm">
@@ -403,7 +403,7 @@ export default function SettingsPage() {
               System messages (sign-in, security, account) are always sent.
             </p>
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+              <div className="flex items-center justify-between py-3 px-4 border-b border-divider/50">
                 <div>
                   <div className="text-paper font-medium">
                     Marketing & promotions
@@ -432,7 +432,7 @@ export default function SettingsPage() {
                   </label>
                 )}
               </div>
-              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+              <div className="flex items-center justify-between py-3 px-4 border-b border-divider/50">
                 <div>
                   <div className="text-paper font-medium">
                     Product updates & tips
@@ -470,7 +470,7 @@ export default function SettingsPage() {
               Feed
             </h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+              <div className="flex items-center justify-between py-3 px-4 border-b border-divider/50">
                 <div>
                   <div className="text-paper font-medium">
                     Show saves from people I follow
@@ -498,13 +498,13 @@ export default function SettingsPage() {
               Explore relevance
             </h3>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+              <div className="flex items-center justify-between py-3 px-4 border-b border-divider/50">
                 <div>
                   <div className="text-paper font-medium">
                     Enable recommendations
                   </div>
                   <div className="text-secondary text-sm">
-                    Use relevance algorithms
+                    Show graph-based content suggestions in Explore based on topics you follow and your reading activity
                   </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -519,7 +519,7 @@ export default function SettingsPage() {
               </div>
               <Link
                 href="/settings/relevance"
-                className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+                className="block py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
               >
                 <div className="font-medium">Relevance controls</div>
                 <div className="text-secondary text-sm mt-1">
@@ -536,7 +536,7 @@ export default function SettingsPage() {
             Offline reading
           </h2>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+            <div className="flex items-center justify-between py-3 px-4 border-b border-divider/50">
               <div>
                 <div className="text-paper font-medium">
                   Download saved for offline
@@ -560,7 +560,7 @@ export default function SettingsPage() {
             </div>
             <Link
               href="/settings/offline"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Manage offline storage</span>
               <span className="flex items-center gap-2">
@@ -588,6 +588,34 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Privacy & Data Processing — matches mobile */}
+        <section>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
+            Privacy &amp; Data Processing
+          </h2>
+          <div className="space-y-1">
+            <Link
+              href="/settings/privacy"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
+            >
+              <span className="font-medium">Data processing preferences</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+          </div>
+        </section>
+
         {/* Safety — match mobile */}
         <section>
           <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
@@ -596,13 +624,13 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <Link
               href="/settings/blocked"
-              className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="block py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <div className="font-medium">Blocked accounts</div>
             </Link>
             <Link
               href="/settings/muted"
-              className="block p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="block py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <div className="font-medium">Muted accounts</div>
             </Link>
@@ -617,7 +645,7 @@ export default function SettingsPage() {
           <div className="space-y-1">
             <Link
               href="/terms"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Terms of Service</span>
               <svg
@@ -636,7 +664,7 @@ export default function SettingsPage() {
             </Link>
             <Link
               href="/privacy"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Privacy Policy</span>
               <svg
@@ -654,8 +682,27 @@ export default function SettingsPage() {
               </svg>
             </Link>
             <Link
+              href="/community-guidelines"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
+            >
+              <span className="font-medium">Community Guidelines</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Link>
+            <Link
               href="/imprint"
-              className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-paper hover:bg-white/10 transition-colors"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
             >
               <span className="font-medium">Imprint</span>
               <svg
@@ -672,6 +719,25 @@ export default function SettingsPage() {
                 />
               </svg>
             </Link>
+            <a
+              href="mailto:support@citewalk.com"
+              className="flex items-center justify-between py-3 px-4 text-paper hover:bg-white/5 transition-colors border-b border-divider/50"
+            >
+              <span className="font-medium">Contact &amp; Support</span>
+              <svg
+                className="w-5 h-5 text-tertiary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
             {userHandle && (
               <button
                 type="button"
@@ -696,7 +762,7 @@ export default function SettingsPage() {
                     window.open(url, "_blank", "noopener,noreferrer");
                   }
                 }}
-                className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-left text-paper hover:bg-white/10 transition-colors"
+                className="w-full flex items-center justify-between py-3 px-4 border-b border-divider/50 text-left text-paper hover:bg-white/10 transition-colors"
               >
                 <span className="font-medium">My RSS Feed</span>
                 <svg
@@ -717,7 +783,7 @@ export default function SettingsPage() {
             <button
               onClick={() => setRequestDataModalOpen(true)}
               disabled={requestExportLoading}
-              className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-left text-paper hover:bg-white/10 transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-between py-3 px-4 border-b border-divider/50 text-left text-paper hover:bg-white/10 transition-colors disabled:opacity-50"
             >
               <span className="font-medium">Request my data</span>
               {requestExportLoading ? (
@@ -792,7 +858,7 @@ export default function SettingsPage() {
         <section className="pt-6 mt-2 border-t border-divider/50">
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg text-left text-red-400 hover:bg-red-500/10 transition-colors"
+            className="w-full flex items-center justify-between py-3 px-4 border-b border-divider/50 text-left text-red-400 hover:bg-red-500/10 transition-colors"
           >
             <span className="font-medium">Sign out</span>
             <svg

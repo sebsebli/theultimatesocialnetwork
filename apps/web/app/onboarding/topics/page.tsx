@@ -218,8 +218,9 @@ export default function OnboardingTopicsPage() {
           What are you interested in?
         </h1>
         <p className="text-secondary mb-6 max-w-lg">
-          Follow topics to fill your feed with ideas you care about. Every post
-          tagged to a topic you follow will appear in your timeline.
+          Follow topics to fill your feed with ideas that matter to you — not
+          what an algorithm thinks will keep you scrolling. Every post tagged to
+          a topic you follow appears in your timeline.
         </p>
 
         {/* Search */}
@@ -321,11 +322,10 @@ export default function OnboardingTopicsPage() {
                   <button
                     key={topic.id}
                     onClick={() => toggleFollow(topic.slug, topic.id)}
-                    className={`text-left rounded-xl border overflow-hidden transition-all relative group ${
-                      isFollowed
+                    className={`text-left rounded-xl border overflow-hidden transition-all relative group ${isFollowed
                         ? "border-primary/50 ring-2 ring-primary/20"
                         : "border-white/10 hover:border-white/20"
-                    }`}
+                      }`}
                   >
                     {/* Image or colored fallback */}
                     <div className="relative w-full h-[80px] overflow-hidden">
@@ -345,8 +345,8 @@ export default function OnboardingTopicsPage() {
                           className={`absolute inset-0 bg-gradient-to-br ${colorGradient}`}
                         >
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-4xl font-bold text-white/10 select-none">
-                              #
+                            <span className="text-3xl font-bold text-white/10 select-none">
+                              [[]]
                             </span>
                           </div>
                         </div>
@@ -369,13 +369,9 @@ export default function OnboardingTopicsPage() {
                     {/* Content */}
                     <div className="p-3">
                       <div className="flex items-start gap-1 mb-1">
-                        <span className="text-primary text-xs font-bold">
-                          #
-                        </span>
                         <span
-                          className={`text-sm font-bold leading-tight line-clamp-1 ${
-                            isFollowed ? "text-primary" : "text-paper"
-                          }`}
+                          className={`text-sm font-bold leading-tight line-clamp-1 ${isFollowed ? "text-primary" : "text-paper"
+                            }`}
                         >
                           {topic.title}
                         </span>
@@ -414,11 +410,10 @@ export default function OnboardingTopicsPage() {
         <div className="max-w-3xl mx-auto">
           <button
             onClick={handleNext}
-            className={`w-full h-14 font-semibold rounded-lg transition-colors ${
-              following.size >= 3
+            className={`w-full h-14 font-semibold rounded-lg transition-colors ${following.size >= 3
                 ? "bg-primary text-white hover:bg-primary/90"
                 : "bg-white/10 text-secondary"
-            }`}
+              }`}
           >
             {following.size >= 3
               ? `Continue with ${following.size} topics`

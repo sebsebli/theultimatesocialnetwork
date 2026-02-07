@@ -19,7 +19,6 @@ import {
   SIZES,
   FONTS,
   HEADER,
-  MODAL,
   createStyles,
 } from "../constants/theme";
 import { InlineSkeleton } from "./LoadingSkeleton";
@@ -27,9 +26,17 @@ import { InlineSkeleton } from "./LoadingSkeleton";
 const REPORT_REASON_KEYS = [
   "spam",
   "harassment",
-  "misinformation",
-  "violence",
   "hate_speech",
+  "violence",
+  "misinformation",
+  "illegal_content",
+  "csam",
+  "terrorism",
+  "self_harm",
+  "impersonation",
+  "copyright",
+  "privacy_violation",
+  "nudity",
   "other",
 ] as const;
 
@@ -38,7 +45,7 @@ export interface ReportModalProps {
   onClose: () => void;
   onReport: (reason: string, comment?: string) => Promise<void>;
   title?: string;
-  targetType: "POST" | "REPLY" | "USER" | "DM";
+  targetType: "POST" | "REPLY" | "USER" | "DM" | "TOPIC" | "COLLECTION";
 }
 
 export function ReportModal({
@@ -69,6 +76,12 @@ export function ReportModal({
     }
   };
 
+  const handleClose = () => {
+    setSelectedReason(null);
+    setComment("");
+    onClose();
+  };
+
   const displayTitle =
     title ??
     (targetType === "REPLY"
@@ -76,71 +89,101 @@ export function ReportModal({
       : t("post.reportTitle", "Report Post"));
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <KeyboardAvoidingView
-        style={styles.overlay}
+        style={[
+          styles.fullscreen,
+          // pageSheet on iOS already provides safe area; only Android fullscreen needs insets
+          Platform.OS === "android" && { paddingTop: insets.top },
+        ]}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel={t("common.close", "Close")} />
-        <View
-          style={[styles.sheet, { paddingBottom: insets.bottom + SPACING.xl }]}
+        {/* Header bar */}
+        <View style={styles.headerBar}>
+          <Pressable
+            onPress={handleClose}
+            style={styles.headerCloseBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.close", "Close")}
+          >
+            <MaterialIcons name="close" size={24} color={COLORS.paper} />
+          </Pressable>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {displayTitle}
+          </Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <ScrollView
+          style={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollInner,
+            { paddingBottom: insets.bottom + SPACING.xl },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.handle} />
-          <View style={styles.sheetTitleRow}>
-            <MaterialIcons
-              name="flag"
-              size={HEADER.iconSize}
-              color={COLORS.error}
-              style={styles.sheetTitleIcon}
-            />
-            <Text style={styles.sheetTitle}>{displayTitle}</Text>
+          {/* Icon + description */}
+          <View style={styles.iconSection}>
+            <View style={styles.iconCircle}>
+              <MaterialIcons name="flag" size={28} color={COLORS.error} />
+            </View>
+            <Text style={styles.descriptionText}>
+              {t(
+                "post.reportDescription",
+                "Help us keep Citewalk safe. Select a reason for your report and add any details that might help us review this content.",
+              )}
+            </Text>
           </View>
-          <Text style={styles.hint}>
+
+          {/* Reasons */}
+          <Text style={styles.sectionLabel}>
             {t("post.reportSelectReason", "Select a reason")}
           </Text>
-          <ScrollView
-            style={styles.reasonsScroll}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-          >
-            {REPORT_REASON_KEYS.map((key) => {
-              const label = t(`reportReasons.${key}`);
-              const isSelected = selectedReason === key;
-              return (
-                <Pressable
-                  key={key}
+          {REPORT_REASON_KEYS.map((key) => {
+            const label = t(`reportReasons.${key}`);
+            const isSelected = selectedReason === key;
+            return (
+              <Pressable
+                key={key}
+                style={[
+                  styles.reasonRow,
+                  isSelected && styles.reasonRowSelected,
+                ]}
+                onPress={() => setSelectedReason(key)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isSelected }}
+                accessibilityLabel={label}
+              >
+                <View
                   style={[
-                    styles.reasonRow,
-                    isSelected && styles.reasonRowSelected,
+                    styles.radioOuter,
+                    isSelected && styles.radioOuterSelected,
                   ]}
-                  onPress={() => setSelectedReason(key)}
-                  accessibilityRole="button"
-                  accessibilityLabel={label}
                 >
-                  <Text
-                    style={[
-                      styles.reasonText,
-                      isSelected && styles.reasonTextSelected,
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                  {isSelected && (
-                    <MaterialIcons
-                      name="check"
-                      size={HEADER.iconSize}
-                      color={COLORS.primary}
-                    />
-                  )}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+                  {isSelected && <View style={styles.radioInner} />}
+                </View>
+                <Text
+                  style={[
+                    styles.reasonText,
+                    isSelected && styles.reasonTextSelected,
+                  ]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          {/* Free text */}
+          <Text style={[styles.sectionLabel, { marginTop: SPACING.l }]}>
+            {t("post.reportAdditionalDetails", "Additional details")}
+          </Text>
           <TextInput
             style={styles.commentInput}
             placeholder={t(
               "post.reportCommentPlaceholder",
-              "Additional details (optional)",
+              "Describe what happened (optional)",
             )}
             placeholderTextColor={COLORS.tertiary}
             value={comment}
@@ -148,112 +191,135 @@ export function ReportModal({
             multiline
             maxLength={500}
             editable={!submitting}
+            textAlignVertical="top"
           />
-          <View style={styles.actions}>
-            <Pressable
-              style={styles.cancelBtn}
-              onPress={onClose}
-              disabled={submitting}
-              accessibilityRole="button"
-              accessibilityLabel={t("common.cancel")}
-            >
-              <Text style={styles.cancelText}>{t("common.cancel")}</Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.submitBtn,
-                (!selectedReason || submitting) && styles.submitBtnDisabled,
-              ]}
-              onPress={handleSubmit}
-              disabled={!selectedReason || submitting}
-              accessibilityRole="button"
-              accessibilityLabel={t("post.report", "Report")}
-            >
-              {submitting ? (
-                <InlineSkeleton />
-              ) : (
-                <Text style={styles.submitText}>
-                  {t("post.report", "Report")}
-                </Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
+          <Text style={styles.charCount}>{comment.length}/500</Text>
+
+          {/* Submit */}
+          <Pressable
+            style={[
+              styles.submitBtn,
+              (!selectedReason || submitting) && styles.submitBtnDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={!selectedReason || submitting}
+            accessibilityRole="button"
+            accessibilityLabel={t("post.report", "Submit Report")}
+          >
+            {submitting ? (
+              <InlineSkeleton />
+            ) : (
+              <Text style={styles.submitText}>
+                {t("post.submitReport", "Submit Report")}
+              </Text>
+            )}
+          </Pressable>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = createStyles({
-  overlay: {
+  fullscreen: {
     flex: 1,
-    justifyContent: "flex-end",
+    backgroundColor: COLORS.ink,
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: MODAL.backdropBackgroundColor,
-  },
-  sheet: {
-    backgroundColor: MODAL.sheetBackgroundColor,
-    borderTopLeftRadius: MODAL.sheetBorderRadius,
-    borderTopRightRadius: MODAL.sheetBorderRadius,
-    paddingHorizontal: MODAL.sheetPaddingHorizontal,
-    paddingTop: MODAL.sheetPaddingTop,
-    maxHeight: "85%",
-    borderWidth: MODAL.sheetBorderWidth,
-    borderBottomWidth: MODAL.sheetBorderBottomWidth,
-    borderColor: MODAL.sheetBorderColor,
-  },
-  handle: {
-    width: MODAL.handleWidth,
-    height: MODAL.handleHeight,
-    backgroundColor: MODAL.handleBackgroundColor,
-    borderRadius: MODAL.handleBorderRadius,
-    alignSelf: "center",
-    marginTop: MODAL.handleMarginTop,
-    marginBottom: MODAL.handleMarginBottom,
-  },
-  sheetTitleRow: {
+  headerBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: SPACING.xs,
+    paddingHorizontal: SPACING.m,
+    paddingVertical: SPACING.m,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.divider,
   },
-  sheetTitleIcon: {
-    marginRight: SPACING.s,
+  headerCloseBtn: {
+    padding: SPACING.xs,
   },
-  sheetTitle: {
+  headerTitle: {
     flex: 1,
-    fontSize: MODAL.sheetTitleFontSize,
-    fontWeight: MODAL.sheetTitleFontWeight,
-    color: MODAL.sheetTitleColor,
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.paper,
     fontFamily: FONTS.semiBold,
+    textAlign: "center",
+    marginHorizontal: SPACING.s,
   },
-  hint: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
+  headerSpacer: {
+    width: 24 + SPACING.xs * 2,
+  },
+  scrollContent: {
+    flex: 1,
+  },
+  scrollInner: {
+    paddingHorizontal: SPACING.l,
+    paddingTop: SPACING.l,
+  },
+  iconSection: {
+    alignItems: "center",
+    marginBottom: SPACING.xl,
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.error + "18",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: SPACING.m,
   },
-  reasonsScroll: {
-    maxHeight: 220,
+  descriptionText: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    textAlign: "center",
+    lineHeight: 20,
+    paddingHorizontal: SPACING.m,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.tertiary,
+    fontFamily: FONTS.semiBold,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
     marginBottom: SPACING.m,
   },
   reasonRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingVertical: SPACING.m,
     paddingHorizontal: SPACING.m,
     borderRadius: SIZES.borderRadius,
     marginBottom: SPACING.xs,
     backgroundColor: COLORS.hover,
+    gap: SPACING.m,
   },
   reasonRowSelected: {
-    backgroundColor: "rgba(110, 122, 138, 0.2)",
+    backgroundColor: COLORS.primary + "15",
     borderWidth: 1,
+    borderColor: COLORS.primary + "40",
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.tertiary,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  radioOuterSelected: {
     borderColor: COLORS.primary,
   },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+  },
   reasonText: {
+    flex: 1,
     fontSize: 15,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
@@ -263,57 +329,42 @@ const styles = createStyles({
     color: COLORS.primary,
   },
   commentInput: {
-    minHeight: 80,
+    minHeight: 100,
     backgroundColor: COLORS.hover,
     borderRadius: SIZES.borderRadius,
     paddingHorizontal: SPACING.m,
-    paddingVertical: SPACING.m,
+    paddingTop: SPACING.m,
+    paddingBottom: SPACING.m,
     fontSize: 15,
     color: COLORS.paper,
     fontFamily: FONTS.regular,
     borderWidth: 1,
     borderColor: COLORS.divider,
-    marginBottom: SPACING.l,
   },
-  actions: {
-    flexDirection: "row",
-    gap: SPACING.m,
-  },
-  cancelBtn: {
-    flex: 1,
-    minHeight: MODAL.buttonMinHeight,
-    paddingVertical: MODAL.buttonPaddingVertical,
-    paddingHorizontal: MODAL.buttonPaddingHorizontal,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: MODAL.buttonBorderRadius,
-    backgroundColor: MODAL.secondaryButtonBackgroundColor,
-    borderWidth: MODAL.secondaryButtonBorderWidth,
-    borderColor: MODAL.secondaryButtonBorderColor,
-  },
-  cancelText: {
-    fontSize: MODAL.buttonFontSize,
-    fontWeight: MODAL.buttonFontWeight,
-    color: MODAL.secondaryButtonTextColor,
-    fontFamily: FONTS.semiBold,
+  charCount: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    textAlign: "right",
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.m,
   },
   submitBtn: {
-    flex: 1,
-    minHeight: MODAL.buttonMinHeight,
-    paddingVertical: MODAL.buttonPaddingVertical,
-    paddingHorizontal: MODAL.buttonPaddingHorizontal,
+    minHeight: 48,
+    paddingVertical: SPACING.m,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: MODAL.buttonBorderRadius,
-    backgroundColor: MODAL.destructiveButtonBackgroundColor,
+    borderRadius: SIZES.borderRadius,
+    backgroundColor: COLORS.error,
+    marginTop: SPACING.m,
   },
   submitBtnDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   submitText: {
-    fontSize: MODAL.buttonFontSize,
-    fontWeight: MODAL.buttonFontWeight,
-    color: MODAL.destructiveButtonTextColor,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
     fontFamily: FONTS.semiBold,
   },
 });

@@ -6,6 +6,7 @@ import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
 import { sanitizeHTML } from "@/lib/sanitize-html";
 import { getPostDisplayTitle } from "@/utils/compose-helpers";
 import { Avatar } from "@/components/avatar";
+import { Pill } from "@/components/ui/pill";
 import { PublicNav } from "@/components/landing/public-nav";
 import { PublicFooter } from "@/components/landing/public-footer";
 import { getImageUrl } from "@/lib/security";
@@ -59,6 +60,11 @@ interface PostData {
   quoteCount?: number;
   replyCount?: number;
   referenceMetadata?: Record<string, unknown>;
+  inlineEnrichment?: {
+    mentionAvatars?: Record<string, string | null>;
+    topicPostCounts?: Record<string, number>;
+    postCiteCounts?: Record<string, number>;
+  } | null;
   author?: {
     handle?: string;
     displayName?: string;
@@ -80,11 +86,21 @@ export function PublicPostContent({
   const readingTime = post.readingTimeMinutes;
   const createdAt = new Date(post.createdAt);
 
-  const formattedDate = createdAt.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const formattedDate = (() => {
+    const now = new Date();
+    const diff = now.getTime() - createdAt.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+    if (minutes < 1) return "now";
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+    if (days < 30) return `${days}d`;
+    if (months < 12) return `${months}mo`;
+    return `${years}y`;
+  })();
 
   const hasStats =
     (post.quoteCount && post.quoteCount > 0) ||
@@ -94,7 +110,7 @@ export function PublicPostContent({
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <PublicNav />
-      <main className="max-w-[720px] mx-auto px-6 pt-24 pb-16">
+      <main className="max-w-[680px] mx-auto px-4 pt-20 pb-16">
         {/* Hero image */}
         {post.headerImageKey && (
           <div className="relative w-full aspect-[21/9] max-h-[400px] overflow-hidden rounded-2xl mb-10">
@@ -118,8 +134,8 @@ export function PublicPostContent({
           <Avatar
             avatarKey={post.author?.avatarKey}
             avatarUrl={post.author?.avatarUrl}
-            displayName={post.author?.displayName}
-            handle={post.author?.handle}
+            displayName={post.author?.displayName ?? ""}
+            handle={post.author?.handle ?? ""}
             size="lg"
             className="!w-14 !h-14"
           />
@@ -129,7 +145,7 @@ export function PublicPostContent({
             </div>
             <div className="text-sm text-[var(--tertiary)]">
               @{post.author?.handle} &middot; {formattedDate}
-              {readingTime ? ` \u00B7 ${readingTime} min read` : ""}
+              {readingTime ? ` \u00B7 ${readingTime} min` : ""}
             </div>
           </div>
           <span className="text-xs text-[var(--primary)] font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
@@ -139,7 +155,7 @@ export function PublicPostContent({
 
         {/* Title */}
         {title && (
-          <h1 className="text-3xl md:text-4xl font-bold font-serif text-[var(--foreground)] mb-8 leading-tight tracking-tight">
+          <h1 className="text-[28px] font-bold font-serif text-[var(--foreground)] mb-8 leading-[36px] tracking-[-0.5px]">
             {title}
           </h1>
         )}
@@ -147,7 +163,7 @@ export function PublicPostContent({
         {/* Stats bar */}
         {hasStats && (
           <div className="flex items-center gap-6 py-4 border-t border-b border-[var(--divider)] mb-10 text-sm text-[var(--tertiary)]">
-            {post.quoteCount > 0 && (
+            {(post.quoteCount ?? 0) > 0 && (
               <span className="flex items-center gap-1.5">
                 <svg
                   className="w-4 h-4"
@@ -165,7 +181,7 @@ export function PublicPostContent({
                 {post.quoteCount} {post.quoteCount === 1 ? "cite" : "cites"}
               </span>
             )}
-            {post.replyCount > 0 && (
+            {(post.replyCount ?? 0) > 0 && (
               <span className="flex items-center gap-1.5">
                 <svg
                   className="w-4 h-4"
@@ -198,7 +214,7 @@ export function PublicPostContent({
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                {readingTime} min read
+                {readingTime} min
               </span>
             )}
           </div>
@@ -206,12 +222,15 @@ export function PublicPostContent({
 
         {/* Body */}
         <article
-          className="text-lg leading-relaxed text-[var(--secondary)] prose prose-invert max-w-none mb-12"
+          className="text-[17px] leading-relaxed text-[var(--secondary)] prose prose-invert max-w-none mb-12 font-serif"
           dangerouslySetInnerHTML={{
             __html: sanitizeHTML(
               renderMarkdown(
                 stripLeadingH1IfMatch(post.body, title || undefined),
-                { referenceMetadata: post.referenceMetadata },
+                {
+                  referenceMetadata: post.referenceMetadata as Record<string, { title?: string; deletedAt?: string; isProtected?: boolean }> | undefined,
+                  inlineEnrichment: post.inlineEnrichment,
+                },
               ),
             ),
           }}
@@ -221,7 +240,7 @@ export function PublicPostContent({
         {connections && (
           <div className="border-t border-[var(--divider)] pt-10 mb-12 space-y-8">
             {/* This builds on */}
-            {connections.buildsOn?.length > 0 && (
+            {(connections.buildsOn?.length ?? 0) > 0 && (
               <section>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--tertiary)] mb-4 flex items-center gap-2">
                   <svg
@@ -240,7 +259,7 @@ export function PublicPostContent({
                   This builds on
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {connections.buildsOn
+                  {(connections.buildsOn ?? [])
                     .slice(0, 6)
                     .map((source: ConnectionSource) => {
                       const isPost = source.type === "post";
@@ -260,11 +279,10 @@ export function PublicPostContent({
                           href={href}
                           target={isExternal ? "_blank" : undefined}
                           rel={isExternal ? "noopener noreferrer" : undefined}
-                          className={`flex items-start gap-3 p-4 rounded-xl border transition-all hover:scale-[1.01] ${
-                            isTopic
-                              ? "bg-[var(--primary)]/5 border-[var(--primary)]/20 hover:border-[var(--primary)]/40"
-                              : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
-                          }`}
+                          className={`flex items-start gap-3 p-4 rounded-xl border transition-all hover:scale-[1.01] ${isTopic
+                            ? "bg-[var(--primary)]/5 border-[var(--primary)]/20 hover:border-[var(--primary)]/40"
+                            : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+                            }`}
                         >
                           {/* Icon / Avatar */}
                           {isPost && source.authorAvatarKey ? (
@@ -332,12 +350,12 @@ export function PublicPostContent({
                                 {source.description}
                               </div>
                             )}
-                            {isTopic && source.postCount > 0 && (
+                            {isTopic && (source.postCount ?? 0) > 0 && (
                               <div className="text-xs text-[var(--tertiary)] mt-1">
                                 {source.postCount} posts
                               </div>
                             )}
-                            {isPost && source.quoteCount > 0 && (
+                            {isPost && (source.quoteCount ?? 0) > 0 && (
                               <span className="inline-flex items-center bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] font-bold px-2 py-0.5 rounded-full mt-1.5">
                                 {source.quoteCount}{" "}
                                 {source.quoteCount === 1 ? "cite" : "cites"}
@@ -352,7 +370,7 @@ export function PublicPostContent({
             )}
 
             {/* Built upon by */}
-            {connections.builtUponBy?.length > 0 && (
+            {(connections.builtUponBy?.length ?? 0) > 0 && (
               <section>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--tertiary)] mb-4 flex items-center gap-2">
                   <svg
@@ -370,11 +388,11 @@ export function PublicPostContent({
                   </svg>
                   Built upon by
                   <span className="text-[var(--secondary)]">
-                    {connections.builtUponBy.length}
+                    {connections.builtUponBy?.length ?? 0}
                   </span>
                 </h3>
                 <div className="space-y-2">
-                  {connections.builtUponBy
+                  {(connections.builtUponBy ?? [])
                     .slice(0, 6)
                     .map((ref: ConnectionRef) => (
                       <Link
@@ -397,7 +415,7 @@ export function PublicPostContent({
                           </div>
                           <div className="text-xs text-[var(--tertiary)]">
                             @{ref.authorHandle}
-                            {ref.quoteCount > 0 && (
+                            {(ref.quoteCount ?? 0) > 0 && (
                               <>
                                 {" "}
                                 &middot;{" "}
@@ -434,47 +452,21 @@ export function PublicPostContent({
             )}
 
             {/* Topics */}
-            {connections.topics?.length > 0 && (
+            {(connections.topics?.length ?? 0) > 0 && (
               <section>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--tertiary)] mb-4 flex items-center gap-2">
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
-                    />
-                  </svg>
+                  <span className="w-3.5 h-3.5 inline-flex items-center justify-center font-mono font-bold text-[9px] leading-none">[[]]</span>
                   In topics
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {connections.topics.map((topic: ConnectionTopic) => (
-                    <Link
+                  {(connections.topics ?? []).map((topic: ConnectionTopic) => (
+                    <Pill
                       key={topic.id}
-                      href={`/topic/${encodeURIComponent(topic.slug || topic.title || "")}`}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--primary)]/5 border border-[var(--primary)]/20 hover:bg-[var(--primary)]/10 hover:border-[var(--primary)]/40 transition-all text-sm group"
-                    >
-                      <span className="text-[var(--primary)] font-bold">#</span>
-                      <span className="text-[var(--foreground)] font-medium group-hover:text-[var(--primary)] transition-colors">
-                        {topic.title}
-                      </span>
-                      {topic.postCount > 0 && (
-                        <>
-                          <span className="text-[var(--tertiary)]">
-                            &middot;
-                          </span>
-                          <span className="text-[var(--tertiary)] text-xs">
-                            {topic.postCount}{" "}
-                            {topic.postCount === 1 ? "post" : "posts"}
-                          </span>
-                        </>
-                      )}
-                    </Link>
+                      variant="topic"
+                      title={topic.title}
+                      slug={topic.slug || topic.title || ""}
+                      count={(topic.postCount ?? 0) > 0 ? topic.postCount : undefined}
+                    />
                   ))}
                 </div>
               </section>

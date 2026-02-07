@@ -16,11 +16,17 @@ export function PublicFooter() {
             <span>EU-hosted</span>
           </div>
           <span className="text-xs text-[var(--divider)] mt-1">
-            &copy; 2026 Sebastian
+            &copy; 2026 Citewalk
           </span>
         </div>
 
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-[var(--tertiary)]">
+          <Link
+            href="/"
+            className="hover:text-[var(--foreground)] transition-colors"
+          >
+            Home
+          </Link>
           <Link
             href="/manifesto"
             className="hover:text-[var(--foreground)] transition-colors"
@@ -61,7 +67,7 @@ export function PublicFooter() {
             href="/ai-transparency"
             className="hover:text-[var(--foreground)] transition-colors"
           >
-            AI Safety
+            AI Transparency
           </Link>
           <a
             href="https://ko-fi.com/sebastianlindner"

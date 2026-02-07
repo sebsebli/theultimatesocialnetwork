@@ -37,6 +37,12 @@ export interface Post {
   deletedAt?: string;
   /** Linked post id -> { title?, deletedAt? } for [[post:id]] display text (from API). */
   referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
+  /** Fresh inline enrichment: mention avatars, topic post counts, cite counts. */
+  inlineEnrichment?: {
+    mentionAvatars?: Record<string, string | null>;
+    topicPostCounts?: Record<string, number>;
+    postCiteCounts?: Record<string, number>;
+  } | null;
   // UI helper props
   _isSavedBy?: boolean;
   _savedBy?: {

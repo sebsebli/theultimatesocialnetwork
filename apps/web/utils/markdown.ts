@@ -90,6 +90,19 @@ function escapeText(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Format large numbers compactly: 1234 → "1.2K", 1500000 → "1.5M" */
+function formatCount(n: number): string {
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + "M";
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + "K";
+  }
+  return String(n);
+}
+
 const CODE_BLOCK_PLACEHOLDER = "\u200B__CODE_BLOCK_";
 const CODE_BLOCK_PLACEHOLDER_END = "__\u200B";
 
@@ -157,6 +170,11 @@ export interface RenderMarkdownOptions {
     string,
     { title?: string; deletedAt?: string; isProtected?: boolean }
   >;
+  inlineEnrichment?: {
+    mentionAvatars?: Record<string, string | null>;
+    topicPostCounts?: Record<string, number>;
+    postCiteCounts?: Record<string, number>;
+  } | null;
 }
 
 /**
@@ -169,6 +187,7 @@ export function renderMarkdown(
   options?: RenderMarkdownOptions,
 ): string {
   const referenceMetadata = options?.referenceMetadata;
+  const inlineEnrichment = options?.inlineEnrichment;
   let html = text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -272,13 +291,21 @@ export function renderMarkdown(
           : "prose-tag inline hover:underline";
 
       const postIcon = `<svg class="post-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`;
-      return `<a href="/post/${safeId}" class="${classes} prose-tag-post">${postIcon}${safeDisplay}</a>`;
+      const citeCount = inlineEnrichment?.postCiteCounts?.[id?.toLowerCase?.() ?? ""];
+      const citeHtml = citeCount != null && citeCount > 0
+        ? `<span class="inline-count"><span class="inline-count-icon">↗</span>${formatCount(citeCount)}</span>`
+        : "";
+      return `<a href="/post/${safeId}" class="${classes} prose-tag-post">${postIcon}${safeDisplay}${citeHtml}</a>`;
     }
 
     const safeAlias = escapeText(target.alias ?? "");
     if (target.type === "topic") {
       const slugEnc = encodeURIComponent(target.target);
-      return `<a href="/topic/${slugEnc}" class="prose-tag prose-tag-topic"><span class="topic-hash">#</span>${safeAlias}</a>`;
+      const topicCount = inlineEnrichment?.topicPostCounts?.[target.target];
+      const countHtml = topicCount != null && topicCount > 0
+        ? `<span class="inline-count"><span class="inline-count-icon">#</span>${formatCount(topicCount)}</span>`
+        : "";
+      return `<a href="/topic/${slugEnc}" class="prose-tag prose-tag-topic"><span class="topic-hash">#</span>${safeAlias}${countHtml}</a>`;
     } else {
       const safeUrl = sanitizeUrl(target.target);
       return `<a href="${safeUrl}" class="prose-tag inline hover:underline" target="_blank" rel="noopener noreferrer">${safeAlias}</a>`;
@@ -295,13 +322,19 @@ export function renderMarkdown(
     return `<a href="${safeUrl}" class="prose-tag prose-link-external inline" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
   });
 
-  // @mentions: @handle -> styled link with avatar placeholder
+  // @mentions: @handle -> styled link with avatar (pre-fetched or placeholder)
   // Must run BEFORE bold/italic so we don't break mid-mention
   html = html.replace(
     /(?<![a-zA-Z0-9_])@([a-zA-Z0-9_.]{1,30})(?![a-zA-Z0-9_])/g,
     (_, handle) => {
       const safeHandle = escapeAttr(handle);
-      return `<a href="/user/${safeHandle}" class="prose-mention" data-handle="${safeHandle}"><span class="mention-avatar" data-handle="${safeHandle}"></span>@${escapeText(handle)}</a>`;
+      const avatarUrl = inlineEnrichment?.mentionAvatars?.[handle];
+      const initial = handle.charAt(0).toUpperCase();
+      // If avatar URL is available from inlineEnrichment, set it directly (no client-side fetch needed)
+      const avatarStyle = avatarUrl
+        ? ` style="background-image:url(${escapeAttr(avatarUrl)});background-size:cover;background-position:center" data-loaded="true"`
+        : "";
+      return `<a href="/user/${safeHandle}" class="prose-mention" data-handle="${safeHandle}"><span class="mention-avatar" data-handle="${safeHandle}"${avatarStyle}>${avatarUrl ? "" : escapeText(initial)}</span>@${escapeText(handle)}</a>`;
     },
   );
 

@@ -120,7 +120,7 @@ export default function DangerZonePage() {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Reason (optional)"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary text-sm mb-4 resize-none"
+              className="w-full px-4 py-3 border-b border-divider/50 text-paper placeholder-tertiary text-sm mb-4 resize-none"
               rows={2}
             />
             <div className="flex gap-3">

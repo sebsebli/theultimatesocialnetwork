@@ -101,7 +101,7 @@ export default function SettingsEmailPage() {
 
       <div className="px-6 py-8 max-w-md mx-auto">
         {loadingUser ? (
-          <p className="text-secondary text-sm">Loading...</p>
+          <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             {currentEmail && (

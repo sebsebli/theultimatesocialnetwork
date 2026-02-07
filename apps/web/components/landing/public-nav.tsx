@@ -23,10 +23,10 @@ export function PublicNav({ isAuthenticated }: PublicNavProps) {
 
   return (
     <nav className="fixed top-0 inset-x-0 z-50 bg-[var(--background)]/80 backdrop-blur-md border-b border-[var(--divider)]">
-      <div className="flex justify-between items-center px-6 py-4 md:px-12">
+      <div className="flex justify-between items-center px-6 py-2 md:px-12">
         <Link href="/" className="flex items-center gap-3 group relative z-50">
           <Image
-            src="/icon.png"
+            src="/logo_transparent.png"
             alt="Citewalk"
             width={32}
             height={32}

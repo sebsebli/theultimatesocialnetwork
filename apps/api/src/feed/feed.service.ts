@@ -9,13 +9,24 @@ import { User } from '../entities/user.entity';
 import { Block } from '../entities/block.entity';
 import { Mute } from '../entities/mute.entity';
 import { TopicFollow } from '../entities/topic-follow.entity';
-import { FeedItem } from './feed-item.entity';
-import { postToPlain, extractLinkedPostIds } from '../shared/post-serializer';
-import type { ReferenceMetadata } from '../shared/post-serializer';
+import { FeedItem, FeedReason } from './feed-item.entity';
+import {
+  postToPlain,
+  extractLinkedPostIds,
+  extractMentionHandles,
+  extractTopicSlugs,
+} from '../shared/post-serializer';
+import type {
+  ReferenceMetadata,
+  InlineEnrichment,
+} from '../shared/post-serializer';
 import { isPendingUser } from '../shared/is-pending-user';
 import { UploadService } from '../upload/upload.service';
 import { InteractionsService } from '../interactions/interactions.service';
 import { ExploreService } from '../explore/explore.service';
+import { Topic } from '../entities/topic.entity';
+import { PostTopic } from '../entities/post-topic.entity';
+import { PostEdge } from '../entities/post-edge.entity';
 import Redis from 'ioredis';
 import { feedDuration } from '../common/metrics';
 
@@ -35,11 +46,14 @@ export class FeedService {
     @InjectRepository(Mute) private muteRepo: Repository<Mute>,
     @InjectRepository(TopicFollow)
     private topicFollowRepo: Repository<TopicFollow>,
+    @InjectRepository(Topic) private topicRepo: Repository<Topic>,
+    @InjectRepository(PostTopic) private postTopicRepo: Repository<PostTopic>,
+    @InjectRepository(PostEdge) private postEdgeRepo: Repository<PostEdge>,
     @Inject('REDIS_CLIENT') private redis: Redis,
     private uploadService: UploadService,
     private interactionsService: InteractionsService,
     private exploreService: ExploreService,
-  ) {}
+  ) { }
 
   async getHomeFeed(
     userId: string,
@@ -102,7 +116,7 @@ export class FeedService {
       excludedUserIds.add('00000000-0000-0000-0000-000000000000');
       this.redis
         .setex(blockMuteCacheKey, 300, JSON.stringify([...excludedUserIds]))
-        .catch(() => {});
+        .catch(() => { });
     }
 
     // Cache following IDs for 2 min (changes rarely, read every page load)
@@ -139,7 +153,7 @@ export class FeedService {
           120,
           JSON.stringify({ users: followingIds, topics: followedTopicIds }),
         )
-        .catch(() => {});
+        .catch(() => { });
     }
 
     // Always include self
@@ -219,7 +233,10 @@ export class FeedService {
       fetchTopicPosts(),
     ]);
 
-    // Merge and Dedup
+    // Merge and Dedup — track source for feed reason
+    const userPostIds = new Set(userPosts.map((p) => p.id));
+    const topicPostIds = new Set(topicPosts.map((p) => p.id));
+
     const allPosts = [...userPosts, ...topicPosts];
     const uniquePostsMap = new Map<string, Post>();
     for (const p of allPosts) {
@@ -241,10 +258,52 @@ export class FeedService {
       userId,
     );
 
-    feedItems = visiblePosts.map((post) => ({
-      type: 'post',
-      data: post,
-    }));
+    // Build feed reason map — lazy-load topic titles only when needed
+    let topicTitleMap: Map<string, { title: string; slug: string }> | undefined;
+    if (followedTopicIds.length > 0 && topicPostIds.size > 0) {
+      try {
+        const topicRows = await this.postRepo.manager.query(
+          `SELECT DISTINCT pt.post_id, t.title, t.slug
+           FROM post_topics pt
+           JOIN topic t ON t.id = pt.topic_id
+           WHERE pt.topic_id = ANY($1)
+             AND pt.post_id = ANY($2)
+           LIMIT 200`,
+          [followedTopicIds, Array.from(topicPostIds)],
+        );
+        topicTitleMap = new Map();
+        for (const row of topicRows) {
+          if (!topicTitleMap.has(row.post_id)) {
+            topicTitleMap.set(row.post_id, { title: row.title, slug: row.slug });
+          }
+        }
+      } catch {
+        // Non-critical; silently continue without topic info
+      }
+    }
+
+    feedItems = visiblePosts.map((post) => {
+      let reason: FeedReason | undefined;
+      if (post.authorId === userId) {
+        reason = { type: 'own_post' as const };
+      } else if (userPostIds.has(post.id)) {
+        reason = {
+          type: 'followed_author' as const,
+          authorHandle: post.author?.handle,
+          authorDisplayName: post.author?.displayName,
+        };
+      } else if (topicPostIds.has(post.id) && topicTitleMap?.has(post.id)) {
+        const topic = topicTitleMap.get(post.id)!;
+        reason = {
+          type: 'followed_topic' as const,
+          topicTitle: topic.title,
+          topicSlug: topic.slug,
+        };
+      } else if (topicPostIds.has(post.id)) {
+        reason = { type: 'followed_topic' as const };
+      }
+      return { type: 'post' as const, data: post, reason };
+    });
 
     // Determine next cursor from the LAST item in the FULL fetched set (before visibility filter? No, effectively the last item considered)
     // Actually, simply: if uniquePosts.length > limit, the next cursor is the createdAt of the item at index `limit`.
@@ -348,7 +407,7 @@ export class FeedService {
     return { items, nextCursor: nextCursorResult };
   }
 
-  /** Return plain objects with avatarUrl/headerImageUrl, referenceMetadata, and viewer isLiked/isKept. */
+  /** Return plain objects with avatarUrl/headerImageUrl, referenceMetadata, inlineEnrichment, and viewer isLiked/isKept. */
   private async toPlainFeedItems(
     items: FeedItem[],
     viewerId: string,
@@ -364,24 +423,111 @@ export class FeedService {
       await this.interactionsService.getLikeKeepForViewer(viewerId, postIds);
     const allLinkedIds = new Set<string>();
     const postToLinkedIds = new Map<string, string[]>();
+    // Collect all mention handles and topic slugs across all posts for batch query
+    const allMentionHandles = new Set<string>();
+    const allTopicSlugs = new Set<string>();
     for (const p of posts) {
       const ids = extractLinkedPostIds(p.body);
       postToLinkedIds.set(p.id, ids);
       ids.forEach((id) => allLinkedIds.add(id));
+      extractMentionHandles(p.body).forEach((h) => allMentionHandles.add(h));
+      extractTopicSlugs(p.body).forEach((s) => allTopicSlugs.add(s));
     }
-    let titlesMap: Record<string, { title?: string }> = {};
-    if (allLinkedIds.size > 0) {
-      const refs = await this.postRepo.find({
-        where: Array.from(allLinkedIds).map((id) => ({ id })),
-        select: ['id', 'title'],
-      });
-      titlesMap = Object.fromEntries(
-        refs.map((r) => [
-          (r.id ?? '').toLowerCase(),
-          { title: r.title ?? undefined },
-        ]),
-      ) as ReferenceMetadata;
-    }
+
+    // Batch: titles, mention avatars, topic post counts, post cite counts
+    const [titlesMap, mentionAvatarMap, topicCountMap, citeCountMap] =
+      await Promise.all([
+        // 1. Reference metadata titles
+        allLinkedIds.size > 0
+          ? this.postRepo
+            .find({
+              where: Array.from(allLinkedIds).map((id) => ({ id })),
+              select: ['id', 'title'],
+            })
+            .then(
+              (refs) =>
+                Object.fromEntries(
+                  refs.map((r) => [
+                    (r.id ?? '').toLowerCase(),
+                    { title: r.title ?? undefined },
+                  ]),
+                ) as ReferenceMetadata,
+            )
+          : Promise.resolve({} as ReferenceMetadata),
+
+        // 2. Mention avatars (batch all handles)
+        allMentionHandles.size > 0
+          ? this.userRepo
+            .find({
+              where: Array.from(allMentionHandles).map((h) => ({ handle: h })),
+              select: ['handle', 'avatarKey'],
+            })
+            .then((users) => {
+              const map = new Map<string, string | null>();
+              for (const u of users) {
+                map.set(
+                  u.handle,
+                  u.avatarKey ? getImageUrl(u.avatarKey) : null,
+                );
+              }
+              return map;
+            })
+          : Promise.resolve(new Map<string, string | null>()),
+
+        // 3. Topic post counts (batch all slugs)
+        allTopicSlugs.size > 0
+          ? this.topicRepo
+            .find({
+              where: Array.from(allTopicSlugs).map((s) => ({ slug: s })),
+              select: ['id', 'slug'],
+            })
+            .then(async (topics) => {
+              if (topics.length === 0) return new Map<string, number>();
+              const topicIds = topics.map((t) => t.id);
+              const counts = await this.postTopicRepo
+                .createQueryBuilder('pt')
+                .innerJoin(
+                  Post,
+                  'p',
+                  'p.id = pt.post_id AND p.deleted_at IS NULL',
+                )
+                .where('pt.topic_id IN (:...topicIds)', { topicIds })
+                .select('pt.topic_id', 'topicId')
+                .addSelect('COUNT(DISTINCT pt.post_id)', 'cnt')
+                .groupBy('pt.topic_id')
+                .getRawMany<{ topicId: string; cnt: string }>();
+              const countMap = new Map(
+                counts.map((c) => [c.topicId, parseInt(c.cnt, 10)]),
+              );
+              const result = new Map<string, number>();
+              for (const t of topics) {
+                result.set(t.slug, countMap.get(t.id) ?? 0);
+              }
+              return result;
+            })
+          : Promise.resolve(new Map<string, number>()),
+
+        // 4. Post cite counts (batch all linked post IDs)
+        allLinkedIds.size > 0
+          ? this.postEdgeRepo
+            .createQueryBuilder('pe')
+            .where('pe.to_post_id IN (:...ids)', {
+              ids: Array.from(allLinkedIds),
+            })
+            .select('pe.to_post_id', 'postId')
+            .addSelect('COUNT(*)', 'cnt')
+            .groupBy('pe.to_post_id')
+            .getRawMany<{ postId: string; cnt: string }>()
+            .then((rows) => {
+              const map = new Map<string, number>();
+              for (const r of rows) {
+                map.set(r.postId.toLowerCase(), parseInt(r.cnt, 10));
+              }
+              return map;
+            })
+          : Promise.resolve(new Map<string, number>()),
+      ]);
+
     const getRefMeta = (ids: string[] | undefined) =>
       ids?.reduce(
         (acc, id) => ({
@@ -394,12 +540,51 @@ export class FeedService {
       isLiked: likedIds.has(postId),
       isKept: keptIds.has(postId),
     });
+
+    /** Build per-post inline enrichment from the batch maps. */
+    const getEnrichment = (post: Post): InlineEnrichment | undefined => {
+      const handles = extractMentionHandles(post.body);
+      const slugs = extractTopicSlugs(post.body);
+      const linked = postToLinkedIds.get(post.id) ?? [];
+      const enrichment: InlineEnrichment = {};
+      if (handles.length > 0) {
+        const ma: Record<string, string | null> = {};
+        for (const h of handles) ma[h] = mentionAvatarMap.get(h) ?? null;
+        enrichment.mentionAvatars = ma;
+      }
+      if (slugs.length > 0) {
+        const tc: Record<string, number> = {};
+        for (const s of slugs) {
+          const c = topicCountMap.get(s);
+          if (c != null) tc[s] = c;
+        }
+        if (Object.keys(tc).length > 0) enrichment.topicPostCounts = tc;
+      }
+      if (linked.length > 0) {
+        const cc: Record<string, number> = {};
+        for (const id of linked) {
+          const c = citeCountMap.get(id.toLowerCase());
+          if (c != null) cc[id.toLowerCase()] = c;
+        }
+        if (Object.keys(cc).length > 0) enrichment.postCiteCounts = cc;
+      }
+      return Object.keys(enrichment).length > 0 ? enrichment : undefined;
+    };
+
     return items
       .map((item) => {
         if (item.type === 'post') {
           const refMeta = getRefMeta(postToLinkedIds.get(item.data.id));
           const vs = viewerState(item.data.id);
-          const data = postToPlain(item.data, getImageUrl, refMeta, vs);
+          const ie = getEnrichment(item.data);
+          const data = postToPlain(
+            item.data,
+            getImageUrl,
+            refMeta,
+            vs,
+            true,
+            ie,
+          );
           return data ? { type: 'post' as const, data } : null;
         }
         const d = item.data;
@@ -407,6 +592,7 @@ export class FeedService {
           ? getRefMeta(postToLinkedIds.get(d.post.id))
           : undefined;
         const vs = d.post ? viewerState(d.post.id) : undefined;
+        const ie = d.post ? getEnrichment(d.post) : undefined;
         return {
           type: 'saved_by' as const,
           data: {
@@ -415,7 +601,7 @@ export class FeedService {
             collectionId: d.collectionId ?? '',
             collectionName: d.collectionName ?? '',
             post: d.post
-              ? postToPlain(d.post, getImageUrl, refMeta, vs)
+              ? postToPlain(d.post, getImageUrl, refMeta, vs, true, ie)
               : undefined,
           },
         };

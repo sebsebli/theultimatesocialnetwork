@@ -201,7 +201,7 @@ function AutocompleteDropdownInner({
                       className="!h-8 !w-8"
                     />
                   )}
-                  {item.type === "topic" && "#"}
+                  {item.type === "topic" && <span className="text-primary font-mono text-[9px] font-bold">[[]]</span>}
                   {item.type === "post" &&
                     (item.headerImageKey || item.headerImageUrl ? (
                       /* eslint-disable-next-line @next/next/no-img-element */

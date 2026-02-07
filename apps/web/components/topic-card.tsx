@@ -52,15 +52,15 @@ function TopicCardInner({ topic, onFollow }: TopicCardProps) {
   const meta = [
     topic.postCount != null && `${topic.postCount} posts`,
     topic.followerCount != null &&
-      topic.followerCount > 0 &&
-      `${topic.followerCount} followers`,
+    topic.followerCount > 0 &&
+    `${topic.followerCount} followers`,
   ]
     .filter(Boolean)
     .join(" · ");
 
   return (
     <Link href={`/topic/${encodeURIComponent(topic.slug)}`}>
-      <div className="relative flex flex-col rounded-lg overflow-hidden border border-white/[0.06] hover:border-white/15 bg-white/[0.02] hover:bg-white/[0.04] transition-all duration-200 group">
+      <div className="relative flex flex-col rounded-lg overflow-hidden border border-divider hover:border-white/15 bg-hover hover:bg-white/[0.04] transition-all duration-200 group">
         {/* Hero: header image from latest post with overlay */}
         {imageUrl ? (
           <div className="relative w-full aspect-[16/9] shrink-0 bg-white/5">
@@ -132,11 +132,10 @@ function TopicCardInner({ topic, onFollow }: TopicCardProps) {
                   e.stopPropagation();
                   onFollow();
                 }}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
-                  topic.isFollowing
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${topic.isFollowing
                     ? "bg-primary border-primary text-ink"
                     : "border-primary/50 text-primary hover:bg-primary/10"
-                }`}
+                  }`}
               >
                 {topic.isFollowing ? tProfile("following") : tProfile("follow")}
               </button>

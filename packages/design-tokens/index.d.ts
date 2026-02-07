@@ -1,8 +1,10 @@
 export const COLORS: Record<string, string> & {
   mention: string;
+  mentionDot: string;
   topic: string;
   postLink: string;
   link: string;
+  inlineCount: string;
   success: string;
   badge: string;
   overlayHeavy: string;

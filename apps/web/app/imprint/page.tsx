@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getLocale } from "next-intl/server";
 import { ImprintContentDE } from "./de";
+import { PublicFooter } from "@/components/landing/public-footer";
 
 export const metadata: Metadata = {
   title: "Imprint",
@@ -38,7 +39,7 @@ export default async function ImprintPage() {
             className="flex items-center gap-2 hover:text-[#F2F2F2] transition-colors"
           >
             <Image
-              src="/icon.png"
+              src="/logo_transparent.png"
               alt="Citewalk"
               width={20}
               height={20}
@@ -147,6 +148,7 @@ export default async function ImprintPage() {
           )}
         </div>
       </main>
+      <PublicFooter />
     </div>
   );
 }

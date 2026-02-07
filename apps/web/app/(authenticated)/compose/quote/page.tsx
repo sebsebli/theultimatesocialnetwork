@@ -95,7 +95,7 @@ function QuoteComposeContent() {
             value={commentary}
             onChange={(e) => setCommentary(e.target.value)}
             placeholder="What are your thoughts?"
-            className="w-full min-h-[200px] px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary resize-none text-[17px] leading-relaxed"
+            className="w-full min-h-[200px] px-4 py-3 border-b border-divider text-paper placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary resize-none text-[17px] leading-relaxed"
             autoFocus
           />
           <p className="text-xs text-tertiary mt-2">

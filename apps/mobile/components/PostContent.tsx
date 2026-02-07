@@ -33,6 +33,11 @@ interface PostContentProps {
   headerImageUri?: string | null;
   showSources?: boolean;
   referenceMetadata?: Record<string, { title?: string }>;
+  inlineEnrichment?: {
+    mentionAvatars?: Record<string, string | null>;
+    topicPostCounts?: Record<string, number>;
+    postCiteCounts?: Record<string, number>;
+  } | null;
   /** When set, body is truncated to this many lines with a gradient fade overlay (no ellipsis). */
   maxBodyLines?: number;
   /** When true, show blurred overlay with "Private" over the content (author row stays visible). */
@@ -48,6 +53,7 @@ function PostContentInner({
   headerImageUri,
   showSources = false,
   referenceMetadata = {},
+  inlineEnrichment,
   maxBodyLines,
   isPrivateForViewer,
 }: PostContentProps) {
@@ -61,7 +67,7 @@ function PostContentInner({
 
   const handlePostPress = useCallback(() => {
     if (!disableNavigation) {
-      router.push(`/post/${post.id}/reading`);
+      router.push(`/post/${post.id}`);
     }
   }, [disableNavigation, post.id, router]);
 
@@ -96,9 +102,9 @@ function PostContentInner({
     !hasExplicitTitle && fullDisplayBody.trim().length > 0;
   const bodyHeadline = noTitleUseBodyHeadline
     ? (fullDisplayBody.includes("\n")
-        ? fullDisplayBody.slice(0, fullDisplayBody.indexOf("\n")).trim()
-        : fullDisplayBody.trim()
-      ).slice(0, 120)
+      ? fullDisplayBody.slice(0, fullDisplayBody.indexOf("\n")).trim()
+      : fullDisplayBody.trim()
+    ).slice(0, 120)
     : "";
   const bodyAfterHeadline =
     noTitleUseBodyHeadline && fullDisplayBody.includes("\n")
@@ -311,7 +317,7 @@ function PostContentInner({
               style={[styles.bodyClipWrap, { maxHeight: maxBodyLines * 26 }]}
               collapsable={false}
             >
-              <MarkdownText referenceMetadata={referenceMetadata}>
+              <MarkdownText referenceMetadata={referenceMetadata} inlineEnrichment={inlineEnrichment}>
                 {displayBody}
               </MarkdownText>
               <LinearGradient
@@ -321,7 +327,7 @@ function PostContentInner({
               />
             </View>
           ) : (
-            <MarkdownText referenceMetadata={referenceMetadata}>
+            <MarkdownText referenceMetadata={referenceMetadata} inlineEnrichment={inlineEnrichment}>
               {displayBody}
             </MarkdownText>
           )}

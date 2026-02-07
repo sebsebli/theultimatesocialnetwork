@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import { getLocale } from "next-intl/server";
 import { PrivacyContentDE } from "./de";
+import { PublicFooter } from "@/components/landing/public-footer";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -40,7 +41,7 @@ export default async function PrivacyPage() {
             className="flex items-center gap-2 hover:text-[#F2F2F2] transition-colors"
           >
             <Image
-              src="/icon.png"
+              src="/logo_transparent.png"
               alt="Citewalk"
               width={20}
               height={20}
@@ -601,6 +602,7 @@ export default async function PrivacyPage() {
           )}
         </div>
       </main>
+      <PublicFooter />
     </div>
   );
 }

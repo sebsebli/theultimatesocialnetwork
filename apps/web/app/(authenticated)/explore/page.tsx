@@ -84,7 +84,7 @@ function ExplorePageContent() {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={(e) => e.target.select?.()}
               placeholder="Search people, topics, or citations..."
-              className="w-full min-h-[3rem] py-3 pl-12 pr-4 bg-white/5 border border-white/10 rounded-xl text-left text-paper placeholder:text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-white/20 hover:border-white/20 transition-colors leading-normal"
+              className="w-full min-h-[3rem] py-3 pl-12 pr-4 bg-white/5 border border-divider rounded-lg text-left text-paper placeholder:text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-white/20 hover:border-white/20 transition-colors leading-normal"
               aria-label="Search people, topics, or citations"
             />
           </div>
@@ -99,14 +99,14 @@ function ExplorePageContent() {
 
       {/* Tabs */}
       <div className="pt-1 pb-3 bg-ink border-b border-divider overflow-x-auto overflow-y-hidden min-w-0 no-scrollbar">
-        <div className="flex flex-nowrap px-4 pr-8 gap-6 md:gap-8 min-w-max">
+        <div className="flex flex-nowrap px-4 pr-4 gap-3 min-w-max">
           {tabs.map(({ id, label }) => (
             <Link
               key={id}
               href={`/explore?tab=${id}${currentSort !== "recommended" ? `&sort=${currentSort}` : ""}`}
               className={`flex flex-col items-center justify-center border-b-[3px] pb-3 min-w-fit whitespace-nowrap ${isActive(id) ? "border-b-primary text-paper" : "border-b-transparent text-tertiary hover:text-primary transition-colors"}`}
             >
-              <p className="text-sm font-bold leading-normal tracking-tight">
+              <p className="text-[15px] font-semibold leading-normal tracking-tight">
                 {label}
               </p>
             </Link>
@@ -121,8 +121,8 @@ function ExplorePageContent() {
             key={opt.value}
             onClick={() => setSort(opt.value)}
             className={`px-4 py-1.5 rounded-lg border text-sm font-semibold transition-colors whitespace-nowrap ${currentSort === opt.value
-                ? "bg-white/5 border-primary text-primary"
-                : "bg-white/5 border-divider text-tertiary hover:text-paper"
+              ? "bg-white/5 border-primary text-primary"
+              : "bg-white/5 border-divider text-tertiary hover:text-paper"
               }`}
           >
             {opt.label}

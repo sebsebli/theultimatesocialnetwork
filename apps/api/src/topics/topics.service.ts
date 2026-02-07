@@ -14,27 +14,27 @@ import { UploadService } from '../upload/upload.service';
 
 export type TopicSourceItem =
   | {
-      type: 'external';
-      id: string;
-      url: string;
-      title: string | null;
-      createdAt: Date;
-    }
+    type: 'external';
+    id: string;
+    url: string;
+    title: string | null;
+    createdAt: Date;
+  }
   | {
-      type: 'post';
-      id: string;
-      title: string | null;
-      createdAt: Date;
-      headerImageKey: string | null;
-      authorHandle: string | null;
-    }
+    type: 'post';
+    id: string;
+    title: string | null;
+    createdAt: Date;
+    headerImageKey: string | null;
+    authorHandle: string | null;
+  }
   | {
-      type: 'topic';
-      id: string;
-      slug: string;
-      title: string;
-      createdAt: Date;
-    };
+    type: 'topic';
+    id: string;
+    slug: string;
+    title: string;
+    createdAt: Date;
+  };
 
 @Injectable()
 export class TopicsService {
@@ -52,7 +52,7 @@ export class TopicsService {
     private exploreService: ExploreService,
     private graphCompute: GraphComputeService,
     private uploadService: UploadService,
-  ) {}
+  ) { }
 
   async findOne(slugOrId: string, viewerId?: string) {
     let topic: Topic | null = null;
@@ -121,18 +121,18 @@ export class TopicsService {
 
     const recentPostImageUrl =
       recentPostData?.headerImageKey != null &&
-      recentPostData.headerImageKey !== ''
+        recentPostData.headerImageKey !== ''
         ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
         : null;
     const recentPost = recentPostData
       ? {
-          ...recentPostData,
-          headerImageUrl:
-            recentPostData.headerImageKey != null &&
+        ...recentPostData,
+        headerImageUrl:
+          recentPostData.headerImageKey != null &&
             recentPostData.headerImageKey !== ''
-              ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
-              : null,
-        }
+            ? this.uploadService.getImageUrl(recentPostData.headerImageKey)
+            : null,
+      }
       : null;
 
     return {
@@ -185,12 +185,12 @@ export class TopicsService {
     const bodyExcerpt =
       body && typeof body === 'string'
         ? body
-            .replace(/#{1,6}\s*/g, '')
-            .replace(/\*\*([^*]+)\*\*/g, '$1')
-            .replace(/_([^_]+)_/g, '$1')
-            .replace(/\n+/g, ' ')
-            .trim()
-            .slice(0, 120) + (body.length > 120 ? '…' : '')
+          .replace(/#{1,6}\s*/g, '')
+          .replace(/\*\*([^*]+)\*\*/g, '$1')
+          .replace(/_([^_]+)_/g, '$1')
+          .replace(/\n+/g, ' ')
+          .trim()
+          .slice(0, 120) + (body.length > 120 ? '…' : '')
         : '';
     return {
       id: p.id,
@@ -239,11 +239,8 @@ export class TopicsService {
         .andWhere('post.deleted_at IS NULL');
 
       if (sort === 'ranked') {
-        this.logger.log(`Applying spam/quality gate for topic ${topicId}`);
-        query.andWhere(
-          "(post.quote_count > 0 OR post.reply_count > 0 OR author.created_at < NOW() - INTERVAL '7 days')",
-        );
-        query.orderBy('(post.quoteCount * 3 + post.replyCount)', 'DESC');
+        // Sort by engagement (replies + quotes), no spam gate for "most discussed"
+        query.orderBy('(COALESCE(post.reply_count, 0) + COALESCE(post.quote_count, 0) * 3)', 'DESC');
         query.addOrderBy('post.createdAt', 'DESC');
       } else {
         query.orderBy('post.createdAt', 'DESC');
@@ -503,9 +500,9 @@ export class TopicsService {
       otherTopicIds.length === 0
         ? []
         : await this.topicRepo.find({
-            where: { id: In(otherTopicIds) },
-            select: ['id', 'slug', 'title', 'createdAt'],
-          });
+          where: { id: In(otherTopicIds) },
+          select: ['id', 'slug', 'title', 'createdAt'],
+        });
     const topicItems: TopicSourceItem[] = topics.map((t) => ({
       type: 'topic',
       id: t.id,

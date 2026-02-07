@@ -107,7 +107,7 @@ export default function SettingsScreen() {
       } else {
         showError(
           error?.message ??
-            t("settings.myDataExportFailed", "Failed to request your data"),
+          t("settings.myDataExportFailed", "Failed to request your data"),
         );
       }
     } finally {
@@ -245,7 +245,7 @@ export default function SettingsScreen() {
                 <Text style={styles.itemHint}>
                   {t(
                     "settings.smartAutocompleteHint",
-                    "Suggest posts and topics while typing",
+                    "When typing [[ in the composer, suggest both posts and topics (off = topics only)",
                   )}
                 </Text>
               </View>
@@ -308,8 +308,8 @@ export default function SettingsScreen() {
             value={
               offlineCount > 0
                 ? t("settings.offlineCount", "{{count}} articles", {
-                    count: offlineCount,
-                  })
+                  count: offlineCount,
+                })
                 : undefined
             }
             onPress={() => router.push("/settings/offline-storage")}

@@ -51,6 +51,7 @@ const AddToCollectionSheetBase = forwardRef<
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [newIsPublic, setNewIsPublic] = useState(true);
 
   useImperativeHandle(ref, () => ({
     open: (id: string) => {
@@ -79,12 +80,13 @@ const AddToCollectionSheetBase = forwardRef<
     try {
       const newCollection = await api.post<Collection>("/collections", {
         title: newTitle,
-        isPublic: true,
+        isPublic: newIsPublic,
       });
 
       setCollections([newCollection, ...collections]);
       setCreating(false);
       setNewTitle("");
+      setNewIsPublic(true);
 
       // Auto-add post to new collection
       if (postId) {
@@ -249,6 +251,53 @@ const AddToCollectionSheetBase = forwardRef<
                   onChangeText={setNewTitle}
                   autoFocus
                 />
+                <Text style={styles.privacyLabel}>
+                  {t("collections.visibility", "Visibility")}
+                </Text>
+                <View style={styles.privacyRow}>
+                  <Pressable
+                    style={[
+                      styles.privacyOption,
+                      newIsPublic && styles.privacyOptionActive,
+                    ]}
+                    onPress={() => setNewIsPublic(true)}
+                  >
+                    <MaterialIcons
+                      name="public"
+                      size={16}
+                      color={newIsPublic ? COLORS.primary : COLORS.tertiary}
+                    />
+                    <Text
+                      style={[
+                        styles.privacyOptionText,
+                        newIsPublic && styles.privacyOptionTextActive,
+                      ]}
+                    >
+                      {t("collections.public", "Public")}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.privacyOption,
+                      !newIsPublic && styles.privacyOptionActive,
+                    ]}
+                    onPress={() => setNewIsPublic(false)}
+                  >
+                    <MaterialIcons
+                      name="lock-outline"
+                      size={16}
+                      color={!newIsPublic ? COLORS.primary : COLORS.tertiary}
+                    />
+                    <Text
+                      style={[
+                        styles.privacyOptionText,
+                        !newIsPublic && styles.privacyOptionTextActive,
+                      ]}
+                    >
+                      {t("collections.private", "Private")}
+                    </Text>
+                  </Pressable>
+                </View>
                 <View style={styles.actions}>
                   <Pressable
                     onPress={() => setCreating(false)}
@@ -446,16 +495,20 @@ const styles = createStyles({
   privacyRow: {
     flexDirection: "row",
     gap: SPACING.s,
+    marginBottom: SPACING.m,
   },
   privacyOption: {
     flex: 1,
-    paddingVertical: SPACING.m,
+    flexDirection: "row",
+    paddingVertical: SPACING.s,
     paddingHorizontal: SPACING.m,
     borderRadius: SIZES.borderRadius,
     backgroundColor: COLORS.hover,
     borderWidth: 1,
     borderColor: COLORS.divider,
     alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
   privacyOptionActive: {
     backgroundColor: COLORS.badge,

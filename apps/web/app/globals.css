@@ -400,18 +400,44 @@ html {
   color: var(--primary);
 }
 .prose .prose-mention .mention-avatar {
-  display: inline-block;
-  width: 1.1em;
-  height: 1.1em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05em;
+  height: 1.05em;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--primary) 20%, transparent);
+  background: var(--mention, #5B9BD5);
   vertical-align: middle;
   flex-shrink: 0;
   background-size: cover;
   background-position: center;
+  font-size: 0.55em;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0;
+  line-height: 1;
+  margin-right: 0.15em;
 }
 .prose .prose-mention .mention-avatar[data-loaded="true"] {
   border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0;
+  color: transparent;
+}
+
+/* Inline counts (topic post count, post cite count): small readable number after link */
+.prose .inline-count {
+  font-size: 0.72em;
+  font-weight: 500;
+  color: var(--secondary, rgba(255, 255, 255, 0.55));
+  margin-left: 0.25em;
+  white-space: nowrap;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  letter-spacing: 0.03em;
+}
+.prose .inline-count-icon {
+  font-size: 0.8em;
+  color: var(--tertiary, rgba(255, 255, 255, 0.4));
+  margin-right: 0.1em;
 }
 
 /* External URL links [text](url): warm orange, no underline (parity with mobile design tokens) */

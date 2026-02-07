@@ -5,10 +5,11 @@ import Image from "next/image";
 
 const sections = [
   { id: "preamble", label: "Why we built this" },
-  { id: "attention", label: "01. The problem" },
-  { id: "intention", label: "02. A different network" },
+  { id: "attention", label: "01. The loudest voice wins" },
+  { id: "intention", label: "02. Why citation changes everything" },
   { id: "sovereignty", label: "03. European & independent" },
-  { id: "sustainability", label: "04. Sustainably built" },
+  { id: "sustainability", label: "04. Sustained by community" },
+  { id: "vision", label: "05. What we're building toward" },
 ];
 
 function useActiveSection() {
@@ -53,11 +54,10 @@ export function ManifestoSidebar() {
               <li key={id}>
                 <a
                   href={`#${id}`}
-                  className={`block transition-colors duration-200 ${
-                    activeId === id
-                      ? "text-[var(--foreground)] font-medium"
-                      : "text-[var(--secondary)] hover:text-[var(--foreground)]"
-                  }`}
+                  className={`block transition-colors duration-200 ${activeId === id
+                    ? "text-[var(--foreground)] font-medium"
+                    : "text-[var(--secondary)] hover:text-[var(--foreground)]"
+                    }`}
                 >
                   {label}
                 </a>
@@ -100,11 +100,10 @@ export function ManifestoMobileToc() {
         <a
           key={id}
           href={`#${id}`}
-          className={`whitespace-nowrap text-sm transition-colors ${
-            activeId === id
-              ? "text-[var(--foreground)] font-medium"
-              : "text-[var(--secondary)] hover:text-[var(--foreground)]"
-          }`}
+          className={`whitespace-nowrap text-sm transition-colors ${activeId === id
+            ? "text-[var(--foreground)] font-medium"
+            : "text-[var(--secondary)] hover:text-[var(--foreground)]"
+            }`}
         >
           {label}
         </a>

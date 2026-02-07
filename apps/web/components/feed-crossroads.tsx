@@ -64,7 +64,7 @@ function FeedCrossroadsInner() {
               href={`/topic/${encodeURIComponent(topic.slug)}`}
               className="flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-primary/20 transition-all group"
             >
-              <span className="text-primary font-mono text-xs">#</span>
+              <span className="text-primary font-mono text-[10px]">[[]]</span>
               <div className="min-w-0">
                 <span className="text-sm font-medium text-paper group-hover:text-primary transition-colors truncate block">
                   {topic.title}

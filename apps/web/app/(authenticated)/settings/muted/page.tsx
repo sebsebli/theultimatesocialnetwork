@@ -51,7 +51,7 @@ export default function MutedPage() {
 
   return (
     <div className="max-w-[680px] mx-auto min-h-screen border-x border-divider bg-ink flex flex-col">
-      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-6 py-4">
+      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 py-2">
         <div className="flex items-center gap-3">
           <Link href="/settings" className="text-secondary hover:text-paper">
             <svg
@@ -74,9 +74,7 @@ export default function MutedPage() {
 
       <div className="px-6 py-6 flex-1 flex flex-col min-h-[200px]">
         {loading ? (
-          <div className="text-center py-12">
-            <p className="text-secondary text-sm">Loading...</p>
-          </div>
+          <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>
         ) : muted.length === 0 ? (
           <div className={emptyStateCenterClassName}>
             <EmptyState
@@ -90,7 +88,7 @@ export default function MutedPage() {
             {muted.map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg"
+                className="flex items-center justify-between p-4 border-b border-divider/50"
               >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm">

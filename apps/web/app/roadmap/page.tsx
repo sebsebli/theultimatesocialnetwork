@@ -93,7 +93,7 @@ export default async function RoadmapPage() {
               <p className="text-[var(--tertiary)] mb-8 text-sm">Live now</p>
 
               <div className="grid gap-4">
-                <div className="p-5 border border-[var(--divider)] bg-[#0F0F10] rounded hover:border-[var(--primary)] transition-colors">
+                <div className="p-5 border border-[var(--divider)] bg-white/5 rounded hover:border-[var(--primary)] transition-colors">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-[var(--foreground)]">
                       Cite any idea with [[links]]
@@ -113,7 +113,7 @@ export default async function RoadmapPage() {
                     other, creating citation chains.
                   </p>
                 </div>
-                <div className="p-5 border border-[var(--divider)] bg-[#0F0F10] rounded hover:border-[var(--primary)] transition-colors">
+                <div className="p-5 border border-[var(--divider)] bg-white/5 rounded hover:border-[var(--primary)] transition-colors">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-[var(--foreground)]">
                       EU-hosted, privacy-first
@@ -132,7 +132,7 @@ export default async function RoadmapPage() {
                     feeds you control. EU-hosted, GDPR-compliant by design.
                   </p>
                 </div>
-                <div className="p-5 border border-[var(--divider)] bg-[#0F0F10] rounded hover:border-[var(--primary)] transition-colors">
+                <div className="p-5 border border-[var(--divider)] bg-white/5 rounded hover:border-[var(--primary)] transition-colors">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-[var(--foreground)]">
                       No vanity metrics
@@ -172,14 +172,14 @@ export default async function RoadmapPage() {
                 Exploration & Public Discovery
               </h2>
               <p className="text-[var(--tertiary)] mb-8 text-sm">
-                Coming in 2026
+                Coming Q1–Q2 2026
               </p>
 
               <div className="grid gap-4">
                 <div className="p-5 border border-[var(--divider)] bg-[var(--background)] rounded opacity-80 hover:opacity-100 transition-opacity">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-medium text-[var(--foreground)]">
-                      Link Archiving
+                      Exploration &amp; Public Discovery
                     </h3>
                     <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-amber-500 border border-amber-900/30 bg-amber-900/10 px-2 py-0.5 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-amber-500" />
@@ -190,7 +190,7 @@ export default async function RoadmapPage() {
                     Exploration trail showing how you discovered content through
                     connections. Topic maps visualizing how ideas relate. Public
                     post pages with SEO so ideas are discoverable beyond the
-                    platform.
+                    platform. Link archiving to preserve external sources.
                   </p>
                 </div>
                 <div className="p-5 border border-[var(--divider)] bg-[var(--background)] rounded opacity-80 hover:opacity-100 transition-opacity">
@@ -216,7 +216,7 @@ export default async function RoadmapPage() {
                     <h3 className="font-medium text-[var(--foreground)]">
                       Fediverse Integration
                     </h3>
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-[var(--tertiary)] border border-[#333] /* divider-subtle */ bg-[var(--divider)] px-2 py-0.5 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-[var(--tertiary)] border border-[var(--divider)] bg-[var(--divider)] px-2 py-0.5 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-[var(--tertiary)]" />
                       Planned
                     </span>
@@ -232,7 +232,7 @@ export default async function RoadmapPage() {
                     <h3 className="font-medium text-[var(--foreground)]">
                       Institutional &amp; Team Plans
                     </h3>
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-[var(--tertiary)] border border-[#333] /* divider-subtle */ bg-[var(--divider)] px-2 py-0.5 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-[var(--tertiary)] border border-[var(--divider)] bg-[var(--divider)] px-2 py-0.5 rounded-full">
                       <span className="w-1 h-1 rounded-full bg-[var(--tertiary)]" />
                       Planned
                     </span>
@@ -250,16 +250,16 @@ export default async function RoadmapPage() {
           {/* Phase III */}
           <article className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-8 relative">
             <div className="hidden md:flex justify-end pr-8 pt-2 relative">
-              <span className="text-xs font-mono text-[#333] /* divider-subtle */ uppercase tracking-widest">
+              <span className="text-xs font-mono text-[var(--divider)] uppercase tracking-widest">
                 Phase III
               </span>
-              <div className="absolute right-[-5px] top-[10px] w-2.5 h-2.5 rounded-full bg-[var(--background)] border-2 border-[#333] /* divider-subtle */ z-10" />
+              <div className="absolute right-[-5px] top-[10px] w-2.5 h-2.5 rounded-full bg-[var(--background)] border-2 border-[var(--divider)] z-10" />
             </div>
 
             <div className="pl-6 md:pl-0 opacity-50">
               <div className="flex items-center gap-3 mb-6 md:hidden">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#333] /* divider-subtle */" />
-                <span className="text-xs font-mono text-[#333] /* divider-subtle */ uppercase tracking-widest">
+                <div className="w-2.5 h-2.5 rounded-full bg-[var(--divider)]" />
+                <span className="text-xs font-mono text-[var(--divider)] uppercase tracking-widest">
                   Phase III: On the Horizon
                 </span>
               </div>
@@ -286,20 +286,20 @@ export default async function RoadmapPage() {
           </article>
         </div>
 
-        <div className="mt-24 pt-12 border-t border-[var(--divider)] bg-[#0F0F10] p-10 rounded border border-[var(--divider)]">
+        <div className="mt-24 pt-12 border-t border-[var(--divider)] bg-white/5 p-10 rounded border border-[var(--divider)]">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div>
               <h3 className="text-lg font-medium text-[var(--foreground)] mb-1">
-                Contribute to the Codebase
+                Shape the Future of Citewalk
               </h3>
               <p className="text-sm text-[var(--secondary)]">
-                We&apos;re open to contributors. If you care about this,
-                we&apos;d love your help.
+                Have ideas, feedback, or want to collaborate? We&apos;d love to
+                hear from you.
               </p>
             </div>
             <a
               href="mailto:hello@citewalk.com"
-              className="px-6 py-3 border border-[#333] /* divider-subtle */ text-[var(--foreground)] text-sm hover:bg-[var(--divider)] transition-colors rounded"
+              className="px-6 py-3 border border-[var(--divider)] text-[var(--foreground)] text-sm hover:bg-[var(--divider)] transition-colors rounded"
             >
               Get in Touch
             </a>

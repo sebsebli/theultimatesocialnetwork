@@ -2,7 +2,6 @@ import React, { useRef, memo, useEffect } from "react";
 import {
   Text,
   View,
-  Pressable,
   Animated,
   AccessibilityInfo,
 } from "react-native";
@@ -24,6 +23,7 @@ import {
   createStyles,
 } from "../constants/theme";
 import { PostContent } from "./PostContent";
+import { ActionButton } from "./ActionButton";
 
 import { Post } from "../types";
 
@@ -167,10 +167,10 @@ function PostItemComponent({
     post.author ??
     (authorId
       ? {
-          id: authorId,
-          handle: t("post.unknownUser", "Unknown"),
-          displayName: t("post.unknownUser", "Unknown"),
-        }
+        id: authorId,
+        handle: t("post.unknownUser", "Unknown"),
+        displayName: t("post.unknownUser", "Unknown"),
+      }
       : null);
   if (!author) return null;
 
@@ -185,78 +185,44 @@ function PostItemComponent({
         headerImageUri={headerImageUri}
         showSources={isPreview}
         referenceMetadata={post.referenceMetadata ?? undefined}
+        inlineEnrichment={post.inlineEnrichment}
         maxBodyLines={isPreview ? undefined : 10}
       />
 
       {isPreview ? null : (
         <>
-          {/* Private Feedback Line (Author Only) - never show like count to non-creators */}
-          {userId === author.id &&
-            post.privateLikeCount !== undefined &&
-            post.privateLikeCount > 0 && (
-              <View style={styles.privateFeedback}>
-                <MaterialIcons
-                  name="favorite"
-                  size={HEADER.iconSize}
-                  color={COLORS.like}
-                />
-                <Text style={styles.privateFeedbackText}>
-                  {t("post.privateLikedBy", {
-                    count: post.privateLikeCount,
-                    defaultValue: `Private: Liked by ${post.privateLikeCount} people`,
-                  })}
-                </Text>
-              </View>
-            )}
-
           {/* Action Row - Matching Stitch Reference + Like */}
           <View style={styles.actions}>
-            <Pressable
-              style={styles.actionButton}
+            <ActionButton
+              icon="favorite-border"
+              activeIcon="favorite"
+              active={liked}
+              activeColor={COLORS.like}
               onPress={handleLike}
-              accessibilityLabel={
-                liked ? t("post.unlike", "Unlike") : t("post.like", "Like")
-              }
-              accessibilityRole="button"
-            >
-              {/* @ts-ignore React 19 Animated.View */}
-              <Animated.View style={{ transform: [{ scale: scaleValue }] }}>
-                <MaterialIcons
-                  name={liked ? "favorite" : "favorite-border"}
-                  size={HEADER.iconSize}
-                  color={liked ? COLORS.like : COLORS.tertiary}
-                />
-              </Animated.View>
-            </Pressable>
+              label={liked ? t("post.unlike", "Unlike") : t("post.like", "Like")}
+              scaleValue={scaleValue}
+              count={userId === author.id && post.privateLikeCount ? post.privateLikeCount : undefined}
+            />
 
-            <Pressable
-              style={styles.actionButton}
+            <ActionButton
+              icon="chat-bubble-outline"
               onPress={() => {
                 onReply?.();
                 router.push(`/post/${post.id}/comments`);
               }}
-              accessibilityLabel={
+              label={
                 post.replyCount > 0
                   ? t("post.repliesCount", {
-                      count: post.replyCount,
-                      defaultValue: `${post.replyCount} replies`,
-                    })
+                    count: post.replyCount,
+                    defaultValue: `${post.replyCount} replies`,
+                  })
                   : t("post.reply", "Reply")
               }
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name="chat-bubble-outline"
-                size={HEADER.iconSize}
-                color={COLORS.tertiary}
-              />
-              {post.replyCount > 0 && (
-                <Text style={styles.actionCount}>{post.replyCount}</Text>
-              )}
-            </Pressable>
+              count={post.replyCount}
+            />
 
-            <Pressable
-              style={styles.actionButton}
+            <ActionButton
+              icon="format-quote"
               onPress={() => {
                 router.push({
                   pathname: "/post/compose",
@@ -264,64 +230,36 @@ function PostItemComponent({
                 });
                 onQuote?.();
               }}
-              accessibilityLabel={t("post.quote", "Quote")}
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name="format-quote"
-                size={HEADER.iconSize}
-                color={COLORS.tertiary}
-              />
-              {post.quoteCount > 0 && (
-                <Text style={styles.actionCount}>{post.quoteCount}</Text>
-              )}
-            </Pressable>
+              label={t("post.quote", "Quote")}
+              count={post.quoteCount}
+            />
 
-            <Pressable
-              style={styles.actionButton}
+            <ActionButton
+              icon="bookmark-border"
+              activeIcon="bookmark"
+              active={kept}
               onPress={handleKeep}
-              accessibilityLabel={
+              label={
                 kept
                   ? t("post.removeKeep", "Remove from keeps")
                   : t("post.keep", "Keep")
               }
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name={kept ? "bookmark" : "bookmark-border"}
-                size={HEADER.iconSize}
-                color={kept ? COLORS.primary : COLORS.tertiary}
-              />
-            </Pressable>
+            />
 
-            <Pressable
-              style={styles.actionButton}
+            <ActionButton
+              icon="add-circle-outline"
               onPress={() => {
                 onAddToCollection?.();
                 openCollection(post.id);
               }}
-              accessibilityLabel={t("post.add")}
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name="add-circle-outline"
-                size={HEADER.iconSize}
-                color={COLORS.tertiary}
-              />
-            </Pressable>
+              label={t("post.add")}
+            />
 
-            <Pressable
-              style={styles.actionButton}
+            <ActionButton
+              icon="ios-share"
               onPress={handleShare}
-              accessibilityLabel={t("post.share")}
-              accessibilityRole="button"
-            >
-              <MaterialIcons
-                name="ios-share"
-                size={HEADER.iconSize}
-                color={COLORS.tertiary}
-              />
-            </Pressable>
+              label={t("post.share")}
+            />
           </View>
         </>
       )}
@@ -370,17 +308,5 @@ const styles = createStyles({
     justifyContent: "space-between",
     paddingTop: SPACING.s, // pt-2
     paddingRight: SPACING.l, // pr-4
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4, // gap-1
-    padding: SPACING.xs,
-    // Clean look matching web app - no background
-  },
-  actionCount: {
-    fontSize: 12, // text-xs
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
   },
 });

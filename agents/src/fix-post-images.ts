@@ -214,116 +214,116 @@ const KEYWORD_QUERIES: Array<[string[], string]> = [
 // ──────────────────────────────────────────────────────────────────────────────
 
 const AUTHOR_QUERIES: Record<string, string> = {
-  'elias_v':           'vintage typewriter journal writing desk',
-  'loretta_reads':     'books reading cozy library warm',
-  'evelyn_v_reads':    'archive old books history library',
-  'darius_active':     'running road morning sunrise fitness',
-  'jordan_k_active':   'gym workout fitness equipment exercise',
-  'kieran_h_music':    'music studio headphones producer',
-  'bea_flips':         'creative art workshop colorful crafts',
-  'sienna_in_vogue':   'fashion city street style modern',
-  'torres_makes':      'woodworking workshop craftsmanship tools',
-  'elena_writes':      'journalism newspaper press writing',
-  'sam_ink':           'writing desk typewriter pen fiction',
-  'maria_press':       'editor office modern professional desk',
-  'david_byline':      'travel journalism landscape adventure',
-  'nina_words':        'poetry pen paper artistic light',
-  'alex_codes':        'code programming laptop developer screen',
-  'priya_dev':         'woman engineer technology code screen',
-  'marco_hack':        'cybersecurity terminal code dark',
-  'luna_build':        'design ui creative workspace modern',
-  'jake_stack':        'developer coffee code casual desk',
-  'sara_data':         'data visualization chart science graph',
-  'omar_web':          'web developer modern office workspace',
-  'dr_neurons':        'brain neuroscience laboratory research',
-  'prof_climate':      'climate earth environment science globe',
-  'astro_kate':        'telescope stars galaxy astronomy night',
-  'bio_maya':          'biology ocean research marine science',
-  'quantum_li':        'physics quantum abstract science light',
-  'iris_paints':       'painting canvas art colors studio',
-  'oscar_lens':        'photography camera street urban',
-  'yuki_design':       'minimalist design clean creative workspace',
-  'zara_sculpts':      'sculpture art studio marble tools',
-  'felix_films':       'cinema film camera director production',
-  'beat_master':       'dj turntable music electronic neon',
-  'classical_anna':    'piano concert classical music elegant',
-  'indie_kai':         'guitar acoustic music coffee singer',
-  'jazz_miles':        'jazz saxophone concert stage moody',
-  'chef_ava':          'professional kitchen chef cooking gourmet',
-  'spice_road':        'indian spices colorful cooking kitchen',
-  'bake_house':        'bakery bread fresh pastry artisan',
-  'ferment_lab':       'fermented food jars kitchen craft',
-  'street_eats':       'street food market travel vibrant',
-  'run_wild':          'trail running mountains nature sunrise',
-  'yoga_grace':        'yoga meditation peaceful nature morning',
-  'lift_heavy':        'gym weightlifting strength training',
-  'dr_wellness':       'medical wellness healthy professional',
-  'nomad_jules':       'travel laptop adventure digital nomad',
-  'hike_north':        'hiking mountains wilderness trail scenic',
-  'dive_deep':         'underwater diving ocean coral reef',
-  'van_life':          'campervan road trip sunset adventure',
-  'startup_nina':      'startup business modern office meeting',
-  'vc_thoughts':       'finance investment modern business',
-  'product_pm':        'whiteboard planning team modern office',
-  'remote_work':       'home office laptop remote workspace',
-  'teach_code':        'teaching classroom education learning',
-  'learn_daily':       'books studying education library',
-  'math_magic':        'mathematics equations blackboard classroom',
-  'green_city':        'urban planning city architecture green',
-  'ocean_guard':       'ocean beach conservation nature water',
-  'farm_future':       'farm agriculture field sustainable green',
-  'energy_now':        'renewable energy solar wind technology',
-  'think_deep':        'philosophy books old library thinking',
-  'history_nerd':      'history museum antique artifacts',
-  'ethics_lab':        'academic research university books',
-  'myth_tales':        'mythology ancient art storytelling',
-  'pixel_quest':       'gaming retro arcade neon colorful',
-  'esports_liv':       'esports gaming setup neon modern',
-  'rpg_lore':          'tabletop game dice fantasy creative',
-  'mom_real':          'family home warm cozy children',
-  'dad_hacks':         'family outdoor fun playful park',
-  'style_scout':       'fashion editorial modern style',
-  'minimal_life':      'minimalist room clean modern simple',
-  'vintage_hunt':      'vintage antique market treasure retro',
-  'dog_walks':         'dog park walking nature happy',
-  'cat_whiskers':      'cat cozy home warm relaxed pet',
-  'wildlife_cam':      'wildlife nature photography animal safari',
-  'market_sense':      'finance economics charts market data',
-  'crypto_realist':    'cryptocurrency blockchain digital modern',
-  'personal_fin':      'personal finance money planning office',
-  'mind_matters':      'psychology mind therapy calm abstract',
-  'brain_hacks':       'brain science research laboratory',
-  'plant_parent':      'plants greenhouse garden indoor green',
-  'wild_garden':       'garden nature permaculture outdoor green',
-  'arch_lines':        'architecture building modern design city',
-  'interior_mood':     'interior design modern home elegant',
-  'pitch_side':        'football soccer stadium sport grass',
-  'court_vision':      'basketball court sports action urban',
-  'make_things':       'workshop tools crafting wood creative',
-  'knit_purl':         'knitting yarn colorful cozy crafts',
-  'rights_watch':      'justice courthouse law gavel legal',
-  'policy_lens':       'government policy research analysis',
-  'laugh_track':       'comedy stage spotlight microphone show',
-  'satire_hour':       'newspaper editorial ink press writing',
-  'word_nerd':         'linguistics books languages dictionary',
-  'polyglot_life':     'travel languages cultural diversity maps',
-  'fact_check':        'newspaper research journalism facts',
-  'logic_gate':        'logic abstract science philosophy',
-  'aid_field':         'humanitarian aid community diverse',
-  'equity_now':        'community diversity teamwork together',
-  'coffee_nerd':       'coffee beans roasting barista cafe',
-  'space_fan':         'space nasa stars rocket universe',
-  'board_games':       'board games strategy creative tabletop',
-  'radio_waves':       'radio microphone studio broadcasting',
-  'urban_sketch':      'sketching city urban architecture art',
-  'tea_ceremony':      'tea ceremony japanese calm peaceful',
-  'true_crime':        'detective investigation dark mystery',
-  'solar_punk':        'solarpunk nature technology green future',
-  'chloe_glows':       'skincare beauty routine self care',
-  'hannah_walks':      'golden retriever dog walking park',
-  'liam_restores':     'furniture restoration vintage workshop',
-  'tariq_tastes':      'soul food cooking kitchen warm',
-  'darius_crt':        'retro gaming crt screen neon glow',
+  'elias_v': 'vintage typewriter journal writing desk',
+  'loretta_reads': 'books reading cozy library warm',
+  'evelyn_v_reads': 'archive old books history library',
+  'darius_active': 'running road morning sunrise fitness',
+  'jordan_k_active': 'gym workout fitness equipment exercise',
+  'kieran_h_music': 'music studio headphones producer',
+  'bea_flips': 'creative art workshop colorful crafts',
+  'sienna_in_vogue': 'fashion city street style modern',
+  'torres_makes': 'woodworking workshop craftsmanship tools',
+  'elena_writes': 'journalism newspaper press writing',
+  'sam_ink': 'writing desk typewriter pen fiction',
+  'maria_press': 'editor office modern professional desk',
+  'david_byline': 'travel journalism landscape adventure',
+  'nina_words': 'poetry pen paper artistic light',
+  'alex_codes': 'code programming laptop developer screen',
+  'priya_dev': 'woman engineer technology code screen',
+  'marco_hack': 'cybersecurity terminal code dark',
+  'luna_build': 'design ui creative workspace modern',
+  'jake_stack': 'developer coffee code casual desk',
+  'sara_data': 'data visualization chart science graph',
+  'omar_web': 'web developer modern office workspace',
+  'dr_neurons': 'brain neuroscience laboratory research',
+  'prof_climate': 'climate earth environment science globe',
+  'astro_kate': 'telescope stars galaxy astronomy night',
+  'bio_maya': 'biology ocean research marine science',
+  'quantum_li': 'physics quantum abstract science light',
+  'iris_paints': 'painting canvas art colors studio',
+  'oscar_lens': 'photography camera street urban',
+  'yuki_design': 'minimalist design clean creative workspace',
+  'zara_sculpts': 'sculpture art studio marble tools',
+  'felix_films': 'cinema film camera director production',
+  'beat_master': 'dj turntable music electronic neon',
+  'classical_anna': 'piano concert classical music elegant',
+  'indie_kai': 'guitar acoustic music coffee singer',
+  'jazz_miles': 'jazz saxophone concert stage moody',
+  'chef_ava': 'professional kitchen chef cooking gourmet',
+  'spice_road': 'indian spices colorful cooking kitchen',
+  'bake_house': 'bakery bread fresh pastry artisan',
+  'ferment_lab': 'fermented food jars kitchen craft',
+  'street_eats': 'street food market travel vibrant',
+  'run_wild': 'trail running mountains nature sunrise',
+  'yoga_grace': 'yoga meditation peaceful nature morning',
+  'lift_heavy': 'gym weightlifting strength training',
+  'dr_wellness': 'medical wellness healthy professional',
+  'nomad_jules': 'travel laptop adventure digital nomad',
+  'hike_north': 'hiking mountains wilderness trail scenic',
+  'dive_deep': 'underwater diving ocean coral reef',
+  'van_life': 'campervan road trip sunset adventure',
+  'startup_nina': 'startup business modern office meeting',
+  'vc_thoughts': 'finance investment modern business',
+  'product_pm': 'whiteboard planning team modern office',
+  'remote_work': 'home office laptop remote workspace',
+  'teach_code': 'teaching classroom education learning',
+  'learn_daily': 'books studying education library',
+  'math_magic': 'mathematics equations blackboard classroom',
+  'green_city': 'urban planning city architecture green',
+  'ocean_guard': 'ocean beach conservation nature water',
+  'farm_future': 'farm agriculture field sustainable green',
+  'energy_now': 'renewable energy solar wind technology',
+  'think_deep': 'philosophy books old library thinking',
+  'history_nerd': 'history museum antique artifacts',
+  'ethics_lab': 'academic research university books',
+  'myth_tales': 'mythology ancient art storytelling',
+  'pixel_quest': 'gaming retro arcade neon colorful',
+  'esports_liv': 'esports gaming setup neon modern',
+  'rpg_lore': 'tabletop game dice fantasy creative',
+  'mom_real': 'family home warm cozy children',
+  'dad_hacks': 'family outdoor fun playful park',
+  'style_scout': 'fashion editorial modern style',
+  'minimal_life': 'minimalist room clean modern simple',
+  'vintage_hunt': 'vintage antique market treasure retro',
+  'dog_walks': 'dog park walking nature happy',
+  'cat_whiskers': 'cat cozy home warm relaxed pet',
+  'wildlife_cam': 'wildlife nature photography animal safari',
+  'market_sense': 'finance economics charts market data',
+  'crypto_realist': 'cryptocurrency blockchain digital modern',
+  'personal_fin': 'personal finance money planning office',
+  'mind_matters': 'psychology mind therapy calm abstract',
+  'brain_hacks': 'brain science research laboratory',
+  'plant_parent': 'plants greenhouse garden indoor green',
+  'wild_garden': 'garden nature permaculture outdoor green',
+  'arch_lines': 'architecture building modern design city',
+  'interior_mood': 'interior design modern home elegant',
+  'pitch_side': 'football soccer stadium sport grass',
+  'court_vision': 'basketball court sports action urban',
+  'make_things': 'workshop tools crafting wood creative',
+  'knit_purl': 'knitting yarn colorful cozy crafts',
+  'rights_watch': 'justice courthouse law gavel legal',
+  'policy_lens': 'government policy research analysis',
+  'laugh_track': 'comedy stage spotlight microphone show',
+  'satire_hour': 'newspaper editorial ink press writing',
+  'word_nerd': 'linguistics books languages dictionary',
+  'polyglot_life': 'travel languages cultural diversity maps',
+  'fact_check': 'newspaper research journalism facts',
+  'logic_gate': 'logic abstract science philosophy',
+  'aid_field': 'humanitarian aid community diverse',
+  'equity_now': 'community diversity teamwork together',
+  'coffee_nerd': 'coffee beans roasting barista cafe',
+  'space_fan': 'space nasa stars rocket universe',
+  'board_games': 'board games strategy creative tabletop',
+  'radio_waves': 'radio microphone studio broadcasting',
+  'urban_sketch': 'sketching city urban architecture art',
+  'tea_ceremony': 'tea ceremony japanese calm peaceful',
+  'true_crime': 'detective investigation dark mystery',
+  'solar_punk': 'solarpunk nature technology green future',
+  'chloe_glows': 'skincare beauty routine self care',
+  'hannah_walks': 'golden retriever dog walking park',
+  'liam_restores': 'furniture restoration vintage workshop',
+  'tariq_tastes': 'soul food cooking kitchen warm',
+  'darius_crt': 'retro gaming crt screen neon glow',
 };
 
 // generic fallback if nothing else matches
@@ -503,14 +503,50 @@ async function main() {
   const agents = await adminCall<Array<{ email: string; handle: string }>>('/admin/agents');
   console.log(`Found ${agents.length} agents.`);
 
+  const agentEmailByHandle = new Map<string, string>();
+  for (const a of agents) agentEmailByHandle.set(a.handle, a.email);
+
   const tokenCache = new Map<string, string>();
-  for (const a of agents) {
+  let tokensFetchedAt = Date.now();
+
+  async function refreshAllTokens() {
+    // Batch in parallel groups of 10 for speed
+    const batchSize = 10;
+    for (let i = 0; i < agents.length; i += batchSize) {
+      const batch = agents.slice(i, i + batchSize);
+      await Promise.all(batch.map(async (a) => {
+        const { accessToken } = await adminCall<{ accessToken: string }>('/admin/agents/token', {
+          method: 'POST',
+          body: { email: a.email },
+        });
+        tokenCache.set(a.handle, accessToken);
+      }));
+    }
+    tokensFetchedAt = Date.now();
+  }
+
+  async function getToken(handle: string): Promise<string> {
+    // Refresh all tokens if older than 25 minutes (JWT typically lasts 30-60min)
+    if (Date.now() - tokensFetchedAt > 25 * 60 * 1000) {
+      console.log('  [refreshing all tokens...]');
+      await refreshAllTokens();
+      console.log('  [tokens refreshed]');
+    }
+    return tokenCache.get(handle)!;
+  }
+
+  async function refreshToken(handle: string): Promise<string> {
+    const email = agentEmailByHandle.get(handle);
+    if (!email) return '';
     const { accessToken } = await adminCall<{ accessToken: string }>('/admin/agents/token', {
       method: 'POST',
-      body: { email: a.email },
+      body: { email },
     });
-    tokenCache.set(a.handle, accessToken);
+    tokenCache.set(handle, accessToken);
+    return accessToken;
   }
+
+  await refreshAllTokens();
   console.log(`Cached ${tokenCache.size} tokens.\n`);
 
   // ── Step 2: Collect ALL posts without images ──
@@ -597,7 +633,7 @@ async function main() {
   for (let i = 0; i < postsToFix.length; i++) {
     const p = postsToFix[i];
     const query = queryForPost(p.body, p.authorHandle);
-    const token = tokenCache.get(p.authorHandle);
+    let token = await getToken(p.authorHandle);
     if (!token) {
       console.log(`  [${i + 1}/${postsToFix.length}] @${p.authorHandle} — no token, skip`);
       fail++;
@@ -612,18 +648,23 @@ async function main() {
       continue;
     }
 
-    // Upload
-    const uploaded = await uploadHeaderImage(token, imageUrl);
+    // Upload (with retry on 401)
+    let uploaded = await uploadHeaderImage(token, imageUrl);
     if (!uploaded) {
-      fail++;
-      continue;
+      // Maybe token expired — refresh and retry once
+      token = await refreshToken(p.authorHandle);
+      uploaded = await uploadHeaderImage(token, imageUrl);
+      if (!uploaded) {
+        fail++;
+        continue;
+      }
     }
 
-    // Patch post
+    // Patch post (with retry on 401)
     const patchBody: any = { headerImageKey: uploaded.key };
     if (uploaded.blurhash) patchBody.headerImageBlurhash = uploaded.blurhash;
 
-    const patchRes = await fetch(`${API_URL}/posts/${p.id}`, {
+    let patchRes = await fetch(`${API_URL}/posts/${p.id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -631,6 +672,18 @@ async function main() {
       },
       body: JSON.stringify(patchBody),
     });
+
+    if (patchRes.status === 401) {
+      token = await refreshToken(p.authorHandle);
+      patchRes = await fetch(`${API_URL}/posts/${p.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(patchBody),
+      });
+    }
 
     if (!patchRes.ok) {
       console.log(`  [${i + 1}/${postsToFix.length}] ${p.id.slice(0, 8)} PATCH fail ${patchRes.status}`);

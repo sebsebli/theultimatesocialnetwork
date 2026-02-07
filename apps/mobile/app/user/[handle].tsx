@@ -60,6 +60,8 @@ import {
 } from "../../constants/theme";
 import { ListFooterLoader } from "../../components/ListFooterLoader";
 import { HeaderIconButton } from "../../components/HeaderIconButton";
+import { ExplorationTrail } from "../../components/ExplorationTrail";
+import { useExplorationTrail } from "../../context/ExplorationTrailContext";
 import { formatCompactNumber } from "../../utils/format";
 import type { Post, User } from "../../types";
 
@@ -88,6 +90,7 @@ export default function UserProfileScreen() {
   const { userId: authUserId } = useAuth();
   const { showError, showSuccess } = useToast();
   const { openExternalLink } = useOpenExternalLink();
+  const { pushStep } = useExplorationTrail();
   const [blockConfirmVisible, setBlockConfirmVisible] = useState(false);
   const [muteConfirmVisible, setMuteConfirmVisible] = useState(false);
   const [optionsModalVisible, setOptionsModalVisible] = useState(false);
@@ -205,6 +208,15 @@ export default function UserProfileScreen() {
         userData = (await userPromise) as ProfileUser | null;
         if (cancelledRef?.current) return;
         setUser(userData as ProfileUser | null);
+        // Register in exploration trail breadcrumbs
+        if (userData) {
+          pushStep({
+            type: "user",
+            id: String(userData.id || handle),
+            label: userData.displayName || String(handle),
+            href: `/user/${String(handle)}`,
+          });
+        }
         setFollowing(!!(userData as ProfileUser).isFollowing);
         setHasPendingFollowRequest(!!(userData as ProfileUser).hasPendingFollowRequest);
         const canViewContent =
@@ -459,7 +471,9 @@ export default function UserProfileScreen() {
   ) => {
     setReportTargetId(targetId);
     setReportTargetType(type);
-    setReportModalVisible(true);
+    // Close options sheet first, then open report modal after dismiss animation
+    setOptionsModalVisible(false);
+    setTimeout(() => setReportModalVisible(true), 600);
   };
 
   const handleReportSubmit = async (reason: string, comment?: string) => {
@@ -743,23 +757,27 @@ export default function UserProfileScreen() {
           title={t("profile.options", "Options for @" + (user?.handle ?? ""))}
           cancelLabel={t("common.cancel")}
           options={[
-            {
-              label: t("safety.mute", "Mute User"),
-              onPress: handleMute,
-              icon: "volume-off",
-            },
-            {
-              label: t("safety.block", "Block User"),
-              onPress: handleBlock,
-              destructive: true,
-              icon: "block",
-            },
-            {
-              label: t("safety.report", "Report User"),
-              onPress: () => openReportModal(user.id, "USER"),
-              destructive: true,
-              icon: "flag",
-            },
+            ...(!isOwnProfile
+              ? [
+                {
+                  label: t("safety.mute", "Mute User"),
+                  onPress: handleMute,
+                  icon: "volume-off",
+                },
+                {
+                  label: t("safety.block", "Block User"),
+                  onPress: handleBlock,
+                  destructive: true,
+                  icon: "block",
+                },
+                {
+                  label: t("safety.report", "Report User"),
+                  onPress: () => openReportModal(user.id, "USER"),
+                  destructive: true,
+                  icon: "flag",
+                },
+              ]
+              : []),
             {
               label: t("profile.shareProfile", "Share profile"),
               onPress: handleShareProfile,
@@ -1197,23 +1215,27 @@ export default function UserProfileScreen() {
         title={t("profile.options", "Options for @" + (user?.handle ?? ""))}
         cancelLabel={t("common.cancel")}
         options={[
-          {
-            label: t("safety.mute", "Mute User"),
-            onPress: handleMute,
-            icon: "volume-off",
-          },
-          {
-            label: t("safety.block", "Block User"),
-            onPress: handleBlock,
-            destructive: true,
-            icon: "block",
-          },
-          {
-            label: t("safety.report", "Report User"),
-            onPress: () => openReportModal(user.id, "USER"),
-            destructive: true,
-            icon: "flag",
-          },
+          ...(!isOwnProfile
+            ? [
+              {
+                label: t("safety.mute", "Mute User"),
+                onPress: handleMute,
+                icon: "volume-off",
+              },
+              {
+                label: t("safety.block", "Block User"),
+                onPress: handleBlock,
+                destructive: true,
+                icon: "block",
+              },
+              {
+                label: t("safety.report", "Report User"),
+                onPress: () => openReportModal(user.id, "USER"),
+                destructive: true,
+                icon: "flag",
+              },
+            ]
+            : []),
           {
             label: t("profile.shareProfile", "Share profile"),
             onPress: handleShareProfile,
@@ -1237,6 +1259,7 @@ export default function UserProfileScreen() {
         onReport={handleReportSubmit}
         title={t("safety.reportTitle", "Report")}
       />
+      {React.createElement(ExplorationTrail as React.ComponentType)}
     </View>
   );
 }

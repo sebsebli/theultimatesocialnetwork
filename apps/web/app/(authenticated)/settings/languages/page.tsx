@@ -96,7 +96,7 @@ export default function SettingsLanguagesPage() {
             disabled={saving || selected.length < 1}
             className="text-primary font-semibold text-base disabled:opacity-50"
           >
-            {saving ? "..." : "Save"}
+            {saving ? "Saving..." : "Save"}
           </button>
         </div>
       </header>
@@ -117,7 +117,7 @@ export default function SettingsLanguagesPage() {
         />
 
         {loading ? (
-          <p className="text-secondary">Loading...</p>
+          <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /></div>
         ) : (
           <div className="flex flex-wrap gap-3 justify-center">
             {filteredLanguages.map((lang) => {
@@ -127,11 +127,10 @@ export default function SettingsLanguagesPage() {
                   key={lang.code}
                   type="button"
                   onClick={() => toggleLanguage(lang.code)}
-                  className={`relative w-[47%] rounded-xl p-4 border text-left transition-colors ${
-                    isSelected
+                  className={`relative w-[47%] rounded-xl p-4 border text-left transition-colors ${isSelected
                       ? "bg-primary/10 border-primary text-primary"
                       : "bg-white/5 border-divider text-paper hover:border-white/20"
-                  }`}
+                    }`}
                 >
                   <span className="block font-semibold">{lang.name}</span>
                   <span className="block text-sm text-secondary">

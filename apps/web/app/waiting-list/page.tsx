@@ -60,7 +60,7 @@ export default function WaitingListPage() {
             className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/5 border border-white/10 mb-4 transition-all hover:scale-105 hover:bg-white/10 hover:border-white/20 shadow-2xl"
           >
             <Image
-              src="/icon.png"
+              src="/logo_transparent.png"
               alt="Citewalk"
               width={48}
               height={48}

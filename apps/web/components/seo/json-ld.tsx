@@ -28,7 +28,7 @@ export function OrganizationJsonLd() {
         url: "https://citewalk.com",
         logo: {
           "@type": "ImageObject",
-          url: "https://citewalk.com/icon.png",
+          url: "https://citewalk.com/logo_transparent.png",
           width: 512,
           height: 512,
         },

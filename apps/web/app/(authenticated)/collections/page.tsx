@@ -101,7 +101,7 @@ export default function CollectionsPage() {
 
       {/* Search + filter — match mobile */}
       <div className="px-4 md:px-6 py-3 border-b border-divider space-y-3">
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 border-b border-divider px-3 py-2">
           <svg
             className="w-5 h-5 text-tertiary shrink-0"
             fill="none"
@@ -141,11 +141,10 @@ export default function CollectionsPage() {
               key={key}
               type="button"
               onClick={() => setFilter(key)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors capitalize ${
-                filter === key
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors capitalize ${filter === key
                   ? "bg-primary text-ink"
                   : "bg-white/5 text-tertiary hover:bg-white/10 hover:text-paper border border-white/10"
-              }`}
+                }`}
             >
               {key === "all" ? "All" : key}
             </button>
@@ -187,7 +186,7 @@ export default function CollectionsPage() {
             <Link
               key={collection.id}
               href={`/collections/${collection.id}`}
-              className="block overflow-hidden bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors group"
+              className="block overflow-hidden border-b border-divider hover:bg-white/10 transition-colors group"
             >
               {collection.previewImageKey ? (
                 <div className="relative w-full aspect-video bg-divider">
@@ -224,12 +223,12 @@ export default function CollectionsPage() {
                     {(collection.recentPost?.title ??
                       collection.recentPost?.bodyExcerpt ??
                       collection.description) && (
-                      <p className="text-secondary text-sm line-clamp-1">
-                        {collection.recentPost?.title?.trim() ||
-                          collection.recentPost?.bodyExcerpt?.trim() ||
-                          collection.description}
-                      </p>
-                    )}
+                        <p className="text-secondary text-sm line-clamp-1">
+                          {collection.recentPost?.title?.trim() ||
+                            collection.recentPost?.bodyExcerpt?.trim() ||
+                            collection.description}
+                        </p>
+                      )}
                   </div>
                   <div className="bg-white/5 p-1.5 rounded-full text-tertiary shrink-0 ml-2">
                     <svg

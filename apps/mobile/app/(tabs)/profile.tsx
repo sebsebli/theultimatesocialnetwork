@@ -394,12 +394,12 @@ export default function ProfileScreen() {
         prev.map((p: Record<string, unknown>) =>
           p.id === c.id
             ? {
-                ...p,
-                title: editCollectionTitle.trim(),
-                description: editCollectionDescription.trim() || undefined,
-                isPublic: editCollectionIsPublic,
-                shareSaves: editCollectionShareSaves,
-              }
+              ...p,
+              title: editCollectionTitle.trim(),
+              description: editCollectionDescription.trim() || undefined,
+              isPublic: editCollectionIsPublic,
+              shareSaves: editCollectionShareSaves,
+            }
             : p,
         ),
       );
@@ -503,41 +503,52 @@ export default function ProfileScreen() {
       });
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
+      // Defer heavy work so the image picker dismissal animation completes first
+      await new Promise<void>((resolve) =>
+        InteractionManager.runAfterInteractions(() => resolve()),
+      );
       setPendingAvatarUri(asset.uri);
       setAvatarUploading(true);
-      const uploadRes = await api.upload<{ key?: string; url?: string } | null>(
-        "/upload/profile-picture",
-        {
-          uri: asset.uri,
-          fileName: asset.fileName ?? undefined,
-          mimeType: asset.mimeType ?? undefined,
-          type: asset.type ?? undefined,
-          fileSize: asset.fileSize,
-        },
-      );
-      const uploadResult = uploadRes as { key?: string; url?: string } | null;
-      const key = uploadResult?.key;
-      if (!key || typeof key !== "string") {
-        setPendingAvatarUri(null);
-        showError(t("profile.photoUpdateFailed", "Failed to update photo."));
-        return;
-      }
-      await api.patch("/users/me", { avatarKey: key });
-      setUser((prev: Record<string, unknown> | null) =>
-        prev
-          ? {
+      try {
+        const uploadRes = await api.upload<{ key?: string; url?: string } | null>(
+          "/upload/profile-picture",
+          {
+            uri: asset.uri,
+            fileName: asset.fileName ?? undefined,
+            mimeType: asset.mimeType ?? undefined,
+            type: asset.type ?? undefined,
+            fileSize: asset.fileSize,
+          },
+        );
+        const uploadResult = uploadRes as { key?: string; url?: string } | null;
+        const key = uploadResult?.key;
+        if (!key || typeof key !== "string") {
+          setPendingAvatarUri(null);
+          showError(t("profile.photoUpdateFailed", "Failed to update photo."));
+          return;
+        }
+        await api.patch("/users/me", { avatarKey: key });
+        setUser((prev: Record<string, unknown> | null) =>
+          prev
+            ? {
               ...prev,
               avatarUrl: uploadResult?.url ?? getImageUrl(key),
               avatarKey: key,
             }
-          : prev,
-      );
-      setPendingAvatarUri(null);
+            : prev,
+        );
+        setPendingAvatarUri(null);
+      } catch (uploadErr) {
+        if (__DEV__) console.error(uploadErr);
+        setPendingAvatarUri(null);
+        showError(t("profile.photoUpdateFailed", "Failed to update photo."));
+      } finally {
+        setAvatarUploading(false);
+      }
     } catch (e) {
       if (__DEV__) console.error(e);
       setPendingAvatarUri(null);
       showError(t("profile.photoUpdateFailed", "Failed to update photo."));
-    } finally {
       setAvatarUploading(false);
     }
   }, [isSelf, user, t, showError]);
@@ -558,13 +569,22 @@ export default function ProfileScreen() {
     ? `${getApiBaseUrl()}/rss/${encodeURIComponent(String(user.handle))}`
     : "";
   const handleOpenRssFeed = useCallback(() => {
+    if (!rssFeedUrl) return;
+    const url = rssFeedUrl;
+    // Schedule RSS share after modal closes
+    pendingShareRef.current = () => {
+      Share.share({
+        message: `RSS Feed\n${url}`,
+        url,
+        title: t("profile.rssFeed", "RSS Feed"),
+      }).catch(() => { });
+    };
     setProfileOptionsVisible(false);
-    if (rssFeedUrl) openExternalLink(rssFeedUrl, { skipDialog: true });
-  }, [rssFeedUrl, openExternalLink]);
+  }, [rssFeedUrl, t]);
 
+  const pendingShareRef = useRef<(() => void) | null>(null);
   const handleShareProfile = useCallback(() => {
     if (!user?.handle) return;
-    setProfileOptionsVisible(false);
     const handleStr = String(user.handle);
     const profileUrl = `${getWebAppBaseUrl()}/user/${encodeURIComponent(handleStr)}`;
     const displayName = String(user.displayName ?? user.handle ?? "");
@@ -577,21 +597,26 @@ export default function ProfileScreen() {
       defaultValue: "Share profile",
       handle: user.handle,
     });
-    // Defer share until modal has fully closed (avoids share sheet not opening)
-    InteractionManager.runAfterInteractions(() => {
+    // Schedule share after modal closes
+    pendingShareRef.current = () => {
       const sharePayload =
         Platform.OS === "android"
           ? { message: `${message}\n${profileUrl}`, title }
-          : { message: `${message}\n${profileUrl}`, url: profileUrl, title };
-      setTimeout(
-        () =>
-          Share.share(sharePayload).catch(() => {
-            /* share dismissed */
-          }),
-        350,
-      );
-    });
+          : { message, url: profileUrl, title };
+      Share.share(sharePayload).catch(() => { });
+    };
+    setProfileOptionsVisible(false);
   }, [user?.handle, user?.displayName, t]);
+
+  // Trigger share when options modal closes
+  useEffect(() => {
+    if (!profileOptionsVisible && pendingShareRef.current) {
+      const fn = pendingShareRef.current;
+      pendingShareRef.current = null;
+      // Allow modal slide-out animation to complete
+      setTimeout(fn, 600);
+    }
+  }, [profileOptionsVisible]);
 
   return (
     <View style={styles.container}>
@@ -697,9 +722,7 @@ export default function ProfileScreen() {
                       style={styles.avatar}
                       disabled={!isSelf || avatarUploading}
                     >
-                      {avatarUploading && !pendingAvatarUri ? (
-                        <InlineSkeleton />
-                      ) : avatarUri ? (
+                      {avatarUri ? (
                         <Image
                           source={{ uri: avatarUri }}
                           style={styles.avatarImage}
@@ -713,6 +736,11 @@ export default function ProfileScreen() {
                               .charAt(0)
                               .toUpperCase()}
                         </Text>
+                      )}
+                      {avatarUploading && (
+                        <View style={styles.avatarUploadingOverlay}>
+                          <InlineSkeleton />
+                        </View>
                       )}
                     </Pressable>
                     {isSelf && !avatarUploading && (
@@ -817,20 +845,20 @@ export default function ProfileScreen() {
                 >
                   {(isSelf
                     ? ([
-                        "posts",
-                        "replies",
-                        "quotes",
-                        "cited",
-                        "saved",
-                        "collections",
-                      ] as const)
+                      "posts",
+                      "replies",
+                      "quotes",
+                      "cited",
+                      "saved",
+                      "collections",
+                    ] as const)
                     : ([
-                        "posts",
-                        "replies",
-                        "quotes",
-                        "cited",
-                        "collections",
-                      ] as const)
+                      "posts",
+                      "replies",
+                      "quotes",
+                      "cited",
+                      "collections",
+                    ] as const)
                   ).map((tab) => {
                     const count =
                       tab === "posts"
@@ -981,39 +1009,39 @@ export default function ProfileScreen() {
                   subtext={
                     activeTab === "saved"
                       ? t(
-                          "profile.noSavedHint",
-                          "Bookmark posts from the reading view to see them here.",
-                        )
+                        "profile.noSavedHint",
+                        "Bookmark posts from the reading view to see them here.",
+                      )
                       : activeTab === "posts"
                         ? t(
-                            "profile.noPostsHint",
-                            "Share your first post or quote someone.",
-                          )
+                          "profile.noPostsHint",
+                          "Share your first post or quote someone.",
+                        )
                         : activeTab === "collections"
                           ? isSelf
                             ? t(
-                                "profile.noCollectionsOwnHint",
-                                "Create a collection to organize your posts.",
-                              )
+                              "profile.noCollectionsOwnHint",
+                              "Create a collection to organize your posts.",
+                            )
                             : t(
-                                "profile.noCollectionsHint",
-                                "Public collections will appear here.",
-                              )
+                              "profile.noCollectionsHint",
+                              "Public collections will appear here.",
+                            )
                           : activeTab === "replies"
                             ? t(
-                                "profile.noRepliesHint",
-                                "Replies will show here.",
-                              )
+                              "profile.noRepliesHint",
+                              "Replies will show here.",
+                            )
                             : activeTab === "quotes"
                               ? t(
-                                  "profile.noQuotesHint",
-                                  "Quotes will show here.",
-                                )
+                                "profile.noQuotesHint",
+                                "Quotes will show here.",
+                              )
                               : activeTab === "cited"
                                 ? t(
-                                    "profile.noCitedHint",
-                                    "Posts this user has cited appear here.",
-                                  )
+                                  "profile.noCitedHint",
+                                  "Posts this user has cited appear here.",
+                                )
                                 : undefined
                   }
                   secondaryLabel={
@@ -1054,7 +1082,7 @@ export default function ProfileScreen() {
         />
       )}
 
-      <ImageVerifyingOverlay visible={avatarUploading} />
+      {/* Avatar uploading overlay is now shown directly on the avatar circle */}
 
       <Modal visible={avatarModalVisible} transparent animationType="fade">
         <Pressable
@@ -1298,13 +1326,13 @@ export default function ProfileScreen() {
                 <Text style={styles.editCollectionVisibilityHint}>
                   {editCollectionIsPublic
                     ? t(
-                        "collections.visibilityPublic",
-                        "Public — anyone can see this collection",
-                      )
+                      "collections.visibilityPublic",
+                      "Public — anyone can see this collection",
+                    )
                     : t(
-                        "collections.visibilityPrivate",
-                        "Private — only your followers can see it",
-                      )}
+                      "collections.visibilityPrivate",
+                      "Private — only your followers can see it",
+                    )}
                 </Text>
               </View>
               <Switch
@@ -1341,7 +1369,7 @@ export default function ProfileScreen() {
                 style={[
                   styles.editCollectionModalButtonSave,
                   !editCollectionTitle.trim() &&
-                    styles.editCollectionModalButtonDisabled,
+                  styles.editCollectionModalButtonDisabled,
                 ]}
                 onPress={handleSaveEditCollection}
                 disabled={!editCollectionTitle.trim()}
@@ -1393,15 +1421,15 @@ export default function ProfileScreen() {
           },
           ...(isSelf
             ? [
-                {
-                  label: t("settings.title", "Settings"),
-                  onPress: () => {
-                    setProfileOptionsVisible(false);
-                    router.push("/settings");
-                  },
-                  icon: "settings" as const,
+              {
+                label: t("settings.title", "Settings"),
+                onPress: () => {
+                  setProfileOptionsVisible(false);
+                  router.push("/settings");
                 },
-              ]
+                icon: "settings" as const,
+              },
+            ]
             : []),
         ]}
       />
@@ -1519,6 +1547,13 @@ const styles = createStyles({
     width: "100%",
     height: "100%",
     borderRadius: 60,
+  },
+  avatarUploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 60,
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarEditBadge: {
     position: "absolute",
@@ -1773,7 +1808,7 @@ const styles = createStyles({
     borderBottomColor: "transparent",
   },
   tabActive: {
-    borderBottomColor: COLORS.tertiary,
+    borderBottomColor: COLORS.primary,
   },
   tabText: {
     fontSize: 14,

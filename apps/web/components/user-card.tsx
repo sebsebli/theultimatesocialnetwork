@@ -24,7 +24,7 @@ export interface UserCardProps {
 function UserCardInner({ person, onFollow, onRemove }: UserCardProps) {
   return (
     <Link href={`/user/${person.handle}`}>
-      <div className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all duration-200 group active:scale-[0.99] flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-divider hover:bg-white/5 transition-all duration-200 group active:scale-[0.99] flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <Avatar
             avatarKey={person.avatarKey}
@@ -70,8 +70,8 @@ function UserCardInner({ person, onFollow, onRemove }: UserCardProps) {
               onFollow();
             }}
             className={`ml-3 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${person.isFollowing
-                ? "bg-primary border-primary text-white"
-                : "border-primary text-primary hover:bg-primary/10"
+              ? "bg-primary border-primary text-white"
+              : "border-primary text-primary hover:bg-primary/10"
               }`}
           >
             {person.isFollowing ? "Following" : "Follow"}

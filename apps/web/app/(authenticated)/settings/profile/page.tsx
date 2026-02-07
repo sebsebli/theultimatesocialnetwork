@@ -358,7 +358,7 @@ export default function SettingsProfilePage() {
               />
             ) : (
               <span className="text-tertiary text-sm">
-                Tap to add header image
+                Click to add header image
               </span>
             )}
           </div>
@@ -422,8 +422,10 @@ export default function SettingsProfilePage() {
           </div>
         </div>
 
-        <div className="p-4 bg-white/5 border border-divider rounded-xl flex gap-2">
-          <span className="text-tertiary mt-0.5">ℹ</span>
+        <div className="p-4 bg-white/5 border border-divider rounded-xl flex gap-3 items-start">
+          <svg className="w-4 h-4 text-tertiary shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           <p className="text-secondary text-sm">
             You can only change your name and handle once every 14 days.
           </p>
@@ -460,13 +462,12 @@ export default function SettingsProfilePage() {
               }
               placeholder="janedoe"
               maxLength={HANDLE_MAX}
-              className={`w-full h-12 pl-8 pr-4 bg-white/5 border rounded-xl text-paper placeholder-tertiary ${
-                isHandleChanged && handleStatus === "taken"
+              className={`w-full h-12 pl-8 pr-4 bg-white/5 border rounded-xl text-paper placeholder-tertiary ${isHandleChanged && handleStatus === "taken"
                   ? "border-red-500/50"
                   : handleStatus === "available"
                     ? "border-green-500/50"
                     : "border-divider"
-              }`}
+                }`}
             />
           </div>
           <div className="flex justify-between mt-1 text-xs text-tertiary">

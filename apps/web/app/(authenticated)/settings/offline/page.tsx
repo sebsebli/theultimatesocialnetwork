@@ -62,7 +62,7 @@ export default function OfflineSettingsPage() {
 
   return (
     <div className="max-w-[680px] mx-auto min-h-screen border-x border-divider bg-ink flex flex-col">
-      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-6 py-4">
+      <header className="sticky top-0 z-10 bg-ink/80 backdrop-blur-md border-b border-divider px-4 py-2">
         <div className="flex items-center gap-3">
           <Link href="/settings" className="text-secondary hover:text-paper">
             <svg

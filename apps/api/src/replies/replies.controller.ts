@@ -15,7 +15,7 @@ import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 
 @Controller('posts/:postId/replies')
 export class RepliesController {
-  constructor(private readonly repliesService: RepliesService) {}
+  constructor(private readonly repliesService: RepliesService) { }
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
@@ -37,6 +37,7 @@ export class RepliesController {
   async findAll(
     @Param('postId') postId: string,
     @Query('parentReplyId') parentReplyId: string | undefined,
+    @Query('sort') sort: string | undefined,
     @CurrentUser() user?: { id: string },
   ) {
     return this.repliesService.findByPost(
@@ -45,6 +46,7 @@ export class RepliesController {
       0,
       user?.id,
       parentReplyId || undefined,
+      sort as 'recent' | 'discussed' | undefined,
     );
   }
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { MdShield, MdVisibility } from "react-icons/md";
+import { PublicFooter } from "@/components/landing/public-footer";
 
 export const metadata: Metadata = {
   title: "AI Transparency",
@@ -36,7 +37,7 @@ export default function AiTransparencyPage() {
             className="flex items-center gap-2 hover:text-[#F2F2F2] transition-colors"
           >
             <Image
-              src="/icon.png"
+              src="/logo_transparent.png"
               alt="Citewalk"
               width={20}
               height={20}
@@ -66,10 +67,11 @@ export default function AiTransparencyPage() {
           {/* Mission */}
           <section className="mb-12">
             <p className="text-lg leading-relaxed">
-              Citewalk is a social network where ideas connect and grow. This
-              transparency statement explains how we use AI systems to support
-              that mission while maintaining full compliance with the EU
-              Artificial Intelligence Act.
+              Most social platforms use AI to maximize engagement — to keep you
+              scrolling, reacting, and coming back. Citewalk uses AI differently:
+              to support content discovery, moderation, and accessibility — never
+              to manipulate your attention. This transparency statement explains
+              how, in full compliance with the EU Artificial Intelligence Act.
             </p>
           </section>
 
@@ -229,8 +231,8 @@ export default function AiTransparencyPage() {
               </li>
               <li>
                 <strong>Clean Hosting:</strong> Our infrastructure is hosted in
-                EU data centers (Hetzner Finland/Germany) that prioritize
-                renewable energy sources.
+                EU data centers (Hetzner Finland/Germany) that aim to
+                minimize environmental impact.
               </li>
               <li>
                 <strong>Minimal Compute:</strong> The protocol design minimizes
@@ -246,6 +248,7 @@ export default function AiTransparencyPage() {
           </p>
         </div>
       </main>
+      <PublicFooter />
     </div>
   );
 }

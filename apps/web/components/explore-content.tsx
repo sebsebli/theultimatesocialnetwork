@@ -89,7 +89,7 @@ function ExploreContentInner() {
   const loadingMoreRef = useRef(false);
 
   const isPostTab = (POST_TABS as readonly string[]).includes(tab);
-  const useInfiniteScroll = isPostTab && sort === "newest";
+  const useInfiniteScroll = isPostTab || tab === "topics" || tab === "people";
 
   const loadContent = useCallback(
     async (opts?: { reset?: boolean; append?: boolean }) => {
@@ -237,7 +237,7 @@ function ExploreContentInner() {
   // Helper to get active items
   const activeItems =
     (tabData as unknown as Record<string, (Topic | Person | ExplorePost)[]>)[
-      tab
+    tab
     ] || [];
 
   const onSwipeStart = useCallback((e: React.TouchEvent) => {

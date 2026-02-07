@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/empty-state";
 import { useExplorationTrail } from "@/context/exploration-trail";
 import { ContinueExploring } from "./continue-exploring";
+import { Pill } from "./ui/pill";
 import Link from "next/link";
 
 const HERO_FADE_HEIGHT = 280;
@@ -93,6 +94,7 @@ function TopicPageInner({ topic }: TopicPageProps) {
   const [isFollowing, setIsFollowing] = useState(topic.isFollowing ?? false);
   const [scrollY, setScrollY] = useState(0);
   const [activeTab, setActiveTab] = useState<TabKey>("recent");
+  const [topicSearchQuery, setTopicSearchQuery] = useState("");
   const [posts, setPosts] = useState<Post[]>(topic.posts ?? []);
   const [_postsPage, setPostsPage] = useState(1);
   void _postsPage;
@@ -454,7 +456,7 @@ function TopicPageInner({ topic }: TopicPageProps) {
         <div className="relative z-10 max-w-[680px] mx-auto px-6 py-8 w-full">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-paper mb-2">
+              <h1 className="text-[28px] font-bold leading-[34px] text-paper mb-2">
                 {topic.title}
               </h1>
               <div className="flex items-center gap-2 text-secondary text-sm">
@@ -467,18 +469,17 @@ function TopicPageInner({ topic }: TopicPageProps) {
                 </span>
               </div>
               {topic.description && (
-                <p className="mt-4 text-paper/90 max-w-xl text-lg leading-relaxed">
+                <p className="mt-3 text-paper text-[15px] leading-[22px]">
                   {topic.description}
                 </p>
               )}
             </div>
             <button
               onClick={handleFollow}
-              className={`px-6 py-2.5 rounded-full font-semibold transition-colors shrink-0 ${
-                isFollowing
-                  ? "bg-white/10 border border-white/20 text-paper hover:bg-white/20"
-                  : "bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
-              }`}
+              className={`min-w-[120px] h-[38px] px-4 rounded-full font-semibold text-[14px] transition-colors shrink-0 border ${isFollowing
+                ? "bg-primary border-primary text-ink"
+                : "border-primary text-paper hover:bg-white/5"
+                }`}
             >
               {isFollowing ? "Following" : "Follow Topic"}
             </button>
@@ -499,7 +500,7 @@ function TopicPageInner({ topic }: TopicPageProps) {
                 <Link
                   key={post.id}
                   href={`/post/${post.id}`}
-                  className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/30 transition-all group"
+                  className="p-3 bg-hover border border-divider rounded-lg hover:bg-white/10 transition-all group"
                 >
                   <div className="text-sm font-semibold text-paper truncate group-hover:text-primary transition-colors">
                     {post.title || "Post"}
@@ -531,28 +532,51 @@ function TopicPageInner({ topic }: TopicPageProps) {
             </h2>
             <div className="flex flex-wrap gap-2">
               {topicMap.connectedTopics.map((t) => (
-                <Link
+                <Pill
                   key={t.id}
-                  href={`/topic/${encodeURIComponent(t.slug)}`}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/30 transition-all"
-                >
-                  <span className="text-sm text-paper font-medium">
-                    {t.title}
-                  </span>
-                  {t.sharedPosts > 0 && (
-                    <span className="text-xs text-tertiary">
-                      {t.sharedPosts} shared
-                    </span>
-                  )}
-                </Link>
+                  variant="topic"
+                  title={t.title}
+                  slug={t.slug}
+                  count={t.sharedPosts > 0 ? t.sharedPosts : undefined}
+                  size="sm"
+                />
               ))}
             </div>
           </section>
         )}
 
+        {/* Search in topic — matches mobile */}
+        <div className="px-4 py-3 border-b border-divider">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = topicSearchQuery.trim();
+              if (q) {
+                router.push(
+                  `/search?q=${encodeURIComponent(q)}&topicSlug=${encodeURIComponent(topic.slug)}`,
+                );
+              }
+            }}
+            className="relative flex items-center"
+          >
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-tertiary pointer-events-none">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="search"
+              value={topicSearchQuery}
+              onChange={(e) => setTopicSearchQuery(e.target.value)}
+              placeholder={`Search in ${topic.title}...`}
+              className="w-full min-h-[48px] pl-10 pr-4 py-2 bg-hover border border-divider rounded-lg text-paper placeholder:text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/50 transition-colors text-base"
+            />
+          </form>
+        </div>
+
         {/* Tabs – parity with mobile: Recent, Discussed, Sources, People */}
         <div className="sticky top-0 z-40 bg-ink border-b border-divider">
-          <div className="flex overflow-x-auto no-scrollbar">
+          <div className="flex overflow-x-auto no-scrollbar gap-3 px-4">
             {(
               [
                 ["recent", "Most recent"],
@@ -565,11 +589,10 @@ function TopicPageInner({ topic }: TopicPageProps) {
                 key={key}
                 type="button"
                 onClick={() => setActiveTab(key)}
-                className={`shrink-0 px-5 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === key
-                    ? "border-primary text-paper"
-                    : "border-transparent text-tertiary hover:text-paper"
-                }`}
+                className={`shrink-0 px-2 py-3 text-[15px] font-semibold border-b-[3px] transition-colors whitespace-nowrap ${activeTab === key
+                  ? "border-primary text-paper"
+                  : "border-transparent text-tertiary hover:text-paper"
+                  }`}
               >
                 {label}
               </button>

@@ -278,12 +278,12 @@ function ReplySectionInner({
             saved.author ??
             (user
               ? {
-                  id: user.id,
-                  handle: user.handle ?? "",
-                  displayName: user.displayName ?? "",
-                  avatarKey: user.avatarKey ?? null,
-                  avatarUrl: user.avatarUrl ?? null,
-                }
+                id: user.id,
+                handle: user.handle ?? "",
+                displayName: user.displayName ?? "",
+                avatarKey: user.avatarKey ?? null,
+                avatarUrl: user.avatarUrl ?? null,
+              }
               : saved.author),
         };
         if (parentReplyId) {
@@ -373,31 +373,49 @@ function ReplySectionInner({
 
       {canReply && showReplyBox && !replyingToReplyId && (
         <form onSubmit={handleSubmitReply} className="mb-6">
-          <textarea
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            placeholder={t("writeComment")}
-            className="w-full min-h-[100px] px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-            autoFocus
-          />
-          <div className="flex justify-end gap-2 mt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowReplyBox(false);
-                setReplyText("");
-              }}
-              className="px-4 py-2 text-secondary hover:text-paper transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!replyText.trim()}
-              className="px-4 py-2 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {t("postComment")}
-            </button>
+          <div className="flex gap-3">
+            {user && (
+              <Avatar
+                avatarKey={(user as { avatarKey?: string }).avatarKey}
+                avatarUrl={(user as { avatarUrl?: string }).avatarUrl}
+                displayName={(user as { displayName?: string }).displayName || ""}
+                handle={(user as { handle?: string }).handle || ""}
+                size="sm"
+              />
+            )}
+            <div className="flex-1">
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder={t("writeComment")}
+                className="w-full min-h-[80px] px-4 py-3 bg-hover border border-divider rounded-lg text-paper text-sm placeholder-tertiary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 resize-none transition-all"
+                autoFocus
+              />
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-tertiary">
+                  {replyText.length > 0 ? `${replyText.length} characters` : ""}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowReplyBox(false);
+                      setReplyText("");
+                    }}
+                    className="px-3 py-1.5 text-sm text-secondary hover:text-paper transition-colors rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!replyText.trim()}
+                    className="px-4 py-1.5 text-sm font-medium bg-primary text-ink rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {t("postComment")}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </form>
       )}
@@ -570,10 +588,10 @@ function ReplySectionInner({
                                     onDelete={
                                       user?.id === child.author.id
                                         ? () =>
-                                            handleDeleteReply(
-                                              child.id,
-                                              reply.id,
-                                            )
+                                          handleDeleteReply(
+                                            child.id,
+                                            reply.id,
+                                          )
                                         : undefined
                                     }
                                   />
@@ -595,8 +613,8 @@ function ReplySectionInner({
                                 handleLikeReply(
                                   child.id,
                                   likedReplyIds.has(child.id) ??
-                                    child.isLiked ??
-                                    false,
+                                  child.isLiked ??
+                                  false,
                                 )
                               }
                               className="flex items-center gap-1 text-tertiary hover:text-paper text-xs mt-1"
@@ -643,7 +661,7 @@ function ReplySectionInner({
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder={t("writeComment")}
-                    className="w-full min-h-[80px] px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-paper placeholder-tertiary text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                    className="w-full min-h-[80px] px-3 py-2 bg-hover border border-divider rounded-lg text-paper placeholder-tertiary text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none transition-colors"
                     autoFocus
                   />
                   <div className="flex justify-end gap-2 mt-2">
@@ -661,7 +679,7 @@ function ReplySectionInner({
                     <button
                       type="submit"
                       disabled={!replyText.trim()}
-                      className="px-3 py-1.5 bg-primary text-white rounded-full text-sm disabled:opacity-50"
+                      className="px-3 py-1.5 bg-primary text-ink font-semibold rounded-lg text-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
                     >
                       {t("postComment")}
                     </button>
