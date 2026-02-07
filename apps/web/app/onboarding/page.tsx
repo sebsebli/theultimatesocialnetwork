@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const STAGE_KEY = "onboarding_stage";
-type Stage = "languages" | "profile" | "starter-packs";
+type Stage = "languages" | "topics" | "profile" | "starter-packs";
 
 /**
  * Entry point for onboarding: redirect to the correct step so users
@@ -26,11 +26,13 @@ export default function OnboardingIndexPage() {
     const stage = sessionStorage.getItem(STAGE_KEY) as Stage | null;
 
     const route =
-      stage === "profile"
-        ? "/onboarding/profile"
-        : stage === "starter-packs"
-          ? "/onboarding/starter-packs"
-          : "/onboarding/languages";
+      stage === "topics"
+        ? "/onboarding/topics"
+        : stage === "profile"
+          ? "/onboarding/profile"
+          : stage === "starter-packs"
+            ? "/onboarding/starter-packs"
+            : "/onboarding/languages";
 
     router.replace(route);
   }, [router]);

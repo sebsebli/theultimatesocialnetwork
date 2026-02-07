@@ -81,12 +81,12 @@ export default function CollectionDetailScreen() {
       | CollectionItem
       | { id: string; url: string; title: string | null }
       | {
-        id: string;
-        handle: string;
-        displayName: string;
-        postCount: number;
-        totalQuotes: number;
-      }
+          id: string;
+          handle: string;
+          displayName: string;
+          postCount: number;
+          totalQuotes: number;
+        }
     )[]
   >([]);
   const [loading, setLoading] = useState(true);
@@ -187,21 +187,24 @@ export default function CollectionDetailScreen() {
   const handleSaveEdit = async () => {
     if (!editTitle.trim()) return;
     try {
-      const updated = await api.patch<Collection & { shareSaves?: boolean }>(`/collections/${collectionId}`, {
-        title: editTitle.trim(),
-        description: editDescription.trim() || undefined,
-        isPublic: editIsPublic,
-        shareSaves: editShareSaves,
-      });
+      const updated = await api.patch<Collection & { shareSaves?: boolean }>(
+        `/collections/${collectionId}`,
+        {
+          title: editTitle.trim(),
+          description: editDescription.trim() || undefined,
+          isPublic: editIsPublic,
+          shareSaves: editShareSaves,
+        },
+      );
       setCollection((prev) =>
         prev
           ? {
-            ...prev,
-            ...updated,
-            title: updated.title ?? prev.title,
-            description: updated.description ?? prev.description,
-            isPublic: updated.isPublic ?? prev.isPublic,
-          }
+              ...prev,
+              ...updated,
+              title: updated.title ?? prev.title,
+              description: updated.description ?? prev.description,
+              isPublic: updated.isPublic ?? prev.isPublic,
+            }
           : null,
       );
       setShareSaves(!!updated.shareSaves);
@@ -224,9 +227,13 @@ export default function CollectionDetailScreen() {
       }
       try {
         if (reset) {
-          const collectionData = await api.get<Collection & { items?: CollectionItem[]; hasMore?: boolean; shareSaves?: boolean }>(
-            `/collections/${collectionId}?limit=${ITEMS_PAGE_SIZE}&offset=0`,
-          );
+          const collectionData = await api.get<
+            Collection & {
+              items?: CollectionItem[];
+              hasMore?: boolean;
+              shareSaves?: boolean;
+            }
+          >(`/collections/${collectionId}?limit=${ITEMS_PAGE_SIZE}&offset=0`);
           setCollection(collectionData);
           setShareSaves(!!collectionData.shareSaves);
           if (tab === "newest") {
@@ -243,7 +250,10 @@ export default function CollectionDetailScreen() {
           }
         }
         if (tab === "newest" && !reset) {
-          const itemsData = await api.get<{ items?: CollectionItem[]; hasMore?: boolean }>(
+          const itemsData = await api.get<{
+            items?: CollectionItem[];
+            hasMore?: boolean;
+          }>(
             `/collections/${collectionId}/items?limit=${ITEMS_PAGE_SIZE}&offset=${pageOrOffset}&sort=recent`,
           );
           const itemsList = Array.isArray(itemsData?.items)
@@ -253,7 +263,10 @@ export default function CollectionDetailScreen() {
           setHasMore(itemsData?.hasMore === true);
           setNextOffset(pageOrOffset + itemsList.length);
         } else if (tab === "ranked") {
-          const itemsData = await api.get<{ items?: CollectionItem[]; hasMore?: boolean }>(
+          const itemsData = await api.get<{
+            items?: CollectionItem[];
+            hasMore?: boolean;
+          }>(
             `/collections/${collectionId}/items?limit=${ITEMS_PAGE_SIZE}&offset=${reset ? 0 : pageOrOffset}&sort=ranked`,
           );
           const itemsList = Array.isArray(itemsData?.items)
@@ -264,21 +277,29 @@ export default function CollectionDetailScreen() {
           setHasMore(itemsData?.hasMore === true);
           setNextOffset((reset ? 0 : pageOrOffset) + itemsList.length);
         } else if (tab === "sources") {
-          const res = await api.get<{ items?: Record<string, unknown>[]; hasMore?: boolean }>(
+          const res = await api.get<{
+            items?: Record<string, unknown>[];
+            hasMore?: boolean;
+          }>(
             `/collections/${collectionId}/sources?page=${pageOrOffset}&limit=${ITEMS_PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
           if (reset) setItems(list as unknown as typeof items);
-          else setItems((prev) => [...prev, ...(list as unknown as typeof items)]);
+          else
+            setItems((prev) => [...prev, ...(list as unknown as typeof items)]);
           setHasMore(list.length === ITEMS_PAGE_SIZE && res?.hasMore !== false);
           setPage(pageOrOffset + 1);
         } else if (tab === "contributors") {
-          const res = await api.get<{ items?: Record<string, unknown>[]; hasMore?: boolean }>(
+          const res = await api.get<{
+            items?: Record<string, unknown>[];
+            hasMore?: boolean;
+          }>(
             `/collections/${collectionId}/contributors?page=${pageOrOffset}&limit=${ITEMS_PAGE_SIZE}`,
           );
           const list = Array.isArray(res?.items) ? res.items : [];
           if (reset) setItems(list as unknown as typeof items);
-          else setItems((prev) => [...prev, ...(list as unknown as typeof items)]);
+          else
+            setItems((prev) => [...prev, ...(list as unknown as typeof items)]);
           setHasMore(list.length === ITEMS_PAGE_SIZE && res?.hasMore !== false);
           setPage(pageOrOffset + 1);
         }
@@ -354,7 +375,9 @@ export default function CollectionDetailScreen() {
             })),
         );
       })
-      .catch(() => { /* operation failure handled silently */ });
+      .catch(() => {
+        /* operation failure handled silently */
+      });
   }, [userId, collectionId]);
 
   const renderItem = useCallback(
@@ -388,7 +411,7 @@ export default function CollectionDetailScreen() {
                   ? getImageUrl(String(item.headerImageKey))
                   : undefined
               }
-              onPress={() => router.push(`/post/${item.id}`)}
+              onPress={() => router.push(`/post/${item.id}/reading`)}
             />
           );
         }
@@ -407,7 +430,8 @@ export default function CollectionDetailScreen() {
           );
         }
         const title =
-          item.title || (item.url ? new URL(String(item.url)).hostname : "External");
+          item.title ||
+          (item.url ? new URL(String(item.url)).hostname : "External");
         const subtitle = String(item.url || "");
         return (
           <SourceOrPostCard
@@ -440,10 +464,10 @@ export default function CollectionDetailScreen() {
   );
 
   const keyExtractor = useCallback(
-    (item: typeof items[number]) => {
+    (item: (typeof items)[number]) => {
       const itemRecord = item as Record<string, unknown>;
       return activeTab === "sources" && itemRecord?.type
-        ? `${itemRecord.type as string}-${itemRecord.type === "external" ? (itemRecord.url ?? itemRecord.id) as string : itemRecord.id as string}`
+        ? `${itemRecord.type as string}-${itemRecord.type === "external" ? ((itemRecord.url ?? itemRecord.id) as string) : (itemRecord.id as string)}`
         : (item as { id: string }).id;
     },
     [activeTab],
@@ -558,10 +582,14 @@ export default function CollectionDetailScreen() {
       return listDataRaw.filter((item) => {
         const itemRecord = item as Record<string, unknown>;
         return (
-          (itemRecord.title && String(itemRecord.title).toLowerCase().includes(q)) ||
-          (itemRecord.url && String(itemRecord.url).toLowerCase().includes(q)) ||
-          (itemRecord.slug && String(itemRecord.slug).toLowerCase().includes(q)) ||
-          (itemRecord.authorHandle && String(itemRecord.authorHandle).toLowerCase().includes(q))
+          (itemRecord.title &&
+            String(itemRecord.title).toLowerCase().includes(q)) ||
+          (itemRecord.url &&
+            String(itemRecord.url).toLowerCase().includes(q)) ||
+          (itemRecord.slug &&
+            String(itemRecord.slug).toLowerCase().includes(q)) ||
+          (itemRecord.authorHandle &&
+            String(itemRecord.authorHandle).toLowerCase().includes(q))
         );
       });
     }
@@ -569,8 +597,10 @@ export default function CollectionDetailScreen() {
       return listDataRaw.filter((item) => {
         const itemRecord = item as Record<string, unknown>;
         return (
-          (itemRecord.displayName && String(itemRecord.displayName).toLowerCase().includes(q)) ||
-          (itemRecord.handle && String(itemRecord.handle).toLowerCase().includes(q))
+          (itemRecord.displayName &&
+            String(itemRecord.displayName).toLowerCase().includes(q)) ||
+          (itemRecord.handle &&
+            String(itemRecord.handle).toLowerCase().includes(q))
         );
       });
     }
@@ -591,7 +621,16 @@ export default function CollectionDetailScreen() {
           type="collection"
           title={collection.title}
           description={collection.description}
-          headerImageUri={getCollectionPreviewImageUri(collection as { previewImageUrl?: string | null; previewImageKey?: string | null; recentPost?: { headerImageUrl?: string | null; headerImageKey?: string | null } | null })}
+          headerImageUri={getCollectionPreviewImageUri(
+            collection as {
+              previewImageUrl?: string | null;
+              previewImageKey?: string | null;
+              recentPost?: {
+                headerImageUrl?: string | null;
+                headerImageKey?: string | null;
+              } | null;
+            },
+          )}
           onBack={() => router.back()}
           onAction={handleShare}
           actionLabel={t("common.share")}
@@ -601,7 +640,9 @@ export default function CollectionDetailScreen() {
           }
           metrics={{
             itemCount: collection.itemCount,
-            contributorCount: (collection as Collection & { contributorCount?: number }).contributorCount,
+            contributorCount: (
+              collection as Collection & { contributorCount?: number }
+            ).contributorCount,
           }}
         >
           <View style={styles.searchRow}>
@@ -690,7 +731,7 @@ export default function CollectionDetailScreen() {
         headerComponent={headerComponent}
         heroOpacity={heroOpacity}
         stickyOpacity={stickyOpacity}
-        onScroll={() => { }}
+        onScroll={() => {}}
         scrollY={scrollY}
         data={listData}
         keyExtractor={keyExtractor}

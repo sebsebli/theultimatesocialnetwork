@@ -2,13 +2,29 @@ import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import { PublicNav } from "@/components/landing/public-nav";
 import { PublicFooter } from "@/components/landing/public-footer";
+import { WebPageJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const metadata: Metadata = {
-  title: "Roadmap | Citewalk",
+  title: "Roadmap",
   description:
-    "What we're building at Citewalk. See what's live, what's coming, and where we're headed.",
+    "What we're building at Citewalk. See what's live, what's coming next, and where the European social network is headed.",
   alternates: {
     canonical: "https://citewalk.com/roadmap",
+  },
+  openGraph: {
+    title: "Roadmap — Citewalk",
+    description:
+      "What we're building at Citewalk. See what's live, what's coming next, and where we're headed.",
+    url: "https://citewalk.com/roadmap",
+    type: "website",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Roadmap — Citewalk",
+    description:
+      "What we're building at Citewalk. See what's live, what's coming next, and where we're headed.",
+    images: ["/og-image.png"],
   },
 };
 
@@ -18,6 +34,18 @@ export default async function RoadmapPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] font-sans">
+      <WebPageJsonLd
+        title="Roadmap — Citewalk"
+        description="What we're building at Citewalk. See what's live, what's coming next, and where we're headed."
+        url="https://citewalk.com/roadmap"
+        dateModified="2026-02-01"
+      />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://citewalk.com" },
+          { name: "Roadmap", url: "https://citewalk.com/roadmap" },
+        ]}
+      />
       <PublicNav isAuthenticated={isAuthenticated} />
 
       <main id="main-content" className="max-w-4xl mx-auto pt-32 pb-20 px-6">
@@ -60,7 +88,7 @@ export default async function RoadmapPage() {
               </div>
 
               <h2 className="text-2xl font-serif text-[var(--foreground)] mb-2">
-                The Foundations
+                Topic-Based Content & Citation Transparency
               </h2>
               <p className="text-[var(--tertiary)] mb-8 text-sm">Live now</p>
 
@@ -80,8 +108,9 @@ export default async function RoadmapPage() {
                     <span className="text-[var(--foreground)] font-mono text-xs">
                       [[citelinks]]
                     </span>{" "}
-                    to connect any post to topics, sources, or other writers.
-                    Every link goes both ways.
+                    to connect any post to topics, sources, or other posts.
+                    Every link creates a visible connection. Posts build on each
+                    other, creating citation chains.
                   </p>
                 </div>
                 <div className="p-5 border border-[var(--divider)] bg-[#0F0F10] rounded hover:border-[var(--primary)] transition-colors">
@@ -95,8 +124,12 @@ export default async function RoadmapPage() {
                     </span>
                   </div>
                   <p className="text-sm text-[var(--secondary)] leading-relaxed">
-                    All data hosted in Europe. GDPR-compliant by design. Your
-                    writing belongs to you, not the platform.
+                    Topic-based content delivery — tag posts with{" "}
+                    <span className="text-[var(--foreground)] font-mono text-xs">
+                      [[topics]]
+                    </span>{" "}
+                    and everyone following that topic sees it. Chronological
+                    feeds you control. EU-hosted, GDPR-compliant by design.
                   </p>
                 </div>
                 <div className="p-5 border border-[var(--divider)] bg-[#0F0F10] rounded hover:border-[var(--primary)] transition-colors">
@@ -136,7 +169,7 @@ export default async function RoadmapPage() {
               </div>
 
               <h2 className="text-2xl font-serif text-[var(--foreground)] mb-2">
-                Growing the Network
+                Exploration & Public Discovery
               </h2>
               <p className="text-[var(--tertiary)] mb-8 text-sm">
                 Coming in 2026
@@ -154,9 +187,28 @@ export default async function RoadmapPage() {
                     </span>
                   </div>
                   <p className="text-sm text-[var(--secondary)] leading-relaxed">
-                    Automatic snapshots of external links via Internet Archive,
-                    so your sources stay alive even if the original page
-                    disappears.
+                    Exploration trail showing how you discovered content through
+                    connections. Topic maps visualizing how ideas relate. Public
+                    post pages with SEO so ideas are discoverable beyond the
+                    platform.
+                  </p>
+                </div>
+                <div className="p-5 border border-[var(--divider)] bg-[var(--background)] rounded opacity-80 hover:opacity-100 transition-opacity">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-[var(--foreground)]">
+                      Citewalk Pro
+                    </h3>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-amber-500 border border-amber-900/30 bg-amber-900/10 px-2 py-0.5 rounded-full">
+                      <span className="w-1 h-1 rounded-full bg-amber-500" />
+                      In progress
+                    </span>
+                  </div>
+                  <p className="text-sm text-[var(--secondary)] leading-relaxed">
+                    Optional subscription for power users. Citation analytics
+                    dashboard (track how your ideas spread), advanced search
+                    across citation chains, extended formatting, API access for
+                    researchers and journalists, and priority features. The
+                    sustainable way to fund an ad-free platform.
                   </p>
                 </div>
                 <div className="p-5 border border-[var(--divider)] bg-[var(--background)] rounded opacity-80 hover:opacity-100 transition-opacity">
@@ -170,9 +222,25 @@ export default async function RoadmapPage() {
                     </span>
                   </div>
                   <p className="text-sm text-[var(--secondary)] leading-relaxed">
-                    ActivityPub support so you can follow and be followed by
-                    people on Mastodon, Bluesky bridges, and other open
-                    platforms.
+                    Fediverse integration (ActivityPub) so you can follow and be
+                    followed by people on Mastodon, Bluesky bridges, and other
+                    open platforms. Citation transparency across the network.
+                  </p>
+                </div>
+                <div className="p-5 border border-[var(--divider)] bg-[var(--background)] rounded opacity-80 hover:opacity-100 transition-opacity">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-medium text-[var(--foreground)]">
+                      Institutional &amp; Team Plans
+                    </h3>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-[var(--tertiary)] border border-[#333] /* divider-subtle */ bg-[var(--divider)] px-2 py-0.5 rounded-full">
+                      <span className="w-1 h-1 rounded-full bg-[var(--tertiary)]" />
+                      Planned
+                    </span>
+                  </div>
+                  <p className="text-sm text-[var(--secondary)] leading-relaxed">
+                    Team subscriptions for newsrooms, universities, and research
+                    groups. Shared collections, team analytics, white-label
+                    embeds, and academic export formats (BibTeX).
                   </p>
                 </div>
               </div>
@@ -197,7 +265,7 @@ export default async function RoadmapPage() {
               </div>
 
               <h2 className="text-2xl font-serif text-[var(--foreground)] mb-2">
-                Smarter Connections
+                AI Discovery &amp; Integrations
               </h2>
               <p className="text-[var(--tertiary)] mb-8 text-sm">Future</p>
 
@@ -207,8 +275,10 @@ export default async function RoadmapPage() {
                     AI-powered discovery
                   </h3>
                   <p className="text-sm text-[var(--secondary)]">
-                    Private, on-device AI that helps you find surprising
-                    connections between ideas you&apos;ve written about.
+                    AI-powered topic discovery using graph-based analysis of how
+                    ideas connect — not user profiling. Embeddable citations for
+                    external sites. Academic and news integrations for
+                    cross-platform citation chains.
                   </p>
                 </div>
               </div>

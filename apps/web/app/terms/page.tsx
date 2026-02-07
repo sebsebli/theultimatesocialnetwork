@@ -5,11 +5,23 @@ import { getLocale } from "next-intl/server";
 import { TermsContentDE } from "./de";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | Citewalk",
+  title: "Terms of Service",
   description:
-    "Terms of service for Citewalk, operated by Dr. Sebastian Lindner.",
+    "Terms of service for Citewalk, the European social network. Operated by Dr. Sebastian Lindner. Fair terms, no surprises.",
   alternates: {
     canonical: "https://citewalk.com/terms",
+  },
+  openGraph: {
+    title: "Terms of Service — Citewalk",
+    description:
+      "Terms of service for Citewalk, the European social network. Fair terms, no surprises.",
+    url: "https://citewalk.com/terms",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Terms of Service — Citewalk",
+    description: "Terms of service for Citewalk, the European social network.",
   },
 };
 

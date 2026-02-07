@@ -4,22 +4,31 @@ import { useEffect, useRef, useState } from "react";
 import { MdFormatQuote, MdImage, MdLink } from "react-icons/md";
 
 const TYPING_SEQUENCE = [
-  { text: "Every", delay: 50 },
-  { text: " good", delay: 50 },
-  { text: " idea", delay: 50 },
-  { text: " deserves", delay: 50 },
-  { text: " a", delay: 50 },
-  { text: " source.\n\n", delay: 300 },
-  { text: "That's", delay: 50 },
-  { text: " why", delay: 50 },
-  { text: " we", delay: 50 },
-  { text: " built", delay: 50 },
+  { text: "Building", delay: 50 },
+  { text: " on", delay: 50 },
   { text: " ", delay: 50 },
   { text: "[[", delay: 400, action: "open_menu" },
-  { text: "Citation", delay: 100 },
-  { text: " Graphs", delay: 100 },
+  { text: "post:example|Maria's sourdough recipe", delay: 200 },
   { text: "]]", delay: 400, action: "close_menu" },
-  { text: ".", delay: 800 },
+  { text: ",", delay: 50 },
+  { text: " I", delay: 50 },
+  { text: " discovered", delay: 50 },
+  { text: " that", delay: 50 },
+  { text: "...\n\n", delay: 300 },
+  { text: "This", delay: 50 },
+  { text: " is", delay: 50 },
+  { text: " relevant", delay: 50 },
+  { text: " to", delay: 50 },
+  { text: " ", delay: 50 },
+  { text: "[[", delay: 400, action: "open_menu" },
+  { text: "Fermentation", delay: 100 },
+  { text: "]]", delay: 400, action: "close_menu" },
+  { text: " and", delay: 50 },
+  { text: " ", delay: 50 },
+  { text: "[[", delay: 400, action: "open_menu" },
+  { text: "Bread", delay: 100 },
+  { text: "]]", delay: 400, action: "close_menu" },
+  { text: "...", delay: 800 },
 ];
 
 export function EditorDemo() {
@@ -76,15 +85,20 @@ export function EditorDemo() {
 
   // Render stylized content
   const renderContent = () => {
-    const parts = content.split(/(\[\[.*?\].*?\]\])/g);
+    const parts = content.split(/(\[\[.*?\]\])/g);
     return parts.map((part, i) => {
       if (part.startsWith("[[") && part.endsWith("]]")) {
+        const linkContent = part.slice(2, -2);
+        // Extract display text (after pipe) or use full content
+        const displayText = linkContent.includes("|")
+          ? linkContent.split("|")[1]
+          : linkContent;
         return (
           <span
             key={i}
             className="text-[var(--primary)] border-b border-[var(--primary)]/50 pb-0.5"
           >
-            {part.slice(2, -2)}
+            {displayText}
           </span>
         );
       }
@@ -115,8 +129,9 @@ export function EditorDemo() {
       <div className="p-6 h-[240px] relative text-[var(--foreground)] leading-relaxed whitespace-pre-wrap font-serif">
         {renderContent()}
         <span
-          className={`${cursorVisible ? "opacity-100" : "opacity-0"
-            } inline-block w-[2px] h-[1.2em] bg-[var(--primary)] align-middle ml-[1px]`}
+          className={`${
+            cursorVisible ? "opacity-100" : "opacity-0"
+          } inline-block w-[2px] h-[1.2em] bg-[var(--primary)] align-middle ml-[1px]`}
         />
 
         {/* Floating Menu */}
@@ -124,18 +139,18 @@ export function EditorDemo() {
           <div className="absolute top-[110px] left-[100px] w-48 bg-[var(--background)] border border-[var(--divider)] rounded-lg shadow-xl z-10 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             {/* Modal surface - keep hardcoded color for visual distinction */}
             <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-[var(--tertiary)] bg-[#0F0F10] border-b border-[var(--divider)]">
-              Link to Topic
+              Link to Post or Topic
             </div>
             <div className="flex flex-col">
               <div className="px-3 py-2 text-[var(--foreground)] hover:bg-[var(--divider)] cursor-pointer flex justify-between items-center bg-[var(--divider)]">
-                <span>Citation Graphs</span>
-                <span className="text-[10px] text-[var(--primary)]">New</span>
+                <span>Maria&apos;s sourdough recipe</span>
+                <span className="text-[10px] text-[var(--primary)]">Post</span>
               </div>
               <div className="px-3 py-2 text-[var(--secondary)] hover:bg-[var(--divider)] cursor-pointer">
-                Citation Analysis
+                Fermentation
               </div>
               <div className="px-3 py-2 text-[var(--secondary)] hover:bg-[var(--divider)] cursor-pointer">
-                Knowledge Graphs
+                Bread
               </div>
             </div>
           </div>

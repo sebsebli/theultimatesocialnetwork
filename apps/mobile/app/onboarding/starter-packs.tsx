@@ -47,7 +47,9 @@ export default function OnboardingStarterPacksScreen() {
   const loadRecommendations = async () => {
     try {
       // Fetch suggested users using the recommendation engine
-      const data = await api.get<User[] | { items?: User[] }>("/explore/people?limit=10");
+      const data = await api.get<User[] | { items?: User[] }>(
+        "/explore/people?limit=10",
+      );
       const items = Array.isArray(data)
         ? data
         : Array.isArray((data as { items?: User[] }).items)
@@ -96,6 +98,7 @@ export default function OnboardingStarterPacksScreen() {
         <View style={styles.stepIndicator}>
           <View style={styles.stepDot} />
           <View style={styles.stepDot} />
+          <View style={styles.stepDot} />
           <View style={[styles.stepDot, styles.stepDotActive]} />
         </View>
       </View>
@@ -105,11 +108,9 @@ export default function OnboardingStarterPacksScreen() {
         showsVerticalScrollIndicator={false}
         showsHorizontalScrollIndicator={false}
       >
-        <Text style={styles.title}>
-          {t("onboarding.starterPacks.starterPackTitle")}
-        </Text>
+        <Text style={styles.title}>Follow some writers</Text>
         <Text style={styles.subtitle}>
-          {t("onboarding.starterPacks.starterPackSubtitle")}
+          Optionally follow some writers. You already have topics in your feed!
         </Text>
 
         {loading ? (
@@ -144,9 +145,11 @@ export default function OnboardingStarterPacksScreen() {
                   ]}
                   onPress={() => toggleFollow(user)}
                   accessibilityRole="button"
-                  accessibilityLabel={user.isFollowing
-                    ? t("profile.following")
-                    : t("profile.follow")}
+                  accessibilityLabel={
+                    user.isFollowing
+                      ? t("profile.following")
+                      : t("profile.follow")
+                  }
                 >
                   <Text
                     style={[
@@ -180,7 +183,11 @@ export default function OnboardingStarterPacksScreen() {
           ) : (
             <Text style={styles.buttonText}>{t("onboarding.finish")}</Text>
           )}
-          <MaterialIcons name="check" size={HEADER.iconSize} color={COLORS.paper} />
+          <MaterialIcons
+            name="check"
+            size={HEADER.iconSize}
+            color={COLORS.paper}
+          />
         </Pressable>
       </View>
     </View>

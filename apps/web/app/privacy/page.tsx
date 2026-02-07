@@ -5,10 +5,24 @@ import { getLocale } from "next-intl/server";
 import { PrivacyContentDE } from "./de";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Citewalk",
-  description: "Privacy Policy for Citewalk. Hosted in the EU, GDPR compliant.",
+  title: "Privacy Policy",
+  description:
+    "Privacy Policy for Citewalk. 100% EU-hosted, GDPR compliant. No tracking, no ads, no data sales. Your data belongs to you.",
   alternates: {
     canonical: "https://citewalk.com/privacy",
+  },
+  openGraph: {
+    title: "Privacy Policy — Citewalk",
+    description:
+      "100% EU-hosted, GDPR compliant. No tracking, no ads, no data sales.",
+    url: "https://citewalk.com/privacy",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Privacy Policy — Citewalk",
+    description:
+      "100% EU-hosted, GDPR compliant. No tracking, no ads, no data sales.",
   },
 };
 

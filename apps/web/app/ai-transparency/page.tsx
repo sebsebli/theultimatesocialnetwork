@@ -4,11 +4,24 @@ import Image from "next/image";
 import { MdShield, MdVisibility } from "react-icons/md";
 
 export const metadata: Metadata = {
-  title: "AI Transparency | Citewalk",
+  title: "AI Transparency",
   description:
-    "AI Transparency Statement for Citewalk. Information pursuant to the EU Artificial Intelligence Act.",
+    "AI Transparency Statement for Citewalk. How we use AI responsibly, pursuant to the EU Artificial Intelligence Act. Full disclosure of AI systems.",
   alternates: {
     canonical: "https://citewalk.com/ai-transparency",
+  },
+  openGraph: {
+    title: "AI Transparency — Citewalk",
+    description:
+      "How Citewalk uses AI responsibly. Full transparency pursuant to the EU AI Act.",
+    url: "https://citewalk.com/ai-transparency",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "AI Transparency — Citewalk",
+    description:
+      "How Citewalk uses AI responsibly. Full transparency pursuant to the EU AI Act.",
   },
 };
 
@@ -50,6 +63,16 @@ export default function AiTransparencyPage() {
         </div>
 
         <div className="prose prose-invert prose-p:text-[#A8A8AA] prose-headings:text-[#F2F2F2] prose-headings:font-medium prose-a:text-[#F2F2F2] prose-strong:text-[#F2F2F2] max-w-none font-serif leading-relaxed">
+          {/* Mission */}
+          <section className="mb-12">
+            <p className="text-lg leading-relaxed">
+              Citewalk is a social network where ideas connect and grow. This
+              transparency statement explains how we use AI systems to support
+              that mission while maintaining full compliance with the EU
+              Artificial Intelligence Act.
+            </p>
+          </section>
+
           {/* 1 */}
           <section className="mb-12">
             <h2 className="text-xl font-sans font-bold uppercase tracking-wide text-[#6E6E73] mb-6 border-b border-[#1A1A1D] pb-2">

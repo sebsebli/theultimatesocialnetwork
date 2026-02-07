@@ -17,26 +17,27 @@ async function getPost(id: string) {
       headers,
     });
     if (res.ok) {
-      return await res.json();
+      return { data: await res.json(), isPublic: !token };
     }
     if (res.status === 403 || res.status === 404) {
-      return null;
+      return { data: null, isPublic: !token };
     }
   } catch (e) {
     console.error("Failed to fetch post", e);
   }
-  return null;
+  return { data: null, isPublic: true };
 }
 
 export default async function ReadingModePage(props: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await props.params;
-  const post = await getPost(params.id);
+  const result = await getPost(params.id);
 
-  if (!post) {
+  if (!result.data) {
     notFound();
   }
 
-  return <ReadingMode post={post} />;
+  return <ReadingMode post={result.data} isPublic={result.isPublic} />;
 }

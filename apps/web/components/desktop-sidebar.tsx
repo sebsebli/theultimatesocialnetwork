@@ -7,12 +7,14 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "./auth-provider";
 import { useUnreadMessages } from "@/context/unread-messages-context";
+import { useExplorationTrail } from "@/context/exploration-trail";
 
 function DesktopSidebarInner() {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const { user } = useAuth();
   const { unreadCount } = useUnreadMessages();
+  const { clearTrail } = useExplorationTrail();
 
   const handle =
     (user as { handle?: string; role?: string } | null)?.handle ?? "me";
@@ -50,6 +52,7 @@ function DesktopSidebarInner() {
         <nav className="flex flex-col gap-1">
           <Link
             href="/home"
+            onClick={() => clearTrail()}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive("/home") || pathname === "/home"
                 ? "bg-white/5 text-paper font-bold"
@@ -75,6 +78,7 @@ function DesktopSidebarInner() {
 
           <Link
             href="/explore"
+            onClick={() => clearTrail()}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive("/explore")
                 ? "bg-white/5 text-paper font-bold"
@@ -99,6 +103,7 @@ function DesktopSidebarInner() {
 
           <Link
             href="/compose"
+            onClick={() => clearTrail()}
             className="flex items-center gap-3 px-3 py-3 mt-2 rounded-full bg-primary text-ink font-semibold hover:opacity-90 transition-all shadow-lg shadow-primary/20 active:scale-[0.98] group"
           >
             <div className="w-8 h-8 rounded-full bg-ink/20 flex items-center justify-center">
@@ -121,6 +126,7 @@ function DesktopSidebarInner() {
 
           <Link
             href="/inbox"
+            onClick={() => clearTrail()}
             className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive("/inbox")
                 ? "bg-white/5 text-paper font-bold"
@@ -150,6 +156,7 @@ function DesktopSidebarInner() {
 
           <Link
             href={`/user/${handle}`}
+            onClick={() => clearTrail()}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
               isActive(`/user/${handle}`)
                 ? "bg-white/5 text-paper font-bold"

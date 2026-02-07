@@ -171,8 +171,9 @@ export default function OnboardingProfileScreen() {
     >
       <View style={styles.header}>
         <View style={styles.stepIndicator}>
-          <View style={[styles.stepDot, styles.stepDotActive]} />
           <View style={styles.stepDot} />
+          <View style={styles.stepDot} />
+          <View style={[styles.stepDot, styles.stepDotActive]} />
           <View style={styles.stepDot} />
         </View>
       </View>
@@ -296,7 +297,9 @@ export default function OnboardingProfileScreen() {
             style={styles.privacyToggle}
             onPress={() => setIsProtected(!isProtected)}
             accessibilityRole="button"
-            accessibilityLabel={isProtected ? t("common.private") : t("common.public")}
+            accessibilityLabel={
+              isProtected ? t("common.private") : t("common.public")
+            }
           >
             <View style={styles.privacyTextContainer}>
               <View style={styles.privacyHeader}>

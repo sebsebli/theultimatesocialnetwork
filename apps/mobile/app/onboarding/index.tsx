@@ -14,11 +14,13 @@ export default function OnboardingIndexScreen() {
   useEffect(() => {
     getOnboardingStage().then((stage) => {
       const route =
-        stage === "profile"
-          ? "/onboarding/profile"
-          : stage === "starter-packs"
-            ? "/onboarding/starter-packs"
-            : "/onboarding/languages";
+        stage === "topics"
+          ? "/onboarding/topics"
+          : stage === "profile"
+            ? "/onboarding/profile"
+            : stage === "starter-packs"
+              ? "/onboarding/starter-packs"
+              : "/onboarding/languages";
       router.replace(route as any);
     });
   }, [router]);

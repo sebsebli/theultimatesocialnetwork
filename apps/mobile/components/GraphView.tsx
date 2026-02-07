@@ -162,10 +162,7 @@ export function GraphView({ postId }: { postId: string }) {
     const cappedL1In = l1Incoming.slice(0, MAX_L1_RENDER);
     const cappedL1Out = l1Outgoing.slice(0, MAX_L1_RENDER);
     const l1Total = cappedL1In.length + cappedL1Out.length;
-    const l2Budget = Math.min(
-      MAX_L2_RENDER,
-      MAX_TOTAL_RENDER - l1Total - 1,
-    );
+    const l2Budget = Math.min(MAX_L2_RENDER, MAX_TOTAL_RENDER - l1Total - 1);
     const cappedL2 = Array.from(l2Ids).slice(0, Math.max(0, l2Budget));
 
     const renderedIds = new Set([
@@ -245,8 +242,7 @@ export function GraphView({ postId }: { postId: string }) {
       children.forEach((childId, i) => {
         const child = nodesMap.get(childId);
         if (!child) return;
-        const offset =
-          count === 1 ? 0 : fanSpread * (i / (count - 1) - 0.5);
+        const offset = count === 1 ? 0 : fanSpread * (i / (count - 1) - 0.5);
         const angle = parentAngle + offset;
         child.x = cx + R2 * Math.cos(angle);
         child.y = cy + R2 * Math.sin(angle);
@@ -269,8 +265,7 @@ export function GraphView({ postId }: { postId: string }) {
     );
 
     // Only show labels when the arcs aren't overcrowded
-    const showLabels =
-      cappedL1In.length <= 12 && cappedL1Out.length <= 12;
+    const showLabels = cappedL1In.length <= 12 && cappedL1Out.length <= 12;
 
     return {
       nodes: filteredNodes,
@@ -285,12 +280,11 @@ export function GraphView({ postId }: { postId: string }) {
   // ── Navigation ────────────────────────────────────
   const handleNodePress = (node: GraphNode) => {
     if (node.isCenter) return;
-    if (node.type === "post") router.push(`/post/${node.id}`);
+    if (node.type === "post") router.push(`/post/${node.id}/reading`);
     else if (node.type === "topic")
       router.push(`/topic/${encodeURIComponent(node.label)}`);
     else if (node.type === "user") router.push(`/user/${node.label}`);
-    else if (node.type === "external" && node.url)
-      openExternalLink(node.url);
+    else if (node.type === "external" && node.url) openExternalLink(node.url);
   };
 
   const nodeColor = (n: GraphNode) =>
@@ -350,9 +344,7 @@ export function GraphView({ postId }: { postId: string }) {
       {/* ── "Cited by" label above graph ── */}
       {layout.l1InCount > 0 && (
         <View style={styles.arcLabel}>
-          <Text style={styles.arcLabelText}>
-            CITED BY ({layout.l1InCount})
-          </Text>
+          <Text style={styles.arcLabelText}>CITED BY ({layout.l1InCount})</Text>
         </View>
       )}
 
@@ -362,11 +354,7 @@ export function GraphView({ postId }: { postId: string }) {
           <Defs>
             <RadialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
               <Stop offset="0%" stopColor={COLORS.primary} stopOpacity="0.4" />
-              <Stop
-                offset="100%"
-                stopColor={COLORS.primary}
-                stopOpacity="0"
-              />
+              <Stop offset="100%" stopColor={COLORS.primary} stopOpacity="0" />
             </RadialGradient>
           </Defs>
 
@@ -418,9 +406,7 @@ export function GraphView({ postId }: { postId: string }) {
               return null;
 
             const isL2Edge =
-              (start.isL2 || end.isL2) &&
-              !start.isCenter &&
-              !end.isCenter;
+              (start.isL2 || end.isL2) && !start.isCenter && !end.isCenter;
 
             return (
               <Line
@@ -430,9 +416,7 @@ export function GraphView({ postId }: { postId: string }) {
                 x2={end.x}
                 y2={end.y}
                 stroke={
-                  isL2Edge
-                    ? `${COLORS.divider}80`
-                    : `${COLORS.secondary}50`
+                  isL2Edge ? `${COLORS.divider}80` : `${COLORS.secondary}50`
                 }
                 strokeWidth={isL2Edge ? 0.5 : 1}
                 strokeDasharray={isL2Edge ? "3,4" : undefined}
@@ -467,13 +451,7 @@ export function GraphView({ postId }: { postId: string }) {
                   cx={n.x}
                   cy={n.y}
                   r={r}
-                  fill={
-                    isCenter
-                      ? color
-                      : isL2
-                        ? `${color}70`
-                        : COLORS.ink
-                  }
+                  fill={isCenter ? color : isL2 ? `${color}70` : COLORS.ink}
                   stroke={isL2 ? "none" : color}
                   strokeWidth={isCenter ? 3 : 1.5}
                 />
@@ -530,9 +508,7 @@ export function GraphView({ postId }: { postId: string }) {
       {/* ── "Sources" label below graph ── */}
       {layout.l1OutCount > 0 && (
         <View style={styles.arcLabel}>
-          <Text style={styles.arcLabelText}>
-            SOURCES ({layout.l1OutCount})
-          </Text>
+          <Text style={styles.arcLabelText}>SOURCES ({layout.l1OutCount})</Text>
         </View>
       )}
 
@@ -548,16 +524,18 @@ export function GraphView({ postId }: { postId: string }) {
         ).map(([type, label]) => (
           <View key={type} style={styles.legendItem}>
             <View
-              style={[
-                styles.legendDot,
-                { backgroundColor: TYPE_COLORS[type] },
-              ]}
+              style={[styles.legendDot, { backgroundColor: TYPE_COLORS[type] }]}
             />
             <Text style={styles.legendLabel}>{label}</Text>
           </View>
         ))}
         <View style={styles.legendItem}>
-          <View style={[styles.legendDotSmall, { backgroundColor: COLORS.tertiary }]} />
+          <View
+            style={[
+              styles.legendDotSmall,
+              { backgroundColor: COLORS.tertiary },
+            ]}
+          />
           <Text style={styles.legendLabel}>L2</Text>
         </View>
       </View>

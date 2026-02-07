@@ -68,21 +68,34 @@ export default function OnboardingStarterPacksPage() {
   return (
     <div className="min-h-screen bg-ink px-6 md:px-12 py-8 md:py-12">
       <div className="max-w-md md:max-w-lg mx-auto space-y-6">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
+              4
+            </div>
+            <span className="text-xs text-tertiary uppercase tracking-wider">
+              Step 4 of 4
+            </span>
+          </div>
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold text-paper mb-2">
+            Follow some writers
+          </h1>
+          <p className="text-secondary text-sm">
+            Optionally follow some writers. You already have topics in your
+            feed!
+          </p>
+        </div>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-paper mb-2">
-              Find your first reads
-            </h1>
-            <p className="text-secondary text-sm">
-              Follow a few writers to fill your timeline
-            </p>
+            <button
+              onClick={handleFinish}
+              className="text-primary text-sm font-medium"
+            >
+              Skip
+            </button>
           </div>
-          <button
-            onClick={handleFinish}
-            className="text-primary text-sm font-medium"
-          >
-            Skip
-          </button>
         </div>
 
         <div className="space-y-3">

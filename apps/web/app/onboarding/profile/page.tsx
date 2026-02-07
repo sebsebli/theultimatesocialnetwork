@@ -30,7 +30,8 @@ export default function OnboardingProfilePage() {
         setHandleAvailable(data.available);
       }
     } catch (error) {
-      if (process.env.NODE_ENV !== "production") console.error("Error checking handle", error);
+      if (process.env.NODE_ENV !== "production")
+        console.error("Error checking handle", error);
       setHandleAvailable(null);
     } finally {
       setIsChecking(false);
@@ -69,7 +70,8 @@ export default function OnboardingProfilePage() {
         toastError("Failed to create profile");
       }
     } catch (error) {
-      if (process.env.NODE_ENV !== "production") console.error("Error creating profile", error);
+      if (process.env.NODE_ENV !== "production")
+        console.error("Error creating profile", error);
       toastError("Failed to create profile");
     }
   };
@@ -83,6 +85,16 @@ export default function OnboardingProfilePage() {
       </div>
 
       <div className="w-full max-w-md md:max-w-lg space-y-10 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
+              3
+            </div>
+            <span className="text-xs text-tertiary uppercase tracking-wider">
+              Step 3 of 4
+            </span>
+          </div>
+        </div>
         <div className="text-center md:text-left">
           <h1 className="text-4xl font-bold tracking-tight text-paper mb-3">
             Set up your profile
@@ -140,10 +152,11 @@ export default function OnboardingProfilePage() {
                   setHandle(value);
                 }}
                 placeholder="username"
-                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner [letter-spacing:0] ${handleAvailable === false
+                className={`w-full h-14 pl-10 pr-5 bg-white/5 border rounded-xl text-paper text-lg font-mono tracking-normal placeholder-tertiary/50 focus:outline-none focus:ring-2 transition-all shadow-inner [letter-spacing:0] ${
+                  handleAvailable === false
                     ? "border-red-500/50 focus:ring-red-500/30"
                     : "border-white/10 focus:ring-primary/50"
-                  }`}
+                }`}
                 required
                 minLength={3}
               />
@@ -176,10 +189,11 @@ export default function OnboardingProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsProtected(false)}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${!isProtected
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                  !isProtected
                     ? "bg-primary/10 border-primary/40 shadow-lg"
                     : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
-                  }`}
+                }`}
               >
                 <span className="font-bold text-paper mb-1">Public</span>
                 <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">
@@ -189,10 +203,11 @@ export default function OnboardingProfilePage() {
               <button
                 type="button"
                 onClick={() => setIsProtected(true)}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${isProtected
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                  isProtected
                     ? "bg-primary/10 border-primary/40 shadow-lg"
                     : "bg-white/[0.02] border-white/5 hover:bg-white/5 opacity-60"
-                  }`}
+                }`}
               >
                 <span className="font-bold text-paper mb-1">Protected</span>
                 <span className="text-[10px] text-tertiary uppercase font-bold tracking-tighter">

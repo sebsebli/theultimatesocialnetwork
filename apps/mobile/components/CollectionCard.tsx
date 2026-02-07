@@ -1,5 +1,6 @@
 import React, { memo } from "react";
-import { View, Text, Pressable, Image } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import { Image } from "expo-image";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
@@ -71,7 +72,9 @@ function CollectionCardInner({
             <Image
               source={{ uri: imageUrl }}
               style={styles.thumbImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
             />
           ) : (
             <View style={styles.thumbPlaceholder}>

@@ -32,6 +32,7 @@ import {
   getPostHeaderImageUri,
 } from "../../../utils/api";
 import { MarkdownText } from "../../../components/MarkdownText";
+import { PostAuthorHeader } from "../../../components/PostAuthorHeader";
 import {
   COLORS,
   SPACING,
@@ -80,6 +81,7 @@ interface Post {
   headerImageKey?: string | null;
   replyCount?: number;
   quoteCount?: number;
+  readingTimeMinutes?: number;
   author?: {
     id?: string;
     displayName?: string;
@@ -87,6 +89,7 @@ interface Post {
     avatarUrl?: string | null;
     avatarKey?: string | null;
     isProtected?: boolean;
+    bio?: string;
   };
   isLiked?: boolean;
   isKept?: boolean;
@@ -109,7 +112,11 @@ export default function ReadingModeScreen() {
   const [post, setPost] = useState<Post | null>(null);
   const [sources, setSources] = useState<Record<string, unknown>[]>([]);
   const [quotedBy, setQuotedBy] = useState<Record<string, unknown>[]>([]);
-  const [sourcesTab, setSourcesTab] = useState<"sources" | "quoted">("sources");
+  const [connections, setConnections] = useState<{
+    buildsOn: Record<string, unknown>[];
+    builtUponBy: Record<string, unknown>[];
+    topics: Record<string, unknown>[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
   const [kept, setKept] = useState(false);
@@ -131,66 +138,93 @@ export default function ReadingModeScreen() {
   } | null>(null);
 
   const loadIdRef = useRef(0);
-  const loadPost = useCallback(async (cancelledRef?: { current: boolean }) => {
-    if (!postId) return;
-    setLoading(true);
-    setAccessDenied(false);
-    setDeniedAuthor(null);
-    const loadId = loadIdRef.current + 1;
-    loadIdRef.current = loadId;
-    try {
-      const postData = await api.get<Post>(`/posts/${postId}`);
-      if (cancelledRef?.current || loadIdRef.current !== loadId) return;
-      setPost(postData);
-      const pd = postData as unknown as Record<string, unknown>;
-      setLiked(!!pd?.isLiked);
-      setKept(!!pd?.isKept);
-      if (!pd?.deletedAt) {
-        const [sourcesData, quotesData, downloaded, enabled] =
-          await Promise.all([
+  const loadPost = useCallback(
+    async (cancelledRef?: { current: boolean }) => {
+      if (!postId) return;
+      setLoading(true);
+      setAccessDenied(false);
+      setDeniedAuthor(null);
+      const loadId = loadIdRef.current + 1;
+      loadIdRef.current = loadId;
+      try {
+        const postData = await api.get<Post>(`/posts/${postId}`);
+        if (cancelledRef?.current || loadIdRef.current !== loadId) return;
+        setPost(postData);
+        const pd = postData as unknown as Record<string, unknown>;
+        setLiked(!!pd?.isLiked);
+        setKept(!!pd?.isKept);
+        if (!pd?.deletedAt) {
+          const [
+            sourcesData,
+            quotesData,
+            connectionsData,
+            downloaded,
+            enabled,
+          ] = await Promise.all([
             api.get(`/posts/${postId}/sources`).catch(() => []),
             api.get(`/posts/${postId}/quotes`).catch(() => []),
+            api
+              .get<Record<string, unknown>>(`/posts/${postId}/connections`)
+              .catch(() => null),
             isPostDownloaded(postId),
             getDownloadSavedForOffline(),
           ]);
+          if (cancelledRef?.current || loadIdRef.current !== loadId) return;
+          setSources(Array.isArray(sourcesData) ? sourcesData : []);
+          setQuotedBy(
+            Array.isArray(quotesData)
+              ? quotesData
+              : (((quotesData as Record<string, unknown>)
+                  ?.items as unknown[]) ?? []),
+          );
+          if (connectionsData) {
+            setConnections({
+              buildsOn: Array.isArray(connectionsData.buildsOn)
+                ? (connectionsData.buildsOn as Record<string, unknown>[])
+                : [],
+              builtUponBy: Array.isArray(connectionsData.builtUponBy)
+                ? (connectionsData.builtUponBy as Record<string, unknown>[])
+                : [],
+              topics: Array.isArray(connectionsData.topics)
+                ? (connectionsData.topics as Record<string, unknown>[])
+                : [],
+            });
+          }
+          setIsDownloaded(downloaded);
+          setOfflineEnabled(enabled);
+        }
+      } catch (error: unknown) {
         if (cancelledRef?.current || loadIdRef.current !== loadId) return;
-        setSources(Array.isArray(sourcesData) ? sourcesData : []);
-        setQuotedBy(
-          Array.isArray(quotesData) ? quotesData : ((quotesData as Record<string, unknown>)?.items as unknown[] ?? []),
-        );
-        setIsDownloaded(downloaded);
-        setOfflineEnabled(enabled);
+        setPost(null);
+        const err = error as { status?: number; data?: { author?: unknown } };
+        if (err?.status === 403 && err?.data?.author) {
+          setAccessDenied(true);
+          setDeniedAuthor(
+            err.data.author as {
+              id: string;
+              handle: string;
+              displayName: string;
+              avatarKey?: string | null;
+            },
+          );
+          return;
+        }
+        if (err?.status === 404) {
+          showError(
+            t("post.notFoundMessage", "This post doesn't exist anymore."),
+          );
+          router.back();
+        } else {
+          showError(t("post.loadFailed"));
+        }
+      } finally {
+        if (!cancelledRef?.current && loadIdRef.current === loadId) {
+          setLoading(false);
+        }
       }
-    } catch (error: unknown) {
-      if (cancelledRef?.current || loadIdRef.current !== loadId) return;
-      setPost(null);
-      const err = error as { status?: number; data?: { author?: unknown } };
-      if (err?.status === 403 && err?.data?.author) {
-        setAccessDenied(true);
-        setDeniedAuthor(
-          err.data.author as {
-            id: string;
-            handle: string;
-            displayName: string;
-            avatarKey?: string | null;
-          },
-        );
-        return;
-      }
-      if (err?.status === 404) {
-        showError(
-          t("post.notFoundMessage", "This post doesn't exist anymore."),
-        );
-        router.back();
-      } else {
-        showError(t("post.loadFailed"));
-      }
-    } finally {
-      if (!cancelledRef?.current && loadIdRef.current === loadId) {
-        setLoading(false);
-      }
-    }
-  }, [postId, t]);
+    },
+    [postId, t],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -205,15 +239,17 @@ export default function ReadingModeScreen() {
     };
   }, [loadPost]);
 
-  useEffect(() => {
-    if ((post?.quoteCount ?? 0) === 0) setSourcesTab("sources");
-  }, [post?.quoteCount]);
-
   // Merge API sources (posts, topics, users/mentions, external) with external links from body; deduplicate
   const sourcesUnique = useMemo(() => {
-    const apiExternal = sources.filter((s: Record<string, unknown>) => s.type === "external");
-    const apiOther = sources.filter((s: Record<string, unknown>) => s.type !== "external");
-    const urlSeen = new Set(apiExternal.map((s: Record<string, unknown>) => s.url).filter(Boolean));
+    const apiExternal = sources.filter(
+      (s: Record<string, unknown>) => s.type === "external",
+    );
+    const apiOther = sources.filter(
+      (s: Record<string, unknown>) => s.type !== "external",
+    );
+    const urlSeen = new Set(
+      apiExternal.map((s: Record<string, unknown>) => s.url).filter(Boolean),
+    );
     const fromBody: { url: string; title: string | null }[] = [];
     if (post?.body) {
       const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
@@ -312,20 +348,23 @@ export default function ReadingModeScreen() {
     }
   }, [post, isDownloaded, showSuccess, showError, t]);
 
-  const handleReportSubmit = useCallback(async (reason: string, comment?: string) => {
-    try {
-      await api.post("/safety/report", {
-        targetId: post!.id,
-        targetType: "POST",
-        reason,
-        comment,
-      });
-      showSuccess(t("post.reportSuccess", "Post reported successfully"));
-    } catch (e) {
-      showError(t("post.reportError", "Failed to report post"));
-      throw e;
-    }
-  }, [post, showSuccess, showError, t]);
+  const handleReportSubmit = useCallback(
+    async (reason: string, comment?: string) => {
+      try {
+        await api.post("/safety/report", {
+          targetId: post!.id,
+          targetType: "POST",
+          reason,
+          comment,
+        });
+        showSuccess(t("post.reportSuccess", "Post reported successfully"));
+      } catch (e) {
+        showError(t("post.reportError", "Failed to report post"));
+        throw e;
+      }
+    },
+    [post, showSuccess, showError, t],
+  );
 
   const handleDeletePost = useCallback(async () => {
     try {
@@ -335,7 +374,10 @@ export default function ReadingModeScreen() {
       setMoreOptionsVisible(false);
       router.back();
     } catch (e: unknown) {
-      showError((e as { message?: string })?.message || t("post.deleteFailed", "Failed to delete post"));
+      showError(
+        (e as { message?: string })?.message ||
+          t("post.deleteFailed", "Failed to delete post"),
+      );
       throw e;
     }
   }, [postId, showSuccess, showError, t, router]);
@@ -368,7 +410,9 @@ export default function ReadingModeScreen() {
   if (!post) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.errorText}>{t("post.notFound", "Post not found")}</Text>
+        <Text style={styles.errorText}>
+          {t("post.notFound", "Post not found")}
+        </Text>
       </View>
     );
   }
@@ -384,7 +428,10 @@ export default function ReadingModeScreen() {
     return (
       <View style={styles.container}>
         <View
-          style={[styles.overlayHeader, { paddingTop: Math.max(8, insets.top - 20) }]}
+          style={[
+            styles.overlayHeader,
+            { paddingTop: Math.max(8, insets.top - 20) },
+          ]}
           pointerEvents="box-none"
         >
           <HeaderIconButton
@@ -426,18 +473,21 @@ export default function ReadingModeScreen() {
     deniedAuthor ??
     (post?.author
       ? {
-        id: post.author.id,
-        handle: post.author.handle ?? "",
-        displayName: post.author.displayName ?? "",
-        avatarKey: post.author.avatarKey ?? null,
-      }
+          id: post.author.id,
+          handle: post.author.handle ?? "",
+          displayName: post.author.displayName ?? "",
+          avatarKey: post.author.avatarKey ?? null,
+        }
       : null);
 
   if (showPrivateOverlay) {
     return (
       <View style={styles.container}>
         <View
-          style={[styles.overlayHeader, { paddingTop: Math.max(8, insets.top - 20) }]}
+          style={[
+            styles.overlayHeader,
+            { paddingTop: Math.max(8, insets.top - 20) },
+          ]}
           pointerEvents="box-none"
         >
           <HeaderIconButton
@@ -508,7 +558,10 @@ export default function ReadingModeScreen() {
     return (
       <View style={styles.container}>
         <View
-          style={[styles.overlayHeader, { paddingTop: Math.max(8, insets.top - 20) }]}
+          style={[
+            styles.overlayHeader,
+            { paddingTop: Math.max(8, insets.top - 20) },
+          ]}
           pointerEvents="box-none"
         >
           <HeaderIconButton
@@ -567,11 +620,32 @@ export default function ReadingModeScreen() {
     (postHeaderUri != null && postHeaderUri !== "") ||
     (post.headerImageKey != null && post.headerImageKey !== "");
 
+  // --- Fading header logic ---
+  // Floating buttons fade out after 80px of scroll; solid bar fades in
+  const HEADER_FADE_START = 60;
+  const HEADER_FADE_END = 140;
+  const floatingHeaderOpacity = scrollY.interpolate({
+    inputRange: [HEADER_FADE_START, HEADER_FADE_END],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+  const solidBarOpacity = scrollY.interpolate({
+    inputRange: [HEADER_FADE_START, HEADER_FADE_END],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
+
   return (
     <View style={styles.container}>
-      {/* Overlay header: back + more over hero or at top (no home button) */}
-      <View
-        style={[styles.overlayHeader, { paddingTop: Math.max(8, insets.top - 20) }]}
+      {/* Floating header: transparent, fades out on scroll */}
+      <AnimatedView
+        style={[
+          styles.overlayHeader,
+          {
+            paddingTop: Math.max(8, insets.top - 20),
+            opacity: floatingHeaderOpacity,
+          },
+        ]}
         pointerEvents="box-none"
       >
         <HeaderIconButton
@@ -588,18 +662,42 @@ export default function ReadingModeScreen() {
           icon="more-horiz"
           accessibilityLabel={t("profile.options", "Options")}
         />
-      </View>
+      </AnimatedView>
+
+      {/* Solid header bar: fades in on scroll */}
+      <AnimatedView
+        style={[
+          styles.solidBar,
+          { paddingTop: insets.top, opacity: solidBarOpacity },
+        ]}
+        pointerEvents="box-none"
+      >
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={styles.solidBarBtn}
+        >
+          <MaterialIcons name="arrow-back" size={22} color={COLORS.paper} />
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        <Pressable
+          onPress={() => {
+            Haptics.selectionAsync();
+            setMoreOptionsVisible(true);
+          }}
+          hitSlop={10}
+          style={styles.solidBarBtn}
+        >
+          <MaterialIcons name="more-horiz" size={22} color={COLORS.paper} />
+        </Pressable>
+      </AnimatedView>
 
       <AnimatedScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          // When no hero/title image, add top margin so back button doesn't overlay author line
+          // When no hero image, tight top padding (just enough to clear the header bar)
           !hasHero && {
-            paddingTop:
-              Math.max(8, insets.top - 20) +
-              40 +
-              toDimension(HEADER.barPaddingBottom) +
-              toDimension(SPACING.s),
+            paddingTop: insets.top + 44,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -647,42 +745,24 @@ export default function ReadingModeScreen() {
           })()}
 
         <View style={styles.article}>
-          {/* Author above title */}
-          <Pressable
-            style={styles.authorLine}
-            onPress={() =>
-              post.author?.handle && router.push(`/user/${post.author.handle}`)
-            }
-          >
-            {getAvatarUri(post.author) ? (
-              <Image
-                source={{ uri: getAvatarUri(post.author)! }}
-                style={styles.authorAvatarImage}
-              />
-            ) : (
-              <View style={styles.authorAvatar}>
-                <Text style={styles.avatarText}>
-                  {post.author?.displayName?.charAt(0) ||
-                    post.author?.handle?.charAt(0) ||
-                    "?"}
-                </Text>
-              </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.authorName}>
-                {post.author?.displayName ||
-                  post.author?.handle ||
-                  t("post.unknownUser")}
-              </Text>
-              <Text style={styles.readTime}>
-                {new Date(post.createdAt).toLocaleDateString(undefined, {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </Text>
-            </View>
-          </Pressable>
+          {/* Author — shared component */}
+          <View style={{ marginBottom: SPACING.l }}>
+            <PostAuthorHeader
+              variant="full"
+              author={
+                post.author as {
+                  id?: string;
+                  handle?: string;
+                  displayName?: string;
+                  avatarKey?: string | null;
+                  avatarUrl?: string | null;
+                  bio?: string | null;
+                }
+              }
+              createdAt={post.createdAt}
+              readingTimeMinutes={post.readingTimeMinutes}
+            />
+          </View>
 
           {/* Title only when no hero overlay (hero already shows title) */}
           {!hasHero && post.title != null && post.title !== "" ? (
@@ -803,157 +883,368 @@ export default function ReadingModeScreen() {
           </View>
         </View>
 
-        {/* Tabs: Sources (tagged content) | Quoted by (only when post has quotes) */}
-        <View style={styles.section}>
-          <View style={styles.tabsRow}>
-            <Pressable
-              style={[
-                styles.tabBtn,
-                sourcesTab === "sources" && styles.tabBtnActive,
-              ]}
-              onPress={() => setSourcesTab("sources")}
-            >
-              <Text
-                style={[
-                  styles.tabBtnText,
-                  sourcesTab === "sources" && styles.tabBtnTextActive,
-                ]}
-              >
-                {t("post.sources", "Sources")}
-              </Text>
-            </Pressable>
-            {quoteCount > 0 && (
-              <Pressable
-                style={[
-                  styles.tabBtn,
-                  sourcesTab === "quoted" && styles.tabBtnActive,
-                ]}
-                onPress={() => setSourcesTab("quoted")}
-              >
-                <Text
-                  style={[
-                    styles.tabBtnText,
-                    sourcesTab === "quoted" && styles.tabBtnTextActive,
-                  ]}
-                >
-                  {t("post.quotedBy", "Cited by")} ({quoteCount})
-                </Text>
-              </Pressable>
-            )}
-          </View>
-          {sourcesTab === "sources" ? (
-            sourcesUnique.length === 0 ? (
-              <Text style={styles.emptyText}>
-                {t("post.noSources", "No tagged sources in this post.")}
-              </Text>
-            ) : (
-              <View style={styles.sourcesList}>
-                {sourcesUnique.map((source: Record<string, unknown>, index: number) => {
-                  const handleSourcePress = () => {
-                    if (source.type === "external" && typeof source.url === "string")
-                      openExternalLink(source.url);
-                    else if (source.type === "post" && typeof source.id === "string")
-                      router.push(`/post/${source.id}`);
-                    else if (source.type === "user" && typeof source.handle === "string")
-                      router.push(`/user/${source.handle}`);
-                    else if (source.type === "topic")
-                      router.push(
-                        `/topic/${encodeURIComponent(String(source.slug ?? source.title ?? source.id ?? ""))}`,
-                      );
-                  };
-                  const title =
-                    String(source.title ?? source.url ?? source.handle ?? source.slug ?? "");
-                  const subtitle =
-                    source.type === "external" && typeof source.url === "string"
-                      ? typeof source.description === "string" && source.description.trim()
-                        ? source.description.trim()
-                        : (() => {
-                          try {
-                            return new URL(source.url).hostname.replace(
-                              "www.",
-                              "",
-                            );
-                          } catch {
-                            return "";
-                          }
-                        })()
-                      : source.type === "user" && typeof source.handle === "string"
-                        ? `@${source.handle}`
-                        : source.type === "topic"
-                          ? t("post.topic", "Topic")
-                          : "";
-                  const imageUri =
-                    source.type === "user" && typeof source.avatarKey === "string"
-                      ? (getAvatarUri({ avatarKey: source.avatarKey }) ??
-                        undefined)
-                      : source.type === "topic" && typeof source.imageKey === "string"
-                        ? getImageUrl(source.imageKey)
-                        : undefined;
-                  return (
-                    <SourceOrPostCard
-                      key={
-                        source.type === "external" && source.url
-                          ? `ext-${source.url}`
-                          : (source.id ??
-                            source.handle ??
-                            source.slug ??
-                            `i-${index}`)
-                      }
-                      type={source.type}
-                      title={title}
-                      subtitle={subtitle || undefined}
-                      onPress={handleSourcePress}
-                      imageUri={imageUri ?? undefined}
-                    />
-                  );
-                })}
-              </View>
-            )
-          ) : quotedBy.length === 0 ? (
-            <View style={[emptyStateCenterWrapStyle, { minHeight: 220 }]}>
-              <EmptyState
-                icon="format-quote"
-                headline={t(
-                  "post.noQuotes",
-                  "No one has quoted this post yet.",
-                )}
-                compact
-              />
-            </View>
-          ) : (
-            <View style={styles.quotedList}>
-              {quotedBy.map((p: Record<string, unknown>) => {
-                const bodyStr = typeof p.body === "string" ? p.body : "";
-                const bodyPreview = bodyStr
-                  .replace(/\s+/g, " ")
-                  .trim()
-                  .slice(0, 80);
-                const title =
-                  typeof p.title === "string" && p.title !== ""
-                    ? p.title
-                    : bodyPreview || t("post.fallbackTitle", "Post");
-                const author = p.author as Record<string, unknown> | undefined;
-                const subtitle =
-                  (typeof author?.displayName === "string" ? author.displayName : "") ||
-                  (typeof author?.handle === "string" ? author.handle : "");
-                const targetId = p.id;
-                return (
-                  <SourceOrPostCard
-                    key={targetId ?? p.createdAt ?? Math.random()}
-                    type="post"
-                    title={title}
-                    subtitle={subtitle || undefined}
-                    onPress={() => {
-                      if (targetId) {
-                        router.replace(`/post/${targetId}`);
-                      }
-                    }}
-                  />
-                );
-              })}
+        {/* ─── Connections: This builds on / Built upon by / In topics ─── */}
+        {connections &&
+          (connections.buildsOn.length > 0 ||
+            connections.builtUponBy.length > 0 ||
+            connections.topics.length > 0) && (
+            <View style={styles.section}>
+              {/* This Builds On */}
+              {connections.buildsOn.length > 0 && (
+                <View style={styles.connectionSection}>
+                  <Text style={styles.connectionHeader}>This builds on</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.connectionScroll}
+                    contentContainerStyle={styles.connectionScrollContent}
+                  >
+                    {connections.buildsOn.map(
+                      (item: Record<string, unknown>, idx: number) => {
+                        const itemType = String(item.type ?? "post");
+                        const label = String(item.label ?? item.title ?? "");
+                        const itemId = String(item.id ?? idx);
+                        const bodyExcerpt =
+                          typeof item.bodyExcerpt === "string"
+                            ? item.bodyExcerpt
+                            : typeof item.description === "string"
+                              ? item.description
+                              : "";
+                        const authorHandle =
+                          typeof item.authorHandle === "string"
+                            ? item.authorHandle
+                            : "";
+                        const authorDisplayName =
+                          typeof item.authorDisplayName === "string"
+                            ? item.authorDisplayName
+                            : "";
+                        const authorAvatarKey =
+                          typeof item.authorAvatarKey === "string"
+                            ? item.authorAvatarKey
+                            : null;
+                        const postCount =
+                          typeof item.postCount === "number"
+                            ? item.postCount
+                            : 0;
+                        const slug =
+                          typeof item.slug === "string" ? item.slug : label;
+                        const domain =
+                          typeof item.domain === "string" ? item.domain : "";
+                        const imageUrl =
+                          typeof item.imageUrl === "string"
+                            ? item.imageUrl
+                            : "";
+
+                        return (
+                          <Pressable
+                            key={`bo-${itemType}-${itemId}`}
+                            style={({ pressed }: { pressed: boolean }) => [
+                              styles.connectionCard,
+                              pressed && {
+                                opacity: 0.8,
+                                transform: [{ scale: 0.98 }],
+                              },
+                            ]}
+                            onPress={() => {
+                              if (itemType === "post")
+                                router.push(`/post/${itemId}/reading`);
+                              else if (itemType === "topic")
+                                router.push(
+                                  `/topic/${encodeURIComponent(slug)}`,
+                                );
+                              else if (itemType === "user")
+                                router.push(`/user/${authorHandle || itemId}`);
+                              else if (
+                                itemType === "external" &&
+                                typeof item.url === "string"
+                              )
+                                openExternalLink(item.url);
+                            }}
+                          >
+                            {/* Card header: avatar/icon + author name */}
+                            <View style={styles.cardHeader}>
+                              {itemType === "post" ? (
+                                authorAvatarKey ? (
+                                  <Image
+                                    source={{
+                                      uri:
+                                        getAvatarUri({
+                                          avatarKey: authorAvatarKey,
+                                        }) ?? "",
+                                    }}
+                                    style={styles.cardAvatar}
+                                    contentFit="cover"
+                                  />
+                                ) : (
+                                  <View style={styles.cardAvatarPlaceholder}>
+                                    <Text style={styles.cardAvatarLetter}>
+                                      {(
+                                        authorDisplayName ||
+                                        authorHandle ||
+                                        "?"
+                                      )
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                    </Text>
+                                  </View>
+                                )
+                              ) : itemType === "topic" ? (
+                                <View
+                                  style={[
+                                    styles.cardIconBg,
+                                    { backgroundColor: COLORS.primary + "18" },
+                                  ]}
+                                >
+                                  <MaterialIcons
+                                    name="tag"
+                                    size={14}
+                                    color={COLORS.primary}
+                                  />
+                                </View>
+                              ) : itemType === "external" ? (
+                                <View
+                                  style={[
+                                    styles.cardIconBg,
+                                    {
+                                      backgroundColor: COLORS.secondary + "22",
+                                    },
+                                  ]}
+                                >
+                                  <MaterialIcons
+                                    name="open-in-new"
+                                    size={13}
+                                    color={COLORS.secondary}
+                                  />
+                                </View>
+                              ) : (
+                                <View style={styles.cardAvatarPlaceholder}>
+                                  <MaterialIcons
+                                    name="person"
+                                    size={14}
+                                    color={COLORS.tertiary}
+                                  />
+                                </View>
+                              )}
+                              <View style={{ flex: 1 }}>
+                                {itemType === "post" ? (
+                                  <Text
+                                    style={styles.cardSubtitle}
+                                    numberOfLines={1}
+                                  >
+                                    {authorDisplayName || `@${authorHandle}`}
+                                  </Text>
+                                ) : itemType === "topic" ? (
+                                  <Text
+                                    style={styles.cardSubtitle}
+                                    numberOfLines={1}
+                                  >
+                                    {postCount > 0
+                                      ? `${postCount} post${postCount !== 1 ? "s" : ""}`
+                                      : "Topic"}
+                                  </Text>
+                                ) : itemType === "external" ? (
+                                  <Text
+                                    style={styles.cardSubtitle}
+                                    numberOfLines={1}
+                                  >
+                                    {domain || "External link"}
+                                  </Text>
+                                ) : null}
+                              </View>
+                            </View>
+
+                            {/* Title */}
+                            <Text style={styles.cardTitle} numberOfLines={2}>
+                              {label}
+                            </Text>
+
+                            {/* Excerpt or description */}
+                            {bodyExcerpt ? (
+                              <Text
+                                style={styles.cardExcerpt}
+                                numberOfLines={2}
+                              >
+                                {bodyExcerpt.slice(0, 100)}
+                              </Text>
+                            ) : null}
+
+                            {/* External link image preview */}
+                            {itemType === "external" && imageUrl ? (
+                              <Image
+                                source={{ uri: imageUrl }}
+                                style={styles.cardLinkImage}
+                                contentFit="cover"
+                              />
+                            ) : null}
+                          </Pressable>
+                        );
+                      },
+                    )}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Built Upon By */}
+              {connections.builtUponBy.length > 0 && (
+                <View style={styles.connectionSection}>
+                  <Text style={styles.connectionHeader}>
+                    Built upon by
+                    {connections.builtUponBy.length > 0
+                      ? ` (${connections.builtUponBy.length})`
+                      : ""}
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.connectionScroll}
+                    contentContainerStyle={styles.connectionScrollContent}
+                  >
+                    {connections.builtUponBy.map(
+                      (item: Record<string, unknown>) => {
+                        const itemId = String(item.id ?? "");
+                        const title = String(
+                          item.title || item.bodyExcerpt || "Post",
+                        );
+                        const bodyExcerpt =
+                          typeof item.bodyExcerpt === "string"
+                            ? item.bodyExcerpt
+                            : "";
+                        const authorHandle =
+                          typeof item.authorHandle === "string"
+                            ? item.authorHandle
+                            : "";
+                        const authorDisplayName =
+                          typeof item.authorDisplayName === "string"
+                            ? item.authorDisplayName
+                            : "";
+                        const authorAvatarKey =
+                          typeof item.authorAvatarKey === "string"
+                            ? item.authorAvatarKey
+                            : null;
+
+                        return (
+                          <Pressable
+                            key={`bub-${itemId}`}
+                            style={({ pressed }: { pressed: boolean }) => [
+                              styles.connectionCard,
+                              pressed && {
+                                opacity: 0.8,
+                                transform: [{ scale: 0.98 }],
+                              },
+                            ]}
+                            onPress={() =>
+                              router.push(`/post/${itemId}/reading`)
+                            }
+                          >
+                            <View style={styles.cardHeader}>
+                              {authorAvatarKey ? (
+                                <Image
+                                  source={{
+                                    uri:
+                                      getAvatarUri({
+                                        avatarKey: authorAvatarKey,
+                                      }) ?? "",
+                                  }}
+                                  style={styles.cardAvatar}
+                                  contentFit="cover"
+                                />
+                              ) : (
+                                <View style={styles.cardAvatarPlaceholder}>
+                                  <Text style={styles.cardAvatarLetter}>
+                                    {(authorDisplayName || authorHandle || "?")
+                                      .charAt(0)
+                                      .toUpperCase()}
+                                  </Text>
+                                </View>
+                              )}
+                              <View style={{ flex: 1 }}>
+                                <Text
+                                  style={styles.cardSubtitle}
+                                  numberOfLines={1}
+                                >
+                                  {authorDisplayName || `@${authorHandle}`}
+                                </Text>
+                              </View>
+                            </View>
+                            <Text style={styles.cardTitle} numberOfLines={2}>
+                              {title}
+                            </Text>
+                            {bodyExcerpt && title !== bodyExcerpt ? (
+                              <Text
+                                style={styles.cardExcerpt}
+                                numberOfLines={2}
+                              >
+                                {bodyExcerpt.slice(0, 100)}
+                              </Text>
+                            ) : null}
+                          </Pressable>
+                        );
+                      },
+                    )}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* In Topics — deep dive enabled */}
+              {connections.topics.length > 0 && (
+                <View style={styles.connectionSection}>
+                  <Text style={styles.connectionHeader}>In topics</Text>
+                  <View style={styles.topicPills}>
+                    {connections.topics.map(
+                      (topic: Record<string, unknown>) => {
+                        const topicSlug = String(topic.slug ?? topic.id ?? "");
+                        const topicTitle = String(topic.title ?? topicSlug);
+                        const topicPostCount =
+                          typeof topic.postCount === "number"
+                            ? topic.postCount
+                            : 0;
+                        return (
+                          <Pressable
+                            key={`topic-${topicSlug}`}
+                            style={({ pressed }: { pressed: boolean }) => [
+                              styles.topicPill,
+                              pressed && {
+                                opacity: 0.7,
+                                transform: [{ scale: 0.97 }],
+                              },
+                            ]}
+                            onPress={() =>
+                              router.push(
+                                `/topic/${encodeURIComponent(topicSlug)}`,
+                              )
+                            }
+                          >
+                            <MaterialIcons
+                              name="tag"
+                              size={15}
+                              color={COLORS.primary}
+                            />
+                            <Text style={styles.topicPillTitle}>
+                              {topicTitle}
+                            </Text>
+                            {topicPostCount > 0 && (
+                              <>
+                                <Text style={styles.topicPillDot}>·</Text>
+                                <Text style={styles.topicPillCount}>
+                                  {topicPostCount} post
+                                  {topicPostCount !== 1 ? "s" : ""}
+                                </Text>
+                              </>
+                            )}
+                            <MaterialIcons
+                              name="chevron-right"
+                              size={16}
+                              color={COLORS.tertiary}
+                            />
+                          </Pressable>
+                        );
+                      },
+                    )}
+                  </View>
+                </View>
+              )}
             </View>
           )}
-        </View>
       </AnimatedScrollView>
 
       <AddToCollectionSheet ref={collectionSheetRef} />
@@ -964,16 +1255,16 @@ export default function ReadingModeScreen() {
         options={[
           ...(isOwnPost
             ? [
-              {
-                label: t("post.delete", "Delete Post"),
-                onPress: () => {
-                  setMoreOptionsVisible(false);
-                  setDeleteConfirmVisible(true);
+                {
+                  label: t("post.delete", "Delete Post"),
+                  onPress: () => {
+                    setMoreOptionsVisible(false);
+                    setDeleteConfirmVisible(true);
+                  },
+                  destructive: true as const,
+                  icon: "delete-outline" as const,
                 },
-                destructive: true as const,
-                icon: "delete-outline" as const,
-              },
-            ]
+              ]
             : []),
           {
             label: t("post.report", "Report Post"),
@@ -1026,6 +1317,23 @@ const styles = createStyles({
     paddingHorizontal: toDimensionValue(HEADER.barPaddingHorizontal),
     paddingBottom: toDimensionValue(HEADER.barPaddingBottom),
     zIndex: 10,
+  },
+  solidBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: COLORS.ink,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.divider,
+    zIndex: 11,
+  },
+  solidBarBtn: {
+    padding: 8,
   },
   /* Full-width hero: 4:3 aspect, title overlay */
   heroImageWrap: {
@@ -1137,41 +1445,7 @@ const styles = createStyles({
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     marginBottom: SPACING.l,
   },
-  authorLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.m,
-    marginBottom: SPACING.l,
-  },
-  authorAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.badge,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  authorAvatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarText: {
-    color: COLORS.primary,
-    fontWeight: "600",
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-  },
-  authorName: {
-    fontSize: 15,
-    color: COLORS.paper,
-    fontFamily: FONTS.medium,
-  },
-  readTime: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
+  /* author styles moved to shared PostAuthorHeader */
   title: {
     fontSize: 28,
     fontWeight: "700",
@@ -1214,42 +1488,123 @@ const styles = createStyles({
     marginBottom: SPACING.m,
     fontFamily: FONTS.semiBold,
   },
-  tabsRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+  connectionSection: {
+    marginBottom: SPACING.xl,
+  },
+  connectionHeader: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.secondary,
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    fontFamily: FONTS.semiBold,
     marginBottom: SPACING.m,
   },
-  tabBtn: {
-    paddingVertical: SPACING.s,
-    paddingHorizontal: SPACING.m,
-    marginRight: SPACING.m,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+  connectionScroll: {
+    marginHorizontal: -(LAYOUT.contentPaddingHorizontal as number),
   },
-  tabBtnActive: {
-    borderBottomColor: COLORS.primary,
+  connectionScrollContent: {
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal as number,
+    gap: 10,
   },
-  tabBtnText: {
-    fontSize: 15,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.medium,
+  /* ── Redesigned connection cards ── */
+  connectionCard: {
+    width: 220,
+    backgroundColor: COLORS.hover,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    padding: 14,
+    gap: 8,
   },
-  tabBtnTextActive: {
-    color: COLORS.paper,
-    fontWeight: "600",
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cardAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: COLORS.divider,
+  },
+  cardAvatarPlaceholder: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: COLORS.badge,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardAvatarLetter: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
-  emptyText: {
+  cardIconBg: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardSubtitle: {
+    fontSize: 12,
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
-    fontStyle: "italic",
   },
-  sourcesList: {
-    gap: SPACING.s,
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 19,
   },
-  quotedList: {
-    gap: SPACING.s,
+  cardExcerpt: {
+    fontSize: 12,
+    color: COLORS.tertiary,
+    fontFamily: FONTS.regular,
+    lineHeight: 16,
+  },
+  cardLinkImage: {
+    width: "100%",
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: COLORS.divider,
+    marginTop: 2,
+  },
+  /* ── Topic pills ── */
+  topicPills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  topicPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.hover,
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    gap: 5,
+  },
+  topicPillTitle: {
+    fontSize: 14,
+    color: COLORS.paper,
+    fontFamily: FONTS.medium,
+  },
+  topicPillDot: {
+    fontSize: 14,
+    color: COLORS.tertiary,
+    marginHorizontal: 1,
+  },
+  topicPillCount: {
+    fontSize: 12,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
   },
   errorText: { color: COLORS.error, fontSize: 16, fontFamily: FONTS.medium },
   deletedPlaceholder: {

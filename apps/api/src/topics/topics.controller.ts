@@ -29,6 +29,15 @@ export class TopicsController {
     return this.topicFollowsService.getFollowedTopics(user.id);
   }
 
+  @Get(':slug/map')
+  @UseGuards(OptionalJwtAuthGuard)
+  async getMap(
+    @Param('slug') slug: string,
+    @CurrentUser() user?: { id: string },
+  ) {
+    return this.topicsService.getTopicMap(slug, user?.id);
+  }
+
   @Get(':slug')
   @UseGuards(OptionalJwtAuthGuard)
   async findOne(

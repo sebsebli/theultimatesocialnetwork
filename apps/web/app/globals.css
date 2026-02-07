@@ -321,6 +321,7 @@ html {
   font-weight: 700;
   color: var(--primary);
   white-space: nowrap; /* keep tag on one line; surrounding newlines are normalized to space in markdown */
+  text-decoration: none;
 }
 .prose .prose-tag:hover {
   color: var(--primary-dark);
@@ -330,6 +331,87 @@ html {
 }
 .prose .prose-tag:visited:hover {
   color: var(--primary-dark);
+}
+
+/* Topic wikilinks [[topic]]: inline pill with # prefix and subtle background */
+.prose .prose-tag-topic {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15em;
+  padding: 0.1em 0.5em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  font-size: 0.9em !important;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s;
+}
+.prose .prose-tag-topic:hover {
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.prose .prose-tag-topic .topic-hash {
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+/* Post wikilinks [[post:id]]: inline card-like link with document icon */
+.prose .prose-tag-post {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.15em 0.55em;
+  border-radius: 0.5em;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.9em !important;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s;
+}
+.prose .prose-tag-post:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.prose .prose-tag-post .post-icon {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+/* @mentions: inline link with small avatar circle */
+.prose .prose-mention {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: none;
+  white-space: nowrap;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit;
+}
+.prose .prose-mention:hover {
+  color: var(--primary-dark);
+}
+.prose .prose-mention:visited {
+  color: var(--primary);
+}
+.prose .prose-mention .mention-avatar {
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+  vertical-align: middle;
+  flex-shrink: 0;
+  background-size: cover;
+  background-position: center;
+}
+.prose .prose-mention .mention-avatar[data-loaded="true"] {
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* External URL links [text](url): warm orange, no underline (parity with mobile design tokens) */

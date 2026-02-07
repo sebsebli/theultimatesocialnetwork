@@ -1,5 +1,12 @@
 import React, { useState, useMemo, memo, isValidElement } from "react";
-import { Text, View, Modal, Pressable, Platform, TextStyle } from "react-native";
+import {
+  Text,
+  View,
+  Modal,
+  Pressable,
+  Platform,
+  TextStyle,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useOpenExternalLink } from "../hooks/useOpenExternalLink";
@@ -18,7 +25,12 @@ interface MarkdownTextProps {
   children: string;
   referenceMetadata?: Record<
     string,
-    { title?: string; deletedAt?: string; isProtected?: boolean }
+    {
+      title?: string;
+      bodyExcerpt?: string;
+      deletedAt?: string;
+      isProtected?: boolean;
+    }
   >;
   /** When set, only @handle that are in this set render as mention chips; others render as plain text (no @). Omit for published content to render all @ as mentions. */
   validMentionHandles?: Set<string> | null;
@@ -47,10 +59,8 @@ function MarkdownTextInner({
       await openExternalLink(trimmed);
     } else if (trimmed.startsWith("post:")) {
       const id = trimmed.split(":")[1];
-      if (id) router.push(`/post/${id}`);
+      if (id) router.push(`/post/${id}/reading`);
     } else {
-      // Topic: use exact wikilink target as topic ID (no slugification).
-      // [[Artificial Intelligence]] → /topic/Artificial%20Intelligence, [[AI]] → /topic/AI
       router.push(`/topic/${encodeURIComponent(trimmed)}`);
     }
   };
@@ -73,9 +83,17 @@ function MarkdownTextInner({
     }
   };
 
-  // Supported: H1/H2/H3, bold **, italic _, blockquote > , list - , ordered 1. , inline code `, fenced code ```...```, [[wikilink]], [link](url), @mention
+  /*
+   * DESIGN PRINCIPLE: All inline elements (topics, mentions, post refs, links)
+   * render as pure <Text> nested inside the parent <Text>. No <View> wrappers.
+   * This preserves natural text flow — nothing forces a new line or breaks
+   * the reading rhythm. Visual distinction is achieved through color, weight,
+   * and subtle styling only.
+   *
+   * Rich detail (avatars, post counts, excerpts) lives in the connections
+   * section at the bottom of the post, not inline.
+   */
   const parseText = useMemo(() => {
-    /** Single unified rule for [text](url) display: use label when provided, else for external URLs show hostname. Used in composer preview and all reading views. */
     const getLinkDisplayText = (
       href: string,
       linkText: string,
@@ -103,8 +121,6 @@ function MarkdownTextInner({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parts: any[] = [];
       let lastIndex = 0;
-      // Only composer-supported inline: Bold (**), Italic (_), Inline code (`), Link [...](...), Wikilink ([[...]]), Mention (@...)
-      // Match single-bracket [text](url) BEFORE double-bracket [[...]] so [name](https://...) is always an external link, never mis-parsed as topic/post.
       const regex =
         /(\*\*(.*?)\*\*)|(_(.*?)_)|(`([^`]+)`)|(\[(.*?)\]\((.*?)\))|(\[\[(.*?)(?:\|(.*?))?\]\])|(@[a-zA-Z0-9_.]+)/g;
       let match: RegExpExecArray | null;
@@ -117,9 +133,8 @@ function MarkdownTextInner({
           );
         }
         if (match[1]) {
-          // Recursively parse bold content so inline code (and other markdown) inside renders correctly
-          const boldStyle: TextStyle[] = Array.isArray(lineStyle) 
-            ? [...lineStyle, styles.bold as TextStyle] 
+          const boldStyle: TextStyle[] = Array.isArray(lineStyle)
+            ? [...lineStyle, styles.bold as TextStyle]
             : [lineStyle, styles.bold as TextStyle];
           const boldParts = parseLineContent(
             match[2],
@@ -128,9 +143,8 @@ function MarkdownTextInner({
           );
           parts.push(...boldParts);
         } else if (match[3]) {
-          // Recursively parse italic content so inline code (and other markdown) inside renders correctly
-          const italicStyle: TextStyle[] = Array.isArray(lineStyle) 
-            ? [...lineStyle, styles.italic as TextStyle] 
+          const italicStyle: TextStyle[] = Array.isArray(lineStyle)
+            ? [...lineStyle, styles.italic as TextStyle]
             : [lineStyle, styles.italic as TextStyle];
           const italicParts = parseLineContent(
             match[4],
@@ -172,7 +186,7 @@ function MarkdownTextInner({
             );
           }
         } else if (match[7]) {
-          // Markdown link [text](url) or [url](text) — matched before wikilink so [name](https://...) is always external
+          // Markdown link [text](url)
           const bracketContent =
             match[8] != null ? String(match[8]).trim() : "";
           const parenContent = match[9] != null ? String(match[9]).trim() : "";
@@ -204,7 +218,6 @@ function MarkdownTextInner({
               key={`${lineKey}-${match.index}`}
               style={[lineStyle, inlineLinkStyle]}
               onPress={() => handleLinkPress(hrefVal)}
-              numberOfLines={1}
             >
               {displayText}
             </Text>,
@@ -244,9 +257,13 @@ function MarkdownTextInner({
                 (isProtected ? " (private)" : "");
             }
           }
-          const wikilinkStyle = linkContentVal.toLowerCase().startsWith("post:")
+          const isPostLink = linkContentVal.toLowerCase().startsWith("post:");
+          const isUrlLink = linkContentVal.startsWith("http");
+
+          // All wikilinks render as pure inline <Text> — no View wrappers
+          const wikilinkStyle = isPostLink
             ? styles.postLinkText
-            : linkContentVal.startsWith("http")
+            : isUrlLink
               ? styles.urlLinkText
               : styles.topicTagText;
           parts.push(
@@ -254,12 +271,12 @@ function MarkdownTextInner({
               key={`${lineKey}-${match.index}`}
               style={[lineStyle, wikilinkStyle]}
               onPress={() => handleWikiLinkPress(linkContentVal, aliasVal)}
-              numberOfLines={1}
             >
               {linkDisplay}
             </Text>,
           );
         } else if (match[13]) {
+          // @mention — pure inline text, no avatar, no chip
           const handle = match[13].substring(1);
           const isValidMention =
             validMentionHandles == null || validMentionHandles.has(handle);
@@ -270,11 +287,10 @@ function MarkdownTextInner({
                 style={[lineStyle, styles.mentionText]}
                 onPress={() => router.push(`/user/${handle}`)}
               >
-                {match[13]}
+                @{handle}
               </Text>,
             );
           } else {
-            // Don't render @ when user wasn't selected from suggestions / doesn't exist — show handle only (no @)
             parts.push(
               <Text key={`${lineKey}-${match.index}`} style={lineStyle}>
                 {handle}
@@ -304,7 +320,7 @@ function MarkdownTextInner({
         content = content.slice(content.indexOf("\n") + 1).trimStart();
       }
     }
-    // No line breaks before/after [[]], [text](url), @mention: collapse to space so they render inline
+    // Collapse line breaks around inline elements so they flow naturally
     content = content.replace(/\n+\s*(\[\[[^\]]+\]\])/g, " $1");
     content = content.replace(/(\[\[[^\]]+\]\])\s*\n+\s*/g, "$1 ");
     content = content.replace(/\n+\s*(\[[^\]]+\]\([^)]+\))/g, " $1");
@@ -321,11 +337,11 @@ function MarkdownTextInner({
       const line = lines[i];
       const isFence = line.trim().startsWith("```");
       if (isFence) {
-        i += 1; // skip opening ``` or ```lang
+        i += 1;
         const codeLines: string[] = [];
         while (i < lines.length) {
           if (lines[i].trim().startsWith("```")) {
-            i += 1; // skip closing ```
+            i += 1;
             break;
           }
           codeLines.push(lines[i]);
@@ -351,17 +367,19 @@ function MarkdownTextInner({
       if (seg.type === "code") {
         const blockKey = `code-${nodeKey++}`;
         nodes.push(
-          <View key={blockKey} style={styles.codeBlockContainer}>
-            {seg.lines.map((codeLine, idx) => (
-              <Text
-                key={`${blockKey}-${idx}`}
-                style={styles.codeBlockLine}
-                selectable
-              >
-                {codeLine || " "}
-              </Text>
-            ))}
-          </View> as React.ReactNode,
+          (
+            <View key={blockKey} style={styles.codeBlockContainer}>
+              {seg.lines.map((codeLine, idx) => (
+                <Text
+                  key={`${blockKey}-${idx}`}
+                  style={styles.codeBlockLine}
+                  selectable
+                >
+                  {codeLine || " "}
+                </Text>
+              ))}
+            </View>
+          ) as React.ReactNode,
         );
         return;
       }
@@ -402,12 +420,15 @@ function MarkdownTextInner({
         }
         const lineKey = `l-${nodeKey}-${lineIndex}`;
         if (content.trim() === "") {
-          nodes.push(<View key={lineKey} style={{ height: SPACING.m }} /> as React.ReactNode);
+          nodes.push(
+            (
+              <View key={lineKey} style={{ height: SPACING.m }} />
+            ) as React.ReactNode,
+          );
         } else {
           const parts = parseLineContent(content, lineStyle, lineKey);
           const hasBlockInLine = parts.some(
-            (p) =>
-              isValidElement(p) && (p as { type?: unknown }).type === View,
+            (p) => isValidElement(p) && (p as { type?: unknown }).type === View,
           );
           const isHeading =
             (lineStyle as object) === (styles.h1 as object) ||
@@ -422,21 +443,25 @@ function MarkdownTextInner({
           ];
           if (!hasBlockInLine && parts.length > 0) {
             nodes.push(
-              <View key={lineKey} style={lineRowStyle}>
-                {prefix}
-                <Text style={lineStyle}>{parts}</Text>
-              </View> as React.ReactNode,
+              (
+                <View key={lineKey} style={lineRowStyle}>
+                  {prefix}
+                  <Text style={lineStyle}>{parts}</Text>
+                </View>
+              ) as React.ReactNode,
             );
           } else {
             nodes.push(
-              <View key={lineKey} style={lineRowStyle}>
-                {prefix}
-                {parts.length > 0 ? (
-                  parts
-                ) : (
-                  <Text style={lineStyle}>{content}</Text>
-                )}
-              </View> as React.ReactNode,
+              (
+                <View key={lineKey} style={lineRowStyle}>
+                  {prefix}
+                  {parts.length > 0 ? (
+                    parts
+                  ) : (
+                    <Text style={lineStyle}>{content}</Text>
+                  )}
+                </View>
+              ) as React.ReactNode,
             );
           }
         }
@@ -469,7 +494,9 @@ function MarkdownTextInner({
                   handleLinkPress(target);
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={t("post.linkedItems", "Linked Items") + `: ${target}`}
+                accessibilityLabel={
+                  t("post.linkedItems", "Linked Items") + `: ${target}`
+                }
               >
                 <Text style={styles.targetText}>{target}</Text>
               </Pressable>
@@ -480,7 +507,9 @@ function MarkdownTextInner({
               accessibilityRole="button"
               accessibilityLabel={t("common.close", "Close")}
             >
-              <Text style={styles.closeButtonText}>{t("common.close", "Close")}</Text>
+              <Text style={styles.closeButtonText}>
+                {t("common.close", "Close")}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -501,10 +530,9 @@ const styles = createStyles({
     fontSize: 18,
     lineHeight: 28,
     color: COLORS.paper,
-    fontFamily: FONTS.serifRegular, // Body text = Serif
+    fontFamily: FONTS.serifRegular,
     marginBottom: SPACING.xs,
   },
-  /* H1/H2/H3: distinct sizes – H1 (title-level) > H2 (section) > H3 (subsection) */
   h1: {
     fontSize: 28,
     lineHeight: 36,
@@ -539,7 +567,7 @@ const styles = createStyles({
     lineHeight: 26,
     fontStyle: "italic",
     color: COLORS.secondary,
-    fontFamily: FONTS.serifRegular, // Quote = Serif
+    fontFamily: FONTS.serifRegular,
     flex: 1,
     marginBottom: SPACING.xs,
   },
@@ -562,7 +590,7 @@ const styles = createStyles({
     fontSize: 18,
     lineHeight: 28,
     color: COLORS.paper,
-    fontFamily: FONTS.serifRegular, // List = Serif
+    fontFamily: FONTS.serifRegular,
     flex: 1,
     marginBottom: SPACING.xs,
   },
@@ -572,7 +600,7 @@ const styles = createStyles({
     fontWeight: "bold",
     color: COLORS.tertiary,
     width: 20,
-    fontFamily: FONTS.serifRegular, // Bullet matches text font
+    fontFamily: FONTS.serifRegular,
   },
   number: {
     fontSize: 18,
@@ -580,18 +608,17 @@ const styles = createStyles({
     fontWeight: "bold",
     color: COLORS.tertiary,
     minWidth: 24,
-    fontFamily: FONTS.serifRegular, // Number matches text font
+    fontFamily: FONTS.serifRegular,
   },
   bold: {
     fontWeight: "700",
-    fontFamily: FONTS.serifSemiBold, // Bold body = Serif SemiBold
+    fontFamily: FONTS.serifSemiBold,
     color: COLORS.paper,
   },
   italic: {
     fontStyle: "italic",
     fontFamily: FONTS.serifRegular,
   },
-  /* Inline code `code` – darker bg, mono font */
   inlineCode: {
     fontFamily: CODE_FONT,
     fontSize: 15,
@@ -602,7 +629,6 @@ const styles = createStyles({
     borderRadius: 4,
     overflow: "hidden",
   },
-  /* Multi-line inline code (backticks with newlines) */
   inlineCodeBlockWrap: {
     backgroundColor: COLORS.codeBackground,
     borderRadius: 8,
@@ -617,7 +643,6 @@ const styles = createStyles({
     color: COLORS.codeText,
     lineHeight: 22,
   },
-  /* Fenced code block ```...``` */
   codeBlockContainer: {
     backgroundColor: COLORS.codeBackground,
     borderRadius: 8,
@@ -642,29 +667,29 @@ const styles = createStyles({
   lineRowHeading: {
     marginBottom: SPACING.xs,
   },
-  /* Tags, links, mentions – same font as body (serif), bold and distinct colors from design-tokens */
   inlineLinkWrap: {
     alignSelf: "baseline",
   },
-  /** [[post:id]] in-body links */
+  /**
+   * Inline text styles — all same font size as body text.
+   * No View wrappers, no pills, no chips. Pure text that flows naturally.
+   */
   postLinkText: {
-    fontWeight: "700",
+    fontWeight: "600",
+    fontStyle: "italic",
     color: COLORS.postLink ?? COLORS.primary,
     fontFamily: FONTS.serifSemiBold,
   },
-  /** @mention – design-tokens COLORS.mention */
   mentionText: {
-    fontWeight: "700",
+    fontWeight: "600",
     color: COLORS.mention ?? COLORS.primary,
     fontFamily: FONTS.serifSemiBold,
   },
-  /** [[Topic]] tags – design-tokens COLORS.topic */
   topicTagText: {
-    fontWeight: "700",
+    fontWeight: "600",
     color: COLORS.topic ?? COLORS.primary,
     fontFamily: FONTS.serifSemiBold,
   },
-  /* External URL links – design-tokens COLORS.link; open in-app browser */
   urlLinkText: {
     fontWeight: "600",
     color: COLORS.link,

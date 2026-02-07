@@ -9,18 +9,18 @@ import { useToast } from "./ui/toast";
 import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
 import { sanitizeHTML } from "@/lib/sanitize-html";
 import { getImageUrl } from "@/lib/security";
+import { hydrateMentionAvatars } from "@/utils/hydrate-mentions";
 import { getPostDisplayTitle } from "@/utils/compose-helpers";
 import { Avatar } from "./avatar";
 import { ReplySection } from "./reply-section";
-import { SourcesSection } from "./sources-section";
-import { ReferencedBySection } from "./referenced-by-section";
-import { GraphView } from "./graph-view";
+import { PostConnections } from "./post-connections";
 import { OverflowMenu } from "./overflow-menu";
 import { AddToCollectionModal } from "./add-to-collection-modal";
 import { ReportModal } from "./report-modal";
 import { ShareModal } from "./share-modal";
 import { PublicSignInBar } from "./public-sign-in-bar";
 import { useAuth } from "./auth-provider";
+import { useExplorationTrail } from "@/context/exploration-trail";
 
 export interface PostDetailProps {
   post: {
@@ -62,6 +62,7 @@ function PostDetailInner({
   const router = useRouter();
   const { success: toastSuccess, error: toastError } = useToast();
   const { user } = useAuth();
+  const { pushStep } = useExplorationTrail();
   const [liked, setLiked] = useState(false);
   const [likeAnimating, setLikeAnimating] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -69,11 +70,8 @@ function PostDetailInner({
   const [showAddToCollection, setShowAddToCollection] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [postTab, setPostTab] = useState<"sources" | "referenced" | "graph">(
-    "sources",
-  );
   const startTimeRef = useRef<number>(Date.now());
-  const tabsSectionRef = useRef<HTMLElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   const isAuthor = !!user && user.id === post.author.id;
 
@@ -111,6 +109,24 @@ function PostDetailInner({
       }
     };
   }, [post.id, isPublic]);
+
+  // Push trail step when post loads
+  useEffect(() => {
+    const title =
+      getPostDisplayTitle(post) || post.body?.slice(0, 40) || "Post";
+    pushStep({
+      type: "post",
+      id: post.id,
+      label: title,
+      href: `/post/${post.id}`,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id]); // Only on post ID change
+
+  // Hydrate @mention avatars
+  useEffect(() => {
+    hydrateMentionAvatars(bodyRef.current);
+  }, [post.body]);
 
   // Scroll to reply section when navigating with #reply (e.g. from post preview "comments" link)
   useEffect(() => {
@@ -201,14 +217,6 @@ function PostDetailInner({
   };
 
   const showPrivateContent = post.viewerCanSeeContent !== false;
-
-  // Tabs: Sources (when content visible) | Quoted by | Graph
-  const postTabs = showPrivateContent
-    ? (["sources", "referenced", "graph"] as const)
-    : (["referenced", "graph"] as const);
-  const activePostTab = (postTabs as readonly string[]).includes(postTab)
-    ? postTab
-    : postTabs[0];
 
   if (post.deletedAt) {
     const deletedDate = new Date(post.deletedAt);
@@ -426,6 +434,7 @@ function PostDetailInner({
                 ) : null;
               })()}
               <div
+                ref={bodyRef}
                 className="text-[18px] leading-relaxed text-secondary font-normal prose prose-invert max-w-none"
                 dangerouslySetInnerHTML={{
                   // Safe: Content is sanitized HTML from renderMarkdown which processes user markdown
@@ -638,36 +647,6 @@ function PostDetailInner({
             </svg>
             <span className="text-sm">Add</span>
           </button>
-          <button
-            onClick={() => {
-              setPostTab("graph");
-              requestAnimationFrame(() => {
-                tabsSectionRef.current?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "start",
-                });
-              });
-            }}
-            className="flex items-center gap-2 text-tertiary hover:text-primary transition-colors"
-            type="button"
-            aria-label="View citation graph"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-              />
-            </svg>
-            <span className="text-sm">Graph</span>
-          </button>
           {!post.author?.isProtected && (
             <button
               onClick={handleShare}
@@ -693,51 +672,17 @@ function PostDetailInner({
         </div>
       </article>
 
-      {/* Tabs: Sources (if content visible) | Quoted by | Graph — then Replies */}
-      <div className={`px-5 py-6 space-y-8 ${isPublic ? "pb-24" : ""}`}>
-        <section ref={tabsSectionRef} className="border-t border-divider pt-6">
-          <div className="flex border-b border-divider mb-4 overflow-x-auto no-scrollbar">
-            {postTabs.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setPostTab(tab)}
-                className={`shrink-0 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                  activePostTab === tab
-                    ? "border-primary text-paper"
-                    : "border-transparent text-tertiary hover:text-paper"
-                }`}
-              >
-                {tab === "sources"
-                  ? "Sources"
-                  : tab === "referenced"
-                    ? `Quoted by${(post.quoteCount ?? 0) > 0 ? ` (${post.quoteCount})` : ""}`
-                    : "Graph"}
-              </button>
-            ))}
-          </div>
-          <div className="min-h-[140px]">
-            {activePostTab === "sources" && showPrivateContent && (
-              <SourcesSection
-                postId={post.id}
-                postBody={post.body}
-                asTabContent
-              />
-            )}
-            {activePostTab === "referenced" && (
-              <ReferencedBySection
-                postId={post.id}
-                quoteCount={post.quoteCount ?? 0}
-                asTabContent
-              />
-            )}
-            {activePostTab === "graph" && (
-              <GraphView postId={post.id} asTabContent />
-            )}
-          </div>
-        </section>
+      {/* Connections – replaces tabs */}
+      {showPrivateContent && (
+        <PostConnections
+          postId={post.id}
+          postBody={post.body}
+          quoteCount={post.quoteCount ?? 0}
+        />
+      )}
 
-        {/* Replies Section - id for #reply hash; scroll-into-view handled below */}
+      {/* Replies Section - id for #reply hash; scroll-into-view handled below */}
+      <div className={`px-5 py-6 ${isPublic ? "pb-24" : ""}`}>
         <section id="reply" aria-label="Replies">
           <ReplySection
             postId={post.id}

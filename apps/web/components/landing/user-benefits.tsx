@@ -10,7 +10,7 @@ export function UserBenefits() {
           Who it&apos;s for
         </h2>
         <h3 className="text-3xl font-serif text-[#F2F2F2]">
-          For everyone tired of the algorithm.
+          Where your ideas find their audience.
         </h3>
       </div>
 
@@ -19,11 +19,14 @@ export function UserBenefits() {
         <div className="space-y-4">
           <div className="flex items-center gap-3 mb-2">
             <MdMenuBook className="text-[#6E7A8A] w-6 h-6" />
-            <h4 className="text-xl font-medium text-[#F2F2F2]">The Reader</h4>
+            <h4 className="text-xl font-medium text-[#F2F2F2]">
+              Your voice reaches its audience
+            </h4>
           </div>
           <p className="text-[#A8A8AA] leading-relaxed">
-            Discover ideas by topic, not by what an algorithm decided you should
-            see. Follow writers for what they say — not how loud they say it.
+            Your voice reaches its audience — post about{" "}
+            <span className="text-[#E8B86D]">[[Cars]]</span> and everyone
+            following Cars sees it, regardless of follower count.
           </p>
         </div>
 
@@ -31,12 +34,13 @@ export function UserBenefits() {
         <div className="space-y-4">
           <div className="flex items-center gap-3 mb-2">
             <MdCreate className="text-[#6E7A8A] w-6 h-6" />
-            <h4 className="text-xl font-medium text-[#F2F2F2]">The Writer</h4>
+            <h4 className="text-xl font-medium text-[#F2F2F2]">
+              Ideas grow together
+            </h4>
           </div>
           <p className="text-[#A8A8AA] leading-relaxed">
-            Your posts stay discoverable long after you publish — not buried
-            after a day. Export everything via RSS. Your work is yours, never
-            locked into a platform.
+            Ideas grow together — when someone builds on your post, both posts
+            gain visibility through the citation chain.
           </p>
         </div>
 
@@ -45,13 +49,14 @@ export function UserBenefits() {
           <div className="flex items-center gap-3 mb-2">
             <MdForum className="text-[#6E7A8A] w-6 h-6" />
             <h4 className="text-xl font-medium text-[#F2F2F2]">
-              The Community
+              Explore without surveillance
             </h4>
           </div>
           <p className="text-[#A8A8AA] leading-relaxed">
-            Discussions built on substance, not dunks. No rage bait, no
-            pile-ons. A place where disagreement can be civil and ideas can
-            actually be exchanged.
+            Explore without surveillance — discover through topic connections
+            and content structure, never through personality profiling.
+            Everything is traceable — every reference, citation, and topic link
+            creates a visible, navigable thread.
           </p>
         </div>
       </div>

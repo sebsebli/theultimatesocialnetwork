@@ -21,6 +21,8 @@ import { ExternalLinkProvider } from "../context/ExternalLinkContext";
 import { SocketProvider } from "../context/SocketContext";
 import { DraftProvider } from "../context/DraftContext";
 import { SettingsProvider } from "../context/SettingsContext";
+import { PostActionProvider } from "../context/PostActionContext";
+import { ExplorationTrailProvider } from "../context/ExplorationTrailContext";
 import { setApiErrorToastHandler } from "../utils/api";
 import { View } from "react-native";
 import { FullScreenSkeleton } from "../components/LoadingSkeleton";
@@ -35,7 +37,11 @@ import { Platform, Linking } from "react-native";
 import * as Notifications from "expo-notifications";
 
 /** Allowed deep-link schemes. Only open links matching these to prevent open-redirect attacks. */
-const ALLOWED_DEEP_LINK_SCHEMES = ["citewalk://", "https://citewalk.com", "https://www.citewalk.com"];
+const ALLOWED_DEEP_LINK_SCHEMES = [
+  "citewalk://",
+  "https://citewalk.com",
+  "https://www.citewalk.com",
+];
 
 function isAllowedDeepLink(url: string): boolean {
   if (!url || typeof url !== "string") return false;
@@ -211,12 +217,18 @@ export default function RootLayout() {
               <SocketProvider>
                 <SettingsProvider>
                   <DraftProvider>
-                    <ThemeProvider value={MyDarkTheme}>
-                      <View style={{ flex: 1, backgroundColor: COLORS.ink }}>
-                        <OfflineBanner />
-                        <AppContent onReady={handleAppReady} />
-                      </View>
-                    </ThemeProvider>
+                    <PostActionProvider>
+                      <ExplorationTrailProvider>
+                        <ThemeProvider value={MyDarkTheme}>
+                          <View
+                            style={{ flex: 1, backgroundColor: COLORS.ink }}
+                          >
+                            <OfflineBanner />
+                            <AppContent onReady={handleAppReady} />
+                          </View>
+                        </ThemeProvider>
+                      </ExplorationTrailProvider>
+                    </PostActionProvider>
                   </DraftProvider>
                 </SettingsProvider>
               </SocketProvider>

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { PostItem, type Post } from "./post-item";
 import { SavedByItem } from "./saved-by-item";
 import { InviteNudge } from "./invite-nudge";
+import { FeedCrossroads } from "./feed-crossroads";
 import { useToast } from "@/components/ui/toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
@@ -191,20 +192,23 @@ export function FeedList({ initialPosts }: FeedListProps) {
   }
 
   return (
-    <div className="h-[calc(100vh-60px)] w-full">
-      <AutoSizer>
-        {({ height, width }: { height: number; width: number }) => (
-          <List
-            ref={listRef}
-            height={height}
-            width={width}
-            itemCount={posts.length + 1} // +1 for loader
-            itemSize={(index: number) => rowHeights.current[index] || 150} // Estimate
-          >
-            {Row}
-          </List>
-        )}
-      </AutoSizer>
+    <div className="w-full">
+      <div className="h-[calc(100vh-60px)] w-full">
+        <AutoSizer>
+          {({ height, width }: { height: number; width: number }) => (
+            <List
+              ref={listRef}
+              height={height}
+              width={width}
+              itemCount={posts.length + 1} // +1 for loader
+              itemSize={(index: number) => rowHeights.current[index] || 150} // Estimate
+            >
+              {Row}
+            </List>
+          )}
+        </AutoSizer>
+      </div>
+      {!hasMore && posts.length > 0 && <FeedCrossroads />}
     </div>
   );
 }

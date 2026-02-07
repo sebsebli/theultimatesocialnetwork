@@ -43,7 +43,9 @@ export default function OnboardingLanguagesScreen() {
       if (selectedLanguages.length < 3) {
         setSelectedLanguages((prev) => [...prev, code]);
       } else {
-        showToast(t("onboarding.maxLanguages", "You can select up to 3 languages"));
+        showToast(
+          t("onboarding.maxLanguages", "You can select up to 3 languages"),
+        );
       }
     }
   };
@@ -54,8 +56,8 @@ export default function OnboardingLanguagesScreen() {
       await api.patch("/users/me", {
         languages: selectedLanguages,
       });
-      await setOnboardingStage("profile");
-      router.push("/onboarding/profile");
+      await setOnboardingStage("topics");
+      router.push("/onboarding/topics");
     } catch (error: unknown) {
       if (__DEV__) console.error("Failed to update languages", error);
       showError(t("onboarding.updateFailed"));
@@ -68,8 +70,9 @@ export default function OnboardingLanguagesScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <View style={styles.stepIndicator}>
-          <View style={styles.stepDot} />
           <View style={[styles.stepDot, styles.stepDotActive]} />
+          <View style={styles.stepDot} />
+          <View style={styles.stepDot} />
           <View style={styles.stepDot} />
         </View>
       </View>
@@ -95,7 +98,7 @@ export default function OnboardingLanguagesScreen() {
                 style={[styles.langCard, isSelected && styles.langCardSelected]}
                 onPress={() => toggleLanguage(lang.code)}
                 accessibilityRole="button"
-                accessibilityLabel={`${lang.name}${lang.native ? `, ${lang.native}` : ''}${isSelected ? ', selected' : ''}`}
+                accessibilityLabel={`${lang.name}${lang.native ? `, ${lang.native}` : ""}${isSelected ? ", selected" : ""}`}
               >
                 <Text
                   style={[
@@ -115,7 +118,11 @@ export default function OnboardingLanguagesScreen() {
                 </Text>
                 {isSelected && (
                   <View style={styles.checkBadge}>
-                    <MaterialIcons name="check" size={12} color={COLORS.paper} />
+                    <MaterialIcons
+                      name="check"
+                      size={12}
+                      color={COLORS.paper}
+                    />
                   </View>
                 )}
               </Pressable>

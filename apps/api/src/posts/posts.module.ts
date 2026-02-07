@@ -9,6 +9,9 @@ import { ExternalSource } from '../entities/external-source.entity';
 import { Mention } from '../entities/mention.entity';
 import { User } from '../entities/user.entity';
 import { Follow } from '../entities/follow.entity';
+import { PostTopic } from '../entities/post-topic.entity';
+import { PostEdge } from '../entities/post-edge.entity';
+import { Topic } from '../entities/topic.entity';
 import { DatabaseModule } from '../database/database.module';
 import { FeedModule } from '../feed/feed.module';
 import { SearchModule } from '../search/search.module';
@@ -22,7 +25,16 @@ import { ExploreModule } from '../explore/explore.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Post, ExternalSource, Mention, User, Follow]),
+    TypeOrmModule.forFeature([
+      Post,
+      ExternalSource,
+      Mention,
+      User,
+      Follow,
+      PostTopic,
+      PostEdge,
+      Topic,
+    ]),
     ConfigModule,
     DatabaseModule,
     FeedModule,

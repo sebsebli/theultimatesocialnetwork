@@ -127,7 +127,7 @@ function ComposeContentInner() {
               const post = await res.json();
               return { id, title: post.title || "Untitled Post" };
             }
-          } catch { }
+          } catch {}
           return { id, title: "Linked Post" };
         }),
       );
@@ -137,7 +137,8 @@ function ComposeContentInner() {
         resolvedText = resolvedText.replace(regex, `[[post:${id}|${title}]]`);
       });
     } catch (e) {
-      if (process.env.NODE_ENV !== "production") console.error("Failed to resolve titles", e);
+      if (process.env.NODE_ENV !== "production")
+        console.error("Failed to resolve titles", e);
     }
     return resolvedText;
   };
@@ -227,7 +228,8 @@ function ComposeContentInner() {
         }
       }
     } catch (error) {
-      if (process.env.NODE_ENV !== "production") console.error("Failed to publish", error);
+      if (process.env.NODE_ENV !== "production")
+        console.error("Failed to publish", error);
       toastError(t("error"));
     } finally {
       setIsPublishing(false);
@@ -310,10 +312,7 @@ function ComposeContentInner() {
 
     const wikilinkMatch = textBeforeCursor.match(/\[\[([^\]]*)$/);
     if (wikilinkMatch) {
-      setPosition(
-        wikilinkMatch[1],
-        smartCiteEnabled ? "all" : "topic",
-      );
+      setPosition(wikilinkMatch[1], smartCiteEnabled ? "all" : "topic");
       return;
     }
 
@@ -415,10 +414,11 @@ function ComposeContentInner() {
           <div className="flex items-center bg-white/5 rounded-lg p-0.5 border border-white/10">
             <button
               onClick={() => setViewMode("edit")}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === "edit"
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                viewMode === "edit"
                   ? "bg-primary text-white shadow-sm"
                   : "text-secondary hover:text-paper"
-                }`}
+              }`}
             >
               Write
             </button>
@@ -427,10 +427,11 @@ function ComposeContentInner() {
                 if (body.trim().length < BODY_MIN_LENGTH) return;
                 setViewMode("preview");
               }}
-              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${viewMode === "preview"
+              className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                viewMode === "preview"
                   ? "bg-primary text-white shadow-sm"
                   : "text-secondary hover:text-paper"
-                }`}
+              }`}
             >
               Preview
             </button>
@@ -523,7 +524,7 @@ function ComposeContentInner() {
           </>
         ) : (
           <div className="max-w-2xl mx-auto w-full animate-in fade-in duration-200">
-            <ReadingMode post={previewPost} />
+            <ReadingMode post={previewPost} isPreview />
           </div>
         )}
       </div>

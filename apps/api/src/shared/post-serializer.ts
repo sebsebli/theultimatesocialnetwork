@@ -27,6 +27,7 @@ export function authorPlain(
         displayName?: string;
         avatarKey?: string | null;
         isProtected?: boolean;
+        bio?: string | null;
       }
     | null
     | undefined,
@@ -43,6 +44,9 @@ export function authorPlain(
   if (a.avatarKey && getImageUrl) base.avatarUrl = getImageUrl(a.avatarKey);
   if (typeof (a as { isProtected?: boolean }).isProtected === 'boolean') {
     base.isProtected = (a as { isProtected: boolean }).isProtected;
+  }
+  if (typeof a.bio === 'string' && a.bio.trim() !== '') {
+    base.bio = a.bio.trim();
   }
   return base;
 }

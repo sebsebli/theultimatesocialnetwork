@@ -5,10 +5,22 @@ import { getLocale } from "next-intl/server";
 import { ImprintContentDE } from "./de";
 
 export const metadata: Metadata = {
-  title: "Imprint | Citewalk",
-  description: "Legal Imprint (Impressum) for Citewalk.",
+  title: "Imprint",
+  description:
+    "Legal Imprint (Impressum) for Citewalk. Operated by Dr. Sebastian Lindner, Halle, Germany.",
   alternates: {
     canonical: "https://citewalk.com/imprint",
+  },
+  openGraph: {
+    title: "Imprint — Citewalk",
+    description: "Legal Imprint (Impressum) for Citewalk.",
+    url: "https://citewalk.com/imprint",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Imprint — Citewalk",
+    description: "Legal Imprint (Impressum) for Citewalk.",
   },
 };
 

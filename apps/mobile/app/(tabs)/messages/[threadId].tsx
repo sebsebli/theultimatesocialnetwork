@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text,
   View,
-  FlatList,
   TextInput,
   Pressable,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -22,7 +22,6 @@ import {
   FONTS,
   HEADER,
   createStyles,
-  FLATLIST_DEFAULTS,
 } from "../../../constants/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../../components/ScreenHeader";
@@ -42,20 +41,39 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const { on, off } = useSocket();
   const { showError } = useToast();
-  const [messages, setMessages] = useState<Array<{ id: string; body: string; senderId?: string; authorId?: string; createdAt?: string }>>([]);
+  const [messages, setMessages] = useState<
+    Array<{
+      id: string;
+      body: string;
+      senderId?: string;
+      authorId?: string;
+      createdAt?: string;
+    }>
+  >([]);
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef =
+    useRef<
+      FlashListRef<{
+        id: string;
+        body: string;
+        senderId?: string;
+        authorId?: string;
+        createdAt?: string;
+      }>
+    >(null);
 
   useEffect(() => {
     api
       .get<{ id: string }>("/users/me")
       .then((u) => setCurrentUserId(u.id))
-      .catch(() => { /* current user lookup best-effort */ });
+      .catch(() => {
+        /* current user lookup best-effort */
+      });
   }, []);
 
   useEffect(() => {
@@ -94,7 +112,14 @@ export default function ChatScreen() {
 
   useEffect(() => {
     const handleNewMessage = (data: unknown) => {
-      const msg = data as { threadId?: string; id: string; body: string; senderId?: string; authorId?: string; createdAt?: string };
+      const msg = data as {
+        threadId?: string;
+        id: string;
+        body: string;
+        senderId?: string;
+        authorId?: string;
+        createdAt?: string;
+      };
       if (msg.threadId === threadId) {
         setMessages((prev) => [msg, ...prev]);
       }
@@ -109,7 +134,13 @@ export default function ChatScreen() {
     setInputText("");
     setSending(true);
     try {
-      const msg = await api.post<{ id: string; body: string; senderId?: string; authorId?: string; createdAt?: string }>(`/messages/threads/${threadId}/messages`, {
+      const msg = await api.post<{
+        id: string;
+        body: string;
+        senderId?: string;
+        authorId?: string;
+        createdAt?: string;
+      }>(`/messages/threads/${threadId}/messages`, {
         body: text,
       });
       setMessages((prev) => [msg, ...prev]);
@@ -142,26 +173,33 @@ export default function ChatScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: { id: string; body: string; senderId?: string; authorId?: string } }) => {
-    const isMe = (item.senderId ?? item.authorId) === currentUserId;
-    return (
-      <View
-        style={[
-          styles.messageBubble,
-          isMe ? styles.myMessage : styles.theirMessage,
-        ]}
-      >
-        <Text
+  const renderItem = useCallback(
+    ({
+      item,
+    }: {
+      item: { id: string; body: string; senderId?: string; authorId?: string };
+    }) => {
+      const isMe = (item.senderId ?? item.authorId) === currentUserId;
+      return (
+        <View
           style={[
-            styles.messageText,
-            isMe ? styles.myMessageText : styles.theirMessageText,
+            styles.messageBubble,
+            isMe ? styles.myMessage : styles.theirMessage,
           ]}
         >
-          {item.body}
-        </Text>
-      </View>
-    );
-  };
+          <Text
+            style={[
+              styles.messageText,
+              isMe ? styles.myMessageText : styles.theirMessageText,
+            ]}
+          >
+            {item.body}
+          </Text>
+        </View>
+      );
+    },
+    [currentUserId],
+  );
 
   return (
     <View style={styles.container}>
@@ -180,18 +218,14 @@ export default function ChatScreen() {
         }
       />
 
-      <FlatList
+      <FlashList
         ref={flatListRef}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
         data={messages}
+        estimatedItemSize={60}
         renderItem={renderItem}
         keyExtractor={(item: { id: string }) => item.id}
         inverted
-        contentContainerStyle={[
-          styles.listContent,
-          messages.length === 0 && { flexGrow: 1 },
-        ]}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           loading && messages.length === 0 ? (
             <MessageListSkeleton count={4} />
@@ -203,7 +237,7 @@ export default function ChatScreen() {
             />
           ) : null
         }
-        {...FLATLIST_DEFAULTS}
+        showsVerticalScrollIndicator={false}
       />
 
       <KeyboardAvoidingView

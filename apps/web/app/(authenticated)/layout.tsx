@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { DesktopSidebar } from "@/components/desktop-sidebar";
 import { DesktopRightSidebar } from "@/components/desktop-right-sidebar";
 import { Navigation } from "@/components/navigation";
+import { ExplorationTrail } from "@/components/exploration-trail";
 import { UnreadMessagesProvider } from "@/context/unread-messages-context";
+import { ExplorationTrailProvider } from "@/context/exploration-trail";
 
 export default function AuthenticatedLayout({
   children,
@@ -42,9 +44,16 @@ export default function AuthenticatedLayout({
 
   if (!ready || needsOnboarding) {
     return (
-      <div className="min-h-screen bg-ink flex items-center justify-center" role="status" aria-live="polite">
+      <div
+        className="min-h-screen bg-ink flex items-center justify-center"
+        role="status"
+        aria-live="polite"
+      >
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin" aria-hidden />
+          <div
+            className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin"
+            aria-hidden
+          />
           <span className="text-secondary text-sm">Loading…</span>
         </div>
       </div>
@@ -53,16 +62,23 @@ export default function AuthenticatedLayout({
 
   return (
     <UnreadMessagesProvider>
-      <div className="flex min-h-screen bg-ink min-w-0">
-        <DesktopSidebar />
-        <main id="main-content" className="flex-1 flex justify-center min-w-0 md:max-w-2xl lg:max-w-4xl xl:max-w-5xl" role="main">
-          <div className="w-full border-x border-divider relative min-h-screen pb-20 md:pb-8">
-            {children}
-            <Navigation />
-          </div>
-        </main>
-        <DesktopRightSidebar />
-      </div>
+      <ExplorationTrailProvider>
+        <div className="flex min-h-screen bg-ink min-w-0">
+          <DesktopSidebar />
+          <main
+            id="main-content"
+            className="flex-1 flex justify-center min-w-0 md:max-w-2xl lg:max-w-4xl xl:max-w-5xl"
+            role="main"
+          >
+            <div className="w-full border-x border-divider relative min-h-screen pb-20 md:pb-8">
+              <ExplorationTrail />
+              {children}
+              <Navigation />
+            </div>
+          </main>
+          <DesktopRightSidebar />
+        </div>
+      </ExplorationTrailProvider>
     </UnreadMessagesProvider>
   );
 }

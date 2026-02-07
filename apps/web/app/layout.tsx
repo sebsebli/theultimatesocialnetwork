@@ -16,6 +16,10 @@ import { ConsentAndSignup } from "@/components/consent-and-signup";
 import { NotificationManager } from "@/components/notification-manager";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import {
+  OrganizationJsonLd,
+  SoftwareApplicationJsonLd,
+} from "@/components/seo/json-ld";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -29,21 +33,35 @@ const ibmPlexSerif = IBM_Plex_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Citewalk | The European Social Network",
+  metadataBase: new URL("https://citewalk.com"),
+  title: {
+    default: "Citewalk — The European Social Network",
+    template: "%s | Citewalk",
+  },
   description:
-    "Citewalk is the European alternative to algorithm-driven social media. No rage feeds, no engagement tricks — just good writing that gets seen. Independent, EU-hosted, and free.",
+    "Citewalk is a social network where ideas connect and grow. Post about what you know, follow topics you care about, and explore how ideas build on each other — transparently, without algorithms.",
   keywords: [
-    "European Social Network",
-    "Alternative Social Media",
-    "EU Hosted",
-    "Privacy-first",
     "Citewalk",
-    "Independent Platform",
-    "No Algorithm",
-    "Writing Platform",
+    "European social network",
+    "alternative social media",
+    "EU hosted social network",
+    "privacy-first social media",
+    "no algorithm social media",
+    "writing platform",
+    "independent platform",
+    "GDPR compliant social network",
+    "European alternative to Twitter",
+    "European alternative to X",
+    "text-first social network",
+    "citation-based social media",
+    "ad-free social network",
+    "social media without ads",
+    "European tech",
+    "digital sovereignty",
   ],
   authors: [{ name: "Dr. Sebastian Lindner", url: "https://citewalk.com" }],
   creator: "Dr. Sebastian Lindner",
+  publisher: "Citewalk",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -55,6 +73,56 @@ export const metadata: Metadata = {
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://citewalk.com",
+    siteName: "Citewalk",
+    title: "Citewalk — The European Social Network",
+    description:
+      "Citewalk is a social network where ideas connect and grow. Post about what you know, follow topics you care about, and explore how ideas build on each other — transparently, without algorithms.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Citewalk — Where ideas connect and grow.",
+        type: "image/png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Citewalk — The European Social Network",
+    description:
+      "Citewalk is a social network where ideas connect and grow. Post about what you know, follow topics you care about, and explore how ideas build on each other — transparently, without algorithms.",
+    images: ["/og-image.png"],
+    creator: "@citewalk",
+    site: "@citewalk",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: "https://citewalk.com",
+    types: {
+      "application/rss+xml": "https://citewalk.com/feed.xml",
+    },
+  },
+  category: "Social Networking",
+  other: {
+    "msapplication-TileColor": "#0B0B0C",
+    "apple-mobile-web-app-title": "Citewalk",
   },
 };
 
@@ -73,6 +141,8 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className={inter.className} suppressHydrationWarning>
+        <OrganizationJsonLd />
+        <SoftwareApplicationJsonLd />
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>

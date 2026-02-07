@@ -133,7 +133,9 @@ function PostItemInner({
     if (!confirm("Delete this post? This cannot be undone.")) return;
     setDeleting(true);
     try {
-      const response = await fetch(`/api/posts/${post.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/posts/${post.id}`, {
+        method: "DELETE",
+      });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data?.error ?? "Failed to delete post");
@@ -235,7 +237,7 @@ function PostItemInner({
 
       {/* Content */}
       <Link
-        href={post.title ? `/post/${post.id}/reading` : `/post/${post.id}`}
+        href={`/post/${post.id}/reading`}
         className="flex flex-col gap-2 cursor-pointer group"
       >
         <div className="relative">
@@ -617,9 +619,9 @@ function PostItemInner({
           onCopyLink={
             !post.author?.isProtected
               ? () => {
-                const url = `${window.location.origin}/post/${post.id}`;
-                navigator.clipboard.writeText(url);
-              }
+                  const url = `${window.location.origin}/post/${post.id}`;
+                  navigator.clipboard.writeText(url);
+                }
               : undefined
           }
         />

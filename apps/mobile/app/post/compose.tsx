@@ -38,6 +38,7 @@ import { useAuth } from "../../context/auth";
 import { useSettings } from "../../context/SettingsContext";
 import { useComposerSearch } from "../../hooks/useComposerSearch";
 import { MarkdownText } from "../../components/MarkdownText";
+import { PostAuthorHeader } from "../../components/PostAuthorHeader";
 import { PostItem } from "../../components/PostItem";
 import { Avatar } from "../../components/Avatar";
 import { ImageVerifyingOverlay } from "../../components/ImageVerifyingOverlay";
@@ -148,13 +149,14 @@ export default function ComposeScreen() {
   const quotePostId = params.quote as string | undefined;
   const replyToPostId = params.replyTo as string | undefined;
 
-  /** Current user for preview (real handle, displayName, avatar). */
+  /** Current user for preview (real handle, displayName, avatar, bio). */
   const [meUser, setMeUser] = useState<{
     id: string;
     handle: string;
     displayName: string;
     avatarKey?: string | null;
     avatarUrl?: string | null;
+    bio?: string | null;
   } | null>(null);
   useEffect(() => {
     if (!userId) return;
@@ -168,6 +170,7 @@ export default function ComposeScreen() {
             displayName: string;
             avatarKey?: string | null;
             avatarUrl?: string | null;
+            bio?: string | null;
           },
         ),
       )
@@ -1764,36 +1767,26 @@ export default function ComposeScreen() {
               )}
 
               <View style={styles.previewArticle}>
-                {/* Author line (same as reading) */}
-                <View style={styles.previewAuthorLine}>
-                  {getAvatarUri(previewPost.author) ? (
-                    <ExpoImage
-                      source={{ uri: getAvatarUri(previewPost.author)! }}
-                      style={styles.previewAuthorAvatarImage}
-                    />
-                  ) : (
-                    <View style={styles.previewAuthorAvatar}>
-                      <Text style={styles.previewAvatarText}>
-                        {previewPost.author?.displayName?.charAt(0) ||
-                          previewPost.author?.handle?.charAt(0) ||
-                          "?"}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.previewAuthorName}>
-                      {previewPost.author?.displayName ||
-                        previewPost.author?.handle ||
-                        t("compose.previewAuthor", "Me")}
-                    </Text>
-                    <Text style={styles.previewReadTime}>
-                      {new Date(previewPost.createdAt).toLocaleDateString(
-                        undefined,
-                        { year: "numeric", month: "long", day: "numeric" },
-                      )}
-                    </Text>
-                  </View>
-                </View>
+                {/* Author — shared component */}
+                <PostAuthorHeader
+                  variant="full"
+                  author={
+                    {
+                      ...previewPost.author,
+                      bio: meUser?.bio ?? previewPost.author?.bio,
+                    } as {
+                      id?: string;
+                      handle?: string;
+                      displayName?: string;
+                      avatarKey?: string | null;
+                      avatarUrl?: string | null;
+                      bio?: string | null;
+                    }
+                  }
+                  createdAt={previewPost.createdAt}
+                  readingTimeMinutes={previewPost.readingTimeMinutes ?? 0}
+                  navigable={false}
+                />
 
                 {/* Title only when no hero (hero already shows title) */}
                 {!headerImage && sanitizedTitle ? (
@@ -1856,121 +1849,144 @@ export default function ComposeScreen() {
                 </View>
               </View>
 
-              {/* Sources section (same layout as reading: tab + list or empty) */}
-              <View style={styles.previewSection}>
-                <View style={styles.previewTabsRow}>
-                  <View
-                    style={[styles.previewTabBtn, styles.previewTabBtnActive]}
-                  >
-                    <Text
-                      style={[
-                        styles.previewTabBtnText,
-                        styles.previewTabBtnTextActive,
-                      ]}
-                    >
-                      {t("post.sources", "Sources")}
-                    </Text>
-                  </View>
-                </View>
-                {previewSources.length === 0 ? (
-                  <Text style={styles.previewEmptyText}>
-                    {t("post.noSources", "No tagged sources in this post.")}
-                  </Text>
-                ) : (
-                  <View style={styles.previewSourcesList}>
-                    {previewSources.map(
-                      (source: Record<string, unknown>, index: number) => {
-                        const title =
-                          source.title ||
-                          source.url ||
-                          source.slug ||
-                          source.handle ||
-                          "";
-                        const subtitle =
-                          source.type === "external" && source.url
-                            ? (() => {
-                                try {
-                                  return new URL(
-                                    source.url as string,
-                                  ).hostname.replace("www.", "");
-                                } catch {
-                                  return "";
-                                }
-                              })()
-                            : source.type === "topic"
-                              ? t("post.topic", "Topic")
-                              : source.type === "user" && source.handle
-                                ? `@${source.handle}`
-                                : "";
-                        return (
-                          <View
-                            key={
-                              source.type === "external" && source.url
-                                ? `ext-${source.url}`
-                                : (source.id ??
-                                  source.handle ??
-                                  source.slug ??
-                                  `i-${index}`)
-                            }
-                            style={styles.previewSourceCard}
-                          >
-                            <View style={styles.previewSourceCardLeft}>
-                              {source.type === "user" ? (
-                                <View style={styles.previewSourceAvatar}>
-                                  <Text style={styles.previewSourceAvatarText}>
-                                    {(
-                                      (source.title as string) ||
-                                      (source.handle as string) ||
-                                      "?"
-                                    )
-                                      .charAt(0)
-                                      .toUpperCase()}
-                                  </Text>
-                                </View>
-                              ) : (
-                                <View style={styles.previewSourceIconWrap}>
-                                  <MaterialIcons
-                                    name={
-                                      source.type === "post"
-                                        ? "article"
-                                        : source.type === "topic"
-                                          ? "tag"
-                                          : "link"
-                                    }
-                                    size={HEADER.iconSize}
-                                    color={COLORS.primary}
-                                  />
-                                </View>
-                              )}
-                              <View style={styles.previewSourceCardText}>
-                                <Text
-                                  style={styles.previewSourceCardTitle}
-                                  numberOfLines={1}
+              {/* Connections: This builds on + In topics */}
+              {previewSources.length > 0 && (
+                <View style={styles.previewSection}>
+                  {/* This builds on (non-topic sources) */}
+                  {previewSources.filter(
+                    (s: Record<string, unknown>) => s.type !== "topic",
+                  ).length > 0 && (
+                    <>
+                      <Text style={styles.previewConnectionHeader}>
+                        This builds on
+                      </Text>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{
+                          gap: 10,
+                          paddingBottom: SPACING.m,
+                        }}
+                      >
+                        {previewSources
+                          .filter(
+                            (s: Record<string, unknown>) => s.type !== "topic",
+                          )
+                          .map(
+                            (
+                              source: Record<string, unknown>,
+                              index: number,
+                            ) => {
+                              const title = String(
+                                source.title ||
+                                  source.url ||
+                                  source.handle ||
+                                  "",
+                              );
+                              const subtitle =
+                                source.type === "external" && source.url
+                                  ? (() => {
+                                      try {
+                                        return new URL(
+                                          source.url as string,
+                                        ).hostname.replace("www.", "");
+                                      } catch {
+                                        return "";
+                                      }
+                                    })()
+                                  : source.type === "user" && source.handle
+                                    ? `@${source.handle}`
+                                    : source.type === "post"
+                                      ? t("post.post", "Post")
+                                      : "";
+                              const iconName =
+                                source.type === "post"
+                                  ? "description"
+                                  : source.type === "user"
+                                    ? "person"
+                                    : "open-in-new";
+                              return (
+                                <View
+                                  key={
+                                    source.type === "external" && source.url
+                                      ? `ext-${source.url}`
+                                      : (source.id ??
+                                        source.handle ??
+                                        `i-${index}`)
+                                  }
+                                  style={styles.previewConnectionCard}
                                 >
-                                  {title}
-                                </Text>
-                                {subtitle ? (
+                                  <View
+                                    style={styles.previewConnectionCardIcon}
+                                  >
+                                    <MaterialIcons
+                                      name={
+                                        iconName as keyof typeof MaterialIcons.glyphMap
+                                      }
+                                      size={14}
+                                      color={COLORS.tertiary}
+                                    />
+                                  </View>
+                                  {subtitle ? (
+                                    <Text
+                                      style={styles.previewConnectionCardSub}
+                                      numberOfLines={1}
+                                    >
+                                      {subtitle}
+                                    </Text>
+                                  ) : null}
                                   <Text
-                                    style={styles.previewSourceCardSubtitle}
+                                    style={styles.previewConnectionCardTitle}
                                     numberOfLines={2}
                                   >
-                                    {subtitle}
+                                    {title}
                                   </Text>
-                                ) : null}
+                                </View>
+                              );
+                            },
+                          )}
+                      </ScrollView>
+                    </>
+                  )}
+
+                  {/* In topics */}
+                  {previewSources.filter(
+                    (s: Record<string, unknown>) => s.type === "topic",
+                  ).length > 0 && (
+                    <>
+                      <Text style={styles.previewConnectionHeader}>
+                        In topics
+                      </Text>
+                      <View style={styles.previewTopicPills}>
+                        {previewSources
+                          .filter(
+                            (s: Record<string, unknown>) => s.type === "topic",
+                          )
+                          .map((source: Record<string, unknown>) => {
+                            const topicTitle = String(
+                              source.title || source.slug || "",
+                            );
+                            return (
+                              <View
+                                key={`topic-${source.slug ?? source.title}`}
+                                style={styles.previewTopicPill}
+                              >
+                                <MaterialIcons
+                                  name="tag"
+                                  size={14}
+                                  color={COLORS.primary}
+                                />
+                                <Text style={styles.previewTopicPillText}>
+                                  {topicTitle}
+                                </Text>
                               </View>
-                            </View>
-                            <MaterialIcons
-                              name="chevron-right"
-                              size={HEADER.iconSize}
-                              color={COLORS.tertiary}
-                            />
-                          </View>
-                        );
-                      },
-                    )}
-                  </View>
-                )}
-              </View>
+                            );
+                          })}
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
             </ScrollView>
           </View>
         </Modal>
@@ -2331,41 +2347,7 @@ const styles = createStyles({
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
     marginBottom: SPACING.l,
   },
-  previewAuthorLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.m,
-    marginBottom: SPACING.l,
-  },
-  previewAuthorAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.badge,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  previewAuthorAvatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  previewAvatarText: {
-    color: COLORS.primary,
-    fontWeight: "600",
-    fontSize: 16,
-    fontFamily: FONTS.semiBold,
-  },
-  previewAuthorName: {
-    fontSize: 15,
-    color: COLORS.paper,
-    fontFamily: FONTS.medium,
-  },
-  previewReadTime: {
-    fontSize: 13,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
+  /* author styles moved to shared PostAuthorHeader */
   previewArticleTitle: {
     fontSize: 28,
     fontWeight: "700",
@@ -2419,6 +2401,72 @@ const styles = createStyles({
     color: COLORS.secondary,
     fontFamily: FONTS.regular,
     fontStyle: "italic",
+  },
+  previewConnectionHeader: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.secondary,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    fontFamily: FONTS.semiBold,
+    marginBottom: SPACING.m,
+  },
+  _previewAuthorBioDeprecated: {
+    fontSize: 13,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  previewConnectionCard: {
+    width: 200,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadius,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    padding: SPACING.m,
+    gap: 4,
+  },
+  previewConnectionCardIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.divider,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  previewConnectionCardSub: {
+    fontSize: 11,
+    color: COLORS.secondary,
+    fontFamily: FONTS.regular,
+  },
+  previewConnectionCardTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.paper,
+    fontFamily: FONTS.semiBold,
+    lineHeight: 18,
+  },
+  previewTopicPills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.s,
+  },
+  previewTopicPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.hover,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    gap: 4,
+  },
+  previewTopicPillText: {
+    fontSize: 14,
+    color: COLORS.paper,
+    fontFamily: FONTS.medium,
   },
   previewSourcesList: {
     gap: SPACING.s,

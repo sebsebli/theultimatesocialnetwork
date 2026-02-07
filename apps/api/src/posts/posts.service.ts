@@ -39,6 +39,9 @@ export class PostsService {
     private externalSourceRepo: Repository<ExternalSource>,
     @InjectRepository(Mention) private mentionRepo: Repository<Mention>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(PostTopic) private postTopicRepo: Repository<PostTopic>,
+    @InjectRepository(PostEdge) private postEdgeRepo: Repository<PostEdge>,
+    @InjectRepository(Topic) private topicRepo: Repository<Topic>,
     private dataSource: DataSource,
     private neo4jService: Neo4jService,
     private neo4jQuery: Neo4jQueryService,
@@ -1227,6 +1230,270 @@ export class PostsService {
       centerId: postId,
       nodes: Array.from(nodes.values()),
       edges,
+    };
+  }
+
+  async getConnections(
+    postId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _viewerId?: string,
+  ): Promise<{
+    buildsOn: Array<{
+      type: 'post' | 'external' | 'topic' | 'user';
+      id: string;
+      label: string;
+      authorHandle?: string;
+      authorDisplayName?: string;
+      authorAvatarKey?: string;
+      quoteCount?: number;
+      replyCount?: number;
+      url?: string;
+      domain?: string;
+      description?: string;
+      imageUrl?: string;
+      slug?: string;
+      postCount?: number;
+      handle?: string;
+      avatarKey?: string;
+    }>;
+    builtUponBy: Array<{
+      id: string;
+      title: string | null;
+      bodyExcerpt: string;
+      authorHandle: string;
+      authorDisplayName: string;
+      authorAvatarKey: string | null;
+      quoteCount: number;
+      replyCount: number;
+    }>;
+    topics: Array<{
+      id: string;
+      slug: string;
+      title: string;
+      postCount: number;
+    }>;
+  }> {
+    // Get sources (buildsOn) - already enriched with basic data
+    const sources = await this.getSources(postId);
+
+    // Collect IDs for batch fetching
+    const postIds: string[] = [];
+    const topicIds: string[] = [];
+
+    for (const source of sources) {
+      if (source.type === 'post') {
+        postIds.push(source.id);
+      } else if (source.type === 'topic') {
+        topicIds.push(source.id);
+      }
+    }
+
+    // Batch fetch post data (quoteCount, replyCount, author details)
+    const postsMap = new Map<string, Post>();
+    if (postIds.length > 0) {
+      const posts = await this.postRepo.find({
+        where: { id: In(postIds) },
+        relations: ['author'],
+        select: ['id', 'quoteCount', 'replyCount', 'authorId', 'author'],
+      });
+      for (const post of posts) {
+        postsMap.set(post.id, post);
+      }
+    }
+
+    // Batch fetch topic post counts
+    const topicPostCounts = new Map<string, number>();
+    if (topicIds.length > 0) {
+      const counts = await Promise.all(
+        topicIds.map(async (topicId) => {
+          const postCountRow = await this.postTopicRepo
+            .createQueryBuilder('pt')
+            .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+            .where('pt.topic_id = :topicId', { topicId })
+            .select('COUNT(DISTINCT pt.post_id)', 'cnt')
+            .getRawOne<{ cnt: string }>();
+          return {
+            topicId,
+            count: postCountRow ? parseInt(postCountRow.cnt, 10) : 0,
+          };
+        }),
+      );
+      for (const { topicId, count } of counts) {
+        topicPostCounts.set(topicId, count);
+      }
+    }
+
+    // Enrich sources with additional data
+    const buildsOn = sources.map((source) => {
+      const base = {
+        type: source.type as 'post' | 'external' | 'topic' | 'user',
+        id: source.id,
+        label:
+          source.title ||
+          (source as { handle?: string }).handle ||
+          (source as { slug?: string }).slug ||
+          'Unknown',
+      };
+
+      if (source.type === 'post') {
+        const post = postsMap.get(source.id);
+        const postSource = source as {
+          toPost?: {
+            author?: {
+              handle?: string;
+              displayName?: string;
+              avatarKey?: string | null;
+            };
+          };
+          authorAvatarKey?: string | null;
+        };
+        const author = post?.author || postSource.toPost?.author;
+        return {
+          ...base,
+          authorHandle: author?.handle,
+          authorDisplayName: author?.displayName || author?.handle,
+          authorAvatarKey:
+            author?.avatarKey ?? postSource.authorAvatarKey ?? undefined,
+          quoteCount: post?.quoteCount ?? 0,
+          replyCount: post?.replyCount ?? 0,
+        };
+      }
+
+      if (source.type === 'external') {
+        const extSource = source as {
+          url?: string;
+          description?: string;
+          imageUrl?: string;
+        };
+        const url = extSource.url;
+        let domain: string | undefined;
+        if (url) {
+          try {
+            domain = new URL(url).hostname.replace(/^www\./, '');
+          } catch {
+            // Invalid URL, skip domain
+          }
+        }
+        return {
+          ...base,
+          url,
+          domain,
+          description: extSource.description,
+          imageUrl: extSource.imageUrl,
+        };
+      }
+
+      if (source.type === 'topic') {
+        const topicSource = source as { slug?: string };
+        return {
+          ...base,
+          slug: topicSource.slug,
+          postCount: topicPostCounts.get(source.id) ?? 0,
+        };
+      }
+
+      if (source.type === 'user') {
+        const userSource = source as {
+          handle?: string;
+          avatarKey?: string | null;
+        };
+        return {
+          ...base,
+          handle: userSource.handle,
+          avatarKey: userSource.avatarKey ?? undefined,
+        };
+      }
+
+      return base;
+    });
+
+    // Get referenced by (builtUponBy) - reuse existing logic
+    const referencedByPosts = await this.getReferencedBy(postId);
+
+    // Enrich referenced by posts with body excerpt and quoteCount
+    const builtUponBy = await Promise.all(
+      referencedByPosts.map(async (post) => {
+        const fullPost = await this.postRepo.findOne({
+          where: { id: post.id },
+          relations: ['author'],
+          select: [
+            'id',
+            'title',
+            'body',
+            'quoteCount',
+            'replyCount',
+            'authorId',
+          ],
+        });
+
+        if (!fullPost || !fullPost.author) {
+          return null;
+        }
+
+        // Strip markdown and get first 120 chars
+        const bodyExcerpt =
+          fullPost.body && typeof fullPost.body === 'string'
+            ? fullPost.body
+                .replace(/#{1,6}\s*/g, '')
+                .replace(/\*\*([^*]+)\*\*/g, '$1')
+                .replace(/_([^_]+)_/g, '$1')
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                .replace(/\n+/g, ' ')
+                .trim()
+                .slice(0, 120) + (fullPost.body.length > 120 ? '…' : '')
+            : '';
+
+        return {
+          id: fullPost.id,
+          title: fullPost.title,
+          bodyExcerpt,
+          authorHandle: fullPost.author.handle || '',
+          authorDisplayName:
+            fullPost.author.displayName || fullPost.author.handle || '',
+          authorAvatarKey: fullPost.author.avatarKey ?? null,
+          quoteCount: fullPost.quoteCount ?? 0,
+          replyCount: fullPost.replyCount ?? 0,
+        };
+      }),
+    );
+
+    // Get topics for this post
+    const postTopics = await this.postTopicRepo.find({
+      where: { postId },
+      relations: ['topic'],
+    });
+
+    const topics = await Promise.all(
+      postTopics.map(async (pt) => {
+        const topic = pt.topic;
+        if (!topic) return null;
+
+        // Get post count for this topic
+        const postCountRow = await this.postTopicRepo
+          .createQueryBuilder('pt')
+          .innerJoin(Post, 'p', 'p.id = pt.post_id AND p.deleted_at IS NULL')
+          .where('pt.topic_id = :topicId', { topicId: topic.id })
+          .select('COUNT(DISTINCT pt.post_id)', 'cnt')
+          .getRawOne<{ cnt: string }>();
+        const postCount = postCountRow ? parseInt(postCountRow.cnt, 10) : 0;
+
+        return {
+          id: topic.id,
+          slug: topic.slug,
+          title: topic.title,
+          postCount,
+        };
+      }),
+    );
+
+    return {
+      buildsOn: buildsOn.filter((item) => item !== null),
+      builtUponBy: builtUponBy.filter(
+        (item): item is NonNullable<typeof item> => item !== null,
+      ),
+      topics: topics.filter(
+        (item): item is NonNullable<typeof item> => item !== null,
+      ),
     };
   }
 }

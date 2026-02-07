@@ -3,11 +3,24 @@ import Image from "next/image";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Community Guidelines | Citewalk",
+  title: "Community Guidelines",
   description:
-    "Community Guidelines for Citewalk. Our rules for a respectful, substantive platform.",
+    "Community Guidelines for Citewalk. Our rules for a respectful, substantive platform where quality writing thrives.",
   alternates: {
     canonical: "https://citewalk.com/community-guidelines",
+  },
+  openGraph: {
+    title: "Community Guidelines — Citewalk",
+    description:
+      "Our rules for a respectful, substantive platform where quality writing thrives.",
+    url: "https://citewalk.com/community-guidelines",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Community Guidelines — Citewalk",
+    description:
+      "Our rules for a respectful, substantive platform where quality writing thrives.",
   },
 };
 
@@ -52,10 +65,11 @@ export default function CommunityGuidelinesPage() {
           {/* Preamble */}
           <section className="mb-12">
             <p className="text-lg leading-relaxed">
-              Citewalk is built on a simple belief: the best ideas rise when
+              Citewalk is built on a simple belief: ideas connect and grow when
               people engage with substance, not outrage. These guidelines exist
-              to keep the platform a place where thoughtful discourse can
-              flourish. Every user is expected to follow them.
+              to keep the platform a place where ideas can flourish, connect,
+              and build on each other through thoughtful discourse. Every user
+              is expected to follow them.
             </p>
           </section>
 

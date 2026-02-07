@@ -5,12 +5,14 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { getImageUrl } from "@/lib/security";
 import { PostItem, Post } from "./post-item";
-import { TopicCard } from "./topic-card";
 import { UserCard } from "./user-card";
 import {
   EmptyState,
   emptyStateCenterClassName,
 } from "@/components/ui/empty-state";
+import { useExplorationTrail } from "@/context/exploration-trail";
+import { ContinueExploring } from "./continue-exploring";
+import Link from "next/link";
 
 const HERO_FADE_HEIGHT = 280;
 const STICKY_HEADER_APPEAR = 120;
@@ -67,8 +69,27 @@ interface TopicSummary {
   } | null;
 }
 
+interface TopicMapData {
+  centralPosts: Array<{
+    id: string;
+    title: string | null;
+    authorHandle: string;
+    authorDisplayName: string;
+    authorAvatarKey: string | null;
+    connections: number;
+  }>;
+  edges: Array<{ from: string; to: string; type: string }>;
+  connectedTopics: Array<{
+    id: string;
+    slug: string;
+    title: string;
+    sharedPosts: number;
+  }>;
+}
+
 function TopicPageInner({ topic }: TopicPageProps) {
   const router = useRouter();
+  const { pushStep } = useExplorationTrail();
   const [isFollowing, setIsFollowing] = useState(topic.isFollowing ?? false);
   const [scrollY, setScrollY] = useState(0);
   const [activeTab, setActiveTab] = useState<TabKey>("recent");
@@ -91,7 +112,8 @@ function TopicPageInner({ topic }: TopicPageProps) {
     sources: false,
     people: false,
   });
-  const [moreTopics, setMoreTopics] = useState<TopicSummary[]>([]);
+  const [_moreTopics, setMoreTopics] = useState<TopicSummary[]>([]);
+  const [topicMap, setTopicMap] = useState<TopicMapData | null>(null);
   const loadMoreSentinel = useRef<HTMLDivElement>(null);
   const nextPageRef = useRef(1);
 
@@ -134,13 +156,24 @@ function TopicPageInner({ topic }: TopicPageProps) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Push trail step when topic loads
+  useEffect(() => {
+    pushStep({
+      type: "topic",
+      id: topic.id,
+      label: topic.title,
+      href: `/topic/${encodeURIComponent(topic.slug)}`,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topic.id]); // Only on topic ID change
+
   const heroOpacity = Math.max(0, 1 - scrollY / HERO_FADE_HEIGHT);
   const stickyHeaderOpacity = Math.min(
     1,
     Math.max(0, (scrollY - STICKY_HEADER_APPEAR) / 80),
   );
 
-  const handleFollowTopic = useCallback(
+  const _handleFollowTopic = useCallback(
     async (slug: string, currentlyFollowing: boolean) => {
       const method = currentlyFollowing ? "DELETE" : "POST";
       const res = await fetch(
@@ -274,6 +307,23 @@ function TopicPageInner({ topic }: TopicPageProps) {
       loadPosts(1, false, "recent");
     }
   }, [topic.slug, activeTab, topic.posts?.length, loadPosts]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/topics/${encodeURIComponent(topic.slug)}/map`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data) {
+          setTopicMap(data);
+        }
+      })
+      .catch(() => {
+        /* topic map loads best-effort */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [topic.slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -438,6 +488,68 @@ function TopicPageInner({ topic }: TopicPageProps) {
 
       {/* Full-page scrollable content */}
       <div className="max-w-[680px] mx-auto w-full">
+        {/* Topic Map Section */}
+        {topicMap && topicMap.centralPosts.length > 0 && (
+          <section className="px-6 py-8 border-b border-divider">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-4">
+              Topic Map
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {topicMap.centralPosts.map((post) => (
+                <Link
+                  key={post.id}
+                  href={`/post/${post.id}`}
+                  className="p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/30 transition-all group"
+                >
+                  <div className="text-sm font-semibold text-paper truncate group-hover:text-primary transition-colors">
+                    {post.title || "Post"}
+                  </div>
+                  <div className="text-xs text-tertiary mt-1">
+                    @{post.authorHandle}
+                  </div>
+                  {post.connections > 0 && (
+                    <div className="text-xs text-primary/70 mt-1.5">
+                      {post.connections} connections
+                    </div>
+                  )}
+                </Link>
+              ))}
+            </div>
+            {topicMap.edges.length > 0 && (
+              <p className="text-xs text-tertiary mt-3">
+                {topicMap.edges.length} connections between these posts
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* Connected Topics Section */}
+        {topicMap && topicMap.connectedTopics.length > 0 && (
+          <section className="px-6 py-6 border-b border-divider">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-tertiary mb-3">
+              Connected Topics
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {topicMap.connectedTopics.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/topic/${encodeURIComponent(t.slug)}`}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-primary/30 transition-all"
+                >
+                  <span className="text-sm text-paper font-medium">
+                    {t.title}
+                  </span>
+                  {t.sharedPosts > 0 && (
+                    <span className="text-xs text-tertiary">
+                      {t.sharedPosts} shared
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Tabs – parity with mobile: Recent, Discussed, Sources, People */}
         <div className="sticky top-0 z-40 bg-ink border-b border-divider">
           <div className="flex overflow-x-auto no-scrollbar">
@@ -464,27 +576,6 @@ function TopicPageInner({ topic }: TopicPageProps) {
             ))}
           </div>
         </div>
-
-        {/* Horizontal scroll – more topics */}
-        {moreTopics.length > 0 && (
-          <section className="px-4 py-6 border-b border-divider">
-            <h2 className="text-sm font-semibold text-tertiary uppercase tracking-wider mb-3">
-              More topics
-            </h2>
-            <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-2 -mx-4 px-4 no-scrollbar">
-              {moreTopics.map((t) => (
-                <div key={t.id} className="shrink-0 w-[280px]">
-                  <TopicCard
-                    topic={t}
-                    onFollow={() =>
-                      handleFollowTopic(t.slug, t.isFollowing ?? false)
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* Start here – only on Recent tab */}
         {activeTab === "recent" &&
@@ -618,6 +709,17 @@ function TopicPageInner({ topic }: TopicPageProps) {
             </>
           )}
         </section>
+
+        {/* Continue Exploring */}
+        {!hasMorePosts &&
+          (activeTab === "recent" || activeTab === "discussed") &&
+          posts.length > 3 && (
+            <ContinueExploring
+              currentTopicSlug={topic.slug}
+              currentTopicTitle={topic.title}
+              postsRead={posts.length}
+            />
+          )}
       </div>
     </div>
   );

@@ -71,6 +71,15 @@ export class PostsController {
     return this.postsService.getSourcePreviews(postIds, topicSlugs);
   }
 
+  @Get(':id/connections')
+  @UseGuards(OptionalJwtAuthGuard)
+  async getConnections(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user?: { id: string },
+  ) {
+    return this.postsService.getConnections(id, user?.id);
+  }
+
   @Get(':id')
   @Header('Cache-Control', 'private, no-store')
   @UseGuards(OptionalJwtAuthGuard)

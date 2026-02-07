@@ -1,11 +1,20 @@
 {
-  "name": "Citewalk",
+  "name": "Citewalk — The European Social Network",
   "short_name": "Citewalk",
-  "description": "The text-first social network for verified information.",
+  "description": "Citewalk is a social network where ideas connect and grow. Post about what you know, follow topics you care about, and explore how ideas build on each other — transparently, without algorithms.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0B0B0C",
   "theme_color": "#0B0B0C",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "social",
+    "news",
+    "productivity"
+  ],
+  "scope": "/",
   "icons": [
     {
       "src": "/favicon-16x16.png",
@@ -15,6 +24,11 @@
     {
       "src": "/favicon-32x32.png",
       "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-48x48.png",
+      "sizes": "48x48",
       "type": "image/png"
     },
     {

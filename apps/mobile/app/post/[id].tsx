@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useState, useRef, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+} from "react";
 import {
   Text,
   View,
@@ -26,9 +32,12 @@ import { OptionsActionSheet } from "../../components/OptionsActionSheet";
 import { SourceOrPostCard } from "../../components/SourceOrPostCard";
 import { PostItem } from "../../components/PostItem";
 import { PostContent } from "../../components/PostContent";
+import { ConnectionCard } from "../../components/ConnectionCard";
 import { MarkdownText } from "../../components/MarkdownText";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import { HeaderIconButton } from "../../components/HeaderIconButton";
+import { ExplorationTrail } from "../../components/ExplorationTrail";
+import { useExplorationTrail } from "../../context/ExplorationTrailContext";
 
 import { FullScreenSkeleton } from "../../components/LoadingSkeleton";
 import { Post } from "../../types";
@@ -56,18 +65,25 @@ export default function PostDetailScreen() {
     highlightReplyId?: string;
   }>();
   const router = useRouter();
+
+  // Redirect to reading mode – reading.tsx is now the primary post view
+  useEffect(() => {
+    if (id) {
+      router.replace(`/post/${id}/reading`);
+    }
+  }, [id, router]);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { userId } = useAuth();
   const { showSuccess, showError } = useToast();
   const { openExternalLink } = useOpenExternalLink();
+  const { pushStep } = useExplorationTrail();
   const [post, setPost] = useState<Post | null>(null);
   const [replies, setReplies] = useState<Post[]>([]);
   const [referencedBy, setReferencedBy] = useState<Post[]>([]);
   const [sources, setSources] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"sources" | "cited">("sources");
 
   // Interaction state
   const [liked, setLiked] = useState(false);
@@ -92,9 +108,15 @@ export default function PostDetailScreen() {
 
   // Merge API sources (posts, topics, users/mentions, external) with external links from body; deduplicate
   const mergedSources = useMemo(() => {
-    const apiExternal = sources.filter((s: Record<string, unknown>) => s.type === "external");
-    const apiOther = sources.filter((s: Record<string, unknown>) => s.type !== "external");
-    const urlSeen = new Set(apiExternal.map((s: Record<string, unknown>) => s.url).filter(Boolean));
+    const apiExternal = sources.filter(
+      (s: Record<string, unknown>) => s.type === "external",
+    );
+    const apiOther = sources.filter(
+      (s: Record<string, unknown>) => s.type !== "external",
+    );
+    const urlSeen = new Set(
+      apiExternal.map((s: Record<string, unknown>) => s.url).filter(Boolean),
+    );
     const fromBody: { url: string; title: string | null }[] = [];
     if (post?.body) {
       const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
@@ -140,6 +162,98 @@ export default function PostDetailScreen() {
     });
   }, [sources, post?.body]);
 
+  // Extract topics from sources
+  const topics = useMemo(() => {
+    return mergedSources.filter(
+      (s: Record<string, unknown>) => s.type === "topic",
+    ) as Array<{
+      id: string;
+      slug?: string;
+      title?: string;
+    }>;
+  }, [mergedSources]);
+
+  // Helper to map source to ConnectionCard props
+  const mapSourceToCardProps = useCallback(
+    (source: Record<string, unknown>) => {
+      const type = source.type as "post" | "topic" | "external" | "user";
+      const id = String(
+        source.id ?? source.url ?? source.handle ?? source.slug ?? "",
+      );
+      const label = String(
+        source.alias ??
+          source.title ??
+          source.handle ??
+          source.url ??
+          source.slug ??
+          "",
+      );
+
+      if (type === "external") {
+        let domain: string | undefined;
+        if (typeof source.url === "string") {
+          try {
+            domain = new URL(source.url).hostname.replace("www.", "");
+          } catch {
+            domain = undefined;
+          }
+        }
+        return {
+          type: "external" as const,
+          id,
+          label,
+          url: typeof source.url === "string" ? source.url : undefined,
+          domain,
+        };
+      }
+
+      if (type === "topic") {
+        return {
+          type: "topic" as const,
+          id,
+          label,
+          slug: typeof source.slug === "string" ? source.slug : undefined,
+          postCount:
+            typeof source.postCount === "number" ? source.postCount : undefined,
+        };
+      }
+
+      if (type === "user") {
+        return {
+          type: "user" as const,
+          id,
+          label,
+          authorHandle:
+            typeof source.handle === "string" ? source.handle : undefined,
+        };
+      }
+
+      // Post
+      const author = source.author as Record<string, unknown> | undefined;
+      const body = typeof source.body === "string" ? source.body : "";
+      const bodyExcerpt = body.replace(/\s+/g, " ").trim().slice(0, 60);
+      return {
+        type: "post" as const,
+        id,
+        label,
+        bodyExcerpt: bodyExcerpt || undefined,
+        authorHandle:
+          typeof author?.handle === "string" ? author.handle : undefined,
+        authorDisplayName:
+          typeof author?.displayName === "string"
+            ? author.displayName
+            : undefined,
+        authorAvatarKey:
+          typeof author?.avatarKey === "string" ? author.avatarKey : undefined,
+        quoteCount:
+          typeof source.quoteCount === "number" ? source.quoteCount : undefined,
+        replyCount:
+          typeof source.replyCount === "number" ? source.replyCount : undefined,
+      };
+    },
+    [],
+  );
+
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -179,22 +293,33 @@ export default function PostDetailScreen() {
     }
   }, [highlightY]);
 
-
   useEffect(() => {
     if (!id) return;
 
     // Track view
-    api.post(`/posts/${id}/view`).catch(() => { /* view tracking best-effort */ });
+    api.post(`/posts/${id}/view`).catch(() => {
+      /* view tracking best-effort */
+    });
 
     // Track read time on unmount
     const startTime = Date.now();
     return () => {
       const duration = Math.floor((Date.now() - startTime) / 1000);
       if (duration > 5) {
-        api.post(`/posts/${id}/read-time`, { duration }).catch(() => { /* read-time tracking best-effort */ });
+        api.post(`/posts/${id}/read-time`, { duration }).catch(() => {
+          /* read-time tracking best-effort */
+        });
       }
     };
   }, [id]);
+
+  // Track trail step when post loads
+  useEffect(() => {
+    if (post && id) {
+      const title = post.title || post.body?.slice(0, 40) || "Post";
+      pushStep({ type: "post", id, label: title, href: `/post/${id}` });
+    }
+  }, [post, id, pushStep]);
 
   const loadIdRef = useRef(0);
   const loadPost = useCallback(async () => {
@@ -337,7 +462,8 @@ export default function PostDetailScreen() {
       router.back();
     } catch (error: unknown) {
       showError(
-        (error as { message?: string })?.message || t("post.deleteFailed", "Failed to delete post"),
+        (error as { message?: string })?.message ||
+          t("post.deleteFailed", "Failed to delete post"),
       );
       throw error;
     }
@@ -408,11 +534,11 @@ export default function PostDetailScreen() {
     deniedAuthor ??
     (post?.author
       ? {
-        id: post.author.id,
-        handle: post.author.handle ?? "",
-        displayName: post.author.displayName ?? "",
-        avatarKey: post.author.avatarKey ?? null,
-      }
+          id: post.author.id,
+          handle: post.author.handle ?? "",
+          displayName: post.author.displayName ?? "",
+          avatarKey: post.author.avatarKey ?? null,
+        }
       : null);
 
   if (showPrivateOverlay) {
@@ -533,11 +659,17 @@ export default function PostDetailScreen() {
   return (
     <>
       <View style={styles.container}>
+        {/* Exploration Trail */}
+        {React.createElement(ExplorationTrail as React.ComponentType)}
+
         {/* Overlay bar: fades out on scroll (like topic) */}
         <AnimatedView
           style={[
             styles.overlayBar,
-            { paddingTop: Math.max(8, insets.top - 20), opacity: overlayBarOpacity },
+            {
+              paddingTop: Math.max(8, insets.top - 20),
+              opacity: overlayBarOpacity,
+            },
           ]}
           pointerEvents="box-none"
         >
@@ -558,7 +690,10 @@ export default function PostDetailScreen() {
         <AnimatedView
           style={[
             styles.stickyBar,
-            { paddingTop: Math.max(8, insets.top - 20), opacity: stickyBarOpacity },
+            {
+              paddingTop: Math.max(8, insets.top - 20),
+              opacity: stickyBarOpacity,
+            },
           ]}
           pointerEvents="box-none"
         >
@@ -673,125 +808,110 @@ export default function PostDetailScreen() {
             </View>
           </View>
 
-          {/* Tabs: Sources | Cited by | Graph */}
-          <View style={styles.tabSection}>
-            <View style={styles.tabsRow}>
-              <Pressable
-                style={[styles.tabBtn, activeTab === "sources" && styles.tabBtnActive]}
-                onPress={() => setActiveTab("sources")}
-                accessibilityLabel={t("post.sources", "Sources")}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: activeTab === "sources" }}
-              >
-                <Text style={[styles.tabBtnText, activeTab === "sources" && styles.tabBtnTextActive]}>
-                  {t("post.sources", "Sources")} {mergedSources.length > 0 ? `(${mergedSources.length})` : ""}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.tabBtn, activeTab === "cited" && styles.tabBtnActive]}
-                onPress={() => setActiveTab("cited")}
-                accessibilityLabel={t("post.quotedBy", "Cited by")}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: activeTab === "cited" }}
-              >
-                <Text style={[styles.tabBtnText, activeTab === "cited" && styles.tabBtnTextActive]}>
-                  {t("post.quotedBy", "Cited by")} {referencedBy.length > 0 ? `(${referencedBy.length})` : ""}
-                </Text>
-              </Pressable>
-            </View>
+          {/* Connections Section */}
+          {post.viewerCanSeeContent && (
+            <View style={styles.connectionsSection}>
+              {/* This builds on */}
+              {mergedSources.length > 0 && (
+                <View style={styles.connectionGroup}>
+                  <Text style={styles.sectionTitle}>
+                    {t("post.thisBuildsOn", "THIS BUILDS ON")}
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalScrollContent}
+                  >
+                    {mergedSources.map(
+                      (source: Record<string, unknown>, index: number) => (
+                        <ConnectionCard
+                          key={
+                            source.type === "external" &&
+                            typeof source.url === "string"
+                              ? `ext-${source.url}`
+                              : typeof source.id === "string"
+                                ? source.id
+                                : `i-${index}`
+                          }
+                          {...mapSourceToCardProps(source)}
+                        />
+                      ),
+                    )}
+                  </ScrollView>
+                </View>
+              )}
 
-            {activeTab === "sources" ? (
-              mergedSources.length === 0 ? (
-                <Text style={styles.emptyTabText}>
-                  {t("post.noSources", "No external sources.")}
-                </Text>
-              ) : (
-                <View style={styles.sourcesList}>
-                  {mergedSources.map((source: Record<string, unknown>, index: number) => {
-                    const title =
-                      String(source.alias ?? source.title ?? source.handle ?? source.url ?? source.slug ?? "");
-                    const subtitle =
-                      source.type === "external" && typeof source.url === "string"
-                        ? typeof source.description === "string" && source.description.trim()
-                          ? source.description.trim()
-                          : (() => {
-                            try {
-                              return new URL(source.url).hostname.replace(
-                                "www.",
-                                "",
-                              );
-                            } catch {
-                              return "";
-                            }
-                          })()
-                        : source.type === "user" && typeof source.handle === "string"
-                          ? `@${source.handle}`
-                          : source.type === "topic"
-                            ? t("post.topic", "Topic")
-                            : "";
-                    return (
-                      <SourceOrPostCard
-                        key={
-                          source.type === "external" && typeof source.url === "string"
-                            ? `ext-${source.url}`
-                            : (typeof source.id === "string" ? source.id : `i-${index}`)
+              {/* Built upon by */}
+              {referencedBy.length > 0 && (
+                <View style={styles.connectionGroup}>
+                  <Text style={styles.sectionTitle}>
+                    {t("post.builtUponBy", "BUILT UPON BY")}{" "}
+                    {referencedBy.length}
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalScrollContent}
+                  >
+                    {referencedBy.map((refPost) => {
+                      const bodyPreview = (refPost.body ?? "")
+                        .replace(/\s+/g, " ")
+                        .trim()
+                        .slice(0, 60);
+                      const label =
+                        refPost.title ??
+                        bodyPreview ??
+                        t("post.fallbackTitle", "Post");
+                      const bodyExcerpt = refPost.title
+                        ? (refPost.body ?? "")
+                            .replace(/\s+/g, " ")
+                            .trim()
+                            .slice(0, 60)
+                        : undefined;
+                      return (
+                        <ConnectionCard
+                          key={refPost.id ?? refPost.createdAt ?? Math.random()}
+                          type="post"
+                          id={refPost.id}
+                          label={label}
+                          bodyExcerpt={bodyExcerpt}
+                          authorHandle={refPost.author?.handle}
+                          quoteCount={refPost.quoteCount}
+                          replyCount={refPost.replyCount}
+                        />
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Topics */}
+              {topics.length > 0 && (
+                <View style={styles.connectionGroup}>
+                  <Text style={styles.sectionTitle}>
+                    {t("post.inTopics", "IN TOPICS")}
+                  </Text>
+                  <View style={styles.topicsContainer}>
+                    {topics.map((topic) => (
+                      <Pressable
+                        key={topic.id}
+                        onPress={() =>
+                          router.push(
+                            `/topic/${encodeURIComponent(topic.slug ?? topic.title ?? topic.id)}`,
+                          )
                         }
-                        type={source.type}
-                        title={title}
-                        subtitle={subtitle || undefined}
-                        onPress={() => {
-                          if (source.type === "external" && typeof source.url === "string") {
-                            openExternalLink(source.url);
-                          } else if (source.type === "post" && typeof source.id === "string") {
-                            router.push(`/post/${source.id}`);
-                          } else if (source.type === "topic") {
-                            router.push(
-                              `/topic/${encodeURIComponent(String(source.slug ?? source.title ?? source.id ?? ""))}`,
-                            );
-                          } else if (source.type === "user" && typeof source.handle === "string") {
-                            router.push(`/user/${source.handle}`);
-                          }
-                        }}
-                      />
-                    );
-                  })}
+                        style={styles.topicPill}
+                      >
+                        <Text style={styles.topicPillText}>
+                          {topic.title ?? topic.slug ?? topic.id}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
-              )
-            ) : (
-              referencedBy.length === 0 ? (
-                <Text style={styles.emptyTabText}>
-                  {t("post.noQuotes", "No citations yet.")}
-                </Text>
-              ) : (
-                <View style={styles.sourcesList}>
-                  {referencedBy.map((refPost) => {
-                    const bodyPreview = (refPost.body ?? "")
-                      .replace(/\s+/g, " ")
-                      .trim()
-                      .slice(0, 80);
-                    const title = refPost.title ?? (bodyPreview || t("post.fallbackTitle", "Post"));
-                    const subtitle =
-                      refPost.author?.displayName || refPost.author?.handle || "";
-                    const targetId = refPost.id;
-                    return (
-                      <SourceOrPostCard
-                        key={targetId ?? refPost.createdAt ?? Math.random()}
-                        type="post"
-                        title={title}
-                        subtitle={subtitle || undefined}
-                        onPress={() => {
-                          if (targetId) {
-
-                            router.push(`/post/${targetId}`);
-                          }
-                        }}
-                      />
-                    );
-                  })}
-                </View>
-              )
-            )}
-          </View>
+              )}
+            </View>
+          )}
 
           <View
             style={styles.section}
@@ -831,7 +951,9 @@ export default function PostDetailScreen() {
             {replies.map((reply) => (
               <View
                 key={reply.id}
-                onLayout={(event: { nativeEvent: { layout: { y: number } } }) => {
+                onLayout={(event: {
+                  nativeEvent: { layout: { y: number } };
+                }) => {
                   if (highlightReplyId === reply.id) {
                     const itemY = event.nativeEvent.layout.y;
                     const totalY = repliesSectionY.current + itemY;
@@ -863,7 +985,9 @@ export default function PostDetailScreen() {
                     <Text style={styles.displayNameSmall}>
                       {reply.author.displayName}
                     </Text>
-                    <Text style={styles.handleSmall}>@{reply.author.handle}</Text>
+                    <Text style={styles.handleSmall}>
+                      @{reply.author.handle}
+                    </Text>
                   </View>
                   <Pressable
                     onPress={() => handleReplyMenu(reply.id)}
@@ -1008,15 +1132,15 @@ export default function PostDetailScreen() {
         options={[
           ...(isOwnPost
             ? [
-              {
-                label: t("post.delete", "Delete Post"),
-                onPress: () => {
-                  setPostOptionsVisible(false);
-                  setDeleteConfirmVisible(true);
+                {
+                  label: t("post.delete", "Delete Post"),
+                  onPress: () => {
+                    setPostOptionsVisible(false);
+                    setDeleteConfirmVisible(true);
+                  },
+                  destructive: true as const,
                 },
-                destructive: true as const,
-              },
-            ]
+              ]
             : []),
           {
             label: t("post.report", "Report Post"),
@@ -1049,16 +1173,16 @@ export default function PostDetailScreen() {
         options={
           replyOptionsReplyId
             ? [
-              {
-                label: t("post.report", "Report Reply"),
-                onPress: () => {
-                  setReplyOptionsVisible(false);
-                  setReplyOptionsReplyId(null);
-                  handleReport(replyOptionsReplyId, "REPLY");
+                {
+                  label: t("post.report", "Report Reply"),
+                  onPress: () => {
+                    setReplyOptionsVisible(false);
+                    setReplyOptionsReplyId(null);
+                    handleReport(replyOptionsReplyId, "REPLY");
+                  },
+                  destructive: true,
                 },
-                destructive: true,
-              },
-            ]
+              ]
             : []
         }
         cancelLabel={t("common.cancel")}
@@ -1260,43 +1384,36 @@ const styles = createStyles({
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
-  tabSection: {
+  connectionsSection: {
     paddingVertical: SPACING.l,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+  },
+  connectionGroup: {
+    marginBottom: SPACING.xl,
+  },
+  horizontalScrollContent: {
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    gap: SPACING.m,
   },
-  tabsRow: {
+  topicsContainer: {
     flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    marginBottom: SPACING.m,
+    flexWrap: "wrap",
+    gap: SPACING.s,
+    paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
-  tabBtn: {
-    paddingVertical: SPACING.s,
+  topicPill: {
     paddingHorizontal: SPACING.m,
-    marginRight: SPACING.m,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    paddingVertical: SPACING.s,
+    backgroundColor: COLORS.hover,
+    borderRadius: SIZES.borderRadiusPill,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
   },
-  tabBtnActive: {
-    borderBottomColor: COLORS.primary,
-  },
-  tabBtnText: {
-    fontSize: 15,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.medium,
-  },
-  tabBtnTextActive: {
+  topicPillText: {
+    fontSize: 14,
     color: COLORS.paper,
-    fontWeight: "600",
-    fontFamily: FONTS.semiBold,
-  },
-  emptyTabText: {
-    color: COLORS.secondary,
-    fontFamily: FONTS.regular,
-    fontStyle: "italic",
-    paddingVertical: SPACING.l,
+    fontFamily: FONTS.medium,
   },
   section: {
     paddingVertical: SPACING.l,

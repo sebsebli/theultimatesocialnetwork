@@ -5,12 +5,18 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { Text, View, TextInput, FlatList, Pressable } from "react-native";
+import { Text, View, TextInput, Pressable } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
 import { api } from "../utils/api";
-import { getRecentSearches, addRecentSearch, removeRecentSearch, clearRecentSearches } from "../utils/recent-searches";
+import {
+  getRecentSearches,
+  addRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} from "../utils/recent-searches";
 import { PostItem } from "../components/PostItem";
 import { TopicCard } from "../components/ExploreCards";
 import { UserCard } from "../components/UserCard";
@@ -28,7 +34,6 @@ import {
   FONTS,
   HEADER,
   createStyles,
-  FLATLIST_DEFAULTS,
   SEARCH_BAR,
 } from "../constants/theme";
 import {
@@ -77,7 +82,9 @@ export default function SearchScreen() {
   }, [initialQ]);
 
   useEffect(() => {
-    getRecentSearches().then(setRecentSearches).catch(() => {});
+    getRecentSearches()
+      .then(setRecentSearches)
+      .catch(() => {});
   }, []);
 
   const runSearch = useCallback(
@@ -91,7 +98,9 @@ export default function SearchScreen() {
       }
       setLoading(true);
       addRecentSearch(trimmed).catch(() => {});
-      getRecentSearches().then(setRecentSearches).catch(() => {});
+      getRecentSearches()
+        .then(setRecentSearches)
+        .catch(() => {});
       try {
         const url = topicSlug
           ? `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}&topicSlug=${encodeURIComponent(topicSlug)}`
@@ -101,12 +110,16 @@ export default function SearchScreen() {
           users: Record<string, unknown>[];
           topics: Record<string, unknown>[];
         }>(url);
-        const rawPosts = (res.posts || []).filter((p: Record<string, unknown>) => !!p?.author);
+        const rawPosts = (res.posts || []).filter(
+          (p: Record<string, unknown>) => !!p?.author,
+        );
         const rawUsers = res.users || [];
-        const rawTopics = (res.topics || []).map((tpc: Record<string, unknown>) => ({
-          ...tpc,
-          title: tpc.title || tpc.slug,
-        }));
+        const rawTopics = (res.topics || []).map(
+          (tpc: Record<string, unknown>) => ({
+            ...tpc,
+            title: tpc.title || tpc.slug,
+          }),
+        );
         setPosts(rawPosts);
         setUsers(rawUsers);
         setTopics(rawTopics);
@@ -148,7 +161,9 @@ export default function SearchScreen() {
         key: "section-posts",
         title: t("search.posts", "Posts"),
       });
-      posts.forEach((p) => out.push({ type: "post", key: p.id as string, ...p }));
+      posts.forEach((p) =>
+        out.push({ type: "post", key: p.id as string, ...p }),
+      );
     }
     if (users.length > 0) {
       out.push({
@@ -156,7 +171,9 @@ export default function SearchScreen() {
         key: "section-people",
         title: t("search.people", "People"),
       });
-      users.forEach((u) => out.push({ type: "user", key: u.id as string, ...u }));
+      users.forEach((u) =>
+        out.push({ type: "user", key: u.id as string, ...u }),
+      );
     }
     if (topics.length > 0) {
       out.push({
@@ -165,7 +182,11 @@ export default function SearchScreen() {
         title: t("search.topics", "Topics"),
       });
       topics.forEach((tpc) =>
-        out.push({ type: "topic", key: (tpc.id || tpc.slug) as string, ...tpc }),
+        out.push({
+          type: "topic",
+          key: (tpc.id || tpc.slug) as string,
+          ...tpc,
+        }),
       );
     }
     return out;
@@ -217,19 +238,43 @@ export default function SearchScreen() {
     if (!query.trim() && recentSearches.length > 0) {
       return (
         <View style={{ paddingHorizontal: SPACING.l, paddingTop: SPACING.l }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.m }}>
-            <Text style={{ fontSize: 13, fontFamily: FONTS.semiBold, color: COLORS.tertiary, textTransform: 'uppercase', letterSpacing: 1 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: SPACING.m,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                fontFamily: FONTS.semiBold,
+                color: COLORS.tertiary,
+                textTransform: "uppercase",
+                letterSpacing: 1,
+              }}
+            >
               {t("search.recentSearches", "Recent searches")}
             </Text>
-            <Pressable 
+            <Pressable
               onPress={() => {
                 clearRecentSearches();
                 setRecentSearches([]);
               }}
               hitSlop={12}
-              accessibilityLabel={t("search.clearRecent", "Clear recent searches")}
+              accessibilityLabel={t(
+                "search.clearRecent",
+                "Clear recent searches",
+              )}
             >
-              <Text style={{ fontSize: 13, fontFamily: FONTS.medium, color: COLORS.primary }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontFamily: FONTS.medium,
+                  color: COLORS.primary,
+                }}
+              >
                 {t("common.clear", "Clear")}
               </Text>
             </Pressable>
@@ -238,12 +283,33 @@ export default function SearchScreen() {
             <Pressable
               key={item}
               onPress={() => setQuery(item)}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.m, borderBottomWidth: 1, borderBottomColor: COLORS.divider }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: SPACING.m,
+                borderBottomWidth: 1,
+                borderBottomColor: COLORS.divider,
+              }}
               accessibilityLabel={`${t("search.searchFor", "Search for")} ${item}`}
               accessibilityRole="button"
             >
-              <MaterialIcons name="history" size={20} color={COLORS.tertiary} style={{ marginRight: SPACING.m }} />
-              <Text style={{ flex: 1, fontSize: 15, color: COLORS.paper, fontFamily: FONTS.regular }} numberOfLines={1}>{item}</Text>
+              <MaterialIcons
+                name="history"
+                size={20}
+                color={COLORS.tertiary}
+                style={{ marginRight: SPACING.m }}
+              />
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 15,
+                  color: COLORS.paper,
+                  fontFamily: FONTS.regular,
+                }}
+                numberOfLines={1}
+              >
+                {item}
+              </Text>
               <Pressable
                 onPress={async () => {
                   const updated = await removeRecentSearch(item);
@@ -333,19 +399,15 @@ export default function SearchScreen() {
         </View>
       ) : null}
 
-      <FlatList
+      <FlashList
         data={flatData}
+        estimatedItemSize={150}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListEmptyComponent={listEmpty}
-        contentContainerStyle={
-          flatData.length === 0
-            ? { flexGrow: 1 }
-            : { paddingBottom: insets.bottom + 24 }
-        }
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        {...FLATLIST_DEFAULTS}
       />
     </View>
   );

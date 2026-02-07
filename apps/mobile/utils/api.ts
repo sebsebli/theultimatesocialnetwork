@@ -114,9 +114,9 @@ export function getAvatarUri(
 export function getPostHeaderImageUri(
   post:
     | {
-      headerImageUrl?: string | null;
-      headerImageKey?: string | null;
-    }
+        headerImageUrl?: string | null;
+        headerImageKey?: string | null;
+      }
     | null
     | undefined,
 ): string | null {
@@ -142,13 +142,13 @@ export function getPostHeaderImageUri(
 export function getTopicRecentImageUri(
   item:
     | {
-      recentPostImageUrl?: string | null;
-      recentPostImageKey?: string | null;
-      recentPost?: {
-        headerImageUrl?: string | null;
-        headerImageKey?: string | null;
-      } | null;
-    }
+        recentPostImageUrl?: string | null;
+        recentPostImageKey?: string | null;
+        recentPost?: {
+          headerImageUrl?: string | null;
+          headerImageKey?: string | null;
+        } | null;
+      }
     | null
     | undefined,
 ): string | null {
@@ -188,13 +188,13 @@ export function getTopicRecentImageUri(
 export function getCollectionPreviewImageUri(
   collection:
     | {
-      previewImageUrl?: string | null;
-      previewImageKey?: string | null;
-      recentPost?: {
-        headerImageUrl?: string | null;
-        headerImageKey?: string | null;
-      } | null;
-    }
+        previewImageUrl?: string | null;
+        previewImageKey?: string | null;
+        recentPost?: {
+          headerImageUrl?: string | null;
+          headerImageKey?: string | null;
+        } | null;
+      }
     | null
     | undefined,
 ): string | null {
@@ -260,7 +260,11 @@ const REFRESH_TOKEN_KEY = "jwt_refresh";
 const ONBOARDING_KEY = "onboarding_complete";
 const ONBOARDING_STAGE_KEY = "onboarding_stage";
 
-export type OnboardingStage = "languages" | "profile" | "starter-packs";
+export type OnboardingStage =
+  | "languages"
+  | "topics"
+  | "profile"
+  | "starter-packs";
 
 export const setAuthToken = async (token: string) => {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
@@ -303,7 +307,13 @@ export const clearOnboardingComplete = async () => {
 
 export const getOnboardingStage = async (): Promise<OnboardingStage | null> => {
   const v = await SecureStore.getItemAsync(ONBOARDING_STAGE_KEY);
-  if (v === "languages" || v === "profile" || v === "starter-packs") return v;
+  if (
+    v === "languages" ||
+    v === "topics" ||
+    v === "profile" ||
+    v === "starter-packs"
+  )
+    return v;
   return null;
 };
 
@@ -359,7 +369,9 @@ function triggerUnauthorized() {
     try {
       const result = onUnauthorized();
       if (result && typeof (result as Promise<void>).catch === "function") {
-        (result as Promise<void>).catch(() => { /* fire-and-forget queue flush */ });
+        (result as Promise<void>).catch(() => {
+          /* fire-and-forget queue flush */
+        });
       }
     } catch {
       // ignore
@@ -457,7 +469,10 @@ class ApiClient {
     return this.refreshPromise;
   }
 
-  async request<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  async request<T = unknown>(
+    endpoint: string,
+    options: RequestInit = {},
+  ): Promise<T> {
     const method = (options.method || "GET").toUpperCase();
     const isGet = method === "GET";
     let lastError: unknown;
@@ -515,22 +530,16 @@ class ApiClient {
                   string,
                   unknown
                 >;
-                const m = (
-                  (errorJson.error as Record<string, unknown> | undefined)
-                    ?.message ?? errorJson["message"]
-                ) as string | undefined;
+                const m = ((
+                  errorJson.error as Record<string, unknown> | undefined
+                )?.message ?? errorJson["message"]) as string | undefined;
                 if (typeof m === "string") errorMessage = m;
                 errorData = errorJson;
               } catch {
                 // keep default
               }
-              if (retryResponse.status !== 403)
-                showApiErrorToast(errorMessage);
-              throw new ApiError(
-                errorMessage,
-                retryResponse.status,
-                errorData,
-              );
+              if (retryResponse.status !== 403) showApiErrorToast(errorMessage);
+              throw new ApiError(errorMessage, retryResponse.status, errorData);
             }
 
             if (retryResponse.status === 204) return null as T;
@@ -581,8 +590,8 @@ class ApiClient {
                 : Array.isArray(m)
                   ? m[0]
                   : m != null &&
-                    typeof (m as object) === "object" &&
-                    "message" in (m as object)
+                      typeof (m as object) === "object" &&
+                      "message" in (m as object)
                     ? (m as { message?: unknown }).message
                     : undefined;
             errorMessage =
@@ -733,7 +742,8 @@ class ApiClient {
         await FileSystemLegacy.copyAsync({ from: uri, to: destUri });
         uri = destUri;
       } catch (e) {
-        if (__DEV__) console.warn("Copy asset to cache failed, trying original uri", e);
+        if (__DEV__)
+          console.warn("Copy asset to cache failed, trying original uri", e);
       }
     }
     // React Native iOS: some versions need uri without file:// for FormData to attach the body correctly.

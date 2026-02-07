@@ -14,8 +14,8 @@ export function HowItWorks() {
             Three steps
           </h3>
           <p className="text-[#A8A8AA] text-sm leading-relaxed">
-            Post, connect your sources, and let your ideas reach people who
-            actually care.
+            Write about what you know, build on what others share, and explore
+            how ideas connect.
           </p>
         </div>
 
@@ -28,10 +28,13 @@ export function HowItWorks() {
             <div className="w-16 h-16 rounded-full bg-[#0B0B0C] border border-[#333] flex items-center justify-center mb-6 relative z-10 group-hover:border-[#F2F2F2] transition-colors">
               <MdEdit className="text-[#F2F2F2] w-6 h-6" />
             </div>
-            <h4 className="text-[#F2F2F2] font-medium mb-2">1. Post</h4>
+            <h4 className="text-[#F2F2F2] font-medium mb-2">
+              1. Write about what you know
+            </h4>
             <p className="text-[#6E6E73] text-xs leading-relaxed">
-              Share your thoughts in a clean, distraction-free editor. Short
-              takes or long reads — no character limits holding you back.
+              Tag your post with{" "}
+              <span className="text-[#E8B86D]">[[topics]]</span>. Everyone
+              following that topic sees it — no follower count required.
             </p>
           </div>
 
@@ -40,11 +43,12 @@ export function HowItWorks() {
             <div className="w-16 h-16 rounded-full bg-[#0B0B0C] border border-[#333] flex items-center justify-center mb-6 relative z-10 group-hover:border-[#F2F2F2] transition-colors">
               <MdLink className="text-[#F2F2F2] w-6 h-6" />
             </div>
-            <h4 className="text-[#F2F2F2] font-medium mb-2">2. Connect</h4>
+            <h4 className="text-[#F2F2F2] font-medium mb-2">
+              2. Build on what others share
+            </h4>
             <p className="text-[#6E6E73] text-xs leading-relaxed">
-              Link to topics, other posts, or external sources with{" "}
-              <span className="text-[#E8B86D]">[[citelinks]]</span> and
-              @mentions. Everything stays connected.
+              Reference other posts, cite sources, connect ideas. Every link
+              creates a visible thread in the knowledge web.
             </p>
           </div>
 
@@ -53,11 +57,12 @@ export function HowItWorks() {
             <div className="w-16 h-16 rounded-full bg-[#0B0B0C] border border-[#333] flex items-center justify-center mb-6 relative z-10 group-hover:border-[#F2F2F2] transition-colors">
               <MdHub className="text-[#F2F2F2] w-6 h-6" />
             </div>
-            <h4 className="text-[#F2F2F2] font-medium mb-2">3. Grow</h4>
+            <h4 className="text-[#F2F2F2] font-medium mb-2">
+              3. Explore how ideas connect
+            </h4>
             <p className="text-[#6E6E73] text-xs leading-relaxed">
-              When others reference your work, your reach grows naturally. No
-              gaming, no tricks — just credibility earned by writing things
-              worth sharing.
+              Follow topics, not algorithms. Discover through connections
+              between ideas, not through a profile built about you.
             </p>
           </div>
         </div>

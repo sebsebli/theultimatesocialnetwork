@@ -1,5 +1,11 @@
-import React, { useRef, memo, useState, useEffect } from "react";
-import { Text, View, Pressable, Platform, Animated, AccessibilityInfo } from "react-native";
+import React, { useRef, memo, useEffect } from "react";
+import {
+  Text,
+  View,
+  Pressable,
+  Animated,
+  AccessibilityInfo,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -7,18 +13,11 @@ import * as Haptics from "expo-haptics";
 import { api } from "../utils/api";
 import { queueAction } from "../utils/offlineQueue";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
-import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/auth";
-import AddToCollectionSheet, {
-  AddToCollectionSheetRef,
-} from "./AddToCollectionSheet";
-import ShareSheet, { ShareSheetRef } from "./ShareSheet";
-import { ConfirmModal } from "./ConfirmModal";
-import { OptionsActionSheet } from "./OptionsActionSheet";
+import { usePostActions } from "../context/PostActionContext";
 import {
   COLORS,
   SPACING,
-  SIZES,
   FONTS,
   HEADER,
   LAYOUT,
@@ -27,6 +26,23 @@ import {
 import { PostContent } from "./PostContent";
 
 import { Post } from "../types";
+
+// ── Module-level reduce-motion cache ───────────────────────────────────
+// Checked once and shared across all PostItem instances instead of each
+// item spawning its own async AccessibilityInfo call.
+let _reduceMotionCached: boolean | null = null;
+
+function getReduceMotion(): boolean {
+  if (_reduceMotionCached !== null) return _reduceMotionCached;
+  // Start async check; default to false until resolved
+  AccessibilityInfo.isReduceMotionEnabled().then((v) => {
+    _reduceMotionCached = v;
+  });
+  return false;
+}
+
+// Warm the cache on module load
+getReduceMotion();
 
 interface PostItemProps {
   post: Post;
@@ -58,29 +74,17 @@ function PostItemComponent({
   const router = useRouter();
   const { t } = useTranslation();
   const { isOffline } = useNetworkStatus();
-  const { showSuccess, showError } = useToast();
   const { userId } = useAuth();
+  const { openShare, openCollection, openOptions } = usePostActions();
   const [liked, setLiked] = React.useState(post.isLiked ?? false);
   const [kept, setKept] = React.useState(post.isKept ?? false);
   const scaleValue = useRef(new Animated.Value(1)).current;
-  const reduceMotion = useRef(false);
-
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then((v) => {
-      reduceMotion.current = v;
-    });
-  }, []);
 
   // Sync from server when post prop changes (e.g. refetched feed with updated isLiked/isKept)
   React.useEffect(() => {
     setLiked(post.isLiked ?? false);
     setKept(post.isKept ?? false);
   }, [post.id, post.isLiked, post.isKept]);
-  const collectionSheetRef = useRef<AddToCollectionSheetRef>(null);
-  const shareSheetRef = useRef<ShareSheetRef>(null);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
-  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
 
   const animateLike = () => {
     Animated.sequence([
@@ -100,7 +104,7 @@ function PostItemComponent({
   const handleLike = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (!reduceMotion.current) {
+      if (!getReduceMotion()) {
         animateLike();
       }
       const next = !liked;
@@ -147,13 +151,15 @@ function PostItemComponent({
   };
 
   const handleShare = () => {
-    Haptics.selectionAsync();
-    shareSheetRef.current?.open(post.id, {
+    openShare(post.id, {
       authorIsProtected: post.author?.isProtected === true,
     });
+    onShare?.();
   };
 
-  const handleReport = () => setReportModalVisible(true);
+  const handleMenu = () => {
+    openOptions(post, { onDeleted });
+  };
 
   // Use placeholder author when API omits it (e.g. pending user) so the post preview always shows
   const authorId = post.author?.id ?? (post as { authorId?: string }).authorId;
@@ -169,61 +175,6 @@ function PostItemComponent({
   if (!author) return null;
 
   const postWithAuthor = author !== post.author ? { ...post, author } : post;
-
-  const handleDeletePost = async () => {
-    try {
-      await api.delete(`/posts/${post.id}`);
-      showSuccess(t("post.deleted", "Post deleted"));
-      setDeleteConfirmVisible(false);
-      setOptionsModalVisible(false);
-      onDeleted?.();
-    } catch (error) {
-      showError(t("post.deleteFailed", "Failed to delete post"));
-      throw error;
-    }
-  };
-
-  const isOwnPost = !!userId && author.id === userId;
-
-  const confirmReport = async () => {
-    try {
-      if (isOffline) {
-        await queueAction({
-          type: "report",
-          endpoint: `/safety/report`,
-          method: "POST",
-          data: {
-            targetId: post.id,
-            targetType: "POST",
-            reason: "Reported via mobile app",
-          },
-        });
-      } else {
-        await api.post(`/safety/report`, {
-          targetId: post.id,
-          targetType: "POST",
-          reason: "Reported via mobile app",
-        });
-      }
-      showSuccess(t("post.reportSuccess", "Post reported successfully"));
-    } catch (error) {
-      if (__DEV__) console.error("Failed to report", error);
-      showError(t("post.reportError", "Failed to report post"));
-      throw error;
-    }
-  };
-
-  const handleMenu = () => {
-    Haptics.selectionAsync();
-    if (Platform.OS === "web") {
-      const result = window.confirm(
-        t("post.reportMessage", "Are you sure you want to report this post?"),
-      );
-      if (result) handleReport();
-    } else {
-      setOptionsModalVisible(true);
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -263,7 +214,9 @@ function PostItemComponent({
             <Pressable
               style={styles.actionButton}
               onPress={handleLike}
-              accessibilityLabel={liked ? t("post.unlike", "Unlike") : t("post.like", "Like")}
+              accessibilityLabel={
+                liked ? t("post.unlike", "Unlike") : t("post.like", "Like")
+              }
               accessibilityRole="button"
             >
               {/* @ts-ignore React 19 Animated.View */}
@@ -284,7 +237,10 @@ function PostItemComponent({
               }}
               accessibilityLabel={
                 post.replyCount > 0
-                  ? t("post.repliesCount", { count: post.replyCount, defaultValue: `${post.replyCount} replies` })
+                  ? t("post.repliesCount", {
+                      count: post.replyCount,
+                      defaultValue: `${post.replyCount} replies`,
+                    })
                   : t("post.reply", "Reply")
               }
               accessibilityRole="button"
@@ -324,7 +280,11 @@ function PostItemComponent({
             <Pressable
               style={styles.actionButton}
               onPress={handleKeep}
-              accessibilityLabel={kept ? t("post.removeKeep", "Remove from keeps") : t("post.keep", "Keep")}
+              accessibilityLabel={
+                kept
+                  ? t("post.removeKeep", "Remove from keeps")
+                  : t("post.keep", "Keep")
+              }
               accessibilityRole="button"
             >
               <MaterialIcons
@@ -338,7 +298,7 @@ function PostItemComponent({
               style={styles.actionButton}
               onPress={() => {
                 onAddToCollection?.();
-                collectionSheetRef.current?.open(post.id);
+                openCollection(post.id);
               }}
               accessibilityLabel={t("post.add")}
               accessibilityRole="button"
@@ -363,66 +323,6 @@ function PostItemComponent({
               />
             </Pressable>
           </View>
-
-          <AddToCollectionSheet ref={collectionSheetRef} />
-          <ShareSheet ref={shareSheetRef} />
-          <ConfirmModal
-            visible={reportModalVisible}
-            title={t("post.reportTitle", "Report Post")}
-            message={t(
-              "post.reportMessage",
-              "Are you sure you want to report this post?",
-            )}
-            confirmLabel={t("post.report", "Report")}
-            cancelLabel={t("common.cancel")}
-            destructive
-            onConfirm={confirmReport}
-            onCancel={() => setReportModalVisible(false)}
-          />
-          <OptionsActionSheet
-            visible={optionsModalVisible}
-            title={t("post.options", "Post Options")}
-            options={[
-              ...(isOwnPost
-                ? [
-                    {
-                      label: t("post.delete", "Delete Post"),
-                      onPress: () => {
-                        setOptionsModalVisible(false);
-                        setDeleteConfirmVisible(true);
-                      },
-                      destructive: true as const,
-                      icon: "delete-outline" as const,
-                    },
-                  ]
-                : []),
-              {
-                label: t("post.report", "Report Post"),
-                onPress: () => {
-                  setOptionsModalVisible(false);
-                  setReportModalVisible(true);
-                },
-                destructive: true,
-                icon: "flag",
-              },
-            ]}
-            cancelLabel={t("common.cancel")}
-            onCancel={() => setOptionsModalVisible(false)}
-          />
-          <ConfirmModal
-            visible={deleteConfirmVisible}
-            title={t("post.delete", "Delete Post")}
-            message={t(
-              "post.deleteConfirm",
-              "Are you sure you want to delete this post? This cannot be undone.",
-            )}
-            confirmLabel={t("post.delete", "Delete Post")}
-            cancelLabel={t("common.cancel")}
-            destructive
-            icon="warning"
-            onConfirm={handleDeletePost}
-            onCancel={() => setDeleteConfirmVisible(false)}
-          />
         </>
       )}
     </View>

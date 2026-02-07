@@ -3,34 +3,49 @@
 export function ComparisonTable() {
   const rows = [
     {
-      feature: "What you see",
-      feed: "Algorithm decides for you",
-      citewalk: "Chronological, you decide",
+      feature: "Content reaches people who care",
+      feed: "No (algorithm gatekeeping)",
+      citewalk: "Yes (topic-based delivery)",
     },
     {
-      feature: "What gets rewarded",
-      feed: "Outrage & volume",
-      citewalk: "Substance & references",
+      feature: "Posts build on each other",
+      feed: "No (isolated posts)",
+      citewalk: "Yes (citelinks, references)",
     },
     {
-      feature: "Content lifespan",
-      feed: "Gone in 24 hours",
-      citewalk: "Permanent & discoverable",
+      feature: "Transparent connections",
+      feed: "No (black-box algorithm)",
+      citewalk: "Yes (visible source chains)",
     },
     {
-      feature: "Hosting",
-      feed: "US / opaque",
-      citewalk: "EU-hosted, GDPR by design",
+      feature: "You control your feed",
+      feed: "No (algorithm-driven)",
+      citewalk: "Yes (chronological, topic-based)",
     },
     {
-      feature: "Your data",
-      feed: "Platform-locked",
-      citewalk: "Full export + RSS",
+      feature: "No ads",
+      feed: "No",
+      citewalk: "Yes (funded by optional Pro)",
     },
     {
-      feature: "Business model",
-      feed: "Ads & your attention",
-      citewalk: "Free core, no ads ever",
+      feature: "EU hosted",
+      feed: "No",
+      citewalk: "Yes (Germany, renewable energy)",
+    },
+    {
+      feature: "Data export",
+      feed: "No",
+      citewalk: "Yes (RSS, full export)",
+    },
+    {
+      feature: "No vanity metrics",
+      feed: "No",
+      citewalk: "Yes (private likes, public cites)",
+    },
+    {
+      feature: "Sustainable funding model",
+      feed: "Ads + data sales",
+      citewalk: "Freemium + community",
     },
   ];
 

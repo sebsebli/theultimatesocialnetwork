@@ -271,13 +271,14 @@ export function renderMarkdown(
           ? "prose-tag inline hover:underline opacity-70"
           : "prose-tag inline hover:underline";
 
-      return `<a href="/post/${safeId}" class="${classes}">${safeDisplay}</a>`;
+      const postIcon = `<svg class="post-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`;
+      return `<a href="/post/${safeId}" class="${classes} prose-tag-post">${postIcon}${safeDisplay}</a>`;
     }
 
     const safeAlias = escapeText(target.alias ?? "");
     if (target.type === "topic") {
       const slugEnc = encodeURIComponent(target.target);
-      return `<a href="/topic/${slugEnc}" class="prose-tag inline hover:underline">${safeAlias}</a>`;
+      return `<a href="/topic/${slugEnc}" class="prose-tag prose-tag-topic"><span class="topic-hash">#</span>${safeAlias}</a>`;
     } else {
       const safeUrl = sanitizeUrl(target.target);
       return `<a href="${safeUrl}" class="prose-tag inline hover:underline" target="_blank" rel="noopener noreferrer">${safeAlias}</a>`;
@@ -293,6 +294,16 @@ export function renderMarkdown(
     const safeText = escapeText(display);
     return `<a href="${safeUrl}" class="prose-tag prose-link-external inline" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
   });
+
+  // @mentions: @handle -> styled link with avatar placeholder
+  // Must run BEFORE bold/italic so we don't break mid-mention
+  html = html.replace(
+    /(?<![a-zA-Z0-9_])@([a-zA-Z0-9_.]{1,30})(?![a-zA-Z0-9_])/g,
+    (_, handle) => {
+      const safeHandle = escapeAttr(handle);
+      return `<a href="/user/${safeHandle}" class="prose-mention" data-handle="${safeHandle}"><span class="mention-avatar" data-handle="${safeHandle}"></span>@${escapeText(handle)}</a>`;
+    },
+  );
 
   // Bold
   html = html.replace(

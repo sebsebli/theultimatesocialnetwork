@@ -32,6 +32,8 @@ import { AgentApiModule } from './agent-api/agent-api.module';
 import { EventBusModule } from './common/event-bus';
 import { GraphModule } from './graph/graph.module';
 import { RssModule } from './rss/rss.module';
+import { ActivityPubModule } from './activitypub/activitypub.module';
+import { EmbedModule } from './embed/embed.module';
 import { CleanupService } from './cleanup/cleanup.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Post } from './entities/post.entity';
@@ -148,6 +150,8 @@ import * as Joi from 'joi';
     EventBusModule,
     GraphModule,
     RssModule,
+    ActivityPubModule,
+    EmbedModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

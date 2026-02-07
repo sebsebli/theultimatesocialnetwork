@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  FlatList,
   Pressable,
   Modal,
   TextInput,
@@ -12,6 +11,7 @@ import {
   Platform,
   Switch,
 } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import * as Haptics from "expo-haptics";
@@ -34,7 +34,6 @@ import {
   FONTS,
   HEADER,
   createStyles,
-  FLATLIST_DEFAULTS,
   SEARCH_BAR,
 } from "../constants/theme";
 
@@ -103,7 +102,9 @@ export default function CollectionsScreen() {
           description: item.description,
           itemCount: item.itemCount,
           previewImageKey: item.previewImageKey,
-          recentPost: (item as unknown as Record<string, unknown>).recentPost ?? undefined,
+          recentPost:
+            (item as unknown as Record<string, unknown>).recentPost ??
+            undefined,
         }}
         onPress={() => {
           Haptics.selectionAsync();
@@ -225,10 +226,9 @@ export default function CollectionsScreen() {
         </View>
       </View>
 
-      <FlatList
+      <FlashList
         data={filteredCollections}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
+        estimatedItemSize={80}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListEmptyComponent={
@@ -254,11 +254,7 @@ export default function CollectionsScreen() {
             )}
           </View>
         }
-        contentContainerStyle={
-          filteredCollections.length === 0
-            ? { flexGrow: 1 }
-            : { paddingBottom: SPACING.xxxl }
-        }
+        contentContainerStyle={{ paddingBottom: SPACING.xxxl }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -266,7 +262,7 @@ export default function CollectionsScreen() {
             tintColor={COLORS.primary}
           />
         }
-        {...FLATLIST_DEFAULTS}
+        showsVerticalScrollIndicator={false}
       />
 
       <Modal

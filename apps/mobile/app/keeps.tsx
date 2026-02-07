@@ -9,6 +9,7 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -29,7 +30,6 @@ import {
   FONTS,
   HEADER,
   createStyles,
-  FLATLIST_DEFAULTS,
   SEARCH_BAR,
 } from "../constants/theme";
 import { ListFooterLoader } from "../components/ListFooterLoader";
@@ -85,10 +85,13 @@ export default function KeepsScreen() {
       if (filter === "in-collections") params.append("inCollection", "true");
       if (filter === "unsorted") params.append("inCollection", "false");
 
-      const data = await api.get<{
-        items?: unknown[];
-        hasMore?: boolean;
-      } | unknown[]>(`/keeps?${params.toString()}`);
+      const data = await api.get<
+        | {
+            items?: unknown[];
+            hasMore?: boolean;
+          }
+        | unknown[]
+      >(`/keeps?${params.toString()}`);
       const items = Array.isArray(data)
         ? (data as Record<string, unknown>[])
         : Array.isArray((data as { items?: unknown[] }).items)
@@ -101,8 +104,11 @@ export default function KeepsScreen() {
         setKeeps((prev) => [...prev, ...items]);
       }
 
-      const paginatedData = Array.isArray(data) ? null : (data as { hasMore?: boolean });
-      const hasMoreData = items.length === 20 && paginatedData?.hasMore !== false;
+      const paginatedData = Array.isArray(data)
+        ? null
+        : (data as { hasMore?: boolean });
+      const hasMoreData =
+        items.length === 20 && paginatedData?.hasMore !== false;
       setHasMore(hasMoreData);
       setError(null);
     } catch (error) {
@@ -156,26 +162,29 @@ export default function KeepsScreen() {
                   setShowPicker(true);
                 }
               }}
-            accessibilityLabel={t("keeps.addToCollection")}
-            accessibilityRole="button"
-          >
-            <MaterialIcons
-              name="playlist-add"
-              size={HEADER.iconSize}
-              color={COLORS.primary}
-            />
-            <Text style={styles.addButtonText}>
-              {t("keeps.addToCollection")}
-            </Text>
-          </Pressable>
+              accessibilityLabel={t("keeps.addToCollection")}
+              accessibilityRole="button"
+            >
+              <MaterialIcons
+                name="playlist-add"
+                size={HEADER.iconSize}
+                color={COLORS.primary}
+              />
+              <Text style={styles.addButtonText}>
+                {t("keeps.addToCollection")}
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      </View>
       );
     },
     [t],
   );
 
-  const keyExtractor = useCallback((item: Record<string, unknown>) => item.id, []);
+  const keyExtractor = useCallback(
+    (item: Record<string, unknown>) => item.id,
+    [],
+  );
 
   const loadCollections = async () => {
     try {
@@ -284,13 +293,12 @@ export default function KeepsScreen() {
         </View>
       </View>
 
-      <FlatList
+      <FlashList
         data={keeps.filter((item: Record<string, unknown>) => {
           const post = item.post as Record<string, unknown> | undefined;
           return !!post?.author;
         })}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
+        estimatedItemSize={250}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListEmptyComponent={
@@ -316,14 +324,6 @@ export default function KeepsScreen() {
             )}
           </View>
         }
-        contentContainerStyle={
-          keeps.filter((item: Record<string, unknown>) => {
-            const post = item.post as Record<string, unknown> | undefined;
-            return !!post?.author;
-          }).length === 0
-            ? { flexGrow: 1 }
-            : undefined
-        }
         ListFooterComponent={
           <ListFooterLoader visible={!!(hasMore && loadingMore)} />
         }
@@ -336,7 +336,7 @@ export default function KeepsScreen() {
         }
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
-        {...FLATLIST_DEFAULTS}
+        showsVerticalScrollIndicator={false}
       />
 
       <Modal

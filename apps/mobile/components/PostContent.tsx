@@ -1,10 +1,5 @@
-import React, { useMemo, memo } from "react";
-import {
-  Text,
-  View,
-  Pressable,
-  useWindowDimensions,
-} from "react-native";
+import React, { useMemo, useCallback, memo } from "react";
+import { Text, View, Pressable, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -12,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useOpenExternalLink } from "../hooks/useOpenExternalLink";
 import { MarkdownText } from "./MarkdownText";
-import { Avatar } from "./Avatar";
+import { PostAuthorHeader } from "./PostAuthorHeader";
 import {
   COLORS,
   SPACING,
@@ -21,7 +16,7 @@ import {
   HEADER,
   createStyles,
 } from "../constants/theme";
-import { getAvatarUri, getPostHeaderImageUri } from "../utils/api";
+import { getPostHeaderImageUri } from "../utils/api";
 
 import { Post } from "../types";
 
@@ -64,51 +59,29 @@ function PostContentInner({
   const { width: screenWidth } = useWindowDimensions();
   const headerImageHeight = Math.round(screenWidth * (1 / HEADER_IMAGE_ASPECT));
 
-  const formatTime = (date: string) => {
-    const d = new Date(date);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (minutes < 1) return t("common.time.now", "now");
-    if (minutes < 60) return `${minutes}${t("common.time.minutes", "m")}`;
-    if (hours < 24) return `${hours}${t("common.time.hours", "h")}`;
-    if (days < 7) return `${days}${t("common.time.days", "d")}`;
-    return d.toLocaleDateString();
-  };
-
-  const handleAuthorPress = () => {
-    if (!disableNavigation && post.author?.handle) {
-      router.push(`/user/${post.author.handle}`);
-    }
-  };
-
-  const handlePostPress = () => {
+  const handlePostPress = useCallback(() => {
     if (!disableNavigation) {
-      if (post.title) {
-        router.push(`/post/${post.id}/reading`);
-      } else {
-        router.push(`/post/${post.id}`);
-      }
+      router.push(`/post/${post.id}/reading`);
     }
-  };
+  }, [disableNavigation, post.id, router]);
 
-  const handleSourcePress = async (source: SourceItem) => {
-    if (disableNavigation) return;
-    if (source.type === "external") {
-      await openExternalLink(source.url);
-    } else if (source.type === "post") {
-      router.push(`/post/${source.id}`);
-    } else if (source.type === "topic") {
-      router.push(
-        `/topic/${encodeURIComponent(source.slug ?? source.title ?? "")}`,
-      );
-    } else if (source.type === "user") {
-      router.push(`/user/${source.handle}`);
-    }
-  };
+  const handleSourcePress = useCallback(
+    async (source: SourceItem) => {
+      if (disableNavigation) return;
+      if (source.type === "external") {
+        await openExternalLink(source.url);
+      } else if (source.type === "post") {
+        router.push(`/post/${source.id}/reading`);
+      } else if (source.type === "topic") {
+        router.push(
+          `/topic/${encodeURIComponent(source.slug ?? source.title ?? "")}`,
+        );
+      } else if (source.type === "user") {
+        router.push(`/user/${source.handle}`);
+      }
+    },
+    [disableNavigation, openExternalLink, router],
+  );
 
   // Strip title from body if it matches the header (guard: body can be undefined from API)
   const body = post.body ?? "";
@@ -123,9 +96,9 @@ function PostContentInner({
     !hasExplicitTitle && fullDisplayBody.trim().length > 0;
   const bodyHeadline = noTitleUseBodyHeadline
     ? (fullDisplayBody.includes("\n")
-      ? fullDisplayBody.slice(0, fullDisplayBody.indexOf("\n")).trim()
-      : fullDisplayBody.trim()
-    ).slice(0, 120)
+        ? fullDisplayBody.slice(0, fullDisplayBody.indexOf("\n")).trim()
+        : fullDisplayBody.trim()
+      ).slice(0, 120)
     : "";
   const bodyAfterHeadline =
     noTitleUseBodyHeadline && fullDisplayBody.includes("\n")
@@ -197,7 +170,10 @@ function PostContentInner({
         url = a;
         title = b || null;
       } else continue;
-      add({ type: "external", title, url, icon: "link" } as SourceItem, `ext-${url}`);
+      add(
+        { type: "external", title, url, icon: "link" } as SourceItem,
+        `ext-${url}`,
+      );
     }
 
     // Post links [[post:id|alias]]
@@ -212,7 +188,10 @@ function PostContentInner({
         {
           type: "post",
           id,
-          title: alias || resolvedTitle || t("post.referencedPost", "Referenced Post"),
+          title:
+            alias ||
+            resolvedTitle ||
+            t("post.referencedPost", "Referenced Post"),
           icon: "description",
         } as SourceItem,
         `post-${id}`,
@@ -243,7 +222,12 @@ function PostContentInner({
     while ((match = mentionRegex.exec(post.body)) !== null) {
       const handle = match[1];
       add(
-        { type: "user", handle, title: `@${handle}`, icon: "person" } as SourceItem,
+        {
+          type: "user",
+          handle,
+          title: `@${handle}`,
+          icon: "person",
+        } as SourceItem,
         `user-${handle}`,
       );
     }
@@ -255,64 +239,24 @@ function PostContentInner({
 
   return (
     <View style={styles.container}>
-      {/* Author Header */}
-      <Pressable
-        style={({ pressed }: { pressed: boolean }) => [
-          styles.authorRow,
-          pressed && !disableNavigation && { opacity: 0.7 },
-        ]}
-        onPress={handleAuthorPress}
-        disabled={disableNavigation}
-        accessibilityLabel={
-          post.author?.displayName ||
-          post.author?.handle ||
-          t("post.unknownUser", "Unknown")
+      {/* Author Header — shared component */}
+      <PostAuthorHeader
+        variant="compact"
+        author={
+          post.author as {
+            id?: string;
+            handle?: string;
+            displayName?: string;
+            avatarKey?: string | null;
+            avatarUrl?: string | null;
+            bio?: string | null;
+          }
         }
-        accessibilityRole="button"
-      >
-        <Avatar
-          name={post.author.displayName}
-          size={40}
-          uri={getAvatarUri(
-            post.author as {
-              avatarKey?: string | null;
-              avatarUrl?: string | null;
-            },
-          )}
-        />
-        <View style={styles.authorInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.authorName}>
-              {post.author.displayName || t("post.unknownUser", "Unknown")}
-            </Text>
-            <MaterialIcons
-              name="circle"
-              size={4}
-              color={COLORS.tertiary}
-              style={styles.dotIcon}
-            />
-            <Text style={styles.metaText}>{formatTime(post.createdAt)}</Text>
-          </View>
-        </View>
-        {onMenuPress && (
-          <Pressable
-            onPress={onMenuPress}
-            hitSlop={12}
-            style={({ pressed }: { pressed: boolean }) => [
-              { padding: 4 },
-              pressed && { opacity: 0.5 },
-            ]}
-            accessibilityLabel={t("post.options", "More options")}
-            accessibilityRole="button"
-          >
-            <MaterialIcons
-              name="more-horiz"
-              size={HEADER.iconSize}
-              color={COLORS.tertiary}
-            />
-          </Pressable>
-        )}
-      </Pressable>
+        createdAt={post.createdAt}
+        readingTimeMinutes={post.readingTimeMinutes}
+        navigable={!disableNavigation}
+        onMenuPress={onMenuPress}
+      />
 
       {/* Content: whole card tappable to open post (body links still receive touches first) */}
       <View style={styles.contentWrap}>
@@ -323,7 +267,9 @@ function PostContentInner({
             styles.content,
             pressed && !disableNavigation && { opacity: 0.95 },
           ]}
-          accessibilityLabel={t("common.viewProfile", "View post") || "View post"}
+          accessibilityLabel={
+            t("common.viewProfile", "View post") || "View post"
+          }
           accessibilityRole="button"
         >
           <View style={styles.headerTappable}>
@@ -404,11 +350,11 @@ function PostContentInner({
         )}
       </View>
 
-      {/* Sources Section */}
+      {/* Builds On Section */}
       {showSources && sources.length > 0 && !showPrivateOverlay && (
         <View style={styles.sourcesSection}>
           <Text style={styles.sourcesHeader}>
-            {t("post.sources", "Sources")}
+            {t("post.buildsOn", "This builds on")}
           </Text>
           {sources.map((source, index) => (
             <Pressable
@@ -426,7 +372,9 @@ function PostContentInner({
                 pressed && { backgroundColor: COLORS.hover },
               ]}
               onPress={() => handleSourcePress(source)}
-              accessibilityLabel={t("post.source", "View source") || "View source"}
+              accessibilityLabel={
+                t("post.source", "View source") || "View source"
+              }
               accessibilityRole="button"
             >
               <Text style={styles.sourceNumber}>{index + 1}</Text>
@@ -450,7 +398,7 @@ function PostContentInner({
                     ? source.alias
                     : source.type === "user"
                       ? source.handle
-                      : source.title ?? ""}
+                      : (source.title ?? "")}
                 </Text>
               </View>
               <MaterialIcons
@@ -504,32 +452,7 @@ const styles = createStyles({
     color: COLORS.tertiary,
     fontFamily: FONTS.regular,
   },
-  authorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.m,
-  },
-  authorInfo: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  authorName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.paper,
-    fontFamily: FONTS.semiBold,
-  },
-  dotIcon: {
-    marginHorizontal: 6,
-  },
-  metaText: {
-    fontSize: 12,
-    color: COLORS.tertiary,
-    fontFamily: FONTS.regular,
-  },
+  /* author styles moved to shared PostAuthorHeader */
   content: {
     gap: SPACING.m,
   },

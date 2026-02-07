@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "./auth-provider";
 import { useUnreadMessages } from "@/context/unread-messages-context";
+import { useExplorationTrail } from "@/context/exploration-trail";
 
 export function Navigation() {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const { user } = useAuth();
   const { unreadCount } = useUnreadMessages();
+  const { clearTrail } = useExplorationTrail();
 
   const handle = (user as { handle?: string } | null)?.handle ?? "me";
 
@@ -22,12 +24,16 @@ export function Navigation() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-ink/90 backdrop-blur-lg border-t border-divider z-50 md:hidden safe-area-pb" aria-label="Primary">
+    <nav
+      className="fixed bottom-0 left-0 right-0 bg-ink/90 backdrop-blur-lg border-t border-divider z-50 md:hidden safe-area-pb"
+      aria-label="Primary"
+    >
       <div className="max-w-[680px] mx-auto px-6 h-16 flex items-center justify-between">
         <Link
           href="/home"
           aria-label={t("home")}
           aria-current={isActive("/home") ? "page" : undefined}
+          onClick={() => clearTrail()}
           className={`flex flex-col items-center justify-center w-12 h-full min-h-[44px] transition-all duration-200 ${
             isActive("/home")
               ? "text-primary scale-110"
@@ -57,6 +63,7 @@ export function Navigation() {
           href="/explore"
           aria-label={t("discover")}
           aria-current={isActive("/explore") ? "page" : undefined}
+          onClick={() => clearTrail()}
           className={`flex flex-col items-center justify-center w-12 h-full min-h-[44px] transition-all duration-200 ${
             isActive("/explore")
               ? "text-primary scale-110"
@@ -105,8 +112,13 @@ export function Navigation() {
         </Link>
         <Link
           href="/inbox"
-          aria-label={unreadCount > 0 ? `${t("chats")} (${unreadCount} unread)` : t("chats")}
+          aria-label={
+            unreadCount > 0
+              ? `${t("chats")} (${unreadCount} unread)`
+              : t("chats")
+          }
           aria-current={isActive("/inbox") ? "page" : undefined}
+          onClick={() => clearTrail()}
           className={`relative flex flex-col items-center justify-center w-12 h-full min-h-[44px] transition-all duration-200 ${
             isActive("/inbox")
               ? "text-primary scale-110"
@@ -141,6 +153,7 @@ export function Navigation() {
           href={`/user/${handle}`}
           aria-label={t("profile")}
           aria-current={isActive(`/user/${handle}`) ? "page" : undefined}
+          onClick={() => clearTrail()}
           className={`flex flex-col items-center justify-center w-12 h-full min-h-[44px] transition-all duration-200 ${
             isActive(`/user/${handle}`)
               ? "text-primary scale-110"

@@ -1,9 +1,21 @@
-import React, { memo, useCallback } from 'react';
-import { View, Text, Pressable, Image, type GestureResponderEvent } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { getAvatarUri } from '../utils/api';
-import { useTranslation } from 'react-i18next';
-import { COLORS, SPACING, FONTS, LAYOUT, createStyles } from '../constants/theme';
+import React, { memo, useCallback, useMemo } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  type GestureResponderEvent,
+} from "react-native";
+import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
+import { getAvatarUri } from "../utils/api";
+import { useTranslation } from "react-i18next";
+import {
+  COLORS,
+  SPACING,
+  FONTS,
+  LAYOUT,
+  createStyles,
+} from "../constants/theme";
 
 /**
  * Shared user profile card used everywhere: followers, following, suggestions, explore, search.
@@ -28,12 +40,20 @@ interface UserCardProps {
 function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
   const { t } = useTranslation();
   const displayName = item.displayName || item.handle;
+  // Compute avatar URI once (was called twice before — condition check + source prop)
+  const avatarUri = useMemo(
+    () => getAvatarUri(item),
+    [item.avatarKey, item.avatarUrl],
+  );
 
-  const handleFollowPress = useCallback((e: GestureResponderEvent) => {
-    e?.stopPropagation?.();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onFollow?.();
-  }, [onFollow]);
+  const handleFollowPress = useCallback(
+    (e: GestureResponderEvent) => {
+      e?.stopPropagation?.();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onFollow?.();
+    },
+    [onFollow],
+  );
 
   return (
     <Pressable
@@ -41,12 +61,18 @@ function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
       style={styles.card}
       accessibilityLabel={`${displayName}, @${item.handle}`}
       accessibilityRole="button"
-      accessibilityHint={t('common.viewProfile', 'View profile')}
+      accessibilityHint={t("common.viewProfile", "View profile")}
     >
       <View style={styles.row}>
         <View style={styles.avatar} accessibilityElementsHidden>
-          {getAvatarUri(item) ? (
-            <Image source={{ uri: getAvatarUri(item)! }} style={styles.avatarImage} />
+          {avatarUri ? (
+            <Image
+              source={{ uri: avatarUri }}
+              style={styles.avatarImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
           ) : (
             <Text style={styles.avatarText}>
               {displayName.charAt(0).toUpperCase()}
@@ -54,25 +80,45 @@ function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
           )}
         </View>
         <View style={styles.info}>
-          <Text style={styles.name} numberOfLines={1}>{displayName}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {displayName}
+          </Text>
           <Text style={styles.handle}>@{item.handle}</Text>
           {item.bio ? (
-            <Text style={styles.bio} numberOfLines={2}>{item.bio}</Text>
+            <Text style={styles.bio} numberOfLines={2}>
+              {item.bio}
+            </Text>
           ) : null}
         </View>
         {onFollow != null && (
           <Pressable
-            style={[styles.followBtn, item.isFollowing && styles.followBtnActive]}
+            style={[
+              styles.followBtn,
+              item.isFollowing && styles.followBtnActive,
+            ]}
             onPress={handleFollowPress}
             accessibilityLabel={
               item.isFollowing
-                ? t('common.unfollow', { name: displayName, defaultValue: `Unfollow ${displayName}` })
-                : t('common.follow', { name: displayName, defaultValue: `Follow ${displayName}` })
+                ? t("common.unfollow", {
+                    name: displayName,
+                    defaultValue: `Unfollow ${displayName}`,
+                  })
+                : t("common.follow", {
+                    name: displayName,
+                    defaultValue: `Follow ${displayName}`,
+                  })
             }
             accessibilityRole="button"
           >
-            <Text style={[styles.followBtnText, item.isFollowing && styles.followBtnTextActive]}>
-              {item.isFollowing ? t('common.following', 'Following') : t('common.followAction', 'Follow')}
+            <Text
+              style={[
+                styles.followBtnText,
+                item.isFollowing && styles.followBtnTextActive,
+              ]}
+            >
+              {item.isFollowing
+                ? t("common.following", "Following")
+                : t("common.followAction", "Follow")}
             </Text>
           </Pressable>
         )}
@@ -81,7 +127,9 @@ function UserCardInner({ item, onPress, onFollow }: UserCardProps) {
   );
 }
 
-export const UserCard = memo(UserCardInner as React.FunctionComponent<UserCardProps>) as (props: UserCardProps) => React.ReactElement | null;
+export const UserCard = memo(
+  UserCardInner as React.FunctionComponent<UserCardProps>,
+) as (props: UserCardProps) => React.ReactElement | null;
 
 const styles = createStyles({
   card: {
@@ -92,26 +140,26 @@ const styles = createStyles({
     paddingHorizontal: LAYOUT.contentPaddingHorizontal,
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
     backgroundColor: COLORS.hover,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: SPACING.m,
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 24,
   },
   avatarText: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: "700",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },
@@ -121,7 +169,7 @@ const styles = createStyles({
   },
   name: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.paper,
     fontFamily: FONTS.semiBold,
   },
@@ -152,7 +200,7 @@ const styles = createStyles({
   },
   followBtnText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     fontFamily: FONTS.semiBold,
   },

@@ -55,9 +55,8 @@ function PostPreviewRowInner({
     isPrivateForViewer === true || post.viewerCanSeeContent === false;
 
   const handlePress = useCallback(() => {
-    if (post.title) router.push(`/post/${post.id}/reading`);
-    else router.push(`/post/${post.id}`);
-  }, [post.id, post.title, router]);
+    router.push(`/post/${post.id}/reading`);
+  }, [post.id, router]);
 
   const bodyPreview = (post.body ?? "")
     .replace(/\s+/g, " ")

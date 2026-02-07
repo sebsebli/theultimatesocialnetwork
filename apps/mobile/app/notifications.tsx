@@ -30,8 +30,10 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { on, off } = useSocket();
-  const [notifications, setNotifications] = useState<Record<string, unknown>[]>([]);
+  const { on, off, clearUnreadNotifications } = useSocket();
+  const [notifications, setNotifications] = useState<Record<string, unknown>[]>(
+    [],
+  );
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -55,20 +57,24 @@ export default function NotificationsScreen() {
   const groupedNotifications = useMemo((): GroupedNotification[] => {
     const groups: Map<string, GroupedNotification> = new Map();
     const result: GroupedNotification[] = [];
-    
+
     for (const notif of notifications) {
       const type = notif.type as string;
       const post = notif.post as { id?: string; title?: string } | undefined;
-      const postId = (post?.id ?? notif.postId ?? '') as string;
-      const actor = notif.actor as { handle?: string; displayName?: string } | undefined;
-      
+      const postId = (post?.id ?? notif.postId ?? "") as string;
+      const actor = notif.actor as
+        | { handle?: string; displayName?: string }
+        | undefined;
+
       // Only group LIKE and FOLLOW notifications (these are the ones that commonly batch)
-      const groupable = type === 'LIKE' || type === 'FOLLOW';
-      const groupKey = groupable ? `${type}:${postId}` : `single:${notif.id as string}`;
-      
+      const groupable = type === "LIKE" || type === "FOLLOW";
+      const groupKey = groupable
+        ? `${type}:${postId}`
+        : `single:${notif.id as string}`;
+
       const existing = groups.get(groupKey);
       if (existing && groupable) {
-        if (actor && !existing.actors.some(a => a.handle === actor.handle)) {
+        if (actor && !existing.actors.some((a) => a.handle === actor.handle)) {
           existing.actors.push(actor);
         }
         existing.count++;
@@ -76,7 +82,7 @@ export default function NotificationsScreen() {
         if (!existing.readAt && !notif.readAt) existing.readAt = null;
       } else {
         const group: GroupedNotification = {
-          key: groupKey + ':' + (notif.id as string),
+          key: groupKey + ":" + (notif.id as string),
           type,
           actors: actor ? [actor] : [],
           post,
@@ -91,7 +97,7 @@ export default function NotificationsScreen() {
         result.push(group);
       }
     }
-    
+
     return result;
   }, [notifications]);
 
@@ -105,6 +111,11 @@ export default function NotificationsScreen() {
     if (notifications.length === 0) loadContent(1, true);
   }, []);
 
+  // Clear notification badge (red dot) immediately when user opens this screen
+  useEffect(() => {
+    clearUnreadNotifications();
+  }, [clearUnreadNotifications]);
+
   const loadContent = async (pageNum: number, reset = false) => {
     if (reset) {
       setLoading(true);
@@ -113,10 +124,13 @@ export default function NotificationsScreen() {
       setLoadingMore(true);
     }
     try {
-      const data = await api.get<{
-        items?: unknown[];
-        hasMore?: boolean;
-      } | unknown[]>(`/notifications?page=${pageNum}&limit=20`);
+      const data = await api.get<
+        | {
+            items?: unknown[];
+            hasMore?: boolean;
+          }
+        | unknown[]
+      >(`/notifications?page=${pageNum}&limit=20`);
       const items = Array.isArray(data)
         ? (data as Record<string, unknown>[])
         : Array.isArray((data as { items?: unknown[] }).items)
@@ -127,7 +141,9 @@ export default function NotificationsScreen() {
       } else {
         setNotifications((prev) => [...prev, ...items]);
       }
-      const paginatedData = Array.isArray(data) ? null : (data as { hasMore?: boolean });
+      const paginatedData = Array.isArray(data)
+        ? null
+        : (data as { hasMore?: boolean });
       setHasMore(items.length === 20 && paginatedData?.hasMore !== false);
       setError(null);
     } catch (error) {
@@ -157,9 +173,11 @@ export default function NotificationsScreen() {
 
   const renderNotification = useCallback(
     ({ item }: { item: GroupedNotification }) => {
-      const actorNames = item.actors.map(a => a.displayName || a.handle || '').filter(Boolean);
-      let displayText = '';
-      
+      const actorNames = item.actors
+        .map((a) => a.displayName || a.handle || "")
+        .filter(Boolean);
+      let displayText = "";
+
       if (actorNames.length === 0) {
         displayText = t("inbox.interactedWithYou");
       } else if (actorNames.length === 1) {
@@ -169,19 +187,20 @@ export default function NotificationsScreen() {
       } else {
         displayText = `${actorNames[0]}, ${actorNames[1]}, ${t("notifications.andOthers", "and {{count}} others", { count: item.count - 2 })}`;
       }
-      
-      const actionText = item.type === "FOLLOW"
-        ? t("inbox.startedFollowing")
-        : item.type === "REPLY"
-          ? t("inbox.repliedToPost")
-          : item.type === "QUOTE"
-            ? t("inbox.quotedPost")
-            : item.type === "LIKE"
-              ? t("inbox.likedPost")
-              : item.type === "MENTION"
-                ? t("inbox.mentionedYou")
-                : t("inbox.interactedWithYou");
-      
+
+      const actionText =
+        item.type === "FOLLOW"
+          ? t("inbox.startedFollowing")
+          : item.type === "REPLY"
+            ? t("inbox.repliedToPost")
+            : item.type === "QUOTE"
+              ? t("inbox.quotedPost")
+              : item.type === "LIKE"
+                ? t("inbox.likedPost")
+                : item.type === "MENTION"
+                  ? t("inbox.mentionedYou")
+                  : t("inbox.interactedWithYou");
+
       return (
         <Pressable
           style={styles.notification}
@@ -199,7 +218,7 @@ export default function NotificationsScreen() {
                 params: { replyId: item.replyId },
               });
             } else if (item.post?.id || item.postId) {
-              router.push(`/post/${item.post?.id ?? item.postId}`);
+              router.push(`/post/${item.post?.id ?? item.postId}/reading`);
             }
           }}
           accessibilityLabel={`${displayText} ${actionText}`}

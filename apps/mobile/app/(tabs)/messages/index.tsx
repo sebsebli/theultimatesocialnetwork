@@ -37,6 +37,22 @@ import { OptionsActionSheet } from "../../../components/OptionsActionSheet";
 import { ConfirmModal } from "../../../components/ConfirmModal";
 import * as Haptics from "expo-haptics";
 
+/** Format message timestamp — shows time for today, date for older messages.
+ *  Defined at module level to avoid re-creation on every render. */
+function formatTime(dateString: string): string {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  if (diff < 1000 * 60 * 60 * 24) {
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+  return date.toLocaleDateString();
+}
+
 interface ThreadItem {
   id: string;
   participant?: { displayName?: string };
@@ -172,111 +188,102 @@ export default function MessagesScreen() {
     }
   };
 
-  const formatTime = (dateString: string) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
+  const renderThreadItem = useCallback(
+    ({ item }: { item: ThreadItem }) => {
+      const participant = item.participant || item.participants?.[0];
+      if (!participant) return null;
+      const q = search.trim();
+      if (q.length >= 2) return null;
+      if (q.length === 1) {
+        const nameMatch = participant.displayName
+          ?.toLowerCase()
+          .includes(q.toLowerCase());
+        const msgMatch = item.lastMessage?.body
+          ?.toLowerCase()
+          .includes(q.toLowerCase());
+        if (!nameMatch && !msgMatch) return null;
+      }
+      return (
+        <Pressable
+          style={({ pressed }: { pressed: boolean }) => [
+            styles.threadItem,
+            pressed && styles.threadItemPressed,
+          ]}
+          onPress={() => router.push(`/(tabs)/messages/${item.id}`)}
+          onLongPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setThreadMenuThread(item);
+          }}
+        >
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {participant.displayName?.charAt(0) || "?"}
+            </Text>
+          </View>
+          <View style={styles.threadContent}>
+            <View style={styles.threadHeader}>
+              <Text style={styles.displayName}>
+                {participant.displayName || t("common.unknown", "Unknown")}
+              </Text>
+              {item.lastMessage && (
+                <Text style={styles.timestamp}>
+                  {formatTime(item.lastMessage.createdAt)}
+                </Text>
+              )}
+            </View>
+            {item.lastMessage ? (
+              <Text
+                style={[
+                  styles.lastMessage,
+                  !item.lastMessage.isRead && styles.unreadMessage,
+                ]}
+                numberOfLines={1}
+              >
+                {item.lastMessage.body}
+              </Text>
+            ) : (
+              <Text style={styles.lastMessage}>
+                {t("messages.noMessages", "No messages yet")}
+              </Text>
+            )}
+          </View>
+          {item.lastMessage && !item.lastMessage.isRead && (
+            <View style={styles.unreadDot} />
+          )}
+        </Pressable>
+      );
+    },
+    [router, search, t],
+  );
 
-    if (diff < 1000 * 60 * 60 * 24) {
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
-    return date.toLocaleDateString();
-  };
-
-  const renderThreadItem = ({ item }: { item: ThreadItem }) => {
-    const participant = item.participant || item.participants?.[0];
-    if (!participant) return null;
-    const q = search.trim();
-    if (q.length >= 2) return null;
-    if (q.length === 1) {
-      const nameMatch = participant.displayName
-        ?.toLowerCase()
-        .includes(q.toLowerCase());
-      const msgMatch = item.lastMessage?.body
-        ?.toLowerCase()
-        .includes(q.toLowerCase());
-      if (!nameMatch && !msgMatch) return null;
-    }
-    return (
+  const renderSearchHit = useCallback(
+    ({ item }: { item: ChatSearchHit }) => (
       <Pressable
         style={({ pressed }: { pressed: boolean }) => [
           styles.threadItem,
           pressed && styles.threadItemPressed,
         ]}
-        onPress={() => router.push(`/(tabs)/messages/${item.id}`)}
-        onLongPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setThreadMenuThread(item);
-        }}
+        onPress={() => router.push(`/(tabs)/messages/${item.threadId}`)}
       >
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {participant.displayName?.charAt(0) || "?"}
+            {item.otherUser.displayName?.charAt(0) || "?"}
           </Text>
         </View>
         <View style={styles.threadContent}>
           <View style={styles.threadHeader}>
             <Text style={styles.displayName}>
-              {participant.displayName || t("common.unknown", "Unknown")}
+              {item.otherUser.displayName || item.otherUser.handle}
             </Text>
-            {item.lastMessage && (
-              <Text style={styles.timestamp}>
-                {formatTime(item.lastMessage.createdAt)}
-              </Text>
-            )}
+            <Text style={styles.timestamp}>{formatTime(item.createdAt)}</Text>
           </View>
-          {item.lastMessage ? (
-            <Text
-              style={[
-                styles.lastMessage,
-                !item.lastMessage.isRead && styles.unreadMessage,
-              ]}
-              numberOfLines={1}
-            >
-              {item.lastMessage.body}
-            </Text>
-          ) : (
-            <Text style={styles.lastMessage}>
-              {t("messages.noMessages", "No messages yet")}
-            </Text>
-          )}
-        </View>
-        {item.lastMessage && !item.lastMessage.isRead && (
-          <View style={styles.unreadDot} />
-        )}
-      </Pressable>
-    );
-  };
-
-  const renderSearchHit = ({ item }: { item: ChatSearchHit }) => (
-    <Pressable
-      style={({ pressed }: { pressed: boolean }) => [
-        styles.threadItem,
-        pressed && styles.threadItemPressed,
-      ]}
-      onPress={() => router.push(`/(tabs)/messages/${item.threadId}`)}
-    >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {item.otherUser.displayName?.charAt(0) || "?"}
-        </Text>
-      </View>
-      <View style={styles.threadContent}>
-        <View style={styles.threadHeader}>
-          <Text style={styles.displayName}>
-            {item.otherUser.displayName || item.otherUser.handle}
+          <Text style={styles.lastMessage} numberOfLines={2}>
+            {item.body}
           </Text>
-          <Text style={styles.timestamp}>{formatTime(item.createdAt)}</Text>
         </View>
-        <Text style={styles.lastMessage} numberOfLines={2}>
-          {item.body}
-        </Text>
-      </View>
-    </Pressable>
+      </Pressable>
+    ),
+    [router, t],
   );
 
   return (
@@ -391,7 +398,9 @@ export default function MessagesScreen() {
             : undefined
         }
         options={[
-          ...(threadMenuThread && (threadMenuThread as ThreadItem & { unreadCount?: number }).unreadCount === 0
+          ...(threadMenuThread &&
+          (threadMenuThread as ThreadItem & { unreadCount?: number })
+            .unreadCount === 0
             ? [
                 {
                   label: t("messages.markUnread", "Mark as unread"),

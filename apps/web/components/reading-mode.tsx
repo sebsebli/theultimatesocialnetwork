@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useEffect } from "react";
+import { memo, useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Blurhash } from "react-blurhash";
@@ -8,11 +8,18 @@ import { getImageUrl } from "@/lib/security";
 import { Avatar } from "./avatar";
 import { OfflineToggle } from "./offline-toggle";
 import { useToast } from "./ui/toast";
-import { SourcesSection } from "./sources-section";
-import { ReferencedBySection } from "./referenced-by-section";
+import { PostConnections } from "./post-connections";
+import { ReplySection } from "./reply-section";
+import { OverflowMenu } from "./overflow-menu";
+import { AddToCollectionModal } from "./add-to-collection-modal";
+import { ReportModal } from "./report-modal";
+import { ShareModal } from "./share-modal";
 import { renderMarkdown, stripLeadingH1IfMatch } from "@/utils/markdown";
 import { sanitizeHTML } from "@/lib/sanitize-html";
 import { getPostDisplayTitle } from "@/utils/compose-helpers";
+import { hydrateMentionAvatars } from "@/utils/hydrate-mentions";
+import { useExplorationTrail } from "@/context/exploration-trail";
+import { useAuth } from "./auth-provider";
 
 function renderMarkdownForReading(
   text: string,
@@ -35,7 +42,7 @@ function renderMarkdownForReading(
   );
   html = html.replace(
     /class="(prose-tag[^"]*)"/g,
-    (_, cls) =>
+    (_, cls: string) =>
       `class="${cls} border-b border-current border-opacity-40 pb-0.5 font-serif font-semibold"`,
   );
   html = html.replace(
@@ -70,43 +77,166 @@ export interface ReadingModeProps {
     title?: string | null;
     createdAt: string;
     author: {
+      id?: string;
       handle: string;
       displayName: string;
       avatarKey?: string | null;
       avatarUrl?: string | null;
+      isProtected?: boolean;
     };
     headerImageKey?: string | null;
     headerImageBlurhash?: string | null;
     referenceMetadata?: Record<string, { title?: string; deletedAt?: string }>;
     quoteCount: number;
+    replyCount?: number;
+    privateLikeCount?: number;
     isKept?: boolean;
-    /** Estimated read time in minutes (parity with mobile). */
+    isLiked?: boolean;
     readingTimeMinutes?: number;
-    /** When false, content is redacted; show private message */
     viewerCanSeeContent?: boolean;
-    /** When set, post was soft-deleted; show "deleted on ..." placeholder */
     deletedAt?: string;
   };
   /** Called when user unkeeps the post (e.g. to refresh Keeps list). */
   onKeep?: () => void;
+  /** When true, hide actions/replies (e.g. public view, composer preview). */
+  isPublic?: boolean;
+  /** When true, this is a composer preview – skip view tracking, connections, replies. */
+  isPreview?: boolean;
 }
 
-function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
-  const { error: toastError } = useToast();
+function ReadingModeInner({
+  post,
+  onKeep,
+  isPublic = false,
+  isPreview = false,
+}: ReadingModeProps) {
+  const { success: toastSuccess, error: toastError } = useToast();
+  const { user } = useAuth();
+  const { pushStep } = useExplorationTrail();
   const [kept, setKept] = useState(post.isKept ?? false);
+  const [liked, setLiked] = useState(post.isLiked ?? false);
+  const [likeAnimating, setLikeAnimating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showAddToCollection, setShowAddToCollection] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const startTimeRef = useRef<number>(Date.now());
+
+  const isAuthor = !!user && !!post.author.id && user.id === post.author.id;
 
   useEffect(() => {
     setKept(post.isKept ?? false);
-  }, [post.id, post.isKept]);
+    setLiked(post.isLiked ?? false);
+  }, [post.id, post.isKept, post.isLiked]);
 
-  // Track view when opening reading mode (parity with post detail)
+  // Track view when opening
   useEffect(() => {
+    if (isPreview || isPublic) return;
     if (post.id && post.id !== "preview") {
-      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => {
-        /* view tracking best-effort */
-      });
+      fetch(`/api/posts/${post.id}/view`, { method: "POST" }).catch(() => {});
     }
+    // Track read time on unmount
+    startTimeRef.current = Date.now();
+    return () => {
+      const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      if (duration > 5 && post.id && post.id !== "preview") {
+        fetch(`/api/posts/${post.id}/read-time`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ duration }),
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+  }, [post.id, isPublic, isPreview]);
+
+  // Push trail step
+  useEffect(() => {
+    if (isPreview) return;
+    const title =
+      getPostDisplayTitle(post) || post.body?.slice(0, 40) || "Post";
+    pushStep({
+      type: "post",
+      id: post.id,
+      label: title,
+      href: `/post/${post.id}`,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post.id]);
+
+  // Hydrate @mention avatars after render
+  useEffect(() => {
+    hydrateMentionAvatars(bodyRef.current);
+  }, [post.body]);
+
+  // Scroll to reply section when navigating with #reply
+  useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#reply")
+      return;
+    const el = document.getElementById("reply");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const handleKeep = useCallback(async () => {
+    const previous = kept;
+    setKept(!previous);
+    try {
+      const res = await fetch(`/api/posts/${post.id}/keep`, {
+        method: previous ? "DELETE" : "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to toggle keep");
+      if (previous) onKeep?.();
+    } catch {
+      setKept(previous);
+      toastError("Failed to update save");
+    }
+  }, [kept, post.id, onKeep, toastError]);
+
+  const handleLike = useCallback(async () => {
+    setLikeAnimating(true);
+    setTimeout(() => setLikeAnimating(false), 150);
+    const previous = liked;
+    setLiked(!previous);
+    try {
+      const response = await fetch(`/api/posts/${post.id}/like`, {
+        method: previous ? "DELETE" : "POST",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to toggle like");
+    } catch {
+      setLiked(previous);
+      toastError("Failed to update like");
+    }
+  }, [liked, post.id, toastError]);
+
+  const handleDelete = useCallback(async () => {
+    if (isPublic || !isAuthor || deleting) return;
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/posts/${post.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to delete post");
+      if (typeof window !== "undefined") window.location.href = "/home";
+    } catch {
+      toastError("Failed to delete post");
+    } finally {
+      setDeleting(false);
+    }
+  }, [isPublic, isAuthor, deleting, post.id, toastError]);
+
+  const formatDate = (date: string) => {
+    const d = new Date(date);
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   if (post.deletedAt) {
     const deletedDate = new Date(post.deletedAt);
@@ -151,39 +281,15 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
     );
   }
 
-  const handleKeep = async () => {
-    const previous = kept;
-    setKept(!previous);
-    try {
-      const res = await fetch(`/api/posts/${post.id}/keep`, {
-        method: previous ? "DELETE" : "POST",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to toggle keep");
-      if (previous) onKeep?.();
-    } catch {
-      setKept(previous);
-      toastError("Failed to update save");
-    }
-  };
-
-  const formatDate = (date: string) => {
-    const d = new Date(date);
-    return d.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
   return (
     <div className="min-h-screen bg-ink">
+      {/* Sticky header */}
       <header className="sticky top-0 z-10 bg-ink/95 backdrop-blur-md border-b border-divider">
-        <div className="max-w-[680px] mx-auto px-6 py-4 flex items-center justify-between gap-3">
+        <div className="max-w-[680px] mx-auto px-6 py-3 flex items-center justify-between gap-3">
           <Link
-            href={`/post/${post.id}`}
+            href={isPublic ? "/" : "/home"}
             className="text-secondary hover:text-paper flex items-center gap-2"
-            aria-label="Back to post"
+            aria-label="Back"
           >
             <svg
               className="w-5 h-5"
@@ -200,38 +306,59 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
             </svg>
           </Link>
           {post.title && (
-            <h1 className="text-lg font-semibold text-paper truncate max-w-[60%]">
+            <h1 className="text-sm font-semibold text-paper truncate max-w-[50%] opacity-80">
               {post.title}
             </h1>
           )}
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              type="button"
-              onClick={handleKeep}
-              aria-label={kept ? "Saved" : "Save"}
-              className={`flex items-center justify-center min-h-[40px] min-w-[40px] rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${kept ? "text-primary" : "text-tertiary hover:text-paper"}`}
-            >
-              <svg
-                className="w-5 h-5"
-                fill={kept ? "currentColor" : "none"}
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+          <div className="flex items-center gap-1 ml-auto">
+            {!isPreview && !isPublic && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleKeep}
+                  aria-label={kept ? "Saved" : "Save"}
+                  className={`flex items-center justify-center min-h-[36px] min-w-[36px] rounded-lg transition-colors ${kept ? "text-primary" : "text-tertiary hover:text-paper"}`}
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill={kept ? "currentColor" : "none"}
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                    />
+                  </svg>
+                </button>
+                <OfflineToggle post={post} />
+                <OverflowMenu
+                  postId={post.id}
+                  userId={post.author.id || ""}
+                  userHandle={post.author.handle}
+                  isAuthor={isAuthor}
+                  onReport={() => setShowReportModal(true)}
+                  onDelete={isAuthor && !isPublic ? handleDelete : undefined}
+                  onCopyLink={
+                    !post.author?.isProtected
+                      ? () => {
+                          const url = `${window.location.origin}/post/${post.id}`;
+                          navigator.clipboard.writeText(url);
+                          toastSuccess("Link copied to clipboard");
+                        }
+                      : undefined
+                  }
                 />
-              </svg>
-            </button>
-            <OfflineToggle post={post} />
+              </>
+            )}
           </div>
         </div>
       </header>
 
       {/* Article Content */}
-      <article className="max-w-[680px] mx-auto px-6 py-12">
+      <article className="max-w-[680px] mx-auto px-6 py-10">
         {post.viewerCanSeeContent === false ? (
           <div className="min-h-[300px] rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center py-16">
             <div className="flex flex-col items-center gap-3 text-tertiary text-center px-4">
@@ -259,7 +386,7 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
           </div>
         ) : (
           <>
-            {/* Header Image – fades out on scroll */}
+            {/* Header Image */}
             {post.headerImageKey && (
               <div className="relative w-full aspect-video mb-8 rounded-xl overflow-hidden bg-divider shadow-sm">
                 {post.headerImageBlurhash && (
@@ -288,7 +415,7 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
               </div>
             )}
 
-            {/* Title: use post title or first line of body as headline */}
+            {/* Title */}
             {(() => {
               const displayTitle = getPostDisplayTitle(post);
               return displayTitle ? (
@@ -325,15 +452,14 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
               </div>
             </div>
 
-            {/* Body - Optimized Typography (strip headline when shown above) */}
+            {/* Body with enhanced typography */}
             <div
+              ref={bodyRef}
               className="prose prose-invert max-w-none text-[20px] md:text-[22px] leading-[1.7] text-secondary/90 tracking-normal font-serif"
               style={{
                 fontFamily: "var(--font-serif), Georgia, serif",
               }}
               dangerouslySetInnerHTML={{
-                // Safe: Content is sanitized HTML from renderMarkdownForReading which processes user markdown
-                // and escapes dangerous content. Additional DOMPurify sanitization ensures XSS protection.
                 __html: sanitizeHTML(
                   (() => {
                     const displayTitle = getPostDisplayTitle(post);
@@ -372,22 +498,178 @@ function ReadingModeInner({ post, onKeep }: ReadingModeProps) {
               }}
             />
 
-            {/* Bottom Sections — sources from body in preview; full sections for saved posts */}
-            <div className="mt-16 space-y-0 pt-12 border-t border-divider">
-              <SourcesSection
-                postId={post.id ?? "preview"}
-                postBody={post.body}
-              />
-              {post.id && post.id !== "preview" && (
-                <ReferencedBySection
-                  postId={post.id}
-                  quoteCount={post.quoteCount ?? 0}
-                />
+            {/* Action bar */}
+            {!isPreview && (
+              <div className="flex items-center justify-between gap-3 py-6 mt-8 border-t border-b border-divider flex-wrap">
+                {/* Like */}
+                {!isPublic && (
+                  <button
+                    onClick={handleLike}
+                    className={`flex items-center gap-1.5 transition-colors ${liked ? "text-red-500" : "text-tertiary hover:text-primary"}`}
+                    aria-label={liked ? "Unlike post" : "Like post"}
+                  >
+                    <svg
+                      className={`w-5 h-5 transition-transform duration-150 ${likeAnimating ? "scale-125" : "scale-100"} ${liked ? "fill-current" : ""}`}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                    <span className="text-sm">Like</span>
+                  </button>
+                )}
+
+                {/* Reply */}
+                <button
+                  onClick={() => {
+                    if (isPublic) {
+                      window.location.href = "/sign-in";
+                    } else {
+                      const el = document.getElementById("reply");
+                      if (el) el.scrollIntoView({ behavior: "smooth" });
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-tertiary hover:text-primary transition-colors"
+                  aria-label="Reply to post"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                    />
+                  </svg>
+                  <span className="text-sm">
+                    {post.replyCount ?? 0}{" "}
+                    {(post.replyCount ?? 0) === 1 ? "reply" : "replies"}
+                  </span>
+                </button>
+
+                {/* Quote */}
+                {!isPublic ? (
+                  <Link
+                    href={`/compose?quote=${post.id}`}
+                    className="flex items-center gap-1.5 text-tertiary hover:text-primary transition-colors"
+                    aria-label="Quote post"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                      />
+                    </svg>
+                    <span className="text-sm">
+                      {(post.quoteCount ?? 0) > 0
+                        ? `${post.quoteCount} cites`
+                        : "Quote"}
+                    </span>
+                  </Link>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-tertiary text-sm">
+                    {(post.quoteCount ?? 0) > 0
+                      ? `${post.quoteCount} cites`
+                      : ""}
+                  </span>
+                )}
+
+                {/* Share */}
+                {!post.author?.isProtected && (
+                  <button
+                    onClick={() => setShowShareModal(true)}
+                    className="flex items-center gap-1.5 text-tertiary hover:text-primary transition-colors"
+                    aria-label="Share post"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                      />
+                    </svg>
+                    <span className="text-sm">Share</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Connections: builds on, built upon by, topics */}
+            {!isPreview &&
+              post.viewerCanSeeContent !== false &&
+              post.id &&
+              post.id !== "preview" && (
+                <div className="mt-2">
+                  <PostConnections
+                    postId={post.id}
+                    postBody={post.body}
+                    quoteCount={post.quoteCount ?? 0}
+                  />
+                </div>
               )}
-            </div>
+
+            {/* Replies */}
+            {!isPreview && !isPublic && (
+              <div className="mt-8 pt-6">
+                <section id="reply" aria-label="Replies">
+                  <ReplySection
+                    postId={post.id}
+                    replyCount={post.replyCount ?? 0}
+                    isPublic={isPublic}
+                  />
+                </section>
+              </div>
+            )}
           </>
         )}
       </article>
+
+      {/* Modals */}
+      {!isPreview && !isPublic && (
+        <>
+          <AddToCollectionModal
+            postId={post.id}
+            isOpen={showAddToCollection}
+            onClose={() => setShowAddToCollection(false)}
+          />
+          <ReportModal
+            isOpen={showReportModal}
+            onClose={() => setShowReportModal(false)}
+            targetId={post.id}
+            targetType="POST"
+          />
+        </>
+      )}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        url={`${typeof window !== "undefined" ? window.location.origin : ""}/post/${post.id}`}
+        title={post.title || undefined}
+        authorIsProtected={post.author?.isProtected}
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ const sections = [
   { id: "attention", label: "01. The problem" },
   { id: "intention", label: "02. A different network" },
   { id: "sovereignty", label: "03. European & independent" },
+  { id: "sustainability", label: "04. Sustainably built" },
 ];
 
 function useActiveSection() {

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { MdArrowForward } from "react-icons/md";
 import { useBetaMode } from "@/context/beta-mode-provider";
 import { GraphBackground } from "./landing/graph-background";
-import { EditorDemo } from "./landing/editor-demo";
+import { PostPreview } from "./landing/post-preview";
 import { HowItWorks } from "./landing/how-it-works";
 import { ComparisonTable } from "./landing/comparison-table";
 import { UserBenefits } from "./landing/user-benefits";
@@ -55,21 +55,22 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
             )}
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-medium leading-[0.95] tracking-tight text-[var(--foreground)] font-sans">
-              Social media, <br />
+              Where ideas <br />
               <span className="font-serif italic text-[var(--primary)]">
-                without the noise.
+                connect and grow.
               </span>
             </h1>
 
             <p className="text-base font-medium text-[var(--foreground)]/80 max-w-lg">
-              The European alternative to algorithm-driven platforms. No rage
-              feeds. No engagement tricks. Just your ideas, seen by people who
-              care.
+              Post about what you know. Follow topics you care about. Watch
+              ideas build on each other — transparently, without algorithms
+              deciding what you see.
             </p>
 
             <p className="text-lg md:text-xl text-[var(--secondary)] font-light max-w-lg leading-relaxed border-l border-[#333] /* divider-subtle */ pl-6">
-              On other platforms, the loudest voices win. Here, the best writing
-              does. Independent, EU-hosted, and built to last.
+              Your posts reach people who care about the same topics. Others
+              build on your ideas. Every connection is visible. No algorithm. No
+              manipulation.
             </p>
 
             <div className="pt-4 flex flex-col sm:flex-row gap-4">
@@ -84,14 +85,14 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
                 href="/manifesto"
                 className="inline-flex items-center justify-center px-8 py-4 border border-[#333] /* divider-subtle */ text-[var(--secondary)] font-medium text-sm tracking-wide hover:border-[var(--primary)] hover:text-[var(--foreground)] transition-colors rounded"
               >
-                Why we built this
+                Read our manifesto
               </Link>
             </div>
           </div>
 
           <div className="flex-1 w-full max-w-xl md:max-w-none relative">
             <div className="absolute -inset-10 bg-gradient-to-tr from-[var(--primary)]/10 to-transparent blur-3xl rounded-full pointer-events-none" />
-            <EditorDemo />
+            <PostPreview />
           </div>
         </section>
 
@@ -109,9 +110,9 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
                 No Algorithm, No Gatekeepers
               </h3>
               <p className="text-[var(--secondary)] leading-relaxed text-sm">
-                Your content isn&apos;t buried by an algorithm or boosted by
-                outrage. Everything is chronological, connected by topic, and
-                discoverable on its own merit.
+                Your posts reach everyone who follows the topic. No algorithm
+                decides who gets heard. Follow topics and people you choose —
+                your feed is yours, chronologically.
               </p>
             </div>
 
@@ -121,12 +122,12 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
                 02
               </span>
               <h3 className="text-2xl font-serif text-[var(--foreground)] mb-4 group-hover:text-[var(--primary)] transition-colors">
-                Quality Over Volume
+                Ideas That Build on Each Other
               </h3>
               <p className="text-[var(--secondary)] leading-relaxed text-sm">
-                Your visibility grows when people reference your work — not when
-                you post the most or provoke the hardest. Real credibility,
-                earned by substance.
+                Every post can reference other posts, creating a web of
+                connected knowledge. See what builds on what, follow citation
+                chains, and explore how ideas grow.
               </p>
             </div>
 
@@ -136,12 +137,13 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
                 03
               </span>
               <h3 className="text-2xl font-serif text-[var(--foreground)] mb-4 group-hover:text-[var(--primary)] transition-colors">
-                European &amp; Independent
+                European &amp; Sustainably Funded
               </h3>
               <p className="text-[var(--secondary)] leading-relaxed text-sm">
-                100% EU-hosted. No ads, no tracking, no selling your data. Built
-                in Europe as a genuine alternative — not another Silicon Valley
-                product with a European flag on it.
+                100% EU-hosted on renewable energy. No ads, no tracking, no
+                selling your data. Funded by optional Pro subscriptions, not
+                advertisers — built to be sustainable through honest value
+                exchange.
               </p>
             </div>
           </div>
@@ -156,9 +158,8 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
           <div className="w-px h-24 bg-gradient-to-b from-transparent via-[var(--primary)] to-transparent mx-auto mb-12 opacity-50"></div>
 
           <blockquote className="text-2xl md:text-4xl font-serif font-light text-[var(--foreground)] leading-tight mb-12">
-            &quot;The internet doesn&apos;t need another feed.
-            <br />
-            It needs a better one.&quot;
+            &quot;I built Citewalk because ideas deserve to be connected, not
+            buried in a feed.&quot;
           </blockquote>
 
           <div className="flex flex-col items-center gap-4">
@@ -180,13 +181,18 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
 
           <div className="mt-16 max-w-lg mx-auto text-sm text-[var(--tertiary)] leading-relaxed space-y-4 border-t border-[var(--divider)] pt-8">
             <p>
-              I built Citewalk because I was tired of platforms that reward
-              outrage over substance. This is an independent European project —
-              no VC money, no growth hacks, just a better place to share ideas.
+              I built Citewalk because every time I posted something worth
+              reading, the algorithm buried it. Every time I wanted to trace
+              where an idea came from, the source was lost. Citewalk is
+              different — your ideas reach their audience, and every connection
+              is traceable.
             </p>
             <p>
-              The core experience is free and always will be. I&apos;m looking
-              for early supporters who want to help shape what comes next.
+              Citewalk is free to use and sustained by its community — through
+              optional Pro subscriptions that give power users advanced tools,
+              not through ads or data sales. We&apos;re building a company that
+              proves social platforms can be profitable without exploiting their
+              users.
             </p>
           </div>
         </section>

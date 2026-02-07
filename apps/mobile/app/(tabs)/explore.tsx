@@ -8,13 +8,13 @@ import React, {
 import {
   Text,
   View,
-  FlatList,
   Pressable,
   ScrollView,
   RefreshControl,
   TextInput,
   Keyboard,
 } from "react-native";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -31,7 +31,6 @@ import {
   HEADER,
   toDimension,
   createStyles,
-  FLATLIST_DEFAULTS,
   LIST_SCROLL_DEFAULTS,
   SEARCH_BAR,
   TABS,
@@ -56,7 +55,7 @@ import { useTabPress } from "../../context/TabPressContext";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const SEARCH_DEBOUNCE_MS = 480;
+const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_LIMIT = 20;
 
 type SearchFilterTab = "all" | "people" | "topics" | "posts";
@@ -184,7 +183,18 @@ function ExploreListHeader({
             {(EXPLORE_TABS as readonly string[]).map((tab) => (
               <Pressable
                 key={tab}
-                onPress={() => setActiveTab(tab as "trending" | "newest" | "topics" | "people" | "quoted" | "deep-dives" | "newsroom")}
+                onPress={() =>
+                  setActiveTab(
+                    tab as
+                      | "trending"
+                      | "newest"
+                      | "topics"
+                      | "people"
+                      | "quoted"
+                      | "deep-dives"
+                      | "newsroom",
+                  )
+                }
                 style={[
                   styles.tab,
                   TABS.tab,
@@ -246,7 +256,9 @@ export default function ExploreScreen() {
     useState<SearchFilterTab>("all");
   const [searchPosts, setSearchPosts] = useState<Record<string, unknown>[]>([]);
   const [searchUsers, setSearchUsers] = useState<Record<string, unknown>[]>([]);
-  const [searchTopics, setSearchTopics] = useState<Record<string, unknown>[]>([]);
+  const [searchTopics, setSearchTopics] = useState<Record<string, unknown>[]>(
+    [],
+  );
   const [searchLoading, setSearchLoading] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<TextInput>(null);
@@ -261,7 +273,8 @@ export default function ExploreScreen() {
   const onEndReachedFiredRef = useRef(false);
   const listLayoutHeightRef = useRef(0);
   const contentHeightRef = useRef(0);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef =
+    useRef<FlashListRef<Record<string, unknown> | SearchListItem>>(null);
   const tabPress = useTabPress();
   const MAX_PAGE = 50;
 
@@ -321,15 +334,21 @@ export default function ExploreScreen() {
     }
     setSearchLoading(true);
     try {
-      const res = await api.get<{ posts: Record<string, unknown>[]; users: Record<string, unknown>[]; topics: Record<string, unknown>[] }>(
-        `/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}`,
+      const res = await api.get<{
+        posts: Record<string, unknown>[];
+        users: Record<string, unknown>[];
+        topics: Record<string, unknown>[];
+      }>(`/search/all?q=${encodeURIComponent(trimmed)}&limit=${SEARCH_LIMIT}`);
+      const rawPosts = (res.posts || []).filter(
+        (p: Record<string, unknown>) => !!p?.author,
       );
-      const rawPosts = (res.posts || []).filter((p: Record<string, unknown>) => !!p?.author);
       const rawUsers = res.users || [];
-      const rawTopics = (res.topics || []).map((tpc: Record<string, unknown>) => ({
-        ...tpc,
-        title: tpc.title || tpc.slug,
-      }));
+      const rawTopics = (res.topics || []).map(
+        (tpc: Record<string, unknown>) => ({
+          ...tpc,
+          title: tpc.title || tpc.slug,
+        }),
+      );
       setSearchPosts(rawPosts);
       setSearchUsers(rawUsers);
       setSearchTopics(rawTopics);
@@ -392,7 +411,9 @@ export default function ExploreScreen() {
         key: "section-posts",
         title: t("search.posts", "Posts"),
       });
-      searchPosts.forEach((p) => out.push({ type: "post", key: String(p.id ?? ""), ...p }));
+      searchPosts.forEach((p) =>
+        out.push({ type: "post", key: String(p.id ?? ""), ...p }),
+      );
     }
     if (searchUsers.length > 0) {
       out.push({
@@ -400,7 +421,9 @@ export default function ExploreScreen() {
         key: "section-people",
         title: t("search.people", "People"),
       });
-      searchUsers.forEach((u) => out.push({ type: "user", key: String(u.id ?? ""), ...u }));
+      searchUsers.forEach((u) =>
+        out.push({ type: "user", key: String(u.id ?? ""), ...u }),
+      );
     }
     if (searchTopics.length > 0) {
       out.push({
@@ -409,7 +432,11 @@ export default function ExploreScreen() {
         title: t("search.topics", "Topics"),
       });
       searchTopics.forEach((tpc) =>
-        out.push({ type: "topic", key: String(tpc.id ?? tpc.slug ?? ""), ...tpc }),
+        out.push({
+          type: "topic",
+          key: String(tpc.id ?? tpc.slug ?? ""),
+          ...tpc,
+        }),
       );
     }
     return out;
@@ -419,7 +446,7 @@ export default function ExploreScreen() {
     (post: Record<string, unknown>) => {
       Keyboard.dismiss();
       setSearchQuery("");
-      if (post?.id) router.push(`/post/${post.id}`);
+      if (post?.id) router.push(`/post/${post.id}/reading`);
     },
     [router],
   );
@@ -436,7 +463,9 @@ export default function ExploreScreen() {
       Keyboard.dismiss();
       setSearchQuery("");
       if (topic?.slug || topic?.id)
-        router.push(`/topic/${encodeURIComponent(String(topic.slug ?? topic.id ?? ""))}`);
+        router.push(
+          `/topic/${encodeURIComponent(String(topic.slug ?? topic.id ?? ""))}`,
+        );
     },
     [router],
   );
@@ -476,8 +505,15 @@ export default function ExploreScreen() {
         sort: "recommended",
       };
       const qs = new URLSearchParams(params).toString();
-      const res = await api.get<{ items?: Record<string, unknown>[]; hasMore?: boolean } | Record<string, unknown>[]>(`${endpoint}?${qs}`);
-      const rawItems = Array.isArray(res) ? res : (Array.isArray((res as { items?: Record<string, unknown>[] }).items) ? (res as { items?: Record<string, unknown>[] }).items : []) || [];
+      const res = await api.get<
+        | { items?: Record<string, unknown>[]; hasMore?: boolean }
+        | Record<string, unknown>[]
+      >(`${endpoint}?${qs}`);
+      const rawItems = Array.isArray(res)
+        ? res
+        : (Array.isArray((res as { items?: Record<string, unknown>[] }).items)
+            ? (res as { items?: Record<string, unknown>[] }).items
+            : []) || [];
       const normalized = rawItems.map((item: Record<string, unknown>) => ({
         ...item,
         author: item.author || {
@@ -493,17 +529,24 @@ export default function ExploreScreen() {
         seen.add(k);
         return true;
       });
-      const hasMoreData = items.length === 20 && (Array.isArray(res) ? true : (res as { hasMore?: boolean }).hasMore !== false);
+      const hasMoreData =
+        items.length === 20 &&
+        (Array.isArray(res)
+          ? true
+          : (res as { hasMore?: boolean }).hasMore !== false);
 
       if (reset) {
         setData(items);
       } else {
         setData((prev) => {
           const prevSeen = new Set(
-            prev.map((p: Record<string, unknown>) => p.id ?? p.slug).filter(Boolean),
+            prev
+              .map((p: Record<string, unknown>) => p.id ?? p.slug)
+              .filter(Boolean),
           );
           const appended = items.filter(
-            (item: Record<string, unknown>) => !prevSeen.has(item.id ?? item.slug),
+            (item: Record<string, unknown>) =>
+              !prevSeen.has(item.id ?? item.slug),
           );
           return prev.concat(appended);
         });
@@ -540,9 +583,13 @@ export default function ExploreScreen() {
       );
 
       if (topic.isFollowing) {
-        await api.delete(`/topics/${encodeURIComponent(String(topic.slug ?? ""))}/follow`);
+        await api.delete(
+          `/topics/${encodeURIComponent(String(topic.slug ?? ""))}/follow`,
+        );
       } else {
-        await api.post(`/topics/${encodeURIComponent(String(topic.slug ?? ""))}/follow`);
+        await api.post(
+          `/topics/${encodeURIComponent(String(topic.slug ?? ""))}/follow`,
+        );
       }
     } catch (err) {
       if (__DEV__) console.error("Follow failed", err);
@@ -663,7 +710,9 @@ export default function ExploreScreen() {
           <TopicCard
             item={item}
             onPress={() =>
-              router.push(`/topic/${encodeURIComponent(String(item.slug ?? item.id ?? ""))}`)
+              router.push(
+                `/topic/${encodeURIComponent(String(item.slug ?? item.id ?? ""))}`,
+              )
             }
             onFollow={() => handleFollow(item)}
           />
@@ -725,6 +774,14 @@ export default function ExploreScreen() {
   );
 
   const showSearchResults = isSearchActive;
+
+  /** Dynamic estimatedItemSize for FlashList — posts are tall, user/topic cards are short. */
+  const estimatedItemSize = useMemo(() => {
+    if (showSearchResults) return 150;
+    if (activeTab === "people") return 70;
+    if (activeTab === "topics") return 70;
+    return 250;
+  }, [showSearchResults, activeTab]);
   const listData = showSearchResults
     ? searchFlatData
     : ["trending", "newest", "quoted", "deep-dives", "newsroom"].includes(
@@ -811,16 +868,22 @@ export default function ExploreScreen() {
           onDismiss={() => setError(false)}
         />
       ) : (
-        <FlatList
+        <FlashList
           ref={flatListRef}
           style={styles.listBelowHeader}
           data={listData}
+          estimatedItemSize={estimatedItemSize}
           keyExtractor={
-            listKeyExtractor as (item: Record<string, unknown> | SearchListItem, index: number) => string
+            listKeyExtractor as (
+              item: Record<string, unknown> | SearchListItem,
+              index: number,
+            ) => string
           }
           ListHeaderComponent={null}
           renderItem={
-            listRenderItem as (info: { item: Record<string, unknown> | SearchListItem }) => React.ReactElement | null
+            listRenderItem as (info: {
+              item: Record<string, unknown> | SearchListItem;
+            }) => React.ReactElement | null
           }
           ListEmptyComponent={
             showSearchResults ? searchListEmpty : exploreListEmpty
@@ -840,24 +903,14 @@ export default function ExploreScreen() {
             )
           }
           onEndReached={showSearchResults ? undefined : handleLoadMore}
-          onContentSizeChange={
-            showSearchResults ? undefined : handleContentSizeChange
-          }
           onLayout={showSearchResults ? undefined : handleListLayout}
-          contentContainerStyle={[
-            {
-              paddingBottom:
-                TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA,
-            },
-            listData.length === 0 && { flexGrow: 1 },
-          ]}
+          contentContainerStyle={{
+            paddingBottom: TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA,
+          }}
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="none"
-          {...LIST_SCROLL_DEFAULTS}
-          {...FLATLIST_DEFAULTS}
-          initialNumToRender={12}
-          maxToRenderPerBatch={12}
-          windowSize={8}
+          showsVerticalScrollIndicator={false}
+          onEndReachedThreshold={0.5}
         />
       )}
     </View>

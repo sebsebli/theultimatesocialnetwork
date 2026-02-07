@@ -535,4 +535,207 @@ export class TopicsService {
     });
     return deduped.slice(offset, offset + limit);
   }
+
+  async getTopicMap(
+    slug: string,
+    viewerId?: string,
+  ): Promise<{
+    centralPosts: Array<{
+      id: string;
+      title: string | null;
+      authorHandle: string;
+      authorDisplayName: string;
+      authorAvatarKey: string | null;
+      connections: number;
+    }>;
+    edges: Array<{
+      from: string;
+      to: string;
+      type: string;
+    }>;
+    connectedTopics: Array<{
+      id: string;
+      slug: string;
+      title: string;
+      sharedPosts: number;
+    }>;
+  }> {
+    // Find topic by slug
+    const topic = await this.topicRepo.findOne({
+      where: { slug },
+    });
+
+    if (!topic) {
+      return {
+        centralPosts: [],
+        edges: [],
+        connectedTopics: [],
+      };
+    }
+
+    // Get central posts using existing method
+    const centralPosts = await this.exploreService.getTopicStartHere(
+      topic.id,
+      10,
+      viewerId,
+    );
+
+    const centralPostIds = centralPosts.map((p) => p.id);
+
+    if (centralPostIds.length === 0) {
+      // Get connected topics even if no central posts
+      const relatedTopics = await this.graphCompute.getRelatedTopics(slug);
+      const connectedTopics = await Promise.all(
+        relatedTopics.map(async ({ topic: relatedSlug }) => {
+          const relatedTopic = await this.topicRepo.findOne({
+            where: { slug: relatedSlug },
+            select: ['id', 'slug', 'title'],
+          });
+          if (!relatedTopic) return null;
+
+          // Count shared posts between this topic and the related topic
+          const sharedPostsRow = await this.postTopicRepo
+            .createQueryBuilder('pt1')
+            .innerJoin(
+              PostTopic,
+              'pt2',
+              'pt2.post_id = pt1.post_id AND pt2.topic_id = :relatedTopicId',
+              { relatedTopicId: relatedTopic.id },
+            )
+            .innerJoin(Post, 'p', 'p.id = pt1.post_id AND p.deleted_at IS NULL')
+            .where('pt1.topic_id = :topicId', { topicId: topic.id })
+            .select('COUNT(DISTINCT pt1.post_id)', 'cnt')
+            .getRawOne<{ cnt: string }>();
+          const sharedPosts = sharedPostsRow
+            ? parseInt(sharedPostsRow.cnt, 10)
+            : 0;
+
+          return {
+            id: relatedTopic.id,
+            slug: relatedTopic.slug,
+            title: relatedTopic.title,
+            sharedPosts,
+          };
+        }),
+      );
+
+      return {
+        centralPosts: [],
+        edges: [],
+        connectedTopics: connectedTopics.filter(
+          (item): item is NonNullable<typeof item> => item !== null,
+        ),
+      };
+    }
+
+    // Get edges between central posts
+    const edges = await this.postEdgeRepo.find({
+      where: [
+        {
+          fromPostId: In(centralPostIds),
+          toPostId: In(centralPostIds),
+        },
+      ],
+      select: ['fromPostId', 'toPostId', 'edgeType'],
+    });
+
+    // Get connection counts for each central post (incoming + outgoing edges) - batch query
+    const connectionCounts = new Map<string, number>();
+    if (centralPostIds.length > 0) {
+      const [incomingRows, outgoingRows] = await Promise.all([
+        this.postEdgeRepo
+          .createQueryBuilder('edge')
+          .select('edge.toPostId', 'postId')
+          .addSelect('COUNT(*)', 'count')
+          .where('edge.toPostId IN (:...ids)', { ids: centralPostIds })
+          .groupBy('edge.toPostId')
+          .getRawMany<{ postId: string; count: string }>(),
+        this.postEdgeRepo
+          .createQueryBuilder('edge')
+          .select('edge.fromPostId', 'postId')
+          .addSelect('COUNT(*)', 'count')
+          .where('edge.fromPostId IN (:...ids)', { ids: centralPostIds })
+          .groupBy('edge.fromPostId')
+          .getRawMany<{ postId: string; count: string }>(),
+      ]);
+
+      // Initialize all counts to 0
+      for (const postId of centralPostIds) {
+        connectionCounts.set(postId, 0);
+      }
+
+      // Add incoming counts
+      for (const row of incomingRows) {
+        const current = connectionCounts.get(row.postId) ?? 0;
+        connectionCounts.set(row.postId, current + parseInt(row.count, 10));
+      }
+
+      // Add outgoing counts
+      for (const row of outgoingRows) {
+        const current = connectionCounts.get(row.postId) ?? 0;
+        connectionCounts.set(row.postId, current + parseInt(row.count, 10));
+      }
+    }
+
+    // Enrich central posts with author info and connection counts
+    const enrichedCentralPosts = centralPosts.map((post) => {
+      const author = post.author;
+      return {
+        id: post.id,
+        title: post.title,
+        authorHandle: author?.handle || '',
+        authorDisplayName: author?.displayName || author?.handle || '',
+        authorAvatarKey: author?.avatarKey ?? null,
+        connections: connectionCounts.get(post.id) ?? 0,
+      };
+    });
+
+    // Get connected topics
+    const relatedTopics = await this.graphCompute.getRelatedTopics(slug);
+    const connectedTopics = await Promise.all(
+      relatedTopics.map(async ({ topic: relatedSlug }) => {
+        const relatedTopic = await this.topicRepo.findOne({
+          where: { slug: relatedSlug },
+          select: ['id', 'slug', 'title'],
+        });
+        if (!relatedTopic) return null;
+
+        // Count shared posts between this topic and the related topic
+        const sharedPostsRow = await this.postTopicRepo
+          .createQueryBuilder('pt1')
+          .innerJoin(
+            PostTopic,
+            'pt2',
+            'pt2.post_id = pt1.post_id AND pt2.topic_id = :relatedTopicId',
+            { relatedTopicId: relatedTopic.id },
+          )
+          .innerJoin(Post, 'p', 'p.id = pt1.post_id AND p.deleted_at IS NULL')
+          .where('pt1.topic_id = :topicId', { topicId: topic.id })
+          .select('COUNT(DISTINCT pt1.post_id)', 'cnt')
+          .getRawOne<{ cnt: string }>();
+        const sharedPosts = sharedPostsRow
+          ? parseInt(sharedPostsRow.cnt, 10)
+          : 0;
+
+        return {
+          id: relatedTopic.id,
+          slug: relatedTopic.slug,
+          title: relatedTopic.title,
+          sharedPosts,
+        };
+      }),
+    );
+
+    return {
+      centralPosts: enrichedCentralPosts,
+      edges: edges.map((e) => ({
+        from: e.fromPostId,
+        to: e.toPostId,
+        type: e.edgeType.toLowerCase(),
+      })),
+      connectedTopics: connectedTopics.filter(
+        (item): item is NonNullable<typeof item> => item !== null,
+      ),
+    };
+  }
 }

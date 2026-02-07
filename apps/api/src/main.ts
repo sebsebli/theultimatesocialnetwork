@@ -43,7 +43,10 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
 
   // All routes under /api so nginx can forward full path without rewriting
-  app.setGlobalPrefix('api');
+  // Exclude .well-known routes (WebFinger) and ActivityPub routes which must be at root level
+  app.setGlobalPrefix('api', {
+    exclude: ['.well-known/(.*)', 'ap/(.*)'],
+  });
 
   // ── Request ID middleware (correlation ID for tracing) ──
   app.use((req: Request, _res: Response, next: NextFunction) => {

@@ -1,34 +1,94 @@
-# Citewalk System
+# Citewalk — The European Social Network
 
-Citewalk is a text-first social network built for context, citation, and verification.
-It replaces the "viral algorithm" with a "reputation graph" based on citations.
+> Citewalk is a social network where ideas connect and grow.
+> Post about what you know, follow topics you care about, and explore how ideas build on each other — transparently, without algorithms.
+> Independent, EU-hosted, and sustainably funded by its community.
 
-## Core Concepts
+## What is Citewalk?
 
-- **Inline Citations:** Users link concepts (`[[Topic]]`) or posts (`[[post:uuid]]`) directly in text.
-- **Private Metrics:** Like counts are private to the author. Public metrics are "Quotes" and "References".
-- **Chronological Feed:** No black-box sorting. You see what you follow.
-- **Sovereign Data:** Hosted in the EU. Data is exportable. No tracking.
+Citewalk is a social network where ideas connect and grow. It's a text-first platform built around topics, citations, and how ideas build on each other. Instead of optimizing for outrage and engagement, Citewalk rewards substance: your visibility grows when people reference and cite your work. Posts connect through citation chains, creating a transparent knowledge graph where you can see how ideas evolve and build on each other.
+
+## Key Differentiators
+
+- **No Algorithm**: Feeds are chronological. No black-box sorting, no engagement manipulation.
+- **Citation-Based Reputation**: Users link concepts ([[Topic]]) or posts ([[post:uuid]]) directly in text. Your credibility grows through references, not likes.
+- **Private Metrics**: Like counts are private to the author. Public metrics are "Quotes" and "References".
+- **European & Independent**: 100% EU-hosted (Hetzner, Germany). GDPR compliant. No venture capital, no ads.
+- **Data Sovereignty**: Full data export, RSS feeds for every profile. No lock-in, ever.
+- **Ad-Free & Tracking-Free**: No advertising, no user tracking, no data sales.
+- **Sustainably Funded**: Free to use, sustained by optional Citewalk Pro subscriptions and community support. No ads, no data sales — a business built on honest value exchange.
+
+## Who is it for?
+
+Citewalk is for writers, thinkers, researchers, journalists, and anyone who wants to share ideas and see them connect and grow. It is designed for people who want their ideas to be discoverable on merit — where posts build on each other through citations, creating transparent chains of thought that show how knowledge evolves.
+
+## How it Works
+
+1. **Write**: Compose long-form or short-form posts with a rich text editor. Cite sources, link topics, reference other posts. Your ideas become part of a growing knowledge network.
+2. **Connect**: Follow people and topics. Your feed shows what you follow, chronologically. See how ideas connect and build on each other.
+3. **Discover**: Browse topics, follow citation trails, explore how ideas grow through transparent citation chains.
+4. **Grow**: Your reputation is built through the quality and citability of your writing. When others cite your work, your ideas spread and connect with new audiences.
 
 ## Technical Architecture
 
-- **Web:** Next.js (React), Tailwind CSS.
-- **Mobile:** Native iOS/Android (Expo/React Native). Offline-first.
-- **Backend:** NestJS (Node.js).
-- **Database:** Postgres (Source of Truth), Neo4j (Graph), Meilisearch (Search), Redis (Queue/Cache).
-- **Hosting:** Hetzner (Germany).
+- **Web**: Next.js (React), Tailwind CSS — https://citewalk.com
+- **Mobile**: Native iOS/Android via Expo/React Native
+- **Backend**: NestJS (Node.js)
+- **Database**: PostgreSQL (source of truth), Neo4j (graph), Meilisearch (search), Redis (cache/queue)
+- **Hosting**: Hetzner Cloud, Germany (EU)
 
-## Navigation
+## Public Pages
 
-- **Home:** / (Landing Page)
-- **Sign In:** /sign-in
-- **Manifesto:** /manifesto
-- **Roadmap:** /roadmap
-- **Privacy:** /privacy
-- **Terms:** /terms
-- **Imprint:** /imprint
+| Page                    | URL                                         | Description                                  |
+|-------------------------|---------------------------------------------|----------------------------------------------|
+| Home / Landing          | https://citewalk.com                        | Main landing page                            |
+| Manifesto               | https://citewalk.com/manifesto              | Why Citewalk was built                       |
+| Roadmap                 | https://citewalk.com/roadmap                | Current and upcoming features                |
+| Sign In                 | https://citewalk.com/sign-in                | User authentication                          |
+| Waiting List            | https://citewalk.com/waiting-list           | Early access signup                          |
+| Privacy Policy          | https://citewalk.com/privacy                | GDPR-compliant privacy policy                |
+| Terms of Service        | https://citewalk.com/terms                  | Terms and conditions                         |
+| Imprint                 | https://citewalk.com/imprint                | Legal imprint (Impressum)                    |
+| Community Guidelines    | https://citewalk.com/community-guidelines   | Platform rules and standards                 |
+| AI Transparency         | https://citewalk.com/ai-transparency        | AI usage disclosure (EU AI Act)              |
 
-## Operator
+## Core Values
+
+1. **Ideas connect and grow** — Posts build on each other through citations, creating transparent chains of thought where ideas evolve.
+2. **Substance over virality** — Quality writing rises through citations, not clicks.
+3. **Transparency over opacity** — Open metrics, clear rules, no hidden algorithms. See exactly how ideas connect.
+4. **Sovereignty over dependence** — EU-hosted, data-portable, no corporate gatekeepers.
+5. **Privacy over surveillance** — No tracking, no profiling, no ads.
+
+## Frequently Asked Questions
+
+**Q: Is Citewalk free?**
+A: Citewalk is free to use — posting, reading, following topics, and exploring connections costs nothing. We offer an optional Citewalk Pro subscription for power users who want advanced citation analytics, extended formatting, and priority features. We never show ads or sell your data.
+
+**Q: How is Citewalk funded?**
+A: Citewalk is funded by optional Pro subscriptions and community support — never by advertising or data sales. We're building a sustainable company through honest value exchange.
+
+**Q: Who runs Citewalk?**
+A: Citewalk is an independent project founded by Dr. Sebastian Lindner, based in Halle, Germany.
+
+**Q: Where is user data stored?**
+A: All data is stored on Hetzner Cloud servers in Germany, fully within the EU.
+
+**Q: Does Citewalk use AI?**
+A: Yes, selectively and transparently. See https://citewalk.com/ai-transparency for full disclosure.
+
+**Q: Can I export my data?**
+A: Yes. Full data export is available. Every profile also has an RSS feed.
+
+**Q: How is Citewalk different from Mastodon/Bluesky?**
+A: Citewalk is not a microblogging platform or a federated network. It is a citation-based social network focused on long-form writing and knowledge building, with a unique reputation system based on references rather than likes or retweets.
+
+## Contact
+
+- Email: hello@citewalk.com
+- Web: https://citewalk.com
+
+## Legal
 
 Operated by Dr. Sebastian Lindner as a private initiative.
-Contact: hello@citewalk.com
+Halle, Germany.

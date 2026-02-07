@@ -72,6 +72,16 @@ const nextConfig = {
     ],
   },
 
+  // Rewrites: serve llm.txt from /.well-known/llm.txt as well
+  async rewrites() {
+    return [
+      {
+        source: '/.well-known/llm.txt',
+        destination: '/llm.txt',
+      },
+    ];
+  },
+
   // Security headers and .well-known for app deep links (Universal Links / App Links)
   async headers() {
     return [

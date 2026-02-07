@@ -2,12 +2,12 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   Pressable,
   TextInput,
   ScrollView,
 } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -19,7 +19,6 @@ import {
   SIZES,
   HEADER,
   createStyles,
-  FLATLIST_DEFAULTS,
   SEARCH_BAR,
   TABS,
   LIST_SCROLL_DEFAULTS,
@@ -75,35 +74,61 @@ export default function ConnectionsScreen() {
       const baseUrl = handle ? `/users/${handle}` : "/users/me";
 
       if (activeTab === "followers") {
-        data = await api.get<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>(`${baseUrl}/followers`);
+        data = await api.get<
+          { items?: Record<string, unknown>[] } | Record<string, unknown>[]
+        >(`${baseUrl}/followers`);
       } else if (activeTab === "following") {
-        data = await api.get<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>(`${baseUrl}/following`);
+        data = await api.get<
+          { items?: Record<string, unknown>[] } | Record<string, unknown>[]
+        >(`${baseUrl}/following`);
       } else {
         if (handle) {
           try {
-            data = await api.get<Record<string, unknown>[]>(`${baseUrl}/followed-topics`);
+            data = await api.get<Record<string, unknown>[]>(
+              `${baseUrl}/followed-topics`,
+            );
           } catch {
             data = [];
           }
         } else {
-          data = await api.get<Record<string, unknown>[]>("/topics/me/following");
+          data = await api.get<Record<string, unknown>[]>(
+            "/topics/me/following",
+          );
         }
       }
 
       // API returns { items, hasMore } for followers/following; array for topics
-      const dataTyped = data as { items?: Record<string, unknown>[] } | Record<string, unknown>[] | undefined;
-      const itemList = Array.isArray(dataTyped) ? dataTyped : dataTyped?.items || [];
+      const dataTyped = data as
+        | { items?: Record<string, unknown>[] }
+        | Record<string, unknown>[]
+        | undefined;
+      const itemList = Array.isArray(dataTyped)
+        ? dataTyped
+        : dataTyped?.items || [];
       setItems(itemList as unknown as ConnectionItem[]);
 
       // Load suggestions if empty and viewing self
       if (itemList.length === 0 && !handle) {
         if (activeTab === "topics") {
-          const res = await api.get<{ items?: Record<string, unknown>[] } | Record<string, unknown>[]>("/explore/topics?limit=4");
-          const resTyped = res as { items?: Record<string, unknown>[] } | Record<string, unknown>[] | undefined;
-          setSuggestions((Array.isArray(resTyped) ? resTyped : resTyped?.items || []) as unknown as ConnectionItem[]);
+          const res = await api.get<
+            { items?: Record<string, unknown>[] } | Record<string, unknown>[]
+          >("/explore/topics?limit=4");
+          const resTyped = res as
+            | { items?: Record<string, unknown>[] }
+            | Record<string, unknown>[]
+            | undefined;
+          setSuggestions(
+            (Array.isArray(resTyped)
+              ? resTyped
+              : resTyped?.items || []) as unknown as ConnectionItem[],
+          );
         } else {
-          const res = await api.get<Record<string, unknown>[]>("/users/suggested?limit=4");
-          setSuggestions((Array.isArray(res) ? res : []) as unknown as ConnectionItem[]);
+          const res = await api.get<Record<string, unknown>[]>(
+            "/users/suggested?limit=4",
+          );
+          setSuggestions(
+            (Array.isArray(res) ? res : []) as unknown as ConnectionItem[],
+          );
         }
       }
     } catch (e: unknown) {
@@ -131,7 +156,9 @@ export default function ConnectionsScreen() {
       } else if (activeTab === "topics") {
         // Unfollow topic
         const topicItem = item as Topic;
-        await api.delete(`/topics/${encodeURIComponent(topicItem.slug)}/follow`);
+        await api.delete(
+          `/topics/${encodeURIComponent(topicItem.slug)}/follow`,
+        );
       }
       // Remove from list
       setItems((prev) => prev.filter((i) => i.id !== item.id));
@@ -148,7 +175,11 @@ export default function ConnectionsScreen() {
       await api.post(`/topics/${encodeURIComponent(topicItem.slug)}/follow`);
       setItems((prev) => [{ ...topicItem, isFollowing: true }, ...prev]);
       setSuggestions((prev) =>
-        prev.filter((s) => ('slug' in s ? s.slug !== topicItem.slug : true) && s.id !== topicItem.id),
+        prev.filter(
+          (s) =>
+            ("slug" in s ? s.slug !== topicItem.slug : true) &&
+            s.id !== topicItem.id,
+        ),
       );
     } catch (e) {
       showError(t("common.actionFailed"));
@@ -159,7 +190,11 @@ export default function ConnectionsScreen() {
     if (!searchQuery) return items;
     const q = searchQuery.toLowerCase();
     return items.filter((item) => {
-      const title = ('displayName' in item ? item.displayName : undefined) || ('title' in item ? item.title : undefined) || ('handle' in item ? item.handle : undefined) || "";
+      const title =
+        ("displayName" in item ? item.displayName : undefined) ||
+        ("title" in item ? item.title : undefined) ||
+        ("handle" in item ? item.handle : undefined) ||
+        "";
       return title.toLowerCase().includes(q);
     });
   }, [items, searchQuery]);
@@ -184,7 +219,7 @@ export default function ConnectionsScreen() {
   };
 
   const renderItem = ({ item }: { item: ConnectionItem }) => {
-    if (activeTab === "topics" && 'slug' in item) {
+    if (activeTab === "topics" && "slug" in item) {
       const topic = item as Topic;
       return (
         <View style={styles.itemWrapper}>
@@ -266,7 +301,14 @@ export default function ConnectionsScreen() {
               const topicItem = item as Topic;
               const userItem = item as UserCardItem;
               return (
-                <View key={item.id || (topicItem as unknown as Record<string, unknown>).slug as string} style={styles.suggestionItem}>
+                <View
+                  key={
+                    item.id ||
+                    ((topicItem as unknown as Record<string, unknown>)
+                      .slug as string)
+                  }
+                  style={styles.suggestionItem}
+                >
                   <View style={styles.itemWrapper}>
                     <View style={styles.itemContent}>
                       {activeTab === "topics" ? (
@@ -282,7 +324,9 @@ export default function ConnectionsScreen() {
                       ) : (
                         <UserCard
                           item={userItem}
-                          onPress={() => router.push(`/user/${userItem.handle}`)}
+                          onPress={() =>
+                            router.push(`/user/${userItem.handle}`)
+                          }
                           onFollow={() => handleFollowUser(userItem)}
                         />
                       )}
@@ -310,9 +354,14 @@ export default function ConnectionsScreen() {
             size={HEADER.iconSize}
             color={COLORS.secondary}
           />
-          <Text style={styles.privateText}>{t("profile.privateAccount", "This account is private")}</Text>
+          <Text style={styles.privateText}>
+            {t("profile.privateAccount", "This account is private")}
+          </Text>
           <Text style={styles.privateSubText}>
-            {t("profile.privateAccountHint", "Follow this account to see their connections.")}
+            {t(
+              "profile.privateAccountHint",
+              "Follow this account to see their connections.",
+            )}
           </Text>
         </View>
       </View>
@@ -398,16 +447,12 @@ export default function ConnectionsScreen() {
         </ScrollView>
       </View>
 
-      <FlatList
+      <FlashList
         data={filteredItems}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
+        estimatedItemSize={70}
         renderItem={renderItem}
         keyExtractor={(item: { id: string }) => item.id}
-        contentContainerStyle={[
-          { paddingBottom: SPACING.l },
-          filteredItems.length === 0 && { flexGrow: 1 },
-        ]}
+        contentContainerStyle={{ paddingBottom: SPACING.l }}
         ListHeaderComponent={null}
         ListEmptyComponent={
           loading && filteredItems.length === 0 ? (
@@ -420,7 +465,7 @@ export default function ConnectionsScreen() {
             <EmptyComponent />
           )
         }
-        {...FLATLIST_DEFAULTS}
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );

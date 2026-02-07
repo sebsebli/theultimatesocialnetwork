@@ -1,5 +1,6 @@
 import React, { memo } from "react";
-import { View, Text, Pressable, Image, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   COLORS,
@@ -73,7 +74,9 @@ function TopicCollectionHeaderInner({
             <Image
               source={{ uri: headerImageUri! }}
               style={styles.heroImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={300}
             />
             <View style={styles.heroOverlay} />
             {/* Title overlay: same pattern as post reading – bar at bottom of hero */}
@@ -90,21 +93,21 @@ function TopicCollectionHeaderInner({
                       <View style={styles.metricsRow}>
                         {(metrics.postCount != null ||
                           metrics.itemCount != null) && (
-                            <Text style={styles.heroMetricText}>
-                              {(
-                                metrics.postCount ??
-                                metrics.itemCount ??
-                                0
-                              ).toLocaleString()}{" "}
-                              {type === "collection" ? "items" : "posts"}
-                            </Text>
-                          )}
+                          <Text style={styles.heroMetricText}>
+                            {(
+                              metrics.postCount ??
+                              metrics.itemCount ??
+                              0
+                            ).toLocaleString()}{" "}
+                            {type === "collection" ? "items" : "posts"}
+                          </Text>
+                        )}
                         {metrics.contributorCount != null && (
                           <>
                             {(metrics.postCount != null ||
                               metrics.itemCount != null) && (
-                                <Text style={styles.heroMetricText}> • </Text>
-                              )}
+                              <Text style={styles.heroMetricText}> • </Text>
+                            )}
                             <Text style={styles.heroMetricText}>
                               {metrics.contributorCount.toLocaleString()}{" "}
                               contributors
@@ -196,21 +199,21 @@ function TopicCollectionHeaderInner({
                   <View style={styles.metricsRow}>
                     {(metrics.postCount != null ||
                       metrics.itemCount != null) && (
-                        <Text style={styles.metricText}>
-                          {(
-                            metrics.postCount ??
-                            metrics.itemCount ??
-                            0
-                          ).toLocaleString()}{" "}
-                          {type === "collection" ? "items" : "posts"}
-                        </Text>
-                      )}
+                      <Text style={styles.metricText}>
+                        {(
+                          metrics.postCount ??
+                          metrics.itemCount ??
+                          0
+                        ).toLocaleString()}{" "}
+                        {type === "collection" ? "items" : "posts"}
+                      </Text>
+                    )}
                     {metrics.contributorCount != null && (
                       <>
                         {(metrics.postCount != null ||
                           metrics.itemCount != null) && (
-                            <Text style={styles.metricText}> • </Text>
-                          )}
+                          <Text style={styles.metricText}> • </Text>
+                        )}
                         <Text style={styles.metricText}>
                           {metrics.contributorCount.toLocaleString()}{" "}
                           contributors

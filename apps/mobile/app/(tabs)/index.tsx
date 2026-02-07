@@ -1,14 +1,12 @@
 import {
   Text,
   View,
-  FlatList,
+  ScrollView,
   Pressable,
   RefreshControl,
-  LayoutAnimation,
-  UIManager,
-  Platform,
   AppState,
 } from "react-native";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   COLORS,
@@ -19,7 +17,6 @@ import {
   LAYOUT,
   toDimension,
   createStyles,
-  FLATLIST_DEFAULTS,
   LIST_SCROLL_DEFAULTS,
   TAB_BAR_HEIGHT,
   LIST_PADDING_EXTRA,
@@ -37,27 +34,55 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ErrorState } from "../../components/ErrorState";
 import { CenteredEmptyState } from "../../components/EmptyState";
 import { Avatar } from "../../components/Avatar";
-import { useSocket } from "../../context/SocketContext";
+import { useSocketBadges } from "../../context/SocketContext";
 import { UserCard } from "../../components/UserCard";
 import { ScreenHeader } from "../../components/ScreenHeader";
 import { HeaderIconButton } from "../../components/HeaderIconButton";
 import { useTabPress } from "../../context/TabPressContext";
 import type { Post } from "../../types";
 
-// Enable LayoutAnimation for Android
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+// ── Invite nudge (defined outside component to prevent re-creation) ────
+function InviteNudge({
+  onPress,
+  title,
+  desc,
+}: {
+  onPress: () => void;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Pressable style={styles.inviteNudgeContainer} onPress={onPress}>
+      <View style={styles.inviteIconCircle}>
+        <MaterialIcons
+          name="person-add"
+          size={HEADER.iconSize}
+          color={COLORS.primary}
+        />
+      </View>
+      <View style={styles.inviteTextContainer}>
+        <Text style={styles.inviteTitle}>{title}</Text>
+        <Text style={styles.inviteDesc}>{desc}</Text>
+      </View>
+      <MaterialIcons
+        name="chevron-right"
+        size={HEADER.iconSize}
+        color={COLORS.tertiary}
+      />
+    </Pressable>
+  );
 }
+
+/** Initial page size — smaller for faster first paint; subsequent pages fetch more. */
+const INITIAL_LIMIT = 20;
+const PAGE_LIMIT = 40;
 
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isAuthenticated, resetOnboarding } = useAuth();
   const { showError } = useToast();
-  const { unreadNotifications } = useSocket();
+  const { unreadNotifications } = useSocketBadges();
   const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +94,7 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [suggestions, setSuggestions] = useState<Record<string, unknown>[]>([]);
   const appState = useRef(AppState.currentState);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlashListRef<Post>>(null);
   const tabPress = useTabPress();
 
   useEffect(() => {
@@ -111,35 +136,43 @@ export default function HomeScreen() {
           setSuggestions(
             (Array.isArray(res) ? res : []).filter(
               (u: Record<string, unknown>) =>
-                !(typeof u.handle === "string" && u.handle.startsWith("__pending_")),
+                !(
+                  typeof u.handle === "string" &&
+                  u.handle.startsWith("__pending_")
+                ),
             ),
           ),
         )
-        .catch(() => { /* suggested users fetch best-effort */ });
+        .catch(() => {
+          /* suggested users fetch best-effort */
+        });
     }
   }, [loading, posts.length]);
 
-  const handleFollowSuggestion = useCallback(async (item: Record<string, unknown>) => {
-    const prev = item.isFollowing;
-    setSuggestions((prevList) =>
-      prevList.map((u) =>
-        u.id === item.id ? { ...u, isFollowing: !prev } : u,
-      ),
-    );
-    try {
-      if (prev) {
-        await api.delete(`/users/${item.id}/follow`);
-      } else {
-        await api.post(`/users/${item.id}/follow`);
-      }
-    } catch {
+  const handleFollowSuggestion = useCallback(
+    async (item: Record<string, unknown>) => {
+      const prev = item.isFollowing;
       setSuggestions((prevList) =>
         prevList.map((u) =>
-          u.id === item.id ? { ...u, isFollowing: prev } : u,
+          u.id === item.id ? { ...u, isFollowing: !prev } : u,
         ),
       );
-    }
-  }, []);
+      try {
+        if (prev) {
+          await api.delete(`/users/${item.id}/follow`);
+        } else {
+          await api.post(`/users/${item.id}/follow`);
+        }
+      } catch {
+        setSuggestions((prevList) =>
+          prevList.map((u) =>
+            u.id === item.id ? { ...u, isFollowing: prev } : u,
+          ),
+        );
+      }
+    },
+    [],
+  );
 
   const loadFeed = async (pageNum: number, reset = false) => {
     if (reset) {
@@ -152,18 +185,26 @@ export default function HomeScreen() {
 
     const startTime = Date.now();
     try {
-      const limit = 40;
-      const offset = reset ? 0 : (pageNum - 1) * limit;
+      // Use smaller page for initial load, larger for subsequent pages
+      const limit = reset ? INITIAL_LIMIT : PAGE_LIMIT;
+      const offset = reset ? 0 : (pageNum - 1) * PAGE_LIMIT;
       const useCursor = !reset && cursor;
       const q = `limit=${limit}&offset=${offset}${useCursor ? `&cursor=${encodeURIComponent(cursor!)}` : ""}`;
-      const data = await api.get<{
-        items?: Array<Record<string, unknown>>;
-        nextCursor?: string;
-        hasMore?: boolean;
-      } | Array<Record<string, unknown>>>(`/feed?${q}`);
+      const data = await api.get<
+        | {
+            items?: Array<Record<string, unknown>>;
+            nextCursor?: string;
+            hasMore?: boolean;
+          }
+        | Array<Record<string, unknown>>
+      >(`/feed?${q}`);
 
       // Validate payload shape
-      if (!data || (!Array.isArray(data) && !Array.isArray((data as { items?: unknown[] }).items))) {
+      if (
+        !data ||
+        (!Array.isArray(data) &&
+          !Array.isArray((data as { items?: unknown[] }).items))
+      ) {
         throw new Error("Invalid feed payload");
       }
 
@@ -204,9 +245,14 @@ export default function HomeScreen() {
         };
       });
 
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      // Removed LayoutAnimation.configureNext — causes noticeable jank on
+      // large lists (40+ items) because it triggers a full layout
+      // recalculation with animation.  The FlatList diff already handles
+      // smooth item insertion via its own reconciliation.
 
-      const paginatedData = Array.isArray(data) ? null : (data as { nextCursor?: string; hasMore?: boolean });
+      const paginatedData = Array.isArray(data)
+        ? null
+        : (data as { nextCursor?: string; hasMore?: boolean });
       if (reset) {
         setPosts(processedPosts as unknown as Post[]);
         setCursor(paginatedData?.nextCursor ?? undefined);
@@ -344,38 +390,6 @@ export default function HomeScreen() {
     [posts],
   );
 
-  // Updated Empty State Components
-  const InviteNudge = () => (
-    <Pressable
-      style={styles.inviteNudgeContainer}
-      onPress={() => router.push("/invites")}
-    >
-      <View style={styles.inviteIconCircle}>
-        <MaterialIcons
-          name="person-add"
-          size={HEADER.iconSize}
-          color={COLORS.primary}
-        />
-      </View>
-      <View style={styles.inviteTextContainer}>
-        <Text style={styles.inviteTitle}>
-          {t("home.inviteFriends", "Invite Friends")}
-        </Text>
-        <Text style={styles.inviteDesc}>
-          {t(
-            "home.inviteDesc",
-            "Build your network. Citewalk is better with friends.",
-          )}
-        </Text>
-      </View>
-      <MaterialIcons
-        name="chevron-right"
-        size={HEADER.iconSize}
-        color={COLORS.tertiary}
-      />
-    </Pressable>
-  );
-
   return (
     <View style={[styles.container, { paddingBottom: 56 + insets.bottom }]}>
       <ScreenHeader
@@ -396,62 +410,16 @@ export default function HomeScreen() {
 
       {error && posts.length === 0 ? (
         <ErrorState onRetry={handleRefresh} onDismiss={() => setError(false)} />
-      ) : (
-        <FlatList
+      ) : filteredPosts.length > 0 ? (
+        <FlashList
           ref={flatListRef}
           data={filteredPosts}
           keyExtractor={keyExtractor}
-          contentContainerStyle={[
-            {
-              paddingBottom:
-                TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA,
-            },
-            filteredPosts.length === 0 && {
-              flexGrow: 1,
-            },
-          ]}
-          renderItem={({ item }: { item: Post }) => renderItem({ item })}
-          ListEmptyComponent={
-            loading && posts.length === 0 ? (
-              <FeedSkeleton count={4} />
-            ) : (
-              <CenteredEmptyState
-                icon="home"
-                headline={t("home.emptyHeadline", "Your timeline is quiet.")}
-                subtext={t(
-                  "home.emptySubtext",
-                  "Follow people and topics to see posts here.",
-                )}
-                secondaryLabel={t("home.exploreTopics", "Explore Topics")}
-                onSecondary={() => router.push("/(tabs)/explore?tab=topics")}
-                compact
-              >
-                {!loading && (
-                  <View style={styles.emptyActions}>
-                    <InviteNudge />
-                    {suggestions.length > 0 && (
-                      <View style={styles.suggestionsBlock}>
-                        <Text style={styles.suggestionsHeader}>
-                          {t("home.suggestedPeople", "People to follow")}
-                        </Text>
-                        {suggestions.map((item) => (
-                          <View key={item.id} style={styles.suggestionRow}>
-                            <UserCard
-                              item={item}
-                              onPress={() =>
-                                router.push(`/user/${item.handle}`)
-                              }
-                              onFollow={() => handleFollowSuggestion(item)}
-                            />
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                )}
-              </CenteredEmptyState>
-            )
-          }
+          estimatedItemSize={250}
+          renderItem={renderItem}
+          contentContainerStyle={{
+            paddingBottom: TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA,
+          }}
           ListFooterComponent={
             <ListFooterLoader visible={!!(hasMore && loadingMore)} />
           }
@@ -463,9 +431,66 @@ export default function HomeScreen() {
             />
           }
           onEndReached={handleLoadMore}
-          {...LIST_SCROLL_DEFAULTS}
-          {...FLATLIST_DEFAULTS}
+          onEndReachedThreshold={0.5}
+          showsVerticalScrollIndicator={false}
         />
+      ) : (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingBottom: TAB_BAR_HEIGHT + insets.bottom + LIST_PADDING_EXTRA,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {loading && posts.length === 0 ? (
+            <FeedSkeleton count={4} />
+          ) : (
+            <CenteredEmptyState
+              icon="home"
+              headline={t("home.emptyHeadline", "Your timeline is quiet.")}
+              subtext={t(
+                "home.emptySubtext",
+                "Follow people and topics to see posts here.",
+              )}
+              secondaryLabel={t("home.exploreTopics", "Explore Topics")}
+              onSecondary={() => router.push("/(tabs)/explore?tab=topics")}
+              compact
+            >
+              {!loading && (
+                <View style={styles.emptyActions}>
+                  <InviteNudge
+                    onPress={() => router.push("/invites")}
+                    title={t("home.inviteFriends", "Invite Friends")}
+                    desc={t(
+                      "home.inviteDesc",
+                      "Build your network. Citewalk is better with friends.",
+                    )}
+                  />
+                  {suggestions.length > 0 && (
+                    <View style={styles.suggestionsBlock}>
+                      <Text style={styles.suggestionsHeader}>
+                        {t("home.suggestedPeople", "People to follow")}
+                      </Text>
+                      {suggestions.map((item) => (
+                        <View
+                          key={item.id as string}
+                          style={styles.suggestionRow}
+                        >
+                          <UserCard
+                            item={item}
+                            onPress={() => router.push(`/user/${item.handle}`)}
+                            onFollow={() => handleFollowSuggestion(item)}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+            </CenteredEmptyState>
+          )}
+        </ScrollView>
       )}
     </View>
   );

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/auth";
 import { useSocket } from "../../context/SocketContext";
 import { TabPressProvider, useTabPress } from "../../context/TabPressContext";
+import { useExplorationTrail } from "../../context/ExplorationTrailContext";
 
 type TabKey = "index" | "explore" | "messages" | "profile";
 
@@ -26,6 +27,7 @@ function TabLayoutInner() {
   const { unreadMessages } = useSocket();
   const router = useRouter();
   const tabPress = useTabPress();
+  const { clearTrail } = useExplorationTrail();
   const currentTab = useMemo(() => getCurrentTab(pathname ?? ""), [pathname]);
 
   if (isLoading) {
@@ -43,9 +45,11 @@ function TabLayoutInner() {
   const emitTabPress = tabPress?.emitTabPress ?? (() => {});
   const onTabPress = useCallback(
     (tab: TabKey) => {
+      // Clear exploration trail when any tab is pressed
+      clearTrail();
       if (currentTab === tab) emitTabPress(tab);
     },
-    [currentTab, emitTabPress],
+    [currentTab, emitTabPress, clearTrail],
   );
 
   const tabBarStyle = useMemo(
